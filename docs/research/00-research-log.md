@@ -133,11 +133,80 @@ an alternative to the HTTP API our SDK targets.
 
 ---
 
+# Session 2 — 2026-08-08 (evening): .NET skeleton and SDK design
+
+A .NET skeleton (editorconfig, Directory.Build/Packages.props, global.json, etc.) was
+imported from the owner's LocalStack Aspire repo. This session reviewed it and settled
+the SDK's construction strategy, packaging, TFMs, and process management.
+→ Details: [06-dotnet-sdk-design.md](06-dotnet-sdk-design.md)
+
+## Q9: Is the imported skeleton sound? Anything outdated or inconsistent?
+
+**How researched:** read all 8 files; verified package currency against nuget.org;
+checked the installed SDK against `global.json`.
+
+**Found:** high-quality, coherent base (editorconfig ↔ analyzer set ↔ CPM aligned) with
+LocalStack identity leftovers, pack references to nonexistent files, a few
+major-version-behind packages, and no-op property lines. One assistant error corrected
+by Deniz: **.NET STS support was extended to 24 months — .NET 9 is supported to
+2026-11-10**, so the "net9 already EOL" claim was wrong.
+
+**Decisions:** TFM matrix `net472;net8.0;net9.0;net10.0`. Keep Aspire + core OTel
+(planned local dev/test AppHost + mini UI). Keep `BuildOs`/`BuildArch` (future opencode
+binary downloads for integration tests). Remove AWS OTel instrumentation. Cleanup list
+→ GOAL.md TODO. Parked: full editorconfig/analyzer contradiction review.
+
+## Q10: Fully generated client, or hand-crafted?
+
+**Found/decided:** neither — **hybrid**. Hand-written core (transport, SSE engine,
+process lifecycle, DI, error model, public API) + mechanically derived model layer
+(472 schemas can't be hand-maintained against a spec regenerated on every upstream
+push). Preferred mechanism: our own generator (upstream's own `httpapi-codegen` is the
+precedent); Kiota/NSwag as spike benchmarks. Also decided: **v2-only surface**, Native
+AOT via source-gen STJ, `ConfigureAwait(false)` mandatory (net472 in matrix — and the
+skeleton currently disables both enforcing analyzer rules; parked item #1).
+
+## Q11: DI integration — core package or companion? What do precedent SDKs do?
+
+**How researched:** nuspec dependency graphs of 13 comparable SDKs (OpenAI, AWS,
+Azure, Npgsql, Polly, Grpc, Refit, Redis, Octokit, Elastic, MCP) via nuget.org API.
+
+**Found:** unambiguous industry consensus — no DI deps in core (at most
+`ME.Logging.Abstractions`); DI/IHttpClientFactory wiring in a companion package.
+Bonus: OpenAI, Refit, and MCP.Core all ship `System.Net.ServerSentEvents` — validates
+our SSE approach.
+
+**Decision:** `OpenCode.Sdk` (core) + `OpenCode.Sdk.Extensions` (name per owner
+preference, Polly style). NuGet ID availability verified. Solution: `OpenCode.slnx`.
+
+## Q12: Process management — CliWrap, raw Process, or the new .NET APIs?
+
+**How researched:** web-verified the .NET 11 Process API overhaul (post-cutoff) and
+CliWrap's maintenance state; read the JS SDK's `process.ts` for the parity bar.
+
+**Found:** .NET 11 (GA 2026-11-10) ships exactly what we need (`ReadAllLinesAsync`,
+`KillOnParentExit`, `SafeHandle.Signal`) but **net11-only**. CliWrap is alive (3.10.4)
+but our lifecycle is one known binary with known args. Upstream's own `stop()` is
+crude (`taskkill /T /F`, no grace).
+
+**Decision (owner overruled the separate-package proposal, and was right):** launcher
+lives **in core**, hand-rolled on `System.Diagnostics.Process`, zero extra deps —
+upstream parity (`createOpencodeServer()` is inside `@opencode-ai/sdk`) + MCP C# SDK
+precedent (`StdioClientTransport` spawns inside `ModelContextProtocol.Core`; use as
+reference implementation). Six-point anatomy + net11 light-up plan in doc 06.
+Acceptance criterion: three-OS CI matrix with real `opencode serve` start/stop tests.
+
+---
+
 ## Standing conclusions
 
-1. Target `packages/sdk/openapi.json`; the v2 surface carries upstream's stability
-   guarantees.
+1. Target `packages/sdk/openapi.json`; **v2 surface only** — it carries upstream's
+   stability guarantees.
 2. SDK first, MCP server second. The MCP server must be a thin consumer of our SDK.
 3. SSE → `IAsyncEnumerable<T>`, no auto-reconnect, cancellation via token.
 4. Treat `opencode-mcp` as a cautionary reference implementation, not a foundation.
 5. Embedded/sdk-next does not threaten this project; it strengthens the HTTP contract.
+6. Hybrid construction: hand-written core, mechanically derived models — models are
+   never hand-maintained.
+7. Two packages: `OpenCode.Sdk` (core, launcher included) + `OpenCode.Sdk.Extensions`
+   (DI). TFMs: net472 + net8/9/10, net11 light-up later.

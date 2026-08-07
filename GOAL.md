@@ -21,66 +21,110 @@ Why this is worth doing (see `docs/research/04-ecosystem.md` for evidence):
 - Upstream has explicitly committed to keeping the HTTP surface stable through the
   v2 / sdk-next transition (see `docs/research/02-sdk-next-and-http-stability.md`).
 
-## Decisions (so far)
+## Decisions
 
 - **Target artifact:** `external/opencode/packages/sdk/openapi.json` — the committed,
-  CI-regenerated OpenAPI 3.1 spec (162 paths, 472 schemas at opencode 1.18.15). This is
-  the same spec the official JS SDK is generated from.
+  CI-regenerated OpenAPI 3.1 spec (162 paths, 472 schemas at opencode 1.18.15). Same
+  spec the official JS SDK is generated from.
+- **v2 surface only** (`/api/*` routes, `v2.` operation IDs) — upstream's stability
+  commitments are phrased about v2, and the v2 release is imminent.
 - **Roadmap order: SDK first, MCP server second.** The MCP server becomes a thin
-  adapter over our own SDK (each tool ≈ one SDK call + formatting). This avoids the
-  trap the unofficial `opencode-mcp` fell into: no HTTP layer of its own, so it reaches
-  into the JS SDK's private `_client` field.
-- **SSE is exposed as `IAsyncEnumerable<T>`** with `CancellationToken`, **no automatic
-  reconnect** — matching upstream's own design decision (streams fail explicitly;
-  consumers refresh state and resubscribe).
-- **MCP server targets the 2026-07-28 spec** via the official MCP C# SDK v2.0
-  (stateless HTTP + stdio). Do not invest in features deprecated by that revision
-  (Sampling, Roots, Logging, HTTP+SSE transport).
-- Docs are in English; `docs/research/` holds research snapshots as of 2026-08-08.
+  adapter over our own SDK. (Avoids the unofficial `opencode-mcp`'s private-internals
+  trap.)
+- **Hybrid construction** (`docs/research/06-dotnet-sdk-design.md` §1): hand-written
+  core — transport pipeline, SSE engine, process lifecycle, DI, error model, public
+  API — plus a **mechanically derived model layer** (472 schemas are never
+  hand-maintained; preferred mechanism is our own generator, Kiota/NSwag serve as
+  spike benchmarks).
+- **TFM matrix (initial): `net472; net8.0; net9.0; net10.0`.** net8/net9 both
+  supported through 2026-11-10 (STS extended to 24 months); net472 gives .NET
+  Framework reach (supersedes the earlier netstandard2.0 question). `net11.0` light-up
+  planned post-GA (2026-11-10) — mainly for the new Process APIs.
+- **Packages:**
+  - `OpenCode.Sdk` — core. Deps: System.Text.Json, System.Net.ServerSentEvents,
+    ME.Logging.Abstractions + downlevel polyfills. **Includes the server launcher**,
+    hand-rolled on `System.Diagnostics.Process`, no CliWrap (upstream parity: JS SDK
+    ships `createOpencodeServer()` in-package; MCP C# SDK spawns in Core —
+    `StdioClientTransport` is the reference implementation). HttpClient injectable via
+    constructor.
+  - `OpenCode.Sdk.Extensions` — ME.Http + DI.Abstractions + Options;
+    `AddOpenCodeClient()`, IHttpClientFactory wiring, options binding.
+  - Future candidates: `OpenCode.Aspire.Hosting`.
+  - NuGet ID `OpenCode.Sdk` verified available (2026-08-08). Solution: `OpenCode.slnx`.
+    README carries an explicit "unofficial" note.
+- **SSE as `IAsyncEnumerable<T>`**, no automatic reconnect (matches upstream design;
+  durable per-session stream resumes via `after` cursor).
+- **`ConfigureAwait(false)` mandatory** everywhere (net472 in matrix ⇒
+  SynchronizationContext deadlocks are real). Analyzer enforcement currently off in
+  the skeleton — see Parked.
+- **Native AOT friendly:** source-gen STJ (`JsonSerializerContext`; the
+  `[JsonSerializable]` list is generator-emitted), `IsAotCompatible=true` on net10+.
+- **Aspire stays** — planned local dev/test AppHost (mini UI, `opencode serve` as a
+  resource); core OTel packages support that host. AWS instrumentation packages go.
+- **Testing:** TUnit; unit + integration/functional tests against a real opencode
+  process (details later). Launcher acceptance criterion: three-OS CI matrix
+  (Windows/Linux/macOS) with real `opencode serve` start/stop tests.
+- **MCP server targets the 2026-07-28 spec** via MCP C# SDK v2.0 (stdio + streamable
+  HTTP). No investment in deprecated features (Sampling/Roots/Logging, HTTP+SSE).
+- Docs in English; `docs/research/` holds dated research snapshots.
 
 ## Needs deep dive
 
-- **Codegen strategy.** Kiota vs NSwag vs OpenAPI Generator vs hand-written client.
-  The spec is OpenAPI **3.1** — several .NET generators still handle 3.1 poorly.
-  Also: 472 schemas with discriminated unions (event types, message parts) — how well
-  does each tool map those to C#? System.Text.Json polymorphism vs generated wrappers.
-  A spike comparing generators against the real spec is probably the first real task.
-- **v1 vs v2 surface.** Both live in one spec (`/session/...` vs `/api/...`, v2
-  operation IDs prefixed `v2.`). Upstream's stability commitments are about **v2**.
-  Do we ship v2-only, or both? Leaning v2-only unless something essential is missing.
-- **Typed event model.** The SSE streams carry a large union of event types. Design the
-  .NET representation (polymorphic deserialization, unknown-event forward compat).
-- **Server lifecycle helper.** Parity with `createOpencodeServer()`: spawn
-  `opencode serve --hostname --port`, scrape stdout for the listening URL, kill on
-  dispose. Windows process-tree kill semantics need care.
-- **`x-opencode-directory` header** — per-request project targeting. First-class
-  option on every call, or client-level default + override?
-- **Spec tracking.** `openapi.json` changes on every upstream push to `dev` (CI
-  auto-commits). Strategy: pin a snapshot per SDK release + a diff/regen workflow.
-  The `external/opencode` submodule is our pinning mechanism today.
-- **TFM matrix.** net8.0+ only, or also netstandard2.0? `System.Net.ServerSentEvents`
-  has a downlevel package, so netstandard2.0 is feasible — but is it worth it?
-- **`pty.connect` WebSocket endpoints** — upstream's own codegen excludes them from
-  the generic HTTP pipeline. In scope or explicitly out (like upstream)?
-- **Auth** — HTTP basic via `OPENCODE_SERVER_PASSWORD`. Trivial, but decide the API
-  shape (client options vs per-request).
-- **Testing strategy.** Contract tests against a live `opencode serve` (upstream has
-  `test:httpapi` exercising every endpoint — steal the idea); snapshot tests for
-  deserialization against captured payloads.
-- **Package identity.** Package ID / root namespace (e.g. `OpenCode.Sdk`?), versioning
-  relationship to upstream versions.
+- **Codegen spike (reframed).** Own generator vs Kiota/NSwag/OpenAPI Generator as the
+  model-layer mechanism. Evaluate on: OpenAPI 3.1 support, discriminated-union → C#
+  mapping, `JsonSerializerContext` emission, analyzer-compliance / auto-generated
+  marking, v2-only filtering.
+- **net472 spike items:** SSE behavior on long-lived responses
+  (`ServicePointManager.DefaultConnectionLimit = 2` gotcha), async stdout reading,
+  `taskkill /T /F` tree-kill fallback, polyfill set validation
+  (`Microsoft.Bcl.AsyncInterfaces`, `PolySharp`, latest STJ package downlevel).
+- **Typed event model.** SSE payloads are a large discriminated union — design the
+  .NET representation (`[JsonPolymorphic]`, `AllowOutOfOrderMetadataProperties`,
+  unknown-event forward compat).
+- **`x-opencode-directory` header** — per-request project targeting: first-class
+  option on every call vs client-level default + override.
+- **Spec tracking.** `openapi.json` changes on every upstream push; pin a snapshot per
+  SDK release + diff/regen workflow (submodule is today's pinning mechanism).
+- **`pty.connect` WebSocket endpoints** — upstream's own codegen excludes them;
+  probably out of scope for us too.
+- **Auth shape** — HTTP basic (`OPENCODE_SERVER_PASSWORD`): client options vs
+  per-request.
+- **Versioning/release strategy** — `VersionPrefix`, RELEASE_NOTES flow, relationship
+  to upstream versions.
+- **Testing strategy details** — integration/functional test design against real
+  opencode; steal upstream's "every endpoint must be exercised" idea (`test:httpapi`).
+
+## Parked: .editorconfig / analyzer review
+
+- `VSTHRD111` and `MA0004` (ConfigureAwait enforcement) are both `none` — flip one to
+  `error` for `src` (tests exempt). Top priority given net472.
+- `CA1801` set to `error` under a "Deprecated Rules" heading — rule itself is
+  deprecated (superseded by IDE0060); tidy up.
+- Generated-code handling: generator output must carry auto-generated headers; add a
+  `generated_code = true` editorconfig section for gen folders — otherwise
+  `AnalysisMode=All` + `TreatWarningsAsErrors` rejects the model layer.
+- Full overlap audit later (CA vs MA vs Sonar duplicate rules; the file already
+  documents known overlap groups).
 
 ## TODO / parking lot
 
-- [ ] Repo skeleton: solution, `Directory.Build.props`, central package management,
-      `global.json`, CI workflow (build + test on push).
-- [ ] Copy/pin the current `openapi.json` snapshot into the repo (traceable to the
-      submodule commit) so builds don't depend on the submodule checkout.
-- [ ] Codegen spike: run Kiota / NSwag / OpenAPI Generator against the spec, compare
-      output quality on unions, SSE endpoints, and the v1/v2 split. Write up results
-      in `docs/research/`.
-- [ ] Decide package naming + license (upstream opencode is MIT).
-- [ ] Later: MCP server project skeleton on ModelContextProtocol.AspNetCore
-      (streamable HTTP) + stdio.
-- [ ] Later: figure out what an "opencode HQ" / dashboard consumer would need from the
-      SDK (multi-instance aggregation lives above the SDK, not in it).
+- [ ] **Skeleton cleanup (single pass):** fix `.editorconfig` header
+      (LocalStack.Aspire.Hosting → this repo); replace LocalStack identity in
+      `Directory.Build.props` (Authors/Company/Owners/URLs); align `Copyright` with
+      LICENSE (Deniz İrgin); drop `AspireAppHostSdkVersion`; drop no-op
+      `NoWarn`/`NoError` lines; remove `OpenTelemetry.Instrumentation.AWS` +
+      `AWSLambda`; keep `BuildOs`/`BuildArch` (adapt values to opencode release-asset
+      naming when the binary-download need lands); consider
+      `PackageLicenseExpression=MIT`; add README.md + icon asset before first pack
+      (icon name TBD).
+- [ ] **Package bumps** (as of 2026-08-08): Meziantou 3.0.108→3.0.140,
+      BannedApiAnalyzers 4.14→5.6, VSTHRD 17.14→18.7, NSubstitute 5.3→6.0,
+      TUnit 1.56→1.63, Sonar 10.27→10.31, NetAnalyzers/SourceLink patch bumps.
+- [ ] Repo skeleton: `OpenCode.slnx`, `src/`+`tests/` layout, CI workflow (build+test;
+      three-OS matrix when the launcher lands).
+- [ ] Pin the current `openapi.json` snapshot into the repo (traceable to the
+      submodule commit).
+- [ ] Codegen spike (scope above) — write results into `docs/research/`.
+- [ ] Later: MCP server project on ModelContextProtocol.AspNetCore + stdio.
+- [ ] Later: "opencode HQ" consumer needs — multi-instance aggregation lives above
+      the SDK, not in it.
