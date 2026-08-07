@@ -1,0 +1,7 @@
+[submodule "external/opencode-mcp"]
+	path = external/opencode-mcp
+	url = https://github.com/AlaeddineMessadi/opencode-mcp
+[submodule "external/opencode"]
+	path = external/opencode
+	url = https://github.com/anomalyco/opencode
+	shallow = true
