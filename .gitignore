@@ -422,6 +422,10 @@ tmp/
 
 .fake
 
+# Scratch space: everything under .scratchpad/ is throwaway (prototypes, scratch scripts,
+# working notes); nothing in it is ever tracked.
+.scratchpad/
+
 # Local AI harness configuration and generated tooling.
 # Everything under .agents/ is ignored EXCEPT the tracked repo skill aspire-source-navigation.
 .agents/*

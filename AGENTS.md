@@ -22,11 +22,25 @@ the grill session on. Do not reopen these without new evidence.
 
 - **Target artifact:** `external/opencode/packages/sdk/openapi.json` (OpenAPI 3.1) — the same
   spec the official JS SDK is generated from. Pinned copy: `spec/`.
-- **v2 surface only** (`/api/*` routes, `v2.` operation IDs) — upstream's stability commitments
-  are phrased about v2 (research doc 02).
+- **API surface: both generations of the pinned 1.x spec** — the transitional modern block
+  (`v2.*` operationIds; 61 ops today, 3 outside `/api/*`) and the legacy block (127 ops). The
+  modern block does not yet cover the product's full capability and the MCP-server goal needs
+  it all. Deep integration testing targets the modern surface; legacy is best-effort. Public
+  naming strips the `v2.` prefix and never bakes "V2" into type or client names. At opencode
+  2.0 (legacy dropped, operations renamed) we evolve/deprecate at a major release (research
+  docs 08, 09).
 - **Hybrid construction:** hand-written core (transport, SSE engine, process lifecycle, DI,
-  error model, public API), mechanically derived model layer — own generator preferred,
-  Kiota/NSwag as spike benchmarks (research doc 06 §1).
+  error model, public API), mechanically derived model layer from **our own generator** —
+  Roslyn syntax-tree emission over a parsed spec IR; scope-agnostic (surface selection is a
+  filter parameter) (research docs 06 §1, 08).
+- **Generator packaging:** repo tooling under `tools/` — csproj bound to the repo build
+  rules, thin file-based `.cs` entry committed with the executable bit. Generated output is
+  committed into the SDK project (`.g.cs`, per-file `#nullable enable`); the tool runs
+  `dotnet format` on its output as a post-step; CI regen-verifies. The same tool owns spec
+  refresh: submodule pin bump, `spec/` copy, `SNAPSHOT.md` stamp (research doc 08).
+- **Model-layer generation principles:** immutable by default (records, `init`-only,
+  read-only collections); `required` where the spec requires; nullable is a last resort —
+  absent collections emit empty, nullable only where absence carries meaning.
 - **TFM matrix:** `netstandard2.0;net472;net8.0;net9.0;net10.0`; `net11.0` light-up post-GA
   (2026-11-10). net472 = Framework-exact compile paths; ns2.0 = extra reach on the same polyfill
   tax, tested by proxy via the net472 leg (research log Q16).
@@ -69,6 +83,12 @@ the grill session on. Do not reopen these without new evidence.
 ## Working Agreements
 
 - All repo artifacts are written in English.
+- Everything temporary — prototypes, scratch scripts, working notes — lives under the root
+  `.scratchpad/` directory, which is fully gitignored. Nothing permanent lives there and no
+  permanent artifact references it; validated results are canonicalized into `docs/` or code
+  once settled. Keep a minimal `Directory.Build.props` stub (empty `<Project>` that also turns
+  central package management off) at the `.scratchpad/` root so scratch projects do not inherit
+  the repo's strict build infrastructure.
 - Be direct, practical, and clear. Challenge decisions when needed — argue from mechanisms and
   sources, not convention; do not yes-person your way into bad architecture. A well-grounded
   "no" will be accepted.
