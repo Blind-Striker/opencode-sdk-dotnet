@@ -108,18 +108,21 @@ Why this is worth doing (see `docs/research/04-ecosystem.md` for evidence):
 
 ## TODO / parking lot
 
-- [ ] **Skeleton cleanup (single pass):** fix `.editorconfig` header
-      (LocalStack.Aspire.Hosting → this repo); replace LocalStack identity in
-      `Directory.Build.props` (Authors/Company/Owners/URLs); align `Copyright` with
-      LICENSE (Deniz İrgin); drop `AspireAppHostSdkVersion`; drop no-op
-      `NoWarn`/`NoError` lines; remove `OpenTelemetry.Instrumentation.AWS` +
-      `AWSLambda`; keep `BuildOs`/`BuildArch` (adapt values to opencode release-asset
-      naming when the binary-download need lands); consider
-      `PackageLicenseExpression=MIT`; add README.md + icon asset before first pack
-      (icon name TBD).
-- [ ] **Package bumps** (as of 2026-08-08): Meziantou 3.0.108→3.0.140,
-      BannedApiAnalyzers 4.14→5.6, VSTHRD 17.14→18.7, NSubstitute 5.3→6.0,
-      TUnit 1.56→1.63, Sonar 10.27→10.31, NetAnalyzers/SourceLink patch bumps.
+- [x] **Skeleton cleanup (single pass)** — done 2026-08-08: `.editorconfig` header,
+      LocalStack identity in `Directory.Build.props` (Authors/Company/Owners/URLs),
+      `Copyright` aligned with LICENSE (Deniz İrgin), `AspireAppHostSdkVersion` and
+      no-op `NoWarn`/`NoError` dropped, AWS OTel instrumentation removed,
+      `BuildOs`/`BuildArch` kept (adapt values to opencode release-asset naming when
+      the binary-download need lands), minimal README.md added.
+      `PackageLicenseExpression=MIT` rejected — keeping the `PackageLicenseFile`
+      (packed LICENSE copy) approach. Icon: pack reference renamed to
+      `assets/icon.png`; the file itself doesn't exist yet (opencode logo TBD) —
+      **`dotnet pack` stays blocked on the icon asset.**
+- [x] **Package bumps** — done 2026-08-08: Meziantou 3.0.140, BannedApiAnalyzers
+      5.6.0, NetAnalyzers 10.0.302, VSTHRD 18.7.23, Sonar 10.31.0, SourceLink
+      10.0.301, all OpenTelemetry 1.17.0, NSubstitute 6.0.0, TUnit 1.63.25;
+      `global.json` SDK 10.0.301→10.0.302. Already current: Roslynator 4.15.0,
+      NSubstitute.Analyzers 1.0.17, Aspire 13.4.6.
 - [ ] Repo skeleton: `OpenCode.slnx`, `src/`+`tests/` layout, CI workflow (build+test;
       three-OS matrix when the launcher lands).
 - [ ] Pin the current `openapi.json` snapshot into the repo (traceable to the
