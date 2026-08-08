@@ -1,0 +1,10 @@
+<Project>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)..'))"/>
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <!-- The repo-wide Polyfill reference (root props) already covers downlevel TFMs; TUnit's
+         own injection duplicates it under CPM during restore (NU1504), so switch it off. -->
+    <EnableTUnitPolyfills>false</EnableTUnitPolyfills>
+  </PropertyGroup>
+</Project>

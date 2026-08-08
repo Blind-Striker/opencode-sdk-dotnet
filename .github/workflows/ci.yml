@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - "**.md"
+      - LICENSE
+  pull_request:
+    branches:
+      - master
+      - "feature/*"
+    paths-ignore:
+      - "**.md"
+      - LICENSE
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_NOLOGO: true
+
+jobs:
+  build-and-test:
+    name: "Build & Test (${{ matrix.name }})"
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      checks: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2025
+            name: Windows
+
+          - os: ubuntu-24.04
+            name: Linux
+
+          - os: macos-15
+            name: macOS
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          # SDK version comes from the repo pin; 8.x/9.x are additionally installed so their
+          # runtimes are present for the net8.0/net9.0 test legs.
+          global-json-file: global.json
+          dotnet-version: |
+            8.0.x
+            9.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Build
+        run: dotnet build --configuration Release
+
+      # Format/lint gate (one leg is enough — results are OS-independent). Layered on top of
+      # the in-build enforcement (EnforceCodeStyleInBuild + IDE0055=error).
+      - name: Verify formatting
+        if: runner.os == 'Linux'
+        run: dotnet format --verify-no-changes --no-restore
+
+      # TUnit's always-on HTML report self-uploads as a workflow artifact, but only if these
+      # runtime vars (normally JS/Docker-action-only) are re-exported to run steps.
+      - name: Enable TUnit report artifact upload
+        uses: actions/github-script@v9
+        with:
+          script: |
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env['ACTIONS_RUNTIME_TOKEN']);
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env['ACTIONS_RESULTS_URL']);
+
+      - name: Test
+        run: dotnet test --configuration Release --no-build -- --report-trx --results-directory "${{ github.workspace }}/test-results"
+        env:
+          TUNIT_ARTIFACT_RETENTION_DAYS: 7
+
+      - name: Publish test results
+        uses: dorny/test-reporter@v3
+        if: success() || failure()
+        # Allow fork PRs to fail gracefully (permission error) without breaking the workflow.
+        continue-on-error: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+        with:
+          name: "Test Results (${{ matrix.name }})"
+          path: "test-results/**/*.trx"
+          reporter: dotnet-trx
+          path-replace-backslashes: true
+          fail-on-error: true
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v7
+        if: always()
+        continue-on-error: true
+        with:
+          name: test-results-${{ matrix.name }}-${{ github.event.pull_request.number || github.run_number }}
+          path: test-results/**
+          retention-days: 7

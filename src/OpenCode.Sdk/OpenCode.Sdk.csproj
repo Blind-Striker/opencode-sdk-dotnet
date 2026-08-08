@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>$(AllTargetFrameworks)</TargetFrameworks>
+    <Description>Unofficial .NET SDK for opencode: a typed client for the opencode HTTP API.</Description>
+    <PackageTags>opencode;sdk;client;ai;agent</PackageTags>
+    <IsAotCompatible Condition="'$(TargetFramework)' == 'net10.0'">true</IsAotCompatible>
+  </PropertyGroup>
+
+</Project>

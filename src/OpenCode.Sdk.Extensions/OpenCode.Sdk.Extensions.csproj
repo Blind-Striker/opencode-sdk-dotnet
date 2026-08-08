@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>$(AllTargetFrameworks)</TargetFrameworks>
+    <Description>Dependency injection and IHttpClientFactory integration for the unofficial opencode .NET SDK.</Description>
+    <PackageTags>opencode;sdk;dependency-injection;httpclientfactory;options</PackageTags>
+    <IsAotCompatible Condition="'$(TargetFramework)' == 'net10.0'">true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../OpenCode.Sdk/OpenCode.Sdk.csproj"/>
+  </ItemGroup>
+
+</Project>

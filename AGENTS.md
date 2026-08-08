@@ -29,9 +29,12 @@ linked research docs. Do not reopen these without new evidence.
   (transport pipeline, SSE engine, process lifecycle, DI, error model, public API) plus a
   mechanically derived model layer — 472 schemas are never hand-maintained. Preferred mechanism
   is our own generator; Kiota/NSwag serve as spike benchmarks.
-- **TFM matrix:** `net472;net8.0;net9.0;net10.0`; `net11.0` light-up planned post-GA
-  (2026-11-10), mainly for the new Process APIs. net472 gives .NET Framework reach and superseded
-  the original netstandard2.0 idea (that question is reopened — see `docs/ROADMAP.md`).
+- **TFM matrix:** `netstandard2.0;net472;net8.0;net9.0;net10.0`; `net11.0` light-up planned
+  post-GA (2026-11-10), mainly for the new Process APIs. net472 = Framework-exact compile paths
+  (`#if NET472` for ServicePointManager/process quirks); netstandard2.0 rides the same downlevel
+  polyfill tax and reaches consumers no other TFM serves (net5–net7, Unity, Mono) — it has no
+  runtime of its own, so the net472 test leg is its proxy coverage. Validated against Microsoft's
+  cross-platform targeting guidance (research log Q16).
 - **Packages:**
   - `OpenCode.Sdk` — core. Deps: System.Text.Json, System.Net.ServerSentEvents,
     Microsoft.Extensions.Logging.Abstractions + downlevel polyfills. **Includes the server
@@ -71,8 +74,9 @@ linked research docs. Do not reopen these without new evidence.
   misfires on real code, the move is a per-rule arbitration comment naming the winner — pattern
   in `.editorconfig` §12 and doc 07 Part II d — never a policy rollback.
 - **`LangVersion=14.0` and `AnalysisLevel=10.0` are deliberate numeric pins** — never "fix" them
-  back to `latest`. C# 14 on net472 is unsupported-but-standard via polyfills (PolySharp
-  planned).
+  back to `latest`. C# 14 on net472 is unsupported-but-standard via polyfills (Polyfill, wired
+  repo-wide; it expects a current language version, so a future C# bump is done by moving the
+  pin deliberately).
 - **`GenerateDocumentationFile=true` is load-bearing:** IDE0005 (unused usings) does not fire in
   CLI builds without it. Keep it and the guard comment beside it in `Directory.Build.props`.
 - **Analyzer package currency is manual:** since SDK 9 nothing warns when the pinned NetAnalyzers
@@ -90,6 +94,14 @@ linked research docs. Do not reopen these without new evidence.
 - Evidence-based pushback is invited — argue from mechanisms and sources, not convention; a
   well-grounded "no" will be accepted.
 
+## Engineering Conventions
+
+- **Test naming:** `{Symbol}_Should_{Expected_Behavior}[_When_{Condition}]`. Symbol names stay
+  intact as one token (`TryResolve`, `NuGet`); every other word is `_`-separated and starts with
+  a capital. Example: `TryResolve_Should_Return_False_When_Routes_Are_Invalid`. Test classes are
+  `{Sut}Tests` in a single file by default; promote a SUT to a folder with per-method test files
+  only when the class outgrows comfortable navigation.
+
 ## Sources of Truth
 
 | Fact | Source |
@@ -99,6 +111,7 @@ linked research docs. Do not reopen these without new evidence.
 | Status, queue, open questions, known gaps | `docs/ROADMAP.md` (operational — expected to change) |
 | Architecture decisions | `docs/adr/` (lazy — backfilled from the grill session on) |
 | Domain glossary | `CONTEXT.md` (created lazily; `external/opencode` has its own — no clash) |
+| Pinned OpenAPI spec + provenance | `spec/` (`SNAPSHOT.md` records commit/tag and refresh steps) |
 | Agent-only config (issue tracker, triage labels, domain-doc rules) | `docs/agents/` |
 | Session handovers | `docs/agents/handover-prompts/` |
 
@@ -115,6 +128,11 @@ Every fact has exactly one canonical home; any other appearance is a relay that 
 instead of restating it. Audience decides placement: `docs/agents/` holds guidance only an AI
 agent needs; knowledge shared by humans and agents lives in `docs/research/`, `docs/adr/`, and
 `docs/ROADMAP.md`.
+
+References point one way only: docs may cite code, **code never cites docs**. Comments in code
+artifacts (source, project files, `.editorconfig`, workflows) explain the status quo on the spot
+— never "see docs/…", never decision history. Docs move and renumber; a stale pointer baked into
+code is worse than none.
 
 ADRs are created lazily, and only when all three hold: hard to reverse, surprising, and a real
 trade-off. Handovers track unfinished cross-session state: consume them against live git and

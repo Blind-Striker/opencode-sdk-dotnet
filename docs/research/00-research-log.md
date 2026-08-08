@@ -271,8 +271,78 @@ IDE0005 doesn't fire in CLI builds without it (guard comment added to props).
 6. Hybrid construction: hand-written core, mechanically derived models — models are
    never hand-maintained.
 7. Two packages: `OpenCode.Sdk` (core, launcher included) + `OpenCode.Sdk.Extensions`
-   (DI). TFMs: net472 + net8/9/10, net11 light-up later.
+   (DI). TFMs: netstandard2.0 + net472 + net8/9/10, net11 light-up later.
 8. Analyzer policy is fail-closed maximalist (`AnalysisMode=All`, unconditional
    TreatWarningsAsErrors) with pinned versions and explicit per-rule arbitration;
    ConfigureAwait is triple-enforced in product code, exempt in tests. Rationale
    and decision table: doc 07.
+
+# Session 4 — 2026-08-08 (day 2): docs infrastructure, structural skeleton, TFM validation
+
+(Earlier the same day, a non-research session dissolved GOAL.md into AGENTS.md +
+docs/ROADMAP.md and scaffolded docs/agents/ — commit e37227a.)
+
+## Q16: Does adding net472 force a netstandard2.0 target? What does Microsoft recommend today?
+
+**How researched:** Microsoft Learn primary sources read in full — "Cross-platform
+targeting for .NET libraries" (page updated 2026-04) and ".NET Standard overview" —
+DO/CONSIDER/AVOID recommendations extracted verbatim.
+
+**Found:** ns2.0 is not mandatory next to net472 — they are alternative bridges to
+.NET Framework, and NuGet nearest-match hands a net472 consumer the net472 asset
+whenever one exists. The current official recipe: "DO start with `net8.0` or later",
+"CONSIDER `netstandard2.0` if you need broad compatibility or .NET Framework
+support", "CONSIDER adding `net462` when you're also targeting `netstandard2.0`"
+(consuming ns2.0 from old Framework has known issues, fixed in 4.7.2). .NET Standard
+is frozen at 2.1 ("no new versions will be released") yet explicitly "not
+deprecated"; MS's own BCL packages ship net462 + ns2.0 + modern TFMs.
+
+**Decided (owner proposal, endorsed):** TFM matrix becomes
+`netstandard2.0;net472;net8.0;net9.0;net10.0`. net472 stays for Framework-exact
+compile paths (`#if NET472`: ServicePointManager, process tree-kill); ns2.0 rides
+the same downlevel tax net472 already imposes (PolySharp + polyfills) and reaches
+consumers who otherwise could not install the package at all (net5–net7 stragglers,
+Unity, Mono). ns2.0 has no runtime of its own — the net472 test leg is its proxy
+coverage. Reversal note: this re-adds the ns2.0 target that the original net472
+decision had dropped; both facts now hold (exact TFM *and* bridge TFM), matching
+MS's own BCL practice.
+
+## Q17: PolySharp or SimonCropp/Polyfill for the downlevel TFMs?
+
+**How researched:** Polyfill README (source-only package docs) against known PolySharp
+scope; latest versions checked on nuget.org (Polyfill 11.0.2).
+
+**Found:** the two solve different layers. PolySharp (Sergio Pedri) is an incremental
+source generator emitting only the *compiler-support* types modern C# needs downlevel
+(IsExternalInit, required-member/nullability attributes, Index/Range, …) — zero BCL
+API coverage. Polyfill (Simon Cropp) is a source-only package that ships those same
+attributes *plus* hundreds of BCL API polyfills as extension methods
+(`Stream.ReadAsync(Memory<byte>)`, `Task.WaitAsync`, cancellation-aware `File.*Async`,
+span-based string ops, …), targets net461+/netstandard2.0+, expects a current
+LangVersion, and upstream recommends referencing it on **all** TFMs (internal types,
+PrivateAssets=all — nothing leaks to consumers).
+
+**Decided (owner proposal, endorsed):** switch to Polyfill before any SDK code exists.
+Transport/SSE/launcher code will hit BCL API gaps on ns2.0/net472 immediately —
+PolySharp would leave us hand-rolling internal shims for exactly the APIs Polyfill
+already maintains. Interplay noted with the LangVersion=14.0 numeric pin: Polyfill
+tracks current C#, so future language bumps happen by moving the pin deliberately.
+
+## Q18: CSharpier — wire it, or stay on dotnet format?
+
+**How researched:** discussion from mechanisms (owner invited pushback): what
+.editorconfig/IDE0055 actually specify (local toggles; line wrapping is left
+unspecified — two conflicting layouts both pass), Roslyn's formatter behavior
+(normalizes around existing structure, never re-wraps) vs CSharpier's
+printer architecture (re-prints from the AST; output is a function of code +
+line width; reads core .editorconfig keys, ignores `csharp_*` toggles). Costs
+on the table: IDE plugin requirement, IDE0055 + Roslynator.Formatting ceding
+ceremonies, one more tool in the bump routine.
+
+**Decided (owner):** stay on **dotnet format** — CI gate `dotnet format
+--verify-no-changes` (one CI leg), IDE0055 stays `error` in-build, IDE flow
+remains pure .editorconfig with no plugin. Wrapping determinism is knowingly
+given up. `max_line_length` set to 150 (advisory — guidance for IDE rulers and
+code-writing agents; nothing in the C# toolchain enforces it). MA0051 method
+limits stay 80 lines / 60 statements. This supersedes the CSharpier clause of
+D8 in doc 07 (was: "decided in principle, wire with the first csproj").

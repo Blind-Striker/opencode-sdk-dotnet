@@ -1,0 +1,21 @@
+<Solution>
+  <Folder Name="/build/">
+    <File Path=".editorconfig" />
+    <File Path="BannedSymbols.txt" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+    <File Path="nuget.config" />
+  </Folder>
+  <Folder Name="/spec/">
+    <File Path="spec/SNAPSHOT.md" />
+    <File Path="spec/openapi.json" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/OpenCode.Sdk.Extensions/OpenCode.Sdk.Extensions.csproj" />
+    <Project Path="src/OpenCode.Sdk/OpenCode.Sdk.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OpenCode.Sdk.Tests/OpenCode.Sdk.Tests.csproj" />
+  </Folder>
+</Solution>

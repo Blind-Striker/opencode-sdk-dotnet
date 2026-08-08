@@ -2,7 +2,7 @@
 <Project>
   <PropertyGroup>
     <DefaultTargetFramework>net10.0</DefaultTargetFramework>
-    <AllTargetFrameworks>$(DefaultTargetFramework);net8.0;net9.0</AllTargetFrameworks>
+    <AllTargetFrameworks>netstandard2.0;net472;net8.0;net9.0;$(DefaultTargetFramework)</AllTargetFrameworks>
     <!-- Pinned; docs warn against 'latest' (machine-dependent). C# 14 on net472 is
          unsupported-but-standard practice via polyfills (Polly/Serilog do the same). -->
     <LangVersion>14.0</LangVersion>
@@ -96,5 +96,21 @@
 
   <ItemGroup>
     <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" Link="Properties/BannedSymbols.txt"/>
+  </ItemGroup>
+
+  <!-- Downlevel support: Polyfill (source-only, internal) supplies the compiler attributes
+       C# 14 needs on netstandard2.0/net472 plus BCL API polyfills (Stream Memory overloads,
+       Task.WaitAsync, ...). Upstream guidance: reference it on ALL TFMs, not just downlevel. -->
+  <ItemGroup>
+    <PackageReference Include="Polyfill">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <!-- Lets net472 build without an installed targeting pack (required on Linux/macOS,
+       hermetic everywhere). -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" PrivateAssets="all"/>
   </ItemGroup>
 </Project>

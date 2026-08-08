@@ -4,7 +4,8 @@
 # Analyzers: Microsoft.CodeAnalysis.NetAnalyzers, Meziantou.Analyzer,
 #            Roslynator, SonarAnalyzer, VSTHRD, BannedApiAnalyzers,
 #            NSubstitute.Analyzers.CSharp (tests only)
-# Policy rationale & overlap arbitration: docs/research/07-analyzer-policy.md
+# Fail-closed policy: every rule is on and breaks the build unless a comment
+# beside it says otherwise; overlapping rules stay on with the winner named.
 # =============================================================================
 # Top-most http://editorconfig.org/ file
 root = true
@@ -18,7 +19,9 @@ insert_final_newline = true
 indent_style = space
 charset = utf-8
 trim_trailing_whitespace = true
-max_line_length = 180
+# Advisory (no C# tool enforces it): guidance for IDE rulers and code-writing agents.
+# The formatting gate is IDE0055 in-build plus `dotnet format --verify-no-changes` in CI.
+max_line_length = 150
 
 [*.cs]
 indent_size = 4
