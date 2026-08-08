@@ -55,8 +55,16 @@ Why this is worth doing (see `docs/research/04-ecosystem.md` for evidence):
 - **SSE as `IAsyncEnumerable<T>`**, no automatic reconnect (matches upstream design;
   durable per-session stream resumes via `after` cursor).
 - **`ConfigureAwait(false)` mandatory** everywhere (net472 in matrix ⇒
-  SynchronizationContext deadlocks are real). Analyzer enforcement currently off in
-  the skeleton — see Parked.
+  SynchronizationContext deadlocks are real). Triple-enforced since 2026-08-08:
+  CA2007 + MA0004 (`report=Always`) + VSTHRD111 all `error` in product code,
+  exempt in tests.
+- **Analyzer policy (2026-08-08): fail-closed maximalist.** `AnalysisMode=All` +
+  unconditional TreatWarningsAsErrors kept deliberately against the community norm
+  (0/11 surveyed repos) — new rules must break the build and force a recorded
+  decision; LangVersion/AnalysisLevel pinned numerically; overlap pairs explicit on
+  both sides with arbitration comments naming the winner; Sonar rides SonarWay
+  defaults as *chosen* policy. Rationale + decision table (D1–D9):
+  `docs/research/07-analyzer-policy.md`.
 - **Native AOT friendly:** source-gen STJ (`JsonSerializerContext`; the
   `[JsonSerializable]` list is generator-emitted), `IsAotCompatible=true` on net10+.
 - **Aspire stays** — planned local dev/test AppHost (mini UI, `opencode serve` as a
@@ -94,17 +102,23 @@ Why this is worth doing (see `docs/research/04-ecosystem.md` for evidence):
 - **Testing strategy details** — integration/functional test design against real
   opencode; steal upstream's "every endpoint must be exercised" idea (`test:httpapi`).
 
-## Parked: .editorconfig / analyzer review
+## Parked / deferred decisions
 
-- `VSTHRD111` and `MA0004` (ConfigureAwait enforcement) are both `none` — flip one to
-  `error` for `src` (tests exempt). Top priority given net472.
-- `CA1801` set to `error` under a "Deprecated Rules" heading — rule itself is
-  deprecated (superseded by IDE0060); tidy up.
-- Generated-code handling: generator output must carry auto-generated headers; add a
-  `generated_code = true` editorconfig section for gen folders — otherwise
-  `AnalysisMode=All` + `TreatWarningsAsErrors` rejects the model layer.
-- Full overlap audit later (CA vs MA vs Sonar duplicate rules; the file already
-  documents known overlap groups).
+> The 2026-08-08 analyzer review resolved the former parked list (ConfigureAwait
+> enforcement, CA1801 cleanup, generated_code section, overlap audit) — see
+> `docs/research/07-analyzer-policy.md` Part IV. Still open:
+
+- **CSharpier as formatter gate** — decided in principle (mapperly pattern:
+  `csharpier check` owns whitespace, IDE0055 ceded to it, `dotnet format
+  style`/`analyzers` layered on top); wire together with the first `.csproj` and the
+  CI workflow. Finalize `max_line_length` (currently 180) and MA0051 method-size
+  limits at the same time.
+- **`CS1591` / public XML-doc enforcement** — decide in the API design session.
+  (`GenerateDocumentationFile=true` itself is load-bearing: IDE0005 doesn't fire in
+  CLI builds without it — guard comment in Directory.Build.props.)
+- **`AllTargetFrameworks`** is still `net10.0;net8.0;net9.0` — net472 (and possibly
+  netstandard2.0, which the TFM decision originally dropped in net472's favor) to be
+  settled when the first projects land.
 
 ## TODO / parking lot
 

@@ -4,6 +4,7 @@
 # Analyzers: Microsoft.CodeAnalysis.NetAnalyzers, Meziantou.Analyzer,
 #            Roslynator, SonarAnalyzer, VSTHRD, BannedApiAnalyzers,
 #            NSubstitute.Analyzers.CSharp (tests only)
+# Policy rationale & overlap arbitration: docs/research/07-analyzer-policy.md
 # =============================================================================
 # Top-most http://editorconfig.org/ file
 root = true
@@ -300,6 +301,7 @@ dotnet_diagnostic.IDE0241.severity = error
 # -----------------------------------------------------------------------------
 dotnet_diagnostic.IDE1006.severity = error
 dotnet_diagnostic.IDE0130.severity = error
+dotnet_style_namespace_match_folder = true
 
 # -----------------------------------------------------------------------------
 # 5.8 Formatting & Style Rules
@@ -343,11 +345,16 @@ dotnet_diagnostic.IDE0270.severity = error
 # -----------------------------------------------------------------------------
 # 6.1 Type Design (CA1000-CA1099)
 # -----------------------------------------------------------------------------
+# Static members on generic types (MA0018 disabled in §10.6 in favor of this rule)
+dotnet_diagnostic.CA1000.severity = error
 dotnet_diagnostic.CA1008.severity = suggestion
 dotnet_diagnostic.CA1012.severity = error
 dotnet_diagnostic.CA1018.severity = error
 # Mark enums with FlagsAttribute [opinionated]
 dotnet_diagnostic.CA1027.severity = none
+# Catch-general-exception: active rule, deliberately off [opinionated] -
+# transport/pipeline code catches broadly by design
+dotnet_diagnostic.CA1031.severity = none
 dotnet_diagnostic.CA1032.severity = error
 dotnet_diagnostic.CA1040.severity = suggestion
 dotnet_diagnostic.CA1047.severity = error
@@ -359,8 +366,8 @@ dotnet_diagnostic.CA1069.severity = error
 
 # -----------------------------------------------------------------------------
 # 6.2 Globalization (CA1300-CA1399)
-# [OVERLAP GROUP] - CA culture rules vs MA0001/MA0011/MA0074
-# Both kept for maximum strictness - review if too noisy
+# [OVERLAP GROUP] - CA culture rules vs MA0001/MA0011/MA0074/MA0075/MA0076
+# Both sides kept at error (deliberate double coverage; MA side explicit in §10.2)
 # -----------------------------------------------------------------------------
 dotnet_diagnostic.CA1304.severity = error
 dotnet_diagnostic.CA1305.severity = error
@@ -373,7 +380,6 @@ dotnet_diagnostic.CA1311.severity = error
 # -----------------------------------------------------------------------------
 # 6.3 Maintainability (CA1500-CA1599)
 # -----------------------------------------------------------------------------
-dotnet_diagnostic.CA1500.severity = error
 dotnet_diagnostic.CA1501.severity = error
 dotnet_diagnostic.CA1502.severity = error
 dotnet_diagnostic.CA1505.severity = error
@@ -470,7 +476,9 @@ dotnet_diagnostic.CA1872.severity = error
 # -----------------------------------------------------------------------------
 # 7.1 Task/Async Usage (CA2007-CA2016)
 # -----------------------------------------------------------------------------
-dotnet_diagnostic.CA2007.severity = suggestion
+# ConfigureAwait(false) is mandatory in library code (net472 in the TFM matrix).
+# Triple-enforced with MA0004 (§10.3) and VSTHRD111 (§9.1); tests exempt (§15)
+dotnet_diagnostic.CA2007.severity = error
 dotnet_diagnostic.CA2008.severity = error
 dotnet_diagnostic.CA2009.severity = error
 dotnet_diagnostic.CA2011.severity = error
@@ -501,12 +509,6 @@ dotnet_diagnostic.CA2249.severity = error
 dotnet_diagnostic.CA2250.severity = error
 dotnet_diagnostic.CA2251.severity = error
 
-# -----------------------------------------------------------------------------
-# 7.4 Deprecated/Removed Rules
-# -----------------------------------------------------------------------------
-dotnet_diagnostic.CA1031.severity = none
-dotnet_diagnostic.CA1801.severity = error
-
 # =============================================================================
 # SECTION 8: SECURITY RULES (CA3xxx, CA5xxx)
 # =============================================================================
@@ -528,8 +530,9 @@ dotnet_diagnostic.VSTHRD101.severity = error
 dotnet_diagnostic.VSTHRD103.severity = error
 dotnet_diagnostic.VSTHRD107.severity = error
 dotnet_diagnostic.VSTHRD110.severity = error
-# ConfigureAwait in library code [conflicts with modern guidance]
-dotnet_diagnostic.VSTHRD111.severity = none
+# ConfigureAwait(false) is mandatory in library code (net472 in the TFM matrix);
+# only rule of the trio whose docs explicitly cover ValueTask awaits
+dotnet_diagnostic.VSTHRD111.severity = error
 dotnet_diagnostic.VSTHRD114.severity = error
 dotnet_diagnostic.VSTHRD200.severity = suggestion
 
@@ -543,22 +546,35 @@ dotnet_diagnostic.VSTHRD200.severity = suggestion
 MA0051.maximum_lines_per_method = 80
 MA0051.maximum_statements_per_method = 60
 MA0011.exclude_tostring_methods = true
+# Align MA0004 coverage with CA2007 (default DetectContext goes quiet in
+# context-dependent code; Always reports every await without ConfigureAwait)
+MA0004.report = Always
+# Public API ships sealed-by-default (extend-only design); CA1852 covers internal only
+MA0053.public_class_should_be_sealed = true
 # -----------------------------------------------------------------------------
 # 10.2 String/Culture Rules
-# [OVERLAP GROUP] - Also enforced by CA1304-CA1311
-# Keeping both for stricter checking - disable MA if too noisy
+# [OVERLAP GROUP] - Also enforced by CA1304-CA1311 (§6.2)
+# Both sides kept at error; MA0075/MA0076 cover implicit ToString call sites
+# (concatenation/interpolation) the CA rules do not see
 # -----------------------------------------------------------------------------
 # MA0001 ≈ CA1307, CA1309, CA1310 (StringComparison)
 # MA0011 ≈ CA1304, CA1305, CA1311 (IFormatProvider/CultureInfo)
 # MA0074 ≈ CA1307, CA1309 (Equals StringComparison)
+dotnet_diagnostic.MA0001.severity = error
 dotnet_diagnostic.MA0006.severity = suggestion
+dotnet_diagnostic.MA0011.severity = error
+dotnet_diagnostic.MA0074.severity = error
+dotnet_diagnostic.MA0075.severity = error
+dotnet_diagnostic.MA0076.severity = error
 
 # -----------------------------------------------------------------------------
 # 10.3 Async Rules
 # [OVERLAP GROUP] - Also enforced by VSTHRD and CA
-# MA0045 overlaps with CA1849/VSTHRD103 - keeping for extra coverage
+# MA0042 ≈ CA1849/VSTHRD103 (all error - deliberate double coverage);
+# MA0045 is the stricter make-it-async sibling (Meziantou default: off)
 # -----------------------------------------------------------------------------
-dotnet_diagnostic.MA0004.severity = none
+# ConfigureAwait(false) mandatory in library code; report mode set in §10.1
+dotnet_diagnostic.MA0004.severity = error
 dotnet_diagnostic.MA0022.severity = error
 dotnet_diagnostic.MA0042.severity = error
 dotnet_diagnostic.MA0045.severity = error
@@ -581,10 +597,11 @@ dotnet_diagnostic.MA0111.severity = error
 # -----------------------------------------------------------------------------
 # 10.5 Design Rules
 # -----------------------------------------------------------------------------
-dotnet_diagnostic.MA0048.severity = suggestion
+# File name must match type name (Go-style structure discipline)
+dotnet_diagnostic.MA0048.severity = error
 dotnet_diagnostic.MA0052.severity = error
-# Make class sealed [public/package API compatibility]
-dotnet_diagnostic.MA0053.severity = none
+# Seal classes including public ones (option in §10.1); CA1852 handles internal only
+dotnet_diagnostic.MA0053.severity = error
 dotnet_diagnostic.MA0067.severity = error
 dotnet_diagnostic.MA0102.severity = error
 dotnet_diagnostic.MA0110.severity = error
@@ -635,9 +652,13 @@ dotnet_diagnostic.RCS1141.severity = suggestion
 # =============================================================================
 # SECTION 12: SONARANALYZER (Sxxxx)
 # =============================================================================
+# Policy: only arbitrated rules are listed; everything else rides SonarWay
+# defaults, which TreatWarningsAsErrors escalates to error (chosen fail-closed
+# posture, 2026-08-08). When a Sonar rule misfires, arbitrate it here with a
+# comment naming the winner.
 dotnet_diagnostic.S125.severity = suggestion
 dotnet_diagnostic.S2094.severity = suggestion
-dotnet_diagnostic.S2437.severity = warning
+dotnet_diagnostic.S2437.severity = error
 dotnet_diagnostic.S2479.severity = suggestion
 dotnet_diagnostic.S3925.severity = none
 # Utility classes are static in this repo; keep disabled defensively
@@ -652,10 +673,26 @@ dotnet_diagnostic.S6602.severity = none
 dotnet_diagnostic.CS1591.severity = none
 
 # =============================================================================
-# SECTION 14: TEST PROJECT OVERRIDES
+# SECTION 14: GENERATED CODE
+# =============================================================================
+# The model-layer generator emits *.g.cs with an <auto-generated/> header - two
+# Roslyn heuristics already mark those as generated; this section is the explicit
+# third layer. Folder-based patterns wait for the codegen spike. None of this
+# exempts compiler diagnostics - generated code must compile clean.
+[*.{g.cs,generated.cs,designer.cs}]
+generated_code = true
+
+# =============================================================================
+# SECTION 15: TEST PROJECT OVERRIDES
 # =============================================================================
 [{*Tests/**/*.cs,tests/**/*.cs}]
 dotnet_diagnostic.CA1707.severity = none
 
 # TUnit Assert.That reports false positives for MA0042 because the analyzer cannot model the assertion API shape.
 dotnet_diagnostic.MA0042.severity = none
+
+# No SynchronizationContext in tests - the src-side ConfigureAwait triple
+# (CA2007/MA0004/VSTHRD111) is noise here
+dotnet_diagnostic.CA2007.severity = none
+dotnet_diagnostic.MA0004.severity = none
+dotnet_diagnostic.VSTHRD111.severity = none

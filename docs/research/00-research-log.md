@@ -198,6 +198,68 @@ Acceptance criterion: three-OS CI matrix with real `opencode serve` start/stop t
 
 ---
 
+# Session 3 — 2026-08-08 (night): analyzer & .editorconfig policy
+
+Trigger: the parked analyzer items in GOAL.md plus a ChatGPT conversation the owner
+had reviewed the (ancestor of the) skeleton with a few weeks earlier — shared with
+the explicit instruction to treat it as unverified input.
+→ Details: [07-analyzer-policy.md](07-analyzer-policy.md)
+
+## Q13: Are the ChatGPT conversation's claims sound?
+
+**How researched:** background agent verifying 13 extracted claims against primary
+sources only — Microsoft Learn, dotnet/sdk + dotnet/roslyn sources, analyzer repos'
+own docs, extracted nupkgs, and grep over the locally installed SDKs 8/9/10.
+
+**Found:** 8 confirmed, 3 nuanced, plus corrections. Notable: the "NetAnalyzers
+package + EnableNETAnalyzers conflicts/warns" story is stale — the warning existed
+only in SDK 8 and the 10.x package ships no MSBuild logic at all, so **nothing warns
+anymore when the pinned package falls behind the SDK** (package hygiene is entirely
+on our bump routine). `AnalysisLevel=latest` resolves to a hardcoded `10.0` for the
+whole SDK 10 line, defusing most of the "moving target" concern.
+`CodeAnalysisTreatWarningsAsErrors` exempts exactly the CA ID list — third-party
+analyzers are untouched by it. The chat's overlap table had one factual error
+(CA1849's Meziantou twin is MA0042, not MA0045) and one wrong framing (the
+dead-code trio is complementary, not redundant). Local audit bonus: the skeleton's
+`.editorconfig` had already absorbed part of that conversation (CA1812 → suggestion,
+comment verbatim), and its "Deprecated Rules" section configured two rules that
+don't even ship (CA1801 removed in v6, CA1500 never ported from FxCop).
+
+**Decision/lesson:** the grain-of-salt instinct was right — most claims held, but
+the ones that didn't (stale doc folklore, wrong rule IDs) are exactly the kind that
+propagate silently. Verify against artifacts, not docs alone.
+
+## Q14: What do prominent OSS .NET libraries actually do?
+
+**How researched:** community survey of 11 actively maintained repos (skewed toward
+NuGet libraries multi-targeting old TFMs), reading their committed build files.
+
+**Found:** ConfigureAwait enforcement, where present, is uniformly **CA2007 on
+product code / none on tests** (dotnet/runtime, Polly, OTel); only the Meziantou
+ecosystem uses MA0004 — *instead of* CA2007, with a comment naming the winner.
+**0 of 11 repos** use `CodeAnalysisTreatWarningsAsErrors`; none uses
+`AnalysisMode=All`; analyzer-heavy repos gate TreatWarningsAsErrors on CI/Release to
+protect human inner loops (Meziantou.NET.Sdk even *enables* it when it detects an
+LLM agent). Overlaps are resolved explicitly per rule with winner-naming comments;
+"both on" survives only where rules genuinely differ. Polly is the closest
+structural precedent (Sonar + BannedApi + old TFMs, per-ProjectType globalconfigs).
+
+## Q15: Converge to the community, or keep the maximalist posture?
+
+**Found/decided (owner decision after discussion):** keep `AnalysisMode=All` +
+unconditional TWAE — fail-closed (new rules break the build and force a recorded
+decision) fits a greenfield, agent-driven repo; the community's softening exists to
+protect human dev loops we don't have yet. Converge instead on determinism and
+explicitness: `LangVersion` and `AnalysisLevel` pinned numerically, every overlap
+pair explicit on both sides, Sonar's implicit strictness documented as chosen
+policy, zombie rules deleted. ConfigureAwait becomes triple-enforced
+(CA2007 + MA0004/Always + VSTHRD111 — redundancy is deliberate; single fix satisfies
+all three), tests exempt. Full decision table (D1–D9): doc 07 Part IV.
+One owner-supplied fact folded in: `GenerateDocumentationFile=true` must stay —
+IDE0005 doesn't fire in CLI builds without it (guard comment added to props).
+
+---
+
 ## Standing conclusions
 
 1. Target `packages/sdk/openapi.json`; **v2 surface only** — it carries upstream's
@@ -210,3 +272,7 @@ Acceptance criterion: three-OS CI matrix with real `opencode serve` start/stop t
    never hand-maintained.
 7. Two packages: `OpenCode.Sdk` (core, launcher included) + `OpenCode.Sdk.Extensions`
    (DI). TFMs: net472 + net8/9/10, net11 light-up later.
+8. Analyzer policy is fail-closed maximalist (`AnalysisMode=All`, unconditional
+   TreatWarningsAsErrors) with pinned versions and explicit per-rule arbitration;
+   ConfigureAwait is triple-enforced in product code, exempt in tests. Rationale
+   and decision table: doc 07.
