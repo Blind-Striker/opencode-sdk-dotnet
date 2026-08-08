@@ -485,3 +485,66 @@ available anyway via an explicit breaking major with release notes.
 
 **Decision (owner):** **independent semver**, no upstream alignment. Pre-1.0
 numbering, RELEASE_NOTES flow, and the publish workflow remain open (ROADMAP).
+
+---
+
+# Session 5 — 2026-08-08 (day 2, evening): grill session — ADR backfill and canonicalization
+
+Grill session (`grill-with-docs`) against `AGENTS.md` + docs with the spike evidence in hand.
+The decisions live in ADRs 0001–0006; this entry is the chain only.
+
+## Q25: Where do the ADR instructions live?
+
+**Found/decided:** `docs/adr/README.md` becomes the canonical home (criteria, format,
+numbering, `Date:` rule; no index — the directory listing is the index). `AGENTS.md` keeps
+statements + links; `docs/agents/domain.md` stays a consumption guide, stripped of
+harness-specific skill names. Layering: `AGENTS.md` statement → ADR decision+why → research
+doc evidence. Commit-history mining surfaced one misplaced decision (independent semver sat
+in ROADMAP Open Questions) — moved to Locked Decisions + ADR-0006. Rejected as ADRs: test
+naming and one-way doc references (conventions, `AGENTS.md`), CSharpier/PolySharp rejections
+(research-log history), analyzer-policy pointer (Hard Rule + doc 07 suffice).
+
+## Q26: Does "strip the `v2.` prefix" survive both-surfaces?
+
+**Found:** 16 of 61 modern names collide with legacy names once the prefix is stripped
+(counted from the pinned spec: six `session.*`, `provider.list`, `command.list`,
+`event.subscribe`, all `pty.*`).
+**Decided:** structural separation — the modern surface takes the unmarked names; legacy
+lives behind an explicitly legacy-marked sub-surface, deleted wholesale at our 2.0-absorbing
+major (ADR-0005).
+
+## Q27: Where does the MCP server live?
+
+**Found/decided (owner):** monorepo — the thin-adapter architecture wants compile-time
+coupling (cross-repo private-internals dependency was the unofficial `opencode-mcp`'s failure
+mode), the consumer-driven legacy-test scope stays mechanically derivable, and the repo's
+infrastructure is paid for once. Purpose statement made explicit. Versioning: every package
+independent (owner overruled a lockstep-family proposal); per-merge GitHub Packages CD +
+manual NuGet.org release; no monorepo tooling at this scale (ADR-0006). NuGet `McpServer`
+package type evaluation queued with the MCP phase. Repo name stays (`opencode-sdk-dotnet` —
+the MCP server is the SDK's agent-facing surface).
+
+## Q28: Is "legacy best-effort" honest when the MCP server leans on legacy?
+
+**Decided:** consumer-driven testing — deep integration testing covers the modern surface
+plus every legacy operation the MCP server consumes (set derived mechanically from the
+in-repo MCP project's SDK calls); the rest stays best-effort (ADR-0005).
+
+## Q29: Generated code — analyzer exemption or on-merit conformance?
+
+**Found:** the spike's on-merit probe left 186 diagnostics, ~91% two mechanical style rules,
+all fixable only in an own emitter; the `.g.cs` exemption also suppresses project-level
+`<Nullable>` (generated files need explicit `#nullable` opt-in — CS8669).
+**Decided (owner):** on-merit — no blanket exemption for the emitted layer; per-rule
+arbitration for rules that genuinely cannot apply; accepted cost: the emitter tracks the
+analyzer wall permanently. Mechanics settled at build-out (ADR-0003 Consequences).
+
+## Q30: Remaining confirmations
+
+Unknown-discriminator forward compatibility stays parked for the API design session (version
+skew between the pinned spec and a newer live server is why it exists at all). The
+Roslyn-emission record keeps both sides with the IR-boundary reversal framing (ADR-0003).
+Generator/SSE boundary made explicit in ROADMAP: the generator emits `x-effect-stream` item
+schemas; stream endpoints are wired by hand through the SSE engine. Root `CONTEXT.md`
+created (upstream domain terms + project language: modern/legacy surface, Launcher, Spec
+pin, Model layer), aligned with upstream's durable-vs-live stream distinction.

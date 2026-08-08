@@ -3,7 +3,7 @@
 Date: 2026-08-08
 
 Operational state: what is done, what is next, what is open. This file shrinks as work lands.
-Evergreen rules and locked decisions live in `../AGENTS.md`.
+Evergreen rules and locked decisions live in `../AGENTS.md`; decision records in `adr/`.
 
 ## Status
 
@@ -11,45 +11,42 @@ Structural skeleton in place: `OpenCode.slnx`; `src/OpenCode.Sdk` + `src/OpenCod
 (empty multi-targeted shells, full TFM matrix); `tests/OpenCode.Sdk.Tests` (TUnit smoke test,
 net472 leg Windows-only); three-OS CI (`.github/workflows/ci.yml`: build + test + TRX reporting);
 pinned OpenAPI snapshot (`spec/openapi.json`, provenance in `spec/SNAPSHOT.md`). Packages current
-as of 2026-08-08. Codegen spike complete (`docs/research/08-codegen-spike.md`): model layer comes
-from our own generator — Roslyn syntax-tree emission, repo tooling under `tools/`, committed
-output with CI regen-verify; Kiota/NSwag/OpenAPI Generator eliminated on run evidence. No SDK
-code yet — next up is the grill session.
+as of 2026-08-08. Codegen spike complete (research doc 08). Grill session complete: ADRs
+0001–0006 backfilled, root `CONTEXT.md` glossary created, ADR rules canonicalized in
+`adr/README.md`. No SDK code yet — next up is API design.
 
 ## Queue
 
 In order — do not improvise beyond it without asking the maintainer. Parenthetical skill notes
 are hints for the driving agent.
 
-1. **Grill session** — `grilling` / `grill-with-docs` against `AGENTS.md` + docs, spike evidence
-   in hand (research doc 08). Side products: root `CONTEXT.md` glossary (upstream domain terms:
-   Session, Message, Part, durable vs live events, Permission, …) and the first backfilled ADRs
-   (candidates: launcher-in-core, v2-only surface, codegen mechanism/emission/packaging with the
-   reversal triggers from doc 08, one-way doc references (code never cites docs), test naming
-   convention; consider the TFM matrix. Analyzer policy is fully documented in research doc 07 —
-   an ADR would just point there; optional).
-2. **Public API design** — `brainstorming` (genuinely open: client surface, error model
+1. **Public API design** — `brainstorming` (genuinely open: client surface, error model
    including Result-pattern vs exceptions for expected failures, options, event model) →
-   `writing-plans`. `api-design` (extend-only) + `snapshot-testing` (Verify) lock
-   the public surface as the design lands. Decides the CS1591 / XML-doc posture, plus the
-   model-layer feed-forward from doc 08: unknown-discriminator forward compatibility for the
-   `V2Event` SSE union, `Uri` vs `string`, acronym casing, `WhenWritingNull`, on-merit style
-   conformance vs generated-code exemption, and client-surface naming/shape for the legacy vs
-   `v2.*` operations (v2 first-class; legacy best-effort — calibrate legacy test investment
-   against which operations the MCP server actually uses; full 61 → 112 rename mapping vs the
-   2.0 spec belongs here too).
-3. **Generator build-out + implementation** — `executing-plans` /
-   `subagent-driven-development`; the model-layer generator per doc 08 and `AGENTS.md`
+   `writing-plans`. `api-design` (extend-only) + `snapshot-testing` (Verify) lock the public
+   surface as the design lands. Decides the CS1591 / XML-doc posture, plus the model-layer
+   feed-forward from doc 08: unknown-discriminator forward compatibility for the `V2Event` SSE
+   union, `Uri` vs `string` (maintainer leans `Uri`), acronym casing, identifier mapping for
+   underscore JSON names, `WhenWritingNull`, and the client-surface shape for the legacy
+   sub-surface (ADR-0005: modern takes the unmarked names; the full 61 → 112 rename mapping vs
+   the 2.0 spec belongs here too).
+2. **Generator build-out + implementation** — `executing-plans` /
+   `subagent-driven-development`; the model-layer generator per ADR-0003 and `AGENTS.md`
    (Roslyn emission; `tools/` architecture with a file-based entry; tooling stack:
    Spectre.Console.Cli + CliWrap + System.IO.Abstractions, testable via
    `Spectre.Console.Cli.Testing` — the no-CliWrap rule is SDK-product-scoped, tooling may use
-   it freely); `test-driven-development` for
-   transport/SSE/launcher; `csharp-concurrency-patterns` (SSE/Channels), `serialization`
-   (source-gen STJ is decided), `run-tests` + `mtp-hot-reload`; `requesting-code-review` +
+   it freely); `test-driven-development` for transport/SSE/launcher;
+   `csharp-concurrency-patterns` (SSE/Channels), `serialization` (source-gen STJ is decided),
+   `run-tests` + `mtp-hot-reload`; `requesting-code-review` +
    `finishing-a-development-branch` at branch close. Adds the integration-test project and,
-   when Extensions gains real code, its own test project.
-4. **Later** — MCP server on ModelContextProtocol.AspNetCore + stdio. "opencode HQ"
-   multi-instance aggregation lives above the SDK, not in it.
+   when Extensions gains real code, its own test project. Boundaries settled at the grill:
+   generated code passes the analyzer wall on merit (ADR-0003) — settle the mechanics here
+   (file naming, how the generated-code exemption is switched off, the fate of per-file
+   `#nullable` directives); the generator emits `x-effect-stream` SSE item schemas, but stream
+   endpoints are wired by hand through the hand-written SSE engine.
+3. **Later** — MCP server on ModelContextProtocol.AspNetCore + stdio, in this repo (ADR-0006);
+   evaluate NuGet's `McpServer` package type for distribution; its SDK usage defines the
+   deep-tested legacy set (ADR-0005). "opencode HQ" — multi-instance aggregation above the
+   SDK — is a valued future deliverable in its own right, not SDK scope.
 
 ## Open Questions
 
@@ -63,7 +60,11 @@ are hints for the driving agent.
 - **Typed event model:** SSE payloads are a large discriminated union — design the .NET
   representation. Spike evidence (research doc 08): `[JsonPolymorphic]` name-based dispatch
   works on the spec's literal convention (with `AllowOutOfOrderMetadataProperties`); unknown
-  discriminators throw by default, so the forward-compatibility strategy is the open part.
+  discriminators throw by default, so the forward-compatibility strategy is the open part
+  (version skew against newer servers is why it matters).
+- **Default HttpClient ownership/lifetime** — when none is injected: client owns a single
+  long-lived instance (`SocketsHttpHandler` + pooled connection lifetime on modern TFMs);
+  net472 specifics fold into the net472 spike items. Settled in the API design session.
 - **`x-opencode-directory` header** — per-request project targeting: first-class option on every
   call vs client-level default + override.
 - **Spec tracking:** `openapi.json` changes on every upstream push — snapshot per SDK release +
@@ -71,17 +72,16 @@ are hints for the driving agent.
 - **`pty.connect` WebSocket endpoints** — upstream's own codegen excludes them; probably out of
   scope for us too.
 - **Auth shape** — HTTP basic (`OPENCODE_SERVER_PASSWORD`): client options vs per-request.
-- **Versioning/release strategy** — decided: independent semver, NOT aligned with upstream
-  opencode versions (alignment was weighed and rejected: it would force our own features onto
-  patch releases; the opencode-2.0 rename wave is handled as an explicit breaking major
-  instead). Still open: pre-1.0/preview numbering, `VersionPrefix`, RELEASE_NOTES flow,
-  release workflow (NuGet publish).
+- **Release mechanics** — decided parts live in ADR-0006 (independent semver, per-merge GitHub
+  Packages CD, manual NuGet.org release pipeline). Still open: pre-1.0/preview numbering,
+  `VersionPrefix`, RELEASE_NOTES flow, the concrete workflows.
 - **Testing strategy details** — integration/functional design against a real opencode process;
-  steal upstream's "every endpoint must be exercised" idea (`test:httpapi`).
+  steal upstream's "every endpoint must be exercised" idea (`test:httpapi`); legacy scope is
+  consumer-driven per ADR-0005.
 
 ## Parked Decisions
 
-- **CS1591 / public XML-doc enforcement** — decide in the API design session (queue item 3).
+- **CS1591 / public XML-doc enforcement** — decide in the API design session (queue item 1).
 
 ## Known Gaps
 

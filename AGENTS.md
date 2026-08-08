@@ -7,7 +7,8 @@ only what stays true. Current state, the work queue, and open questions live in 
 
 Build a **.NET SDK for opencode** — a typed client for the HTTP API that every opencode front-end
 (TUI, desktop, web UI, plugins) already goes through — and, on top of it, an **MCP server**
-exposing opencode to any MCP client. The niche is real: the only maintained first-party SDK is
+exposing opencode to any MCP client — both deliverables live in this repository (ADR-0006 in
+`docs/adr/`). The niche is real: the only maintained first-party SDK is
 JS/TypeScript, the Stainless-generated Python and Go SDKs are effectively abandoned, there is no
 .NET SDK at all, and the one community MCP bridge is architecturally fragile and unmaintained.
 Evidence: `docs/research/04-ecosystem.md` and `docs/research/03-opencode-mcp-assessment.md`.
@@ -17,39 +18,44 @@ SDK, avoiding the private-internals trap that sank the unofficial `opencode-mcp`
 
 ## Locked Decisions
 
-Decision statements only — rationale lives in the linked research docs; ADRs are backfilled from
-the grill session on. Do not reopen these without new evidence.
+Decision statements only — rationale lives in the ADRs (`docs/adr/`), evidence in the research
+docs. Do not reopen these without new evidence.
 
 - **Target artifact:** `external/opencode/packages/sdk/openapi.json` (OpenAPI 3.1) — the same
   spec the official JS SDK is generated from. Pinned copy: `spec/`.
 - **API surface: both generations of the pinned 1.x spec** — the transitional modern block
   (`v2.*` operationIds; 61 ops today, 3 outside `/api/*`) and the legacy block (127 ops). The
-  modern block does not yet cover the product's full capability and the MCP-server goal needs
-  it all. Deep integration testing targets the modern surface; legacy is best-effort. Public
-  naming strips the `v2.` prefix and never bakes "V2" into type or client names. At opencode
-  2.0 (legacy dropped, operations renamed) we evolve/deprecate at a major release (research
-  docs 08, 09).
+  modern surface takes the unmarked public names (the `v2.` prefix is stripped and "V2" never
+  appears in type or client names); the legacy surface lives behind an explicitly
+  legacy-marked sub-surface. Deep integration testing targets the modern surface plus every
+  legacy operation the MCP server consumes; remaining legacy is best-effort. At opencode 2.0
+  the legacy area is deleted at a major release of ours (ADR-0005; research docs 08, 09).
 - **Hybrid construction:** hand-written core (transport, SSE engine, process lifecycle, DI,
   error model, public API), mechanically derived model layer from **our own generator** —
   Roslyn syntax-tree emission over a parsed spec IR; scope-agnostic (surface selection is a
-  filter parameter) (research docs 06 §1, 08).
+  filter parameter) (ADR-0003; research docs 06 §1, 08).
 - **Generator packaging:** repo tooling under `tools/` — csproj bound to the repo build
   rules, thin file-based `.cs` entry committed with the executable bit. Generated output is
-  committed into the SDK project (`.g.cs`, per-file `#nullable enable`); the tool runs
+  committed into the SDK project and passes the analyzer wall **on merit** — no blanket
+  generated-code exemption (file-naming mechanics settled at build-out); the tool runs
   `dotnet format` on its output as a post-step; CI regen-verifies. The same tool owns spec
-  refresh: submodule pin bump, `spec/` copy, `SNAPSHOT.md` stamp (research doc 08).
+  refresh: submodule pin bump, `spec/` copy, `SNAPSHOT.md` stamp (ADR-0003).
 - **Model-layer generation principles:** immutable by default (records, `init`-only,
   read-only collections); `required` where the spec requires; nullable is a last resort —
-  absent collections emit empty, nullable only where absence carries meaning.
+  absent collections emit empty, nullable only where absence carries meaning (ADR-0004).
 - **TFM matrix:** `netstandard2.0;net472;net8.0;net9.0;net10.0`; `net11.0` light-up post-GA
   (2026-11-10). net472 = Framework-exact compile paths; ns2.0 = extra reach on the same polyfill
-  tax, tested by proxy via the net472 leg (research log Q16).
+  tax, tested by proxy via the net472 leg (ADR-0002).
 - **Packages:** `OpenCode.Sdk` — core (System.Text.Json, System.Net.ServerSentEvents,
   Microsoft.Extensions.Logging.Abstractions + downlevel polyfills; **server launcher included**,
-  hand-rolled on `System.Diagnostics.Process`, no CliWrap; HttpClient injectable) and
+  hand-rolled on `System.Diagnostics.Process`, no CliWrap (ADR-0001); HttpClient injectable) and
   `OpenCode.Sdk.Extensions` (Microsoft.Extensions.Http + DI.Abstractions + Options,
   `AddOpenCodeClient()`). Future candidate: `OpenCode.Aspire.Hosting`. NuGet ID verified
   available 2026-08-08; upstream-parity rationale: research doc 06.
+- **Monorepo, independent versioning:** the MCP server is developed in this repository as a
+  thin adapter over the SDK; every package versions independently — no lockstep, no alignment
+  with upstream opencode versions; per-merge CD to GitHub Packages, manual NuGet.org release
+  pipeline (ADR-0006).
 - **Licensing:** MIT via a packed `LICENSE` copy (`PackageLicenseFile`).
 - **SSE as `IAsyncEnumerable<T>`**, no automatic reconnect; the durable per-session stream
   resumes via the `after` cursor.
@@ -122,8 +128,8 @@ Read change-prone facts from their source files instead of copying them into doc
 | Purpose, locked decisions, rules | `AGENTS.md` (this file) |
 | Decision rationale, dated research | `docs/research/` |
 | Status, queue, open questions, known gaps | `docs/ROADMAP.md` (operational — expected to change) |
-| Architecture decisions | `docs/adr/` (lazy — backfilled from the grill session on) |
-| Domain glossary | `CONTEXT.md` (created lazily; `external/opencode` has its own — no clash) |
+| Architecture decisions | `docs/adr/` (criteria & format: its `README.md`) |
+| Domain glossary | `CONTEXT.md` (`external/opencode` has its own — no clash) |
 | Pinned OpenAPI spec + provenance | `spec/` (`SNAPSHOT.md` records commit/tag and refresh steps) |
 | Agent-only config (issue tracker, triage labels, domain-doc rules) | `docs/agents/` |
 | Session handovers | `docs/agents/handover-prompts/` |
@@ -148,9 +154,9 @@ artifacts (source, project files, `.editorconfig`, workflows) explain the status
 — never "see docs/…", never decision history. Docs move and renumber; a stale pointer baked into
 code is worse than none.
 
-ADRs are created lazily, and only when all three hold: hard to reverse, surprising, and a real
-trade-off. Handovers track unfinished cross-session state: consume them against live git and
-delete them when the follow-up ships.
+ADRs are created lazily; criteria and format live in `docs/adr/README.md`. Handovers track
+unfinished cross-session state: consume them against live git and delete them when the
+follow-up ships.
 
 ## Harness Independence
 
@@ -169,5 +175,4 @@ Default five-role vocabulary; label strings equal role names. See `docs/agents/t
 
 ### Domain docs
 
-Single-context: root `CONTEXT.md` + `docs/adr/`, both created lazily. See
-`docs/agents/domain.md`.
+Single-context: root `CONTEXT.md` + `docs/adr/`. See `docs/agents/domain.md`.
