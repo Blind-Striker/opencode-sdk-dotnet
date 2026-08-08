@@ -280,7 +280,7 @@ IDE0005 doesn't fire in CLI builds without it (guard comment added to props).
 # Session 4 — 2026-08-08 (day 2): docs infrastructure, structural skeleton, TFM validation
 
 (Earlier the same day, a non-research session dissolved GOAL.md into AGENTS.md +
-docs/ROADMAP.md and scaffolded docs/agents/ — commit e37227a.)
+docs/ROADMAP.md and scaffolded docs/agents/.)
 
 ## Q16: Does adding net472 force a netstandard2.0 target? What does Microsoft recommend today?
 
