@@ -148,7 +148,7 @@ checked the installed SDK against `global.json`.
 **Found:** high-quality, coherent base (editorconfig ↔ analyzer set ↔ CPM aligned) with
 LocalStack identity leftovers, pack references to nonexistent files, a few
 major-version-behind packages, and no-op property lines. One assistant error corrected
-by Deniz: **.NET STS support was extended to 24 months — .NET 9 is supported to
+by the owner: **.NET STS support was extended to 24 months — .NET 9 is supported to
 2026-11-10**, so the "net9 already EOL" claim was wrong.
 
 **Decisions:** TFM matrix `net472;net8.0;net9.0;net10.0`. Keep Aspire + core OTel

@@ -15,8 +15,8 @@ as of 2026-08-08. No SDK code yet — next up is the codegen spike.
 
 ## Queue
 
-In order — do not improvise beyond it without asking Deniz. Parenthetical skill notes are hints
-for the driving agent.
+In order — do not improvise beyond it without asking the maintainer. Parenthetical skill notes
+are hints for the driving agent.
 
 1. **Codegen spike** — own generator vs Kiota/NSwag/OpenAPI Generator as the model-layer
    mechanism. Evaluate on: OpenAPI 3.1 support, discriminated-union → C# mapping,
