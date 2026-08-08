@@ -80,8 +80,10 @@ the grill session on. Do not reopen these without new evidence.
   format gate before reporting done.
 - Research/decision sessions end with a documentation pass (research log in
   question→finding→decision format, topic docs, ROADMAP) and a single commit.
-- Commit only when the maintainer says so; direct commits on `master`. Do not add AI
-  attribution trailers to commit messages.
+- Commit messages follow Conventional Commits (`feat`, `fix`, `docs`, `test`, `refactor`,
+  `build`, `ci`, `chore`); no AI attribution trailers.
+- Commit only with the maintainer's approval — except inside an explicitly agreed development
+  loop, where committing is part of the flow.
 
 ## Engineering Conventions
 
