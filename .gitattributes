@@ -1,0 +1,5 @@
+# All text files are stored and checked out with LF line endings on every
+# platform. Generated-output determinism (byte-identical regen-verify) and the
+# shebang line of the file-based tool entry both require it; git detects
+# binaries itself, so they are unaffected.
+* text=auto eol=lf

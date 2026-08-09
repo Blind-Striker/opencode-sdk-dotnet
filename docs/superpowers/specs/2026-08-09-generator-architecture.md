@@ -50,9 +50,13 @@ structure reference; scripted verification against the pinned spec (results inli
 3. **`tools/` is the repo's centralized tooling home** (maintainer principle, sealed this
    session). The generator is its first resident, not its identity: future CI/CD or
    local-development tooling lands in the same project as sibling command/namespace areas.
-4. **Determinism is a hard requirement.** Same spec + same curation ⇒ byte-identical output:
-   stable file and member ordering, culture-invariant string operations, LF line endings.
-   CI regen-verify is built on this.
+4. **Determinism is a hard requirement.** Same spec + same curation + **same SDK feature
+   band** ⇒ byte-identical output: stable file and member ordering, culture-invariant string
+   operations, LF line endings. The SDK-band condition is honest, not hedging: Roslyn
+   emission is pinned via CPM (`Microsoft.CodeAnalysis.CSharp`), but the `dotnet format`
+   post-step ships inside the SDK and `global.json` rolls forward on `latestFeature`, so
+   format behavior can shift across feature bands. CI regen-verify is built on this; the
+   CI-resolved SDK is canonical (§13).
 5. **Batched failure reporting.** Coverage violations are collected and reported together with
    category and subject — one fix-up PR per drift event, not a break/fix/break loop.
 
@@ -63,7 +67,7 @@ structure reference; scripted verification against the pinned spec (results inli
 ```
 tools/
 ├── opencode-tool.cs                  ← file-based entry (shebang, committed executable bit)
-│     #!/usr/bin/env dotnet
+│     #!/usr/bin/env -S dotnet --
 │     #:project ./OpenCode.Sdk.Tools/OpenCode.Sdk.Tools.csproj
 │     return await OpenCode.Sdk.Tools.ToolApp.RunAsync(args);
 ├── curation.json                     ← curation config (§5)
@@ -88,7 +92,12 @@ composition (DI via `DependencyInjectionRegistrar`, command classes, service abs
 PathSmith `Program.cs` + `Commands/` + `Services/` pattern, read this session), but the
 `CommandApp` wiring lives in a `ToolApp` factory so `Spectre.Console.Cli.Testing`'s
 `CommandAppTester` can exercise it; the file-based entry shrinks to three lines and merely
-delegates. ADR-0003's packaging clause survives unchanged.
+delegates. The shebang uses the documented `-S dotnet --` form (without `--`, `dotnet` can
+consume arguments that collide with its own CLI — `generate --verify` is exactly that
+class). The committed executable bit lives only in the git index
+(`git update-index --chmod=+x`) — meaningless on a Windows filesystem, effective on the
+Linux CI checkout that dogfoods the entry (§13). ADR-0003's packaging clause survives
+unchanged.
 
 Deviations from PathSmith, both deliberate: `ToolApp` factory instead of logic in
 `Program.cs` (testability of the wiring); pipeline-stage folders under `Generator/` instead of
@@ -107,22 +116,42 @@ emission (ADR-0003). All versions enter `Directory.Packages.props`.
   every invocation, not as a separate command.
   - `--verify` — CI/regen-verify mode: full in-place regeneration (including the format
     post-step), then `git status --porcelain` over the generated paths; dirty ⇒ nonzero exit
-    plus the file list. In-memory comparison was considered and rejected: the `dotnet format`
-    post-step requires an MSBuild workspace, so a memory-side compare would diff unformatted
-    output against formatted commits and always report drift. In-place regen + git-clean check
-    is the ecosystem's regen-verify shape (upstream commits and regen-verifies its generated
-    client the same way — research doc 08).
+    plus the file list. Precondition, self-checked: `--verify` refuses to start when the
+    generated paths already carry uncommitted changes, exiting with a distinct
+    "dirty generated paths" error — a pre-dirty tree would otherwise surface as false
+    drift (CI checkouts are clean; the check exists for local runs; hand-written WIP
+    outside the generated paths does not block it). In-memory comparison was considered
+    and rejected: the `dotnet format` post-step requires an MSBuild workspace, so a
+    memory-side compare would diff unformatted output against formatted commits and always
+    report drift. In-place regen + git-clean check is the ecosystem's regen-verify shape
+    (upstream commits and regen-verifies its generated client the same way — research
+    doc 08).
   - `--update-fingerprints` — the explicit human review gate for fingerprint drift (§9).
 - **`refresh-spec --ref <tag|commit>`** — the spec-refresh workflow (§10).
 
-### 3.3 UNVERIFIED — carried to build-out
+### 3.3 Verification list — carried to build-out
 
-The file-based entry's interaction with the repo's strict `Directory.Build.props` and central
-package management is unverified (the entry uses only `#:project`, no `#:package`, which
-avoids the known CPM/version friction — but this must be proven, not assumed). Verification is
-the first build-out step; the recorded fallback is dropping the entry and promoting the
-library to a console app (a one-line ADR-0003 correction, maintainer-approved), with `ToolApp`
-unchanged.
+File-based apps are documented to inherit `Directory.Build.props`, `Directory.Packages.props`,
+and `global.json` from parent directories (Microsoft Learn, file-based apps, 2026-04), so the
+entry *will* face the analyzer wall, TWAE, and the LangVersion pin; binding it to the repo
+rules is deliberate — the same page recommends isolating file-based apps from implicit build
+files, and we knowingly do the opposite. The entry uses only `#:project`, no `#:package`, so
+CPM version friction does not arise. Three items must be proven as the first build-out step:
+
+1. The entry builds clean under the strict props (the original item).
+2. **Cache staleness.** The SDK's file-based build cache keys on source content, directives,
+   SDK version, and implicit build files — a change in the `#:project`-referenced library is
+   not documented to trigger a rebuild, and a stale tool silently running old emitter code is
+   unacceptable for a generator. If rebuilds are not triggered, entry invocations are routed
+   through an explicit `dotnet build` first, or the fallback fires.
+3. Invocation form: with a csproj in the working directory, `dotnet run file.cs` runs the
+   *project* and passes the file as an argument (documented backwards compatibility) — CI and
+   docs pin the `dotnet run --file` / direct `./tools/opencode-tool.cs` forms.
+
+The recorded fallback is unchanged — drop the entry, promote the library to a console app (a
+one-line ADR-0003 correction, maintainer-approved), `ToolApp` untouched. Its trigger is now
+two-condition: the strict-props build cannot be made clean, **or** cache staleness has no
+reliable workaround.
 
 ## 4. Pipeline architecture (sealed: two-stage)
 
@@ -155,13 +184,28 @@ SpecIR is wire-faithful and contains zero C# concepts. Inventory:
   responses (status → content type + schema; 204 = no-content); SSE flag (detected by the
   `text/event-stream` response content type — 4 ops: `global.event`, `event.subscribe`,
   `v2.session.events`, `v2.event.subscribe` **[verified]**; `x-effect-stream` appears only on
-  `v2.session.events` **[verified]** and is therefore not the detector); declared error
-  responses.
+  `v2.session.events` **[verified]** and is therefore not the detector — its value is
+  carried **opaque**: the extension's interior (`causeSchema` et al.) is never schema-graph
+  input and exists only inside the `handwired` fingerprint document, §9); declared error
+  responses. Content types are parsed as media types: the raw value is recorded, but every
+  match — JSON detection (`application/json` or a `+json` suffix), SSE detection, the
+  `contentTypePayloads` map, the coverage check — runs on the parameter-stripped
+  `type/subtype` (the spec's one parameterized value is `text/x-diff; charset=utf-8`
+  **[verified]**; upstream's Promise client compares the same way — `isContentType`,
+  `index.ts`).
 - **Schema graph** — named schemas plus promoted inline types (the spike's promotion
   pattern, doc 08). Node kinds: object (properties, required set, `additionalProperties`),
   union (`anyOf` + literal-marker analysis, including nested unions such as `ToolState`),
-  enum (104 multi-value enums **[verified]**), primitive/array/dictionary, nullable (the
-  `anyOf`-null branch as its own node), ref.
+  enum (104 multi-value enums **[verified]**), special-value number (an `anyOf` of one
+  `number` branch plus branches that are only `"NaN"`/`"Infinity"`/`"-Infinity"` string
+  literals — the spec's JSON projection of a JS number; 11 locations: `Workspace.timeUsed`
+  and the `time.created`/`time.expires` fields of `IntegrationAttempt` and
+  `IntegrationAttemptStatus`'s inline copies, on both surfaces **[verified]** — emitted as
+  `double` with `JsonNumberHandling.AllowNamedFloatingPointLiterals`, no curation; its
+  literal branches are absorbed by this node — they are neither literal markers nor
+  emitted enums, so the 513/104 counts overstate marker/enum populations by exactly these
+  artifacts), primitive/array/dictionary, nullable (the `anyOf`-null branch as its own
+  node), ref.
 - **`LiteralMarker`** — the discriminator mechanism. Both dialects parse into the same node:
   single-value `enum` (513 today, 0 `const` **[verified]**) and `const` (138 in the observed
   newer dialect — doc 09), so the known drift costs a parser branch, not a redesign. Marker
@@ -170,12 +214,13 @@ SpecIR is wire-faithful and contains zero C# concepts. Inventory:
 - **Mechanical normalizations at parse time** (structural facts, no naming):
   - *Duplicate-`anyOf`-ref dedup.* The public API spec's `session.get` 404 example
     understates the phenomenon: 26 response-schema locations carry a duplicated ref in
-    `anyOf` — `SessionNotFoundError` twice in 23 404s, `InvalidRequestError` twice in 3 400s
+    `anyOf` — `SessionNotFoundError` twice in 22 404s, `InvalidRequestError` twice in 4 400s
     **[verified]**. Dedup is one general rule; a post-dedup single-ref `anyOf` is a plain
     ref, not a union.
   - *Envelope shape classification* — `{data}` (12), `{data, location}` (20), `{cursor,
-    data}` (behind named refs such as `SessionsResponse`), bare, none **[verified]** — the
-    shape is structural; naming the payload is the Binder's job.
+    data}` (2, behind named refs such as `SessionsResponse`), `{data, hasMore}` (1:
+    `v2.session.history` — public API spec §11.1's `ListHistoryAsync`), bare, none
+    **[verified]** — the shape is structural; naming the payload is the Binder's job.
   - *Error-schema style detection* — of the 44 error-named schemas: 20 Effect-style `_tag`,
     17 `{name, data}`, 7 union/event wrappers **[verified]**, matching the public API spec
     §4.1 split. The two conventions are a structural fact recorded per schema; consumers
@@ -190,23 +235,44 @@ SpecIR is wire-faithful and contains zero C# concepts. Inventory:
 The Binder is where every decision lands. Inputs: SpecIR + `curation.json`. Steps, in order:
 
 1. **Load curation** with `JsonUnmappedMemberHandling.Disallow` — an unrecognized field in
-   the config is itself an error (typos cannot be silently ignored), with
-   `ReadCommentHandling.Skip` for comments.
+   the config is itself an error (typos cannot be silently ignored) — plus
+   `ReadCommentHandling.Skip` and `AllowTrailingCommas` for hand-edit ergonomics
+   (run-verified 2026-08-09: the three options compose). The curation models pin their
+   wire names with `[JsonPropertyName]` — under `Disallow` even a naming-policy mismatch
+   is a loud error; same wire-fidelity discipline as the generated models.
 2. **Bidirectional coverage checks** (§5.3), batched.
-3. **Name computation** — mechanical PascalCase with `[JsonPropertyName]` wire fidelity;
+3. **Emission scope — reachable closure, computed on every run.** The emitted schema set
+   is the transitive `$ref` closure of every included operation (parameters, request
+   bodies, all response schemas, SSE item schemas); excluded operations contribute
+   nothing (their subtrees are fingerprint-pinned instead, §9). Named schemas outside the
+   closure (13 today, incl. `OutputFormat1` **[verified]**) are not emitted and are
+   reported as an info-level list in the generate output — never maintained as a list
+   anywhere; a refresh that wires an orphan schema into an operation pulls it into the
+   closure automatically. Curation reverse checks (§5.3) validate against the closure, so
+   a row referencing an unreachable schema is an error. Upstream corroborates the
+   dead-schema stance: its own SDK build deletes unreachable `SessionNext*1` schemas from
+   the document before generation (`packages/sdk/js/script/build.ts`).
+4. **Name computation** — mechanical PascalCase with `[JsonPropertyName]` wire fidelity;
    FDG acronym casing with curated brand exceptions (ADR-0004); dotted-schema-name mangling
    (7 dotted names: `session.status`, `question.replied`, `question.rejected`,
    `Event.tui.*` ×4 **[verified]**; doc 09's requirement); trailing-digit names
-   (`ProviderAuthError1`, `UnknownError1`, `OutputFormat1` **[verified]**) pass through
+   (`ProviderAuthError1`, `UnknownError1` **[verified]**; the third such name,
+   `OutputFormat1`, sits outside the reachable closure and is never emitted) pass through
    mechanically unless a curated schema-name override renames them; the bound-handle rule
    (operations with a `{sessionID}` path parameter emit into `SessionClient` — ADR-0008)
    plus curated handle children.
-4. **Derived emission decisions** — which operations get forward-only paginators (those with
+5. **Derived emission decisions** — which operations get forward-only paginators (those with
    the `{cursor, data}` envelope), which unions get tolerant converters (all of them —
    ADR-0009 is mechanical), registry membership, stream-endpoint item schemas (the SSE
    operations themselves are hand-wired, ADR-0008; the generator emits their item unions —
-   `V2Event`, `Event`, `SessionDurableEvent`).
-5. **Fingerprint computation** for every excluded or hand-wired operation (§9).
+   `V2Event`, `Event`, `SessionDurableEvent`). **XML doc computation** happens here too:
+   every public type and member gets its doc text in the EmitPlan — spec
+   `summary`/`description` where present (XML-escaped), a deterministic synthesized
+   fallback from names and structure otherwise. The fallback is the majority path for
+   models: the pinned spec documents 185/188 operations but only 3/472 schemas and 27/1836
+   properties **[verified]** — CS1591 stays `error` with no exemption, so emission must
+   cover every public member.
+6. **Fingerprint computation** for every excluded or hand-wired operation (§9).
 
 Output: **EmitPlan** — the complete file list with final names, namespaces, members, plus
 registry, routes, paginator, and manifest contents. Emitters receive no open questions.
@@ -222,8 +288,8 @@ checks are *semantic* — "does this operationId exist in the spec", "is this en
 either way, and it catches shape/typo errors with better messages than the compiler would.
 What remains for JSON is structural: logic in config is physically impossible rather than
 convention-banned, and the "curation change = API review" rule (ADR-0008) reads cleanest on
-pure-data diffs. Comments are carried as data (`reason` fields — mandatory on exclusions) and
-STJ comment-skip permits real comments. Ecosystem precedent: Kiota, NSwag, and OpenAPI
+pure-data diffs. Comments are carried as data (`reason` fields — mandatory on exclusions and
+on the behavior-premised override kinds, §5.3) and STJ comment-skip permits real comments. Ecosystem precedent: Kiota, NSwag, and OpenAPI
 Generator all use data files for generator config.
 
 Upstream's counterpart is a tiny code-side options object —
@@ -239,9 +305,9 @@ is a few hundred rows, which justifies the dedicated data file.
 | `groups` | wire group → client name; optional handle `{name, children}` | `session` → `Sessions`, handle `SessionClient`, children `[Permissions, Questions, Revert, Events]` |
 | `envelopePayloadNames` | opId → payload property name | `v2.session.list` → `Sessions` |
 | `exclusions` | `[{op, reason}]`, reason mandatory | `pty.connect` (both surfaces): WebSocket upgrade masquerading as GET (doc 10; public API spec §14) |
-| `contentTypePayloads` | content type → `stream` / `string` | `application/octet-stream` → `stream`; `text/x-diff` → `string` **[verified: the only two non-JSON, non-SSE response content types]** |
-| `parameterTypeOverrides` | `[{op, param, type}]` | `v2.session.history` `after`/`limit` → numeric (OpenAPI says string; Effect source is `NumberFromString` — public API spec §11.1) |
-| `propertyOverrides` | per-property: `uri` marking, `uri→string` fallback, explicit-null | the 8 `anyOf`-null fields where null carries meaning (ADR-0004) |
+| `contentTypePayloads` | parameter-stripped media type → `stream` / `string` (§4.1 normalization) | `application/octet-stream` → `stream`; `text/x-diff` → `string` (matches the wire's `text/x-diff; charset=utf-8`) **[verified: the only two non-JSON, non-SSE response content types]** |
+| `parameterTypeOverrides` | `[{op, param, type, reason}]`, reason mandatory (§5.3 — behavior-premised) | `v2.session.history` `after`/`limit` → numeric (OpenAPI says string; Effect source is `NumberFromString` — public API spec §11.1) |
+| `propertyOverrides` | per-property: `uri` marking, `uri→string` fallback, explicit-null; `reason` mandatory (§5.3 — behavior-premised) | the `anyOf`-null fields where null carries meaning (ADR-0004) |
 | `schemaNameOverrides` | wire schema name → C# name | optional renames for trailing-digit names |
 | `brandSpellings` | curated casing exceptions | `OAuth` (ADR-0004) |
 
@@ -255,7 +321,7 @@ is a few hundred rows, which justifies the dedicated data file.
 | spec → curation | every operationId-prefix group has a `groups` row | `group 'widget': unnamed` |
 | spec → curation | every enveloped response has a payload name | `v2.widget.list: payload unnamed` |
 | spec → curation | every response content type ∈ map (JSON and SSE built in) | `image/png: unmapped content type` |
-| spec → curation | every `anyOf`-null field has a null-semantics decision | ADR-0004: an unmapped `anyOf`-null fails generation |
+| spec → curation | every `anyOf`-null field has a null-semantics decision (7 model fields **[verified]** — an eighth `anyOf`-null location sits inside the opaque `x-effect-stream` metadata and never reaches the schema graph, §4.1) | ADR-0004: an unmapped `anyOf`-null fails generation |
 | curation → spec | every curation key references an existing spec construct | `curation row 'session.prompt': matches nothing` (renames orphan their rows — orphans are errors, or the config rots silently) |
 
 Upstream comparison: `httpapi-codegen` throws `GenerationError` on every ambiguity it meets
@@ -263,6 +329,15 @@ Upstream comparison: `httpapi-codegen` throws `GenerationError` on every ambigui
 wildcard paths in the Promise emitter) — the same refuse-to-guess philosophy — but its
 `omitEndpoints` set has no reverse check: an orphaned omit entry is silently ignored
 (`index.ts`, `compile()`). Our reverse direction closes that hole.
+
+**Uncaught by design — behavior-premised overrides.** A curation row can be structurally
+valid while its *premise* has silently expired: `parameterTypeOverrides` (numeric
+`after`/`limit` rests on server behavior the OpenAPI projection does not show) and
+`propertyOverrides`' explicit-null markings encode facts that live outside the pinned spec,
+so no layer of this radar can see them drift. Recorded as accepted residual risk. The catch
+points are integration tests against a real process (the testing session's domain) and
+refresh-PR review — which is why `reason` is mandatory on exactly these row kinds (§5.2):
+the premise sits written above the row for the reviewer to re-check.
 
 **Layer 2 — the parser's dialect wall** (§4.1): unknown constructs are refused, and the
 zero-counts stay zero by force.
@@ -275,6 +350,12 @@ generated output (ADR-0003 — a new rule firing on generated code breaks the bu
 stale-file cleanup via the output manifest (removed operations cannot leave zombie API
 behind).
 
+In-schema drift of **generated** operations is deliberately assigned to no bespoke
+detector: it surfaces as the regenerated-output diff in the refresh PR (the own-generator
+decision's core payoff — ADR-0008's loud diff), backed by the analyzer wall and the
+round-trip behavior tests; the refresh-spec diff summary (§10) flags the affected
+operationIds for the reviewer.
+
 ## 6. Emitters
 
 All emitters are deliberately dumb — they consume EmitPlan only, with no access to the spec or
@@ -283,7 +364,7 @@ curation — and are Roslyn syntax-factory emitters (ADR-0003), one per artifact
 | Emitter | Emits | Governing rules |
 |---|---|---|
 | `ModelEmitter` | records: `init`-only, `required`, read-only collections, `[JsonPropertyName]`, `WhenWritingNull` on nullables, curated `Uri` properties | ADR-0004; public API spec §12 |
-| `UnionEmitter` | union base + variants + the `Unknown*` carrier + one custom converter per union: buffer the element, read the tag position-independently, dispatch through the source-generated context; unknown tag → carrier (tag string + raw `JsonElement`), re-serialized as the raw payload | ADR-0009 |
+| `UnionEmitter` | union base + variants + the `Unknown*` carrier + one custom converter per union: buffer the element, read the tag position-independently, dispatch via a per-union static tag→type map through the source-generated context; unknown tag → carrier (tag string + raw `JsonElement`), re-serialized as the raw payload. No `[JsonPolymorphic]`/`[JsonDerivedType]` attributes — the converter is the single dispatch owner; the discriminator is emitted as a get-only computed property (serialized on write, ignored on read). Spike-proven (2026-08-09, 88-variant harness under the full wall, reflection fallback disabled): map shape 0/0 with constant-size `Read`/`Write`; type-based context dispatch is AOT-safe; the 88-arm switch shape measured failing MA0051 (96 lines) and was rejected — dispatch as data, not control flow | ADR-0009 |
 | `EnvelopeEmitter` | per-op envelopes: guarded payload getters, internal `[SetsRequiredMembers]` error constructor, guarded `PrintMembers` override, `IDisposable` envelope for `Stream` payloads, `SessionsCursor`, payload-less 204 envelopes (19 modern 204 ops **[verified]**) | public API spec §5.1 |
 | `InputRecordEmitter` | request input records (the ≤2-scalar flat-parameter rule is applied in the Binder; the emitter writes what the plan says) | public API spec §8.3 |
 | `OperationMethodEmitter` | sub-clients, `SessionClient`, the `Legacy` hub; one-line delegating `virtual` methods, BCL throw-helper guards, XML docs from spec `summary`/`description`, `<exception cref>` lists from declared error responses | ADR-0008; public API spec §7/§8/§12.5–6 |
@@ -325,16 +406,20 @@ folder convention.
 
 1. **Output manifest** — `src/OpenCode.Sdk/.generated-manifest.json`, the sorted list of
    generated file paths, committed. Files present in the previous manifest but absent from
-   the current plan are deleted (no zombie API); files outside the manifest are never
-   touched (hand-written code is structurally safe). Pattern precedent: upstream's
-   `.httpapi-codegen.json` manifest with stale-file removal and unsafe-path refusal
-   (`index.ts`, `write()`).
+   the current plan are deleted (no zombie API); the Writer never **writes or deletes**
+   outside the manifest (hand-written code is structurally safe from emission and cleanup —
+   only the project-wide format post-step, below, may touch it). Pattern precedent:
+   upstream's `.httpapi-codegen.json` manifest with stale-file removal and unsafe-path
+   refusal (`index.ts`, `write()`).
 2. **Determinism** (§2 principle 4): stable orderings, culture-invariant formatting, LF endings —
    byte-identical output for identical inputs.
 3. **`dotnet format` post-step** runs on the whole SDK project rather than a per-file
    include list: hundreds of `--include` paths would strain the Windows command-line length
    limit, whole-project formatting is idempotent, and it matches what the CI format gate
-   checks anyway. Upstream's equivalent is prettier-per-file inside `write()`.
+   checks anyway. Consequence, stated openly: running `generate` with unformatted
+   hand-written WIP in the project will format that WIP too — the post-step is project-wide
+   by design and applies only the rules the CI gate enforces anyway. Upstream's equivalent
+   is prettier-per-file inside `write()`.
 
 ## 9. Fingerprint manifest (ADR-0008 mechanics)
 
@@ -342,11 +427,22 @@ folder convention.
   spec subtrees. Committed; written only by the tool.
 - **Scope:** every operation that bypasses generation — the curated exclusions
   (`v2.pty.connect`, legacy `pty.connect` — public API spec §14) and the four hand-wired SSE
-  stream endpoints (§4.1 list). Entries carry `{surface, hash, reason}`.
-- **Hash:** SHA-256 over the **canonical JSON** of the operation's spec subtree — the
-  operation object, its parameters, its request/response content types, and every
-  transitively referenced schema — with sorted keys and no whitespace, so cosmetic
-  reordering of the spec file cannot move a hash.
+  stream endpoints (§4.1 list). Entries carry `{surface, kind, hash, reason}`; `kind`
+  (`excluded` | `handwired`) selects the hash coverage.
+- **Hash:** SHA-256 over a **canonical JSON** document (sorted keys, no whitespace —
+  cosmetic reordering of the spec file cannot move a hash) whose content depends on `kind`:
+  - `excluded` — the full subtree: the **HTTP method and path** (included explicitly — the
+    OpenAPI operation object carries neither, so a same-shape move or method change would
+    otherwise slip the radar), the operation object, its parameters, its request/response
+    content types, and every transitively referenced schema. Nothing here is generated;
+    everything stays on the radar.
+  - `handwired` — the **transport shape** only: method, path, parameters, content types,
+    the `x-effect-stream` value, and the *names* (not contents) of the item-union schemas.
+    The item schemas are generated and already guarded by regen-verify; hashing their
+    transitive closure would break the fingerprint on nearly every refresh (the event
+    unions reach half the spec) and erode the `--update-fingerprints` review gate into
+    reflex approval. The fingerprint pins exactly what generation does not cover — the
+    contract the hand-written wiring assumes.
 - **Behavior:** `generate` recomputes fingerprints on every run. A mismatch, a missing
   entry (newly excluded op without a fingerprint), or an orphan entry (fingerprinted op no
   longer in the spec) is an error. The only way to update the manifest is the explicit
@@ -397,9 +493,10 @@ session, to be deep-dived and possibly revised there — not sealed design.
 - **Emitters:** Verify snapshot tests (the ROADMAP-named tool), per-emitter, over small
   per-construct EmitPlan fixtures → `.verified.cs`. Micro snapshots localize failures; the
   macro snapshot already exists — the committed output in `src/`, guarded by regen-verify.
-- **Compile gate:** no separate harness — the spike's strict-analyzer compile harness
-  dissolves into the product build itself: committed output compiles in normal CI
-  (5 TFMs × 3 OSes × the on-merit analyzer wall).
+- **Compile gate** (architecture, not testing strategy — it follows from §13 and is not
+  the queued session's to revisit): no separate harness — the spike's strict-analyzer
+  compile harness dissolves into the product build itself: committed output compiles in
+  normal CI (5 TFMs × 3 OSes × the on-merit analyzer wall).
 - **Round-trip behavior** (product tests, over the committed generated code): known tag →
   correct variant; unknown tag → `Unknown*` carrier and raw-payload re-serialization;
   out-of-order discriminators; explicit-null vs missing; guarded getter and guarded
@@ -413,24 +510,42 @@ session, to be deep-dived and possibly revised there — not sealed design.
 
 Generated code is a single source set compiled by all five TFMs
 (`netstandard2.0;net472;net8.0;net9.0;net10.0`, ADR-0002). The enablers are already locked:
-the downlevel System.Text.Json package (source-gen, modern polymorphism,
-`AllowOutOfOrderMetadataProperties` down to ns2.0 — doc 06 §4) and Polyfill (`required`,
-`init`, records — ADR-0002). If a construct cannot be expressed uniformly downlevel, that is
-a **generation error with an explanation**, never silent `#if` sprawl; conditional-emission
-support would be added later only as a deliberate, recorded decision (extend-only).
+the downlevel System.Text.Json package (source-gen down to ns2.0 — doc 06 §4) and Polyfill
+(`required`, `init`, records — ADR-0002). If a construct cannot be expressed uniformly
+downlevel, that is a **generation error with an explanation**, never silent `#if` sprawl;
+conditional-emission support would be added later only as a deliberate, recorded decision
+(extend-only).
+
+The converter design (ADR-0009; dispatch shape sealed in §6) retires two of the ROADMAP
+net472 spike unknowns: `[JsonPolymorphic]` is never emitted, and
+`AllowOutOfOrderMetadataProperties` is not needed — the converter buffers the element and
+reads the tag itself (spike-proven, tag-last case). The surviving downlevel checklist:
+
+1. `required`/`init`/records via Polyfill (unchanged).
+2. The STJ surface the converters actually use, on the downlevel package:
+   `Utf8JsonReader`/`JsonDocument` buffering,
+   `JsonNumberHandling.AllowNamedFloatingPointLiterals` (§4.1's special-value numbers),
+   `[JsonStringEnumMemberName]` for the 21 non-identifier enum values **[verified]**.
+3. The dispatch map's collection type on ns2.0: the emitter writes a plain read-only
+   `Dictionary<string, Type>` — `FrozenDictionary` would drag a
+   `System.Collections.Immutable` dependency into downlevel TFMs, and the difference is
+   unmeasurable at our sizes.
 
 The ROADMAP net472 spike item stands and sharpens: the spike compiled net10.0 only, so
-"full-spec generated output compiles on all five TFMs" becomes an early build-out milestone,
+"full-spec generated output compiles on all five TFMs" remains an early build-out milestone,
 before emitter polish.
 
 ## 13. CI wiring
 
 One added step in the existing workflow: run `generate --verify` through the file-based entry
 (CI dogfoods the entry) on a single OS — Linux, the fastest leg; output is platform-independent
-text with LF endings enforced repo-wide, so multi-OS verification adds nothing. The existing
-`dotnet format --verify-no-changes` gate already covers generated files (they are plain
-`.cs`) — a deliberate second radar. The build itself is the compile gate for generated output
-(§11).
+text with LF endings enforced repo-wide (`.gitattributes` + `.editorconfig` `end_of_line`), so
+multi-OS verification adds nothing. **The SDK that CI resolves is canonical:** when a local
+`generate` and CI `--verify` disagree, the first suspect is SDK feature-band skew
+(`global.json` rolls forward on `latestFeature` — §2 principle 4), and the fix is aligning
+the local SDK, never hand-editing output. The existing `dotnet format --verify-no-changes`
+gate already covers generated files (they are plain `.cs`) — a deliberate second radar. The
+build itself is the compile gate for generated output (§11).
 
 ## 14. Decisions sealed in this session (summary)
 
@@ -438,8 +553,10 @@ text with LF endings enforced repo-wide, so multi-OS verification adds nothing. 
    delegating to a testable `ToolApp` factory; ADR-0003 packaging unchanged (§3.1).
 2. **`tools/` is the centralized repo-tooling home;** the generator lives in a `Generator/`
    subtree as its first area, not as the project's identity (§2 principle 3).
-3. **Curation config is JSON** — `tools/curation.json`, reasons as data, comment-skip,
-   unknown-field disallow (§5.1).
+3. **Curation config is JSON** — `tools/curation.json`, reasons as data (mandatory on
+   exclusions and behavior-premised overrides), comment-skip + trailing commas,
+   unknown-field disallow, wire names pinned with `[JsonPropertyName]` (§5.1, §5.3;
+   options run-verified).
 4. **Coverage checks are bidirectional** — missing entries and orphan entries both fail
    (§5.3; exceeds upstream's one-directional `omitEndpoints`).
 5. **Pipeline is two-stage** — Parser → SpecIR → Binder → EmitPlan → Emitters → Writer
@@ -448,8 +565,9 @@ text with LF endings enforced repo-wide, so multi-OS verification adds nothing. 
    `[GeneratedCode]`, no per-file `#nullable`; manifest tracks generated-ness (§7).
 7. **Writer:** output manifest + stale cleanup; whole-project `dotnet format`;
    `--verify` = in-place regen + git-porcelain check (in-memory compare rejected — §3.2/§8).
-8. **Fingerprints:** `spec/fingerprints.json`, canonical-JSON SHA-256 over operation
-   subtrees, `--update-fingerprints` as the human review gate (§9).
+8. **Fingerprints:** `spec/fingerprints.json`, canonical-JSON SHA-256 with two-kind
+   coverage — full subtree (method and path included) for exclusions, transport shape
+   for the hand-wired SSE ops — `--update-fingerprints` as the human review gate (§9).
 9. **Refresh procedure is a playbook, not an ADR** — canonical home `spec/SNAPSHOT.md`,
    rewritten to the tool-based flow when the tool lands (§10).
 10. **Multi-TFM: uniform source, zero `#if`;** inexpressible constructs fail generation
@@ -459,8 +577,9 @@ text with LF endings enforced repo-wide, so multi-OS verification adds nothing. 
 
 ## 15. UNVERIFIED / open items
 
-- File-based entry vs strict `Directory.Build.props`/CPM interplay (§3.3) — first build-out
-  step; fallback recorded.
+- File-based entry verification list (§3.3: clean build under the strict props, `#:project`
+  cache-staleness proof, invocation-form pinning) — first build-out step; two-condition
+  fallback recorded.
 - Full-spec generated output on downlevel TFMs (§12) — early build-out milestone (ROADMAP
   net472 spike item).
 - Refresh cadence policy (snapshot per SDK release?) — stays in ROADMAP Open Questions.

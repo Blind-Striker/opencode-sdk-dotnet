@@ -628,9 +628,10 @@ forward-compatibility question parked by the codegen spike.
    `[JsonPropertyName]` carrying wire fidelity (`_tag`, snake_case, dotted schema names
    per doc 09's mangling requirement).
 4. **`WhenWritingNull`** — nullable properties (rare by ADR-0004) default to
-   `JsonIgnoreCondition.WhenWritingNull`; the spec's 8 `anyOf`-null fields where null
-   carries meaning are curatable to explicit-null per property; an unmapped `anyOf`-null
-   fails generation.
+   `JsonIgnoreCondition.WhenWritingNull`; the spec's 7 model-level `anyOf`-null fields
+   where null carries meaning are curatable to explicit-null per property (an eighth
+   `anyOf`-null location lives inside SSE stream metadata the generator never models);
+   an unmapped `anyOf`-null fails generation.
 5. **Guard emission** — every generated method begins with BCL throw-helper guards
    (`ArgumentNullException.ThrowIfNull`, `ArgumentException.ThrowIfNullOrEmpty`;
    Polyfill covers downlevel TFMs). Coverage is mechanical, not memory-dependent. The
@@ -639,9 +640,13 @@ forward-compatibility question parked by the codegen spike.
    framework (Code Contracts is dead tooling); invariants live in the type system (NRT,
    `required`, immutability, guarded getters); internal assumptions use `Debug.Assert`.
 6. **XML documentation emission; CS1591 becomes `error`** — resolving the deferral
-   recorded in doc 07 D9. Generated docs come from spec `summary`/`description`;
-   operation methods additionally emit AWS-style `<exception cref>` lists from the
-   spec's declared error responses. Hand-written surface is documented by hand.
+   recorded in doc 07 D9. Generated docs come from spec `summary`/`description` where
+   present; where the spec carries no text — the norm for models (3/472 schemas,
+   27/1836 properties at v1.18.15; operations are well covered at 185/188) — the
+   generator emits a deterministic synthesized fallback from names and structure, so
+   CS1591 stays `error` with no exemption. Operation methods additionally emit
+   AWS-style `<exception cref>` lists from the spec's declared error responses.
+   Hand-written surface is documented by hand.
 
 ## 13. Launcher public surface
 

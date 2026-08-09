@@ -87,8 +87,12 @@ The per-union `Unknown*` variant absorbing unrecognized discriminators at runtim
 string + raw payload).
 
 **Fingerprint pin**:
-The committed hash of an excluded or hand-wired operation's spec subtree; CI breaks when
-the pinned construct drifts.
+The committed hash of an excluded operation's spec subtree, or of a hand-wired
+operation's transport shape; CI breaks when the pinned construct drifts.
+
+**Output manifest**:
+The committed inventory of generated files; generated-ness is tracked here, never by
+folder or file-name convention.
 
 **Recorded tolerance**:
 An explicit, registered runtime exception to the fail-closed default.

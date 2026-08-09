@@ -15,25 +15,27 @@ as of 2026-08-08. Codegen spike complete (research doc 08). Grill session comple
 0001–0006 backfilled, root `CONTEXT.md` glossary created, ADR rules canonicalized in
 `adr/README.md`. Public API design complete and grill-hardened — spec at
 `superpowers/specs/2026-08-09-public-api-design.md`; the grill session (2026-08-09) produced
-ADRs 0007–0009, research docs 11–12, and corrections throughout the spec. No SDK code yet —
-next up: generator brainstorm session (spec §15).
+ADRs 0007–0009, research docs 11–12, and corrections throughout the spec. Generator
+architecture designed and grill-hardened — spec at
+`superpowers/specs/2026-08-09-generator-architecture.md`; its grill (2026-08-09, research log
+session 7) run-proved the converter dispatch shape and hardened the spec in place. No SDK
+code yet — next up: testing architecture & strategy session.
 
 ## Queue
 
 In order — do not improvise beyond it without asking the maintainer. Parenthetical skill notes
 are hints for the driving agent.
 
-1. **Public API design — remaining steps.** The design is done and grill-hardened
-   (`superpowers/specs/2026-08-09-public-api-design.md`; ADRs 0007–0009). Remaining, in
-   order: generator **brainstorm** session (input: the spec's §1 generator contract +
-   §15 grill-added scope) producing a generator design spec → fresh-context **grill**
-   session over that spec → a **testing architecture & strategy** session (integration
-   testing against a real opencode process: containerized clean install, bound HTTP
-   port, free models, determinism-first; spike/PoC allowed; owns the testing open
-   question below) → `writing-plans` (multi-phase; phases are vertical slices
-   co-developing `tools/`, SDK, Extensions, and tests — co-development per spec §3 /
-   ADR-0006). `api-design` (extend-only) + `snapshot-testing` (Verify) lock the public
-   surface as implementation lands.
+1. **Design runway — remaining steps.** Public API design and generator architecture are
+   both done and grill-hardened (`superpowers/specs/2026-08-09-public-api-design.md`,
+   `superpowers/specs/2026-08-09-generator-architecture.md`; ADRs 0007–0009). Remaining,
+   in order: a **testing architecture & strategy** session (integration testing against
+   a real opencode process: containerized clean install, bound HTTP port, free models,
+   determinism-first; spike/PoC allowed; owns the testing open question below; input:
+   generator spec §11's sketch) → `writing-plans` (multi-phase; phases are vertical
+   slices co-developing `tools/`, SDK, Extensions, and tests — co-development per spec
+   §3 / ADR-0006). `api-design` (extend-only) + `snapshot-testing` (Verify) lock the
+   public surface as implementation lands.
 2. **Generator build-out + implementation** — `executing-plans` /
    `subagent-driven-development`; the model-layer generator per ADR-0003 and `AGENTS.md`
    (Roslyn emission; `tools/` architecture with a file-based entry; tooling stack:
@@ -60,9 +62,12 @@ are hints for the driving agent.
   (`ServicePointManager.DefaultConnectionLimit = 2` gotcha), async stdout reading,
   `taskkill /T /F` tree-kill fallback, polyfill set validation (Polyfill's companion packages —
   `System.Memory`, `Microsoft.Bcl.AsyncInterfaces` — plus latest System.Text.Json downlevel),
-  and generated-model downlevel compile (`required`, `[JsonPolymorphic]`,
-  `AllowOutOfOrderMetadataProperties` via the downlevel System.Text.Json package — untested,
-  the spike slice compiled net10.0 only).
+  and generated-model downlevel compile per generator spec §12's checklist
+  (`required`/`init`/records via Polyfill; the converter-used STJ surface —
+  `Utf8JsonReader`/`JsonDocument` buffering, `JsonNumberHandling` named-float literals,
+  `[JsonStringEnumMemberName]`; plain-`Dictionary` dispatch maps — untested, the spike
+  slices compiled net10.0 only; `[JsonPolymorphic]`/`AllowOutOfOrderMetadataProperties`
+  retired by the converter design).
 - **Spec tracking:** `openapi.json` changes on every upstream push — snapshot per SDK release +
   diff/regen workflow (`spec/SNAPSHOT.md` is the pin; the submodule tracks upstream).
 - **Launcher deep-dive items** (spec §13): auto-port mechanics (`--port=0` support

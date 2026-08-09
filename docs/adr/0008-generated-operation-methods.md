@@ -14,10 +14,11 @@ DI extensions.
 
 The radar covers both sides of the boundary: generated output is CI regen-verified
 (ADR-0003); every **excluded or hand-wired** operation (SSE endpoints, `pty.connect`,
-future exclusions) is **fingerprint-pinned** — the generator hashes each such
-operation's spec subtree (path, parameters, content types, transitive schemas) into a
-committed manifest, and a spec refresh that moves a pinned construct breaks the build
-for explicit review. Non-JSON response bodies stay generated via a fail-closed
+future exclusions) is **fingerprint-pinned** — the generator hashes each such operation
+into a committed manifest (excluded ops: the full subtree — method, path, parameters,
+content types, transitive schemas; hand-wired ops: the transport shape only, their item
+schemas being generated and regen-verified already), and a spec refresh that moves a
+pinned construct breaks the build for explicit review. Non-JSON response bodies stay generated via a fail-closed
 content-type→payload map (`application/octet-stream` → `Stream` payload on a disposable
 envelope; `text/*` → `string`); an unknown content type breaks generation.
 
