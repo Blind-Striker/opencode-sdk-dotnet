@@ -26,8 +26,11 @@ plus a declarative fail-closed curation config; outputs are models, response env
 input records, operation methods for both surfaces, per-union tolerant converters (ADR-0009),
 forward-only paginators, the single `[JsonSerializable]` registry, `OpenCodeRoutes`, the
 fingerprint manifest (ADR-0008), emitted guard clauses, and emitted XML docs with
-`<exception cref>` lists. Output passes the analyzer wall on merit (ADR-0003); a `dotnet
-format` post-step and CI regen-verify guard it.
+`<exception cref>` lists. The testing architecture spec
+(`2026-08-10-testing-architecture-design.md` §7.1, §3) adds two test-consumed outputs —
+the committed operation inventory and the contract test fixtures — tracked as a second
+output root of the Writer's manifest machinery (§8). Output passes the analyzer wall on
+merit (ADR-0003); a `dotnet format` post-step and CI regen-verify guard it.
 
 **Evidence base:** ADRs 0003/0004/0005/0008/0009; research docs 08 (codegen spike — parser/IR
 boundary, emission trade, packaging), 09/10 (dialect drift, genealogy); the public API spec
@@ -410,7 +413,9 @@ folder convention.
    outside the manifest (hand-written code is structurally safe from emission and cleanup —
    only the project-wide format post-step, below, may touch it). Pattern precedent:
    upstream's `.httpapi-codegen.json` manifest with stale-file removal and unsafe-path
-   refusal (`index.ts`, `write()`).
+   refusal (`index.ts`, `write()`). The test-consumed artifacts (operation inventory and
+   contract fixtures — testing spec §7.1/§3) form a second manifest root under the same
+   write/delete discipline.
 2. **Determinism** (§2 principle 4): stable orderings, culture-invariant formatting, LF endings —
    byte-identical output for identical inputs.
 3. **`dotnet format` post-step** runs on the whole SDK project rather than a per-file
@@ -454,7 +459,8 @@ folder convention.
 
 **Command:** `refresh-spec --ref <tag|commit>` — (1) submodule fetch + checkout via CliWrap;
 (2) copy `external/opencode/packages/sdk/openapi.json` → `spec/openapi.json`; (3) rewrite the
-`SNAPSHOT.md` provenance table (commit, tag, `Date:`); (4) print an old-vs-new SpecIR diff
+`SNAPSHOT.md` provenance table (commit, tag, `Date:`) and stamp the opencode test-server
+version pin (single-sourced with the spec pin — testing spec §11); (4) print an old-vs-new SpecIR diff
 summary (added/removed/changed operationIds) as the refresh PR's review aid; (5) run
 `generate`, which surfaces coverage gaps and fingerprint drift loudly (§5.3). This lands the
 "dedicated spec-refresh tool" that `spec/SNAPSHOT.md` records as planned.
@@ -471,14 +477,14 @@ section to the tool-based procedure: run `refresh-spec`, resolve what `generate`
 manifests + regenerated output as **one PR**. The refresh *cadence* question (snapshot per
 SDK release) stays open in ROADMAP.
 
-## 11. Testing — initial sketch only (deferred)
+## 11. Testing — tooling test design (sealed)
 
-**Caveat (sealed):** the testing strategy and architecture — spanning `OpenCode.Sdk`,
-`OpenCode.Sdk.Extensions`, and the tools; the unit/integration/functional split; real-process
-integration harness and containerization — is owned by the queued **testing architecture &
-strategy session** (ROADMAP queue 1 sequencing; ROADMAP Open Questions assigns it
-explicitly). What follows is this session's initial sketch, recorded as *input* to that
-session, to be deep-dived and possibly revised there — not sealed design.
+The testing strategy and architecture across all packages is owned by the testing
+architecture spec (`2026-08-10-testing-architecture-design.md`); its §10 sealed this
+section's content and added three revisions: tests for the tool's two new outputs (the
+operation inventory and the contract fixtures — §1/§8), `refresh-spec` command tests, and
+the round-trip behavior tests reassigned to `OpenCode.Sdk.Tests` (level 1 there). What
+follows is the sealed tooling-test design.
 
 - **Parser:** small hand-written spec fixtures, one per quirk (nested union, `anyOf`-null,
   duplicate-ref dedup, single-enum *and* `const` markers, dotted names, wildcard path, SSE
@@ -497,13 +503,12 @@ session, to be deep-dived and possibly revised there — not sealed design.
   the queued session's to revisit): no separate harness — the spike's strict-analyzer
   compile harness dissolves into the product build itself: committed output compiles in
   normal CI (5 TFMs × 3 OSes × the on-merit analyzer wall).
-- **Round-trip behavior** (product tests, over the committed generated code): known tag →
-  correct variant; unknown tag → `Unknown*` carrier and raw-payload re-serialization;
-  out-of-order discriminators; explicit-null vs missing; guarded getter and guarded
-  `PrintMembers` behavior.
+- **Inventory & fixtures:** inventory fidelity to curation (excluded ops absent, SSE ops
+  flagged); fixture-synthesis determinism, snapshot-verified.
 - **Writer/commands:** MockFileSystem for manifest write and stale deletion; git/format
   calls behind `Infrastructure` wrapper interfaces, faked in tests; command wiring via
-  `CommandAppTester`.
+  `CommandAppTester`; `refresh-spec` covered the same way (faked git/copy wrappers,
+  `SNAPSHOT.md` rewrite, diff-summary output).
 - **Determinism:** emit twice, assert byte-identical.
 
 ## 12. Multi-TFM emission (sealed: uniform source, zero `#if`)
@@ -572,8 +577,8 @@ build itself is the compile gate for generated output (§11).
    rewritten to the tool-based flow when the tool lands (§10).
 10. **Multi-TFM: uniform source, zero `#if`;** inexpressible constructs fail generation
     (§12).
-11. **Testing content is an initial sketch only**, owned by the queued testing architecture
-    & strategy session (§11).
+11. **Testing is owned by the testing architecture spec** (2026-08-10); §11 carries the
+    sealed tooling-test design with its three revisions.
 
 ## 15. UNVERIFIED / open items
 

@@ -730,3 +730,104 @@ fields; their premise drift is recorded as accepted residual risk (caught by int
 tests and refresh review, not by the radar). In-schema drift of generated operations is
 explicitly assigned to the refresh-PR regen diff. All 11 brainstorm seals remain
 standing; none was reversed.
+
+# Session 8 — 2026-08-09/10: brainstorm session — testing architecture & strategy spec
+
+Brainstorm session per the 2026-08-09 handoff: full onboarding plus two background
+verification agents (upstream submodule read at line level; reference-repo workflows read
+from GitHub). Decisions sealed one by one with the maintainer; output:
+`superpowers/specs/2026-08-10-testing-architecture-design.md`. This entry is the chain.
+
+## Q40: How does upstream actually test itself — and does "every endpoint exercised" hold?
+
+**How researched:** submodule at line level — `packages/opencode/package.json` scripts,
+`test/server/httpapi-exercise/{index,routing,runner,backend,environment}.ts`,
+`test/lib/{llm-server,cli-process,test-provider}.ts`, `test/preload.ts`, `bunfig.toml`,
+`packages/sdk/js/src/{server,process}.ts`, `.github/workflows/test.yml`.
+
+**Found:** `test:httpapi` is a route-coverage harness: the operation inventory is derived at
+runtime from the server's own API definition (`OpenApi.fromApi(PublicApi)`) and diffed
+against a scenario DSL list; `--fail-on-missing`/`--fail-on-skip` gate the run; three modes
+(`coverage`/`auth`/`effect`); it executes **in-process** (`HttpRouter.toWebHandler` — no
+spawned server, no sockets), Linux CI leg only. Upstream tests never hit a real LLM:
+`TestLLMServer` (in-process fake OpenAI-compatible SSE server on port 0, scripted reply
+queue incl. `hang`/`streamError`/`httpError`/`reset`, auto-`"ok"`, fixed title answer), an
+ordinary provider config row (`test/test-model`) injected via `OPENCODE_CONFIG_CONTENT`,
+plus a first-party VCR package (`http-recorder`) with committed cassettes; the bun preload
+deletes every provider API key; CI passes no LLM secrets. Upstream's tests never use the
+SDK's `createOpencodeServer` (fixed default port 4096); their subprocess fixture spawns the
+real CLI with `--port 0` + stdout parsing ("Hard-coded ports flake under parallel tests")
+and a full env-isolation set. No container-based test harness exists upstream.
+
+**Decision/lesson:** upstream's in-process confidence rests on owning the router (embedded ≡
+networked minus TCP) and does not transfer — the layer they skip is exactly our product, so
+real-process integration is mandatory here (aligns with ADR-0001). Ported into our design:
+the env-isolation set, the port-0 rule, the fake-LLM tiering, the coverage-gate idea. The
+ROADMAP's "free models for determinism" assumption falls (see Q43).
+
+## Q41: What CI/test patterns do the maintainer's reference repos actually run?
+
+**How researched:** workflow files read from GitHub at pinned commits —
+`localstack-dotnet-client` (`ci-cd.yml`, `aws-sdk-canary.yml`, badge action, Cake
+`TestTask.cs`/`BuildContext.cs`, test csprojs) and `dotnet-aspire-for-localstack`
+(`ci-cd.yml`, `run-dotnet-tests` composite, badge action, `Directory.Build.props`).
+
+**Found:** both repos run three-OS matrices with `dorny/test-reporter` TRX flows;
+container-backed tests are Linux-only (repo 1: a `--skipFunctionalTest` flag computed from
+`runner.os` into the Cake task; repo 2: step-level `if: runner.os == 'Linux'`). Repo 1 runs
+net472 on all three OSes (macOS via `brew install mono`); repo 2 carries no net472. Repo 2's
+composite action queries TFMs from MSBuild and loops `dotnet test -f` per TFM with per-TFM
+TRX (the MTP CLI shape our `ci.yml` already uses). Repo 1's daily canary floats dependencies
+to latest with a cleared NuGet HTTP cache, non-blocking (header comment: pinned CI missed a
+breaking change for 70 days).
+
+**Decision:** three-OS direct-install legs + a Linux-only containerized clean-install lane
+adopted; a nightly non-blocking canary against `opencode@latest` adopted (behavioral drift
+between spec refreshes — complements the fingerprint radar, which only sees the spec at
+refresh time).
+
+## Q42: WireMock — or any mock framework — or a hand-rolled fake LLM?
+
+**How researched:** WireMock.Net docs (faults, delays, stubbing) + web
+(wiremock/wiremock#460, community answers); survey of SSE-capable mocks (MockServer, MSW)
+and LLM-specific mock servers (llmock, mock-llm, AI-Mocks).
+
+**Found:** WireMock (Java and .NET) has no SSE/streaming support — bodies are delivered
+whole; delays and faults are whole-response only — so the mid-stream failure modes the
+design values (hang, mid-stream cut, reset) are inexpressible. MockServer supports SSE but
+is a JVM dependency; MSW is JS service-worker interception; LLM-specific mock servers exist
+but each drags a foreign runtime (Node/JVM) into three-OS CI with unverified failure-mode
+scripting. Below the socket, an in-memory `HttpMessageHandler` stub is strictly stronger;
+above it, the real server is the point.
+
+**Decision (maintainer):** no mock framework at any test level. The fake LLM is hand-rolled
+as a **behavior port** of upstream's `TestLLMServer` (`llm-server.ts` as line-level behavior
+reference at build-out; Kestrel + Channels idiom). Running upstream's own fake via bun was
+rejected — a dependency on upstream's private test internals, the `opencode-mcp` trap class
+(doc 03).
+
+## Q43: The design chain — what was sealed?
+
+**Found/decided (each sealed individually with the maintainer):** three-level backbone
+(unit / contract / integration — an assurance chain with the same-source-circularity caveat
+recorded and broken mechanically by the auth+reachability sweep); project layout
+(`Contract/` inside `OpenCode.Sdk.Tests`; separate `OpenCode.Sdk.Integration.Tests`; **all
+TFMs in integration** — maintainer decision); dual-mode harness with **in-code TUnit-native
+mode selection** (a global env switch was proposed and overruled), shared per-assembly
+servers with session-level isolation; own clean-install Docker image on GHCR with the
+opencode version pin **single-sourced** with the spec pin (`refresh-spec` stamps it);
+tool-emitted operation inventory + `[ExercisesOperation]` declarations + a hard coverage
+gate (modern surface now; consumer-driven legacy joins when the MCP server lands, ADR-0005;
+`Skip` forbidden on scenarios); determinism rules (no real LLM or API keys ever — correcting
+ROADMAP's free-model assumption on Q40's evidence; port 0 everywhere; no sleep-based waits;
+SDK retry off in tests) + quarantine policy (mandatory issue link, non-blocking CI step, no
+blanket `[Retry]`); stream and launcher scenario sets (`session.history` numeric params
+designated as the catch point for behavior-premised curation overrides; net472
+concurrent-stream regression; fake-binary/real-binary launcher split; helper-process orphan
+test); generator spec §11 sealed with three revisions (tests for the tool's two new outputs;
+`refresh-spec` command tests; round-trip behavior tests reassigned to
+`OpenCode.Sdk.Tests`); CI wiring (pinned opencode install on the three-OS legs, Linux
+container leg, quarantine step, nightly canary; badges out); Verify limited to emitter
+snapshots + the public API surface lock; coverage philosophy risk-focused with no numeric
+gate. Spec: `superpowers/specs/2026-08-10-testing-architecture-design.md`. Next: a holistic
+grill session (all three specs, testing-strategy focus) → `writing-plans`.
