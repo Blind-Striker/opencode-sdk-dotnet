@@ -13,24 +13,26 @@ net472 leg Windows-only); three-OS CI (`.github/workflows/ci.yml`: build + test 
 pinned OpenAPI snapshot (`spec/openapi.json`, provenance in `spec/SNAPSHOT.md`). Packages current
 as of 2026-08-08. Codegen spike complete (research doc 08). Grill session complete: ADRs
 0001–0006 backfilled, root `CONTEXT.md` glossary created, ADR rules canonicalized in
-`adr/README.md`. Public API design complete — spec at
-`superpowers/specs/2026-08-09-public-api-design.md`; research doc 10 corrected doc 09's
-direction (the "2.0 branch" is an April-2026 ancestor of today's root surface, not the next
-major). No SDK code yet — next up: grill the spec (handover:
-`agents/handover-prompts/2026-08-09-api-design-followups.md`).
+`adr/README.md`. Public API design complete and grill-hardened — spec at
+`superpowers/specs/2026-08-09-public-api-design.md`; the grill session (2026-08-09) produced
+ADRs 0007–0009, research docs 11–12, and corrections throughout the spec. No SDK code yet —
+next up: generator brainstorm session (spec §15).
 
 ## Queue
 
 In order — do not improvise beyond it without asking the maintainer. Parenthetical skill notes
 are hints for the driving agent.
 
-1. **Public API design — remaining steps.** The design itself is done
-   (`superpowers/specs/2026-08-09-public-api-design.md` — error model, envelopes, client
-   composition, naming/projection, transport, options/DI, event model, model-layer rules,
-   launcher surface; every doc-08 feed-forward item resolved). Remaining, in order:
-   `grilling` session over the spec (fresh context; ADR candidates in spec §15) → a
-   generator-architecture design session (spec §15) → `writing-plans` (expected
-   multi-phase). `api-design` (extend-only) + `snapshot-testing` (Verify) lock the public
+1. **Public API design — remaining steps.** The design is done and grill-hardened
+   (`superpowers/specs/2026-08-09-public-api-design.md`; ADRs 0007–0009). Remaining, in
+   order: generator **brainstorm** session (input: the spec's §1 generator contract +
+   §15 grill-added scope) producing a generator design spec → fresh-context **grill**
+   session over that spec → a **testing architecture & strategy** session (integration
+   testing against a real opencode process: containerized clean install, bound HTTP
+   port, free models, determinism-first; spike/PoC allowed; owns the testing open
+   question below) → `writing-plans` (multi-phase; phases are vertical slices
+   co-developing `tools/`, SDK, Extensions, and tests — co-development per spec §3 /
+   ADR-0006). `api-design` (extend-only) + `snapshot-testing` (Verify) lock the public
    surface as implementation lands.
 2. **Generator build-out + implementation** — `executing-plans` /
    `subagent-driven-development`; the model-layer generator per ADR-0003 and `AGENTS.md`
@@ -44,8 +46,9 @@ are hints for the driving agent.
    when Extensions gains real code, its own test project. Boundaries settled at the grill:
    generated code passes the analyzer wall on merit (ADR-0003) — settle the mechanics here
    (file naming, how the generated-code exemption is switched off, the fate of per-file
-   `#nullable` directives); the generator emits `x-effect-stream` SSE item schemas, but stream
-   endpoints are wired by hand through the hand-written SSE engine.
+   `#nullable` directives); stream endpoints (detected by their `text/event-stream` content type) are
+   wired by hand through the hand-written SSE engine; the generator emits their item
+   schemas.
 3. **Later** — MCP server on ModelContextProtocol.AspNetCore + stdio, in this repo (ADR-0006);
    evaluate NuGet's `McpServer` package type for distribution; its SDK usage defines the
    deep-tested legacy set (ADR-0005). "opencode HQ" — multi-instance aggregation above the
@@ -62,14 +65,16 @@ are hints for the driving agent.
   the spike slice compiled net10.0 only).
 - **Spec tracking:** `openapi.json` changes on every upstream push — snapshot per SDK release +
   diff/regen workflow (`spec/SNAPSHOT.md` is the pin; the submodule tracks upstream).
-- **Launcher deep-dive items** (spec §13): port-conflict handling / ephemeral port
-  (`--port=0` support UNVERIFIED); six-point anatomy of doc 06 §3 at implementation.
+- **Launcher deep-dive items** (spec §13): auto-port mechanics (`--port=0` support
+  UNVERIFIED; `TcpListener(0)` probe fallback with bounded retry; child bind-failure
+  signature detection); six-point anatomy of doc 06 §3 at implementation.
 - **Release mechanics** — decided parts live in ADR-0006 (independent semver, per-merge GitHub
   Packages CD, manual NuGet.org release pipeline). Still open: pre-1.0/preview numbering,
   `VersionPrefix`, RELEASE_NOTES flow, the concrete workflows.
-- **Testing strategy details** — integration/functional design against a real opencode process;
-  steal upstream's "every endpoint must be exercised" idea (`test:httpapi`); legacy scope is
-  consumer-driven per ADR-0005.
+- **Testing strategy details** — owned by the queued testing architecture & strategy
+  session: integration/functional design against a real opencode process (containerized
+  clean install, deterministic runs against free models); steal upstream's "every endpoint
+  must be exercised" idea (`test:httpapi`); legacy scope is consumer-driven per ADR-0005.
 
 ## Known Gaps
 

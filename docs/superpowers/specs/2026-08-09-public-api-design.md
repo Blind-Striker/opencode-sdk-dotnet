@@ -25,17 +25,19 @@ implementation, §13).
 purely through its contract:
 
 - *Inputs:* the pinned spec (`spec/openapi.json`, v1.18.15) + a declarative, fail-closed
-  curation config (naming map, handle rules, exclusions, per-property overrides).
+  curation config (naming map, handle rules, exclusions, per-property overrides,
+  per-parameter type overrides, content-type→payload map).
 - *Outputs:* models, response envelopes, request input records, op methods (modern +
-  legacy), the `[JsonSerializable]` registry, `OpenCodeRoutes` constants, emitted guard
-  clauses, emitted XML docs.
+  legacy), per-union tolerant converters (ADR-0009), forward-only paginators, the
+  `[JsonSerializable]` registry, `OpenCodeRoutes` constants, the hand-wired-op
+  fingerprint manifest (ADR-0008), emitted guard clauses, emitted XML docs.
 - *Properties:* output passes the analyzer wall on merit (ADR-0003); `dotnet format`
   post-step; CI regen-verifies; emission respects MA0048 (one type per file), MA0051
   (80 lines / 60 statements per method), and the 150-column advisory.
 
-**Evidence base:** research docs 01–10 (notably 08 codegen spike, 09 upstream v1/v2,
-10 v2→"2.0" genealogy correction) plus primary-source verification performed during the
-session: the pinned spec itself, the opencode JS SDK in the submodule (client wrappers,
+**Evidence base:** research docs 01–12 (notably 08 codegen spike, 09/10 upstream
+genealogy, 11 error-channel scope, 12 transport extensibility) plus primary-source
+verification performed during the design and grill sessions: the pinned spec itself, the opencode JS SDK in the submodule (client wrappers,
 hey-api generated client, `server.ts`, interceptors), Azure.Core / System.ClientModel
 documentation, AWS SDK generator conventions, and two compile experiments (DIM
 availability, MA0053 behavior) whose findings are stated where used.
@@ -103,8 +105,9 @@ public class OpenCodeApiException : OpenCodeException       // non-2xx API respo
 public class OpenCodeTransportException : OpenCodeException // network/protocol-level failure
 ```
 
-The spec's tagged error payloads (44 error schemas at v1.18.15) are generated as typed
-models under an `OpenCodeError` base and carried **as data** on the exception —
+The spec's tagged error payloads (37 of the 44 error-named schemas at v1.18.15 — 20
+Effect-style `_tag` + 17 `{name, data}`; the remaining 7 are event/union wrappers that
+live in the event model) are generated as typed models under an `OpenCodeError` base and carried **as data** on the exception —
 pattern-matchable exactly the way upstream's own TUI reads `result.error.name` /
 `result.error.data.forceRequired`:
 
@@ -149,9 +152,11 @@ major. Option asymmetry favors the exception spine now.
 ### 4.3 Channel choice is per call site, not per error class
 
 Upstream's own SDK resolves "expected vs exceptional" per call site, not per error type:
-hey-api returns `{data, error}` by default with per-call `throwOnError: true`, and
-upstream's TUI uses both (113 `throwOnError` call sites; result-reads with typed field
-access in OAuth/move-session dialogs). We mirror the mechanism with the ecosystem-correct
+hey-api returns `{data, error}` by default with `throwOnError` opt-ins shipped by the
+generator at both per-call and client level (hey-api machinery, not opencode design —
+research doc 11); upstream's app/CLI carry ~76 non-generated `throwOnError` sites while
+the TUI itself reads results with typed field access (the move-session dialog reads
+`result.error.data.forceRequired`). We mirror the mechanism with the ecosystem-correct
 default inverted: **throw by default, opt out per call** (§6). Azure/System.ClientModel
 precedent: `RequestContext { ErrorOptions = ErrorOptions.NoThrow }` /
 `ClientErrorBehaviors.NoThrow`, per-invocation, no global switch.
@@ -205,7 +210,7 @@ public sealed record SessionListResponse : OpenCodeResponse
             "The response is an error; check IsError before accessing Sessions.");
         init => _sessions = value;
     }
-    public string? Cursor { get; init; }              // wire envelope "cursor"
+    public required SessionsCursor Cursor { get; init; }  // wire "cursor": {previous?, next?}
 }
 ```
 
@@ -215,14 +220,31 @@ public sealed record SessionListResponse : OpenCodeResponse
   checks and gets no NRT warnings.
 - The error path is constructed through an **internal `[SetsRequiredMembers]`
   error-constructor** — the single `null!` in the SDK lives there and never leaks.
-- The v2 wire envelopes (`{data}`, `{data, location}`, paged `{cursor, data}`) map to
-  named properties (`Location`, `Cursor` alongside the payload).
+- The v2 wire envelopes (`{data}` ×12, `{data, location}` ×20, paged `{cursor, data}`)
+  map to named properties (`Location`, `Cursor` alongside the payload). A handful of
+  modern responses are not enveloped (`{healthy}`, bare `LocationInfo`,
+  `ProjectCopyCopy`) — the fail-closed curation map names their payloads like any other.
 - 204 operations return an envelope with no payload property (`Status`/`IsError`/`Error`
   only).
 - Payload property names come from the curation map (fail-closed: an unmapped envelope
   breaks generation, § 8.5).
 - Pagination follows upstream's Page discipline (doc 02): continuation accepts **only the
-  cursor**; filters/ordering ride inside it.
+  cursor**; filters/ordering ride inside it (verified server-side: the cursor
+  base64url-encodes the full filter set). The cursor is bidirectional — a generated
+  `SessionsCursor { Previous, Next }` (both `string?`); list ops take `cursor: string?`.
+  For `{cursor, data}` ops the generator additionally emits a forward-only
+  `IAsyncEnumerable<T>` paginator walking `Next` (Azure `Pageable<T>` / AWS Paginators
+  precedent; backward paging stays manual via `Previous`).
+- Non-JSON response bodies generate through a fail-closed content-type→payload map:
+  `application/octet-stream` → `Stream` payload on an envelope that implements
+  `IDisposable` and owns the underlying response (`fs.read`; AWS `GetObjectResponse`
+  precedent — consumers must dispose, and only these envelopes are disposable);
+  `text/*` → `string` payload (`vcs.diff.raw`). An unmapped content type breaks
+  generation.
+- Because record `ToString()`/`PrintMembers` reads public getters, the generator emits a
+  guarded `PrintMembers` override on every envelope: error-path instances print
+  `Status`/`Error` and skip the payload — logging a `NoThrow` error response never
+  throws.
 
 ### 5.2 Rejected alternatives
 
@@ -246,19 +268,28 @@ public sealed class OpenCodeRequestOptions
 }
 ```
 
-- **Throw by default; `NoThrow` opt-in per call.** Decisive evidence for the default: 24
-  of 61 modern operations return 204 — under a no-throw default an unchecked failure on a
-  payload-less call is completely silent (no guarded getter to trip). C# has no must-use
-  enforcement; upstream's own TUI had to sprinkle 113 `throwOnError: true` call sites to
-  escape its result-default. The .NET SDK ecosystem is uniformly throw-default.
+- **Throw by default; `NoThrow` opt-in per call.** Decisive evidence for the default: 19
+  of 61 modern operations return 204 (22 carry no 2xx JSON payload at all) — under a
+  no-throw default an unchecked failure on a payload-less call is completely silent (no
+  guarded getter to trip). C# has no must-use enforcement; upstream's consumers escape
+  their result-default through ~76 scattered `throwOnError` opt-ins. The .NET SDK
+  ecosystem is uniformly throw-default.
 - **No global NoThrow.** A client-level switch changes method contracts at a distance —
   code reading `resp.Sessions` could no longer trust the line without knowing client
   configuration, and a shared DI client would flip behavior for every consumer.
+  Research doc 11: no throw-default SDK ships a client-level error mode (FDG: "DO NOT
+  have public members that can either throw or not based on some option"; every
+  client-level switch found is escalation-only). Reversal trigger, extend-only: a
+  scoped no-throw sub-view (`client.NoThrow`) may be added if MCP-server dogfooding
+  demonstrates the need.
 - `CancellationToken` stays a **separate last parameter** (TAP convention — deliberately
   unlike Azure's RequestContext, which folds it in).
 - `Directory` resolves the ROADMAP question: client-level default (§10) + per-call
   override, the .NET rendering of upstream's `createOpencodeClient({directory})` +
-  per-request header.
+  per-request header. Carried as the `x-opencode-directory` header on every request,
+  SSE included (header-only; upstream's GET/HEAD query rewrite is a browser/EventSource
+  constraint we don't share). Server precedence is query > header, so explicit per-op
+  `location[…]` parameters override the ambient value — documented behavior.
 - The options class grows extend-only (adding properties is non-breaking).
 
 ## 7. Client composition
@@ -347,7 +378,9 @@ members (the stricter `class_with_virtual_member_shoud_be_sealed` option is off)
 follow-up: a one-line guard comment in `.editorconfig` records that the option is off on
 purpose. Everything else — models, envelopes, options, exceptions, all generated types —
 stays `sealed`. Response records with public `init` construct freely in tests; no model
-factories needed.
+factories needed. The shared `Pipeline` accessor throws an instructive
+`InvalidOperationException` (never a bare NRE) when a client created through the mocking
+constructor invokes a member the test did not override.
 
 ### 7.5 HttpClient ownership
 
@@ -378,7 +411,7 @@ counterpart of upstream's `req.timeout = false` fetch hack.
 | Group | Sub-client | Notes |
 |---|---|---|
 | `session` | `Sessions` + `SessionClient` handle | handle children: `Permissions`, `Questions`, `Revert`, `Events` (§11.1) |
-| `fs` | `Files` | `ReadAsync`, `ListAsync`, `FindAsync` |
+| `fs` | `Files` | `ReadAsync` (binary → `Stream` payload, §5.1), `ListAsync`, `FindAsync` |
 | `provider`, `model`, `agent`, `command`, `skill`, `reference`, `credential` | mechanical plural | `Providers`, `Models`, … |
 | `integration` | `Integrations` (+ `Attempts`) | `ConnectKeyAsync` / `ConnectOAuthAsync` |
 | `permission` | `Permissions` (+ `Requests`, `Saved`) | session-scoped ops on the handle |
@@ -412,11 +445,18 @@ public virtual Task<SessionGetResponse> GetAsync(
 ```
 
 — behavior (NoThrow, retry, error mapping) lives once in the hand-written core (§9), never
-in bodies. The bound-handle projection is one mechanical generator rule (ops under
-`/session/{sessionID}` emit into `SessionClient`). Hand-written remains the identity
-core: transport pipeline, SSE engine + stream endpoint wiring (locked: generator emits
-`x-effect-stream` item schemas; stream endpoints are wired by hand), launcher, exception
-hierarchy, envelope base, options types, DI extensions.
+in bodies. The bound-handle projection is one mechanical generator rule (ops with a
+`{sessionID}` path parameter emit into `SessionClient`). Hand-written remains the identity
+core: transport pipeline, SSE engine + stream endpoint wiring (stream endpoints are
+detected by their `text/event-stream` content type — `x-effect-stream` exists only on
+the durable endpoint — and are hand-wired; the generator emits their item schemas),
+launcher, exception hierarchy, envelope base, options types, DI extensions.
+
+The radar covers both sides of the boundary (ADR-0008): generated output is CI
+regen-verified; every excluded or hand-wired operation is **fingerprint-pinned** — the
+generator hashes each such operation's spec subtree (path, parameters, content types,
+transitive schemas) into a committed manifest, and a spec refresh that moves a pinned
+construct breaks the build for explicit review.
 
 ### 8.5 Curation is declarative and fail-closed
 
@@ -457,15 +497,29 @@ No custom pipeline/policy abstraction (`OpenCodePipelinePolicy` does not exist).
 guiding anti-pattern: abstraction-on-abstraction (the repository-over-EF-Core class of
 mistakes). Consumers extend on three rungs, each an existing mechanism:
 
-1. **Options knobs** — e.g. `OpenCodeClientOptions.Retry` (tune or disable the built-in
-   retry; consumers preferring Polly/StandardResilience disable ours and plug theirs at
-   rung 3).
+1. **Options knobs** — e.g. `OpenCodeClientOptions.Retry`. The built-in retry lives in
+   the core, is ON by default, and retries **idempotent operations only** (stricter
+   than `AddStandardResilienceHandler()`, which replays all methods unless
+   `DisableForUnsafeHttpMethods()` is applied); for streams it applies to establishment
+   only. One disable knob; no foreign-retry auto-detection (no surveyed SDK does it —
+   research doc 12). Documented recipe: disable ours and add the official resilience
+   handler at rung 3, routing the SSE/stream client around it (its 30 s total / 10 s
+   attempt timeouts kill long-lived streams). In-box retry exists because bare-core
+   consumers (no DI) otherwise have none; upstream's SDK ships zero retry and its one
+   compensating consumer produced the write-replay bug (doc 03).
 2. **Delegate hooks** — `OpenCodeClientOptions.OnSendingRequest` /
-   `OnReceivedResponse`; signatures use BCL types only (`HttpRequestMessage` /
-   `HttpResponseMessage`). This is the .NET rendering of upstream's own
-   `interceptors.request/response.use` (upstream implements directory rewriting and a
-   version-mismatch check exactly this way). JS's `interceptors.error.use` has no .NET
-   counterpart because typed error mapping is core behavior here.
+   `OnReceivedResponse`: **synchronous `void`**, BCL types only
+   (`Action<HttpRequestMessage>` / `Action<HttpResponseMessage>`), fired **per physical
+   attempt** (a retried request is a new message), after SDK decoration / immediately
+   before send and before deserialization respectively; hook exceptions propagate
+   unwrapped (invoked outside the transport-error mapping). Sync-only is the ecosystem
+   shape (Azure's `HttpPipelineSynchronousPolicy.OnSendingRequest/OnReceivedResponse` —
+   the names match verbatim — and AWS's `BeforeRequestEvent`; no major ships async
+   delegate hooks on options — research doc 12): async work belongs at rung 3. This is
+   the .NET rendering of upstream's own `interceptors.request/response.use` (upstream
+   implements directory rewriting and a version-mismatch check exactly this way). JS's
+   `interceptors.error.use` has no .NET counterpart because typed error mapping is core
+   behavior here.
 3. **`DelegatingHandler` chains** — full power, ecosystem-composable:
    `AddOpenCodeClient(...)` returns `IHttpClientBuilder`, so `.AddHttpMessageHandler<>()`,
    resilience handlers, and OTel HttpClient instrumentation compose naturally; standalone
@@ -501,8 +555,11 @@ are hostage to our release cadence. Paired with `OpenCodeRoutes` (§8.6).
 | Composition | `AddOpenCodeClient(...)` in Extensions | config binding (M.E.Options), `AddHttpClient<OpenCodeClient>`, returns `IHttpClientBuilder` |
 
 - **Auth:** HTTP basic. Resolution order: explicit `Password` option →
-  `OPENCODE_SERVER_PASSWORD` environment fallback (documented; upstream parity) →
-  launcher-supplied automatically (§13). Credentials never live in per-call options.
+  `OPENCODE_SERVER_PASSWORD` environment fallback (documented; upstream parity; read
+  once at client construction) → launcher-supplied automatically (§13). Credentials
+  never live in per-call options; SDK telemetry and logging never record the
+  `Authorization` header or `Password` (requests handed to hooks/handlers are the
+  consumer's own domain).
 - Core never references `Microsoft.Extensions.Http`/DI (doc 06's 13-SDK consensus);
   Logging.Abstractions is the one tolerated core ME dependency.
 
@@ -520,11 +577,15 @@ IAsyncEnumerable<OpenCodeEvent> client.Events.SubscribeAsync(CancellationToken c
 // Durable: per-session, replayable. Resume via the aggregate-sequence cursor.
 IAsyncEnumerable<SessionDurableEvent> session.Events.SubscribeAsync(long? after, CancellationToken ct);
 Task<SessionHistoryResponse>          session.Events.ListHistoryAsync(long? after, int? limit, CancellationToken ct);
-// ListHistoryAsync is a plain paged list op (envelope + cursor discipline, §5.1), not a stream.
+// ListHistoryAsync is a plain list op: after/limit parameters, {data, hasMore} envelope — no cursor.
 ```
 
 - The live union is the spec's 88-variant event union; the durable stream's schema is
   `SessionDurableEvent` (the spec's single `oneOf`). They do not share a type.
+- Wire note: the OpenAPI projection types `after`/`limit` as strings; the Effect source
+  is `NumberFromString` — the SDK keeps numeric parameters via the curation
+  per-parameter type override. Durable SSE frames carry `{id, event, data}` where
+  `data` is a JSON-encoded `SessionDurableEvent`.
 - Streams are lazy: the connection opens on first `MoveNextAsync`; the token cancels.
   No auto-reconnect (locked); the `after` cursor is consumer-held state.
 - Mechanism: `SseParser` (`System.Net.ServerSentEvents`, downlevel package) over a
@@ -545,10 +606,12 @@ case UnknownEvent u:            // u.Type (string), u.Payload (JsonElement)
 ```
 
 The same rule applies to **every generated union** (including the error union inside
-`session.error`): one mechanical generator rule, no curation. Implementation candidates
-(settled at build-out): STJ `UnknownDerivedTypeHandling.FallBackToBaseType` or a small
-custom converter on the union base. This resolves the forward-compatibility question
-parked by the codegen spike (unknown discriminator throws by default in STJ).
+`session.error`): one mechanical generator rule, no curation. Mechanism (ADR-0009): a
+generator-emitted custom converter per union base — STJ's `UnknownDerivedTypeHandling`
+is serialization-side only and cannot express deserialization fallback (spike: unknown
+discriminator throws) — buffering the element, reading the tag position-independently,
+and dispatching through the source-generated context so AOT holds. This resolves the
+forward-compatibility question parked by the codegen spike.
 
 ## 12. Model-layer rules (generator policy additions to ADR-0004)
 
@@ -571,7 +634,8 @@ parked by the codegen spike (unknown discriminator throws by default in STJ).
 5. **Guard emission** — every generated method begins with BCL throw-helper guards
    (`ArgumentNullException.ThrowIfNull`, `ArgumentException.ThrowIfNullOrEmpty`;
    Polyfill covers downlevel TFMs). Coverage is mechanical, not memory-dependent. The
-   hand-written core uses the same helpers (CA1062 is already `error`). No Contract
+   hand-written core uses the same helpers; CA1062 is raised from `suggestion` to
+   `error` so the analyzer wall guards this contract. No Contract
    framework (Code Contracts is dead tooling); invariants live in the type system (NRT,
    `required`, immutability, guarded getters); internal assumptions use `Debug.Assert`.
 6. **XML documentation emission; CS1591 becomes `error`** — resolving the deferral
@@ -596,7 +660,7 @@ public sealed class OpenCodeServerOptions
 {
     public string? BinaryPath { get; init; }            // default: PATH discovery ("opencode")
     public string Hostname { get; init; } = "127.0.0.1";
-    public int Port { get; init; } = 4096;              // upstream default
+    public int? Port { get; init; }                     // null (default) = automatic; explicit = exact, fail-loud
     public string? WorkingDirectory { get; init; }
     public TimeSpan StartupTimeout { get; init; } = TimeSpan.FromSeconds(5);
     public string? Password { get; init; }              // exported to the child as OPENCODE_SERVER_PASSWORD
@@ -607,6 +671,11 @@ public sealed class OpenCodeServerOptions
 
 - Readiness mirrors upstream: parse stdout for the listening line (the URL must come from
   there anyway); timeout kills and reports captured output.
+- Port selection: `null` (default) requests an automatic port — `--port=0` first (the
+  readiness line prints the actually bound port; CLI acceptance of 0 is UNVERIFIED),
+  falling back to a launcher-probed free port (`TcpListener(0)`) with bounded retry on
+  child bind failure. An explicit `Port` is used exactly and fails loud on conflict —
+  never scanned.
 - `CreateClient()` wires endpoint + password automatically (§10 auth chain).
 - Upstream's `createOpencodeTui` has no counterpart here (out of SDK scope).
 - **Implementation is explicitly a deep-dive** (maintainer-flagged; not simple): the
@@ -621,36 +690,39 @@ public sealed class OpenCodeServerOptions
 
 **Exclusions (explicit, fail-closed list in curation config):**
 
-- `pty.connect` (`v2.pty.connect`) — a WebSocket upgrade masquerading as a plain GET in
-  every spec we may generate from. Upstream's next-generation codegen excludes it
-  (`omitEndpoints`); the shipping hey-api SDK emits a non-functional GET. We exclude
-  rather than ship an API that cannot work; real WebSocket support is future extend-only
-  work. `pty.connectToken` remains a normal generated op.
+- `pty.connect` — **both surfaces** (`v2.pty.connect` and legacy `pty.connect`): a
+  WebSocket upgrade masquerading as a plain GET in every spec we may generate from; the
+  shipping hey-api SDK emits a non-functional GET. We exclude rather than ship an API
+  that cannot work; real WebSocket support is future extend-only work. Upstream's
+  next-generation codegen excludes `fs.read`, `pty.connect`, and `pty.connectToken`
+  (`omitEndpoints`); we deliberately deviate on the other two — `fs.read` generates
+  through the binary payload rule (§5.1) and `pty.connectToken` as a normal op (its
+  token stays usable with consumer-owned WebSocket code via the escape hatch).
 
 **Recorded runtime tolerances (the §2.1 registry):**
 
 1. Unknown union discriminators → `UnknownEvent`/unknown-variant carriers (§11.2).
 2. Unknown error tags → base API exception with raw payload (§4.1).
-3. `OPENCODE_SERVER_PASSWORD` environment fallback (§10) — a runtime convenience,
-   documented.
+3. `OPENCODE_SERVER_PASSWORD` environment fallback, read once at client construction
+   (§10) — a runtime convenience, documented.
 4. (Escape, if ever exercised) per-property `Uri`→`string` fallback for malformed URLs
    (§12.1).
 
 ## 15. Deferred and follow-ups
 
-- **Generator internal architecture** — separate design session after the grill:
-  parser/IR shape, emission layering, curation-config format, exclusion mechanics,
-  `.g.cs`-vs-on-merit file mechanics (ADR-0003), multi-TFM emission, spec-refresh
-  tooling, emitter test strategy (snapshot testing).
-- **Grill session** — stress-test this spec before writing-plans; ADR candidates
-  surfaced by this session: the error-model deviation (§4.4), the generation boundary
-  (§8.4), the unknown-variant tolerance rule (§11.2).
-- **Launcher deep-dive** (§13) and the net472 spike items (ROADMAP).
-- **Doc pass for this session** (each edit needs maintainer approval): commit research
-  doc 10; correct ROADMAP's `pty.connect` line (upstream's *next-gen* codegen excludes
-  it; the shipping SDK does not); re-ground ADR-0005's deletion premise on live signals
-  (the 2.0-branch evidence is void per doc 10); fold resolved ROADMAP open questions
-  (directory targeting, auth shape, HttpClient ownership, CS1591 parked decision) into
-  pointers at this spec; add the `.editorconfig` MA0053 guard comment (§7.4).
-- **UNVERIFIED items carried forward:** ephemeral-port support; the `sync.*` group's
-  relation to the durable stream (doc 10); upstream migration-guide existence (doc 09).
+- **Generator internal architecture** — separate design session: parser/IR shape,
+  emission layering, curation-config format, exclusion mechanics, `.g.cs`-vs-on-merit
+  file mechanics (ADR-0003), multi-TFM emission, spec-refresh tooling, emitter test
+  strategy (snapshot testing). New scope from the grill: per-parameter type overrides,
+  the content-type→payload map, per-union tolerant converter emission (ADR-0009),
+  forward-only paginator emission, guarded `PrintMembers` emission, and the
+  fingerprint manifest (ADR-0008).
+- **Grill session — completed 2026-08-09.** Outcome: ADR-0007 (error model), ADR-0008
+  (generation boundary + fingerprint pinning), ADR-0009 (unknown-variant tolerance);
+  research docs 11 (error-channel scope) and 12 (transport extensibility); factual and
+  design corrections applied throughout this spec.
+- **Launcher deep-dive** (§13) and the net472 spike items (ROADMAP); the grill adds
+  `--port=0` verification and child bind-failure signature detection.
+- **UNVERIFIED items carried forward:** ephemeral-port support (`--port=0`); the
+  `sync.*` group's relation to the durable stream (doc 10); upstream migration-guide
+  existence (doc 09).

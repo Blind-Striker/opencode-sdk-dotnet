@@ -69,3 +69,30 @@ The committed copy of upstream's `openapi.json` under `spec/`, provenance in `SN
 
 **Model layer**:
 The generated types and serializer registry shipped inside `OpenCode.Sdk`.
+
+**Envelope**:
+The generated, typed per-operation response object carrying status/error state plus named
+payload properties.
+
+**Bound handle**:
+A sub-client bound to one resource id (e.g. a session) — partial application over the
+shared pipeline; never caches server state.
+
+**Curation config**:
+The generator's declarative, fail-closed input mapping spec constructs to public names and
+rules; an unmapped construct breaks generation.
+
+**Unknown variant carrier**:
+The per-union `Unknown*` variant absorbing unrecognized discriminators at runtime (tag
+string + raw payload).
+
+**Fingerprint pin**:
+The committed hash of an excluded or hand-wired operation's spec subtree; CI breaks when
+the pinned construct drifts.
+
+**Recorded tolerance**:
+An explicit, registered runtime exception to the fail-closed default.
+
+**Behavior core**:
+The hand-written transport core where all request behavior lives; generated methods only
+delegate to it.

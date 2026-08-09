@@ -31,10 +31,12 @@ docs. Do not reopen these without new evidence.
   legacy operation the MCP server consumes; remaining legacy is best-effort. The legacy area
   is deleted at a major release of ours when upstream ships its next major (ADR-0005;
   research docs 08, 09, 10).
-- **Hybrid construction:** hand-written core (transport, SSE engine, process lifecycle, DI,
-  error model, public API), mechanically derived model layer from **our own generator** —
-  Roslyn syntax-tree emission over a parsed spec IR; scope-agnostic (surface selection is a
-  filter parameter) (ADR-0003; research docs 06 §1, 08).
+- **Hybrid construction:** hand-written behavior core (transport pipeline, SSE engine,
+  process lifecycle, DI, error model, envelope/options bases), mechanically derived
+  everything else — models **and operation methods** — from **our own generator**: Roslyn
+  syntax-tree emission over a parsed spec IR; scope-agnostic (surface selection is a
+  filter parameter); excluded/hand-wired operations are fingerprint-pinned (ADR-0003,
+  ADR-0008; research docs 06 §1, 08).
 - **Generator packaging:** repo tooling under `tools/` — csproj bound to the repo build
   rules, thin file-based `.cs` entry committed with the executable bit. Generated output is
   committed into the SDK project and passes the analyzer wall **on merit** — no blanket

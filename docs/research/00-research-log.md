@@ -548,3 +548,87 @@ Generator/SSE boundary made explicit in ROADMAP: the generator emits `x-effect-s
 schemas; stream endpoints are wired by hand through the SSE engine. Root `CONTEXT.md`
 created (upstream domain terms + project language: modern/legacy surface, Launcher, Spec
 pin, Model layer), aligned with upstream's durable-vs-live stream distinction.
+
+# Session 6 — 2026-08-09: grill session — public API design spec
+
+Grill session (`grill-with-docs`) against the API design spec with full onboarding (docs
+00–10, ADRs, the spec) and scripted primary-source verification (pinned spec, JS SDK
+submodule, `.editorconfig`). Decisions live in ADRs 0007–0009 and the corrected spec;
+this entry is the chain.
+
+## Q31: Do the spec's factual claims survive primary-source verification?
+
+**How researched:** scripted counts over `spec/openapi.json` (operations, 204s, error
+schemas, envelopes, unions, content types); greps over the JS SDK submodule
+(`throwOnError`, interceptors, `omitEndpoints`, `server.ts`) and `.editorconfig`.
+
+**Found:** the load-bearing counts held (61/127 ops, 16 collisions, 44 error-named
+schemas, the 8-variant session-error union, envelope families, cursor-encodes-filters —
+the last verified in the server source). Five claims fell: "24 of 61 modern ops return
+204" (actual 19), "113 `throwOnError` sites in the TUI" (TUI has 0; ~76 non-generated
+sites in app/CLI, some client-level), "CA1062 already error" (was `suggestion`),
+history as cursor-paged (actually `after`/`limit` + `{data, hasMore}`), and the paged
+cursor as a flat string (actually a bidirectional `{previous?, next?}` struct). Also:
+upstream's `omitEndpoints` excludes three ops (`fs.read`, `pty.connect`,
+`pty.connectToken`), not one; `v2.fs.read` returns `application/octet-stream` and
+legacy `vcs.diff.raw` returns `text/x-diff` — the envelope design had no non-JSON
+story; `x-effect-stream` exists only on the durable endpoint; `after`/`limit` are
+strings in the OpenAPI projection but `NumberFromString` in the Effect source.
+
+**Decision:** spec corrected throughout. Non-JSON bodies generate via a fail-closed
+content-type→payload map (`Stream` on a disposable envelope / `string` for text);
+stream detection keys on `text/event-stream`; numeric query params ride a new curation
+per-parameter type override.
+
+## Q32: Does the guarded-getter envelope survive record semantics?
+
+**Found:** record-synthesized `ToString`/`PrintMembers` calls public getters — logging
+a `NoThrow` error envelope would throw from the guard. `with`/equality operate on
+fields (safe); `required` + `[SetsRequiredMembers]` work downlevel via Polyfill.
+**Decision:** the generator emits a guarded `PrintMembers` override per envelope;
+records stay. Same instructive-guard idea applied to the mock seam: the shared
+`Pipeline` accessor throws `InvalidOperationException` (never a bare NRE) for
+non-overridden members on mocking-constructor instances.
+
+## Q33: Which ADR candidates seal, and where does "public API is hand-written" go?
+
+**Decided:** ADR-0007 (error model: typed exception spine carrying tagged data;
+per-call channel), ADR-0008 (all op methods generated; excluded/hand-wired ops
+fingerprint-pinned — maintainer-driven addition; the bound-handle rule keys on the
+`{sessionID}` path parameter), ADR-0009 (unknown-variant tolerance via
+generator-emitted custom converters — STJ's `UnknownDerivedTypeHandling` is
+serialization-only, so the spec's `FallBackToBaseType` candidate was invalid). No
+supersede ceremony (maintainer's call): the contradicting "public API" clause lived in
+`AGENTS.md`'s Hybrid construction statement and was edited to the status quo; doc 06
+stays a dated snapshot. Spec §12 model policies folded into ADR-0004.
+
+## Q34: Error-channel scope — per-call only, or also client-level?
+
+**How researched:** background agent against primary sources → doc 11; triggered by
+the maintainer's initial lean toward a client-level default.
+**Found:** no throw-default SDK ships a client-level error mode (Azure/SCM/OpenAI are
+per-call only; AWS/gRPC/Octokit/Stripe have no switch; Elastic's client-level switch
+is escalation-only in the opposite direction); FDG forbids option-dependent throwing;
+upstream's client-level `throwOnError` is hey-api generator machinery.
+**Decision (maintainer, aligned with the research):** per-call `NoThrow` stays the
+only switch; reversal trigger recorded (additive scoped no-throw sub-view if
+MCP-server dogfooding demonstrates the need).
+
+## Q35: Pipeline/interceptor/retry architecture — whose shape?
+
+**How researched:** background agent against primary sources → doc 12; upstream retry
+reality verified in the submodule (the JS SDK ships zero retry).
+**Found:** majors own retry in-core, on by default, behind a disable knob — never
+foreign-retry auto-detection; sync hooks are the ecosystem shape (Azure
+`HttpPipelineSynchronousPolicy`, AWS events); async delegate hooks on options have no
+precedent; `Microsoft.Extensions.Http.Resilience` covers the full TFM matrix but
+replays all methods by default and its timeouts kill long-lived SSE.
+**Decision (maintainer):** AWS surface + Kiota backbone, no invented policy framework:
+options knobs (core-owned idempotent-only retry, one disable knob, documented
+StandardResilience recipe with an SSE bypass) + sync `void` per-attempt hooks + the
+BCL `DelegatingHandler` chain. Also sealed in the same sweep: pagination mirror
+(`SessionsCursor{Previous, Next}`) + forward-only auto-paginator; directory as
+header-only (server precedence query > header verified); launcher `int? Port` with
+auto-port (`--port=0` first, `TcpListener(0)` probe + bounded retry fallback);
+CA1062 → `error`; process addition — the generator spec gets its own brainstorm →
+grill cycle, then a testing architecture & strategy session, before `writing-plans`.

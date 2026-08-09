@@ -361,7 +361,9 @@ dotnet_diagnostic.CA1031.severity = none
 dotnet_diagnostic.CA1032.severity = error
 dotnet_diagnostic.CA1040.severity = suggestion
 dotnet_diagnostic.CA1047.severity = error
-dotnet_diagnostic.CA1062.severity = suggestion
+# Null-guard externally visible parameters: generated methods emit throw-helper
+# guards mechanically; hand-written code must match the same discipline
+dotnet_diagnostic.CA1062.severity = error
 dotnet_diagnostic.CA1063.severity = error
 dotnet_diagnostic.CA1064.severity = error
 dotnet_diagnostic.CA1068.severity = error
