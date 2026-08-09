@@ -552,7 +552,11 @@ MA0011.exclude_tostring_methods = true
 # Align MA0004 coverage with CA2007 (default DetectContext goes quiet in
 # context-dependent code; Always reports every await without ConfigureAwait)
 MA0004.report = Always
-# Public API ships sealed-by-default (extend-only design); CA1852 covers internal only
+# Public API ships sealed-by-default (extend-only design); CA1852 covers internal only.
+# The stricter class_with_virtual_member_shoud_be_sealed option (sic, upstream typo) is
+# deliberately NOT enabled: client facade types are unsealed with virtual members + a
+# protected ctor as the consumer mocking seam — a class with virtual members is
+# inheritance-by-design and must stay exempt from the seal rule.
 MA0053.public_class_should_be_sealed = true
 # -----------------------------------------------------------------------------
 # 10.2 String/Culture Rules

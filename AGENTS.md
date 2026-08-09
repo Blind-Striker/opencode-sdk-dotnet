@@ -28,8 +28,9 @@ docs. Do not reopen these without new evidence.
   modern surface takes the unmarked public names (the `v2.` prefix is stripped and "V2" never
   appears in type or client names); the legacy surface lives behind an explicitly
   legacy-marked sub-surface. Deep integration testing targets the modern surface plus every
-  legacy operation the MCP server consumes; remaining legacy is best-effort. At opencode 2.0
-  the legacy area is deleted at a major release of ours (ADR-0005; research docs 08, 09).
+  legacy operation the MCP server consumes; remaining legacy is best-effort. The legacy area
+  is deleted at a major release of ours when upstream ships its next major (ADR-0005;
+  research docs 08, 09, 10).
 - **Hybrid construction:** hand-written core (transport, SSE engine, process lifecycle, DI,
   error model, public API), mechanically derived model layer from **our own generator** —
   Roslyn syntax-tree emission over a parsed spec IR; scope-agnostic (surface selection is a

@@ -13,22 +13,25 @@ net472 leg Windows-only); three-OS CI (`.github/workflows/ci.yml`: build + test 
 pinned OpenAPI snapshot (`spec/openapi.json`, provenance in `spec/SNAPSHOT.md`). Packages current
 as of 2026-08-08. Codegen spike complete (research doc 08). Grill session complete: ADRs
 0001–0006 backfilled, root `CONTEXT.md` glossary created, ADR rules canonicalized in
-`adr/README.md`. No SDK code yet — next up is API design.
+`adr/README.md`. Public API design complete — spec at
+`superpowers/specs/2026-08-09-public-api-design.md`; research doc 10 corrected doc 09's
+direction (the "2.0 branch" is an April-2026 ancestor of today's root surface, not the next
+major). No SDK code yet — next up: grill the spec (handover:
+`agents/handover-prompts/2026-08-09-api-design-followups.md`).
 
 ## Queue
 
 In order — do not improvise beyond it without asking the maintainer. Parenthetical skill notes
 are hints for the driving agent.
 
-1. **Public API design** — `brainstorming` (genuinely open: client surface, error model
-   including Result-pattern vs exceptions for expected failures, options, event model) →
-   `writing-plans`. `api-design` (extend-only) + `snapshot-testing` (Verify) lock the public
-   surface as the design lands. Decides the CS1591 / XML-doc posture, plus the model-layer
-   feed-forward from doc 08: unknown-discriminator forward compatibility for the `V2Event` SSE
-   union, `Uri` vs `string` (maintainer leans `Uri`), acronym casing, identifier mapping for
-   underscore JSON names, `WhenWritingNull`, and the client-surface shape for the legacy
-   sub-surface (ADR-0005: modern takes the unmarked names; the full 61 → 112 rename mapping vs
-   the 2.0 spec belongs here too).
+1. **Public API design — remaining steps.** The design itself is done
+   (`superpowers/specs/2026-08-09-public-api-design.md` — error model, envelopes, client
+   composition, naming/projection, transport, options/DI, event model, model-layer rules,
+   launcher surface; every doc-08 feed-forward item resolved). Remaining, in order:
+   `grilling` session over the spec (fresh context; ADR candidates in spec §15) → a
+   generator-architecture design session (spec §15) → `writing-plans` (expected
+   multi-phase). `api-design` (extend-only) + `snapshot-testing` (Verify) lock the public
+   surface as implementation lands.
 2. **Generator build-out + implementation** — `executing-plans` /
    `subagent-driven-development`; the model-layer generator per ADR-0003 and `AGENTS.md`
    (Roslyn emission; `tools/` architecture with a file-based entry; tooling stack:
@@ -57,31 +60,16 @@ are hints for the driving agent.
   and generated-model downlevel compile (`required`, `[JsonPolymorphic]`,
   `AllowOutOfOrderMetadataProperties` via the downlevel System.Text.Json package — untested,
   the spike slice compiled net10.0 only).
-- **Typed event model:** SSE payloads are a large discriminated union — design the .NET
-  representation. Spike evidence (research doc 08): `[JsonPolymorphic]` name-based dispatch
-  works on the spec's literal convention (with `AllowOutOfOrderMetadataProperties`); unknown
-  discriminators throw by default, so the forward-compatibility strategy is the open part
-  (version skew against newer servers is why it matters).
-- **Default HttpClient ownership/lifetime** — when none is injected: client owns a single
-  long-lived instance (`SocketsHttpHandler` + pooled connection lifetime on modern TFMs);
-  net472 specifics fold into the net472 spike items. Settled in the API design session.
-- **`x-opencode-directory` header** — per-request project targeting: first-class option on every
-  call vs client-level default + override.
 - **Spec tracking:** `openapi.json` changes on every upstream push — snapshot per SDK release +
   diff/regen workflow (`spec/SNAPSHOT.md` is the pin; the submodule tracks upstream).
-- **`pty.connect` WebSocket endpoints** — upstream's own codegen excludes them; probably out of
-  scope for us too.
-- **Auth shape** — HTTP basic (`OPENCODE_SERVER_PASSWORD`): client options vs per-request.
+- **Launcher deep-dive items** (spec §13): port-conflict handling / ephemeral port
+  (`--port=0` support UNVERIFIED); six-point anatomy of doc 06 §3 at implementation.
 - **Release mechanics** — decided parts live in ADR-0006 (independent semver, per-merge GitHub
   Packages CD, manual NuGet.org release pipeline). Still open: pre-1.0/preview numbering,
   `VersionPrefix`, RELEASE_NOTES flow, the concrete workflows.
 - **Testing strategy details** — integration/functional design against a real opencode process;
   steal upstream's "every endpoint must be exercised" idea (`test:httpapi`); legacy scope is
   consumer-driven per ADR-0005.
-
-## Parked Decisions
-
-- **CS1591 / public XML-doc enforcement** — decide in the API design session (queue item 1).
 
 ## Known Gaps
 

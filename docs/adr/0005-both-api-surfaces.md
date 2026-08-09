@@ -6,9 +6,14 @@ The pinned v1.18.15 spec carries two surfaces: 127 legacy operations and 61 tran
 `v2.*`-prefixed operations. We generate both — superseding the earlier v2-only decision —
 because the modern block does not yet cover the product's full capability (upstream's own TUI
 still runs 91 legacy vs 18 modern call sites) and the MCP-server goal needs all of it today.
-Public naming strips the `v2.` prefix and never bakes "V2" into type or client names; the
-opencode-2.0 rename wave (only 15/61 modern names survive) is absorbed at a major release of
-ours. Evidence: `docs/research/09-upstream-v1v2.md`.
+Public naming strips the `v2.` prefix and never bakes "V2" into type or client names — the
+modern names are upstream's newest naming layer, so there is no rename wave to absorb
+(`docs/research/10-v2-to-2.0-operation-mapping.md` corrected doc 09's direction: the "2.0
+branch" spec is an April-2026 ancestor of today's root surface, not the next major). The
+legacy area is deleted at a major release of ours when upstream ships its next major; that
+major's shape and date are unverified — the direction rests on live signals (TUI migration
+to the modern surface, in-code deprecation markers, the protocol-package extraction).
+Evidence: `docs/research/09-upstream-v1v2.md`, `docs/research/10-v2-to-2.0-operation-mapping.md`.
 
 ## Consequences
 
