@@ -28,8 +28,9 @@ reachable via `docs/ROADMAP.md`) until build-out distills them.
   sub-surface, deleted at our upstream-absorbing major; legacy deep-testing is
   consumer-driven (ADR-0005).
 - **Hybrid construction:** hand-written behavior core; models *and* operation methods from
-  our own Roslyn-emission generator; excluded/hand-wired operations are fingerprint-pinned
-  (ADR-0003, ADR-0008).
+  our own Roslyn-emission generator; spec ingestion rides the pinned `Microsoft.OpenApi`
+  reader — the generator owns a fail-closed semantic projection, never an OpenAPI parser;
+  excluded/hand-wired operations are fingerprint-pinned (ADR-0003, ADR-0008).
 - **Generator packaging:** repo tooling under `tools/`; committed output passes the analyzer
   wall on merit; the same tool owns spec refresh (ADR-0003).
 - **Generated models:** immutable, `required`-mirroring, nullable-last-resort (ADR-0004).

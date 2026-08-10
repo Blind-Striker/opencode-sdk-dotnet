@@ -18,11 +18,14 @@ research log sessions 1–9. Implementation planning complete (2026-08-10): slic
 **#1–#12** with native `blocked_by` ordering; deviation protocol added
 (`docs/agents/deviation-protocol.md`), falsifiability working agreement added to `AGENTS.md`.
 The Slice 0 tooling skeleton has landed. Repo-local Slopwatch pinning, a committed zero-entry
-baseline, and the Linux CI gate are active. Slice 1 planning is complete: the parser + SpecIR
-plan (`superpowers/plans/2026-08-10-slice-01-parser-specir.md`) is sealed, issue #2 is
-`ready-for-agent`, and generator spec §4.1 gained four pinned-spec dialect corrections
-(research log session 11); next is the Slice 1 execution session
-(`docs/agents/handover-prompts/HANDOFF-2026-08-10.md`).
+baseline, and the Linux CI gate are active. Slice 1 is in redesign: the generator's ingestion
+stage rides the pinned `Microsoft.OpenApi` reader with a fail-closed semantic projection into
+a minimal SpecIR (ADR-0003; generator spec §4.1; evidence: research log session 12). The
+superseded Slice 1 plan is removed; its implementation survives on the
+`feature/slice-01-parser-specir` evidence branch (worktree kept as reference — delete only
+with maintainer approval; its two file-scoped CA1720 arbitrations retire with it). Next: a
+focused grill session over the corrected generator spec §4/§4.1, then the Slice 1 re-plan
+(issue #2 returns to `ready-for-agent` when the new plan is written).
 
 ## Queue
 
@@ -64,6 +67,12 @@ In order — do not improvise beyond it without asking the maintainer.
   Packages CD, manual NuGet.org release pipeline). Still open: pre-1.0/preview numbering,
   `VersionPrefix`, RELEASE_NOTES flow, the concrete workflows. **Not covered by the slice
   map** — scheduled when the first publishable increment approaches.
+
+- **Upstream v2 watch:** the active upstream `v2` branch publishes its spec at
+  `packages/protocol/openapi.json`; its dialect adds single-element, validation-only `allOf`
+  wrappers, keeps `v2.`-prefixed operationIds, and returns literals to single-value `enum`
+  (research log session 12). No plan impact today; re-check at each spec refresh and before
+  the upstream-absorbing major.
 
 ## Known Gaps
 

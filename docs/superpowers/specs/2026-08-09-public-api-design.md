@@ -16,7 +16,7 @@ a **generator-architecture session** designs the generator's internals; then
 and projection rules, transport and extensibility, options and DI, event model, model-layer
 rules, and the launcher's public shape.
 
-**Out of scope:** the generator's internal architecture (parser/IR shape, emission
+**Out of scope:** the generator's internal architecture (ingestion/SpecIR shape, emission
 layering, curation-config format, spec-refresh tooling — its own design session); the MCP
 server (sequenced later, ADR-0006); launcher implementation depth (deep-dive at
 implementation, §13).
@@ -717,7 +717,7 @@ public sealed class OpenCodeServerOptions
 
 ## 15. Deferred and follow-ups
 
-- **Generator internal architecture** — separate design session: parser/IR shape,
+- **Generator internal architecture** — separate design session: ingestion/SpecIR shape,
   emission layering, curation-config format, exclusion mechanics, `.g.cs`-vs-on-merit
   file mechanics (ADR-0003), multi-TFM emission, spec-refresh tooling, emitter test
   strategy (snapshot testing). New scope from the grill: per-parameter type overrides,

@@ -12,7 +12,7 @@ the `external/opencode` submodule read this session.
 ## 1. Scope and inputs
 
 **In scope:** the internal architecture of the model-layer generator and the repo tooling that
-hosts it — tooling layout and command surface, pipeline stages (parser/IR, binder, emitters,
+hosts it — tooling layout and command surface, pipeline stages (ingestion/SpecIR, binder, emitters,
 writer), curation-config format and semantics, fail-closed drift mechanics, file mechanics for
 on-merit generated output, multi-TFM emission, the two committed manifests (output +
 fingerprint), spec-refresh tooling, and CI wiring.
@@ -32,7 +32,7 @@ the committed operation inventory and the contract test fixtures — tracked as 
 output root of the Writer's manifest machinery (§8). Output passes the analyzer wall on
 merit (ADR-0003); a `dotnet format` post-step and CI regen-verify guard it.
 
-**Evidence base:** ADRs 0003/0004/0005/0008/0009; research docs 08 (codegen spike — parser/IR
+**Evidence base:** ADRs 0003/0004/0005/0008/0009; research docs 08 (codegen spike — IR
 boundary, emission trade, packaging), 09/10 (dialect drift, genealogy); the public API spec
 (§5.1, §8, §11.2, §12, §14, §15); upstream's own generator
 `external/opencode/packages/httpapi-codegen/src/index.ts` (1185 lines, read in full this
@@ -80,7 +80,7 @@ tools/
     │   ├── GenerateCommand.cs        ←   generate [--verify] [--update-fingerprints]
     │   └── RefreshSpecCommand.cs     ←   refresh-spec --ref <tag|commit>
     ├── Generator/
-    │   ├── Parsing/                  ← Parser + SpecIR types (§4.1)
+    │   ├── Ingestion/                ← reader + projection + SpecIR types (§4.1)
     │   ├── Binding/                  ← Binder + curation models + EmitPlan types (§4.2)
     │   ├── Emission/                 ← per-artifact-family emitters (§6)
     │   └── Output/                   ← Writer: output manifest, stale cleanup, format (§8)
@@ -110,7 +110,7 @@ the generator is one tooling area among future siblings — §2 principle 3).
 **Stack** (ROADMAP queue 2, confirmed): Spectre.Console.Cli (+ the DI registrar + Testing
 packages), CliWrap for git and `dotnet format` invocations (the no-CliWrap rule is
 SDK-product-scoped, ADR-0001), the TestableIO trio for all filesystem I/O (public API spec
-§3), System.Text.Json for spec and curation parsing, Microsoft.CodeAnalysis.CSharp for
+§3), the pinned Microsoft.OpenApi reader for spec ingestion, System.Text.Json for curation parsing, Microsoft.CodeAnalysis.CSharp for
 emission (ADR-0003). All versions enter `Directory.Packages.props`.
 
 ### 3.2 Command surface
@@ -159,91 +159,100 @@ reliable workaround.
 ## 4. Pipeline architecture (sealed: two-stage)
 
 ```
-spec/openapi.json ─▶ Parser ─▶ SpecIR ─▶ Binder ─▶ EmitPlan ─▶ Emitters ─▶ Writer
-                              (wire-      │ + curation.json     (Roslyn)     │ output manifest
-                               faithful)  │ all fail-closed                  │ stale cleanup
-                                          ▼ checks, batched                  ▼ dotnet format
-                                       batch error report               src/OpenCode.Sdk/
+spec/openapi.json ─▶ Microsoft.OpenApi ─▶ typed DOM ─▶ Projection ─▶ SpecIR ─▶ Binder ─▶ EmitPlan ─▶ Emitters ─▶ Writer
+                     reader (pinned:       (tool-       (dialect wall,   (minimal,   │ + curation.json     (Roslyn)    │ output manifest
+                     parsing, $refs,        internal)    normalizations,  immutable)  │ all fail-closed                 │ stale cleanup
+                     lossless retention)                 batched errors)              ▼ checks, batched                 ▼ dotnet format
+                                                                                   batch error report            src/OpenCode.Sdk/
 ```
 
-The alternative — a single stage applying curation during parse, the spike's ~190-line shape
-scaled up — was considered and rejected: curation errors would surface one at a time
-mid-parse, wire analysis and C# naming would interleave, and the parser/emitter reversal
-boundary that ADR-0003 records ("if Roslyn emission proves a net burden, the emitter half is
-swapped without touching spec parsing") would blur. The two-stage shape is also upstream's
+The alternative — a single stage applying curation during projection — was considered and rejected:
+curation errors would surface one at a time mid-walk, wire analysis and C# naming would
+interleave, and the ingestion/emitter reversal boundary that ADR-0003 records would blur.
+Feeding the Microsoft.OpenApi DOM directly into the Binder (no SpecIR) was considered and
+rejected on run evidence: the reference/concrete dichotomy and the library's
+flags-and-defaults idioms would leak into every Binder rule, the same analyses would
+re-traverse the DOM repeatedly, every Binder test would need reader-built fixtures, and the
+refresh diff would have no stable model to serialize (research log session 12). The two-stage shape is also upstream's
 own: `httpapi-codegen` separates `compile()` (producing a `Contract` IR of groups, endpoints,
 and operations) from `emitPromise`/`emitEffect`/`write` over that IR
 (`packages/httpapi-codegen/src/index.ts`).
 
-### 4.1 Parser and SpecIR
+### 4.1 Ingestion and SpecIR
 
-SpecIR is wire-faithful and contains zero C# concepts. Inventory:
+**Reader.** The pinned `Microsoft.OpenApi` package (CPM-pinned; tooling-only — it never
+enters the shipped packages) parses `spec/openapi.json` into its typed DOM via
+`OpenApiDocument.LoadAsync` over a stream opened through the TestableIO seam
+(`LeaveStreamOpen` honored **[verified]**). The library owns lexical JSON
+parsing, OpenAPI container parsing, `$ref` construction and resolution, and lossless
+retention of unknown schema keywords (`UnrecognizedKeywords`) and vendor extensions. Its
+diagnostics are surfaced when present but are **not** the wall: the reader accepts
+constructs our dialect refuses (run-proven: the pin's raw `prefixItems` and injected
+`allOf`/`if`/type-array/discriminator/unknown-`x-*` documents all load with zero library
+errors).
 
-- **`SpecOperation`** — operationId; surface (`Modern`/`Legacy`, keyed on the `v2.`
-  operationId prefix, never the path: 3 of 61 modern ops live under
-  `/experimental/project/{projectID}/copy*` **[verified]**); dotted group segments; HTTP
-  method; path template with a wildcard flag (`/api/fs/read/*` is the only wildcard path
-  **[verified]**); parameters (path/query/header, wire type, required); request body;
-  responses (status → content type + schema; 204 = no-content); SSE flag (detected by the
-  `text/event-stream` response content type — 4 ops: `global.event`, `event.subscribe`,
-  `v2.session.events`, `v2.event.subscribe` **[verified]**; `x-effect-stream` appears only on
-  `v2.session.events` **[verified]** and is therefore not the detector — its value is
-  carried **opaque**: the extension's interior (`causeSchema` et al.) is never schema-graph
-  input and exists only inside the `handwired` fingerprint document, §9); declared error
-  responses. Content types are parsed as media types: the raw value is recorded, but every
-  match — JSON detection (`application/json` or a `+json` suffix), SSE detection, the
-  `contentTypePayloads` map, the coverage check — runs on the parameter-stripped
-  `type/subtype` (the spec's one parameterized value is `text/x-diff; charset=utf-8`
-  **[verified]**; upstream's Promise client compares the same way — `isContentType`,
-  `index.ts`).
-- **Schema graph** — named schemas plus promoted inline types (the spike's promotion
-  pattern, doc 08). Node kinds: object (properties, required set, `additionalProperties` —
-  including the six hybrids carrying both properties and an `additionalProperties`
-  schema), union (`anyOf`/`oneOf` + literal-marker analysis, including nested unions such
-  as `ToolState`; the keyword is recorded — `SessionDurableEvent` is the document's one
-  `oneOf`), enum (104 multi-value enums **[verified]**), special-value number (an `anyOf`
-  of one `number` branch plus branches that are only `"NaN"`/`"Infinity"`/`"-Infinity"`
-  string literals — single- or combined-literal; the spec's JSON projection of a JS
-  number; 11 locations: `Workspace.timeUsed`
-  and the `time.created`/`time.expires` fields of `IntegrationAttempt` and
-  `IntegrationAttemptStatus`'s inline copies, on both surfaces **[verified]** — emitted as
-  `double` with `JsonNumberHandling.AllowNamedFloatingPointLiterals`, no curation; its
-  literal branches are absorbed by this node — they are neither literal markers nor
-  emitted enums, so the 513/104 counts overstate marker/enum populations by exactly these
-  artifacts), primitive/array/dictionary (a dictionary is spelled as an
-  `additionalProperties` schema or, in one location — `v2.session.active`'s payload — as
-  a single-pattern `patternProperties`; key patterns are validation-only and dropped),
-  tuple (`prefixItems` with fixed arity — one location: `Config.plugin` items),
-  content-encoded string (`type: string` + `contentSchema`/`contentMediaType:
-  application/json` — `SessionDurableEventStream`, `V2EventStream`), nullable (the
-  `anyOf`-null branch as its own node), ref.
-- **`LiteralMarker`** — the discriminator mechanism. Both dialects parse into the same node:
-  single-value `enum` (513 today, 0 `const` **[verified]**) and `const` (138 in the observed
-  newer dialect — doc 09), so the known drift costs a parser branch, not a redesign. Marker
-  detection is mechanical — a required property with a literal value — not a hardcoded
-  property-name list (`type`, `_tag`, `name`, and `status` are all found by the same rule).
-- **Mechanical normalizations at parse time** (structural facts, no naming):
-  - *Duplicate-`anyOf`-ref dedup.* The public API spec's `session.get` 404 example
-    understates the phenomenon: 26 response-schema locations carry a duplicated ref in
-    `anyOf` — `SessionNotFoundError` twice in 22 404s, `InvalidRequestError` twice in 4 400s
-    **[verified]**. Dedup is one general rule; a post-dedup single-ref `anyOf` is a plain
-    ref, not a union.
-  - *Envelope shape classification* — `{data}` (12), `{data, location}` (20), `{cursor,
-    data}` (2, behind named refs such as `SessionsResponse`), `{data, hasMore}` (1:
-    `v2.session.history` — public API spec §11.1's `ListHistoryAsync`), bare, none
-    **[verified]** — the shape is structural; naming the payload is the Binder's job.
-  - *Error-schema style detection* — of the 44 error-named schemas: 20 Effect-style `_tag`,
-    17 `{name, data}`, 7 union/event wrappers **[verified]**, matching the public API spec
-    §4.1 split. The two conventions are a structural fact recorded per schema; consumers
-    never see the difference (ADR-0007).
-- **Dialect wall.** The parser accepts only constructs it knows. Today the spec contains 0
-  `allOf`, 0 `discriminator`, 0 type-arrays **[verified]**; if upstream starts emitting any
-  of these — or an unrecognized content type, or a construct outside the known dialect — the
-  parser refuses rather than mis-generates. Vendor extensions are part of the wall:
-  `x-codeSamples` (docs metadata, present on every operation) is known-ignored,
-  `x-websocket` (marks `v2.pty.connect` — exactly the class of semantic extension the
-  wall exists to catch) is recorded as an operation flag, `x-effect-stream` is carried
-  opaque (above); any other `x-*` key refuses.
+**Projection.** One DOM visitor walks the document once and produces the SpecIR plus
+batched, located errors (§2 principle 5; JSON-pointer-style locations). Everything
+opencode-specific lives here:
+
+- **Dialect wall — whitelist-shaped.** The library types the full JSON Schema 2020-12
+  vocabulary (`if`/`then`/`else`, `dependentSchemas`, `propertyNames`, `contains`, …
+  land as typed DOM members, not unrecognized keywords **[verified]**), so
+  the wall enumerates the *admitted* typed members and refuses any other populated
+  member; `UnrecognizedKeywords` must be empty at every schema except the admitted
+  raw-keyword sites (today exactly one: `prefixItems` under `Config.plugin`);
+  unresolved reference targets refuse. Extension dispositions per host: `x-codeSamples`
+  (operations) known-ignored, `x-websocket` (operations) recorded as a flag,
+  `x-effect-stream` (SSE media only) carried opaque, any other `x-*` at any host
+  refuses. The wall is the drift radar in action: run against the active upstream
+  `v2`-branch spec it reports that document's 422 new `allOf` sites individually,
+  batched and located **[verified]** — upstream evolution arrives as a reviewed
+  admit-rule, never as silent mis-generation.
+- **Library-upgrade tripwires.** A version bump must not move the wall silently: one
+  test pins that `prefixItems` still lands in `UnrecognizedKeywords`, and a snapshot of
+  the `OpenApiSchema` typed-member inventory fails loudly when a newer library types
+  new keywords — the admitted-member list is a recorded decision, never inferred from
+  the library.
+- **Unrestricted schemas.** An empty schema (`Type == null`, no members) accepts any
+  JSON value and projects to an explicit any-value node — 19 sites in the pin,
+  including union-branch positions (`Workspace.extra/anyOf/0`) **[verified —
+  exhaustive DOM+raw correlation]**. Mapping `{}` to a free-form *object* node would
+  silently narrow the wire.
+- **`prefixItems` adapter.** The one pinned construct the library leaves untyped: the
+  raw items parse through the supported fragment API
+  (`OpenApiModelFactory.Parse<OpenApiSchema>` with host-document context
+  **[verified]**) into the tuple node.
+- **Mechanical normalizations** — projection rules, run-verified against the pin by
+  the landmark prototype:
+  duplicate-`anyOf`-ref dedup (26 sites; a post-dedup single-ref `anyOf` is a plain
+  ref), envelope-shape classification (`{data}`, `{data, location}`, `{cursor, data}`,
+  `{data, hasMore}`, bare, none), error-style detection (20 Effect-`_tag` + 17
+  `{name, data}`), literal markers in both dialects (single-value `enum` today; `const`
+  accepted for the observed newer dialect), special-value numbers, parameter-stripped
+  media-type matching, SSE detection by `text/event-stream` (4 ops; `x-effect-stream`
+  only on `v2.session.events`), the wildcard path flag (`/api/fs/read/*` is the only
+  wildcard path), dotted schema names kept verbatim.
+
+**SpecIR.** SpecIR is the Binder's sole spec-side input — a *minimal semantic
+projection*, not a wire-faithful parse tree. It stays immutable and free of C#
+concepts, and the mutable Microsoft.OpenApi DOM never crosses it: the projection is the
+only code that touches library types. It carries the operation surface (operationId;
+`Modern`/`Legacy` keyed on the `v2.` operationId prefix, never the path; HTTP method;
+path template with the wildcard flag; parameters incl. deepObject; request body;
+responses with status, stripped media type, schema and envelope shape; SSE/WebSocket
+flags; the opaque `x-effect-stream` value; deprecation and doc text) and the schema
+graph — named schemas under verbatim wire names plus promoted inline types under
+deterministic `{root}#{pointer}` keys (marker-keyed union branches; never a
+document-global counter) — classified into the semantic node kinds the Binder
+consumes: object, dictionary, free-form, **unrestricted**, union, enum, literal,
+special-number, tuple, content-encoded-string, nullable, primitive, ref. The exact
+record inventory is derived backward from Binder, emitter and refresh-diff
+consumption at slice planning — a field nothing consumes is not carried.
+
+**No longer ours** (and never re-tested here — testing spec §10): lexical JSON parsing
+and syntax diagnostics, generic OpenAPI document/operation/parameter/response parsing,
+`$ref` mechanics, generic OpenAPI conformance validation, lossless retention of unknown
+keys.
 
 ### 4.2 Binder and EmitPlan
 
@@ -354,7 +363,7 @@ points are integration tests against a real process (the testing session's domai
 refresh-PR review — which is why `reason` is mandatory on exactly these row kinds (§5.2):
 the premise sits written above the row for the reviewer to re-check.
 
-**Layer 2 — the parser's dialect wall** (§4.1): unknown constructs are refused, and the
+**Layer 2 — the projection's dialect wall** (§4.1): unknown constructs are refused, and the
 zero-counts stay zero by force.
 
 **Layer 3 — the fingerprint manifest** (§9): drift radar for exactly the constructs that
@@ -474,7 +483,8 @@ folder convention.
 `SNAPSHOT.md` provenance table (commit, tag, `Date:`) and stamp the opencode test-server
 version pin into the machine-readable `spec/opencode-version` file, relayed by `SNAPSHOT.md`
 (single-sourced with the spec pin — testing spec §11); (4) print an old-vs-new SpecIR diff
-summary (added/removed/changed operationIds) as the refresh PR's review aid; (5) run
+summary (added/removed/changed operationIds) plus the ingestion inventory delta (new
+keywords, extensions, unrestricted sites) as the refresh PR's review aid; (5) run
 `generate`, which surfaces coverage gaps and fingerprint drift loudly (§5.3). This lands the
 "dedicated spec-refresh tool" that `spec/SNAPSHOT.md` records as planned.
 
@@ -499,12 +509,19 @@ operation inventory and the contract fixtures — §1/§8), `refresh-spec` comma
 the round-trip behavior tests reassigned to `OpenCode.Sdk.Tests` (level 1 there). What
 follows is the sealed tooling-test design.
 
-- **Parser:** small hand-written spec fixtures, one per quirk (nested union, `anyOf`-null,
-  duplicate-ref dedup, single-enum *and* `const` markers, dotted names, wildcard path, SSE
-  detection, envelope shapes, both error styles) → assert SpecIR shape. Plus a full-spec
-  smoke test: the pinned spec parses without error and structural invariants hold. Exact
-  counts (188/61/127) stay out of tests — they are research-doc facts, and count assertions
-  would turn every legitimate refresh into test noise.
+- **Projection:** small hand-written spec fixtures, one per quirk (unrestricted `{}`
+  incl. a union-branch position, nested union, `anyOf`-null, duplicate-ref dedup,
+  single-enum *and* `const` markers, dotted names, wildcard path, SSE detection,
+  envelope shapes, both error styles, the `prefixItems` tuple), loaded **through the
+  pinned reader** (published contract — DOM types are never faked) → assert SpecIR
+  shape. Wall red tests: every refused construct class (`allOf`, type arrays,
+  `discriminator`, the 2020-12 applicators, unknown `x-*` per host, unresolved refs)
+  verified batched and located. The §4.1 library-upgrade tripwires live here, plus one
+  malformed-JSON diagnostic-translation test. Plus a full-spec smoke test: the pinned
+  spec projects without error and structural landmarks hold. Exact counts (188/61/127)
+  stay out of tests — they are research-doc facts, and count assertions would turn
+  every legitimate refresh into test noise. Microsoft.OpenApi internals are never
+  re-tested.
 - **Binder:** one red test per coverage check (missing group, unnamed envelope, orphan row,
   unknown config field — each verified present in the batched, categorized report); name
   computation cases (acronyms, dotted mangling, brand overrides); handle routing;
@@ -565,7 +582,7 @@ the local SDK, never hand-editing output. The existing `dotnet format --verify-n
 gate already covers generated files (they are plain `.cs`) — a deliberate second radar. The
 build itself is the compile gate for generated output (§11).
 
-## 14. Decisions sealed in this session (summary)
+## 14. Sealed decisions (summary)
 
 1. **Tools hosting:** synthesis — PathSmith-style csproj library + 3-line file-based entry
    delegating to a testable `ToolApp` factory; ADR-0003 packaging unchanged (§3.1).
@@ -577,8 +594,8 @@ build itself is the compile gate for generated output (§11).
    options run-verified).
 4. **Coverage checks are bidirectional** — missing entries and orphan entries both fail
    (§5.3; exceeds upstream's one-directional `omitEndpoints`).
-5. **Pipeline is two-stage** — Parser → SpecIR → Binder → EmitPlan → Emitters → Writer
-   (§4).
+5. **Pipeline is two-stage** — Microsoft.OpenApi reader → projection → SpecIR →
+   Binder → EmitPlan → Emitters → Writer (§4; ingestion: ADR-0003).
 6. **File mechanics:** plain `.cs` names, non-magic do-not-edit header, no
    `[GeneratedCode]`, no per-file `#nullable`; manifest tracks generated-ness (§7).
 7. **Writer:** output manifest + stale cleanup; whole-project `dotnet format`;

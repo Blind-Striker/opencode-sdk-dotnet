@@ -1119,3 +1119,113 @@ siblings (fail-closed maximalist posture: the TestableIO seam is now mechanicall
 enforced, not review-enforced). The analyzer is an older-Roslyn build; if the current
 compiler refuses to load it, the plan marks that a stop-and-report finding, never a
 silent drop.
+
+# Session 12 — 2026-08-11: redesign research — Microsoft.OpenApi ingestion
+
+Research/design session per `HANDOFF-2026-08-10-2` (the Task 10 stop). Five-mode scratch
+probe in the evidence worktree (`.scratchpad/OpenApiProbe/` — baseline / inventory / wall /
+projection / ops; outputs preserved at `.scratchpad/probe-outputs-2026-08-11.md` there);
+upstream codegen read at line level in the submodule; live remote inspection of
+`anomalyco/opencode` branches. Decisions sealed with the maintainer in-session; canonical
+docs corrected in the same change. This entry is the chain.
+
+## Q55: Why did Slice 1's Task 10 stop, and was the planning census complete?
+
+**Found:** the pinned spec contains unrestricted JSON Schemas written as `{}`; the custom
+parser's sealed dispatch refused them and dropped their parents, producing a 44-error batch.
+The exhaustive DOM+raw-walk correlation then found **19** empty-schema sites, not the 6 the
+handover's grep-based count claimed — the second census-method failure after session 11's
+zero-key miss: pattern-matching counts miss what only an exhaustive positional walker sees
+(one site is even a union branch, `Workspace.extra/anyOf/0`; several are semantically
+load-bearing: tool results, `AssistantMessage.structured`).
+
+**Decision:** unrestricted `{}` becomes an explicit any-value node (mapping it to a
+free-form *object* would silently narrow the wire); census claims over the spec are made
+only by exhaustive walkers, never by grep.
+
+## Q56: Can Microsoft.OpenApi replace the hand-written parser?
+
+**How researched:** the handover's investigation list executed as scratch prototypes over
+the pinned spec: exhaustive DOM inventory correlated against a raw `JsonNode` walk;
+whitelist wall visitor + doctored-spec injections + a `ValidationRuleSet` comparison; a
+minimal projection implementing every Task 10 landmark; fragment-API, stream-ownership,
+determinism, cycle and cost probes; NuGet version re-check.
+
+**Found:** the library reads the pin with 0 errors/0 warnings. The correlation closes the
+loss question: every raw keyword is either typed by the DOM or retained in
+`UnrecognizedKeywords` — the only untyped pinned keyword is `prefixItems` (1 site). The
+library types the full JSON Schema 2020-12 applicator vocabulary (injected `if`/`then` land
+as typed members, **not** unrecognized keywords), so a fail-closed wall must be
+whitelist-shaped over admitted typed members. A ~180-line DOM visitor passes the pin clean
+and catches 7/7 injected foreign constructs batched and located while the library accepts
+them; `ValidationRuleSet` also works (default set + `typeof(IOpenApiSchema)` key, decent
+pointers) but the single visitor is simpler — the default rule set stays on as a free extra
+radar. A ~240-line projection answers all Task 10 landmarks 19/19, with typed reference-ID
+access (`OpenApiSchemaReference.Reference.Id` — the spike's reflection was unnecessary) and
+deterministic repeated ingestion (SHA-256-stable, including `x-effect-stream`
+serialization). `OpenApiModelFactory.Parse<OpenApiSchema>` parses the raw `prefixItems`
+items with host-document context. `LeaveStreamOpen` is honored (TestableIO seam intact).
+Iteration order is deterministic across loads and equals document order (observed behavior,
+not a contract — outputs still sort). No ref cycles in the pin (deepest `Target` chain 15);
+parse cost 72 ms / 26 MB. 3.9.0 is the newest stable. Direct-Binder input (no SpecIR) was
+compared and rejected on the same runs: the reference/concrete dichotomy and
+flags-and-defaults idioms leak into every rule, the same analyses re-traverse the DOM,
+every Binder test needs reader-built fixtures, and the refresh diff has no stable model to
+serialize.
+
+**Decision (maintainer):** Microsoft.OpenApi (pinned) becomes the tooling reader; the
+generator owns a whitelist-shaped fail-closed projection into a minimal SpecIR (the name is
+kept — renaming to "Contract" would collide with the level-2 contract-test area); ADR-0003
+is revised in place rather than superseded (early-stage call — ADRs stay changeable);
+library-upgrade tripwires guard the wall (`prefixItems`-still-unrecognized + a typed-member
+inventory snapshot); the custom parser is retired — its branch/worktree
+(`feature/slice-01-parser-specir`) is kept as an evidence reference.
+
+## Q57: Did upstream write its own OpenAPI parser for the JS SDK?
+
+**Found:** no. The published SDK delegates OpenAPI parsing to `@hey-api/openapi-ts` and
+wraps it in two fail-safes: pre-generation document surgery (`httpapi/public.ts`
+`matchLegacyOpenApi` — including stripping single-element `allOf` wrappers, which is why
+the published artifact censuses at 0 `allOf`; `sdk/js/script/build.ts` deletes unreachable
+`SessionNext*1` schemas via a reachability walk) and post-generation patches that are all
+assertion-guarded — every `.replace()` throws when it no longer matches, so each patch
+doubles as a drift detector (the numeric `after`/`limit` patch rests on the same premise as
+our `parameterTypeOverrides` row). Upstream's own codegen (`httpapi-codegen`) bypasses
+OpenAPI entirely: it compiles the Effect contract into its own IR behind semantic
+`GenerationError` refusals (name collisions, multiple payload/success schemas, unsupported
+encodings, errors without a literal discriminator, refuse-until-implemented recursive
+types).
+
+**Lesson:** upstream's own practice matches the redesign's shape — delegate document
+parsing, own a fail-closed semantic wall. The assertion-guarded-override pattern is worth
+porting (our behavior-premise integration catch points and fingerprint pins are its
+equivalents).
+
+## Q58: Is the next major changing the spec dialect?
+
+**How researched:** `git fetch` in the read-only submodule (worktree untouched, pin
+intact); branch inspection via `ls-remote`/`log`/`show`; a keyword census over three
+artifacts — the pin, `origin/dev:packages/sdk/openapi.json`, and
+`origin/v2:packages/protocol/openapi.json` (copies + census under
+`.scratchpad/v2-sneakpeek/`); npm dist-tags.
+
+**Found:** the `2.0` branch is still the frozen April ancestor (doc 10 holds). The active
+successor is branch **`v2`** — diverged from `dev` 2026-06-26, daily commits, monorepo
+restructured (no `packages/opencode`/`packages/sdk`; `core`/`server`/`client`/`sdk-next`
+instead), with the OpenAPI artifact moved to `packages/protocol/openapi.json`. Its dialect:
+104 paths / 120 ops / 322 schemas; operationIds still `v2.`-prefixed; **422 `allOf`
+occurrences — every one a single-element wrapper carrying only validation keywords**
+(`{"type":"integer","allOf":[{"exclusiveMinimum":0}]}`; arity distribution 100% one) —
+consistent with the legacy-compat strip not running on this artifact; 0 `const` (the April
+const shift reverted — literals are single-value `enum` again, 359 sites); 0 type-arrays;
+`prefixItems` 6; `patternProperties` 2; empty schemas 2; `x-effect-stream`/`x-websocket`
+present; component names now widely dotted (`Location.Info`). `dev`'s spec censuses
+identical to the pin (nothing urgent on the 1.x line; npm `latest` is 1.18.16). Run against
+the v2 artifact, the wall prototype reports 428 located errors — all `allOf` — a live
+demonstration of the drift radar: the future admit-rule class is already known
+(single-element validation-only wrapper) and lands as a deliberate wall extension when a
+refresh needs it.
+
+**Decision:** no plan deviation now; a v2-watch item joins ROADMAP Open Questions; the
+evolvability posture is the wall + tripwires + nightly canary, with the integration suite
+as the primary guard.

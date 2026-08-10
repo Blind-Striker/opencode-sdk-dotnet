@@ -69,18 +69,23 @@ CI smoke step running the entry on the Linux leg.
 **Hands over:** `ToolApp.CreateRegistrar`/`ToolApp.Configure` composition seam; pinned
 invocation forms; the Tools.Tests harness pattern.
 
-### Slice 1 — Parser + SpecIR
+### Slice 1 — Ingestion + SpecIR
 
-**Depends on:** 0 · **Spec anchors:** generator spec §4.1, §11 (parser tests)
+**Depends on:** 0 · **Spec anchors:** generator spec §4.1, §11 (projection tests)
 
-Wire-faithful SpecIR (operations, schema graph node kinds including special-value
-numbers, literal markers in both dialects, parse-time normalizations: duplicate-ref
-dedup, envelope-shape classification, error-style detection, parameter-stripped media
-types, opaque `x-effect-stream`) behind the dialect wall (unknown constructs refuse).
-Filesystem I/O via TestableIO. Tests: one hand-written quirk fixture per construct + the
-full-spec smoke test (no count assertions). Honest note: this slice's working software is
-the parser library plus its test suite — the CLI surface does not change (`generate`
-stays a stub until slice 3).
+The pinned Microsoft.OpenApi reader as the tooling ingestion layer; the fail-closed
+projection behind the whitelist dialect wall (admitted typed members, the
+unrecognized-keyword net, extension dispositions, library-upgrade tripwires); the
+minimal immutable SpecIR (record inventory derived backward from
+Binder/emitter/refresh-diff consumption); projection normalizations (duplicate-ref
+dedup, envelope-shape classification, error-style detection, literal markers in both
+dialects, special-value numbers, parameter-stripped media types, opaque
+`x-effect-stream`, unrestricted `{}` nodes, the `prefixItems` fragment adapter).
+Filesystem I/O via TestableIO. Tests: projection quirk fixtures loaded through the
+real reader + wall red tests + tripwires + the full-spec landmark smoke test (no
+count assertions). Honest note: this slice's working software is the ingestion
+library plus its test suite — the CLI surface does not change (`generate` stays a
+stub until slice 3).
 
 **Hands over:** SpecIR types consumed by the Binder.
 

@@ -105,7 +105,7 @@ GitHub (`localstack-dotnet/localstack-dotnet-client`,
 
 | Level | Proves | Runs against | Lives in |
 |---|---|---|---|
-| **1 — Unit** | Internal logic of our code: converters, envelope guards, retry, SSE engine parsing, launcher pieces; tools parser/binder/emitters; Extensions DI composition | Nothing external — in-memory `HttpMessageHandler` stubs, canned payloads and streams | `OpenCode.Sdk.Tests`, `OpenCode.Sdk.Extensions.Tests`, `OpenCode.Sdk.Tools.Tests` |
+| **1 — Unit** | Internal logic of our code: converters, envelope guards, retry, SSE engine parsing, launcher pieces; tools projection/binder/emitters; Extensions DI composition | Nothing external — in-memory `HttpMessageHandler` stubs, canned payloads and streams | `OpenCode.Sdk.Tests`, `OpenCode.Sdk.Extensions.Tests`, `OpenCode.Sdk.Tools.Tests` |
 | **2 — Contract** | Every operation's happy path + every declared error response maps to the right model/envelope/exception — mechanical 100% endpoint breadth | Tool-generated fixtures (from SpecIR) fed through the same in-memory stub handler | `OpenCode.Sdk.Tests` (`Contract/` area) |
 | **3 — Integration** | The SDK works for real: real HTTP, real serialization boundary, real SSE over the network, real process lifecycle | A real `opencode serve` via the dual-mode harness (§5), fake LLM where assistant activity is needed (§6) | `OpenCode.Sdk.Integration.Tests` |
 
@@ -452,7 +452,8 @@ Running these on all three OS legs satisfies ADR-0001's acceptance criterion.
 
 ## 10. Tooling tests (generator spec §11 — sealed, with three revisions)
 
-The §11 sketch is sealed as designed: parser quirk fixtures with the no-count-assertions rule,
+The §11 sketch is sealed as designed: projection quirk fixtures — loaded through the pinned
+Microsoft.OpenApi reader, whose internals are never re-tested — with the no-count-assertions rule,
 binder red tests verified inside the batched categorized report, per-emitter Verify
 micro-snapshots over small EmitPlan fixtures, Writer/command tests on MockFileSystem +
 faked `Infrastructure` wrappers + `CommandAppTester`, and the double-emit determinism test.
@@ -524,7 +525,7 @@ format gate, and the generator spec §13 `generate --verify` step):
   snapshots — assertion intent stays explicit in the test body.
 - **Tool-emitted test artifacts are committed** (operation inventory, contract fixtures) and
   tracked as a second output root of the tool's manifest/regen-verify machinery — hand-editing
-  is structurally excluded, drift is loud. Hand-written fixtures (parser quirk specs, canned
+  is structurally excluded, drift is loud. Hand-written fixtures (projection quirk specs, canned
   SSE streams) stay small, one per quirk, in the owning test project's `Fixtures/` folder. LF
   is already enforced repo-wide.
 - **Coverage philosophy: risk-focused, no numeric gate** (sealed). The structural mechanisms

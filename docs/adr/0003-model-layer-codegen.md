@@ -10,6 +10,22 @@ handling, and none can emit the locked single source-generated `JsonSerializerCo
 registry. System.Text.Json's name-based polymorphism matches the dialect exactly. Full verdict
 matrix and construct counts: `docs/research/08-codegen-spike.md`.
 
+## Ingestion: pinned Microsoft.OpenApi reader, own semantic projection
+
+The generator does not own an OpenAPI parser. The pinned `Microsoft.OpenApi` package —
+a tooling-only dependency that never enters the shipped packages — reads
+`spec/openapi.json` into its typed DOM; the generator owns a fail-closed,
+whitelist-shaped semantic projection from that DOM into the minimal SpecIR the Binder
+consumes. The library owns lexical parsing, `$ref` mechanics, and lossless retention
+of unknown constructs (the one untyped pinned keyword, `prefixItems`, stays raw and
+parses through the supported fragment API); refusing what our dialect does not admit
+stays ours — library diagnostics are not the wall (a raw `prefixItems` produces zero
+library warnings). A hand-written OpenAPI parser is rejected: it rebuilds a maintained
+standards layer, and its wall misreads the spec's edge population (unrestricted `{}`
+schemas: 19 sites, which grep-based counting undercounts as 6). Using a reader library
+is not adopting a foreign code generator — Kiota/NSwag/OpenAPI Generator remain
+eliminated on the run evidence above. Evidence and prototypes: research log session 12.
+
 ## Emission: Roslyn syntax trees — decided against the slice's cost evidence
 
 The spike implemented the same slice twice behind a shared parser/IR. Template/string emission
@@ -21,9 +37,9 @@ construction and refactorability across many emitted shapes are judged to domina
 cost. The measured costs are accepted with mitigations: a `dotnet format` post-step owns
 formatting; trivia is emitted as parsed strings (standard practice).
 
-Reversal framing: the parser/IR boundary contains the choice — both spike emitters sat behind
+Reversal framing: the SpecIR boundary contains the choice — both spike emitters sat behind
 the same IR — so if Roslyn emission proves a net burden, the emitter half is swapped without
-touching spec parsing, union analysis, or surface filtering.
+touching ingestion, union analysis, or surface filtering.
 
 ## Packaging: repo tooling under `tools/`
 
