@@ -653,6 +653,17 @@ dotnet_diagnostic.MA0201.severity = error
 dotnet_diagnostic.MA0202.severity = error
 dotnet_diagnostic.MA0203.severity = suggestion
 
+# -----------------------------------------------------------------------------
+# 10.8 File-based entry arbitration
+# -----------------------------------------------------------------------------
+# MA0048 (file name = type name) cannot apply to the file-based tool entry:
+# the SDK synthesizes the Program type, and the sealed entry contract pins
+# the file name (it is the tool name: ./tools/opencode-tool.cs). Winner: the
+# entry contract; the rule stays error for every other file, generated
+# output included (emission keeps file = type).
+[tools/opencode-tool.cs]
+dotnet_diagnostic.MA0048.severity = none
+
 # =============================================================================
 # SECTION 11: ROSLYNATOR (RCSxxxx)
 # =============================================================================

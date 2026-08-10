@@ -21,5 +21,6 @@
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/OpenCode.Sdk.Tools/OpenCode.Sdk.Tools.csproj" />
+    <File Path="tools/opencode-tool.cs" />
   </Folder>
 </Solution>

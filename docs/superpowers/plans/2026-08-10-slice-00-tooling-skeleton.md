@@ -331,7 +331,7 @@ git commit -m "feat(tools): ToolApp composition root with fail-loud generate stu
   pinned invocation forms (`dotnet run --file tools/opencode-tool.cs -- <args>` on any
   OS; `./tools/opencode-tool.cs <args>` on Unix).
 
-- [ ] **Step 1: Write the entry**
+- [x] **Step 1: Write the entry**
 
 `tools/opencode-tool.cs` — exactly this content, LF line endings, UTF-8 **without BOM**
 (a BOM breaks the shebang):
@@ -349,7 +349,7 @@ Add to the `/tools/` folder in `OpenCode.slnx`:
     <File Path="tools/opencode-tool.cs" />
 ```
 
-- [ ] **Step 2: Run through the entry — §3.3 item 1 (strict-props build) + item 3 (invocation form)**
+- [x] **Step 2: Run through the entry — §3.3 item 1 (strict-props build) + item 3 (invocation form)**
 
 Run: `dotnet run --file tools/opencode-tool.cs -- generate`
 Expected: exit code 1 and the stub message — proving the entry builds **clean under the
@@ -359,7 +359,7 @@ inherited strict props** (any analyzer/TWAE diagnostic fails this run) and that 
 Run: `dotnet run --file tools/opencode-tool.cs -- --help`
 Expected: exit 0, help output listing `generate`.
 
-- [ ] **Step 3: Commit the executable bit into the index**
+- [x] **Step 3: Commit the executable bit into the index**
 
 ```bash
 git add tools/opencode-tool.cs OpenCode.slnx
@@ -370,7 +370,7 @@ git ls-files -s tools/opencode-tool.cs
 Expected: `git ls-files -s` prints mode `100755`. (The bit is meaningless on NTFS and
 effective on the Linux CI checkout — generator spec §3.1.)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git commit -m "feat(tools): file-based entry dogfooding ToolApp"
