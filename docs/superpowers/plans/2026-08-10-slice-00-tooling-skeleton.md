@@ -12,7 +12,7 @@ project — and prove the generator spec §3.3 verification list (strict-props b
 staleness, invocation form) with a CI smoke step.
 
 **Architecture:** generator spec §3.1's sealed layout — a 3-line file-based entry
-delegating into a PathSmith-style csproj library whose `CommandApp` wiring lives in a
+delegating into a DI-composed csproj library whose `CommandApp` wiring lives in a
 `ToolApp` factory so `CommandAppTester` can exercise it. No generator pipeline code in
 this slice; `generate` exists only as a fail-loud stub replaced in slice 3.
 

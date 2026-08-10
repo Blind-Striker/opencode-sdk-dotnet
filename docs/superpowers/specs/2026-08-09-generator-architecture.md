@@ -36,8 +36,7 @@ merit (ADR-0003); a `dotnet format` post-step and CI regen-verify guard it.
 boundary, emission trade, packaging), 09/10 (dialect drift, genealogy); the public API spec
 (§5.1, §8, §11.2, §12, §14, §15); upstream's own generator
 `external/opencode/packages/httpapi-codegen/src/index.ts` (1185 lines, read in full this
-session); the PathSmith repository (`E:\repos\my-projects\env-variable-tools`) as the tools
-structure reference; scripted verification against the pinned spec (results inline below).
+session); scripted verification against the pinned spec (results inline below).
 
 ## 2. Principles
 
@@ -89,10 +88,11 @@ tools/
 tests/OpenCode.Sdk.Tools.Tests/       ← TUnit + Spectre.Console.Cli.Testing + TestingHelpers
 ```
 
-This resolves ADR-0003's "emission library behind a thin file-based entry" against the
-PathSmith reference structure by synthesis: the library carries the full PathSmith-style
-composition (DI via `DependencyInjectionRegistrar`, command classes, service abstractions —
-PathSmith `Program.cs` + `Commands/` + `Services/` pattern, read this session), but the
+This resolves ADR-0003's "emission library behind a thin file-based entry" by synthesis:
+the library carries a full DI composition per the repo's coding style
+(`docs/engineering/coding-style.md` §2 — one `ServiceCollection` composition root behind
+Spectre's `DependencyInjectionRegistrar`; collaborators behind seams in per-slice
+`Abstractions/` folders; cross-cutting CLI concerns on an `ICommandInterceptor`), but the
 `CommandApp` wiring lives in a `ToolApp` factory so `Spectre.Console.Cli.Testing`'s
 `CommandAppTester` can exercise it; the file-based entry shrinks to three lines and merely
 delegates. The shebang uses the documented `-S dotnet --` form (without `--`, `dotnet` can
@@ -102,7 +102,7 @@ class). The committed executable bit lives only in the git index
 Linux CI checkout that dogfoods the entry (§13). ADR-0003's packaging clause survives
 unchanged.
 
-Deviations from PathSmith, both deliberate: `ToolApp` factory instead of logic in
+Two deliberate composition choices: `ToolApp` factory instead of logic in
 `Program.cs` (testability of the wiring); pipeline-stage folders under `Generator/` instead of
 a flat `Services/` (MA0048/IDE0130 make file=type and folder=namespace mandatory anyway, and
 the generator is one tooling area among future siblings — §2 principle 3).
@@ -663,7 +663,7 @@ build itself is the compile gate for generated output (§11).
 
 ## 14. Sealed decisions (summary)
 
-1. **Tools hosting:** synthesis — PathSmith-style csproj library + 3-line file-based entry
+1. **Tools hosting:** synthesis — a DI-composed csproj library + 3-line file-based entry
    delegating to a testable `ToolApp` factory; ADR-0003 packaging unchanged (§3.1).
 2. **`tools/` is the centralized repo-tooling home;** the generator lives in a `Generator/`
    subtree as its first area, not as the project's identity (§2 principle 3).

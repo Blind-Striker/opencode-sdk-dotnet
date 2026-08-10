@@ -519,8 +519,9 @@ format gate, and the generator spec §13 `generate --verify` step):
 
 ## 12. Fixtures, snapshots, coverage philosophy
 
-- **Verify has exactly two uses** (sealed): emitter micro-snapshots (§10) and the **public API
-  surface lock** — a PublicApiGenerator-style surface dump per package under Verify approval,
+- **Verify has exactly three uses** (sealed): emitter micro-snapshots (§10), the ingestion
+  SpecIR-of-the-pin snapshot (generator spec §4.1's library-upgrade tripwire), and the
+  **public API surface lock** — a PublicApiGenerator-style surface dump per package under Verify approval,
   which turns any member removal or signature change into a reviewable diff (the ROADMAP
   queue-1 `api-design`/`snapshot-testing` intent made concrete). Behavior tests never use
   snapshots — assertion intent stays explicit in the test body.

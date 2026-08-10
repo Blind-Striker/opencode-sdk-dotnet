@@ -113,6 +113,14 @@ reachable via `docs/ROADMAP.md`) until build-out distills them.
 - **Defensive programming is the default, everywhere:** guard public inputs, assert internal
   invariants, fail loudly rather than guess — silent fallbacks exist only as explicitly
   recorded tolerances (ADR-0009 pattern).
+- **Code style is canonical in `docs/engineering/coding-style.md`:** named collaborator
+  classes over private-method accumulation; interfaces at seams with DI-first composition,
+  sealed everywhere else; no tuple returns or concrete-collection parameters across class
+  boundaries; vertical feature-slice layout with conventional groups.
+- **Test authorship is canonical in `docs/engineering/testing-style.md`:** test
+  infrastructure is first-class (named scenario classes, domain-aware fluent builders);
+  test data lives in embedded fixtures, typed builders, or centralized constants — never
+  as inline dumps in test bodies; TestableIO is the only filesystem seam.
 - **Test naming:** `{Symbol}_Should_{Expected_Behavior}[_When_{Condition}]`. Symbol names stay
   intact as one token (`TryResolve`, `NuGet`); every other word is `_`-separated and starts with
   a capital. Example: `TryResolve_Should_Return_False_When_Routes_Are_Invalid`. Test classes are
@@ -130,6 +138,7 @@ Read change-prone facts from their source files instead of copying them into doc
 | Status, queue, open questions, known gaps | `docs/ROADMAP.md` (operational — expected to change) |
 | Architecture decisions | `docs/adr/` (criteria & format: its `README.md`) |
 | Domain glossary | `CONTEXT.md` (`external/opencode` has its own — no clash) |
+| Engineering style (code & test authorship) | `docs/engineering/` |
 | Pinned OpenAPI spec + provenance | `spec/` (`SNAPSHOT.md` records commit/tag and refresh steps) |
 | Agent-only config (issue tracker, triage labels, domain-doc rules) | `docs/agents/` |
 | Session handovers | `docs/agents/handover-prompts/` |
