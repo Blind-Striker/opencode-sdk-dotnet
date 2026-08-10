@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Text.Json;
 using OpenCode.Sdk.Tools.Generator.Parsing.Schemas;
 
@@ -64,6 +65,14 @@ internal sealed class OperationParser
             if (operation.RequestBody is { } requestBody)
             {
                 roots.Add(($"{operationLocation} requestBody", requestBody.Schema));
+            }
+
+            foreach (var response in operation.Responses)
+            {
+                if (response.Schema is { } schema)
+                {
+                    roots.Add(($"{operationLocation} response {response.StatusCode.ToString(CultureInfo.InvariantCulture)}", schema));
+                }
             }
         }
 
@@ -162,13 +171,19 @@ internal sealed class OperationParser
             operationId,
             location,
             out var requestBody);
+        var hasValidResponses = TryReadResponses(operation,
+            operationId,
+            location,
+            out var responses,
+            out var isSse);
         if (!hasKnownKeys
             || !hasValidSummary
             || !hasValidDescription
             || !hasValidDeprecated
             || !hasValidWebSocket
             || !hasValidParameters
-            || !hasValidRequestBody)
+            || !hasValidRequestBody
+            || !hasValidResponses)
         {
             return null;
         }
@@ -185,6 +200,8 @@ internal sealed class OperationParser
             IsDeprecated = isDeprecated,
             Parameters = parameters,
             RequestBody = requestBody,
+            Responses = responses,
+            IsSse = isSse,
             Summary = summary,
             Description = description,
         };
@@ -226,7 +243,6 @@ internal sealed class OperationParser
 
     private static bool IsSupportedOperationKey(string name)
     {
-        // Responses are accepted by the wall but remain deferred until their operation-side slice.
         return name is "operationId" or "summary" or "description" or "tags" or "security" or "deprecated" or "parameters"
             or "requestBody" or "responses" or "x-codeSamples" or "x-websocket";
     }
@@ -675,6 +691,289 @@ internal sealed class OperationParser
         }
 
         return refused;
+    }
+
+    private bool TryReadResponses(JsonElement operation,
+        string operationId,
+        string operationLocation,
+        out IReadOnlyList<SpecResponse> responses,
+        out bool isSse)
+    {
+        List<SpecResponse> parsedResponses = [];
+        responses = [];
+        isSse = false;
+        if (!operation.TryGetProperty("responses", out var responseElements)
+            || responseElements.ValueKind is not JsonValueKind.Object)
+        {
+            _errors.Add(operationLocation, "responses must be an object");
+            return false;
+        }
+
+        var hasValidResponses = true;
+        foreach (var responseElement in responseElements.EnumerateObject())
+        {
+            var location = $"{operationLocation} response {responseElement.Name}";
+            if (!int.TryParse(responseElement.Name,
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out var statusCode))
+            {
+                _errors.Add(location, "response status must be numeric");
+                hasValidResponses = false;
+                continue;
+            }
+
+            if (TryReadResponse(responseElement.Value,
+                    operationId,
+                    statusCode,
+                    location,
+                    out var response))
+            {
+                parsedResponses.Add(response!);
+            }
+            else
+            {
+                hasValidResponses = false;
+            }
+        }
+
+        parsedResponses.Sort(static (left, right) => left.StatusCode.CompareTo(right.StatusCode));
+        responses = parsedResponses.AsReadOnly();
+        isSse = parsedResponses.Any(static response => response.IsSse);
+        return hasValidResponses;
+    }
+
+    private bool TryReadResponse(JsonElement responseElement,
+        string operationId,
+        int statusCode,
+        string location,
+        out SpecResponse? response)
+    {
+        response = null;
+        if (responseElement.ValueKind is not JsonValueKind.Object)
+        {
+            _errors.Add(location, "response must be an object");
+            return false;
+        }
+
+        var hasKnownKeys = !RefuseUnsupportedResponseKeys(responseElement, location);
+        var hasValidDescription = TryReadOptionalString(responseElement, "description", location, out var description);
+        var hasValidContent = TryReadResponseContent(responseElement,
+            operationId,
+            statusCode,
+            location,
+            out var contentType,
+            out var schema,
+            out var envelopeShape,
+            out var isSse,
+            out var effectStreamMetadata);
+        if (!hasKnownKeys || !hasValidDescription || !hasValidContent)
+        {
+            return false;
+        }
+
+        response = new SpecResponse
+        {
+            StatusCode = statusCode,
+            Description = description,
+            ContentType = contentType,
+            Schema = schema,
+            EnvelopeShape = envelopeShape,
+            IsSse = isSse,
+            EffectStreamMetadata = effectStreamMetadata,
+        };
+        return true;
+    }
+
+    private bool RefuseUnsupportedResponseKeys(JsonElement response, string location)
+    {
+        var refused = false;
+        foreach (var propertyName in response
+                     .EnumerateObject()
+                     .Select(static property => property.Name)
+                     .Where(static propertyName => propertyName is not ("description" or "content")))
+        {
+            _errors.Add(location, $"unknown response key '{propertyName}'");
+            refused = true;
+        }
+
+        return refused;
+    }
+
+    private bool TryReadResponseContent(JsonElement response,
+        string operationId,
+        int statusCode,
+        string location,
+        out SpecMediaType? contentType,
+        out SchemaNode? schema,
+        out SpecEnvelopeShape envelopeShape,
+        out bool isSse,
+        out JsonElement? effectStreamMetadata)
+    {
+        contentType = null;
+        schema = null;
+        envelopeShape = SpecEnvelopeShape.None;
+        isSse = false;
+        effectStreamMetadata = null;
+        if (!response.TryGetProperty("content", out var content))
+        {
+            return true;
+        }
+
+        if (content.ValueKind is not JsonValueKind.Object)
+        {
+            _errors.Add(location, "response content must be an object");
+            return false;
+        }
+
+        var mediaEntries = content.EnumerateObject();
+        if (!mediaEntries.MoveNext())
+        {
+            _errors.Add(location, "response content must contain exactly one media entry");
+            return false;
+        }
+
+        var mediaEntry = mediaEntries.Current;
+        if (mediaEntries.MoveNext())
+        {
+            _errors.Add(location, "response content must contain exactly one media entry");
+            return false;
+        }
+
+        var mediaLocation = $"{location} content '{mediaEntry.Name}'";
+        var hasValidContentType = TryCreateMediaType(mediaEntry.Name, mediaLocation, out contentType);
+        var hasValidMediaObject = TryReadResponseMediaObject(mediaEntry.Value,
+            operationId,
+            statusCode,
+            contentType,
+            mediaLocation,
+            out schema,
+            out effectStreamMetadata);
+        if (!hasValidContentType || !hasValidMediaObject)
+        {
+            return false;
+        }
+
+        isSse = contentType!.IsEventStream;
+        return TryClassifyEnvelope(contentType, schema!, location, out envelopeShape);
+    }
+
+    private bool TryReadResponseMediaObject(JsonElement mediaObject,
+        string operationId,
+        int statusCode,
+        SpecMediaType? contentType,
+        string location,
+        out SchemaNode? schema,
+        out JsonElement? effectStreamMetadata)
+    {
+        schema = null;
+        effectStreamMetadata = null;
+        if (mediaObject.ValueKind is not JsonValueKind.Object)
+        {
+            _errors.Add(location, "media entry must be an object");
+            return false;
+        }
+
+        var hasKnownKeys = !RefuseUnsupportedResponseMediaKeys(mediaObject, contentType, location);
+        if (!mediaObject.TryGetProperty("schema", out var schemaElement))
+        {
+            _errors.Add(location, "media entry schema is required");
+            return false;
+        }
+
+        var pointer = $"/responses/{statusCode.ToString(CultureInfo.InvariantCulture)}";
+        schema = _schemaParser.Parse(schemaElement, string.Concat("op:", operationId), pointer);
+        if (contentType is { IsEventStream: true }
+            && mediaObject.TryGetProperty("x-effect-stream", out var metadata))
+        {
+            effectStreamMetadata = metadata.Clone();
+        }
+
+        return hasKnownKeys && schema is not null;
+    }
+
+    private bool RefuseUnsupportedResponseMediaKeys(JsonElement mediaObject,
+        SpecMediaType? contentType,
+        string location)
+    {
+        var refused = false;
+        foreach (var propertyName in mediaObject
+                     .EnumerateObject()
+                     .Select(static property => property.Name))
+        {
+            if (string.Equals(propertyName, "schema", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (string.Equals(propertyName, "x-effect-stream", StringComparison.Ordinal))
+            {
+                if (contentType is not { IsEventStream: true })
+                {
+                    _errors.Add(location, "x-effect-stream is only valid for text/event-stream media");
+                    refused = true;
+                }
+
+                continue;
+            }
+
+            _errors.Add(location, $"unknown media-object key '{propertyName}'");
+            refused = true;
+        }
+
+        return refused;
+    }
+
+    private bool TryClassifyEnvelope(SpecMediaType contentType,
+        SchemaNode schema,
+        string location,
+        out SpecEnvelopeShape envelopeShape)
+    {
+        envelopeShape = SpecEnvelopeShape.Bare;
+        if (!contentType.IsJson)
+        {
+            return true;
+        }
+
+        HashSet<string> visitedTargets = new(StringComparer.Ordinal);
+        var settled = schema;
+        while (settled is RefNode reference)
+        {
+            if (!visitedTargets.Add(reference.Target))
+            {
+                _errors.Add(location, "circular ref during envelope classification");
+                return false;
+            }
+
+            if (!_schemaParser.TryGetNode(reference.Target, out var target) || target is null)
+            {
+                return true;
+            }
+
+            settled = target;
+        }
+
+        if (settled is ObjectNode objectNode)
+        {
+            envelopeShape = ClassifyObjectEnvelope(objectNode);
+        }
+
+        return true;
+    }
+
+    private static SpecEnvelopeShape ClassifyObjectEnvelope(ObjectNode node)
+    {
+        HashSet<string> propertyNames = new(
+            node.Properties.Select(static property => property.Name),
+            StringComparer.Ordinal);
+        return propertyNames.Count switch
+        {
+            1 when propertyNames.Contains("data") => SpecEnvelopeShape.Data,
+            2 when propertyNames.Contains("data") && propertyNames.Contains("location") => SpecEnvelopeShape.DataLocation,
+            2 when propertyNames.Contains("data") && propertyNames.Contains("cursor") => SpecEnvelopeShape.CursorData,
+            2 when propertyNames.Contains("data") && propertyNames.Contains("hasMore") => SpecEnvelopeShape.DataHasMore,
+            _ => SpecEnvelopeShape.Bare,
+        };
     }
 
     private bool TryReadOptionalBoolean(JsonElement owner, string name, string location, out bool value)

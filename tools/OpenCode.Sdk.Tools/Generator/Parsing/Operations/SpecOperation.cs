@@ -33,6 +33,12 @@ public sealed record SpecOperation
     /// <summary>The request body, when the operation declares one.</summary>
     public SpecRequestBody? RequestBody { get; init; }
 
+    /// <summary>The operation responses sorted by numeric status.</summary>
+    public required IReadOnlyList<SpecResponse> Responses { get; init; }
+
+    /// <summary>Whether any response is an event stream.</summary>
+    public required bool IsSse { get; init; }
+
     /// <summary>The optional short operation summary.</summary>
     public string? Summary { get; init; }
 
