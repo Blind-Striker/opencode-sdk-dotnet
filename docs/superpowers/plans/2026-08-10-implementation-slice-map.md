@@ -73,7 +73,10 @@ invocation forms; the Tools.Tests harness pattern.
 
 **Depends on:** 0 · **Spec anchors:** generator spec §4.1, §11 (projection tests)
 
-The pinned Microsoft.OpenApi reader as the tooling ingestion layer; the fail-closed
+Foundation first: the DI composition root (`docs/engineering/coding-style.md` §2), the
+TestableIO seam + analyzer joining the repo-wide wall, and the scenario/builder/fixture
+test infrastructure (`docs/engineering/testing-style.md` §1). On that foundation, the
+pinned Microsoft.OpenApi reader as the tooling ingestion layer; the fail-closed
 projection behind the whitelist dialect wall (admitted typed members, the
 unrecognized-keyword net, extension dispositions, library-upgrade tripwires); the
 minimal immutable SpecIR (record inventory derived backward from
@@ -87,7 +90,8 @@ count assertions). Honest note: this slice's working software is the ingestion
 library plus its test suite — the CLI surface does not change (`generate` stays a
 stub until slice 3).
 
-**Hands over:** SpecIR types consumed by the Binder.
+**Hands over:** SpecIR types consumed by the Binder; the DI composition and the
+scenario test infrastructure every later slice builds on.
 
 ### Slice 2 — Binder + curation v0
 

@@ -25,8 +25,12 @@ superseded Slice 1 plan is removed; its implementation survives on the
 `feature/slice-01-parser-specir` evidence branch (worktree kept as reference — delete only
 with maintainer approval; its two file-scoped CA1720 arbitrations retire with it). The
 grill session over the corrected generator spec is complete and its corrections are in the
-spec (research log session 13); next is the Slice 1 re-plan (issue #2 returns to
-`ready-for-agent` when the new plan is written).
+spec (research log session 13). The Slice 1 re-plan is written
+(`superpowers/plans/2026-08-11-slice-01-ingestion-specir.md` — tooling foundation: DI
+composition, TestableIO seam, scenario test infrastructure; plus the ingestion stage — one
+slice), issue #2 is `ready-for-agent`, and the engineering style canon landed under
+`docs/engineering/`; next is the Slice 1 execution session
+(`docs/agents/handover-prompts/HANDOFF-2026-08-11.md`).
 
 ## Queue
 
