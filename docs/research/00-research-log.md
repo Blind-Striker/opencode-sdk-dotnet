@@ -1229,3 +1229,103 @@ refresh needs it.
 **Decision:** no plan deviation now; a v2-watch item joins ROADMAP Open Questions; the
 evolvability posture is the wall + tripwires + nightly canary, with the integration suite
 as the primary guard.
+
+# Session 13 — 2026-08-11: grill session — ingestion redesign (LLM-to-LLM)
+
+Fresh-context adversarial grill of the corrected generator spec §4/§4.1, run as a
+background agent driven from the redesign session (the maintainer's cross-session-review
+model: agents attack, the maintainer seals). The agent extended the evidence-worktree
+scratch probe with modes `members`/`hostloss`/`hostbisect`, re-ran every session-12 probe,
+and attacked with independent walkers; the orchestrating session re-verified the two
+heaviest findings first-hand before relaying. 11 findings; three maintainer decisions
+sealed in-session; the spec was corrected in the same change. This entry is the chain.
+
+## Q59: Does the redesigned §4.1 survive adversarial verification?
+
+**Found:** the architecture held — no locked decision contradicted, 15 session-12 claims
+re-verified — but the sealed text did not:
+
+1. The wall/tripwire covered one DOM host type of seven, while the pinned library types
+   dangerous constructs silently at every level: path-level `parameters` (a projection
+   reading only operation parameters silently drops a real parameter), `headers`/
+   `callbacks`/`webhooks`, media `ItemSchema` (OpenAPI 3.2 members already shipped in
+   3.9.0 — populated with zero diagnostics under a `3.2.0` version string, which itself
+   parses with no signal; the DOM does not retain the raw `openapi` string), content-based
+   parameters, non-deepObject styles, `$defs`/dynamic anchors.
+2. A boolean property schema (legal JSON Schema 2020-12) crashes `LoadAsync` with a raw
+   `NullReferenceException` before any diagnostic — an unhandled reader-crash class.
+3. Unknown non-`x-` keys at non-schema hosts surface only as reader diagnostics (empty
+   pointer, location in the message text) while the DOM silently drops the key — reader
+   diagnostics must fail generation, not merely be "surfaced".
+4. §9's fingerprint promise ("everything stays on the radar") needed wire-faithful
+   subtrees the minimal SpecIR deliberately does not carry (898 `pattern`/75 `minimum`
+   dropped as known-ignored).
+5. Envelope-shaped *named* schemas (`SessionsResponse`, `SessionHistory`,
+   `SessionMessagesResponse`) alias the reachable closure: emitted as models while
+   `EnvelopeEmitter` synthesizes the same shape.
+6. Field-inventory gaps against the design's own promises: property/schema `description`
+   (135 sites — the XML-doc pipeline's input), the six hybrid objects, `format`'s
+   disposition, and `const` string-typing in the DOM (`const: 42` arrives as `"42"`).
+7. The marker-keyed promotion rule is not universal — 5 pin sites are heterogeneous
+   structural unions without markers (`Config.formatter` `bool | dict` et al.), which
+   also cannot take ADR-0009's tag-dispatch converters; the marked/structural distinction
+   must be a recorded SpecIR fact.
+8. `OpenApiSchemaReference` proxies members to its target *except* sibling annotations
+   (`Description` returns the local text) — a merged-view trap for any code holding
+   `IOpenApiSchema`.
+9. "The projection is the only code that touches library types" had no enforcement
+   mechanism (BannedApiAnalyzers is compilation-scoped; a folder-scoped ban is
+   inexpressible).
+
+Two session-12 claims fell (recorded here, not rewritten there): the v2-branch wall run
+reports **422 `allOf` + 6 relocated `prefixItems`** sites, not "428 — all `allOf`"; and
+2 of the 422 single-element wrappers carry `description` alongside validation keywords —
+the future admit-rule must tolerate annotations and preserve their doc text. The grill
+also re-demonstrated the session-11/12 census lesson on itself: a key-frequency count of
+v2 shows `title`/`default` "populated", but all sites are properties literally named
+`title`/`default` — census claims stay walker-based.
+
+**Decisions (maintainer):** fingerprint source = ingestion-computed raw-content hashes
+per operation and per named schema, carried opaque on SpecIR — the Binder composes and
+persists, never re-reading the spec; envelope-classified response-root schemas are not
+emitted as models (only payload/cursor/location subtrees join the closure; a non-envelope
+inbound reference is a batched error); the DOM boundary is enforced by two guard tests
+(SpecIR public-surface reflection + a source scan for library `using`s outside
+`Generator/Ingestion/`), keeping the sealed single-project layout. Spec corrections
+applied in the same change: per-host admitted/known-ignored/refused wall tables, the
+`SpecificationVersion == OpenApi3_1` gate, reader diagnostics and translated reader
+exceptions as hard wall layers (boolean-schema red test; candidate upstream bug report),
+tripwires extended to every consumed DOM type plus fresh-instance defaults plus the
+serialized SpecIR-of-the-pin snapshot, "unrestricted" redefined as "no admitted
+constraint member populated", `const` admitted only on string-typed schemas, union
+marked/structural classification, promotion index-fallback + JSON-pointer escaping, and
+the honest ordering statement (member order is document order under the version pin,
+guarded by the snapshot).
+
+## Q60: Did the corrections survive the verification round?
+
+**How researched:** the corrected spec went back to the same grill agent (context intact)
+for a targeted verification pass — one verdict per demand, a fresh-eyes sweep of the
+rewritten §4.1, and three new run-checks (HTTP-method census, deepObject `explode` values,
+`$ref`-sibling landing behavior).
+
+**Found:** 8/10 demands SATISFIED outright, and the rewrite itself had introduced four
+findings — fresh-context review earning its keep twice in one day: (1) the catch-all
+refuse rule collided with library bookkeeping members (`BaseUri`/`Self`/`Workspace`/
+`Metadata` are populated on every load and appear in no table); (2) the `$ref`-sibling
+refusal had no stated detection channel — typed members cannot distinguish a local
+sibling from the proxied target value, so detection must ride the raw key-scan ingestion
+already performs for the raw-content hashes; (3) the parameter table pre-admitted
+`in: header` with zero occurrences in the pin (99 path / 319 query) and in v2 — against
+the whitelist philosophy of admitting on first need; (4) §4.2/§6 still claimed universal
+tag-dispatch converters while §4.1's new marked/structural distinction leaves five
+reachable structural-union sites without an implementable emission shape. Verified in
+passing: both artifacts use exactly the five admitted HTTP methods, and every deepObject
+parameter carries `explode: true` in both.
+
+**Decisions (maintainer):** the three wording fixes applied in the same change
+(bookkeeping-member clause, raw key-scan detection clause, `header` dropped from the
+parameter table); structural-union emission shape **deferred** — §4.2 narrowed to "all
+*marked* unions" and §15 carries the open item (`JsonElement` carrier vs generated
+wrapper type, decided at slice 2/3 planning as an API review). Verification verdict:
+sealable — the redesigned §4.1 stands.

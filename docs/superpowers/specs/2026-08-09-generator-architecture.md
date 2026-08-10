@@ -183,76 +183,142 @@ and operations) from `emitPromise`/`emitEffect`/`write` over that IR
 **Reader.** The pinned `Microsoft.OpenApi` package (CPM-pinned; tooling-only — it never
 enters the shipped packages) parses `spec/openapi.json` into its typed DOM via
 `OpenApiDocument.LoadAsync` over a stream opened through the TestableIO seam
-(`LeaveStreamOpen` honored **[verified]**). The library owns lexical JSON
-parsing, OpenAPI container parsing, `$ref` construction and resolution, and lossless
-retention of unknown schema keywords (`UnrecognizedKeywords`) and vendor extensions. Its
-diagnostics are surfaced when present but are **not** the wall: the reader accepts
-constructs our dialect refuses (run-proven: the pin's raw `prefixItems` and injected
-`allOf`/`if`/type-array/discriminator/unknown-`x-*` documents all load with zero library
-errors).
+(`LeaveStreamOpen` honored **[verified]**). The library owns lexical JSON parsing,
+OpenAPI container parsing, `$ref` construction and resolution, and lossless retention
+of unknown schema keywords (`UnrecognizedKeywords`) and vendor extensions. Three
+reader-level rules are wall layers of their own:
+
+1. **Version gate:** a document whose `SpecificationVersion` is not `OpenApi3_1`
+   refuses — the DOM does not retain the raw `openapi` string, and a `3.2.0` document
+   otherwise parses clean with typed 3.2 members populated
+   (`OpenApiMediaType.ItemSchema`) and zero diagnostics **[verified]**.
+2. **Reader diagnostics are errors:** any reader diagnostic fails generation. Unknown
+   non-`x-` keys at non-schema hosts surface *only* there — the DOM silently drops the
+   key, and the diagnostic's location rides in its message text, not its pointer
+   **[verified]**.
+3. **Reader exceptions translate:** `LoadAsync` failures become located ingestion
+   errors, never raw exceptions — a boolean property schema (legal JSON Schema
+   2020-12) crashes the pinned reader with a `NullReferenceException`
+   **[verified]**; red test in §11, candidate upstream bug report.
+
+Diagnostics are still not sufficient: the reader accepts constructs our dialect
+refuses with zero diagnostics (run-proven: raw `prefixItems`, injected
+`allOf`/`if`/type-arrays/`discriminator`, typed `headers`/`callbacks`/`webhooks`/
+`$defs` payloads all load clean) — hence the projection wall below.
 
 **Projection.** One DOM visitor walks the document once and produces the SpecIR plus
 batched, located errors (§2 principle 5; JSON-pointer-style locations). Everything
 opencode-specific lives here:
 
-- **Dialect wall — whitelist-shaped.** The library types the full JSON Schema 2020-12
-  vocabulary (`if`/`then`/`else`, `dependentSchemas`, `propertyNames`, `contains`, …
-  land as typed DOM members, not unrecognized keywords **[verified]**), so
-  the wall enumerates the *admitted* typed members and refuses any other populated
-  member; `UnrecognizedKeywords` must be empty at every schema except the admitted
-  raw-keyword sites (today exactly one: `prefixItems` under `Config.plugin`);
-  unresolved reference targets refuse. Extension dispositions per host: `x-codeSamples`
-  (operations) known-ignored, `x-websocket` (operations) recorded as a flag,
-  `x-effect-stream` (SSE media only) carried opaque, any other `x-*` at any host
-  refuses. The wall is the drift radar in action: run against the active upstream
-  `v2`-branch spec it reports that document's 422 new `allOf` sites individually,
-  batched and located **[verified]** — upstream evolution arrives as a reviewed
-  admit-rule, never as silent mis-generation.
+- **Dialect wall — whitelist-shaped, per host type.** The wall covers **every
+  consumed DOM type**, not only schemas: the library types constructs silently at
+  every level (path-level `parameters` would otherwise drop a real parameter;
+  `headers`, `callbacks`, `webhooks`, media `ItemSchema`, content-based parameters
+  and non-deepObject styles all land typed with zero diagnostics **[verified]**).
+  Each host carries a recorded admitted / known-ignored / refused member table; any
+  populated *spec-derived* member outside its table refuses (library bookkeeping
+  members — `BaseUri`, `Self`, `Workspace`, `Metadata` — sit outside the wall but
+  inside the tripwire snapshots):
+
+  | Host | Admitted | Known-ignored | Refused explicitly |
+  |---|---|---|---|
+  | document | `paths`, `components.schemas` (+ the version gate above) | `info`, `security`, `tags` | `webhooks`, `servers`, `jsonSchemaDialect`, other `components` members |
+  | path item | the five HTTP methods | — | path-level `parameters`, `$ref`, `servers`, other methods |
+  | operation | `operationId`, `summary`, `description`, `deprecated`, `parameters`, `requestBody`, `responses` | `tags`, `security` | `callbacks`, `servers` |
+  | parameter | `name`, `in` (`path`/`query`), `schema`, `required`, `style`+`explode` only as the `deepObject`+`true` pair | — | `content` (content-based parameters), other styles and locations, `examples` |
+  | request body | `content` (exactly one media entry), `required` | — | everything else |
+  | response | `description`, `content` (0 or 1 media entries) | — | `headers`, `links` |
+  | media type | `schema`; `x-effect-stream` on `text/event-stream` only | — | `itemSchema`/`itemEncoding`/`prefixEncoding` (3.2 members already typed in the pinned DOM), `encoding`, `examples` |
+  | schema | the node-kind constraint members (list below); `description` and `format` (both recorded on the node) | `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `minItems`, `maxItems` (validation-only — the pin's population) | `allOf`, type arrays, `discriminator`, `not`, `if`/`then`/`else`, `dependentSchemas`/`dependentRequired`, `propertyNames`, `contains`, `unevaluatedProperties`/`unevaluatedItems`, `$defs` and dynamic anchors, `title`, `default`, `examples`, `readOnly`/`writeOnly`, `xml`, `externalDocs`, `minLength`/`maxLength`, `multipleOf`, `minProperties`/`maxProperties`, `uniqueItems` |
+
+  `UnrecognizedKeywords` must be empty at every schema except the admitted
+  raw-keyword sites (today exactly one: `prefixItems` under `Config.plugin`; the
+  admit rule names its site, so a moved or multiplied site refuses loudly — the
+  active `v2`-branch spec carries 6 `prefixItems` sites at other locations, every
+  one reported **[verified]**). Unresolved reference targets refuse; `$ref` siblings
+  beyond `description`/`summary` refuse (reference members proxy to the target
+  *except* sibling annotations — the projection reads references explicitly, never
+  through the proxy **[verified]**). Sibling detection rides the raw key-scan
+  ingestion already performs for the raw-content hashes: the typed members cannot
+  distinguish a local sibling from the proxied target value **[verified]**. Extension dispositions per host:
+  `x-codeSamples` (operations) known-ignored, `x-websocket` (operations) recorded as
+  a flag, `x-effect-stream` (SSE media only) carried opaque, any other `x-*` at any
+  host refuses. The wall is the drift radar in action: run against the active
+  upstream `v2`-branch spec it reports that document's 422 `allOf` sites and 6
+  relocated `prefixItems` sites individually, batched and located **[verified]** —
+  upstream evolution arrives as a reviewed admit-rule, never as silent
+  mis-generation.
 - **Library-upgrade tripwires.** A version bump must not move the wall silently: one
-  test pins that `prefixItems` still lands in `UnrecognizedKeywords`, and a snapshot of
-  the `OpenApiSchema` typed-member inventory fails loudly when a newer library types
-  new keywords — the admitted-member list is a recorded decision, never inferred from
-  the library.
-- **Unrestricted schemas.** An empty schema (`Type == null`, no members) accepts any
-  JSON value and projects to an explicit any-value node — 19 sites in the pin,
-  including union-branch positions (`Workspace.extra/anyOf/0`) **[verified —
-  exhaustive DOM+raw correlation]**. Mapping `{}` to a free-form *object* node would
-  silently narrow the wire.
-- **`prefixItems` adapter.** The one pinned construct the library leaves untyped: the
-  raw items parse through the supported fragment API
+  test pins that `prefixItems` still lands in `UnrecognizedKeywords`; a reflection
+  snapshot covers the member inventory **and fresh-instance default values** of
+  every consumed DOM type (defaults carry wall semantics: `UnevaluatedProperties`
+  and `AdditionalPropertiesAllowed` default `true` **[verified]**); and a serialized
+  SpecIR-of-the-pin Verify snapshot catches behavior drift the member lists cannot
+  see (iteration order, reference resolution, diagnostics) — it changes only on a
+  spec refresh or an admit-rule change, both reviewed events, and doubles as the
+  §10 refresh-diff serialization. The admitted-member tables are recorded
+  decisions, never inferred from the library.
+- **Unrestricted schemas.** A schema with **no admitted constraint member**
+  populated (annotations such as `description` permitted) accepts any JSON value
+  and projects to an explicit any-value node — 19 sites in the pin, including
+  union-branch positions (`Workspace.extra/anyOf/0`) **[verified — exhaustive
+  DOM+raw correlation]**. Mapping `{}` to a free-form *object* node would silently
+  narrow the wire.
+- **`prefixItems` adapter.** The one pinned construct the library leaves untyped:
+  the raw items parse through the supported fragment API
   (`OpenApiModelFactory.Parse<OpenApiSchema>` with host-document context
   **[verified]**) into the tuple node.
 - **Mechanical normalizations** — projection rules, run-verified against the pin by
-  the landmark prototype:
-  duplicate-`anyOf`-ref dedup (26 sites; a post-dedup single-ref `anyOf` is a plain
-  ref), envelope-shape classification (`{data}`, `{data, location}`, `{cursor, data}`,
-  `{data, hasMore}`, bare, none), error-style detection (20 Effect-`_tag` + 17
-  `{name, data}`), literal markers in both dialects (single-value `enum` today; `const`
-  accepted for the observed newer dialect), special-value numbers, parameter-stripped
-  media-type matching, SSE detection by `text/event-stream` (4 ops; `x-effect-stream`
-  only on `v2.session.events`), the wildcard path flag (`/api/fs/read/*` is the only
-  wildcard path), dotted schema names kept verbatim.
+  the landmark prototype: duplicate-`anyOf`-ref dedup (26 sites; a post-dedup
+  single-ref `anyOf` is a plain ref), envelope-shape classification (`{data}`,
+  `{data, location}`, `{cursor, data}`, `{data, hasMore}`, bare, none — envelope
+  shapes occur only at modern response roots **[verified]**), error-style detection
+  (20 Effect-`_tag` + 17 `{name, data}`), literal markers in both dialects
+  (single-value `enum` today; `const` accepted for the observed newer dialect —
+  admitted only on string-typed schemas, because the typed `Const` member is a
+  string and cannot preserve other literal kinds **[verified]**), special-value
+  numbers, parameter-stripped media-type matching, SSE detection by
+  `text/event-stream` (4 ops; `x-effect-stream` only on `v2.session.events`), the
+  wildcard path flag (`/api/fs/read/*` is the only wildcard path), dotted schema
+  names kept verbatim. **Union classification** separates *marked* unions (every
+  object branch carries a literal marker — these take ADR-0009's tag-dispatch
+  converters) from *structural* unions (heterogeneous branch kinds without markers
+  — 5 pin sites, e.g. `Config.formatter`'s `bool | dict`); the distinction is a
+  recorded SpecIR fact the Binder consumes.
 
 **SpecIR.** SpecIR is the Binder's sole spec-side input — a *minimal semantic
 projection*, not a wire-faithful parse tree. It stays immutable and free of C#
-concepts, and the mutable Microsoft.OpenApi DOM never crosses it: the projection is the
-only code that touches library types. It carries the operation surface (operationId;
-`Modern`/`Legacy` keyed on the `v2.` operationId prefix, never the path; HTTP method;
-path template with the wildcard flag; parameters incl. deepObject; request body;
-responses with status, stripped media type, schema and envelope shape; SSE/WebSocket
-flags; the opaque `x-effect-stream` value; deprecation and doc text) and the schema
-graph — named schemas under verbatim wire names plus promoted inline types under
-deterministic `{root}#{pointer}` keys (marker-keyed union branches; never a
-document-global counter) — classified into the semantic node kinds the Binder
-consumes: object, dictionary, free-form, **unrestricted**, union, enum, literal,
-special-number, tuple, content-encoded-string, nullable, primitive, ref. The exact
-record inventory is derived backward from Binder, emitter and refresh-diff
-consumption at slice planning — a field nothing consumes is not carried.
+concepts, and the mutable Microsoft.OpenApi DOM never crosses it: the projection is
+the only code that touches library types, guarded by two structural tests (§11) —
+no library type reachable from SpecIR's public surface, no library `using` outside
+`Generator/Ingestion/`. It carries the operation surface (operationId;
+`Modern`/`Legacy` keyed on the `v2.` operationId prefix, never the path; HTTP
+method; path template with the wildcard flag; parameters incl. deepObject; request
+body; responses with status, stripped media type, schema and envelope shape;
+SSE/WebSocket flags; the opaque `x-effect-stream` value; deprecation and doc text)
+and the schema graph — named schemas under verbatim wire names plus promoted inline
+types under deterministic `{root}#{pointer}` keys (marker-keyed union branches with
+an ordinal-index fallback for unmarked branches; JSON-pointer `~0`/`~1` escaping;
+never a document-global counter) — classified into the semantic node kinds the
+Binder consumes: object (including the six hybrid objects carrying both properties
+and an `additionalProperties` schema), dictionary, free-form, **unrestricted**,
+union (marked/structural), enum, literal, special-number, tuple,
+content-encoded-string, nullable, primitive, ref. Nodes carry `description` and
+`format` (Binder doc-text and payload-rule inputs). Ingestion additionally computes
+a **raw-content SHA-256 per operation and per named schema** (canonical JSON over
+the raw `JsonNode` subtree) and carries them as opaque strings — the §9 fingerprint
+source; the Binder composes and persists, and never re-reads the spec. Ordering:
+schema-graph keys sort ordinal; operation lists and object member order are
+document order — DOM iteration order is *observed* to be document order, not a
+library contract, so the SpecIR-of-the-pin snapshot guards it across version bumps.
+The exact record inventory is derived backward from Binder, emitter and
+refresh-diff consumption at slice planning — a field nothing consumes is not
+carried.
 
-**No longer ours** (and never re-tested here — testing spec §10): lexical JSON parsing
-and syntax diagnostics, generic OpenAPI document/operation/parameter/response parsing,
-`$ref` mechanics, generic OpenAPI conformance validation, lossless retention of unknown
-keys.
+**No longer ours** (and never re-tested here — testing spec §10): lexical JSON
+parsing and syntax diagnostics, generic OpenAPI document/operation/parameter/
+response parsing, `$ref` mechanics, generic OpenAPI conformance validation,
+lossless retention of unknown keys.
 
 ### 4.2 Binder and EmitPlan
 
@@ -268,7 +334,12 @@ The Binder is where every decision lands. Inputs: SpecIR + `curation.json`. Step
 3. **Emission scope — reachable closure, computed on every run.** The emitted schema set
    is the transitive `$ref` closure of every included operation (parameters, request
    bodies, all response schemas, SSE item schemas); excluded operations contribute
-   nothing (their subtrees are fingerprint-pinned instead, §9). Named schemas outside the
+   nothing (their subtrees are fingerprint-pinned instead, §9). **Envelope-classified
+   response-root named schemas are not emitted as models** (`SessionsResponse`,
+   `SessionHistory`, `SessionMessagesResponse` **[verified: exactly one inbound ref
+   each, from their response roots]**): the `EnvelopeEmitter` owns their shape — only
+   their payload/cursor/location subtrees join the closure, and a non-envelope inbound
+   reference to such a schema is a batched error. Named schemas outside the
    closure (13 today, incl. `OutputFormat1` **[verified]**) are not emitted and are
    reported as an info-level list in the generate output — never maintained as a list
    anywhere; a refresh that wires an orphan schema into an operation pulls it into the
@@ -286,8 +357,9 @@ The Binder is where every decision lands. Inputs: SpecIR + `curation.json`. Step
    (operations with a `{sessionID}` path parameter emit into `SessionClient` — ADR-0008)
    plus curated handle children.
 5. **Derived emission decisions** — which operations get forward-only paginators (those with
-   the `{cursor, data}` envelope), which unions get tolerant converters (all of them —
-   ADR-0009 is mechanical), registry membership, stream-endpoint item schemas (the SSE
+   the `{cursor, data}` envelope), which unions get tolerant converters (all *marked*
+   unions — ADR-0009's rule is mechanical over them; the structural-union emission
+   shape is an open item, §15), registry membership, stream-endpoint item schemas (the SSE
    operations themselves are hand-wired, ADR-0008; the generator emits their item unions —
    `V2Event`, `Event`, `SessionDurableEvent`). **XML doc computation** happens here too:
    every public type and member gets its doc text in the EmitPlan — spec
@@ -296,7 +368,9 @@ The Binder is where every decision lands. Inputs: SpecIR + `curation.json`. Step
    models: the pinned spec documents 185/188 operations but only 3/472 schemas and 27/1836
    properties **[verified]** — CS1591 stays `error` with no exemption, so emission must
    cover every public member.
-6. **Fingerprint computation** for every excluded or hand-wired operation (§9).
+6. **Fingerprint computation** for every excluded or hand-wired operation (§9), composed
+   from the raw-content hashes ingestion carries on SpecIR (§4.1) — the Binder never
+   re-reads the spec.
 
 Output: **EmitPlan** — the complete file list with final names, namespaces, members, plus
 registry, routes, paginator, and manifest contents. Emitters receive no open questions.
@@ -388,7 +462,7 @@ curation — and are Roslyn syntax-factory emitters (ADR-0003), one per artifact
 | Emitter | Emits | Governing rules |
 |---|---|---|
 | `ModelEmitter` | records: `init`-only, `required`, read-only collections, `[JsonPropertyName]`, `WhenWritingNull` on nullables, curated `Uri` properties | ADR-0004; public API spec §12 |
-| `UnionEmitter` | union base + variants + the `Unknown*` carrier + one custom converter per union: buffer the element, read the tag position-independently, dispatch via a per-union static tag→type map through the source-generated context; unknown tag → carrier (tag string + raw `JsonElement`), re-serialized as the raw payload. No `[JsonPolymorphic]`/`[JsonDerivedType]` attributes — the converter is the single dispatch owner; the discriminator is emitted as a get-only computed property (serialized on write, ignored on read). Spike-proven (2026-08-09, 88-variant harness under the full wall, reflection fallback disabled): map shape 0/0 with constant-size `Read`/`Write`; type-based context dispatch is AOT-safe; the 88-arm switch shape measured failing MA0051 (96 lines) and was rejected — dispatch as data, not control flow | ADR-0009 |
+| `UnionEmitter` | union base + variants + the `Unknown*` carrier + one custom converter per union: buffer the element, read the tag position-independently, dispatch via a per-union static tag→type map through the source-generated context; unknown tag → carrier (tag string + raw `JsonElement`), re-serialized as the raw payload. No `[JsonPolymorphic]`/`[JsonDerivedType]` attributes — the converter is the single dispatch owner; the discriminator is emitted as a get-only computed property (serialized on write, ignored on read). Spike-proven (2026-08-09, 88-variant harness under the full wall, reflection fallback disabled): map shape 0/0 with constant-size `Read`/`Write`; type-based context dispatch is AOT-safe; the 88-arm switch shape measured failing MA0051 (96 lines) and was rejected — dispatch as data, not control flow | ADR-0009 (marked unions; structural-union shape: §15) |
 | `EnvelopeEmitter` | per-op envelopes: guarded payload getters, internal `[SetsRequiredMembers]` error constructor, guarded `PrintMembers` override, `IDisposable` envelope for `Stream` payloads, `SessionsCursor`, payload-less 204 envelopes (19 modern 204 ops **[verified]**) | public API spec §5.1 |
 | `InputRecordEmitter` | request input records (the ≤2-scalar flat-parameter rule is applied in the Binder; the emitter writes what the plan says) | public API spec §8.3 |
 | `OperationMethodEmitter` | sub-clients, `SessionClient`, the `Legacy` hub; one-line delegating `virtual` methods, BCL throw-helper guards, XML docs from spec `summary`/`description`, `<exception cref>` lists from declared error responses | ADR-0008; public API spec §7/§8/§12.5–6 |
@@ -455,8 +529,9 @@ folder convention.
   (`v2.pty.connect`, legacy `pty.connect` — public API spec §14) and the four hand-wired SSE
   stream endpoints (§4.1 list). Entries carry `{surface, kind, hash, reason}`; `kind`
   (`excluded` | `handwired`) selects the hash coverage.
-- **Hash:** SHA-256 over a **canonical JSON** document (sorted keys, no whitespace —
-  cosmetic reordering of the spec file cannot move a hash) whose content depends on `kind`:
+- **Hash:** SHA-256 composed from the raw-content hashes ingestion computes (§4.1:
+  canonical JSON per raw subtree — sorted keys, no whitespace, so cosmetic reordering
+  of the spec file cannot move a hash); the composition depends on `kind`:
   - `excluded` — the full subtree: the **HTTP method and path** (included explicitly — the
     OpenAPI operation object carries neither, so a same-shape move or method change would
     otherwise slip the radar), the operation object, its parameters, its request/response
@@ -517,7 +592,11 @@ follows is the sealed tooling-test design.
   shape. Wall red tests: every refused construct class (`allOf`, type arrays,
   `discriminator`, the 2020-12 applicators, unknown `x-*` per host, unresolved refs)
   verified batched and located. The §4.1 library-upgrade tripwires live here, plus one
-  malformed-JSON diagnostic-translation test. Plus a full-spec smoke test: the pinned
+  malformed-JSON diagnostic-translation test and the boolean-schema reader-crash red
+  test (a located ingestion error, never a raw exception). Two structural guard tests
+  enforce the DOM boundary: a reflection test over SpecIR's public surface (no
+  Microsoft.OpenApi type reachable) and a source scan (no Microsoft.OpenApi `using`
+  outside `Generator/Ingestion/`). Plus a full-spec smoke test: the pinned
   spec projects without error and structural landmarks hold. Exact counts (188/61/127)
   stay out of tests — they are research-doc facts, and count assertions would turn
   every legitimate refresh into test noise. Microsoft.OpenApi internals are never
@@ -595,7 +674,11 @@ build itself is the compile gate for generated output (§11).
 4. **Coverage checks are bidirectional** — missing entries and orphan entries both fail
    (§5.3; exceeds upstream's one-directional `omitEndpoints`).
 5. **Pipeline is two-stage** — Microsoft.OpenApi reader → projection → SpecIR →
-   Binder → EmitPlan → Emitters → Writer (§4; ingestion: ADR-0003).
+   Binder → EmitPlan → Emitters → Writer (§4; ingestion: ADR-0003). Ingestion
+   mechanics sealed with it: per-host wall tables, the `OpenApi3_1` version gate,
+   reader diagnostics as errors, the DOM-boundary guard tests, envelope-root
+   subtraction, and ingestion-computed raw-content hashes as the fingerprint source
+   (§4.1, §4.2, §9, §11).
 6. **File mechanics:** plain `.cs` names, non-magic do-not-edit header, no
    `[GeneratedCode]`, no per-file `#nullable`; manifest tracks generated-ness (§7).
 7. **Writer:** output manifest + stale cleanup; whole-project `dotnet format`;
@@ -612,6 +695,11 @@ build itself is the compile gate for generated output (§11).
 
 ## 15. UNVERIFIED / open items
 
+- Structural-union emission shape — the five pin sites whose branches carry no literal
+  markers (`Config.formatter`, `Config.lsp` ×2, `Model.capabilities.interleaved`, the
+  `ProviderConfig` model-variant `interleaved`): `JsonElement`-backed carrier vs a
+  generated wrapper type with a bespoke converter — decided at slice 2/3 planning as an
+  API review (curation changes are API reviews, ADR-0008).
 - File-based entry verification list (§3.3: clean build under the strict props, `#:project`
   cache-staleness proof, invocation-form pinning) — first build-out step; two-condition
   fallback recorded.

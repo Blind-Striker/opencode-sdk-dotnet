@@ -456,7 +456,8 @@ The §11 sketch is sealed as designed: projection quirk fixtures — loaded thro
 Microsoft.OpenApi reader, whose internals are never re-tested — with the no-count-assertions rule,
 binder red tests verified inside the batched categorized report, per-emitter Verify
 micro-snapshots over small EmitPlan fixtures, Writer/command tests on MockFileSystem +
-faked `Infrastructure` wrappers + `CommandAppTester`, and the double-emit determinism test.
+faked `Infrastructure` wrappers + `CommandAppTester`, the ingestion tripwire and DOM-boundary guard tests (generator spec §4.1/§11),
+and the double-emit determinism test.
 The compile-gate item stays untouched (architecture, generator spec §13's consequence — not
 this session's to revisit). Revisions:
 
