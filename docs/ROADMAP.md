@@ -18,7 +18,11 @@ research log sessions 1–9. Implementation planning complete (2026-08-10): slic
 **#1–#12** with native `blocked_by` ordering; deviation protocol added
 (`docs/agents/deviation-protocol.md`), falsifiability working agreement added to `AGENTS.md`.
 The Slice 0 tooling skeleton has landed. Repo-local Slopwatch pinning, a committed zero-entry
-baseline, and the Linux CI gate are active; next is the Slice 1 planning cycle for issue #2.
+baseline, and the Linux CI gate are active. Slice 1 planning is complete: the parser + SpecIR
+plan (`superpowers/plans/2026-08-10-slice-01-parser-specir.md`) is sealed, issue #2 is
+`ready-for-agent`, and generator spec §4.1 gained four pinned-spec dialect corrections
+(research log session 11); next is the Slice 1 execution session
+(`docs/agents/handover-prompts/HANDOFF-2026-08-10.md`).
 
 ## Queue
 

@@ -1045,3 +1045,77 @@ procedure (a recorded fallback, not a policy rollback); the file-scoped arbitrat
 the status quo for this one entry file. If the entry contract ever moves (e.g.
 console-app promotion at a future cache-Level-2 trigger), the arbitration moves with it
 or is deleted.
+
+# Session 11 — 2026-08-10: slice 1 planning — parser + SpecIR plan and dialect census
+
+Planning session for slice 1 (issue #2): the sealed generator spec §4.1 was converted
+into the executable plan `docs/superpowers/plans/2026-08-10-slice-01-parser-specir.md`.
+Sealing the plan required a rigorous dialect census of the pinned spec — a Python walker
+mirroring the intended parser recursion exactly, so every keyword occurring at a schema
+position was enumerated rather than sampled.
+
+## Q53: Does the pinned spec fit §4.1's sealed construct inventory?
+
+**How researched:** scripted probes over `spec/openapi.json` (v1.18.15 pin): full
+keyword-frequency walk at schema positions (named schemas, parameter/requestBody/response
+schemas, recursing exactly where the parser will), extension inventory, parameter
+style/`in`/`required` census, media-type inventory, envelope-shape census,
+`required`⊆`properties` check, ref-target and ref-sibling checks, keyword-coexistence
+checks (`anyOf`+`oneOf`, `enum`+`const`, `items`+`prefixItems`).
+
+**Found:** four constructs the §4.1 inventory did not name — a §4.1-faithful wall would
+have refused the pinned spec itself: (1) `SessionDurableEvent` is the document's one
+**`oneOf`** union (28 refs); (2) `Config.plugin` items contain a **`prefixItems`
+tuple** (`[string, object]`, fixed arity); (3) `SessionDurableEventStream`/`V2EventStream`
+are **content-encoded strings** (`type: string` + `contentSchema`/`contentMediaType:
+application/json`) — the former wrapped by `v2.session.events`'s inline `{id, event,
+data}` SSE media envelope, the latter currently unreferenced; (4) `v2.session.active`'s
+payload is a **single-pattern `patternProperties`** dictionary. Also pinned:
+`x-codeSamples` sits on all 188 operations (docs metadata), `x-websocket` only on
+`v2.pty.connect`; validation keywords occurring at schema positions are `pattern`,
+`minimum`, `exclusiveMinimum`, `maximum`, `minItems`, `maxItems` (the last two
+tuple-relevant only at the one `prefixItems` site, plus one plain-array `minItems`).
+Shape nuances: the special-value-number `anyOf` carries a fifth, *combined* literal
+branch `["Infinity","-Infinity","NaN"]`; boolean literal markers exist (`healthy`,
+`/global/upgrade`'s `success` true/false discrimination); `GlobalEvent` has properties
+literally named `properties`/`type`/`required` (property bags must never keyword-match);
+six objects carry both `properties` and an `additionalProperties` schema; every
+`[verified]` §4.1 count re-checked held (0 `allOf`/`discriminator`/type-arrays, 26
+duplicate-ref sites — live example `v2.session.list` 400, since `session.get` 404 is a
+single `NotFoundError` ref in this pin).
+
+**Decision:** deviation protocol level 2, caught at planning time: §4.1 corrected in
+place with maintainer approval (union keyword `anyOf`/`oneOf` recorded; tuple and
+content-encoded-string node kinds added; `patternProperties` recorded as a dictionary
+spelling with the key pattern dropped as validation-only; extension dispositions pinned —
+`x-codeSamples` known-ignored, `x-websocket` recorded, unknown `x-*` refuse). No locked
+decision was touched; the two-stage pipeline, wall philosophy, and node-kind model
+absorbed all four findings without structural change. The plan's wall tables carry the
+complete known/known-ignored/refused sets validated by the census.
+
+## Q54: Which packages seal the slice, and does the TestableIO analyzer join the wall?
+
+**How researched:** NuGet flat-container/registration queries for newest stable versions
+and dependency shapes; the analyzer's rule docs read from its repository
+(`TestableIO/System.IO.Abstractions.Analyzers`, active, last push 2026-07); a scratchpad
+strict-analyzer probe for CA1720 on the planned node-type names; TUnit exception-assert
+syntax verified against its documentation.
+
+**Found:** TestableIO trio newest stable **22.2.0** — in v22 the interfaces moved to the
+shared `Testably.Abstractions.FileSystem.Interface` package (namespace
+`System.IO.Abstractions` retained), `TestingHelpers` depends on `Wrappers`; library needs
+only the abstractions package, tests add `TestingHelpers` + `Wrappers`.
+`TestableIO.System.IO.Abstractions.Analyzers` newest stable **2022.0.0** (maintainer
+proposal): rules IO0001–IO0011 all default-enabled at Warning — TWAE escalates them, so
+no `.editorconfig` section is needed; **IO0006 covers `Path`**, which caught the plan's
+own smoke test using `Path.Combine` directly (fixed to `fileSystem.Path.Combine` before
+sealing). CA1720 does not fire on compound type names (`ObjectNode`,
+`ContentEncodedStringNode` shapes probed clean). TUnit's
+`await Assert.That(action).Throws<T>()` returns the exception for follow-up asserts.
+
+**Decision:** four CPM pins for slice 1 — the trio at 22.2.0 plus the IO analyzer at
+2022.0.0, the analyzer wired repo-wide in `Directory.Build.props` like its seven
+siblings (fail-closed maximalist posture: the TestableIO seam is now mechanically
+enforced, not review-enforced). The analyzer is an older-Roslyn build; if the current
+compiler refuses to load it, the plan marks that a stop-and-report finding, never a
+silent drop.

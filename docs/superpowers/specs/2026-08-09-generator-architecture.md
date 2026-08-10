@@ -197,18 +197,26 @@ SpecIR is wire-faithful and contains zero C# concepts. Inventory:
   **[verified]**; upstream's Promise client compares the same way — `isContentType`,
   `index.ts`).
 - **Schema graph** — named schemas plus promoted inline types (the spike's promotion
-  pattern, doc 08). Node kinds: object (properties, required set, `additionalProperties`),
-  union (`anyOf` + literal-marker analysis, including nested unions such as `ToolState`),
-  enum (104 multi-value enums **[verified]**), special-value number (an `anyOf` of one
-  `number` branch plus branches that are only `"NaN"`/`"Infinity"`/`"-Infinity"` string
-  literals — the spec's JSON projection of a JS number; 11 locations: `Workspace.timeUsed`
+  pattern, doc 08). Node kinds: object (properties, required set, `additionalProperties` —
+  including the six hybrids carrying both properties and an `additionalProperties`
+  schema), union (`anyOf`/`oneOf` + literal-marker analysis, including nested unions such
+  as `ToolState`; the keyword is recorded — `SessionDurableEvent` is the document's one
+  `oneOf`), enum (104 multi-value enums **[verified]**), special-value number (an `anyOf`
+  of one `number` branch plus branches that are only `"NaN"`/`"Infinity"`/`"-Infinity"`
+  string literals — single- or combined-literal; the spec's JSON projection of a JS
+  number; 11 locations: `Workspace.timeUsed`
   and the `time.created`/`time.expires` fields of `IntegrationAttempt` and
   `IntegrationAttemptStatus`'s inline copies, on both surfaces **[verified]** — emitted as
   `double` with `JsonNumberHandling.AllowNamedFloatingPointLiterals`, no curation; its
   literal branches are absorbed by this node — they are neither literal markers nor
   emitted enums, so the 513/104 counts overstate marker/enum populations by exactly these
-  artifacts), primitive/array/dictionary, nullable (the `anyOf`-null branch as its own
-  node), ref.
+  artifacts), primitive/array/dictionary (a dictionary is spelled as an
+  `additionalProperties` schema or, in one location — `v2.session.active`'s payload — as
+  a single-pattern `patternProperties`; key patterns are validation-only and dropped),
+  tuple (`prefixItems` with fixed arity — one location: `Config.plugin` items),
+  content-encoded string (`type: string` + `contentSchema`/`contentMediaType:
+  application/json` — `SessionDurableEventStream`, `V2EventStream`), nullable (the
+  `anyOf`-null branch as its own node), ref.
 - **`LiteralMarker`** — the discriminator mechanism. Both dialects parse into the same node:
   single-value `enum` (513 today, 0 `const` **[verified]**) and `const` (138 in the observed
   newer dialect — doc 09), so the known drift costs a parser branch, not a redesign. Marker
@@ -231,7 +239,11 @@ SpecIR is wire-faithful and contains zero C# concepts. Inventory:
 - **Dialect wall.** The parser accepts only constructs it knows. Today the spec contains 0
   `allOf`, 0 `discriminator`, 0 type-arrays **[verified]**; if upstream starts emitting any
   of these — or an unrecognized content type, or a construct outside the known dialect — the
-  parser refuses rather than mis-generates.
+  parser refuses rather than mis-generates. Vendor extensions are part of the wall:
+  `x-codeSamples` (docs metadata, present on every operation) is known-ignored,
+  `x-websocket` (marks `v2.pty.connect` — exactly the class of semantic extension the
+  wall exists to catch) is recorded as an operation flag, `x-effect-stream` is carried
+  opaque (above); any other `x-*` key refuses.
 
 ### 4.2 Binder and EmitPlan
 
