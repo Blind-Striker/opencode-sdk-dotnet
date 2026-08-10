@@ -1,4 +1,4 @@
-namespace OpenCode.Sdk.Tools.Generator.Parsing;
+namespace OpenCode.Sdk.Tools.Generator.Parsing.Schemas;
 
 /// <summary>The supported primitive kinds for literal schemas.</summary>
 public enum LiteralKind

@@ -1,4 +1,4 @@
-namespace OpenCode.Sdk.Tools.Generator.Parsing;
+namespace OpenCode.Sdk.Tools.Generator.Parsing.Schemas;
 
 /// <summary>A schema that additionally accepts JSON null.</summary>
 public sealed record NullableNode : SchemaNode

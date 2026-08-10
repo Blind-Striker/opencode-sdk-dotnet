@@ -1,4 +1,4 @@
-namespace OpenCode.Sdk.Tools.Generator.Parsing;
+namespace OpenCode.Sdk.Tools.Generator.Parsing.Schemas;
 
 /// <summary>A schema accepting any one of multiple branches.</summary>
 public sealed record UnionNode : SchemaNode

@@ -1,4 +1,4 @@
-namespace OpenCode.Sdk.Tools.Generator.Parsing;
+namespace OpenCode.Sdk.Tools.Generator.Parsing.Schemas;
 
 /// <summary>The scalar kind represented by a primitive schema node.</summary>
 public enum PrimitiveKind

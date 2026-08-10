@@ -742,11 +742,11 @@ dotnet_diagnostic.MA0048.severity = none
 # The wire-faithful SpecIR primitive-kind contract requires the exact String
 # and Integer member names. Winner: the wire-faithful public contract; CA1720
 # remains enabled for every other file.
-[tools/OpenCode.Sdk.Tools/Generator/Parsing/PrimitiveKind.cs]
+[tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/PrimitiveKind.cs]
 dotnet_diagnostic.CA1720.severity = none
 
 # The wire-faithful SpecIR literal-kind contract likewise requires the exact
 # String member name. Winner: the wire-faithful public contract; CA1720 remains
 # enabled for every other file.
-[tools/OpenCode.Sdk.Tools/Generator/Parsing/LiteralKind.cs]
+[tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/LiteralKind.cs]
 dotnet_diagnostic.CA1720.severity = none

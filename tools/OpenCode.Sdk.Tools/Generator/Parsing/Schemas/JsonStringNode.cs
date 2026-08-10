@@ -1,4 +1,4 @@
-namespace OpenCode.Sdk.Tools.Generator.Parsing;
+namespace OpenCode.Sdk.Tools.Generator.Parsing.Schemas;
 
 /// <summary>A string whose content is encoded JSON matching an inner schema.</summary>
 public sealed record JsonStringNode : SchemaNode

@@ -1,4 +1,4 @@
-namespace OpenCode.Sdk.Tools.Generator.Parsing;
+namespace OpenCode.Sdk.Tools.Generator.Parsing.Operations;
 
 /// <summary>A media type with parameters stripped for downstream matching (generator spec §4.1).</summary>
 public sealed record SpecMediaType

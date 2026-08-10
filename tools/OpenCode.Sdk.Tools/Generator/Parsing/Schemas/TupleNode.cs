@@ -1,4 +1,4 @@
-namespace OpenCode.Sdk.Tools.Generator.Parsing;
+namespace OpenCode.Sdk.Tools.Generator.Parsing.Schemas;
 
 /// <summary>A fixed-arity array schema with a distinct schema for each position.</summary>
 public sealed record TupleNode : SchemaNode

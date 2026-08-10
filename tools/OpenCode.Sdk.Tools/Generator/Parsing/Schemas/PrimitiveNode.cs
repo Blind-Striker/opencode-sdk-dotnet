@@ -1,4 +1,4 @@
-namespace OpenCode.Sdk.Tools.Generator.Parsing;
+namespace OpenCode.Sdk.Tools.Generator.Parsing.Schemas;
 
 /// <summary>A scalar string, number, integer, or boolean schema.</summary>
 public sealed record PrimitiveNode : SchemaNode

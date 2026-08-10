@@ -1,4 +1,5 @@
 using OpenCode.Sdk.Tools.Generator.Parsing;
+using OpenCode.Sdk.Tools.Generator.Parsing.Schemas;
 
 namespace OpenCode.Sdk.Tools.Tests;
 

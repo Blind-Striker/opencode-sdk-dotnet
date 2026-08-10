@@ -1,7 +1,8 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text.Json;
 
-namespace OpenCode.Sdk.Tools.Generator.Parsing;
+namespace OpenCode.Sdk.Tools.Generator.Parsing.Schemas;
 
 internal sealed class SchemaNodeParser
 {
@@ -65,6 +66,13 @@ internal sealed class SchemaNodeParser
         }
 
         return ParseTyped(schema, root, pointer, location);
+    }
+
+    public bool TryGetNode(string key, out SchemaNode? node)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+        return _graph.TryGetValue(key, out node);
     }
 
     private static string BuildLocation(string root, string pointer) => pointer.Length == 0 ? $"schema '{root}'" : $"schema '{root}' at {pointer}";
@@ -143,8 +151,9 @@ internal sealed class SchemaNodeParser
 
     private JsonStringNode? ParseJsonString(JsonElement schema, string root, string pointer, string location)
     {
-        if (RefuseObjectOnlyKeywords(schema, location)
-            || RefuseItemsKeyword(schema, location))
+        var hasNoObjectOnlyKeywords = !RefuseObjectOnlyKeywords(schema, location);
+        var hasNoItemsKeyword = !RefuseItemsKeyword(schema, location);
+        if (!hasNoObjectOnlyKeywords || !hasNoItemsKeyword)
         {
             return null;
         }
@@ -169,8 +178,9 @@ internal sealed class SchemaNodeParser
             return null;
         }
 
-        if (!TryReadOptionalString(schema, "description", location, out var description)
-            || !TryReadOptionalString(schema, "format", location, out _))
+        var hasValidDescription = TryReadOptionalString(schema, "description", location, out var description);
+        var hasValidFormat = TryReadOptionalString(schema, "format", location, out _);
+        if (!hasValidDescription || !hasValidFormat)
         {
             return null;
         }
@@ -267,8 +277,9 @@ internal sealed class SchemaNodeParser
             return null;
         }
 
-        if (!TryReadOptionalString(schema, "description", location, out var description)
-            || !TryReadOptionalString(schema, "format", location, out var format))
+        var hasValidDescription = TryReadOptionalString(schema, "description", location, out var description);
+        var hasValidFormat = TryReadOptionalString(schema, "format", location, out var format);
+        if (!hasValidDescription || !hasValidFormat)
         {
             return null;
         }
@@ -318,8 +329,9 @@ internal sealed class SchemaNodeParser
             return null;
         }
 
-        if (!TryReadOptionalString(schema, "description", location, out var description)
-            || !TryReadOptionalString(schema, "format", location, out _))
+        var hasValidDescription = TryReadOptionalString(schema, "description", location, out var description);
+        var hasValidFormat = TryReadOptionalString(schema, "format", location, out _);
+        if (!hasValidDescription || !hasValidFormat)
         {
             return null;
         }
@@ -337,7 +349,7 @@ internal sealed class SchemaNodeParser
 
         EnumNode node = new()
         {
-            Values = [.. values],
+            Values = values.AsReadOnly(),
             Description = description,
         };
         return Promote(node, root, pointer, location);
@@ -345,8 +357,9 @@ internal sealed class SchemaNodeParser
 
     private LiteralNode? ParseBooleanEnum(JsonElement schema, JsonElement valuesElement, string location)
     {
-        if (RefuseObjectOnlyKeywords(schema, location)
-            || RefuseItemsKeyword(schema, location))
+        var hasNoObjectOnlyKeywords = !RefuseObjectOnlyKeywords(schema, location);
+        var hasNoItemsKeyword = !RefuseItemsKeyword(schema, location);
+        if (!hasNoObjectOnlyKeywords || !hasNoItemsKeyword)
         {
             return null;
         }
@@ -377,8 +390,9 @@ internal sealed class SchemaNodeParser
             return null;
         }
 
-        if (!TryReadOptionalString(schema, "description", location, out var description)
-            || !TryReadOptionalString(schema, "format", location, out _))
+        var hasValidDescription = TryReadOptionalString(schema, "description", location, out var description);
+        var hasValidFormat = TryReadOptionalString(schema, "format", location, out _);
+        if (!hasValidDescription || !hasValidFormat)
         {
             return null;
         }
@@ -411,11 +425,16 @@ internal sealed class SchemaNodeParser
             return null;
         }
 
-        if (RefuseObjectOnlyKeywords(schema, location)
-            || RefuseItemsKeyword(schema, location)
-            || RefuseKeywordWithConst(schema, "prefixItems", location)
-            || RefuseKeywordWithConst(schema, "contentSchema", location)
-            || RefuseKeywordWithConst(schema, "contentMediaType", location))
+        var hasNoObjectOnlyKeywords = !RefuseObjectOnlyKeywords(schema, location);
+        var hasNoItemsKeyword = !RefuseItemsKeyword(schema, location);
+        var hasNoPrefixItemsKeyword = !RefuseKeywordWithConst(schema, "prefixItems", location);
+        var hasNoContentSchemaKeyword = !RefuseKeywordWithConst(schema, "contentSchema", location);
+        var hasNoContentMediaTypeKeyword = !RefuseKeywordWithConst(schema, "contentMediaType", location);
+        if (!hasNoObjectOnlyKeywords
+            || !hasNoItemsKeyword
+            || !hasNoPrefixItemsKeyword
+            || !hasNoContentSchemaKeyword
+            || !hasNoContentMediaTypeKeyword)
         {
             return null;
         }
@@ -426,9 +445,10 @@ internal sealed class SchemaNodeParser
             return null;
         }
 
-        if (!ValidateLiteralType(schema, kind, location)
-            || !TryReadOptionalString(schema, "description", location, out var description)
-            || !TryReadOptionalString(schema, "format", location, out _))
+        var hasValidType = ValidateLiteralType(schema, kind, location);
+        var hasValidDescription = TryReadOptionalString(schema, "description", location, out var description);
+        var hasValidFormat = TryReadOptionalString(schema, "format", location, out _);
+        if (!hasValidType || !hasValidDescription || !hasValidFormat)
         {
             return null;
         }
@@ -450,8 +470,9 @@ internal sealed class SchemaNodeParser
         string location)
     {
         var keywordName = keyword is UnionKeyword.AnyOf ? "anyOf" : "oneOf";
-        if (RefuseUnionSiblings(schema, keywordName, location)
-            || !TryReadOptionalString(schema, "description", location, out var description))
+        var hasNoUnionSiblings = !RefuseUnionSiblings(schema, keywordName, location);
+        var hasValidDescription = TryReadOptionalString(schema, "description", location, out var description);
+        if (!hasNoUnionSiblings || !hasValidDescription)
         {
             return null;
         }
@@ -597,7 +618,7 @@ internal sealed class SchemaNodeParser
 
     private static bool IsSpecialNumberValue(string? value) => value is "NaN" or "Infinity" or "-Infinity";
 
-    private List<SchemaNode>? ParseUnionBranches(IReadOnlyList<(JsonElement Element, int Ordinal)> branches,
+    private ReadOnlyCollection<SchemaNode>? ParseUnionBranches(IReadOnlyList<(JsonElement Element, int Ordinal)> branches,
         string root,
         string pointer,
         string keywordName)
@@ -615,7 +636,7 @@ internal sealed class SchemaNodeParser
             parsedBranches.Add(parsedBranch);
         }
 
-        return parsedBranches;
+        return parsedBranches.AsReadOnly();
     }
 
     private SchemaNode? PromoteUnion(IReadOnlyList<SchemaNode> branches,
@@ -952,7 +973,7 @@ internal sealed class SchemaNodeParser
 
         return new TupleNode
         {
-            Items = items,
+            Items = items.AsReadOnly(),
             Description = description,
         };
     }
@@ -996,8 +1017,9 @@ internal sealed class SchemaNodeParser
             return null;
         }
 
-        if (!TryReadOptionalString(schema, "description", location, out var description)
-            || !TryReadRequiredNames(schema, location, out var requiredNames))
+        var hasValidDescription = TryReadOptionalString(schema, "description", location, out var description);
+        var hasValidRequiredNames = TryReadRequiredNames(schema, location, out var requiredNames);
+        if (!hasValidDescription || !hasValidRequiredNames)
         {
             return null;
         }
@@ -1048,8 +1070,12 @@ internal sealed class SchemaNodeParser
             return null;
         }
 
-        if (!ValidateRequiredPropertyNames(requiredNames, properties, location)
-            || !TryReadAdditionalProperties(schema, location, out var additionalProperties, out var additionalPropertiesSchema))
+        var hasValidRequiredPropertyNames = ValidateRequiredPropertyNames(requiredNames, properties, location);
+        var hasValidAdditionalProperties = TryReadAdditionalProperties(schema,
+            location,
+            out var additionalProperties,
+            out var additionalPropertiesSchema);
+        if (!hasValidRequiredPropertyNames || !hasValidAdditionalProperties)
         {
             return null;
         }
@@ -1083,7 +1109,7 @@ internal sealed class SchemaNodeParser
         return Promote(node, root, pointer, location);
     }
 
-    private List<SpecProperty>? ParseProperties(JsonElement properties,
+    private ReadOnlyCollection<SpecProperty>? ParseProperties(JsonElement properties,
         IReadOnlyList<string> requiredNames,
         string root,
         string pointer)
@@ -1105,12 +1131,11 @@ internal sealed class SchemaNodeParser
             });
         }
 
-        return parsedProperties;
+        return parsedProperties.AsReadOnly();
     }
 
-    private static IReadOnlyList<LiteralMarker> CollectLiteralMarkers(IEnumerable<SpecProperty> properties) =>
-    [
-        .. properties
+    private static ReadOnlyCollection<LiteralMarker> CollectLiteralMarkers(IEnumerable<SpecProperty> properties) =>
+        properties
             .Where(static property => property is { IsRequired: true, Schema: LiteralNode })
             .Select(static property =>
             {
@@ -1122,7 +1147,8 @@ internal sealed class SchemaNodeParser
                     Value = literal.Value,
                 };
             })
-    ];
+            .ToList()
+            .AsReadOnly();
 
     private static ErrorStyle ClassifyErrorStyle(IReadOnlyList<SpecProperty> properties,
         IReadOnlyList<LiteralMarker> literalMarkers)

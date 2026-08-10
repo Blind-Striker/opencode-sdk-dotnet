@@ -1,4 +1,4 @@
-namespace OpenCode.Sdk.Tools.Generator.Parsing;
+namespace OpenCode.Sdk.Tools.Generator.Parsing.Schemas;
 
 /// <summary>How an object schema handles property names outside its declared property bag.</summary>
 public enum AdditionalPropertiesKind

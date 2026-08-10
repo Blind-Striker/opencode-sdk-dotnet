@@ -1,4 +1,6 @@
-namespace OpenCode.Sdk.Tools.Generator.Parsing;
+using OpenCode.Sdk.Tools.Generator.Parsing.Schemas;
+
+namespace OpenCode.Sdk.Tools.Generator.Parsing.Operations;
 
 /// <summary>The single request representation accepted by an operation.</summary>
 public sealed record SpecRequestBody

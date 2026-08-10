@@ -1,4 +1,4 @@
-namespace OpenCode.Sdk.Tools.Generator.Parsing;
+namespace OpenCode.Sdk.Tools.Generator.Parsing.Schemas;
 
 /// <summary>Base of every wire-faithful schema-graph node (generator spec §4.1).</summary>
 public abstract record SchemaNode

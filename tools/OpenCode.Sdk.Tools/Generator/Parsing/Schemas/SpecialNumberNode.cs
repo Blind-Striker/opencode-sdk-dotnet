@@ -1,4 +1,4 @@
-namespace OpenCode.Sdk.Tools.Generator.Parsing;
+namespace OpenCode.Sdk.Tools.Generator.Parsing.Schemas;
 
 /// <summary>A JSON number that also accepts named non-finite floating-point string values.</summary>
 public sealed record SpecialNumberNode : SchemaNode

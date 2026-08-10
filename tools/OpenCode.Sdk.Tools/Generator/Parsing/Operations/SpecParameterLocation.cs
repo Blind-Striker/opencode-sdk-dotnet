@@ -1,4 +1,4 @@
-namespace OpenCode.Sdk.Tools.Generator.Parsing;
+namespace OpenCode.Sdk.Tools.Generator.Parsing.Operations;
 
 /// <summary>The wire location from which an operation parameter is read.</summary>
 public enum SpecParameterLocation

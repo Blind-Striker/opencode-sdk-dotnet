@@ -1,3 +1,6 @@
+using OpenCode.Sdk.Tools.Generator.Parsing.Operations;
+using OpenCode.Sdk.Tools.Generator.Parsing.Schemas;
+
 namespace OpenCode.Sdk.Tools.Generator.Parsing;
 
 /// <summary>The wire-faithful SpecIR root: operations plus the flat schema graph.</summary>

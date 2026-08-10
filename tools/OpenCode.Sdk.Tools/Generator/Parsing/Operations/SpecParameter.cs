@@ -1,4 +1,6 @@
-namespace OpenCode.Sdk.Tools.Generator.Parsing;
+using OpenCode.Sdk.Tools.Generator.Parsing.Schemas;
+
+namespace OpenCode.Sdk.Tools.Generator.Parsing.Operations;
 
 /// <summary>A wire parameter declared by an operation.</summary>
 public sealed record SpecParameter

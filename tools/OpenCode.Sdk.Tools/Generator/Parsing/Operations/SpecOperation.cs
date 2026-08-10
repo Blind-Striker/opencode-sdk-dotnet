@@ -1,4 +1,4 @@
-namespace OpenCode.Sdk.Tools.Generator.Parsing;
+namespace OpenCode.Sdk.Tools.Generator.Parsing.Operations;
 
 /// <summary>A single wire operation parsed from a path item.</summary>
 public sealed record SpecOperation

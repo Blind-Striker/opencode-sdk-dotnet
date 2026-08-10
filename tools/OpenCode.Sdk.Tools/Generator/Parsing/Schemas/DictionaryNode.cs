@@ -1,4 +1,4 @@
-namespace OpenCode.Sdk.Tools.Generator.Parsing;
+namespace OpenCode.Sdk.Tools.Generator.Parsing.Schemas;
 
 /// <summary>An object schema whose arbitrary property values share one schema.</summary>
 public sealed record DictionaryNode : SchemaNode

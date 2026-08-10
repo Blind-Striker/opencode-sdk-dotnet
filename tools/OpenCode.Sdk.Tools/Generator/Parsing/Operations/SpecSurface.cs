@@ -1,4 +1,4 @@
-namespace OpenCode.Sdk.Tools.Generator.Parsing;
+namespace OpenCode.Sdk.Tools.Generator.Parsing.Operations;
 
 /// <summary>The API surface identified by an operation's wire identifier.</summary>
 public enum SpecSurface
