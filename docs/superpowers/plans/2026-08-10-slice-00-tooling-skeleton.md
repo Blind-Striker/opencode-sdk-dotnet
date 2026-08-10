@@ -467,7 +467,7 @@ Run, in order: `dotnet build --configuration Release`, `dotnet test --configurat
 `dotnet format --verify-no-changes --no-restore`
 Expected: all clean/green.
 
-- [ ] **Step 3: Commit and push the branch**
+- [x] **Step 3: Commit and push the branch**
 
 ```bash
 git add .github/workflows/ci.yml
@@ -475,7 +475,7 @@ git commit -m "ci: smoke the tooling entry on the Linux leg"
 git push -u origin feature/slice-00-tooling-skeleton
 ```
 
-- [ ] **Step 4: Verify CI**
+- [x] **Step 4: Verify CI**
 
 Open the PR (`gh pr create`), watch the three legs; the Linux leg must run the smoke step
 green. Slice exit: PR review + merge closes the slice issue.
