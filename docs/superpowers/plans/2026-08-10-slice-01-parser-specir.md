@@ -2155,7 +2155,8 @@ Test imports (unused imports remain analyzer errors, so use exactly these):
 | `SpecMediaTypeTests.cs` | `.Parsing.Operations` only |
 | `SpecParserObjectNodeTests.cs`, `SpecParserQuirkNodeTests.cs`, `SpecParserSchemaNodeTests.cs`, `SpecParserUnionTests.cs` | root `.Parsing` + `.Parsing.Schemas` |
 | `SpecParserOperationTests.cs` | root `.Parsing` + `.Parsing.Operations` |
-| `SpecParserParameterTests.cs`, `SpecParserDefensiveTests.cs` | root `.Parsing` + `.Parsing.Schemas` + `.Parsing.Operations` |
+| `SpecParserParameterTests.cs` | root `.Parsing` + `.Parsing.Schemas` + `.Parsing.Operations` |
+| `SpecParserDefensiveTests.cs` | root `.Parsing` + `.Parsing.Schemas` |
 
 - [ ] **Step 9: Run focused GREEN and inspect the module shape in Rider**
 
