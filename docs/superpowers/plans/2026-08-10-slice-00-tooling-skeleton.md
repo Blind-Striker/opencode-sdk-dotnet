@@ -389,16 +389,16 @@ git commit -m "feat(tools): file-based entry dogfooding ToolApp"
 - Produces: the recorded §3.3 verdict (research log, question→finding→decision) and, if
   stale, the mitigation wired into CI/docs in Task 5.
 
-- [ ] **Step 1: Baseline run**
+- [x] **Step 1: Baseline run**
 
 Run: `dotnet run --file tools/opencode-tool.cs -- generate` — note the message text.
 
-- [ ] **Step 2: Mutate the referenced library without an explicit build**
+- [x] **Step 2: Mutate the referenced library without an explicit build**
 
 Edit the stub message in `GenerateCommand.cs` to append ` (cache-probe)`. Do **not** run
 `dotnet build`. Re-run: `dotnet run --file tools/opencode-tool.cs -- generate`
 
-- [ ] **Step 3: Read the verdict**
+- [x] **Step 3: Read the verdict**
 
 - Marker appears → `#:project` changes trigger rebuilds: **no mitigation needed**.
 - Marker absent → the stale-tool hazard is real: **mitigation** = every documented/CI
@@ -409,12 +409,12 @@ Edit the stub message in `GenerateCommand.cs` to append ` (cache-probe)`. Do **n
   promotion + one-line ADR-0003 correction) triggers — **stop; maintainer decision**
   (level 2).
 
-- [ ] **Step 4: Revert the probe edit**
+- [x] **Step 4: Revert the probe edit**
 
 Revert `GenerateCommand.cs` to Task 2's exact content; re-run the entry once to confirm
 the original message.
 
-- [ ] **Step 5: Record the findings**
+- [x] **Step 5: Record the findings**
 
 Append a session entry to `docs/research/00-research-log.md` (next session number,
 `# Session N — <date>: slice 0 build-out — file-based entry verification`) with one
@@ -423,7 +423,7 @@ researched (the three checks above), found (per item: strict-props build verdict
 staleness verdict, invocation forms), decision (mitigation on/off; fallback not
 triggered / triggered).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add docs/research/00-research-log.md
