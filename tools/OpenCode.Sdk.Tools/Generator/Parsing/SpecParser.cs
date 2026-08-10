@@ -99,6 +99,49 @@ public sealed class SpecParser
             errors.Add("document", $"unknown components member '{member.Name}'");
         }
 
+        if (!components.TryGetProperty("schemas", out var schemas))
+        {
+            return graph;
+        }
+
+        SchemaNodeParser parser = new(errors, graph);
+        foreach (var schema in schemas.EnumerateObject())
+        {
+            var node = parser.Parse(schema.Value, schema.Name, string.Empty);
+            if (node is null)
+            {
+                continue;
+            }
+
+            if (!graph.TryAdd(schema.Name, node))
+            {
+                errors.Add($"schema '{schema.Name}'", $"schema graph key collision '{schema.Name}'");
+            }
+        }
+
+        ValidateDanglingRefs(graph, errors);
+
         return graph;
+    }
+
+    private static void ValidateDanglingRefs(IReadOnlyDictionary<string, SchemaNode> graph, SpecParseErrorCollector errors)
+    {
+        foreach (var (root, node) in graph)
+        {
+            ValidateDanglingRefs(root, node, graph, errors);
+        }
+    }
+
+    private static void ValidateDanglingRefs(string root, SchemaNode node, IReadOnlyDictionary<string, SchemaNode> graph, SpecParseErrorCollector errors)
+    {
+        if (node is RefNode reference && !graph.ContainsKey(reference.Target))
+        {
+            errors.Add($"schema '{root}'", $"unresolved ref '{reference.Target}'");
+        }
+
+        foreach (var child in node.Children)
+        {
+            ValidateDanglingRefs(root, child, graph, errors);
+        }
     }
 }
