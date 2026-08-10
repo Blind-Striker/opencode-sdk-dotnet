@@ -970,3 +970,78 @@ TUnit reads arbitrary nested keys via `TestContext.Configuration.Get` — the
 `testingPlatform.environmentVariables` section did **not** apply and is not relied upon.
 
 **Decision:** the TUnit block leaves §14; results recorded at their §5.1/§5.4 use sites.
+
+# Session 10 — 2026-08-10: slice 0 build-out — file-based entry verification
+
+Closing session for slice 0's tooling skeleton: ran the generator spec §3.3 three-item
+verification list against the committed file-based entry
+(`tools/opencode-tool.cs` → `OpenCode.Sdk.Tools` via the `#:project` directive) and
+recorded the Task 3 MA0048 arbitration trace in its research home.
+
+## Q52: Does the file-based entry survive the §3.3 verification list?
+
+**How researched:** the three §3.3 checks run live against the entry from the repo root.
+(1) Strict-props build: `dotnet run --file tools/opencode-tool.cs -- generate` — the
+entry inherits `Directory.Build.props` strict props on the cached `dotnet run` path, so a
+green build under the full analyzer wall + TWAE is the proof. (2) Cache staleness: with
+the entry warm, the `GenerateCommand` stub message was mutated to append
+` (cache-probe)` via a file-only edit (no `dotnet build` between edit and re-run), then
+the entry was re-run. (3) Invocation forms: `dotnet run --file … -- generate` (any OS)
+and `--help` were exercised; the Unix direct-invocation form `./tools/opencode-tool.cs`
+was pinned (mode 100755, shebang) but not run on this Windows host — Linux CI runs it in
+Task 5. Task 3's strict-props build at session 9 had hit MA0048 on the synthesized
+`Program` behind the sealed entry filename; that arbitration is included below as the
+required strict-props finding trace.
+
+**Found (per item):**
+
+- *Strict-props build verdict:* clean. Post-arbitration, the entry builds under the
+  inherited strict props with `0 Warning(s) 0 Error(s)` and the fail-loud stub prints
+  `generate is not implemented yet — the generator pipeline has not landed.` (exit 1,
+  captured not misclassified). MA0048 (mezintou/Meziantou.Analyzer — "File name must
+  match type name") fired on the first run because the SDK synthesizes a `Program` type
+  behind a sealed entry filename no MA0048 mode (`Exact`/`Prefix`/`LongestCommonPrefix`)
+   can match. Classified as a **Level 1 recorded fallback** (deviation protocol Level 1;
+   AGENTS.md Hard Rule — "when a rule misfires on real code, the move is a per-rule
+   arbitration comment naming the winner — never a policy rollback"). The pre-authorized
+   remedy is a file-scoped arbitration (`.editorconfig`'s last section:
+   `[tools/opencode-tool.cs]` → `dotnet_diagnostic.MA0048.severity = none`, comment
+   naming the sealed entry contract as winner); it silences MA0048 for that file only,
+   and MA0048 stays `error` for every other file (emission file = type commitment
+   intact). This is a recorded fallback, not a policy rollback — the rule remains on for
+   the rest of the codebase, generated output included. The §3.3 cache-staleness
+   fallbacks (routed-build Level 1; console-app promotion + ADR-0003 correction Level 2)
+   are independent of MA0048 and were not triggered by it: their subject is cache
+   staleness, evaluated under the staleness check below. Initial placement of the
+   file-scoped section silently narrowed the global `[*.cs]` scope (`.editorconfig`
+   section headers are cumulative until the next header); a fix-up commit moved the
+   arbitration to the file's last section so it no longer narrows any subsequent section.
+
+- *Staleness verdict:* **no mitigation needed.** After the ` (cache-probe)` edit and
+  re-running `dotnet run --file tools/opencode-tool.cs -- generate` without an
+  intervening `dotnet build`, the output read
+  `generate is not implemented yet — the generator pipeline has not landed.
+  (cache-probe)` (exit 1) — the freshly edited `GenerateCommand` ran. The marker
+  appeared, so `#:project` library changes trigger rebuilds on the file-based entry path;
+  the stale-tool hazard does not exist for this entry shape. The generator spec §3.3
+  routed-build Level 1 fallback was therefore **not triggered**, and the two-condition
+  fallback (console-app promotion + ADR-0003 correction) stayed dormant. Probe edit
+  reverted by apply_patch; the `GenerateCommand.cs` blob was bit-identical pre- and
+  post-task (SHA256 `de69cb4e…`, git blob `df921b4…`).
+
+- *Invocation forms:* `dotnet run --file tools/opencode-tool.cs -- generate` exits 1 with
+  the stub message; `dotnet run --file tools/opencode-tool.cs -- --help` exits 0 with
+  usage listing `generate — Regenerate the SDK model layer from spec/openapi.json`. The
+  Unix direct-invocation form `./tools/opencode-tool.cs <args>` is pinned by mode 100755
+  + the `#!/usr/bin/env -S dotnet --` shebang and awaits Linux CI verification in Task 5.
+
+**Decision:** §3.3 verification list passes; the file-based entry survives as sealed.
+Cache mitigation is **off** — Task 5's CI smoke step does **not** prepend a routed
+`dotnet build` line; the §3.3 cache-staleness fallbacks were **not triggered**
+(marker-present path: routed-build Level 1 unneeded; console-app promotion + ADR-0003
+correction Level 2 dormant). MA0048 is the **one Level 1 recorded fallback executed in
+this slice** — pre-authorized by the analyzer-policy Hard Rule's per-rule arbitration
+procedure (a recorded fallback, not a policy rollback); the file-scoped arbitration is
+the status quo for this one entry file. If the entry contract ever moves (e.g.
+console-app promotion at a future cache-Level-2 trigger), the arbitration moves with it
+or is deleted.

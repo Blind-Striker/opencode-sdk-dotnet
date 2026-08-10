@@ -13,6 +13,7 @@
     <PackageVersion Include="Aspire.Hosting" Version="13.4.6"/>
     <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.4.6"/>
     <!-- microsoft packages -->
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10"/>
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.301"/>
     <!-- downlevel targets (netstandard2.0 / net472) -->
     <PackageVersion Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3"/>
@@ -24,10 +25,13 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.17.0"/>
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.17.0"/>
     <!-- third-party packages -->
+    <PackageVersion Include="Spectre.Console.Cli" Version="0.55.0"/>
+    <PackageVersion Include="Spectre.Console.Cli.Extensions.DependencyInjection" Version="0.27.0"/>
 
     <!-- test packages -->
     <PackageVersion Include="Aspire.Hosting.Testing" Version="13.4.6"/>
     <PackageVersion Include="NSubstitute" Version="6.0.0"/>
+    <PackageVersion Include="Spectre.Console.Cli.Testing" Version="0.55.0"/>
     <PackageVersion Include="TUnit" Version="1.63.25"/>
   </ItemGroup>
 </Project>

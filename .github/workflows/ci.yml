@@ -70,6 +70,12 @@ jobs:
         if: runner.os == 'Linux'
         run: dotnet format --verify-no-changes --no-restore
 
+      # Smoke-runs the repo tooling entry; exercises the committed executable bit and the
+      # shebang, which only take effect on a Linux checkout.
+      - name: Tooling entry smoke
+        if: runner.os == 'Linux'
+        run: ./tools/opencode-tool.cs --help
+
       # TUnit's always-on HTML report self-uploads as a workflow artifact, but only if these
       # runtime vars (normally JS/Docker-action-only) are re-exported to run steps.
       - name: Enable TUnit report artifact upload

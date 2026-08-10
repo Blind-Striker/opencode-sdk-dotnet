@@ -709,3 +709,15 @@ dotnet_diagnostic.MA0042.severity = none
 dotnet_diagnostic.CA2007.severity = none
 dotnet_diagnostic.MA0004.severity = none
 dotnet_diagnostic.VSTHRD111.severity = none
+
+# =============================================================================
+# FILE-BASED ENTRY ARBITRATION (MA0048)
+# =============================================================================
+# Placed after every global C# diagnostic section so the file-scoped glob never
+# narrows a later section. MA0048 (file name = type name) cannot apply to the
+# file-based tool entry: the SDK synthesizes the Program type, and the sealed
+# entry contract pins the file name (it is the tool name:
+# ./tools/opencode-tool.cs). Winner: the entry contract; the rule stays error
+# for every other file, generated output included (emission keeps file = type).
+[tools/opencode-tool.cs]
+dotnet_diagnostic.MA0048.severity = none

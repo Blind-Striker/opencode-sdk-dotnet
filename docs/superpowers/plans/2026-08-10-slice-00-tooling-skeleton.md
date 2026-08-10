@@ -56,7 +56,7 @@ Microsoft.Extensions.DependencyInjection, TUnit (already pinned).
 - Produces: an empty net10.0 library project that later tasks fill; the `/tools/` solution
   folder.
 
-- [ ] **Step 1: Add package pins to `Directory.Packages.props`**
+- [x] **Step 1: Add package pins to `Directory.Packages.props`**
 
 Under `<!-- microsoft packages -->` add:
 
@@ -78,7 +78,7 @@ Under `<!-- test packages -->` add:
     <PackageVersion Include="Spectre.Console.Cli.Testing" Version="0.55.0"/>
 ```
 
-- [ ] **Step 2: Create `tools/OpenCode.Sdk.Tools/OpenCode.Sdk.Tools.csproj`**
+- [x] **Step 2: Create `tools/OpenCode.Sdk.Tools/OpenCode.Sdk.Tools.csproj`**
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -100,7 +100,7 @@ Under `<!-- test packages -->` add:
 (`$(DefaultTargetFramework)` is `net10.0` from `Directory.Build.props`; the tool is
 single-TFM by design — testing spec §4.)
 
-- [ ] **Step 3: Add the project to `OpenCode.slnx`**
+- [x] **Step 3: Add the project to `OpenCode.slnx`**
 
 Insert after the `/tests/` folder (folders are kept alphabetical):
 
@@ -110,14 +110,14 @@ Insert after the `/tests/` folder (folders are kept alphabetical):
   </Folder>
 ```
 
-- [ ] **Step 4: Build**
+- [x] **Step 4: Build**
 
 Run: `dotnet build --configuration Release`
 Expected: success, zero warnings (the empty library must pass the wall — if a repo-wide
 analyzer fires on the bare project, that is a finding, not something to suppress; classify
 per the deviation protocol).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Directory.Packages.props tools/OpenCode.Sdk.Tools/OpenCode.Sdk.Tools.csproj OpenCode.slnx
@@ -149,7 +149,7 @@ API note: `CommandAppTester` (ctor taking `ITypeRegistrar`, `Configure`, `RunAsy
 pinned version's signatures differ in detail (e.g. an added `CancellationToken` on
 `AsyncCommand.ExecuteAsync`), adapt in place — that is a level-0 deviation.
 
-- [ ] **Step 1: Create the test project**
+- [x] **Step 1: Create the test project**
 
 `tests/OpenCode.Sdk.Tools.Tests/OpenCode.Sdk.Tools.Tests.csproj`:
 
@@ -179,7 +179,7 @@ Add to `OpenCode.slnx` under the existing `/tests/` folder:
     <Project Path="tests/OpenCode.Sdk.Tools.Tests/OpenCode.Sdk.Tools.Tests.csproj" />
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 `tests/OpenCode.Sdk.Tools.Tests/ToolAppTests.cs`:
 
@@ -218,12 +218,12 @@ public sealed class ToolAppTests
 (`OpenCode.Sdk.Tools.Tests` sits inside the `OpenCode.Sdk.Tools` namespace hierarchy, so
 `ToolApp` resolves without a using directive — adding one would trip IDE0005.)
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `dotnet test tests/OpenCode.Sdk.Tools.Tests`
 Expected: build FAILS with CS0246 (`ToolApp` not found) — the red state for scaffolding.
 
-- [ ] **Step 4: Implement `ToolApp`**
+- [x] **Step 4: Implement `ToolApp`**
 
 `tools/OpenCode.Sdk.Tools/ToolApp.cs`:
 
@@ -300,17 +300,17 @@ public sealed class GenerateCommand : AsyncCommand
 }
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `dotnet test tests/OpenCode.Sdk.Tools.Tests`
 Expected: PASS (both tests, net10.0 leg).
 
-- [ ] **Step 6: Full gate check**
+- [x] **Step 6: Full gate check**
 
 Run: `dotnet build --configuration Release` then `dotnet format --verify-no-changes --no-restore`
 Expected: both clean.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add tools/OpenCode.Sdk.Tools tests/OpenCode.Sdk.Tools.Tests OpenCode.slnx
@@ -331,7 +331,7 @@ git commit -m "feat(tools): ToolApp composition root with fail-loud generate stu
   pinned invocation forms (`dotnet run --file tools/opencode-tool.cs -- <args>` on any
   OS; `./tools/opencode-tool.cs <args>` on Unix).
 
-- [ ] **Step 1: Write the entry**
+- [x] **Step 1: Write the entry**
 
 `tools/opencode-tool.cs` — exactly this content, LF line endings, UTF-8 **without BOM**
 (a BOM breaks the shebang):
@@ -349,7 +349,7 @@ Add to the `/tools/` folder in `OpenCode.slnx`:
     <File Path="tools/opencode-tool.cs" />
 ```
 
-- [ ] **Step 2: Run through the entry — §3.3 item 1 (strict-props build) + item 3 (invocation form)**
+- [x] **Step 2: Run through the entry — §3.3 item 1 (strict-props build) + item 3 (invocation form)**
 
 Run: `dotnet run --file tools/opencode-tool.cs -- generate`
 Expected: exit code 1 and the stub message — proving the entry builds **clean under the
@@ -359,7 +359,7 @@ inherited strict props** (any analyzer/TWAE diagnostic fails this run) and that 
 Run: `dotnet run --file tools/opencode-tool.cs -- --help`
 Expected: exit 0, help output listing `generate`.
 
-- [ ] **Step 3: Commit the executable bit into the index**
+- [x] **Step 3: Commit the executable bit into the index**
 
 ```bash
 git add tools/opencode-tool.cs OpenCode.slnx
@@ -370,7 +370,7 @@ git ls-files -s tools/opencode-tool.cs
 Expected: `git ls-files -s` prints mode `100755`. (The bit is meaningless on NTFS and
 effective on the Linux CI checkout — generator spec §3.1.)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git commit -m "feat(tools): file-based entry dogfooding ToolApp"
@@ -389,16 +389,16 @@ git commit -m "feat(tools): file-based entry dogfooding ToolApp"
 - Produces: the recorded §3.3 verdict (research log, question→finding→decision) and, if
   stale, the mitigation wired into CI/docs in Task 5.
 
-- [ ] **Step 1: Baseline run**
+- [x] **Step 1: Baseline run**
 
 Run: `dotnet run --file tools/opencode-tool.cs -- generate` — note the message text.
 
-- [ ] **Step 2: Mutate the referenced library without an explicit build**
+- [x] **Step 2: Mutate the referenced library without an explicit build**
 
 Edit the stub message in `GenerateCommand.cs` to append ` (cache-probe)`. Do **not** run
 `dotnet build`. Re-run: `dotnet run --file tools/opencode-tool.cs -- generate`
 
-- [ ] **Step 3: Read the verdict**
+- [x] **Step 3: Read the verdict**
 
 - Marker appears → `#:project` changes trigger rebuilds: **no mitigation needed**.
 - Marker absent → the stale-tool hazard is real: **mitigation** = every documented/CI
@@ -409,12 +409,12 @@ Edit the stub message in `GenerateCommand.cs` to append ` (cache-probe)`. Do **n
   promotion + one-line ADR-0003 correction) triggers — **stop; maintainer decision**
   (level 2).
 
-- [ ] **Step 4: Revert the probe edit**
+- [x] **Step 4: Revert the probe edit**
 
 Revert `GenerateCommand.cs` to Task 2's exact content; re-run the entry once to confirm
 the original message.
 
-- [ ] **Step 5: Record the findings**
+- [x] **Step 5: Record the findings**
 
 Append a session entry to `docs/research/00-research-log.md` (next session number,
 `# Session N — <date>: slice 0 build-out — file-based entry verification`) with one
@@ -423,7 +423,7 @@ researched (the three checks above), found (per item: strict-props build verdict
 staleness verdict, invocation forms), decision (mitigation on/off; fallback not
 triggered / triggered).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add docs/research/00-research-log.md
@@ -441,7 +441,7 @@ git commit -m "docs(research): file-based entry verification results (slice 0)"
 - Consumes: the entry + executable bit (Task 3), the staleness verdict (Task 4).
 - Produces: the Linux-leg smoke step slice 3 will upgrade to `generate --verify`.
 
-- [ ] **Step 1: Add the smoke step**
+- [x] **Step 1: Add the smoke step**
 
 After the `Verify formatting` step in `.github/workflows/ci.yml`:
 
@@ -461,13 +461,13 @@ If Task 4 recorded the staleness mitigation, prepend the routed build:
           ./tools/opencode-tool.cs --help
 ```
 
-- [ ] **Step 2: Local full-gate sweep**
+- [x] **Step 2: Local full-gate sweep**
 
 Run, in order: `dotnet build --configuration Release`, `dotnet test --configuration Release --no-build`,
 `dotnet format --verify-no-changes --no-restore`
 Expected: all clean/green.
 
-- [ ] **Step 3: Commit and push the branch**
+- [x] **Step 3: Commit and push the branch**
 
 ```bash
 git add .github/workflows/ci.yml
@@ -475,7 +475,7 @@ git commit -m "ci: smoke the tooling entry on the Linux leg"
 git push -u origin feature/slice-00-tooling-skeleton
 ```
 
-- [ ] **Step 4: Verify CI**
+- [x] **Step 4: Verify CI**
 
 Open the PR (`gh pr create`), watch the three legs; the Linux leg must run the smoke step
 green. Slice exit: PR review + merge closes the slice issue.
