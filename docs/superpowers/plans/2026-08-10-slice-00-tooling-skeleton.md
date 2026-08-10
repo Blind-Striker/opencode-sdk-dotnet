@@ -56,7 +56,7 @@ Microsoft.Extensions.DependencyInjection, TUnit (already pinned).
 - Produces: an empty net10.0 library project that later tasks fill; the `/tools/` solution
   folder.
 
-- [ ] **Step 1: Add package pins to `Directory.Packages.props`**
+- [x] **Step 1: Add package pins to `Directory.Packages.props`**
 
 Under `<!-- microsoft packages -->` add:
 
@@ -78,7 +78,7 @@ Under `<!-- test packages -->` add:
     <PackageVersion Include="Spectre.Console.Cli.Testing" Version="0.55.0"/>
 ```
 
-- [ ] **Step 2: Create `tools/OpenCode.Sdk.Tools/OpenCode.Sdk.Tools.csproj`**
+- [x] **Step 2: Create `tools/OpenCode.Sdk.Tools/OpenCode.Sdk.Tools.csproj`**
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -100,7 +100,7 @@ Under `<!-- test packages -->` add:
 (`$(DefaultTargetFramework)` is `net10.0` from `Directory.Build.props`; the tool is
 single-TFM by design — testing spec §4.)
 
-- [ ] **Step 3: Add the project to `OpenCode.slnx`**
+- [x] **Step 3: Add the project to `OpenCode.slnx`**
 
 Insert after the `/tests/` folder (folders are kept alphabetical):
 
@@ -110,14 +110,14 @@ Insert after the `/tests/` folder (folders are kept alphabetical):
   </Folder>
 ```
 
-- [ ] **Step 4: Build**
+- [x] **Step 4: Build**
 
 Run: `dotnet build --configuration Release`
 Expected: success, zero warnings (the empty library must pass the wall — if a repo-wide
 analyzer fires on the bare project, that is a finding, not something to suppress; classify
 per the deviation protocol).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Directory.Packages.props tools/OpenCode.Sdk.Tools/OpenCode.Sdk.Tools.csproj OpenCode.slnx

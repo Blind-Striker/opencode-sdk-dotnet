@@ -18,4 +18,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/OpenCode.Sdk.Tests/OpenCode.Sdk.Tests.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/OpenCode.Sdk.Tools/OpenCode.Sdk.Tools.csproj" />
+  </Folder>
 </Solution>
