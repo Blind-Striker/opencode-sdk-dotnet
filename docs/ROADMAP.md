@@ -56,11 +56,14 @@ are hints for the driving agent.
    (file naming, how the generated-code exemption is switched off, the fate of per-file
    `#nullable` directives); stream endpoints (detected by their `text/event-stream` content type) are
    wired by hand through the hand-written SSE engine; the generator emits their item
-   schemas.
+   schemas. **Spec retirement rides this phase's close:** the design specs under
+   `docs/superpowers/` are transient — before they are deleted, durable sealed decisions
+   without an ADR home distill into ADRs (the research log already carries the chains).
 3. **Later** — MCP server on ModelContextProtocol.AspNetCore + stdio, in this repo (ADR-0006);
    evaluate NuGet's `McpServer` package type for distribution; its SDK usage defines the
-   deep-tested legacy set (ADR-0005). "opencode HQ" — multi-instance aggregation above the
-   SDK — is a valued future deliverable in its own right, not SDK scope.
+   deep-tested legacy set (ADR-0005). Aspire AppHost for local dev/test (mini UI,
+   `opencode serve` as a resource) — planned. "opencode HQ" — multi-instance aggregation
+   above the SDK — is a valued future deliverable in its own right, not SDK scope.
 
 ## Open Questions
 

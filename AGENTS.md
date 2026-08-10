@@ -1,84 +1,61 @@
 # Agent Instructions
 
-Operating rules for LLM/code agents working in this repository. Canonical and evergreen: it holds
-only what stays true. Current state, the work queue, and open questions live in `docs/ROADMAP.md`.
+Operating rules for LLM/code agents working in this repository. Harness-neutral: multiple
+agent harnesses read this file natively — keep it free of harness-specific content. Canonical
+and evergreen: it holds only what stays true. Current state, the work queue, and open
+questions live in `docs/ROADMAP.md`.
 
 ## Purpose
 
-Build a **.NET SDK for opencode** — a typed client for the HTTP API that every opencode front-end
-(TUI, desktop, web UI, plugins) already goes through — and, on top of it, an **MCP server**
-exposing opencode to any MCP client — both deliverables live in this repository (ADR-0006 in
-`docs/adr/`). The niche is real: the only maintained first-party SDK is
-JS/TypeScript, the Stainless-generated Python and Go SDKs are effectively abandoned, there is no
-.NET SDK at all, and the one community MCP bridge is architecturally fragile and unmaintained.
-Evidence: `docs/research/04-ecosystem.md` and `docs/research/03-opencode-mcp-assessment.md`.
-
-Ship order: **SDK first, MCP server second** — the MCP server becomes a thin adapter over our own
-SDK, avoiding the private-internals trap that sank the unofficial `opencode-mcp`.
+Build a **.NET SDK for opencode** — a typed client for the HTTP API every opencode front-end
+(TUI, desktop, web UI, plugins) goes through — and, on top of it, an **MCP server** exposing
+opencode to any MCP client. Both live in this repository; the MCP server is by design a thin
+adapter over our own SDK (ADR-0006). Ecosystem-gap evidence: research docs 03/04.
 
 ## Locked Decisions
 
-Decision statements only — rationale lives in the ADRs (`docs/adr/`), evidence in the research
-docs. Do not reopen these without new evidence.
+One line per decision; rationale lives in the ADRs (`docs/adr/`), dated evidence in
+`docs/research/`. Do not reopen these without new evidence. Fine-grained design currently
+lives in the sealed design specs (transient; reachable via `docs/ROADMAP.md`) until
+build-out distills them.
 
-- **Target artifact:** `external/opencode/packages/sdk/openapi.json` (OpenAPI 3.1) — the same
-  spec the official JS SDK is generated from. Pinned copy: `spec/`.
-- **API surface: both generations of the pinned 1.x spec** — the transitional modern block
-  (`v2.*` operationIds; 61 ops today, 3 outside `/api/*`) and the legacy block (127 ops). The
-  modern surface takes the unmarked public names (the `v2.` prefix is stripped and "V2" never
-  appears in type or client names); the legacy surface lives behind an explicitly
-  legacy-marked sub-surface. Deep integration testing targets the modern surface plus every
-  legacy operation the MCP server consumes; remaining legacy is best-effort. The legacy area
-  is deleted at a major release of ours when upstream ships its next major (ADR-0005;
-  research docs 08, 09, 10).
-- **Hybrid construction:** hand-written behavior core (transport pipeline, SSE engine,
-  process lifecycle, DI, error model, envelope/options bases), mechanically derived
-  everything else — models **and operation methods** — from **our own generator**: Roslyn
-  syntax-tree emission over a parsed spec IR; scope-agnostic (surface selection is a
-  filter parameter); excluded/hand-wired operations are fingerprint-pinned (ADR-0003,
-  ADR-0008; research docs 06 §1, 08).
-- **Generator packaging:** repo tooling under `tools/` — csproj bound to the repo build
-  rules, thin file-based `.cs` entry committed with the executable bit. Generated output is
-  committed into the SDK project and passes the analyzer wall **on merit** — no blanket
-  generated-code exemption (file-naming mechanics settled at build-out); the tool runs
-  `dotnet format` on its output as a post-step; CI regen-verifies. The same tool owns spec
-  refresh: submodule pin bump, `spec/` copy, `SNAPSHOT.md` stamp (ADR-0003).
-- **Model-layer generation principles:** immutable by default (records, `init`-only,
-  read-only collections); `required` where the spec requires; nullable is a last resort —
-  absent collections emit empty, nullable only where absence carries meaning (ADR-0004).
-- **TFM matrix:** `netstandard2.0;net472;net8.0;net9.0;net10.0`; `net11.0` light-up post-GA
-  (2026-11-10). net472 = Framework-exact compile paths; ns2.0 = extra reach on the same polyfill
-  tax, tested by proxy via the net472 leg (ADR-0002).
-- **Packages:** `OpenCode.Sdk` — core (System.Text.Json, System.Net.ServerSentEvents,
-  Microsoft.Extensions.Logging.Abstractions + downlevel polyfills; **server launcher included**,
-  hand-rolled on `System.Diagnostics.Process`, no CliWrap (ADR-0001); HttpClient injectable) and
-  `OpenCode.Sdk.Extensions` (Microsoft.Extensions.Http + DI.Abstractions + Options,
-  `AddOpenCodeClient()`). Future candidate: `OpenCode.Aspire.Hosting`. NuGet ID verified
-  available 2026-08-08; upstream-parity rationale: research doc 06.
-- **Monorepo, independent versioning:** the MCP server is developed in this repository as a
-  thin adapter over the SDK; every package versions independently — no lockstep, no alignment
-  with upstream opencode versions; per-merge CD to GitHub Packages, manual NuGet.org release
-  pipeline (ADR-0006).
-- **Licensing:** MIT via a packed `LICENSE` copy (`PackageLicenseFile`).
-- **SSE as `IAsyncEnumerable<T>`**, no automatic reconnect; the durable per-session stream
-  resumes via the `after` cursor.
-- **`ConfigureAwait(false)` mandatory** — triple-enforced in product code, off in tests.
-- **Analyzer policy: fail-closed maximalist** — new rules must break the build and force a
-  recorded decision. Rationale and decision table (D1–D9): research doc 07.
-- **Native AOT friendly:** source-generated System.Text.Json (the `[JsonSerializable]` registry
-  is generator-emitted); `IsAotCompatible` on net10+.
-- **Aspire stays** — planned local dev/test AppHost (mini UI, `opencode serve` as a resource).
-- **Testing:** TUnit on Microsoft.Testing.Platform; unit plus integration tests against a real
-  opencode process. Launcher acceptance: three-OS CI with real `opencode serve` start/stop
-  tests. **Posture mirrors the analyzer wall — borderline-paranoid, fail-closed, defensive by
-  default:** coverage gates break the build and verify by observation, not declaration;
-  incidental coverage never substitutes for an intentional test; determinism is absolute (no
-  real LLM or API keys, no fixed ports, no sleep-based waits); counterparties are faked only
-  where upstream publishes a stable test contract — upstream-private protocols are never
-  reverse-engineered. Design and rationale: the testing architecture spec
-  (`docs/superpowers/specs/`).
-- **MCP server:** targets the 2026-07-28 spec via MCP C# SDK v2.0 (stdio + streamable HTTP); no
-  investment in deprecated features.
+- **Target artifact:** upstream's `packages/sdk/openapi.json` (OpenAPI 3.1), pinned under
+  `spec/` — the same spec the official JS SDK generates from.
+- **API surface:** both generations of the pinned 1.x spec — the modern block takes the
+  unmarked public names ("V2" never appears); legacy lives behind a legacy-marked
+  sub-surface, deleted at our upstream-absorbing major; legacy deep-testing is
+  consumer-driven (ADR-0005).
+- **Hybrid construction:** hand-written behavior core; models *and* operation methods from
+  our own Roslyn-emission generator; excluded/hand-wired operations are fingerprint-pinned
+  (ADR-0003, ADR-0008).
+- **Generator packaging:** repo tooling under `tools/`; committed output passes the analyzer
+  wall on merit; the same tool owns spec refresh (ADR-0003).
+- **Generated models:** immutable, `required`-mirroring, nullable-last-resort (ADR-0004).
+- **Unknown-variant tolerance:** every union deserializes unknown tags into an explicit
+  carrier (ADR-0009).
+- **Error model:** typed exception spine carrying tagged error data; per-call `NoThrow`, no
+  client-level switch (ADR-0007).
+- **TFM matrix:** `netstandard2.0;net472;net8.0;net9.0;net10.0`; net11 light-up post-GA;
+  ns2.0 tested by proxy via the net472 legs (ADR-0002).
+- **Packages:** `OpenCode.Sdk` (core; server launcher included, hand-rolled — ADR-0001) +
+  `OpenCode.Sdk.Extensions` (DI); dependency policy: research doc 06.
+- **Monorepo, independent versioning:** per-merge GitHub Packages CD, manual NuGet.org
+  releases (ADR-0006).
+- **Licensing:** MIT (`PackageLicenseFile`).
+- **SSE:** `IAsyncEnumerable<T>`, no auto-reconnect; the durable stream resumes via the
+  `after` cursor (research doc 02).
+- **`ConfigureAwait(false)`:** triple-enforced in product code, off in tests (research
+  doc 07).
+- **Analyzer policy:** fail-closed maximalist (research doc 07; relitigation ban: Hard
+  Rules).
+- **Native AOT:** source-generated System.Text.Json via a generator-emitted registry;
+  `IsAotCompatible` on net10+ (ADR-0003).
+- **Testing posture:** borderline-paranoid, fail-closed, defensive by default —
+  observation-based gates, absolute determinism, fake only published contracts; TUnit on
+  Microsoft.Testing.Platform, real-process integration, three-OS launcher acceptance
+  (ADR-0001).
+- **MCP server:** targets the 2026-07-28 spec via MCP C# SDK v2.0, stdio + streamable HTTP
+  (research doc 05).
 
 ## Hard Rules
 
@@ -169,22 +146,3 @@ code is worse than none.
 ADRs are created lazily; criteria and format live in `docs/adr/README.md`. Handovers track
 unfinished cross-session state: consume them against live git and delete them when the
 follow-up ships.
-
-## Harness Independence
-
-`AGENTS.md` is the canonical contract; `CLAUDE.md` is a relay only. opencode reads `AGENTS.md`
-natively — keep this file short and harness-neutral.
-
-## Agent skills
-
-### Issue tracker
-
-Issues live in this repo's GitHub Issues (`gh` CLI). See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Default five-role vocabulary; label strings equal role names. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context: root `CONTEXT.md` + `docs/adr/`. See `docs/agents/domain.md`.
