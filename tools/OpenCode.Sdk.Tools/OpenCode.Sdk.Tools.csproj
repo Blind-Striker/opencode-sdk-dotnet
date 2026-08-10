@@ -9,6 +9,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection"/>
     <PackageReference Include="Spectre.Console.Cli"/>
     <PackageReference Include="Spectre.Console.Cli.Extensions.DependencyInjection"/>
+    <PackageReference Include="TestableIO.System.IO.Abstractions"/>
   </ItemGroup>
 
 </Project>
