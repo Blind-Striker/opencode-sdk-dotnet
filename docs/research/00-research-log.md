@@ -1001,18 +1001,21 @@ required strict-props finding trace.
   captured not misclassified). MA0048 (mezintou/Meziantou.Analyzer — "File name must
   match type name") fired on the first run because the SDK synthesizes a `Program` type
   behind a sealed entry filename no MA0048 mode (`Exact`/`Prefix`/`LongestCommonPrefix`)
-  can match. Resolved under the analyzer-policy Hard Rule — a file-scoped arbitration
-  (`.editorconfig`'s last section: `[tools/opencode-tool.cs]` →
-  `dotnet_diagnostic.MA0048.severity = none`, comment naming the sealed entry contract as
-  winner) silences it for that file only; MA0048 stays `error` for every other file
-  (emission file = type commitment intact). This is an arbitration trace, not a policy
-  rollback — the rule is on for the rest of the codebase, generated output included. The
-  generator spec's two-condition fallback (console-app promotion) did **not** fire: its
-  trigger is "the strict-props build cannot be made clean," and the wall *can* be made
-  clean via its own operating procedure. Initial placement of the file-scoped section
-  silently narrowed the global `[*.cs]` scope (`.editorconfig` section headers are
-  cumulative until the next header); a fix-up commit moved the arbitration to the file's
-  last section so it no longer narrows any subsequent section.
+   can match. Classified as a **Level 1 recorded fallback** (deviation protocol Level 1;
+   AGENTS.md Hard Rule — "when a rule misfires on real code, the move is a per-rule
+   arbitration comment naming the winner — never a policy rollback"). The pre-authorized
+   remedy is a file-scoped arbitration (`.editorconfig`'s last section:
+   `[tools/opencode-tool.cs]` → `dotnet_diagnostic.MA0048.severity = none`, comment
+   naming the sealed entry contract as winner); it silences MA0048 for that file only,
+   and MA0048 stays `error` for every other file (emission file = type commitment
+   intact). This is a recorded fallback, not a policy rollback — the rule remains on for
+   the rest of the codebase, generated output included. The §3.3 cache-staleness
+   fallbacks (routed-build Level 1; console-app promotion + ADR-0003 correction Level 2)
+   are independent of MA0048 and were not triggered by it: their subject is cache
+   staleness, evaluated under the staleness check below. Initial placement of the
+   file-scoped section silently narrowed the global `[*.cs]` scope (`.editorconfig`
+   section headers are cumulative until the next header); a fix-up commit moved the
+   arbitration to the file's last section so it no longer narrows any subsequent section.
 
 - *Staleness verdict:* **no mitigation needed.** After the ` (cache-probe)` edit and
   re-running `dotnet run --file tools/opencode-tool.cs -- generate` without an
@@ -1033,9 +1036,12 @@ required strict-props finding trace.
   + the `#!/usr/bin/env -S dotnet --` shebang and awaits Linux CI verification in Task 5.
 
 **Decision:** §3.3 verification list passes; the file-based entry survives as sealed.
-Mitigation is **off** — Task 5's CI smoke step does **not** prepend a routed `dotnet
-build` line (the spec §3.3 routed-build option is recorded as available but unneeded).
-Fallback not triggered; no Level 1 or Level 2 deviation. The MA0048 file-scoped
-arbitration is the status quo for this one entry file; if the entry contract ever moves
-(e.g. console-app promotion at a future fallback), the arbitration moves with it or is
-deleted.
+Cache mitigation is **off** — Task 5's CI smoke step does **not** prepend a routed
+`dotnet build` line; the §3.3 cache-staleness fallbacks were **not triggered**
+(marker-present path: routed-build Level 1 unneeded; console-app promotion + ADR-0003
+correction Level 2 dormant). MA0048 is the **one Level 1 recorded fallback executed in
+this slice** — pre-authorized by the analyzer-policy Hard Rule's per-rule arbitration
+procedure (a recorded fallback, not a policy rollback); the file-scoped arbitration is
+the status quo for this one entry file. If the entry contract ever moves (e.g.
+console-app promotion at a future cache-Level-2 trigger), the arbitration moves with it
+or is deleted.
