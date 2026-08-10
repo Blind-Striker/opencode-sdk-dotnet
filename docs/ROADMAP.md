@@ -59,11 +59,14 @@ are hints for the driving agent.
    schemas. **Spec retirement rides this phase's close:** the design specs under
    `docs/superpowers/` are transient — before they are deleted, durable sealed decisions
    without an ADR home distill into ADRs (the research log already carries the chains).
-3. **Later** — MCP server on ModelContextProtocol.AspNetCore + stdio, in this repo (ADR-0006);
-   evaluate NuGet's `McpServer` package type for distribution; its SDK usage defines the
-   deep-tested legacy set (ADR-0005). Aspire AppHost for local dev/test (mini UI,
-   `opencode serve` as a resource) — planned. "opencode HQ" — multi-instance aggregation
-   above the SDK — is a valued future deliverable in its own right, not SDK scope.
+3. **Later** — **MCP server**: in this repo as a thin SDK adapter (ADR-0006). Tech targeting
+   decided 2026-08-08 (research doc 05), **re-sealed at phase start against the then-current
+   MCP landscape:** the 2026-07-28 protocol revision via MCP C# SDK v2.0, stdio + streamable
+   HTTP, no investment in deprecated features. Evaluate NuGet's `McpServer` package type for
+   distribution; its SDK usage defines the deep-tested legacy set (ADR-0005). Aspire AppHost
+   for local dev/test (mini UI, `opencode serve` as a resource) — planned. "opencode HQ" —
+   multi-instance aggregation above the SDK — is a valued future deliverable in its own
+   right, not SDK scope.
 
 ## Open Questions
 

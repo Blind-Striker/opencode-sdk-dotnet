@@ -15,9 +15,11 @@ adapter over our own SDK (ADR-0006). Ecosystem-gap evidence: research docs 03/04
 ## Locked Decisions
 
 One line per decision; rationale lives in the ADRs (`docs/adr/`), dated evidence in
-`docs/research/`. Do not reopen these without new evidence. Fine-grained design currently
-lives in the sealed design specs (transient; reachable via `docs/ROADMAP.md`) until
-build-out distills them.
+`docs/research/`. **Reading the ADRs is an integral part of onboarding — do not propose or
+change design without knowing them.** Not every locked decision has an ADR (ADRs are created
+lazily); this list is the complete inventory of what is settled. Do not reopen without new
+evidence. Fine-grained design currently lives in the sealed design specs (transient;
+reachable via `docs/ROADMAP.md`) until build-out distills them.
 
 - **Target artifact:** upstream's `packages/sdk/openapi.json` (OpenAPI 3.1), pinned under
   `spec/` — the same spec the official JS SDK generates from.
@@ -54,8 +56,6 @@ build-out distills them.
   observation-based gates, absolute determinism, fake only published contracts; TUnit on
   Microsoft.Testing.Platform, real-process integration, three-OS launcher acceptance
   (ADR-0001).
-- **MCP server:** targets the 2026-07-28 spec via MCP C# SDK v2.0, stdio + streamable HTTP
-  (research doc 05).
 
 ## Hard Rules
 
