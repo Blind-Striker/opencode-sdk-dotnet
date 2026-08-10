@@ -460,7 +460,8 @@ folder convention.
 **Command:** `refresh-spec --ref <tag|commit>` — (1) submodule fetch + checkout via CliWrap;
 (2) copy `external/opencode/packages/sdk/openapi.json` → `spec/openapi.json`; (3) rewrite the
 `SNAPSHOT.md` provenance table (commit, tag, `Date:`) and stamp the opencode test-server
-version pin (single-sourced with the spec pin — testing spec §11); (4) print an old-vs-new SpecIR diff
+version pin into the machine-readable `spec/opencode-version` file, relayed by `SNAPSHOT.md`
+(single-sourced with the spec pin — testing spec §11); (4) print an old-vs-new SpecIR diff
 summary (added/removed/changed operationIds) as the refresh PR's review aid; (5) run
 `generate`, which surfaces coverage gaps and fingerprint drift loudly (§5.3). This lands the
 "dedicated spec-refresh tool" that `spec/SNAPSHOT.md` records as planned.

@@ -70,7 +70,13 @@ docs. Do not reopen these without new evidence.
 - **Aspire stays** — planned local dev/test AppHost (mini UI, `opencode serve` as a resource).
 - **Testing:** TUnit on Microsoft.Testing.Platform; unit plus integration tests against a real
   opencode process. Launcher acceptance: three-OS CI with real `opencode serve` start/stop
-  tests.
+  tests. **Posture mirrors the analyzer wall — borderline-paranoid, fail-closed, defensive by
+  default:** coverage gates break the build and verify by observation, not declaration;
+  incidental coverage never substitutes for an intentional test; determinism is absolute (no
+  real LLM or API keys, no fixed ports, no sleep-based waits); counterparties are faked only
+  where upstream publishes a stable test contract — upstream-private protocols are never
+  reverse-engineered. Design and rationale: the testing architecture spec
+  (`docs/superpowers/specs/`).
 - **MCP server:** targets the 2026-07-28 spec via MCP C# SDK v2.0 (stdio + streamable HTTP); no
   investment in deprecated features.
 
@@ -116,6 +122,9 @@ docs. Do not reopen these without new evidence.
 
 ## Engineering Conventions
 
+- **Defensive programming is the default, everywhere:** guard public inputs, assert internal
+  invariants, fail loudly rather than guess — silent fallbacks exist only as explicitly
+  recorded tolerances (ADR-0009 pattern).
 - **Test naming:** `{Symbol}_Should_{Expected_Behavior}[_When_{Condition}]`. Symbol names stay
   intact as one token (`TryResolve`, `NuGet`); every other word is `_`-separated and starts with
   a capital. Example: `TryResolve_Should_Return_False_When_Routes_Are_Invalid`. Test classes are

@@ -42,8 +42,14 @@ One model offered by a Provider.
 **Agent**:
 A configured opencode working mode/persona (build, plan, …) selectable per Session.
 
+**Server process**:
+One running `opencode serve` process (one endpoint); the API is bound to a single Server
+process, and cross-process aggregation lives above the SDK. Owns process-global state (auth
+store, global config, the global event stream).
+
 **Instance**:
-One running opencode server process; the API is bound to a single Instance.
+One project-directory context inside a Server process, selected per request via Directory
+targeting; a Server process hosts many.
 
 **Directory targeting**:
 Per-request project targeting via the `x-opencode-directory` header.

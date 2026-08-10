@@ -831,3 +831,142 @@ container leg, quarantine step, nightly canary; badges out); Verify limited to e
 snapshots + the public API surface lock; coverage philosophy risk-focused with no numeric
 gate. Spec: `superpowers/specs/2026-08-10-testing-architecture-design.md`. Next: a holistic
 grill session (all three specs, testing-strategy focus) → `writing-plans`.
+
+# Session 9 — 2026-08-10: grill session — holistic, testing-architecture focus
+
+Grill session (`grill-with-docs`) across all three specs with full onboarding and **direct
+re-verification of every load-bearing upstream claim** — the brainstorm session verified via
+agent reports; this session read the files by eye (`package.json`, `llm-server.ts`,
+`cli-process.ts`, `test-provider.ts`, `preload.ts`, `bunfig.toml`, all five
+`httpapi-exercise/` files, `sdk/js/src/{server,process}.ts`, `.github/workflows/test.yml`,
+the Dockerfile; reference-repo workflows re-read from GitHub). Decisions sealed one by one
+with the maintainer; the testing spec was corrected in place; AGENTS.md and CONTEXT.md
+gained sealed additions. This entry is the chain.
+
+## Q44: Do the testing spec's upstream claims survive direct re-verification?
+
+**Found:** the headline claims held (three-mode harness, in-process execution, fake-LLM
+tiering, the §5.2 env-isolation set verbatim, port-0 rule, no upstream container harness,
+reference-repo CI patterns). Three fell or sharpened: (1) §6's "content-based routing has
+no precedent" was **false** — upstream's fake ships `pushMatch`/`textMatch`/`toolMatch`
+and its tool-race test uses them exactly where reply order is nondeterministic; (2) the
+fake's `/v1/responses` route serves upstream's native-`@ai-sdk/openai` test families —
+the `openai-compatible` provider config the harness uses only ever calls
+`/chat/completions` (opencode's prompt *and* title paths both stream through it); (3) the
+exerciser's own scenarios display the declaration-vs-depth gap (`v2.integration.*` accept
+500s as "exercised"; the durable stream has only a 404-missing scenario upstream — our
+gap-free resume scenario is novel territory nobody integration-tests over HTTP today).
+Bonus evidence: `cli-process.ts` spawns the CLI with `--port 0` (public API spec §13's
+UNVERIFIED item downgraded to build-out confirmation); the exerciser sets
+`OPENCODE_DISABLE_SHARE`; upstream's Windows CI disables the file watcher
+(teardown-EBUSY class).
+
+**Decision:** §6 rewritten — fake serves `POST /v1/chat/completions` only; `Wait(count)` +
+`Hits`/`Inputs` and per-reply `Usage` ported day-one (the sleep-ban's instrument; upstream
+calls `llmWait(1)` after every prompt scenario against teardown races); `hold`/`raw`/
+`contentFilter`/`pendingTool` recorded as deliberately unported; matching stays unported
+with the record corrected ("precedent exists; no order-nondeterministic scenario here").
+
+## Q45: Does the dual-mode harness survive the container filesystem boundary?
+
+**Found:** §5.4's "per-test temp directories ride the `x-opencode-directory` header" breaks
+in container mode — host paths are meaningless in the container namespace, and seed/verify
+needs a shared filesystem view. Architecture fact sharpened along the way: one `serve`
+process multiplexes **per-directory Instances** (location middleware resolution:
+`location[directory]` query > header > `cwd` fallback — `packages/server/src/location.ts`);
+the maintainer's contrary homelab experience traces to older servers — upstream's app ships
+server-compat logic that strips the header for them.
+
+**Decision:** workspace model — per-run host root bind-mounted at `/workspace`; per-test
+GUID-named subdirectories created through the fixture (`CreateWorkspace()`), exposing
+`ServerPath`/`HostPath` views; tests never hand-build paths. §2 principle 4 reworded:
+process management is the only *free* variable — filesystem namespace and LLM reachability
+are differences *pinned by the fixture*. CONTEXT.md updated: `Instance` = per-directory
+context; new `Server process` term.
+
+## Q46: Auth sweep — through what, and how safely?
+
+**Found:** upstream's auth mode probes with `auth_*` path placeholders and `{}` bodies,
+needed per-route `.probe()` overrides (`global.upgrade` → `{target:1}`; `pty.connectToken`
+→ ticket header) and a 1 s abort race for SSE; credentialed probes **execute parameterless
+mutating routes for real** (upstream's own scenario proves `POST /session {}` creates;
+dispose ops run).
+
+**Decision:** probes ride `SendAsync` + `OpenCodeRoutes` (typed-method→route binding is
+level 2's job; typed probes would demand mechanical construction of 188 inputs); the
+operation inventory gains **HTTP method + path template** fields; a curated probe table in
+test code (body/header overrides, `reason` mandatory) with an `authOnly` flag for
+destructive parameterless ops; SSE probes via `ResponseHeadersRead` (no timeout
+heuristics); data-driven one-result-per-op, sequential, dedicated password-enabled
+instance.
+
+## Q47: Can the gate see assert depth — and what about ops that cannot 2xx?
+
+**Found:** declaration-based gates cannot see depth (upstream counts 500-asserting
+scenarios as covered). The `integration.connect.*`/`integration.attempt.*` family needs
+upstream-private SaaS backends (console proxy) for success paths — under "no API keys
+ever", error-path-only is structural. Faking those backends (maintainer's paranoid lean,
+WireMock floated) was pushed back and rejected on mechanism: an upstream-private,
+unpinned, radar-invisible protocol is the `opencode-mcp` trap moved onto the wire, and its
+CI reds would carry zero SDK signal.
+
+**Decision:** staged **status ledger** — a test `DelegatingHandler` tallies (method, route
+template, status) across the run; the closing gate asserts every modern op observed ≥1 2xx
+(observation, not declaration); `ErrorPathOnly = "reason"` on the attribute exempts
+structurally-blocked ops, reported visibly. Skip-ban enforcement whitelists by attribute
+type (container conditional-skip, `[Quarantined]`). New §2 principle 6: **fake only
+published contracts** (reversal trigger: MCP consumes integrations *and* upstream ships a
+console-URL override).
+
+## Q48: Is contract + sweep + ledger enough against same-source circularity?
+
+**Found/decided:** the sweep breaks the loop at reachability; the ledger proves the
+intentional scenario layer spans the modern success paths — and those paths inherently
+exercise typed deserialization against real responses (missing `required` members and
+wrong types throw). Sealed framing after the maintainer's intention-first objection:
+incidental coverage counts as **defense-in-depth only, never a substitute for intentional
+levels 1–2**. A generic real-response schema validator is rejected on mechanism: its
+subject is upstream's spec↔server conformance, and it would turn the deliberate runtime
+tolerance (ADR-0009) into CI noise. Canonicalized: AGENTS.md Testing statement grew the
+**borderline-paranoid/fail-closed posture** sentence; Engineering Conventions gained the
+**defensive-programming-by-default** rule.
+
+## Q49: What does shared-server parallelism actually risk, and what does integration cost?
+
+**Found:** upstream's harness is sequential with post-mutation resets — no precedent for
+shared-server parallelism; but per-directory Instances mean per-test workspaces isolate
+instance-scoped mutations (`config.update`, `mcp.add`, `project.update`, …) by
+construction. Residual risk is **process-global state** only (`global.*`, the XDG auth
+store, the `tui.*` queue, `sync.start`).
+
+**Decision:** the parallelism boundary is process-global state — such scenarios use a
+dedicated fixture, visible in code; candidates listed, per-op classification at build-out.
+Container leg runs **net10.0 only** (its subject is the server side; client TFM
+sensitivity is covered by the direct legs). Duration guardrail recorded: measure first; an
+integration leg over ~15 min makes the middle TFMs smoke-set candidates — decided then.
+
+## Q50: Pin, GHCR, and canary operational mechanics?
+
+**Decision:** machine-readable `spec/opencode-version` (single-line file) stamped by
+`refresh-spec` alongside `SNAPSHOT.md`, consumed by the CI install steps, the image
+workflow, the container fixture, and the canary report. No scheduled image rebuilds, no
+tag cleanup — the image refreshes at the refresh cadence. Canary failure auto-files a
+`canary`-labeled GitHub issue (label-deduped comment when open) — non-blocking signal made
+durable in the tracker.
+
+## Q51: Do the six TUnit mechanisms hold on the pinned version?
+
+**How researched:** scratchpad spike (`tunit-mechanics-spike`), TUnit 1.63.25, run on
+net472/net8.0/net10.0 — all green, plus docs cross-check.
+
+**Found:** `SharedType.PerTestSession` = exactly one instance per test *process* (a
+multi-TFM assembly boots one shared server per TFM leg); `[InheritsTests]` runs
+base-declared tests once per concrete subclass; custom conditional skip works via
+`SkipAttribute.ShouldSkip(TestRegisteredContext)` override (lifts when the condition
+clears); `[NotInParallel("group")]` serializes exactly the keyed group (active-counter
+asserted) while unconstrained tests parallelize; category splits work via
+`--treenode-filter "/*/*/*/*[Category=X]"`; MTP discovers `[AppName].testconfig.json` and
+TUnit reads arbitrary nested keys via `TestContext.Configuration.Get` — the
+`testingPlatform.environmentVariables` section did **not** apply and is not relied upon.
+
+**Decision:** the TUnit block leaves §14; results recorded at their §5.1/§5.4 use sites.

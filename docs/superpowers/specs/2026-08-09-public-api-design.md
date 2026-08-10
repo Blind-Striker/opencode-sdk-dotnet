@@ -677,17 +677,19 @@ public sealed class OpenCodeServerOptions
 - Readiness mirrors upstream: parse stdout for the listening line (the URL must come from
   there anyway); timeout kills and reports captured output.
 - Port selection: `null` (default) requests an automatic port — `--port=0` first (the
-  readiness line prints the actually bound port; CLI acceptance of 0 is UNVERIFIED),
-  falling back to a launcher-probed free port (`TcpListener(0)`) with bounded retry on
-  child bind failure. An explicit `Port` is used exactly and fails loud on conflict —
-  never scanned.
+  readiness line prints the actually bound port; CLI acceptance of 0 is evidenced by
+  upstream's own test fixture, which spawns the CLI with `--port 0` and parses the bound
+  port from stdout — `test/lib/cli-process.ts`; release-binary confirmation at launcher
+  build-out), falling back to a launcher-probed free port (`TcpListener(0)`) with bounded
+  retry on child bind failure. An explicit `Port` is used exactly and fails loud on
+  conflict — never scanned.
 - `CreateClient()` wires endpoint + password automatically (§10 auth chain).
 - Upstream's `createOpencodeTui` has no counterpart here (out of SDK scope).
 - **Implementation is explicitly a deep-dive** (maintainer-flagged; not simple): the
   six-point anatomy of doc 06 §3 (arg quoting per TFM, continuous stdout/stderr drain
   against pipe-buffer deadlock, Unix SIGTERM P/Invoke grace, tree-kill fallbacks, Windows
   Job Object orphan protection, net11 light-up collapse), the ROADMAP net472 spike items,
-  and port-conflict/ephemeral-port handling (`--port=0` support UNVERIFIED). Acceptance
+  and port-conflict/ephemeral-port handling. Acceptance
   criterion stands: no merge without three-OS CI running real `opencode serve` start/stop
   tests. Reference implementation: MCP C# SDK `StdioClientTransport`.
 
@@ -728,6 +730,7 @@ public sealed class OpenCodeServerOptions
   design corrections applied throughout this spec.
 - **Launcher deep-dive** (§13) and the net472 spike items (ROADMAP); the grill adds
   `--port=0` verification and child bind-failure signature detection.
-- **UNVERIFIED items carried forward:** ephemeral-port support (`--port=0`); the
+- **UNVERIFIED items carried forward:** the
   `sync.*` group's relation to the durable stream (doc 10); upstream migration-guide
-  existence (doc 09).
+  existence (doc 09). (Ephemeral-port support left this list 2026-08-10: upstream's own
+  test fixture spawns the CLI with `--port 0` — §13.)

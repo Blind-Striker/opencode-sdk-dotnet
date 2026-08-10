@@ -19,24 +19,24 @@ ADRs 0007–0009, research docs 11–12, and corrections throughout the spec. Ge
 architecture designed and grill-hardened — spec at
 `superpowers/specs/2026-08-09-generator-architecture.md`; its grill (2026-08-09, research log
 session 7) run-proved the converter dispatch shape and hardened the spec in place. Testing
-architecture & strategy designed — spec at
+architecture & strategy designed and grill-hardened — spec at
 `superpowers/specs/2026-08-10-testing-architecture-design.md` (upstream test-infra
-verification and reference-repo CI patterns: research log session 8). No SDK code yet —
-next up: the holistic grill session (all three specs, testing-strategy focus), then
-`writing-plans`.
+verification: research log session 8; the holistic grill, session 9, re-verified upstream
+claims by eye, corrected the fake-LLM contract, sealed the workspace/instance harness
+model, auth-sweep mechanics, the status-ledger coverage gate, and the parallelism
+boundary, and spike-proved the TUnit mechanics; AGENTS.md gained the testing-posture and
+defensive-programming statements). No SDK code yet — next up: `writing-plans`.
 
 ## Queue
 
 In order — do not improvise beyond it without asking the maintainer. Parenthetical skill notes
 are hints for the driving agent.
 
-1. **Design runway — remaining steps.** All three design specs are done and sealed
-   (`superpowers/specs/2026-08-09-public-api-design.md`,
+1. **Design runway — final step.** All three design specs are done, sealed, and
+   grill-hardened (`superpowers/specs/2026-08-09-public-api-design.md`,
    `superpowers/specs/2026-08-09-generator-architecture.md`,
-   `superpowers/specs/2026-08-10-testing-architecture-design.md`; ADRs 0007–0009).
-   Remaining, in order: the **holistic grill session** — all three specs on the table,
-   focus on the testing spec (priming prompt:
-   `agents/handover-prompts/HANDOFF-2026-08-10-testing-grill-session.md`) →
+   `superpowers/specs/2026-08-10-testing-architecture-design.md`; ADRs 0007–0009;
+   holistic grill: research log session 9). Remaining:
    `writing-plans` (multi-phase; phases are vertical slices co-developing `tools/`, SDK,
    Extensions, and tests — co-development per spec §3 / ADR-0006). `api-design`
    (extend-only) + `snapshot-testing` (Verify) lock the public surface as implementation
@@ -76,9 +76,10 @@ are hints for the driving agent.
   retired by the converter design).
 - **Spec tracking:** `openapi.json` changes on every upstream push — snapshot per SDK release +
   diff/regen workflow (`spec/SNAPSHOT.md` is the pin; the submodule tracks upstream).
-- **Launcher deep-dive items** (spec §13): auto-port mechanics (`--port=0` support
-  UNVERIFIED; `TcpListener(0)` probe fallback with bounded retry; child bind-failure
-  signature detection); six-point anatomy of doc 06 §3 at implementation.
+- **Launcher deep-dive items** (spec §13): auto-port mechanics (`--port=0` evidenced by
+  upstream's own test fixture, release-binary confirmation at build-out; `TcpListener(0)`
+  probe fallback with bounded retry; child bind-failure signature detection); six-point
+  anatomy of doc 06 §3 at implementation.
 - **Release mechanics** — decided parts live in ADR-0006 (independent semver, per-merge GitHub
   Packages CD, manual NuGet.org release pipeline). Still open: pre-1.0/preview numbering,
   `VersionPrefix`, RELEASE_NOTES flow, the concrete workflows.

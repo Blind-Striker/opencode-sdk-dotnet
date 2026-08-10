@@ -5,9 +5,10 @@ Date: 2026-08-10
 Design specification produced by the testing-architecture brainstorm session (2026-08-09/10,
 ROADMAP queue item 1 — its final design step). Every decision below was discussed and sealed
 individually with the maintainer. This spec owns the ROADMAP Open Questions item "Testing
-strategy details". Process sequencing agreed: an optional grill session stress-tests this spec;
-then `writing-plans` produces the multi-phase implementation plan (vertical slices co-developing
-`tools/`, SDK, Extensions, and tests).
+strategy details". The holistic grill session (2026-08-10, research log session 9)
+stress-tested this spec against the other two specs, re-verified its upstream claims at
+source level, and hardened it in place; next, `writing-plans` produces the multi-phase
+implementation plan (vertical slices co-developing `tools/`, SDK, Extensions, and tests).
 
 ## 1. Scope and inputs
 
@@ -73,11 +74,32 @@ GitHub (`localstack-dotnet/localstack-dotnet-client`,
    not a report (§7) — upstream's `--fail-on-missing` rendered in TUnit.
 4. **Dogfood by design, with a built-in control.** The direct-mode harness starts servers
    through our own launcher; container mode manages the process itself and never touches the
-   launcher. The two modes differ in exactly one variable — process management — so
-   "direct red, container green" indicts the launcher (§5).
+   launcher. The modes are engineered so that process management is the only *free* variable:
+   their other structural differences — filesystem namespace and fake-LLM reachability — are
+   pinned by the fixture (workspace bind mount and host-port exposure, §5.3), so
+   "direct red, container green" still indicts the launcher (§5).
 5. **Same-source circularity is acknowledged, not hidden.** Level 2's fixtures and the
    generator derive from the same spec: a misread spec produces models and stubs that agree
-   with each other. Only level 3 (and its mechanical sweep, §7.3) breaks the loop.
+   with each other. Only level 3 (and its mechanical sweep, §7.3) breaks the loop. The sweep
+   breaks it at reachability; the status ledger (§7.2) proves the intentional scenario layer
+   spans the modern surface's success paths — and those paths inherently exercise typed
+   deserialization against real responses, counted as **defense-in-depth, never as a
+   substitute for the intentional levels 1–2**: incidental coverage never cancels an
+   intentional test. A generic real-response schema validator is rejected on mechanism: its
+   subject is upstream's spec↔server conformance (upstream's own harness tests exactly
+   that), and it would turn the deliberate runtime tolerance (§2.1 / ADR-0009) into CI noise
+   on upstream's hourly-beta cadence.
+6. **Fake only published contracts.** A counterparty is faked only where upstream itself
+   publishes and stabilizes the contract for test use — the LLM qualifies: the
+   openai-compatible wire protocol behind an official provider `baseURL` config affordance.
+   Upstream-private protocols — the console/SaaS backends behind the integration family —
+   are never reverse-engineered into fakes: that is the `opencode-mcp` trap class (research
+   doc 03) moved onto the wire, with no pin and no fingerprint radar to see it drift, and
+   its CI reds would say "upstream's console moved", never "our SDK broke". Operations whose
+   success path needs such a backend carry an honest `ErrorPathOnly` declaration instead
+   (§7.2). Reversal trigger, recorded: the MCP server's consumed set (ADR-0005) grows to
+   include integration operations *and* upstream ships a documented console-URL override
+   affordance — then a minimal fake is re-evaluated as extend-only.
 
 ## 3. Test levels (the backbone)
 
@@ -123,7 +145,8 @@ separate project because its run profile differs (duration, opencode-installed p
 distinct CI gating). netstandard2.0 has no runtime; the net472 legs are its proxy coverage
 (ADR-0002) — the integration net472 leg is the *behavioral* half of that claim
 (`HttpWebRequest`-based handler stack, `ServicePointManager` limits, long-lived SSE on
-Framework). Launcher acceptance tests live inside Integration.Tests in their own folder and do
+Framework). The Linux container leg runs net10.0 only (§11.2). Launcher acceptance tests
+live inside Integration.Tests in their own folder and do
 **not** use the dual-mode harness — the launcher is the SUT there (§9.2). The fake LLM fixture
 lives under Integration.Tests (`Support/`) until a second consumer forces extraction (YAGNI).
 
@@ -138,9 +161,22 @@ no bespoke environment variable exists (sealed: a single global switch was expli
 rejected). Suites that must run against both modes use an abstract base test class with two
 thin `[InheritsTests]` subclasses. The container fixture self-skips via a TUnit conditional
 skip attribute when Docker is unavailable or the OS leg cannot run it. If a global override is
-ever added it must be platform-native (MTP `testconfig.json` is the candidate) — mechanism
-verification at build-out (§14). Tests see only the surface: `Uri Endpoint` +
-`OpenCodeClient CreateClient()`.
+ever added it must be platform-native — the channel exists and is run-verified: MTP discovers
+`[AppName].testconfig.json` and TUnit reads arbitrary nested keys from it via
+`TestContext.Configuration.Get("harness:mode")`. Tests see only the surface: `Uri Endpoint`,
+`OpenCodeClient CreateClient()`, and `Workspace CreateWorkspace()` (§5.4).
+
+**TUnit mechanics run-verified** (2026-08-10 scratchpad spike; TUnit 1.63.25 on
+net472/net8.0/net10.0, all green): `SharedType.PerTestSession` creates exactly one fixture
+instance per test process — a multi-TFM assembly boots one shared server per TFM leg;
+`[InheritsTests]` runs base-declared tests once per concrete subclass; custom conditional
+skip works by overriding `SkipAttribute.ShouldSkip(TestRegisteredContext)` (skip lifts when
+the condition clears, with the reason reported); `[NotInParallel("group")]` serializes
+exactly the keyed group (mechanically asserted via an active-counter) while unconstrained
+tests run in parallel; category CI splits work via
+`--treenode-filter "/*/*/*/*[Category=X]"`. The `testingPlatform.environmentVariables`
+section of testconfig.json is **not relied upon** (did not apply in the spike's MTP
+version); the `Configuration.Get` channel is the verified one.
 
 ### 5.2 Direct mode
 
@@ -150,7 +186,9 @@ PATH with an in-code fixture option to override. Isolation is a verbatim port of
 test contract (`cli-process.ts`): `HOME`/`XDG_*`/`OPENCODE_TEST_HOME` redirected to a per-run
 temp root, `OPENCODE_DISABLE_PROJECT_CONFIG=1`, `OPENCODE_PURE=1`,
 `OPENCODE_DISABLE_AUTOUPDATE=1`, `OPENCODE_DISABLE_AUTOCOMPACT=1`,
-`OPENCODE_DISABLE_MODELS_FETCH=1`, `OPENCODE_AUTH_CONTENT={}`, and the whole config injected
+`OPENCODE_DISABLE_MODELS_FETCH=1`, `OPENCODE_AUTH_CONTENT={}`, plus `OPENCODE_DISABLE_SHARE=1`
+(from upstream's exerciser environment, not `cli-process.ts` — `session.share` otherwise
+calls out to the share service), and the whole config injected
 inline via `OPENCODE_CONFIG_CONTENT` (the fake LLM provider rides in here, §6). This set fully
 decouples tests from any developer-installed opencode state without requiring a container.
 
@@ -163,17 +201,38 @@ published to **GHCR** (GitHub Container Registry) with a version-pinned tag
 (`…/opencode-test:<opencode-version>`); an image build+push workflow runs when the Dockerfile
 or the pin changes; tests (CI and local alike) pull the pinned tag. Readiness is port + health
 probe (stdout parsing is brittle across a container boundary); teardown rides the container
-lifecycle. The fake LLM runs host-side; the container reaches it through Testcontainers'
+lifecycle. The per-run workspace root (§5.4) is bind-mounted into the container at a fixed
+path (`/workspace`, name draft), pinning the filesystem-namespace difference: tests and server
+share one physical directory tree, and the fixture translates between the host view and the
+container view. The fake LLM runs host-side; the container reaches it through Testcontainers'
 host-port exposure (exact API at build-out, §14) and the `OPENCODE_CONFIG_CONTENT` provider
 `baseURL` points at it.
 
 ### 5.4 Lifetime and parallelism (sealed)
 
-One shared server per test assembly per mode (TUnit shared fixture); per-test isolation is
-**session-level** — each test creates its own session, per-test temp directories ride the
-`x-opencode-directory` header. Exceptions spawn their own dedicated process: launcher
-acceptance tests (raw by definition), disconnect/kill scenarios, destructive instance-level
-operations, and the auth sweep (§7.3, password-enabled instance).
+One shared **server process** per test assembly per mode (TUnit shared fixture;
+`PerTestSession` scope is per test *process*, so each TFM leg boots its own server —
+spike-verified, §5.1); per-test isolation is **instance-level**. The server multiplexes per-directory Instances — directory
+resolution per request is `location[directory]` query > `x-opencode-directory` header > `cwd`
+fallback (verified in upstream's location middleware, `packages/server/src/location.ts`) — so
+each test creates its own session plus its own **workspace**: a GUID-named subdirectory of a
+per-run workspace root, created through the fixture (`Workspace CreateWorkspace()`, name
+draft) — tests never hand-build paths. A per-test workspace means a per-test Instance:
+instance-scoped mutations (`config.update`, `mcp.add`, `project.update`, `instance.dispose`,
+…) are test-local by construction. A workspace exposes two views: `ServerPath` (what rides
+the `x-opencode-directory` header) and `HostPath` (where the test seeds and verifies files).
+In direct mode the views coincide; in container mode the root is bind-mounted (§5.3) and the
+fixture translates.
+
+**The parallelism boundary is process-global state (sealed rule):** a scenario touching only
+instance-scoped state runs on the shared process with its own workspace; a scenario touching
+process-global state — candidates: `global.*` (config/dispose/upgrade), `auth.set`/
+`auth.remove` (the XDG auth store), the `tui.*` request queue, `sync.start` — uses a
+dedicated fixture (`DedicatedOpenCodeServerFixture`, name draft), making the need visible in
+code (§5.1 philosophy). The candidate list is classified per operation at build-out; the
+gate cannot verify this mechanically — convention plus review, recorded honestly. Dedicated
+processes also serve: launcher acceptance tests (raw by definition), disconnect/kill
+scenarios, and the auth sweep (§7.3, password-enabled instance).
 
 ## 6. The fake LLM server
 
@@ -184,12 +243,29 @@ Effect-TS). Rejected alternatives: WireMock and the mock-framework field (§3); 
 upstream's own `TestLLMServer` via bun (a dependency on upstream's *private test internals* —
 the same class of trap that sank `opencode-mcp`, research doc 03).
 
-Shape: Kestrel minimal host on port 0, `POST /v1/chat/completions` + `POST /v1/responses`
-(upstream's fake serves both; we stay provider-agnostic). Behavior surface ported: a scripted
-reply queue — `EnqueueText`, `EnqueueToolCall`, `EnqueueReasoning`, `EnqueueHang`,
-`EnqueueStreamError`, `EnqueueHttpError(status)`, `EnqueueConnectionReset` (names draft) —
-auto-`"ok"` for unqueued requests, a fixed auto-answer for title-generation requests,
-deterministic SSE chunking (no delay by default; chunk size/delay configurable per reply).
+Shape: Kestrel minimal host on port 0, `POST /v1/chat/completions` **only** — the endpoint the
+`@ai-sdk/openai-compatible` test provider actually calls (verified in upstream source:
+opencode's whole prompt *and* title path streams through it — `session/llm.ts` `streamText`,
+`session/prompt.ts` title via `llm.stream`; upstream's second route, `POST /v1/responses`,
+serves its native-`@ai-sdk/openai` test families, which have no counterpart here — extend-only
+if a Responses-mode scenario ever appears). Behavior surface ported, sized to our need:
+
+- The scripted reply queue — `EnqueueText`, `EnqueueToolCall`, `EnqueueReasoning`,
+  `EnqueueHang`, `EnqueueStreamError`, `EnqueueHttpError(status)`, `EnqueueConnectionReset`
+  (names draft) — with per-reply `Usage` (token counts; message usage/cost assertions need
+  the fake to produce them); auto-`"ok"` for unqueued requests, a fixed auto-answer for
+  title-generation requests, deterministic SSE chunking — the last one **our own addition,
+  not an upstream port** (upstream streams queued lines as-is): no delay by default, chunk
+  size/delay configurable per reply, to choreograph the cadence of the run opencode
+  produces (progressive part/event emission) deterministically.
+- The request-side surface: `WaitForRequestsAsync(count)` plus `Hits`/`Inputs` inspection
+  (names draft) — the event-bound wait determinism rule 3 (§8.1) requires. Upstream's own
+  harness calls `llmWait(1)` after every prompt scenario precisely so in-flight requests
+  cannot leak past teardown; the same race exists here on a shared fake.
+- Deliberately not ported (upstream has them; no scenario here needs them — extend-only
+  candidates): `hold` (promise-gated mid-stream pauses), `raw` (arbitrary/malformed chunk
+  injection — tolerance to a broken LLM stream is opencode's contract to test, not ours),
+  and the `contentFilter`/`pendingTool` reply variants.
 
 **Scope:** every test that needs assistant activity — the five prompt operations upstream's
 harness itself forces onto the fake (`session.prompt`, `session.prompt_async`,
@@ -201,8 +277,11 @@ use it at all.
 
 **Parallelism (sealed):** the queue is global per server, so prompt-dependent tests serialize
 in a TUnit `[NotInParallel("llm")]` constraint group; everything else stays parallel.
-Content-based request routing was considered and rejected as complexity without precedent —
-upstream relies on queue discipline the same way.
+Content-based request routing stays unported — with the record corrected: upstream *does*
+ship it (`pushMatch`/`textMatch`/`toolMatch`; its tool-race test matches replies by content
+exactly because reply order there is nondeterministic), but no scenario here produces
+order-nondeterministic LLM calls while the `llm` group serializes. If one appears, matching
+joins as an extend-only addition.
 
 ## 7. Coverage mechanization — "every endpoint exercised"
 
@@ -211,7 +290,9 @@ Upstream's three harness modes translate into this architecture as follows.
 ### 7.1 Operation inventory (tool-emitted)
 
 `generate` emits, alongside the SDK output, a committed **operation inventory** artifact for
-test consumption: operationId, surface (modern/legacy), SSE flag, excluded flag. It derives
+test consumption: operationId, surface (modern/legacy), HTTP method, path template with its
+path-parameter names, SSE flag, excluded flag — method and path template exist so the auth
+sweep (§7.3) stays a pure loop over this data. It derives
 from SpecIR — the tests never parse the spec themselves — and sits under the regen-verify
 umbrella, so a spec refresh shows the inventory diff in the PR. (The generator-spec edit this
 implies is listed in §13 below.)
@@ -227,21 +308,58 @@ declarations against the inventory:
 - **Legacy: best-effort today, consumer-driven tomorrow.** When the MCP server lands, its SDK
   call set is derived mechanically (ADR-0005) and joins the hard gate. The expansion point is
   part of this design, not a future renegotiation.
+- **Depth is observed, not declared — the status ledger (staged).** A declaration proves a
+  scenario exists, not that it proves anything (upstream's own harness shows the trap: its
+  `v2.integration.*` scenarios accept 500s as "exercised"). Stage 2 closes this mechanically:
+  a test `DelegatingHandler` on every fixture-created client tallies (method, route template,
+  status) across the integration run, and a closing gate test asserts **every modern
+  operation observed at least one 2xx** — observation, not declaration. The route-template
+  matcher is shared with the sweep (§7.3; the inventory carries method + path template,
+  §7.1). Stage 1 (day one, before the scenario suite exists) is the declaration diff alone.
+- **`ErrorPathOnly` is an honest, reasoned exemption.** Operations whose success path
+  structurally needs an upstream-private backend (§2 principle 6; day-one candidates: the
+  `integration.connect.*` / `integration.attempt.*` family) declare it on the attribute —
+  `[ExercisesOperation("…", ErrorPathOnly = "success path needs the real console backend")]`
+  — reason mandatory. The gate counts the declaration, exempts the operation from the 2xx
+  requirement, and reports the exempt list — visible, never silent.
 - Excluded operations (`pty.connect`, both surfaces) are inventory-flagged and gate-exempt.
 - `Skip` attributes are forbidden on scenario tests (the same gate test enforces this by
-  reflection) — upstream's `--fail-on-skip`. Quarantine (§8) is the only sanctioned
+  reflection, whitelisting by attribute type: the container fixture's Docker-unavailable
+  conditional skip (§5.1) and `[Quarantined]` (§8.2) are the only sanctioned skip
+  mechanisms) — upstream's `--fail-on-skip`. Quarantine (§8) is the only sanctioned
   suppression, and the gate counts quarantined coverage separately: an operation whose *only*
   scenario is quarantined is a gate warning.
 
 ### 7.3 Auth + reachability sweep
 
-A mechanical, scenario-less loop generated from the inventory, run against a **dedicated**
-password-enabled server instance: for every operation, through the SDK, (a) without
+A mechanical, scenario-less loop over the operation inventory (a TUnit data source — one
+reported result per operation, zero per-operation code), run **sequentially** against a
+**dedicated** password-enabled server instance: for every operation, (a) without
 credentials → expect 401; (b) with credentials → expect non-401 and route-exists (400/422/
 404-entity acceptable — proof the route, method, and auth plumbing reached validation).
 This is upstream's `auth` mode ported, and it is the piece that breaks the same-source loop
 (§2 principle 5) mechanically for all operations on both surfaces: the counterparty is the
-real server, not the spec.
+real server, not the spec. Mechanics (sealed):
+
+- **Probes ride `SendAsync` + `OpenCodeRoutes`, not typed operation methods.** The sweep
+  proves route/method/auth plumbing against the real server; the typed-method→route binding
+  is level 2's job (the stub sees the request each typed method produced), so typed calls
+  here would duplicate level 2 while demanding mechanical construction of 188 typed inputs.
+  Path parameters fill with `auth_*` placeholders (nonexistent entities — upstream's own
+  trick); non-GET bodies default to `{}`. The probes still flow through the real client
+  pipeline, so auth decoration itself is exercised.
+- **A small curated probe table in test code** (upstream's per-scenario `.probe()` ported):
+  per-operation optional body/header overrides, `reason` mandatory — upstream itself needed
+  `{target: 1}` for `global.upgrade` and a ticket header for `pty.connectToken`.
+- **`authOnly` flag** in the same table for destructive parameterless operations
+  (`instance.dispose`, `global.dispose`, `sync.start`, …): their credentialed half would
+  execute for real and can kill the sweep's own instance, so it is skipped — the 401 half
+  still runs, and their reachability is proven by their dedicated-instance scenarios (§5.4).
+  Harmless creations (`POST /session` with `{}` creates a session) are accepted on the
+  dedicated, disposable instance.
+- **SSE operations probe via `ResponseHeadersRead`**: the status arrives with the headers
+  and the stream is cancelled immediately — no timeout heuristics (upstream needs a 1 s
+  abort race here; we do not).
 
 ### 7.4 The `effect` counterpart
 
@@ -252,8 +370,10 @@ mutation-verifying, stream-consuming depth where it matters.
 
 ### 8.1 Determinism rules (sealed)
 
-1. **No real LLM, no API keys, anywhere in CI — ever.** The fake LLM is the only path. This
-   deliberately **corrects the ROADMAP assumption** "deterministic runs against free models":
+1. **No real LLM, no API keys — and no outbound network beyond localhost — anywhere in CI,
+   ever.** The fake LLM is the only path, and the isolation env set (§5.2) switches off every
+   known outbound call (models fetch, autoupdate, share). This deliberately **corrects the
+   ROADMAP assumption** "deterministic runs against free models":
    the upstream verification showed upstream itself never hits a real model in tests (keys
    deleted in preload, no CI secrets) — free models would be cheap but still nondeterministic.
    A live-model suite is likewise rejected (recorded so it is not casually reopened): the SDK's
@@ -358,25 +478,42 @@ Extends the existing `ci.yml` (three-OS build + test + TRX + dorny + artifacts, 
 format gate, and the generator spec §13 `generate --verify` step):
 
 1. **Three-OS legs grow:** install opencode on the runner (npm, **pinned version**) and run
-   Integration.Tests in direct mode. The pin is **single-sourced** with the spec pin family:
-   `refresh-spec` stamps the test-server version alongside `spec/SNAPSHOT.md`, and the
-   container image tag consumes the same pin. Invariant made mechanical: *an SDK generated
-   from spec vX is tested against server vX.*
+   Integration.Tests in direct mode. The pin is **single-sourced** with the spec pin family
+   and **machine-readable**: `refresh-spec` stamps `spec/opencode-version` — a single-line
+   text file (extended only if a second pin value ever materializes) — alongside the
+   human-read `spec/SNAPSHOT.md`, which relays it. Its consumers: the three-OS install
+   steps, the image build workflow (tag + build arg), the container fixture (which tag to
+   pull), and the canary's pin-vs-latest report. Invariant made mechanical: *an SDK
+   generated from spec vX is tested against server vX.*
 2. **New Linux container leg:** pulls the pinned GHCR image, runs Integration.Tests in
-   container mode (the clean-install lane). The image build+push workflow is separate and
-   runs only when the Dockerfile or the pin changes.
+   container mode (the clean-install lane), **net10.0 only** (sealed): the lane's subject is
+   the server side — clean install, image, process management — while TFM sensitivity lives
+   in the client's HTTP stack, which the three-OS direct legs already cover on every TFM;
+   more container TFMs would multiply container churn for no new signal. The image
+   build+push workflow is separate and runs only when the Dockerfile or the pin changes —
+   no scheduled rebuilds and no tag cleanup (public GHCR, YAGNI): the image refreshes
+   naturally on every pin bump, i.e. at the refresh cadence itself.
 3. **Quarantine step:** non-blocking, category-filtered (§8.2).
 4. **Nightly canary (non-blocking):** a scheduled job installs **unpinned** `opencode@latest`
-   and runs the integration suite. Rationale: upstream ships hourly betas; the fingerprint
-   radar only sees the spec at refresh time — the canary surfaces *behavioral* drift between
-   refreshes. Direct precedent: the maintainer's own `aws-sdk-canary.yml`
-   (localstack-dotnet-client), whose header records that pinned CI once missed a breaking
-   change for 70 days.
+   and runs the integration suite — read-only CI signal, no deployment anywhere; it answers
+   "does our shipped SDK still work against what consumers actually install today".
+   Rationale: upstream ships hourly betas; the fingerprint radar only sees the spec at
+   refresh time — the canary surfaces *behavioral* drift between refreshes, and normal CI
+   never can (it only ever sees the pin — exactly how the reference repo's pinned CI missed
+   a breaking change for 70 days, per its own `aws-sdk-canary.yml` header). **Ownership is
+   the issue tracker (sealed):** on failure the job files a `canary`-labeled GitHub issue,
+   or comments the run link onto the already-open one (label-deduped) — the non-blocking
+   signal lands durably where triage already looks (`docs/agents/issue-tracker.md`) instead
+   of rotting in the Actions tab.
 5. **TRX/dorny extends** to the new legs with distinct leg names. Badges are out of scope
    (YAGNI; the BadgeSmith flow can be ported later if wanted).
 6. **Local dev loop:** default experience is direct mode; fast inner loop is the unit+contract
    categories under MTP (`mtp-hot-reload` for red-test iteration, per ROADMAP); container
    tests self-skip without Docker.
+7. **Duration guardrail (recorded, no speculative trimming):** if an integration leg exceeds
+   ~15 minutes, the first trim candidate is reducing the middle TFMs (net8.0/net9.0) to a
+   smoke scenario set — the decision is taken then, with measurements; the all-TFMs seal (§4)
+   is not renegotiated from scratch.
 
 ## 12. Fixtures, snapshots, coverage philosophy
 
@@ -403,22 +540,17 @@ format gate, and the generator spec §13 `generate --verify` step):
   strategy details" open question resolves to this spec; the "free models" wording is
   corrected per §8.1; the Extensions/integration test-project additions in queue 2 now follow
   §4.
-- **Generator spec:** the tool's output list gains the operation inventory and the contract
-  fixtures (§7.1, §3); §11 becomes a pointer to this spec (its caveat anticipated exactly
-  this).
+- **Generator spec:** the tool's output list gains the operation inventory (§7.1 — including
+  its HTTP method and path-template fields) and the contract fixtures (§3); §11 becomes a
+  pointer to this spec (its caveat anticipated exactly this); §10's refresh-spec flow names
+  the machine-readable pin file (§11.1).
 - **`spec/SNAPSHOT.md` family:** `refresh-spec` additionally stamps the opencode test-server
-  pin (§11.1).
-- **Handover:** `docs/agents/handover-prompts/HANDOFF-2026-08-09-testing-session.md` is
-  deleted when this session's outcome ships.
+  pin into `spec/opencode-version`, relayed by `SNAPSHOT.md` (§11.1).
 
 ## 14. UNVERIFIED / build-out items
 
-- **TUnit mechanics** (all believed supported, none run-verified yet): `ClassDataSource`
-  shared-instance semantics across a multi-TFM assembly, `[InheritsTests]` dual-run shape,
-  custom conditional-skip attributes, `[NotInParallel("group")]` constraint groups, MTP
-  `testconfig.json` as the global-override channel, category filtering syntax for the CI
-  splits. First build-out step of the integration project is a thin spike proving these.
-- **Testcontainers .NET host-port exposure** API shape for the fake-LLM reachability (§5.3).
+- **Testcontainers .NET host-port exposure** API shape for the fake-LLM reachability, and the
+  bind-mount API shape for the workspace root (§5.3).
 - **GHCR anonymous pull** for the public repo's image (expected to work; verify before wiring
   the container leg).
 - **opencode installation path** for CI runners and the Dockerfile (npm package name,
@@ -427,4 +559,12 @@ format gate, and the generator spec §13 `generate --verify` step):
   cheaper TCP-only check).
 - **Verify.TUnit** package addition to `Directory.Packages.props`.
 - **Fake-binary launcher test technique** portability (script vs tiny compiled helper) across
-  the three OS legs.
+  the three OS legs. Reference for its scripted stdout: upstream's own readiness parse is
+  `/listening on (http:\/\/([^\s:]+):(\d+))/` (`cli-process.ts`) — the fake binary replays
+  these line shapes and their failure variants.
+- **Windows filewatcher flake knob (informational):** upstream disables the server's file
+  watcher on its Windows CI and in the desktop WSL sidecar
+  (`OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER=true`, a documented env var) — watcher handles
+  on watched directories are a known Windows teardown-EBUSY/flake source. Not in our default
+  env set (it changes server behavior: watcher-driven events stop); it is the first knob to
+  reach for if the Windows integration leg flakes on workspace cleanup.
