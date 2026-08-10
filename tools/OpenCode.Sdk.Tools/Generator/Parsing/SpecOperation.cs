@@ -27,6 +27,12 @@ public sealed record SpecOperation
     /// <summary>Whether the operation is marked deprecated.</summary>
     public required bool IsDeprecated { get; init; }
 
+    /// <summary>The operation parameters in source document order.</summary>
+    public required IReadOnlyList<SpecParameter> Parameters { get; init; }
+
+    /// <summary>The request body, when the operation declares one.</summary>
+    public SpecRequestBody? RequestBody { get; init; }
+
     /// <summary>The optional short operation summary.</summary>
     public string? Summary { get; init; }
 
