@@ -10,6 +10,8 @@ on:
     branches:
       - master
       - "feature/*"
+    # GitHub evaluates the cumulative PR diff. A docs-only follow-up to an already-green
+    # mixed PR uses [skip ci] in its commit message instead of rerunning this matrix.
     paths-ignore:
       - "**.md"
       - LICENSE
@@ -57,9 +59,17 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj', '**/dotnet-tools.json') }}
           restore-keys: |
             ${{ runner.os }}-nuget-
+
+      - name: Restore local tools
+        if: runner.os == 'Linux'
+        run: dotnet tool restore
+
+      - name: Detect slop
+        if: runner.os == 'Linux'
+        run: dotnet tool run slopwatch analyze --fail-on warning
 
       - name: Build
         run: dotnet build --configuration Release

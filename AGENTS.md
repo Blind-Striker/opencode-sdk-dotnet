@@ -94,6 +94,12 @@ reachable via `docs/ROADMAP.md`) until build-out distills them.
 - Prefer small correct changes over broad refactors.
 - Verify before claiming: "builds" and "works" are different words — run build, tests, and the
   format gate before reporting done.
+- Run the local Slopwatch gate as `dotnet tool run slopwatch analyze --exclude
+  ".scratchpad/**,external/**" --fail-on warning`; local throwaway work and checked-out upstream
+  submodules are outside the repository-authored code surface.
+- A docs-only follow-up commit to an already-green mixed PR uses `[skip ci]` only when every
+  change since the tested commit is Markdown or `LICENSE`. Never skip CI for source, tests,
+  project/build files, tool manifests or baselines, workflow files, or generated artifacts.
 - Research/decision sessions end with a documentation pass (research log in
   question→finding→decision format, topic docs, ROADMAP) and a single commit.
 - Commit messages follow Conventional Commits (`feat`, `fix`, `docs`, `test`, `refactor`,
