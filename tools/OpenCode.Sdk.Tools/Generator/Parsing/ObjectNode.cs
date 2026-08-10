@@ -9,6 +9,9 @@ public sealed record ObjectNode : SchemaNode
     /// <summary>Required literal-valued properties in source document order.</summary>
     public required IReadOnlyList<LiteralMarker> LiteralMarkers { get; init; }
 
+    /// <summary>The structural error convention represented by this object.</summary>
+    public required ErrorStyle ErrorStyle { get; init; }
+
     /// <summary>How properties outside <see cref="Properties"/> are handled.</summary>
     public required AdditionalPropertiesKind AdditionalProperties { get; init; }
 
