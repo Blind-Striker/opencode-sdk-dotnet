@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 
 namespace OpenCode.Sdk.Tools.Generator.Parsing;
@@ -35,9 +36,32 @@ internal sealed class SchemaNodeParser
             return null;
         }
 
+        var hasAnyOf = schema.TryGetProperty("anyOf", out var anyOf);
+        var hasOneOf = schema.TryGetProperty("oneOf", out var oneOf);
+        if (hasAnyOf && hasOneOf)
+        {
+            _errors.Add(location, "anyOf and oneOf cannot be combined");
+            return null;
+        }
+
         if (schema.TryGetProperty("$ref", out var reference))
         {
             return ParseRef(schema, reference, location);
+        }
+
+        if (hasAnyOf)
+        {
+            return ParseUnion(schema, anyOf, UnionKeyword.AnyOf, root, pointer, location);
+        }
+
+        if (hasOneOf)
+        {
+            return ParseUnion(schema, oneOf, UnionKeyword.OneOf, root, pointer, location);
+        }
+
+        if (schema.TryGetProperty("const", out var constValue))
+        {
+            return ParseConst(schema, constValue, location);
         }
 
         return ParseTyped(schema, root, pointer, location);
@@ -45,9 +69,9 @@ internal sealed class SchemaNodeParser
 
     private static string BuildLocation(string root, string pointer) => pointer.Length == 0 ? $"schema '{root}'" : $"schema '{root}' at {pointer}";
 
-    private static bool IsSupportedKeyword(string name) => name is "$ref" or "type" or "enum" or "items" or "properties" or "required"
-        or "additionalProperties" or "patternProperties" or "description" or "format" or "pattern" or "minimum" or "exclusiveMinimum"
-        or "maximum" or "minItems" or "maxItems";
+    private static bool IsSupportedKeyword(string name) => name is "$ref" or "type" or "enum" or "const" or "anyOf" or "oneOf"
+        or "items" or "properties" or "required" or "additionalProperties" or "patternProperties" or "description" or "format"
+        or "pattern" or "minimum" or "exclusiveMinimum" or "maximum" or "minItems" or "maxItems";
 
     private bool RefuseUnsupportedKeywords(JsonElement schema, string location)
     {
@@ -90,9 +114,11 @@ internal sealed class SchemaNodeParser
             "string" => ParsePrimitive(schema, PrimitiveKind.String, location),
             "number" => ParsePrimitive(schema, PrimitiveKind.Number, location),
             "integer" => ParsePrimitive(schema, PrimitiveKind.Integer, location),
+            "boolean" when schema.TryGetProperty("enum", out var values) => ParseBooleanEnum(schema, values, location),
             "boolean" => ParsePrimitive(schema, PrimitiveKind.Boolean, location),
             "object" => ParseObject(schema, root, pointer, location),
             "array" => ParseArray(schema, root, pointer, location),
+            "null" => RefuseNullType(location),
             var typeName => RefuseType(typeName, location),
         };
     }
@@ -137,7 +163,7 @@ internal sealed class SchemaNodeParser
 
         if (schema.TryGetProperty("enum", out _))
         {
-            _errors.Add(location, "enum is only handled for string schemas");
+            _errors.Add(location, "enum is only handled for string and boolean schemas");
             return null;
         }
 
@@ -192,9 +218,9 @@ internal sealed class SchemaNodeParser
             values.Add(value.GetString() ?? string.Empty);
         }
 
-        if (values.Count < 2)
+        if (values.Count == 0)
         {
-            _errors.Add(location, "single-value enum not yet handled");
+            _errors.Add(location, "enum must contain at least one value");
             return null;
         }
 
@@ -204,12 +230,419 @@ internal sealed class SchemaNodeParser
             return null;
         }
 
+        if (values.Count == 1)
+        {
+            return new LiteralNode
+            {
+                Kind = LiteralKind.String,
+                Value = values[0],
+                Dialect = LiteralDialect.SingleValueEnum,
+                Description = description,
+            };
+        }
+
         EnumNode node = new()
         {
             Values = [.. values],
             Description = description,
         };
         return Promote(node, root, pointer, location);
+    }
+
+    private LiteralNode? ParseBooleanEnum(JsonElement schema, JsonElement valuesElement, string location)
+    {
+        if (RefuseObjectOnlyKeywords(schema, location)
+            || RefuseItemsKeyword(schema, location))
+        {
+            return null;
+        }
+
+        if (valuesElement.ValueKind is not JsonValueKind.Array)
+        {
+            _errors.Add(location, "enum must be an array");
+            return null;
+        }
+
+        var values = valuesElement.EnumerateArray();
+        if (!values.MoveNext())
+        {
+            _errors.Add(location, "enum must contain at least one value");
+            return null;
+        }
+
+        var value = values.Current;
+        if (values.MoveNext())
+        {
+            _errors.Add(location, "boolean enum must contain exactly one value");
+            return null;
+        }
+
+        if (!TryReadLiteralValue(value, out var kind, out var text) || kind is not LiteralKind.Boolean)
+        {
+            _errors.Add(location, "boolean enum value must be a boolean");
+            return null;
+        }
+
+        if (!TryReadOptionalString(schema, "description", location, out var description)
+            || !TryReadOptionalString(schema, "format", location, out _))
+        {
+            return null;
+        }
+
+        return new LiteralNode
+        {
+            Kind = kind,
+            Value = text,
+            Dialect = LiteralDialect.SingleValueEnum,
+            Description = description,
+        };
+    }
+
+    private LiteralNode? ParseConst(JsonElement schema, JsonElement valueElement, string location)
+    {
+        if (schema.TryGetProperty("enum", out _))
+        {
+            _errors.Add(location, "enum and const cannot be combined");
+            return null;
+        }
+
+        if (RefuseObjectOnlyKeywords(schema, location)
+            || RefuseItemsKeyword(schema, location))
+        {
+            return null;
+        }
+
+        if (!TryReadLiteralValue(valueElement, out var kind, out var value))
+        {
+            _errors.Add(location, "const must be a string or boolean");
+            return null;
+        }
+
+        if (!ValidateLiteralType(schema, kind, location)
+            || !TryReadOptionalString(schema, "description", location, out var description)
+            || !TryReadOptionalString(schema, "format", location, out _))
+        {
+            return null;
+        }
+
+        return new LiteralNode
+        {
+            Kind = kind,
+            Value = value,
+            Dialect = LiteralDialect.Const,
+            Description = description,
+        };
+    }
+
+    private SchemaNode? ParseUnion(JsonElement schema,
+        JsonElement branchesElement,
+        UnionKeyword keyword,
+        string root,
+        string pointer,
+        string location)
+    {
+        var keywordName = keyword is UnionKeyword.AnyOf ? "anyOf" : "oneOf";
+        if (RefuseUnionSiblings(schema, keywordName, location)
+            || !TryReadOptionalString(schema, "description", location, out var description))
+        {
+            return null;
+        }
+
+        if (branchesElement.ValueKind is not JsonValueKind.Array)
+        {
+            _errors.Add(location, $"{keywordName} must be an array");
+            return null;
+        }
+
+        var deduplicatedBranches = DeduplicateRawRefBranches(branchesElement);
+        var nonNullBranches = ExtractNullBranches(deduplicatedBranches, out var isNullable);
+        if (nonNullBranches.Count == 0)
+        {
+            _errors.Add(location, $"{keywordName} must contain at least one non-null branch");
+            return null;
+        }
+
+        var parsedBranches = ParseUnionBranches(nonNullBranches, root, pointer, keywordName);
+        if (parsedBranches is null)
+        {
+            return null;
+        }
+
+        var unionDescription = isNullable ? null : description;
+        var inner = parsedBranches.Count == 1
+            ? parsedBranches[0]
+            : PromoteUnion(parsedBranches, keyword, root, pointer, location, unionDescription);
+        return inner is null ? null : WrapNullable(inner, isNullable, description);
+    }
+
+    private List<SchemaNode>? ParseUnionBranches(IReadOnlyList<(JsonElement Element, int Ordinal)> branches,
+        string root,
+        string pointer,
+        string keywordName)
+    {
+        List<SchemaNode> parsedBranches = [];
+        foreach (var branch in branches)
+        {
+            var branchPointer = BuildUnionBranchPointer(branch.Element, pointer, keywordName, branch.Ordinal);
+            var parsedBranch = Parse(branch.Element, root, branchPointer);
+            if (parsedBranch is null)
+            {
+                return null;
+            }
+
+            parsedBranches.Add(parsedBranch);
+        }
+
+        return parsedBranches;
+    }
+
+    private SchemaNode? PromoteUnion(IReadOnlyList<SchemaNode> branches,
+        UnionKeyword keyword,
+        string root,
+        string pointer,
+        string location,
+        string? description)
+    {
+        UnionNode node = new()
+        {
+            Branches = branches,
+            Keyword = keyword,
+            Description = description,
+        };
+        return Promote(node, root, pointer, location);
+    }
+
+    private static SchemaNode WrapNullable(SchemaNode inner, bool isNullable, string? description) => isNullable
+        ? new NullableNode
+        {
+            Inner = inner,
+            Description = description,
+        }
+        : inner;
+
+    private bool RefuseUnionSiblings(JsonElement schema, string keywordName, string location)
+    {
+        var refused = false;
+        foreach (var propertyName in schema
+                     .EnumerateObject()
+                     .Select(static property => property.Name))
+        {
+            if (propertyName is "description" || string.Equals(propertyName, keywordName, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            _errors.Add(location, $"keyword '{propertyName}' cannot be combined with {keywordName}");
+            refused = true;
+        }
+
+        return refused;
+    }
+
+    private static List<(JsonElement Element, int Ordinal)> DeduplicateRawRefBranches(JsonElement branchesElement)
+    {
+        HashSet<string> seenTargets = new(StringComparer.Ordinal);
+        List<(JsonElement Element, int Ordinal)> branches = [];
+        var ordinal = 0;
+        foreach (var branch in branchesElement.EnumerateArray())
+        {
+            if (!TryReadRawRefTarget(branch, out var target) || seenTargets.Add(target))
+            {
+                branches.Add((branch, ordinal));
+            }
+
+            ordinal++;
+        }
+
+        return branches;
+    }
+
+    private static bool TryReadRawRefTarget(JsonElement branch, out string target)
+    {
+        target = string.Empty;
+        if (branch.ValueKind is not JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        var properties = branch.EnumerateObject();
+        if (!properties.MoveNext())
+        {
+            return false;
+        }
+
+        var reference = properties.Current;
+        if (properties.MoveNext()
+            || !string.Equals(reference.Name, "$ref", StringComparison.Ordinal)
+            || reference.Value.ValueKind is not JsonValueKind.String)
+        {
+            return false;
+        }
+
+        target = reference.Value.GetString() ?? string.Empty;
+        return true;
+    }
+
+    private static List<(JsonElement Element, int Ordinal)> ExtractNullBranches(IEnumerable<(JsonElement Element, int Ordinal)> branches,
+        out bool isNullable)
+    {
+        List<(JsonElement Element, int Ordinal)> nonNullBranches = [];
+        isNullable = false;
+        foreach (var branch in branches)
+        {
+            if (IsExactNullBranch(branch.Element))
+            {
+                isNullable = true;
+                continue;
+            }
+
+            nonNullBranches.Add(branch);
+        }
+
+        return nonNullBranches;
+    }
+
+    private static bool IsExactNullBranch(JsonElement branch)
+    {
+        if (branch.ValueKind is not JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        var sawType = false;
+        var sawDescription = false;
+        foreach (var property in branch.EnumerateObject())
+        {
+            if (string.Equals(property.Name, "type", StringComparison.Ordinal))
+            {
+                if (sawType
+                    || property.Value.ValueKind is not JsonValueKind.String
+                    || !string.Equals(property.Value.GetString(), "null", StringComparison.Ordinal))
+                {
+                    return false;
+                }
+
+                sawType = true;
+                continue;
+            }
+
+            if (!string.Equals(property.Name, "description", StringComparison.Ordinal)
+                || sawDescription
+                || property.Value.ValueKind is not JsonValueKind.String)
+            {
+                return false;
+            }
+
+            sawDescription = true;
+        }
+
+        return sawType;
+    }
+
+    private static string BuildUnionBranchPointer(JsonElement branch, string pointer, string keywordName, int ordinal)
+    {
+        var branchKey = TryFindLiteralMarker(branch, out var markerName, out var markerValue)
+            ? $"{markerName}={markerValue}"
+            : ordinal.ToString(CultureInfo.InvariantCulture);
+        return $"{pointer}/{keywordName}/{branchKey}";
+    }
+
+    private static bool TryFindLiteralMarker(JsonElement branch, out string markerName, out string markerValue)
+    {
+        markerName = string.Empty;
+        markerValue = string.Empty;
+        if (!IsObjectSchema(branch)
+            || !branch.TryGetProperty("properties", out var properties)
+            || properties.ValueKind is not JsonValueKind.Object
+            || !TryReadRawRequiredNames(branch, out var requiredNames))
+        {
+            return false;
+        }
+
+        foreach (var property in properties.EnumerateObject())
+        {
+            if (!requiredNames.Contains(property.Name)
+                || !TryReadRawLiteralSchema(property.Value, out var value)
+                || (markerName.Length != 0 && string.CompareOrdinal(property.Name, markerName) >= 0))
+            {
+                continue;
+            }
+
+            markerName = property.Name;
+            markerValue = value;
+        }
+
+        return markerName.Length != 0;
+    }
+
+    private static bool IsObjectSchema(JsonElement schema) =>
+        schema.ValueKind is JsonValueKind.Object
+        && schema.TryGetProperty("type", out var type)
+        && type.ValueKind is JsonValueKind.String
+        && string.Equals(type.GetString(), "object", StringComparison.Ordinal);
+
+    private static bool TryReadRawRequiredNames(JsonElement schema, out HashSet<string> requiredNames)
+    {
+        requiredNames = new HashSet<string>(StringComparer.Ordinal);
+        if (!schema.TryGetProperty("required", out var required) || required.ValueKind is not JsonValueKind.Array)
+        {
+            return false;
+        }
+
+        foreach (var requiredName in required.EnumerateArray())
+        {
+            if (requiredName.ValueKind is not JsonValueKind.String)
+            {
+                return false;
+            }
+
+            requiredNames.Add(requiredName.GetString() ?? string.Empty);
+        }
+
+        return true;
+    }
+
+    private static bool TryReadRawLiteralSchema(JsonElement schema, out string value)
+    {
+        value = string.Empty;
+        if (schema.ValueKind is not JsonValueKind.Object
+            || (schema.TryGetProperty("enum", out _) && schema.TryGetProperty("const", out _)))
+        {
+            return false;
+        }
+
+        if (schema.TryGetProperty("const", out var constValue))
+        {
+            return TryReadLiteralValue(constValue, out var constKind, out value)
+                   && RawLiteralTypeMatches(schema, constKind, false);
+        }
+
+        if (!schema.TryGetProperty("enum", out var values) || values.ValueKind is not JsonValueKind.Array)
+        {
+            return false;
+        }
+
+        var enumerator = values.EnumerateArray();
+        if (!enumerator.MoveNext())
+        {
+            return false;
+        }
+
+        var literal = enumerator.Current;
+        return !enumerator.MoveNext()
+               && TryReadLiteralValue(literal, out var enumKind, out value)
+               && RawLiteralTypeMatches(schema, enumKind, true);
+    }
+
+    private static bool RawLiteralTypeMatches(JsonElement schema, LiteralKind kind, bool requireType)
+    {
+        if (!schema.TryGetProperty("type", out var type))
+        {
+            return !requireType;
+        }
+
+        return type.ValueKind is JsonValueKind.String
+               && string.Equals(type.GetString(), GetLiteralTypeName(kind), StringComparison.Ordinal);
     }
 
     private ArrayNode? ParseArray(JsonElement schema, string root, string pointer, string location)
@@ -340,6 +773,7 @@ internal sealed class SchemaNodeParser
         ObjectNode node = new()
         {
             Properties = parsedProperties,
+            LiteralMarkers = CollectLiteralMarkers(parsedProperties),
             AdditionalProperties = additionalProperties,
             AdditionalPropertiesSchema = parsedAdditionalPropertiesSchema,
             Description = description,
@@ -371,6 +805,22 @@ internal sealed class SchemaNodeParser
 
         return parsedProperties;
     }
+
+    private static IReadOnlyList<LiteralMarker> CollectLiteralMarkers(IEnumerable<SpecProperty> properties) =>
+    [
+        .. properties
+            .Where(static property => property is { IsRequired: true, Schema: LiteralNode })
+            .Select(static property =>
+            {
+                var literal = (LiteralNode)property.Schema;
+                return new LiteralMarker
+                {
+                    PropertyName = property.Name,
+                    Kind = literal.Kind,
+                    Value = literal.Value,
+                };
+            })
+    ];
 
     private DictionaryNode? ParseAdditionalPropertiesDictionary(JsonElement additionalProperties,
         string root,
@@ -555,6 +1005,71 @@ internal sealed class SchemaNodeParser
         return refused;
     }
 
+    private bool RefuseItemsKeyword(JsonElement schema, string location)
+    {
+        if (!schema.TryGetProperty("items", out _))
+        {
+            return false;
+        }
+
+        _errors.Add(location, "keyword 'items' is only valid for array schemas");
+        return true;
+    }
+
+    private bool ValidateLiteralType(JsonElement schema, LiteralKind kind, string location)
+    {
+        if (!schema.TryGetProperty("type", out var type))
+        {
+            return true;
+        }
+
+        if (type.ValueKind is JsonValueKind.Array)
+        {
+            _errors.Add(location, "type array is outside the dialect");
+            return false;
+        }
+
+        if (type.ValueKind is not JsonValueKind.String)
+        {
+            _errors.Add(location, "schema type must be a string");
+            return false;
+        }
+
+        var expectedType = GetLiteralTypeName(kind);
+        if (string.Equals(type.GetString(), expectedType, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        _errors.Add(location, $"const value does not match schema type '{type.GetString()}'");
+        return false;
+    }
+
+    private static bool TryReadLiteralValue(JsonElement valueElement, out LiteralKind kind, out string value)
+    {
+        switch (valueElement.ValueKind)
+        {
+            case JsonValueKind.String:
+                kind = LiteralKind.String;
+                value = valueElement.GetString() ?? string.Empty;
+                return true;
+            case JsonValueKind.True:
+                kind = LiteralKind.Boolean;
+                value = "true";
+                return true;
+            case JsonValueKind.False:
+                kind = LiteralKind.Boolean;
+                value = "false";
+                return true;
+            default:
+                kind = default;
+                value = string.Empty;
+                return false;
+        }
+    }
+
+    private static string GetLiteralTypeName(LiteralKind kind) => kind is LiteralKind.String ? "string" : "boolean";
+
     private SchemaNode? Promote(SchemaNode node, string root, string pointer, string location)
     {
         if (pointer.Length == 0)
@@ -596,6 +1111,12 @@ internal sealed class SchemaNodeParser
     private SchemaNode? RefuseType(string? type, string location)
     {
         _errors.Add(location, $"schema type '{type}' is not yet handled");
+        return null;
+    }
+
+    private SchemaNode? RefuseNullType(string location)
+    {
+        _errors.Add(location, "null schemas are only valid as exact union branches");
         return null;
     }
 }

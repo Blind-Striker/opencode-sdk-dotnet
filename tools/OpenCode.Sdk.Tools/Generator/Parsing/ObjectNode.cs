@@ -6,6 +6,9 @@ public sealed record ObjectNode : SchemaNode
     /// <summary>The named properties in source document order.</summary>
     public required IReadOnlyList<SpecProperty> Properties { get; init; }
 
+    /// <summary>Required literal-valued properties in source document order.</summary>
+    public required IReadOnlyList<LiteralMarker> LiteralMarkers { get; init; }
+
     /// <summary>How properties outside <see cref="Properties"/> are handled.</summary>
     public required AdditionalPropertiesKind AdditionalProperties { get; init; }
 
