@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace OpenCode.Sdk.Tools.Generator.Parsing;
 
 /// <summary>Accumulates located parse errors so refusals surface batched, not one at a time.</summary>
@@ -9,8 +7,7 @@ internal sealed class SpecParseErrorCollector
 
     public bool HasErrors => _errors.Count > 0;
 
-    public void Add(string location, string problem) =>
-        _errors.Add(string.Create(CultureInfo.InvariantCulture, $"{location}: {problem}"));
+    public void Add(string location, string problem) => _errors.Add($"{location}: {problem}");
 
     public void ThrowIfAny()
     {

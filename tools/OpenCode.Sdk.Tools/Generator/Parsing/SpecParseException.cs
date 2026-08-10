@@ -40,7 +40,6 @@ public sealed class SpecParseException : Exception
         ArgumentNullException.ThrowIfNull(errors);
         return errors.Count == 0
             ? "Spec parse failed."
-            : string.Create(CultureInfo.InvariantCulture,
-                $"Spec parse failed with {errors.Count} error(s):\n{string.Join('\n', errors)}");
+            : string.Create(CultureInfo.InvariantCulture, $"Spec parse failed with {errors.Count} error(s):\n{string.Join('\n', errors)}");
     }
 }

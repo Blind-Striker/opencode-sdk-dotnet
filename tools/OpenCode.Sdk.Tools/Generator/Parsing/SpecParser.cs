@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.IO.Abstractions;
 using System.Text.Json;
 
@@ -13,6 +12,7 @@ public sealed class SpecParser
     public SpecParser(IFileSystem fileSystem)
     {
         ArgumentNullException.ThrowIfNull(fileSystem);
+
         _fileSystem = fileSystem;
     }
 
@@ -20,12 +20,10 @@ public sealed class SpecParser
     public SpecDocument Parse(string specPath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(specPath);
+
         if (!_fileSystem.File.Exists(specPath))
         {
-            throw new SpecParseException([
-                string.Create(CultureInfo.InvariantCulture,
-                    $"document: spec file '{specPath}' does not exist")
-            ]);
+            throw new SpecParseException([$"document: spec file '{specPath}' does not exist",]);
         }
 
         var text = _fileSystem.File.ReadAllText(specPath);
@@ -41,10 +39,7 @@ public sealed class SpecParser
         }
         catch (JsonException exception)
         {
-            throw new SpecParseException(
-                string.Create(CultureInfo.InvariantCulture,
-                    $"document: not valid JSON — {exception.Message}"),
-                exception);
+            throw new SpecParseException($"document: not valid JSON — {exception.Message}", exception);
         }
     }
 
@@ -53,16 +48,17 @@ public sealed class SpecParser
         SpecParseErrorCollector errors = new();
         var version = ReadVersion(root, errors);
         // Document-key wall: openapi, info, paths, components, security, tags.
-        foreach (var property in root.EnumerateObject().Where(static property =>
-                     property.Name is not ("openapi" or "info" or "paths" or "components"
-                         or "security" or "tags")))
+        foreach (var property in root
+                     .EnumerateObject()
+                     .Where(static property =>
+                         property.Name is not ("openapi" or "info" or "paths" or "components" or "security" or "tags")))
         {
-            errors.Add("document", string.Create(CultureInfo.InvariantCulture,
-                $"unknown top-level key '{property.Name}'"));
+            errors.Add("document", $"unknown top-level key '{property.Name}'");
         }
 
         var schemas = ReadSchemas(root, errors);
         errors.ThrowIfAny();
+
         return new SpecDocument
         {
             OpenApiVersion = version,
@@ -73,8 +69,7 @@ public sealed class SpecParser
 
     private static string ReadVersion(JsonElement root, SpecParseErrorCollector errors)
     {
-        if (!root.TryGetProperty("openapi", out var version)
-            || version.ValueKind is not JsonValueKind.String)
+        if (!root.TryGetProperty("openapi", out var version) || version.ValueKind is not JsonValueKind.String)
         {
             errors.Add("document", "missing 'openapi' version string");
             return string.Empty;
@@ -83,8 +78,7 @@ public sealed class SpecParser
         var text = version.GetString() ?? string.Empty;
         if (!text.StartsWith("3.1.", StringComparison.Ordinal))
         {
-            errors.Add("document", string.Create(CultureInfo.InvariantCulture,
-                $"unsupported OpenAPI version '{text}' — the dialect wall accepts 3.1.x only"));
+            errors.Add("document", $"unsupported OpenAPI version '{text}' — the dialect wall accepts 3.1.x only");
         }
 
         return text;
@@ -98,11 +92,11 @@ public sealed class SpecParser
             return graph;
         }
 
-        foreach (var member in components.EnumerateObject().Where(static member =>
-                     !string.Equals(member.Name, "schemas", StringComparison.Ordinal)))
+        foreach (var member in components
+                     .EnumerateObject()
+                     .Where(static member => !string.Equals(member.Name, "schemas", StringComparison.Ordinal)))
         {
-            errors.Add("document", string.Create(CultureInfo.InvariantCulture,
-                $"unknown components member '{member.Name}'"));
+            errors.Add("document", $"unknown components member '{member.Name}'");
         }
 
         return graph;

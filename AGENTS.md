@@ -112,6 +112,9 @@ reachable via `docs/ROADMAP.md`) until build-out distills them.
 - **Defensive programming is the default, everywhere:** guard public inputs, assert internal
   invariants, fail loudly rather than guess — silent fallbacks exist only as explicitly
   recorded tolerances (ADR-0009 pattern).
+- **Intentional layout:** separate logically distinct statement groups with one blank line;
+  public-input guards form their own group, followed by a blank line before the method's main
+  work.
 - **Test naming:** `{Symbol}_Should_{Expected_Behavior}[_When_{Condition}]`. Symbol names stay
   intact as one token (`TryResolve`, `NuGet`); every other word is `_`-separated and starts with
   a capital. Example: `TryResolve_Should_Return_False_When_Routes_Are_Invalid`. Test classes are
