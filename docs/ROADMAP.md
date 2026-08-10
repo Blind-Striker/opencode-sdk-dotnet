@@ -15,15 +15,18 @@ as of 2026-08-08. Design runway complete and grill-hardened: three sealed specs 
 `superpowers/specs/` (public API, generator architecture, testing architecture), ADRs 0001–0009,
 research log sessions 1–9. Implementation planning complete (2026-08-10): slice map at
 `superpowers/plans/2026-08-10-implementation-slice-map.md` (12 vertical slices), slice issues
-**#1–#12** with native `blocked_by` ordering, slice 0 detail plan written (issue #1 is
-`ready-for-agent`); deviation protocol added (`docs/agents/deviation-protocol.md`), falsifiability
-working agreement added to `AGENTS.md`. No SDK code yet — next up: execute slice 0 (issue #1).
+**#1–#12** with native `blocked_by` ordering; deviation protocol added
+(`docs/agents/deviation-protocol.md`), falsifiability working agreement added to `AGENTS.md`.
+The Slice 0 tooling skeleton has landed; next is the Slice 1 planning cycle for issue #2.
 
 ## Queue
 
 In order — do not improvise beyond it without asking the maintainer.
 
-1. **SDK build-out — slice issues #1–#12.** Scope, sequencing, and the per-slice done
+1. **Post-Slice-0 Slopwatch adoption evaluation.** Decide local-tool pinning, baseline/config,
+   and CI policy together as one deliberate adoption decision. Do not add a pin, baseline,
+   configuration, or CI gate until that decision is made.
+2. **SDK build-out — remaining slice issues #2–#12.** Scope, sequencing, and the per-slice done
    definition live in the slice map
    (`superpowers/plans/2026-08-10-implementation-slice-map.md`); task-level progress lives in
    per-slice plan checkboxes (plans written just-in-time; a slice whose plan exists gets
@@ -34,7 +37,7 @@ In order — do not improvise beyond it without asking the maintainer.
    lock the public surface as implementation lands (testing spec §12; slices 4–5). **Spec
    retirement rides slice 11:** durable sealed decisions without an ADR home distill into ADRs
    before the transient `docs/superpowers/` documents are deleted.
-2. **Later** — **MCP server**: in this repo as a thin SDK adapter (ADR-0006). Tech targeting
+3. **Later** — **MCP server**: in this repo as a thin SDK adapter (ADR-0006). Tech targeting
    decided 2026-08-08 (research doc 05), **re-sealed at phase start against the then-current
    MCP landscape:** the 2026-07-28 protocol revision via MCP C# SDK v2.0, stdio + streamable
    HTTP, no investment in deprecated features. Evaluate NuGet's `McpServer` package type for

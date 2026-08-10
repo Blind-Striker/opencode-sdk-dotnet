@@ -441,7 +441,7 @@ git commit -m "docs(research): file-based entry verification results (slice 0)"
 - Consumes: the entry + executable bit (Task 3), the staleness verdict (Task 4).
 - Produces: the Linux-leg smoke step slice 3 will upgrade to `generate --verify`.
 
-- [ ] **Step 1: Add the smoke step**
+- [x] **Step 1: Add the smoke step**
 
 After the `Verify formatting` step in `.github/workflows/ci.yml`:
 
@@ -461,7 +461,7 @@ If Task 4 recorded the staleness mitigation, prepend the routed build:
           ./tools/opencode-tool.cs --help
 ```
 
-- [ ] **Step 2: Local full-gate sweep**
+- [x] **Step 2: Local full-gate sweep**
 
 Run, in order: `dotnet build --configuration Release`, `dotnet test --configuration Release --no-build`,
 `dotnet format --verify-no-changes --no-restore`
