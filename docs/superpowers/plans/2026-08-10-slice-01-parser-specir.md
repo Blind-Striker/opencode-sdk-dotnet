@@ -11,14 +11,16 @@ Date: 2026-08-10
 needs, literal markers in both dialects, the parse-time normalizations, and the dialect
 wall — plus one hand-written quirk fixture per construct and a full pinned-spec smoke test.
 
-**Architecture:** `SpecParser` (in `tools/OpenCode.Sdk.Tools/Generator/Parsing/`) reads
-`spec/openapi.json` through TestableIO's `IFileSystem`, walks the document with
-`System.Text.Json`'s `JsonDocument`/`JsonElement` (in-box on net10.0 — no new STJ pin),
-and produces an immutable `SpecDocument`: a flat schema graph (named schemas + promoted
-inline types under deterministic keys) and a `SpecOperation` list. Everything unknown is
-refused with batched, located error messages (`SpecParseException`). Zero C# concepts in
-the IR — naming is the Binder's job (slice 2). The CLI does not change: `generate` stays
-the fail-loud stub, no `ToolApp`/DI edits, no workflow edits.
+**Architecture:** public `SpecParser` in
+`tools/OpenCode.Sdk.Tools/Generator/Parsing/` reads `spec/openapi.json` through
+TestableIO's `IFileSystem` and owns only file/JSON/document orchestration. It delegates the
+schema graph and schema-node dialect to the internal `Parsing/Schemas/SchemaNodeParser`
+module and paths/operations to the internal `Parsing/Operations/OperationParser` module,
+then returns a frozen `SpecDocument`: ordinal-sorted schema keys plus operations in document
+order. Every `JsonElement` container is untrusted data; malformed shapes become batched,
+located `SpecParseException` errors rather than framework exceptions. Zero C# concepts live
+in the IR — naming is the Binder's job (slice 2). The CLI does not change: `generate` stays
+the fail-loud stub, with no `ToolApp`/DI or workflow edits.
 
 **Tech Stack:** TestableIO trio 22.2.0 (newest stable, verified against NuGet
 2026-08-10: `TestableIO.System.IO.Abstractions` for the library,
@@ -128,21 +130,17 @@ branches including one *multi-literal* branch `["Infinity","-Infinity","NaN"]`.
 
 ## SpecIR at a glance (reference — each task restates what it needs)
 
-All types live in `tools/OpenCode.Sdk.Tools/Generator/Parsing/`, namespace
-`OpenCode.Sdk.Tools.Generator.Parsing`, one file per type (MA0048), all public records
-immutable (`required`/`init`, `IReadOnlyList`/`IReadOnlyDictionary`).
+IDE0130 namespace/folder correspondence is exact, one type per file (MA0048). Related enums
+stay with the vertical module whose behavior they describe; do not create horizontal
+`Nodes/` or `Enums/` buckets. Public record shapes remain `required`/`init` with
+`IReadOnlyList`/`IReadOnlyDictionary`, and parser-produced collections are frozen rather
+than backed by externally mutable lists or dictionaries.
 
-| Type | Role |
+| Module / namespace | Files and role |
 |---|---|
-| `SpecParser` | entry point: `SpecDocument Parse(string specPath)` over `IFileSystem` |
-| `SpecParseException` | batched refusal; `IReadOnlyList<string> Errors` |
-| `SpecDocument` | `OpenApiVersion`, `Operations`, `Schemas` (ordinal-sorted keys) |
-| `SpecOperation`, `SpecParameter`, `SpecRequestBody`, `SpecResponse`, `SpecMediaType` | operation surface |
-| `SpecSurface`, `SpecParameterLocation`, `SpecEnvelopeShape` | operation-side enums |
-| `SchemaNode` (abstract; `Description?`, `Children`) | graph node base |
-| `PrimitiveNode`, `EnumNode`, `LiteralNode`, `ObjectNode` (+`SpecProperty`), `DictionaryNode`, `FreeFormObjectNode`, `ArrayNode`, `TupleNode`, `UnionNode`, `NullableNode`, `RefNode`, `SpecialNumberNode`, `JsonStringNode` | node kinds |
-| `LiteralMarker` | marker fact on `ObjectNode` (property name + literal value) |
-| `PrimitiveKind`, `LiteralKind`, `LiteralDialect`, `AdditionalPropertiesKind`, `UnionKeyword`, `ErrorStyle` | node-side enums |
+| `Parsing` / `OpenCode.Sdk.Tools.Generator.Parsing` | `SpecParser` is the sole external behavior seam: `SpecDocument Parse(string specPath)` over `IFileSystem`; `SpecDocument` carries `OpenApiVersion`, `Operations`, and ordinal-sorted `Schemas`; `SpecParseException` carries the batched `IReadOnlyList<string> Errors`; `SpecParseErrorCollector` is internal. |
+| `Parsing/Schemas` / `OpenCode.Sdk.Tools.Generator.Parsing.Schemas` | Internal `SchemaNodeParser`; abstract `SchemaNode` (`Description?`, `Children`); `SpecProperty`; `LiteralMarker`; node records `PrimitiveNode`, `EnumNode`, `LiteralNode`, `ObjectNode`, `DictionaryNode`, `FreeFormObjectNode`, `ArrayNode`, `TupleNode`, `UnionNode`, `NullableNode`, `RefNode`, `SpecialNumberNode`, `JsonStringNode`; related enums `PrimitiveKind`, `LiteralKind`, `LiteralDialect`, `AdditionalPropertiesKind`, `UnionKeyword`, `ErrorStyle`. |
+| `Parsing/Operations` / `OpenCode.Sdk.Tools.Generator.Parsing.Operations` | Internal `OperationParser`; `SpecOperation`, `SpecParameter`, `SpecRequestBody`, `SpecResponse`, `SpecMediaType`; related enums `SpecSurface`, `SpecParameterLocation`, `SpecEnvelopeShape`. `OperationParser` owns paths, operations, parameters, request bodies, responses, and envelope classification. |
 
 **Schema-graph keys (locked format — the Binder consumes these):** named schemas use the
 wire name verbatim (`Session`, `session.status`). Promoted inline types use
@@ -1577,17 +1575,661 @@ git commit -m "feat(tools): parameter and request body parsing"
 
 ---
 
+### Task 8.5: Vertical parsing modules and defensive wall
+
+**Files — move (basename unchanged):**
+
+| From | To |
+|---|---|
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/SchemaNodeParser.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/SchemaNodeParser.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/SchemaNode.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/SchemaNode.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/SpecProperty.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/SpecProperty.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/LiteralMarker.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/LiteralMarker.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/PrimitiveNode.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/PrimitiveNode.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/PrimitiveKind.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/PrimitiveKind.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/EnumNode.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/EnumNode.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/LiteralNode.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/LiteralNode.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/LiteralKind.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/LiteralKind.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/LiteralDialect.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/LiteralDialect.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/ObjectNode.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/ObjectNode.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/AdditionalPropertiesKind.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/AdditionalPropertiesKind.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/ErrorStyle.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/ErrorStyle.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/DictionaryNode.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/DictionaryNode.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/FreeFormObjectNode.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/FreeFormObjectNode.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/ArrayNode.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/ArrayNode.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/TupleNode.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/TupleNode.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/UnionNode.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/UnionNode.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/UnionKeyword.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/UnionKeyword.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/NullableNode.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/NullableNode.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/RefNode.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/RefNode.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/SpecialNumberNode.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/SpecialNumberNode.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/JsonStringNode.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/JsonStringNode.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/SpecOperation.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Operations/SpecOperation.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/SpecSurface.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Operations/SpecSurface.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/SpecParameter.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Operations/SpecParameter.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/SpecParameterLocation.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Operations/SpecParameterLocation.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/SpecRequestBody.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Operations/SpecRequestBody.cs` |
+| `tools/OpenCode.Sdk.Tools/Generator/Parsing/SpecMediaType.cs` | `tools/OpenCode.Sdk.Tools/Generator/Parsing/Operations/SpecMediaType.cs` |
+
+**Files — create/modify/test:**
+
+- Create: `tools/OpenCode.Sdk.Tools/Generator/Parsing/Operations/OperationParser.cs`
+- Modify: `tools/OpenCode.Sdk.Tools/Generator/Parsing/SpecParser.cs`
+- Modify: `tools/OpenCode.Sdk.Tools/Generator/Parsing/SpecDocument.cs`
+- Modify after moving: every file in the table above (namespace declaration); collection
+  freezing also changes `Schemas/SchemaNodeParser.cs` and extraction changes all six
+  operation files' imports as required.
+- Modify: `.editorconfig` (the two narrow CA1720 file arbitrations move with
+  `Schemas/PrimitiveKind.cs` and `Schemas/LiteralKind.cs`; rule severities do not change).
+- Create/test: `tests/OpenCode.Sdk.Tools.Tests/SpecParserDefensiveTests.cs`
+- Modify test imports: `SpecMediaTypeTests.cs`, `SpecParserObjectNodeTests.cs`,
+  `SpecParserOperationTests.cs`, `SpecParserParameterTests.cs`,
+  `SpecParserQuirkNodeTests.cs`, `SpecParserSchemaNodeTests.cs`, and
+  `SpecParserUnionTests.cs` under `tests/OpenCode.Sdk.Tools.Tests/`.
+- Leave unchanged: `Parsing/SpecParseException.cs`, `Parsing/SpecParseErrorCollector.cs`,
+  `tests/OpenCode.Sdk.Tools.Tests/SpecFixture.cs`, and
+  `tests/OpenCode.Sdk.Tools.Tests/SpecParserTests.cs`; they remain in/use the root module.
+
+**Interfaces and ownership:**
+
+- Consumes: task 8's complete parser behavior and tests. This is a structure/defense
+  correction, not a semantic CLI change.
+- Preserves the sole external seam exactly:
+  `public sealed class SpecParser { public SpecParser(IFileSystem fileSystem); public SpecDocument Parse(string specPath); }`.
+- Root namespace `OpenCode.Sdk.Tools.Generator.Parsing` contains only `SpecParser`,
+  `SpecDocument`, `SpecParseException`, and internal `SpecParseErrorCollector`.
+- Schema namespace `OpenCode.Sdk.Tools.Generator.Parsing.Schemas` contains all 23 schema
+  files in the move table. Internal `SchemaNodeParser` keeps
+  `SchemaNode? Parse(JsonElement schema, string root, string pointer)` and adds the narrow
+  graph lookup `bool TryGetNode(string key, out SchemaNode? node)` for operation envelope
+  classification; it never exposes the graph dictionary itself. Its constructor guards
+  `SpecParseErrorCollector` and the ordinal `SortedDictionary<string, SchemaNode>`;
+  `Parse` guards nonblank `root`, non-null `pointer`, and the schema object's `ValueKind`,
+  while `TryGetNode` guards nonblank `key`.
+- Operation namespace `OpenCode.Sdk.Tools.Generator.Parsing.Operations` contains the six
+  existing operation files plus the new internal parser. Its task-8.5 interface is:
+
+  ```text
+  OperationParser(SchemaNodeParser schemaParser, SpecParseErrorCollector errors)
+  IReadOnlyList<SpecOperation> Parse(JsonElement root)
+  IReadOnlyList<(string Location, SchemaNode Node)> SchemaRoots { get; }
+  ```
+
+  Both constructor dependencies are guarded. `Parse` owns `paths` through request bodies
+  and returns a frozen list in path/method document order. `SchemaRoots` is rebuilt as a
+  read-only snapshot from each successful parse: one located entry per parameter schema and
+  request-body schema. Task 9 extends this same snapshot with response schemas; callers
+  never receive the parser's mutable working lists.
+- Do not change any public record property name/type, `required`/`init` modifier, enum
+  member, graph key, ordering rule, refusal policy, or operation behavior. Namespace moves
+  and parser-produced collection immutability are the only public-shape effects.
+
+- [ ] **Step 1: Add the public-seam defensive tests before moving files**
+
+Create `tests/OpenCode.Sdk.Tools.Tests/SpecParserDefensiveTests.cs` with all 17 real tests
+below. Each malformed-container assertion requires `SpecParseException`; a leaked
+`InvalidOperationException`/`ArgumentException` therefore fails the test without a special
+catch. The collection assertions exercise values returned by `SpecParser`, not records
+constructed directly by a consumer.
+
+```csharp
+using OpenCode.Sdk.Tools.Generator.Parsing;
+
+namespace OpenCode.Sdk.Tools.Tests;
+
+public sealed class SpecParserDefensiveTests
+{
+    private const string ReadOnlyFixture = """
+    {
+      "openapi": "3.1.0",
+      "info": { "title": "fixture", "version": "0.0.0" },
+      "paths": {
+        "/test": {
+          "get": {
+            "operationId": "v2.test.get",
+            "responses": { "204": { "description": "ok" } }
+          }
+        }
+      },
+      "components": {
+        "schemas": {
+          "Item": {
+            "type": "object",
+            "properties": { "id": { "type": "string" } },
+            "required": ["id"],
+            "additionalProperties": false
+          },
+          "Choice": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/Item" },
+              { "type": "string" }
+            ]
+          }
+        }
+      }
+    }
+    """;
+
+    [Test]
+    public async Task Parse_Should_Refuse_When_Document_Root_Is_Not_Object()
+    {
+        await AssertRefusal("[]", "document: root must be an object");
+    }
+
+    [Test]
+    public async Task Parse_Should_Refuse_When_Components_Is_Not_Object()
+    {
+        await AssertRefusal(
+            BuildDocument("[]", "{}"),
+            "document: 'components' must be an object");
+    }
+
+    [Test]
+    public async Task Parse_Should_Refuse_When_Component_Schemas_Is_Not_Object()
+    {
+        await AssertRefusal(
+            BuildDocument("""{ "schemas": [] }""", "{}"),
+            "document: 'components.schemas' must be an object");
+    }
+
+    [Test]
+    public async Task Parse_Should_Refuse_When_Paths_Is_Not_Object()
+    {
+        await AssertRefusal(
+            BuildDocument("""{ "schemas": {} }""", "[]"),
+            "document: 'paths' must be an object");
+    }
+
+    [Test]
+    public async Task Parse_Should_Refuse_When_Path_Item_Is_Not_Object()
+    {
+        await AssertRefusal(
+            SpecFixtureDocumentForPaths("""{ "/test": [] }"""),
+            "path '/test': path item must be an object");
+    }
+
+    [Test]
+    public async Task Parse_Should_Refuse_When_Operation_Is_Not_Object()
+    {
+        await AssertRefusal(
+            SpecFixtureDocumentForPaths("""{ "/test": { "get": [] } }"""),
+            "path '/test' method 'get': operation must be an object");
+    }
+
+    [Test]
+    public async Task Parse_Should_Refuse_When_Parameters_Is_Not_Array()
+    {
+        await AssertRefusal(
+            BuildOperationDocument("""
+            {
+              "operationId": "v2.test.create",
+              "parameters": {},
+              "responses": { "204": { "description": "ok" } }
+            }
+            """),
+            "operation 'v2.test.create': parameters must be an array");
+    }
+
+    [Test]
+    public async Task Parse_Should_Refuse_When_Parameter_Is_Not_Object()
+    {
+        await AssertRefusal(
+            BuildOperationDocument("""
+            {
+              "operationId": "v2.test.create",
+              "parameters": [null],
+              "responses": { "204": { "description": "ok" } }
+            }
+            """),
+            "operation 'v2.test.create': parameter must be an object");
+    }
+
+    [Test]
+    public async Task Parse_Should_Refuse_When_Request_Body_Is_Not_Object()
+    {
+        await AssertRefusal(
+            BuildOperationDocument("""
+            {
+              "operationId": "v2.test.create",
+              "requestBody": [],
+              "responses": { "204": { "description": "ok" } }
+            }
+            """),
+            "operation 'v2.test.create' requestBody: requestBody must be an object");
+    }
+
+    [Test]
+    public async Task Parse_Should_Refuse_When_Request_Body_Content_Is_Not_Object()
+    {
+        await AssertRefusal(
+            BuildOperationDocument("""
+            {
+              "operationId": "v2.test.create",
+              "requestBody": { "content": [] },
+              "responses": { "204": { "description": "ok" } }
+            }
+            """),
+            "operation 'v2.test.create' requestBody: requestBody content must be an object");
+    }
+
+    [Test]
+    public async Task Parse_Should_Refuse_When_Request_Media_Entry_Is_Not_Object()
+    {
+        await AssertRefusal(
+            BuildOperationDocument("""
+            {
+              "operationId": "v2.test.create",
+              "requestBody": {
+                "content": { "application/json": [] }
+              },
+              "responses": { "204": { "description": "ok" } }
+            }
+            """),
+            "operation 'v2.test.create' requestBody content 'application/json': media entry must be an object");
+    }
+
+    [Test]
+    public async Task Parse_Should_Batch_Malformed_Components_And_Paths()
+    {
+        var exception = await Assert.That(() => SpecFixture.Parse(BuildDocument("[]", "[]")))
+            .Throws<SpecParseException>();
+
+        await Assert.That(exception!.Errors.Count).IsEqualTo(2);
+        await Assert.That(exception.Errors[0]).Contains("document: 'components' must be an object");
+        await Assert.That(exception.Errors[1]).Contains("document: 'paths' must be an object");
+    }
+
+    [Test]
+    public async Task Parse_Should_Batch_Independent_Errors_Within_Operation()
+    {
+        var exception = await Assert.That(() => SpecFixture.Parse(BuildOperationDocument("""
+        {
+          "operationId": "v2.test.create",
+          "parameters": {},
+          "x-madeup": true,
+          "responses": { "204": { "description": "ok" } }
+        }
+        """))).Throws<SpecParseException>();
+
+        await Assert.That(exception!.Errors.Count).IsEqualTo(2);
+        await Assert.That(exception.Errors.Any(error => error.Contains(
+            "unknown operation key 'x-madeup'", StringComparison.Ordinal))).IsTrue();
+        await Assert.That(exception.Errors.Any(error => error.Contains(
+            "parameters must be an array", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task Parse_Should_Expose_Read_Only_Operations()
+    {
+        var document = SpecFixture.Parse(ReadOnlyFixture);
+
+        await AssertReadOnly(document.Operations);
+    }
+
+    [Test]
+    public async Task Parse_Should_Expose_Read_Only_Schemas()
+    {
+        var document = SpecFixture.Parse(ReadOnlyFixture);
+        var collection = (ICollection<KeyValuePair<string, SchemaNode>>)document.Schemas;
+
+        await Assert.That(collection.IsReadOnly).IsTrue();
+        await Assert.That(() => collection.Clear()).Throws<NotSupportedException>();
+    }
+
+    [Test]
+    public async Task Parse_Should_Expose_Read_Only_Object_Properties()
+    {
+        var document = SpecFixture.Parse(ReadOnlyFixture);
+        var node = (ObjectNode)document.Schemas["Item"];
+
+        await AssertReadOnly(node.Properties);
+    }
+
+    [Test]
+    public async Task Parse_Should_Expose_Read_Only_Union_Branches()
+    {
+        var document = SpecFixture.Parse(ReadOnlyFixture);
+        var node = (UnionNode)document.Schemas["Choice"];
+
+        await AssertReadOnly(node.Branches);
+    }
+
+    private static async Task AssertRefusal(string documentJson, string expectedMessage)
+    {
+        var exception = await Assert.That(() => SpecFixture.Parse(documentJson))
+            .Throws<SpecParseException>();
+
+        await Assert.That(exception!.Message).Contains(expectedMessage);
+    }
+
+    private static async Task AssertReadOnly<T>(IReadOnlyList<T> items)
+    {
+        var collection = (ICollection<T>)items;
+        await Assert.That(collection.IsReadOnly).IsTrue();
+        await Assert.That(() => collection.Clear()).Throws<NotSupportedException>();
+    }
+
+    private static string SpecFixtureDocumentForPaths(string pathsJson) =>
+        BuildDocument("""{ "schemas": {} }""", pathsJson);
+
+    private static string BuildOperationDocument(string operationJson) =>
+        SpecFixtureDocumentForPaths($$"""
+        {
+          "/test": {
+            "post": {{operationJson}}
+          }
+        }
+        """);
+
+    private static string BuildDocument(string componentsJson, string pathsJson) => $$"""
+        {
+          "openapi": "3.1.0",
+          "info": { "title": "fixture", "version": "0.0.0" },
+          "paths": {{pathsJson}},
+          "components": {{componentsJson}}
+        }
+        """;
+}
+```
+
+- [ ] **Step 2: Run the defensive tests to observe the pre-hardening RED**
+
+Run on SDK 10/MTP (no `--` separator):
+
+```bash
+dotnet test --project tests/OpenCode.Sdk.Tools.Tests/OpenCode.Sdk.Tools.Tests.csproj --treenode-filter "/*/*/SpecParserDefensiveTests/*"
+```
+
+Expected: FAIL. The non-object root/components/schemas and batching cases currently leak
+`InvalidOperationException`; the request-content case has no shape-specific refusal; and
+the operation-local batching case observes the early-return short circuit while the four
+collection checks expose mutable `List<T>`/`SortedDictionary` implementations.
+The already-defended path/operation/parameter/request-body cases may pass in this mixed RED
+run; do not weaken them merely to make every test red.
+
+- [ ] **Step 3: Move the files and change only their namespaces**
+
+Create `Parsing/Schemas/` and `Parsing/Operations/`, then execute every move in the table
+with `git mv`. Change all 23 schema files to:
+
+```csharp
+namespace OpenCode.Sdk.Tools.Generator.Parsing.Schemas;
+```
+
+Change all six operation files to:
+
+```csharp
+namespace OpenCode.Sdk.Tools.Generator.Parsing.Operations;
+```
+
+Update only these two arbitration globs; preserve their comments and `none` severities:
+
+```ini
+[tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/PrimitiveKind.cs]
+dotnet_diagnostic.CA1720.severity = none
+
+[tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas/LiteralKind.cs]
+dotnet_diagnostic.CA1720.severity = none
+```
+
+Do not update imports or extract methods yet.
+
+- [ ] **Step 4: Run the movement RED**
+
+Run:
+
+```bash
+dotnet build tools/OpenCode.Sdk.Tools/OpenCode.Sdk.Tools.csproj --configuration Release --no-restore
+```
+
+Expected: intentional compile FAIL with CS0246/CS0234 because root and moved production
+files still reference the former flat namespace. IDE0130 must not appear: folder and
+namespace already correspond. This compile failure proves the namespace movement before
+the extraction/import repair; save its output with the task notes.
+
+- [ ] **Step 5: Extract `OperationParser` and reduce root `SpecParser` to orchestration**
+
+Move these existing methods, with their bodies and ordering behavior, from `SpecParser.cs`
+to `Operations/OperationParser.cs`: `ReadOperations` (rename to the public `Parse` method),
+`ReadPathItem`, `IsSupportedMethod`, `ReadWildcardPath`, `ReadOperation`,
+`ReadOperationId`, `RefuseUnsupportedOperationKeys`, `IsSupportedOperationKey`,
+`TryReadParameters`, `TryReadParameter`, `TryReadParameterName`,
+`RefuseUnsupportedParameterKeys`, `TryReadParameterLocation`, `TryAddParameterKey`,
+`TryReadDeepObject`, `ReadJsonText`, `TryReadParameterSchema`,
+`ValidatePathParameters`, `TryReadPathTokens`, `TryReadRequestBody`,
+`RefuseUnsupportedRequestBodyKeys`, `TryReadRequestContent`, `TryCreateMediaType`,
+`TryReadRequestMediaObject`, `RefuseUnsupportedRequestMediaKeys`,
+`TryReadOptionalBoolean`, `TryReadOperationIdentity`, `TryReadOptionalString`,
+`TryReadDeprecated`, and `TryReadWebSocket`.
+
+Add the graph lookup to `Schemas/SchemaNodeParser.cs` without exposing `_graph`:
+
+```csharp
+public bool TryGetNode(string key, out SchemaNode? node)
+{
+    ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+    return _graph.TryGetValue(key, out node);
+}
+```
+
+Use these fields and completion shape; no mutable work list is returned:
+
+```csharp
+private readonly SchemaNodeParser _schemaParser;
+private readonly SpecParseErrorCollector _errors;
+private IReadOnlyList<(string Location, SchemaNode Node)> _schemaRoots =
+    Array.Empty<(string Location, SchemaNode Node)>();
+
+public IReadOnlyList<(string Location, SchemaNode Node)> SchemaRoots => _schemaRoots;
+
+private IReadOnlyList<SpecOperation> Complete(List<SpecOperation> operations)
+{
+    var frozenOperations = operations.AsReadOnly();
+    List<(string Location, SchemaNode Node)> roots = [];
+    foreach (var operation in frozenOperations)
+    {
+        var operationLocation = $"operation '{operation.OperationId}'";
+        roots.AddRange(operation.Parameters.Select(parameter =>
+            ($"{operationLocation} parameter '{parameter.Name}'", parameter.Schema)));
+        if (operation.RequestBody is { } requestBody)
+        {
+            roots.Add(($"{operationLocation} requestBody", requestBody.Schema));
+        }
+    }
+
+    _schemaRoots = roots.AsReadOnly();
+    return frozenOperations;
+}
+```
+
+Every exit from `Parse` (missing `paths`, malformed `paths`, or completed walk) returns
+through `Complete`. Check `root.ValueKind` before `TryGetProperty`, and `paths.ValueKind`
+before enumeration. The constructor calls `ArgumentNullException.ThrowIfNull` for both
+dependencies.
+
+Keep `ParseJson`, document version/key handling, `ReadSchemas`, and the graph sweep in root
+`SpecParser`. Its orchestration is exactly: validate object root → read version/document
+wall → create ordinal graph + `SchemaNodeParser` → read schemas → create/execute
+`OperationParser` → validate named-schema roots plus `operationParser.SchemaRoots` →
+`ThrowIfAny` → freeze and return `SpecDocument`. Replace the operation-specific dangling-ref
+method with this root-level input shape:
+
+```csharp
+private static void ValidateDanglingRefs(
+    IReadOnlyDictionary<string, SchemaNode> graph,
+    IEnumerable<(string Location, SchemaNode Node)> operationRoots,
+    SpecParseErrorCollector errors)
+{
+    foreach (var (root, node) in graph)
+    {
+        ValidateNodeDanglingRefs($"schema '{root}'", node, graph, errors);
+    }
+
+    foreach (var (location, node) in operationRoots)
+    {
+        ValidateNodeDanglingRefs(location, node, graph, errors);
+    }
+}
+```
+
+- [ ] **Step 6: Harden every container seam and preserve safe batching**
+
+Apply these exact shape gates before any object/array-only JSON operation:
+
+1. Root `SpecParser.ParseDocument`: non-object root adds
+   `document: root must be an object` and throws through the collector before reading
+   version or children.
+2. Root `ReadSchemas`: non-object `components` adds
+   `document: 'components' must be an object`; non-object `components.schemas` adds
+   `document: 'components.schemas' must be an object`. Return from that malformed parent,
+   but do not throw: `OperationParser.Parse` must still inspect the independent `paths`
+   sibling before the single final `ThrowIfAny`.
+3. `OperationParser`: retain/add kind checks for `paths`, each path item, each operation,
+   `parameters`, each parameter, `requestBody`, request `content`, and each media entry.
+   Distinguish a present non-object request `content` as
+   `requestBody content must be an object`; reserve
+   `requestBody content must contain exactly one media entry` for an object with zero or
+   multiple entries.
+4. `SchemaNodeParser`: retain its top-level schema-object gate and verify every nested
+   `EnumerateObject`, `EnumerateArray`, object-only `TryGetProperty`, and
+   `GetArrayLength` is dominated by the corresponding `ValueKind` gate. The existing
+   checked dialect shapes include union/enum/required/prefix-item arrays and
+   properties/pattern-properties/additional-properties objects.
+
+Within a valid object, evaluate independent field validations into booleans before the
+construction gate so one bad sibling does not short-circuit another safe check. Unsupported
+operation keys must not suppress validation of known sibling fields. Missing identity or a
+malformed parent returns before child construction to preserve non-cascading behavior. Do
+not add repetitive argument guards to private helpers whose callers already establish the
+shape.
+
+- [ ] **Step 7: Freeze every parser-produced SpecIR collection**
+
+Use snapshots/read-only wrappers at the construction sites below. The records stay
+`required`/`init`; do not add custom setters or constructors.
+
+| Exposed collection | Required parser-produced value |
+|---|---|
+| `SpecDocument.Operations` | `OperationParser.Complete`'s read-only operation list |
+| `SpecDocument.Schemas` | `ReadOnlyDictionary<string, SchemaNode>` over an ordinal-sorted snapshot created after validation |
+| `SpecOperation.Segments` | read-only wrapper over the split segment snapshot |
+| `SpecOperation.Parameters` | read-only wrapper over the parsed parameter snapshot |
+| `EnumNode.Values` | read-only wrapper over the parsed string snapshot |
+| `ObjectNode.Properties` | read-only wrapper over the parsed property snapshot |
+| `ObjectNode.LiteralMarkers` | read-only wrapper over the computed marker snapshot |
+| `TupleNode.Items` | read-only wrapper over the parsed item snapshot |
+| `UnionNode.Branches` | read-only wrapper over the parsed branch snapshot |
+| `OperationParser.SchemaRoots` | read-only wrapper over the located-root snapshot |
+
+For the dictionary, copy before wrapping so no parser-held mutable dictionary backs the
+published document:
+
+```csharp
+var frozenSchemas = new ReadOnlyDictionary<string, SchemaNode>(
+    new SortedDictionary<string, SchemaNode>(schemas, StringComparer.Ordinal));
+```
+
+Task 9 applies the same rule to `SpecOperation.Responses`. Arrays and
+`List<T>.AsReadOnly()`/`ReadOnlyDictionary` are acceptable snapshots/wrappers; a raw
+`List<T>` or `SortedDictionary` assigned to a public read-only interface is not.
+
+- [ ] **Step 8: Repair source/test imports with exact module namespaces**
+
+Source imports:
+
+- `SpecParser.cs`: add `System.Collections.ObjectModel` for the frozen dictionary. It and
+  `SpecDocument.cs` add both
+  `OpenCode.Sdk.Tools.Generator.Parsing.Schemas` and `.Operations`.
+- `Schemas/SchemaNodeParser.cs`: add root
+  `OpenCode.Sdk.Tools.Generator.Parsing` for `SpecParseErrorCollector`.
+- `Operations/OperationParser.cs`: add root `.Parsing` and `.Parsing.Schemas`.
+- `Operations/SpecParameter.cs` and `Operations/SpecRequestBody.cs`: add
+  `.Parsing.Schemas`; the other operation records use their own namespace only.
+
+Test imports (unused imports remain analyzer errors, so use exactly these):
+
+| Test file | Imports from parsing modules |
+|---|---|
+| `SpecFixture.cs`, `SpecParserTests.cs` | root `.Parsing` only (unchanged) |
+| `SpecMediaTypeTests.cs` | `.Parsing.Operations` only |
+| `SpecParserObjectNodeTests.cs`, `SpecParserQuirkNodeTests.cs`, `SpecParserSchemaNodeTests.cs`, `SpecParserUnionTests.cs` | root `.Parsing` + `.Parsing.Schemas` |
+| `SpecParserOperationTests.cs` | root `.Parsing` + `.Parsing.Operations` |
+| `SpecParserParameterTests.cs`, `SpecParserDefensiveTests.cs` | root `.Parsing` + `.Parsing.Schemas` + `.Parsing.Operations` |
+
+- [ ] **Step 9: Run focused GREEN and inspect the module shape in Rider**
+
+Run the same focused command from Step 2. Expected: all 17
+`SpecParserDefensiveTests` pass and no framework exception escapes.
+
+With Rider indexed on this worktree, run `get_file_problems` for:
+
+- `Parsing/SpecParser.cs`, `Parsing/SpecDocument.cs`;
+- `Parsing/Schemas/SchemaNodeParser.cs`, `ObjectNode.cs`, `UnionNode.cs`;
+- `Parsing/Operations/OperationParser.cs`, `SpecOperation.cs`;
+- `tests/OpenCode.Sdk.Tools.Tests/SpecParserDefensiveTests.cs`.
+
+Then run `get_project_problems` for the solution. Expected: no compiler error or inspection
+warning; IDE0130 reports no mismatch. Use `search_symbol` for `SchemaNodeParser` and
+`OperationParser` and confirm exactly one declaration each in the `Schemas` and
+`Operations` namespaces respectively. Rider is a check; on-disk files and CLI gates remain
+the source of truth.
+
+- [ ] **Step 10: Run the full gate**
+
+Run, in order:
+
+```bash
+dotnet build --configuration Release
+dotnet test --configuration Release --no-build
+dotnet format --verify-no-changes --no-restore
+dotnet tool run slopwatch analyze --exclude ".scratchpad/**,external/**" --fail-on warning
+```
+
+Expected: all four exit 0. Confirm the full existing parser suite still passes, schema keys
+remain ordinal-sorted, operations remain in document order, and no source/test/project/build
+file outside the Task 8.5 list changed.
+
+- [ ] **Step 11: Stage only Task 8.5 and commit**
+
+```bash
+git add .editorconfig \
+  tools/OpenCode.Sdk.Tools/Generator/Parsing/SpecParser.cs \
+  tools/OpenCode.Sdk.Tools/Generator/Parsing/SpecDocument.cs \
+  tools/OpenCode.Sdk.Tools/Generator/Parsing/Schemas \
+  tools/OpenCode.Sdk.Tools/Generator/Parsing/Operations \
+  tests/OpenCode.Sdk.Tools.Tests/SpecMediaTypeTests.cs \
+  tests/OpenCode.Sdk.Tools.Tests/SpecParserDefensiveTests.cs \
+  tests/OpenCode.Sdk.Tools.Tests/SpecParserObjectNodeTests.cs \
+  tests/OpenCode.Sdk.Tools.Tests/SpecParserOperationTests.cs \
+  tests/OpenCode.Sdk.Tools.Tests/SpecParserParameterTests.cs \
+  tests/OpenCode.Sdk.Tools.Tests/SpecParserQuirkNodeTests.cs \
+  tests/OpenCode.Sdk.Tools.Tests/SpecParserSchemaNodeTests.cs \
+  tests/OpenCode.Sdk.Tools.Tests/SpecParserUnionTests.cs
+git diff --cached --name-status
+git status --short
+git commit -m "refactor(tools): verticalize parsing modules and harden the wall"
+```
+
+The staged diff must contain only the moves/edits/tests listed above. Do not stage any CLI,
+command, project/build, workflow, generated-output, or documentation file in this
+implementation commit.
+
+---
+
 ### Task 9: Responses — SSE detection, opaque `x-effect-stream`, envelope classification
 
 **Files:**
-- Create: `tools/OpenCode.Sdk.Tools/Generator/Parsing/SpecResponse.cs`,
-  `SpecEnvelopeShape.cs`
-- Modify: `tools/OpenCode.Sdk.Tools/Generator/Parsing/SpecOperation.cs`, `SpecParser.cs`
+- Create: `tools/OpenCode.Sdk.Tools/Generator/Parsing/Operations/SpecResponse.cs`,
+  `tools/OpenCode.Sdk.Tools/Generator/Parsing/Operations/SpecEnvelopeShape.cs`
+- Modify: `tools/OpenCode.Sdk.Tools/Generator/Parsing/Operations/SpecOperation.cs`
+- Modify: `tools/OpenCode.Sdk.Tools/Generator/Parsing/Operations/OperationParser.cs`
 - Test: `tests/OpenCode.Sdk.Tools.Tests/SpecParserResponseTests.cs`
 
 **Interfaces:**
-- Consumes: tasks 7–8's operation walk, task 6's `SpecMediaType`, the completed schema
-  graph (classification resolves refs — schemas are parsed before paths since task 1).
+- Consumes: Task 8.5's `OperationParser`, its injected `SchemaNodeParser`, and
+  `SchemaNodeParser.TryGetNode`; `Operations.SpecMediaType`; the completed
+  `Schemas.SchemaNode` graph (schemas are parsed before paths).
 - Produces:
   - `public enum SpecEnvelopeShape { None, Bare, Data, DataLocation, CursorData, DataHasMore }`
   - ```csharp
@@ -1596,25 +2238,34 @@ git commit -m "feat(tools): parameter and request body parsing"
         public required int StatusCode { get; init; }
         public string? Description { get; init; }
         public SpecMediaType? ContentType { get; init; }   // null = no content
-        public SchemaNode? Schema { get; init; }
+        public SchemaNode? Schema { get; init; }             // Parsing.Schemas
         public required SpecEnvelopeShape EnvelopeShape { get; init; }
         public required bool IsSse { get; init; }
         public JsonElement? EffectStreamMetadata { get; init; }  // opaque clone
     }
     ```
-  - `SpecOperation` gains `required IReadOnlyList<SpecResponse> Responses` (sorted
-    ascending by status) and `required bool IsSse` (any response `IsSse`).
+  - Both new types and `SpecOperation` live in
+    `OpenCode.Sdk.Tools.Generator.Parsing.Operations`; `SpecResponse.cs` imports
+    `System.Text.Json` and `OpenCode.Sdk.Tools.Generator.Parsing.Schemas` for
+    `JsonElement` and `SchemaNode`.
+  - `SpecOperation` gains `required IReadOnlyList<SpecResponse> Responses` (an immutable
+    snapshot sorted ascending by status) and `required bool IsSse` (any response
+    `IsSse`). `OperationParser.SchemaRoots` gains each non-null response schema at
+    `operation '{operationId}' response {status}` for the root module's final dangling-ref
+    sweep.
 
 Parsing rules:
 - Response map keys must parse as integers (`"default"` refuses); response object keys:
-  `description`/`content` only.
+  `description`/`content` only. `responses` must be an object before its entries are
+  enumerated, and each response must be an object before its keys are read.
 - No `content` ⇒ `ContentType` null, `Schema` null, shape `None` (the 204 family).
 - `content` with one media entry: type through `SpecMediaType.Create`; media keys:
   `schema` (parsed at pointer `/responses/{status}`) plus — **only when the media type is
   `text/event-stream`** — `x-effect-stream`, whose value is carried opaque via
   `JsonElement.Clone()` (never schema-parsed; its interior `not`/`anyOf`-null constructs
   must never reach the node parser — generator spec §4.1). `x-effect-stream` on any
-  other media type refuses. Two or more media entries refuse.
+  other media type refuses. Response `content` and each media entry must be objects before
+  object-only access; zero or two-or-more media entries refuse.
 - `IsSse` = media `IsEventStream`. The SSE media schema itself parses normally (the
   `v2.session.events` inline `{id, event, data}` envelope promotes like any inline
   object; `global.event`/`event.subscribe`/`v2.event.subscribe` are plain refs).
@@ -1635,6 +2286,8 @@ envelope fixtures mirror the real shapes: `SessionsResponse` verbatim for `Curso
 
 ```csharp
 using OpenCode.Sdk.Tools.Generator.Parsing;
+using OpenCode.Sdk.Tools.Generator.Parsing.Operations;
+using OpenCode.Sdk.Tools.Generator.Parsing.Schemas;
 
 namespace OpenCode.Sdk.Tools.Tests;
 
@@ -1702,6 +2355,14 @@ Parse_Should_Carry_Effect_Stream_Metadata_Opaque
    → EffectStreamMetadata present; raw JSON round-trips; no parse error from the
    interior "not")
 Parse_Should_Refuse_When_Response_Has_Multiple_Content_Types
+Parse_Should_Refuse_When_Responses_Is_Not_Object
+  ("responses": [] → "responses must be an object")
+Parse_Should_Refuse_When_Response_Is_Not_Object
+  ("responses": {"200": []} → "response must be an object")
+Parse_Should_Refuse_When_Response_Content_Is_Not_Object
+  ("content": [] → "response content must be an object")
+Parse_Should_Refuse_When_Response_Media_Entry_Is_Not_Object
+  ("application/json": [] → "media entry must be an object")
 Parse_Should_Refuse_When_Effect_Stream_Appears_On_Json_Media
 Parse_Should_Refuse_When_Response_Media_Key_Is_Unknown   ("examples": {})
 Parse_Should_Refuse_When_Response_Status_Is_Not_Numeric  ("default")
@@ -1709,19 +2370,40 @@ Parse_Should_Refuse_When_Ref_Chain_Cycles_During_Envelope_Classification
   ("A": {"$ref": ".../B"}, "B": {"$ref": ".../A"}, response schema → ref A)
 ```
 
-- [ ] **Step 2: Run to verify they fail** — CS0246/CS1061.
+- [ ] **Step 2: Run to verify they fail**
 
-- [ ] **Step 3: Implement.** Task 7/8 fixtures used minimal `responses` blocks — they now
-parse for real; their assertions are untouched.
+Run:
 
-- [ ] **Step 4: Run to verify they pass** — full suite green.
+```bash
+dotnet test --project tests/OpenCode.Sdk.Tools.Tests/OpenCode.Sdk.Tools.Tests.csproj --treenode-filter "/*/*/SpecParserResponseTests/*"
+```
+
+Expected: compile/test FAIL with CS0246/CS1061 for the new response types and members.
+
+- [ ] **Step 3: Implement in the operation module.** Add response parsing and envelope
+classification to `Operations/OperationParser.cs`; do not move it back into or modify root
+`SpecParser.cs`. Resolve each `RefNode.Target` through the injected
+`SchemaNodeParser.TryGetNode`, keep a per-classification ordinal visited set, and add a
+located collector error on a cycle. Extend `OperationParser.Complete` so
+`SchemaRoots` includes every non-null response schema after parameter/request-body roots.
+Assign `Responses` from a sorted read-only snapshot, not the mutable sorting list. Task 7/8
+fixtures used minimal `responses` blocks — they now parse for real; their assertions are
+untouched.
+
+- [ ] **Step 4: Run the focused tests to verify they pass**
+
+Run the Step 2 command again. Expected: every `SpecParserResponseTests` case passes.
 
 - [ ] **Step 5: Full gate** (Global Constraints — all four commands clean)
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add tools/OpenCode.Sdk.Tools tests/OpenCode.Sdk.Tools.Tests
+git add tools/OpenCode.Sdk.Tools/Generator/Parsing/Operations/OperationParser.cs \
+  tools/OpenCode.Sdk.Tools/Generator/Parsing/Operations/SpecEnvelopeShape.cs \
+  tools/OpenCode.Sdk.Tools/Generator/Parsing/Operations/SpecOperation.cs \
+  tools/OpenCode.Sdk.Tools/Generator/Parsing/Operations/SpecResponse.cs \
+  tests/OpenCode.Sdk.Tools.Tests/SpecParserResponseTests.cs
 git commit -m "feat(tools): response parsing with SSE detection and envelope classification"
 ```
 
@@ -1734,8 +2416,9 @@ git commit -m "feat(tools): response parsing with SSE detection and envelope cla
 - Test: `tests/OpenCode.Sdk.Tools.Tests/SpecParserSmokeTests.cs`
 
 **Interfaces:**
-- Consumes: the complete parser (tasks 1–9); the pinned `spec/openapi.json`; the real
-  `FileSystem` from `TestableIO.System.IO.Abstractions.Wrappers` (pinned in task 1).
+- Consumes: the complete root + `Schemas` + `Operations` parser modules (tasks 1–9,
+  including Task 8.5); the pinned `spec/openapi.json`; the real `FileSystem` from
+  `TestableIO.System.IO.Abstractions.Wrappers` (pinned in task 1).
 - Produces: the structural gate every future spec refresh runs through. **No count
   assertions** — counts are research-doc facts; count tests would turn every legitimate
   refresh into noise (generator spec §11).
@@ -1762,6 +2445,8 @@ In `tests/OpenCode.Sdk.Tools.Tests/OpenCode.Sdk.Tools.Tests.csproj`:
 ```csharp
 using System.IO.Abstractions;
 using OpenCode.Sdk.Tools.Generator.Parsing;
+using OpenCode.Sdk.Tools.Generator.Parsing.Operations;
+using OpenCode.Sdk.Tools.Generator.Parsing.Schemas;
 
 namespace OpenCode.Sdk.Tools.Tests;
 
@@ -1863,21 +2548,23 @@ protocol.)
 
 - [ ] **Step 3: Run to verify the red state**
 
-Run: `dotnet test tests/OpenCode.Sdk.Tools.Tests`
+Run: `dotnet test --project tests/OpenCode.Sdk.Tools.Tests/OpenCode.Sdk.Tools.Tests.csproj`
 Expected: if tasks 1–9 are complete and correct, this may already pass — the honest red
 check is transient: temporarily point `ParsePinnedSpec` at a copy with one construct the
 wall refuses (e.g. inject `"allOf": []` into a scratch copy under `.scratchpad/`) and
 watch it fail, then restore. If instead the *real* spec fails to parse, the failure list
 is the finding — fix the parser task at fault (level 0/1) or stop for level 2.
 
-- [ ] **Step 4: Run to verify green** — full suite green against the real pinned spec.
+- [ ] **Step 4: Run to verify green** — run the Step 3 command against the real pinned
+spec; the full test project is green.
 
 - [ ] **Step 5: Full gate** (Global Constraints — all four commands clean)
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add tests/OpenCode.Sdk.Tools.Tests
+git add tests/OpenCode.Sdk.Tools.Tests/OpenCode.Sdk.Tools.Tests.csproj \
+  tests/OpenCode.Sdk.Tools.Tests/SpecParserSmokeTests.cs
 git commit -m "test(tools): full pinned-spec smoke test"
 ```
 
@@ -1902,9 +2589,10 @@ In `docs/ROADMAP.md` Status, replace the final sentence
 
 ```text
 Slice 1 (parser + SpecIR) has landed: the wire-faithful parser with its dialect wall,
-quirk fixtures, and full pinned-spec smoke test live under
-`tools/OpenCode.Sdk.Tools/Generator/Parsing/`; `generate` remains a fail-loud stub until
-slice 3. Next is the Slice 2 planning cycle for issue #3 (Binder + curation v0).
+quirk fixtures, and full pinned-spec smoke test live in the root, `Schemas`, and
+`Operations` modules under `tools/OpenCode.Sdk.Tools/Generator/Parsing/`; `generate`
+remains a fail-loud stub until slice 3. Next is the Slice 2 planning cycle for issue #3
+(Binder + curation v0).
 ```
 
 - [ ] **Step 2: Research-log entry (conditional)** — if any deviation fired or an
@@ -1940,9 +2628,10 @@ issue closes on merge).
 
 What this slice hands the Binder, and what it deliberately does not:
 
-- **`SpecDocument`** is the Binder's sole spec-side input: `Operations` (document
-  order) + `Schemas` (flat, ordinal-sorted keys). No C# names anywhere — name
-  computation, handle routing, and every emission decision are Binder work.
+- **`SpecDocument`** in the root parsing namespace is the Binder's sole spec-side input:
+  `Operations` (`Parsing.Operations`, document order) + `Schemas` (`Parsing.Schemas`,
+  flat ordinal-sorted keys). No C# names anywhere — name computation, handle routing,
+  and every emission decision are Binder work.
 - **Graph keys are a stable contract**: wire names for named schemas; `{root}#{pointer}`
   (marker-keyed union branches) for promoted inline types. The Binder computes the
   reachable closure by walking `SchemaNode.Children` / `RefNode.Target` from each

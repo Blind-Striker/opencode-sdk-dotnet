@@ -1119,3 +1119,39 @@ siblings (fail-closed maximalist posture: the TestableIO seam is now mechanicall
 enforced, not review-enforced). The analyzer is an older-Roslyn build; if the current
 compiler refuses to load it, the plan marks that a stop-and-report finding, never a
 silent drop.
+
+# Session 12 — 2026-08-10: slice 1 build-out — parser module and defensive-wall correction
+
+## Q55: Does the live parser still fit one flat parsing module, and is its dialect wall defensive at every container seam?
+
+**How researched:** measured the Task 8 implementation on disk by file, line, and method;
+reviewed every document/operation/schema `JsonElement` container entry before Task 9;
+exercised malformed parent/sibling shapes at the public `SpecParser` seam; traced final
+SpecIR collection implementations behind their read-only interfaces; and re-read the two
+file-scoped CA1720 arbitrations in `.editorconfig` against IDE0130 folder/namespace rules.
+
+**Found:** `tools/OpenCode.Sdk.Tools/Generator/Parsing/` had grown to **33 C# files**.
+`SpecParser.cs` was **953 lines / 39 methods**, mixing document orchestration with paths,
+operations, parameters, and request bodies; `SchemaNodeParser.cs` was **1438 lines / 61
+methods**, carrying the separate schema dialect. Reviews found three defensive gaps:
+non-object containers on root/components/schema-map paths could escape as framework
+`InvalidOperationException`/`ArgumentException`; some early construction returns reduced
+safe sibling error batching; and mutable `List<T>`/`SortedDictionary` instances backed
+collections exposed as read-only interfaces. The existing CA1720 Level 1 arbitrations are
+both deliberately narrow — only `PrimitiveKind.cs` (`String`, `Integer`) and
+`LiteralKind.cs` (`String`) — so their file globs must move with those types rather than
+broaden. A horizontal `Enums/` bucket was rejected: it would split behavior facts from the
+schema/operation modules that own them and create a technical-type bucket with no behavioral
+interface.
+
+**Decision (maintainer-approved Level 2):** correct the architecture and execution plan
+before Task 9. `Parsing/` keeps the sole public `SpecParser` seam plus document/error types;
+`Parsing/Schemas/` owns `SchemaNodeParser`, the graph, nodes, and their related enums;
+`Parsing/Operations/` owns a new internal `OperationParser`, operation records, parameters,
+request bodies, Task 9 responses/envelope classification, and their related enums. Namespace
+equals folder under IDE0130; no `Nodes/` or `Enums/` buckets. All module dependencies and
+text inputs are guarded, every JSON container kind is checked before object/array-only
+access, independent malformed siblings batch where safe, unbuildable parents remain
+non-cascading, and every parser-produced SpecIR collection is frozen while preserving
+ordinal schema order and document operation order. The executable correction is Task 8.5
+in the slice plan and must land before response implementation resumes.

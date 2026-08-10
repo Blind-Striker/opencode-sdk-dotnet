@@ -80,7 +80,28 @@ tools/
     │   ├── GenerateCommand.cs        ←   generate [--verify] [--update-fingerprints]
     │   └── RefreshSpecCommand.cs     ←   refresh-spec --ref <tag|commit>
     ├── Generator/
-    │   ├── Parsing/                  ← Parser + SpecIR types (§4.1)
+    │   ├── Parsing/                  ← Parser + SpecIR modules (§4.1)
+    │   │   ├── SpecParser.cs         ← external seam; document orchestration
+    │   │   ├── SpecDocument.cs
+    │   │   ├── SpecParseException.cs
+    │   │   ├── SpecParseErrorCollector.cs
+    │   │   ├── Schemas/              ← schema graph + schema-node dialect
+    │   │   │   ├── SchemaNodeParser.cs
+    │   │   │   ├── SchemaNode.cs / SpecProperty.cs / LiteralMarker.cs
+    │   │   │   ├── PrimitiveNode.cs / PrimitiveKind.cs
+    │   │   │   ├── EnumNode.cs
+    │   │   │   ├── LiteralNode.cs / LiteralKind.cs / LiteralDialect.cs
+    │   │   │   ├── ObjectNode.cs / AdditionalPropertiesKind.cs / ErrorStyle.cs
+    │   │   │   ├── DictionaryNode.cs / FreeFormObjectNode.cs
+    │   │   │   ├── ArrayNode.cs / TupleNode.cs
+    │   │   │   ├── UnionNode.cs / UnionKeyword.cs / NullableNode.cs
+    │   │   │   └── RefNode.cs / SpecialNumberNode.cs / JsonStringNode.cs
+    │   │   └── Operations/           ← paths, operations, parameters, bodies, responses
+    │   │       ├── OperationParser.cs
+    │   │       ├── SpecOperation.cs / SpecSurface.cs
+    │   │       ├── SpecParameter.cs / SpecParameterLocation.cs
+    │   │       ├── SpecRequestBody.cs / SpecMediaType.cs
+    │   │       └── SpecResponse.cs / SpecEnvelopeShape.cs
     │   ├── Binding/                  ← Binder + curation models + EmitPlan types (§4.2)
     │   ├── Emission/                 ← per-artifact-family emitters (§6)
     │   └── Output/                   ← Writer: output manifest, stale cleanup, format (§8)
@@ -178,6 +199,48 @@ and operations) from `emitPromise`/`emitEffect`/`write` over that IR
 ### 4.1 Parser and SpecIR
 
 SpecIR is wire-faithful and contains zero C# concepts. Inventory:
+
+The parsing stage is split into three vertical modules whose namespaces follow their folders
+under IDE0130: the root `OpenCode.Sdk.Tools.Generator.Parsing` module,
+`OpenCode.Sdk.Tools.Generator.Parsing.Schemas`, and
+`OpenCode.Sdk.Tools.Generator.Parsing.Operations`. Related enums and value facts stay beside
+their cohesive schema or operation module; there are no horizontal `Nodes/` or `Enums/`
+technical-type buckets.
+
+- **Root module.** Public `SpecParser` is the only external behavior seam:
+  `SpecDocument Parse(string specPath)` over `IFileSystem`. It owns file and JSON loading,
+  the document wall and OpenAPI version, parser construction, schema-before-path ordering,
+  the final dangling-ref sweep, batched refusal, and freezing the final document
+  collections. `SpecDocument`, `SpecParseException`, and the internal error collector live
+  beside it.
+- **Schema module.** Internal `SchemaNodeParser` owns the schema graph and schema-node
+  dialect behind `SchemaNode? Parse(JsonElement schema, string root, string pointer)`. Its
+  constructor guards injected dependencies; `Parse` guards the textual root and pointer
+  inputs and treats every `JsonElement` shape as untrusted data. All schema node records,
+  `SpecProperty`, `LiteralMarker`, and their directly related enums live in `Schemas/`.
+- **Operation module.** Internal `OperationParser` owns paths, operations, parameters,
+  request bodies, responses, and envelope classification. Its constructor guards injected
+  dependencies; parsing returns operations in document order and exposes the operation-root
+  schema nodes required by the root module's dangling-ref sweep without exposing mutable
+  implementation collections. All operation records and their directly related enums live
+  in `Operations/`.
+
+The parser's dialect wall is also a defensive data wall. Public and module-seam reference
+and string inputs are guarded; private helpers rely on their controlled callers rather than
+repeating guards. Every object-only or array-only `JsonElement` operation is preceded by a
+`ValueKind` check, including before `EnumerateObject`, `EnumerateArray`, and object-only
+`TryGetProperty`; malformed kinds become located collector errors and never escape as
+framework `InvalidOperationException` or `ArgumentException`. Independent sibling
+containers continue after one malformed sibling so safe errors batch (schemas before paths
+is preserved), while an unbuildable parent returns no node or operation and does not produce
+derivative child errors.
+
+Every collection produced by the parser and exposed through the final SpecIR is frozen:
+schema keys remain ordinal-sorted, operations remain in document order, and arrays or
+read-only wrappers prevent mutable `List<T>` or `SortedDictionary` backing from leaking.
+The public record contracts remain `required`/`init` and read-only-interface shaped; the
+guarantee is about parser-produced values and module seams, not arbitrary consumer
+construction of those records.
 
 - **`SpecOperation`** — operationId; surface (`Modern`/`Legacy`, keyed on the `v2.`
   operationId prefix, never the path: 3 of 61 modern ops live under
