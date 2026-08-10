@@ -149,7 +149,7 @@ API note: `CommandAppTester` (ctor taking `ITypeRegistrar`, `Configure`, `RunAsy
 pinned version's signatures differ in detail (e.g. an added `CancellationToken` on
 `AsyncCommand.ExecuteAsync`), adapt in place — that is a level-0 deviation.
 
-- [ ] **Step 1: Create the test project**
+- [x] **Step 1: Create the test project**
 
 `tests/OpenCode.Sdk.Tools.Tests/OpenCode.Sdk.Tools.Tests.csproj`:
 
@@ -179,7 +179,7 @@ Add to `OpenCode.slnx` under the existing `/tests/` folder:
     <Project Path="tests/OpenCode.Sdk.Tools.Tests/OpenCode.Sdk.Tools.Tests.csproj" />
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 `tests/OpenCode.Sdk.Tools.Tests/ToolAppTests.cs`:
 
@@ -218,12 +218,12 @@ public sealed class ToolAppTests
 (`OpenCode.Sdk.Tools.Tests` sits inside the `OpenCode.Sdk.Tools` namespace hierarchy, so
 `ToolApp` resolves without a using directive — adding one would trip IDE0005.)
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `dotnet test tests/OpenCode.Sdk.Tools.Tests`
 Expected: build FAILS with CS0246 (`ToolApp` not found) — the red state for scaffolding.
 
-- [ ] **Step 4: Implement `ToolApp`**
+- [x] **Step 4: Implement `ToolApp`**
 
 `tools/OpenCode.Sdk.Tools/ToolApp.cs`:
 
@@ -300,17 +300,17 @@ public sealed class GenerateCommand : AsyncCommand
 }
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `dotnet test tests/OpenCode.Sdk.Tools.Tests`
 Expected: PASS (both tests, net10.0 leg).
 
-- [ ] **Step 6: Full gate check**
+- [x] **Step 6: Full gate check**
 
 Run: `dotnet build --configuration Release` then `dotnet format --verify-no-changes --no-restore`
 Expected: both clean.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add tools/OpenCode.Sdk.Tools tests/OpenCode.Sdk.Tools.Tests OpenCode.slnx

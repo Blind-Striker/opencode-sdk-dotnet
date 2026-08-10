@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>$(DefaultTargetFramework)</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit"/>
+    <PackageReference Include="Spectre.Console.Cli.Testing"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../tools/OpenCode.Sdk.Tools/OpenCode.Sdk.Tools.csproj"/>
+  </ItemGroup>
+
+</Project>
