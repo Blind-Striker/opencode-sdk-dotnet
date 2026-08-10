@@ -84,6 +84,10 @@ reachable via `docs/ROADMAP.md`) until build-out distills them.
 - Be direct, practical, and clear. Challenge decisions when needed — argue from mechanisms and
   sources, not convention; do not yes-person your way into bad architecture. A well-grounded
   "no" will be accepted.
+- *"No plan survives first contact with the enemy."* — Helmuth von Moltke. Specs and plans are
+  falsifiable instruments, not law: when implementation contradicts a sealed decision, stop
+  and follow the deviation protocol (`docs/agents/deviation-protocol.md`) — never silently
+  code around it.
 - A question wants an answer, not an action. When something is ambiguous, lay out options with a
   recommendation and ask — don't resolve it silently.
 - Align before writing: propose structure/plan first, get an OK, then write.
