@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json.Nodes;
 
 namespace OpenCode.Sdk.Tools.Tests.Support;
@@ -6,52 +5,40 @@ namespace OpenCode.Sdk.Tools.Tests.Support;
 internal sealed class OperationBuilder
 {
     private readonly JsonObject _operation;
-    private readonly JsonObject _responses = [];
+    private readonly OperationParameterBuilder _parameters;
+    private readonly OperationResponseBuilder _responses;
 
-    public OperationBuilder(string operationId)
+    public OperationBuilder(string operationId, FixtureLoader fixtureLoader)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
+        ArgumentNullException.ThrowIfNull(fixtureLoader);
 
+        var responses = new JsonObject();
         _operation = new JsonObject
         {
             ["operationId"] = operationId,
-            ["responses"] = _responses,
+            ["responses"] = responses,
         };
+        _parameters = new OperationParameterBuilder(_operation);
+        _responses = new OperationResponseBuilder(responses, fixtureLoader);
+        Response(200);
     }
 
     public OperationBuilder Parameter(string name, string location, Action<SchemaBuilder> configure, bool required = false, bool deepObject = false)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArgumentException.ThrowIfNullOrWhiteSpace(location);
-        ArgumentNullException.ThrowIfNull(configure);
+        _parameters.Add(name, location, configure, required, deepObject);
+        return this;
+    }
 
-        if (_operation["parameters"] is not JsonArray parameters)
-        {
-            parameters = [];
-            _operation["parameters"] = parameters;
-        }
+    public OperationBuilder ParameterWithStyle(string name, string style, bool explode)
+    {
+        _parameters.AddWithStyle(name, style, explode);
+        return this;
+    }
 
-        var schema = new SchemaBuilder();
-        configure(schema);
-        var parameter = new JsonObject
-        {
-            ["name"] = name,
-            ["in"] = location,
-            ["schema"] = schema.Build(),
-        };
-
-        if (required)
-        {
-            parameter["required"] = true;
-        }
-
-        if (deepObject)
-        {
-            parameter["style"] = "deepObject";
-            parameter["explode"] = true;
-        }
-
-        parameters.Add(parameter);
+    public OperationBuilder ContentParameter(string name)
+    {
+        _parameters.AddContent(name);
         return this;
     }
 
@@ -79,63 +66,91 @@ internal sealed class OperationBuilder
         return this;
     }
 
-    public OperationBuilder Response(int status, string? mediaType = null, Action<SchemaBuilder>? schema = null)
+    public OperationBuilder RequestBodyMediaTypes(params string[] mediaTypes)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThan(status, 100);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(status, 599);
+        ArgumentNullException.ThrowIfNull(mediaTypes);
 
-        if (mediaType is null && schema is not null)
+        var content = new JsonObject();
+        foreach (var mediaType in mediaTypes)
         {
-            throw new ArgumentException("A response schema requires a media type.", nameof(mediaType));
-        }
-
-        var response = new JsonObject
-        {
-            ["description"] = "Response",
-        };
-
-        if (mediaType is not null)
-        {
-            ArgumentException.ThrowIfNullOrWhiteSpace(mediaType);
-            var media = new JsonObject();
-            if (schema is not null)
+            if (string.IsNullOrWhiteSpace(mediaType))
             {
-                var schemaBuilder = new SchemaBuilder();
-                schema(schemaBuilder);
-                media["schema"] = schemaBuilder.Build();
+                throw new ArgumentException("Media types cannot contain null or whitespace.", nameof(mediaTypes));
             }
 
-            response["content"] = new JsonObject
+            content[mediaType] = new JsonObject
             {
-                [mediaType] = media,
+                ["schema"] = new JsonObject
+                {
+                    ["type"] = "string",
+                },
             };
         }
 
-        _responses[status.ToString(CultureInfo.InvariantCulture)] = response;
+        _operation["requestBody"] = new JsonObject
+        {
+            ["content"] = content,
+        };
+        return this;
+    }
+
+    public OperationBuilder Response(int status, string? mediaType = null, Action<SchemaBuilder>? schema = null)
+    {
+        _responses.Add(status, mediaType, schema);
+        return this;
+    }
+
+    public OperationBuilder ResponseFromFixture(int status, string mediaType, string fixtureName)
+    {
+        _responses.AddFromFixture(status, mediaType, fixtureName);
+        return this;
+    }
+
+    public OperationBuilder ResponseWithHeader(int status)
+    {
+        _responses.AddWithHeader(status);
+        return this;
+    }
+
+    public OperationBuilder ResponseWithItemSchema(int status)
+    {
+        _responses.AddWithItemSchema(status);
+        return this;
+    }
+
+    public OperationBuilder ResponseMediaTypes(int status, params string[] mediaTypes)
+    {
+        _responses.AddMediaTypes(status, mediaTypes);
+        return this;
+    }
+
+    public OperationBuilder ResponseWithEncoding(int status)
+    {
+        _responses.AddWithEncoding(status);
+        return this;
+    }
+
+    public OperationBuilder DefaultResponse()
+    {
+        _responses.AddDefault();
         return this;
     }
 
     public OperationBuilder SseResponse(Action<SchemaBuilder> schema, string? effectStreamJson = null)
     {
-        ArgumentNullException.ThrowIfNull(schema);
+        _responses.AddSse(schema, effectStreamJson);
+        return this;
+    }
 
-        var media = new JsonObject
-        {
-            ["schema"] = BuildSchema(schema),
-        };
-        if (effectStreamJson is not null)
-        {
-            media["x-effect-stream"] = JsonNode.Parse(effectStreamJson);
-        }
+    public OperationBuilder SseResponseFromFixture(Action<SchemaBuilder> schema, string effectStreamFixtureName)
+    {
+        _responses.AddSseFromFixture(schema, effectStreamFixtureName);
+        return this;
+    }
 
-        _responses["200"] = new JsonObject
-        {
-            ["description"] = "Event stream",
-            ["content"] = new JsonObject
-            {
-                ["text/event-stream"] = media,
-            },
-        };
+    public OperationBuilder JsonResponseWithEffectStreamFromFixture(string effectStreamFixtureName)
+    {
+        _responses.AddJsonWithEffectStreamFromFixture(effectStreamFixtureName);
         return this;
     }
 
@@ -169,6 +184,33 @@ internal sealed class OperationBuilder
         ArgumentNullException.ThrowIfNull(summary);
 
         _operation["summary"] = summary;
+        return this;
+    }
+
+    public OperationBuilder Description(string description)
+    {
+        ArgumentNullException.ThrowIfNull(description);
+
+        _operation["description"] = description;
+        return this;
+    }
+
+    public OperationBuilder WithIgnoredTagsAndSecurity()
+    {
+        _operation["tags"] = new JsonArray("test");
+        _operation["security"] = new JsonArray();
+        return this;
+    }
+
+    public OperationBuilder Callback()
+    {
+        _operation["callbacks"] = new JsonObject
+        {
+            ["result"] = new JsonObject
+            {
+                ["{$request.body#/callbackUrl}"] = new JsonObject(),
+            },
+        };
         return this;
     }
 

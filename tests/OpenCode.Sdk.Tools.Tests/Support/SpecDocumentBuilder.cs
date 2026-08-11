@@ -83,7 +83,7 @@ internal sealed class SpecDocumentBuilder
         ArgumentException.ThrowIfNullOrWhiteSpace(method);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        var operation = new OperationBuilder(operationId);
+        var operation = new OperationBuilder(operationId, _fixtureLoader);
         configure?.Invoke(operation);
 
         if (_paths[path] is not JsonObject pathItem)
@@ -93,6 +93,61 @@ internal sealed class SpecDocumentBuilder
         }
 
         pathItem[method] = operation.Build();
+        return this;
+    }
+
+    public SpecDocumentBuilder WithWebhook()
+    {
+        _root["webhooks"] = new JsonObject
+        {
+            ["test"] = new JsonObject
+            {
+                ["post"] = new JsonObject
+                {
+                    ["operationId"] = "webhook.test",
+                    ["responses"] = new JsonObject
+                    {
+                        ["200"] = new JsonObject
+                        {
+                            ["description"] = "Response",
+                        },
+                    },
+                },
+            },
+        };
+        return this;
+    }
+
+    public SpecDocumentBuilder WithNonSchemaComponent()
+    {
+        _root["components"]!["parameters"] = new JsonObject
+        {
+            ["test"] = new JsonObject
+            {
+                ["name"] = "test",
+                ["in"] = "query",
+                ["schema"] = new JsonObject
+                {
+                    ["type"] = "string",
+                },
+            },
+        };
+        return this;
+    }
+
+    public SpecDocumentBuilder WithPathServer(string operationId, string path = "/api/x")
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        WithOperation(operationId, path: path);
+        _paths[path]!["servers"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["url"] = "https://example.test",
+            },
+        };
         return this;
     }
 
