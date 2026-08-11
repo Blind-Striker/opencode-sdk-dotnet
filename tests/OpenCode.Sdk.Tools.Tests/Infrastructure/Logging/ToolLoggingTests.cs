@@ -2,7 +2,6 @@ using Microsoft.Extensions.Logging;
 using OpenCode.Sdk.Tools.Infrastructure.Logging;
 using Spectre.Console.Testing;
 using Testably.Abstractions.Testing;
-using Testably.Abstractions.Testing.FileSystem;
 
 namespace OpenCode.Sdk.Tools.Tests.Infrastructure.Logging;
 
@@ -71,9 +70,10 @@ public sealed class ToolLoggingTests
     [Test]
     public async Task CreateLogger_Should_Fail_Loud_When_Configured_Log_File_Cannot_Be_Initialized()
     {
+        // A file occupying the log directory's path makes initialization fail identically
+        // on every OS; the Windows-only ACL simulation is not portable to the Linux/macOS legs.
         var fileSystem = new MockFileSystem();
-        fileSystem.WithAccessControlStrategy(
-            new DefaultAccessControlStrategy(static (_, _) => false));
+        await fileSystem.File.WriteAllTextAsync("logs", string.Empty);
         var options = new ToolLoggingOptions();
         options.Apply(LogLevel.Debug, "logs/tool.log");
 
@@ -83,6 +83,6 @@ public sealed class ToolLoggingTests
                 using var provider = new FileLoggerProvider(fileSystem, options);
                 provider.CreateLogger("OpenCode.Sdk.Tools.Tests");
             })
-            .Throws<UnauthorizedAccessException>();
+            .Throws<IOException>();
     }
 }
