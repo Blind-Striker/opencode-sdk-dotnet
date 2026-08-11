@@ -21,12 +21,11 @@ public sealed partial class GenerateCommand : AsyncCommand<GenerateCommand.Setti
     }
 
     /// <inheritdoc/>
-    protected override Task<int> ExecuteAsync(CommandContext context,
-        Settings settings,
-        CancellationToken cancellationToken)
+    protected override Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(settings);
+
         cancellationToken.ThrowIfCancellationRequested();
 
         LogInvocation(_logger);

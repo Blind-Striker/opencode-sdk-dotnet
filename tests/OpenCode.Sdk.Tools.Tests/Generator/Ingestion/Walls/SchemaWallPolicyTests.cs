@@ -1,7 +1,7 @@
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 using OpenCode.Sdk.Tools.Tests.Support;
 
-namespace OpenCode.Sdk.Tools.Tests;
+namespace OpenCode.Sdk.Tools.Tests.Generator.Ingestion.Walls;
 
 public sealed class SchemaWallPolicyTests
 {

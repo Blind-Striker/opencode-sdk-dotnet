@@ -24,16 +24,18 @@ public sealed class FileLoggerProvider : ILoggerProvider, ILogger
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(categoryName);
 
-        if (_options.LogFile is { } logFile)
+        if (_options.LogFile is not { } logFile)
         {
-            var directory = _fileSystem.Path.GetDirectoryName(logFile);
-            if (!string.IsNullOrEmpty(directory))
-            {
-                _fileSystem.Directory.CreateDirectory(directory);
-            }
-
-            _fileSystem.File.AppendAllText(logFile, string.Empty);
+            return this;
         }
+
+        var directory = _fileSystem.Path.GetDirectoryName(logFile);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            _fileSystem.Directory.CreateDirectory(directory);
+        }
+
+        _fileSystem.File.AppendAllText(logFile, string.Empty);
 
         return this;
     }
@@ -46,11 +48,7 @@ public sealed class FileLoggerProvider : ILoggerProvider, ILogger
     public bool IsEnabled(LogLevel logLevel) => _options.LogFile is not null && logLevel >= _options.MinimumLevel;
 
     /// <inheritdoc/>
-    public void Log<TState>(LogLevel logLevel,
-        EventId eventId,
-        TState state,
-        Exception? exception,
-        Func<TState, Exception?, string> formatter)
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
     {
         ArgumentNullException.ThrowIfNull(formatter);
 

@@ -34,11 +34,7 @@ public sealed class SpectreConsoleLoggerProvider : ILoggerProvider, ILogger
     public bool IsEnabled(LogLevel logLevel) => logLevel >= _options.MinimumLevel;
 
     /// <inheritdoc/>
-    public void Log<TState>(LogLevel logLevel,
-        EventId eventId,
-        TState state,
-        Exception? exception,
-        Func<TState, Exception?, string> formatter)
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
     {
         ArgumentNullException.ThrowIfNull(formatter);
 

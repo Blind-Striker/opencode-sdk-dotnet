@@ -89,18 +89,21 @@ internal sealed class SchemaWallPolicy
             }
         }
 
-        if (schema.Extensions is not null)
+        if (schema.Extensions is null)
         {
-            foreach (var extension in schema.Extensions.Keys.Order(StringComparer.Ordinal))
-            {
-                errors.Add(location, $"schema-level extension '{extension}' is not supported");
-            }
+            return;
+        }
+
+        foreach (var extension in schema.Extensions.Keys.Order(StringComparer.Ordinal))
+        {
+            errors.Add(location, $"schema-level extension '{extension}' is not supported");
         }
     }
 
     public bool IsUnrestricted(OpenApiSchema schema)
     {
         ArgumentNullException.ThrowIfNull(schema);
+
         return !_admittedConstraintRules.Any(rule => rule(schema));
     }
 

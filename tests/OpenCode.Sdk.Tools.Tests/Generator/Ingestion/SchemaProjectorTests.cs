@@ -5,7 +5,7 @@ using OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Walls;
 using OpenCode.Sdk.Tools.Tests.Support;
 
-namespace OpenCode.Sdk.Tools.Tests;
+namespace OpenCode.Sdk.Tools.Tests.Generator.Ingestion;
 
 public sealed class SchemaProjectorTests
 {

@@ -1,6 +1,6 @@
 using OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
 
-namespace OpenCode.Sdk.Tools.Tests;
+namespace OpenCode.Sdk.Tools.Tests.Generator.Ingestion;
 
 public sealed class GraphKeyBuilderTests
 {

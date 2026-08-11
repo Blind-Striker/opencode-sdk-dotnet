@@ -44,8 +44,7 @@ internal sealed class SpecReader(IFileSystem fileSystem)
                 throw;
             }
 
-            var diagnostic = result.Diagnostic
-                             ?? throw new InvalidOperationException("The OpenAPI reader returned no diagnostic information.");
+            var diagnostic = result.Diagnostic ?? throw new InvalidOperationException("The OpenAPI reader returned no diagnostic information.");
 
             foreach (var error in diagnostic.Errors)
             {
@@ -61,6 +60,7 @@ internal sealed class SpecReader(IFileSystem fileSystem)
             errors.ThrowIfAny();
             var document = result.Document
                            ?? throw new InvalidOperationException("The OpenAPI reader returned no document without a diagnostic error.");
+
             return new LoadedSpec(document, raw);
         }
     }

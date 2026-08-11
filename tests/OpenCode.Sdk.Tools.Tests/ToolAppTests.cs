@@ -38,8 +38,7 @@ public sealed class ToolAppTests
     public async Task CreateRegistrar_Should_Apply_Seam_Overrides_After_Production_Registrations()
     {
         var expected = new MockFileSystem();
-        using var registrar = ToolApp.CreateRegistrar(services =>
-            services.AddSingleton<IFileSystem>(expected));
+        using var registrar = ToolApp.CreateRegistrar(services => services.AddSingleton<IFileSystem>(expected));
         var resolver = registrar.Build();
 
         var actual = resolver.Resolve(typeof(IFileSystem));
@@ -60,8 +59,7 @@ public sealed class ToolAppTests
         var tester = new CommandAppTester(registrar);
         tester.Configure(ToolApp.Configure);
 
-        var result = await tester.RunAsync(
-            ["generate", "--log-level", "debug", "--log-file", logPath]);
+        var result = await tester.RunAsync(["generate", "--log-level", "debug", "--log-file", logPath]);
 
         await Assert.That(result.ExitCode).IsEqualTo(1);
         await Assert.That(fileSystem.File.Exists(logPath)).IsTrue();

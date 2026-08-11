@@ -40,28 +40,28 @@ internal sealed class ProjectionState
             return null;
         }
 
-        if (pointer.Length > 0 && schema is EnumNode)
+        switch (pointer.Length)
         {
-            var promotedKey = $"{root}#{pointer}";
-            if (!_graph.TryAdd(promotedKey, schema))
-            {
+            case > 0 when schema is EnumNode:
+                var promotedKey = $"{root}#{pointer}";
+
+                if (_graph.TryAdd(promotedKey, schema))
+                {
+                    return new RefNode
+                    {
+                        Target = promotedKey,
+                    };
+                }
+
                 Errors.Add(location, $"schema graph key collision for '{promotedKey}'");
                 return null;
-            }
 
-            return new RefNode
-            {
-                Target = promotedKey
-            };
+            case 0 when !_graph.TryAdd(root, schema):
+                Errors.Add(location, $"schema graph key collision for '{root}'");
+                return null;
+            default:
+                return schema;
         }
-
-        if (pointer.Length == 0 && !_graph.TryAdd(root, schema))
-        {
-            Errors.Add(location, $"schema graph key collision for '{root}'");
-            return null;
-        }
-
-        return schema;
     }
 
     public bool TryVisit(IOpenApiSchema schema)

@@ -12,6 +12,7 @@ internal sealed class IngestionErrorCollector
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(location);
         ArgumentException.ThrowIfNullOrWhiteSpace(problem);
+
         _errors.Add(new IngestionError(location, problem));
     }
 

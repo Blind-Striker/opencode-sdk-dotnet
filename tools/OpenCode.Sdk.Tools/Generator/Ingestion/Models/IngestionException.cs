@@ -51,7 +51,7 @@ public sealed class IngestionException : Exception
     private static ReadOnlyCollection<IngestionError> CopyErrors(IReadOnlyList<IngestionError> errors)
     {
         ArgumentNullException.ThrowIfNull(errors);
-        return Array.AsReadOnly(errors.ToArray());
+        return Array.AsReadOnly([.. errors]);
     }
 
     private static string CreateMessage(ReadOnlyCollection<IngestionError> errors)

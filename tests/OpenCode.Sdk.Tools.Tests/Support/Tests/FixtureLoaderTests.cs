@@ -1,4 +1,4 @@
-namespace OpenCode.Sdk.Tools.Tests.Support;
+namespace OpenCode.Sdk.Tools.Tests.Support.Tests;
 
 public sealed class FixtureLoaderTests
 {

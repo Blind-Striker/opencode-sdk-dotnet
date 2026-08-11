@@ -235,8 +235,8 @@ flag (operations), `x-effect-stream` opaque (SSE media only), all other `x-*` re
 - Modify: `tests/OpenCode.Sdk.Tools.Tests/OpenCode.Sdk.Tools.Tests.csproj` (embed
   `Fixtures/**/*.json`; link `spec/openapi.json` as `Fixtures/openapi.json`,
   `CopyToOutputDirectory="PreserveNewest"`)
-- Test: `tests/OpenCode.Sdk.Tools.Tests/Support/SpecDocumentBuilderTests.cs`,
-  `Support/SpecScenarioTests.cs`, `Support/FixtureLoaderTests.cs`
+- Test: `tests/OpenCode.Sdk.Tools.Tests/Support/Tests/SpecDocumentBuilderTests.cs`,
+  `Support/Tests/SpecScenarioTests.cs`, `Support/Tests/FixtureLoaderTests.cs`
 
 **Interfaces:**
 - Consumes: `Testably.Abstractions.Testing.MockFileSystem`.
@@ -355,7 +355,7 @@ public async Task Load_Should_Throw_With_Known_Names_When_Fixture_Missing()
 - Create: `tools/OpenCode.Sdk.Tools/Generator/Ingestion/SpecReader.cs` (internal sealed)
 - Create: `tools/OpenCode.Sdk.Tools/Generator/Ingestion/LoadedSpec.cs` (internal record)
 - Create: `tests/OpenCode.Sdk.Tools.Tests/Fixtures/boolean-property-schema.json`
-- Test: `tests/OpenCode.Sdk.Tools.Tests/SpecReaderTests.cs`
+- Test: `tests/OpenCode.Sdk.Tools.Tests/Generator/Ingestion/SpecReaderTests.cs`
 
 **Interfaces:**
 - Consumes: `IFileSystem` (Task 1 DI), `SpecScenario` and the domain builders (Task 2).
@@ -474,7 +474,8 @@ public sealed class SpecReaderTests
   `Projection/GraphKeyBuilder.cs` (internal sealed), `Projection/ProjectionState.cs` (internal)
 - Create: `tests/OpenCode.Sdk.Tools.Tests/Support/SchemaProjectionTestHost.cs`,
   `Support/SchemaProjectionResult.cs`
-- Test: `tests/.../SchemaWallPolicyTests.cs`, `SchemaProjectorTests.cs`, `GraphKeyBuilderTests.cs`
+- Test: `tests/OpenCode.Sdk.Tools.Tests/Generator/Ingestion/Walls/SchemaWallPolicyTests.cs`,
+  `Generator/Ingestion/SchemaProjectorTests.cs`, `Generator/Ingestion/GraphKeyBuilderTests.cs`
 
 **Interfaces:**
 - Consumes: `SpecReader`/`LoadedSpec` (Task 3), builders (Task 2).

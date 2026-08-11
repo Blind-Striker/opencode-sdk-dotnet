@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-namespace OpenCode.Sdk.Tools.Tests.Support;
+namespace OpenCode.Sdk.Tools.Tests.Support.Tests;
 
 public sealed class SpecDocumentBuilderTests
 {

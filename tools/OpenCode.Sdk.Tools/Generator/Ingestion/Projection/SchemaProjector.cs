@@ -131,16 +131,16 @@ internal sealed class SchemaProjector
     private static RefNode? ProjectReference(OpenApiSchemaReference reference, string location, ProjectionState state)
     {
         var target = reference.Reference.Id;
-        if (string.IsNullOrWhiteSpace(target) || reference.Target is null)
+        if (!string.IsNullOrWhiteSpace(target) && reference.Target is not null)
         {
-            state.Errors.Add(location, $"reference target '{target ?? "<missing>"}' could not be resolved");
-            return null;
+            return new RefNode
+            {
+                Target = target,
+            };
         }
 
-        return new RefNode
-        {
-            Target = target
-        };
+        state.Errors.Add(location, $"reference target '{target ?? "<missing>"}' could not be resolved");
+        return null;
     }
 
     private static SchemaNode? RefuseUnsupportedShape(OpenApiSchema schema, string location, ProjectionState state)
