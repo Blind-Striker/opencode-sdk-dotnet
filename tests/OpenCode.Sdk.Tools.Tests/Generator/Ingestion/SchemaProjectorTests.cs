@@ -208,18 +208,6 @@ public sealed class SchemaProjectorTests
     }
 
     [Test]
-    public async Task Project_Should_Refuse_When_Primitive_Has_Const_Constraint()
-    {
-        var host = new SchemaProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithSchema("Bad", schema => schema.Type("string").Const("fixed")));
-
-        var ex = await host.ProjectExpectingRefusalAsync(scenario);
-
-        await Assert.That(ex.Message).Contains("const");
-        await Assert.That(ex.Message).Contains("Bad");
-    }
-
-    [Test]
     public async Task Project_Should_Refuse_When_Enum_Has_Object_Constraint()
     {
         var host = new SchemaProjectionTestHost();
@@ -250,18 +238,6 @@ public sealed class SchemaProjectorTests
     }
 
     [Test]
-    public async Task Project_Should_Refuse_When_Future_Shape_Has_No_Core_Type()
-    {
-        var host = new SchemaProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithSchema("Bad", schema => schema.OneOf(branch => branch.Type("string"))));
-
-        var ex = await host.ProjectExpectingRefusalAsync(scenario);
-
-        await Assert.That(ex.Message).Contains("oneOf");
-        await Assert.That(ex.Message).Contains("Bad");
-    }
-
-    [Test]
     public async Task Project_Should_Batch_Errors_From_Multiple_Schemas()
     {
         var host = new SchemaProjectionTestHost();
@@ -287,7 +263,7 @@ public sealed class SchemaProjectorTests
         var loaded = await new SpecReader(context.FileSystem).LoadAsync(context.SpecPath, errors, CancellationToken.None);
         var keys = new GraphKeyBuilder();
         var projector = new SchemaProjector(new SchemaWallPolicy(), keys);
-        var state = new ProjectionState(errors, new Dictionary<string, JsonNode>(StringComparer.Ordinal));
+        var state = new ProjectionState(errors, loaded.Document, new Dictionary<string, JsonNode>(StringComparer.Ordinal));
 
         _ = projector.Project(loaded.Document.Components!.Schemas!["First"], "Shared", "/value", state);
         _ = projector.Project(loaded.Document.Components.Schemas["Second"], "Shared", "/value", state);

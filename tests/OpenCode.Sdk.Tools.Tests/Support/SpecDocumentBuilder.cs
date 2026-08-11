@@ -63,6 +63,19 @@ internal sealed class SpecDocumentBuilder
         return this;
     }
 
+    public SpecDocumentBuilder WithConfigPluginTuple(Action<SchemaBuilder> configureTuple)
+    {
+        ArgumentNullException.ThrowIfNull(configureTuple);
+
+        return WithSchema("Config", schema => schema
+            .Type("object")
+            .Property("plugin", plugin => plugin
+                .Type("array")
+                .Items(item => item.AnyOf(
+                    branch => branch.Type("string"),
+                    configureTuple))));
+    }
+
     public SpecDocumentBuilder WithOperation(string operationId, string method = "get", string path = "/api/x",
         Action<OperationBuilder>? configure = null)
     {

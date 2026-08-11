@@ -1,3 +1,6 @@
+using System.Globalization;
+using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
+
 namespace OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
 
 internal sealed class GraphKeyBuilder
@@ -18,5 +21,17 @@ internal sealed class GraphKeyBuilder
             .Replace("/", "~1", StringComparison.Ordinal);
 
         return $"{parentPointer}/{escaped}";
+    }
+
+    public string UnionBranch(string parentPointer, string keyword, int index, LiteralMarker? marker)
+    {
+        ArgumentNullException.ThrowIfNull(parentPointer);
+        ArgumentException.ThrowIfNullOrWhiteSpace(keyword);
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+
+        var branchIdentity = marker is null
+            ? index.ToString(CultureInfo.InvariantCulture)
+            : $"{marker.PropertyName}={marker.Value}";
+        return Append(Append(parentPointer, keyword), branchIdentity);
     }
 }

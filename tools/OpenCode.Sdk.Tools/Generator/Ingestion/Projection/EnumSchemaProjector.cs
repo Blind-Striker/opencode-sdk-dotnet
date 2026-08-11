@@ -6,26 +6,15 @@ namespace OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
 
 internal sealed class EnumSchemaProjector
 {
-    private readonly SchemaShapeClassifier _shapeClassifier;
-
-    public EnumSchemaProjector(SchemaShapeClassifier shapeClassifier)
-    {
-        _shapeClassifier = shapeClassifier ?? throw new ArgumentNullException(nameof(shapeClassifier));
-    }
-
     public EnumNode? Project(OpenApiSchema schema, string location, IngestionErrorCollector errors)
     {
         ArgumentNullException.ThrowIfNull(schema);
         ArgumentException.ThrowIfNullOrWhiteSpace(location);
         ArgumentNullException.ThrowIfNull(errors);
 
-        if (_shapeClassifier.Classify(schema, location, errors) is not CoreSchemaShape.Enum || schema.Enum is not { Count: > 1 } values)
+        if (schema.Type is not JsonSchemaType.String || schema.Enum is not { Count: > 1 } values)
         {
-            if (schema.Enum is not { Count: > 1 })
-            {
-                errors.Add(location, "only string enums with multiple values are supported by core schema projection");
-            }
-
+            errors.Add(location, "only string enums with multiple values are supported by core schema projection");
             return null;
         }
 

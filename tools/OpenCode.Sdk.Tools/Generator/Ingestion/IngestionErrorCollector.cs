@@ -8,6 +8,8 @@ internal sealed class IngestionErrorCollector
 
     public bool HasErrors => _errors.Count > 0;
 
+    public int Count => _errors.Count;
+
     public void Add(string location, string problem)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(location);

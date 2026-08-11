@@ -11,16 +11,20 @@ internal sealed class ProjectionState
     private readonly Dictionary<string, JsonNode> _rawPointerLookup;
     private readonly HashSet<IOpenApiSchema> _visited = new(ReferenceEqualityComparer.Instance);
 
-    public ProjectionState(IngestionErrorCollector errors, IReadOnlyDictionary<string, JsonNode> rawPointerLookup)
+    public ProjectionState(IngestionErrorCollector errors, OpenApiDocument document, IReadOnlyDictionary<string, JsonNode> rawPointerLookup)
     {
         ArgumentNullException.ThrowIfNull(errors);
+        ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(rawPointerLookup);
 
         Errors = errors;
+        Document = document;
         _rawPointerLookup = rawPointerLookup.ToDictionary(pair => pair.Key, pair => pair.Value.DeepClone(), StringComparer.Ordinal);
     }
 
     public IngestionErrorCollector Errors { get; }
+
+    public OpenApiDocument Document { get; }
 
     public JsonNode? FindRawSchema(string pointer)
     {
@@ -42,7 +46,7 @@ internal sealed class ProjectionState
 
         switch (pointer.Length)
         {
-            case > 0 when schema is EnumNode:
+            case > 0 when schema is EnumNode or ObjectNode or UnionNode:
                 var promotedKey = $"{root}#{pointer}";
 
                 if (_graph.TryAdd(promotedKey, schema))

@@ -7,4 +7,10 @@ internal enum CoreSchemaShape
     Primitive = 2,
     Enum = 3,
     Array = 4,
+    Object = 5,
+    Literal = 6,
+    Union = 7,
+    Null = 8,
+    Tuple = 9,
+    JsonString = 10,
 }

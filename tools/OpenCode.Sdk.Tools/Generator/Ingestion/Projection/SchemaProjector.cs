@@ -8,6 +8,11 @@ internal sealed class SchemaProjector
 {
     private readonly GraphKeyBuilder _keys;
     private readonly EnumSchemaProjector _enumProjector;
+    private readonly JsonStringSchemaProjector _jsonStringProjector;
+    private readonly LiteralClassifier _literalClassifier;
+    private readonly ObjectSchemaProjector _objectProjector;
+    private readonly PrefixItemsAdapter _prefixItemsAdapter;
+    private readonly UnionNormalizer _unionNormalizer;
     private readonly SchemaShapeClassifier _shapeClassifier;
     private readonly SchemaWallPolicy _wall;
 
@@ -16,7 +21,12 @@ internal sealed class SchemaProjector
         _wall = wall ?? throw new ArgumentNullException(nameof(wall));
         _keys = keys ?? throw new ArgumentNullException(nameof(keys));
         _shapeClassifier = new SchemaShapeClassifier();
-        _enumProjector = new EnumSchemaProjector(_shapeClassifier);
+        _enumProjector = new EnumSchemaProjector();
+        _literalClassifier = new LiteralClassifier();
+        _jsonStringProjector = new JsonStringSchemaProjector(this, _keys);
+        _objectProjector = new ObjectSchemaProjector(this, _keys, new ErrorStyleClassifier());
+        _unionNormalizer = new UnionNormalizer(this, _wall, _keys, _shapeClassifier, _literalClassifier);
+        _prefixItemsAdapter = new PrefixItemsAdapter(this, _keys);
     }
 
     public SchemaNode? Project(IOpenApiSchema schema, string root, string pointer, ProjectionState state)
@@ -44,16 +54,22 @@ internal sealed class SchemaProjector
             return null;
         }
 
+        var errorCount = state.Errors.Count;
         _wall.Check(concrete, location, state.Errors);
+        if (state.Errors.Count != errorCount)
+        {
+            return null;
+        }
+
         var projected = ProjectConcrete(concrete, root, pointer, location, state);
         return state.Register(projected, root, pointer, location);
     }
 
     private SchemaNode? ProjectConcrete(OpenApiSchema schema, string root, string pointer, string location, ProjectionState state)
     {
-        if (schema.Enum is { Count: > 0 })
+        if (schema is { AnyOf.Count: > 0, OneOf.Count: > 0 })
         {
-            return _enumProjector.Project(schema, location, state.Errors);
+            return _unionNormalizer.Project(schema, root, pointer, location, state);
         }
 
         return (_shapeClassifier.Classify(schema, location, state.Errors), schema.Type) switch
@@ -63,6 +79,13 @@ internal sealed class SchemaProjector
             (CoreSchemaShape.Primitive, JsonSchemaType.Integer) => CreatePrimitive(schema, PrimitiveKind.Integer),
             (CoreSchemaShape.Primitive, JsonSchemaType.Boolean) => CreatePrimitive(schema, PrimitiveKind.Boolean),
             (CoreSchemaShape.Array, _) => ProjectArray(schema, root, pointer, location, state),
+            (CoreSchemaShape.Object, _) => _objectProjector.Project(schema, root, pointer, location, state),
+            (CoreSchemaShape.Enum, _) => _enumProjector.Project(schema, location, state.Errors),
+            (CoreSchemaShape.Literal, _) => _literalClassifier.Project(schema, location, state.Errors),
+            (CoreSchemaShape.Union, _) => _unionNormalizer.Project(schema, root, pointer, location, state),
+            (CoreSchemaShape.Null, _) => RefuseStandaloneNull(location, state),
+            (CoreSchemaShape.Tuple, _) => _prefixItemsAdapter.Project(schema, root, pointer, location, state),
+            (CoreSchemaShape.JsonString, _) => _jsonStringProjector.Project(schema, root, pointer, location, state),
             (CoreSchemaShape.Unrestricted, _) => CreateUnrestricted(schema),
             _ => null,
         };
@@ -114,6 +137,12 @@ internal sealed class SchemaProjector
         }
 
         state.Errors.Add(location, $"reference target '{target ?? "<missing>"}' could not be resolved");
+        return null;
+    }
+
+    private static SchemaNode? RefuseStandaloneNull(string location, ProjectionState state)
+    {
+        state.Errors.Add(location, "null schemas are supported only as union branches");
         return null;
     }
 }

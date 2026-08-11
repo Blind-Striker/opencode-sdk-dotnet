@@ -37,7 +37,7 @@ internal sealed class SchemaProjectionTestHost
             var loaded = await new SpecReader(context.FileSystem).LoadAsync(context.SpecPath, errors, CancellationToken.None);
             var projector = new SchemaProjector(_wall, _keys);
             var rawPointerLookup = ImmutableDictionary<string, JsonNode>.Empty;
-            var state = new ProjectionState(errors, rawPointerLookup);
+            var state = new ProjectionState(errors, loaded.Document, rawPointerLookup);
 
             if (loaded.Document.Components?.Schemas is not null)
             {

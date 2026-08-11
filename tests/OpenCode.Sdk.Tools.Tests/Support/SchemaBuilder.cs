@@ -82,6 +82,20 @@ internal sealed class SchemaBuilder
         return this;
     }
 
+    public SchemaBuilder BooleanEnum(params bool[] values)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+
+        var enumValues = new JsonArray();
+        foreach (var value in values)
+        {
+            enumValues.Add(value);
+        }
+
+        _schema["enum"] = enumValues;
+        return this;
+    }
+
     public SchemaBuilder Const(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -99,6 +113,18 @@ internal sealed class SchemaBuilder
     public SchemaBuilder AdditionalPropertiesFalse()
     {
         _schema["additionalProperties"] = false;
+        return this;
+    }
+
+    public SchemaBuilder AdditionalPropertiesTrue()
+    {
+        _schema["additionalProperties"] = true;
+        return this;
+    }
+
+    public SchemaBuilder EmptyProperties()
+    {
+        _schema["properties"] = new JsonObject();
         return this;
     }
 
@@ -134,6 +160,22 @@ internal sealed class SchemaBuilder
         }
 
         _schema["prefixItems"] = items;
+        return this;
+    }
+
+    public SchemaBuilder MinItems(int count)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+
+        _schema["minItems"] = count;
+        return this;
+    }
+
+    public SchemaBuilder MaxItems(int count)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+
+        _schema["maxItems"] = count;
         return this;
     }
 
