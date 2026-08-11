@@ -196,6 +196,72 @@ public sealed class SchemaProjectorTests
     }
 
     [Test]
+    public async Task Project_Should_Refuse_When_Primitive_Has_OneOf_Constraint()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema("Bad", schema => schema.Type("string").OneOf(branch => branch.Type("number"))));
+
+        var ex = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(ex.Message).Contains("oneOf");
+        await Assert.That(ex.Message).Contains("Bad");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_When_Primitive_Has_Const_Constraint()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema("Bad", schema => schema.Type("string").Const("fixed")));
+
+        var ex = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(ex.Message).Contains("const");
+        await Assert.That(ex.Message).Contains("Bad");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_When_Enum_Has_Object_Constraint()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema("Bad", schema => schema
+            .Type("string")
+            .Enum("one", "two")
+            .Property("value", property => property.Type("string"))));
+
+        var ex = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(ex.Message).Contains("properties");
+        await Assert.That(ex.Message).Contains("Bad");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_When_Array_Has_Union_Constraint()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema("Bad", schema => schema
+            .Type("array")
+            .Items(item => item.Type("string"))
+            .AnyOf(branch => branch.Type("string"))));
+
+        var ex = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(ex.Message).Contains("anyOf");
+        await Assert.That(ex.Message).Contains("Bad");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_When_Future_Shape_Has_No_Core_Type()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema("Bad", schema => schema.OneOf(branch => branch.Type("string"))));
+
+        var ex = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(ex.Message).Contains("oneOf");
+        await Assert.That(ex.Message).Contains("Bad");
+    }
+
+    [Test]
     public async Task Project_Should_Batch_Errors_From_Multiple_Schemas()
     {
         var host = new SchemaProjectionTestHost();

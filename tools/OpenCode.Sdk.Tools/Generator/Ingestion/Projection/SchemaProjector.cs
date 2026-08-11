@@ -1,4 +1,3 @@
-using System.Text.Json.Nodes;
 using Microsoft.OpenApi;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Walls;
@@ -8,12 +7,16 @@ namespace OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
 internal sealed class SchemaProjector
 {
     private readonly GraphKeyBuilder _keys;
+    private readonly EnumSchemaProjector _enumProjector;
+    private readonly SchemaShapeClassifier _shapeClassifier;
     private readonly SchemaWallPolicy _wall;
 
     public SchemaProjector(SchemaWallPolicy wall, GraphKeyBuilder keys)
     {
         _wall = wall ?? throw new ArgumentNullException(nameof(wall));
         _keys = keys ?? throw new ArgumentNullException(nameof(keys));
+        _shapeClassifier = new SchemaShapeClassifier();
+        _enumProjector = new EnumSchemaProjector(_shapeClassifier);
     }
 
     public SchemaNode? Project(IOpenApiSchema schema, string root, string pointer, ProjectionState state)
@@ -50,47 +53,18 @@ internal sealed class SchemaProjector
     {
         if (schema.Enum is { Count: > 0 })
         {
-            return ProjectEnum(schema, location, state);
+            return _enumProjector.Project(schema, location, state.Errors);
         }
 
-        return schema.Type switch
+        return (_shapeClassifier.Classify(schema, location, state.Errors), schema.Type) switch
         {
-            JsonSchemaType.String => CreatePrimitive(schema, PrimitiveKind.String),
-            JsonSchemaType.Number => CreatePrimitive(schema, PrimitiveKind.Number),
-            JsonSchemaType.Integer => CreatePrimitive(schema, PrimitiveKind.Integer),
-            JsonSchemaType.Boolean => CreatePrimitive(schema, PrimitiveKind.Boolean),
-            JsonSchemaType.Array => ProjectArray(schema, root, pointer, location, state),
-            JsonSchemaType.Null or JsonSchemaType.Object => RefuseUnsupportedShape(schema, location, state),
-            null when _wall.IsUnrestricted(schema) => CreateUnrestricted(schema),
-            _ => RefuseUnsupportedShape(schema, location, state),
-        };
-    }
-
-    private static EnumNode? ProjectEnum(OpenApiSchema schema, string location, ProjectionState state)
-    {
-        if (schema.Type is not JsonSchemaType.String || schema.Enum is not { Count: > 1 } values)
-        {
-            state.Errors.Add(location, "only string enums with multiple values are supported by core schema projection");
-            return null;
-        }
-
-        var projectedValues = new string[values.Count];
-        for (var index = 0; index < values.Count; index++)
-        {
-            if (values[index] is not JsonValue value || !value.TryGetValue<string>(out var projectedValue))
-            {
-                state.Errors.Add(location, "enum values must all be strings");
-                return null;
-            }
-
-            projectedValues[index] = projectedValue;
-        }
-
-        return new EnumNode
-        {
-            Description = schema.Description,
-            Format = schema.Format,
-            Values = projectedValues,
+            (CoreSchemaShape.Primitive, JsonSchemaType.String) => CreatePrimitive(schema, PrimitiveKind.String),
+            (CoreSchemaShape.Primitive, JsonSchemaType.Number) => CreatePrimitive(schema, PrimitiveKind.Number),
+            (CoreSchemaShape.Primitive, JsonSchemaType.Integer) => CreatePrimitive(schema, PrimitiveKind.Integer),
+            (CoreSchemaShape.Primitive, JsonSchemaType.Boolean) => CreatePrimitive(schema, PrimitiveKind.Boolean),
+            (CoreSchemaShape.Array, _) => ProjectArray(schema, root, pointer, location, state),
+            (CoreSchemaShape.Unrestricted, _) => CreateUnrestricted(schema),
+            _ => null,
         };
     }
 
@@ -140,12 +114,6 @@ internal sealed class SchemaProjector
         }
 
         state.Errors.Add(location, $"reference target '{target ?? "<missing>"}' could not be resolved");
-        return null;
-    }
-
-    private static SchemaNode? RefuseUnsupportedShape(OpenApiSchema schema, string location, ProjectionState state)
-    {
-        state.Errors.Add(location, $"schema type '{schema.Type?.ToString() ?? "unspecified"}' is not supported by core schema projection");
         return null;
     }
 }
