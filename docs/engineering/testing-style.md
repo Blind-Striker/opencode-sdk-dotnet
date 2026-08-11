@@ -109,9 +109,9 @@ goes through 1 or 2.
   test files only when it outgrows comfortable navigation.
 - TUnit creates a fresh instance per test: setup belongs in the constructor or
   `[Before(Test)]`; no state carried between tests, no shared mutable fields.
-- Assertions state intent in the test body — snapshot testing is reserved for its three
-  sealed uses (emitter micro-snapshots, the ingestion SpecIR-of-the-pin snapshot, the
-  public API surface lock); behavior tests never snapshot.
+- Assertions state intent in the test body — snapshot testing is reserved for its two
+  sealed uses (emitter micro-snapshots and the public API surface lock); behavior tests
+  never snapshot.
 
 ## 6. Anti-patterns (never)
 

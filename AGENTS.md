@@ -18,8 +18,8 @@ One line per decision; rationale lives in the ADRs (`docs/adr/`), dated evidence
 `docs/research/`. **Reading the ADRs is an integral part of onboarding — do not propose or
 change design without knowing them.** Not every locked decision has an ADR (ADRs are created
 lazily); this list is the complete inventory of what is settled. Do not reopen without new
-evidence. Fine-grained design currently lives in the sealed design specs (transient;
-reachable via `docs/ROADMAP.md`) until build-out distills them.
+evidence. The design specs under `docs/superpowers/` are vision/reference material —
+direction and rationale, not law; only this list and the ADRs bind.
 
 - **Target artifact:** upstream's `packages/sdk/openapi.json` (OpenAPI 3.1), pinned under
   `spec/` — the same spec the official JS SDK generates from.
@@ -56,7 +56,10 @@ reachable via `docs/ROADMAP.md`) until build-out distills them.
 - **Testing posture:** borderline-paranoid, fail-closed, defensive by default —
   observation-based gates, absolute determinism, fake only published contracts; TUnit on
   Microsoft.Testing.Platform, real-process integration, three-OS launcher acceptance
-  (ADR-0001).
+  (ADR-0001). Assurance intensity scales with blast radius: shipped SDK runtime highest;
+  committed generated output next (git diff + analyzer wall + contract tests are its
+  radar); repo tooling internals lightest — every extra mechanism must name a consumer or
+  a concrete failure it prevents.
 
 ## Hard Rules
 

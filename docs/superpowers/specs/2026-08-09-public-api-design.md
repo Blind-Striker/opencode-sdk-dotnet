@@ -2,6 +2,10 @@
 
 Date: 2026-08-11
 
+> **Status: vision / reference — not sealed.** Binding decisions live in the ADRs and
+> `AGENTS.md`; this document is direction and design rationale, not law. Contradicting it
+> is a finding to note, not a deviation-protocol event.
+
 Design specification produced by the public-API brainstorm session (2026-08-08/09, ROADMAP
 queue item 1). Every decision below was discussed and sealed individually with the
 maintainer; rationale and evidence are recorded inline. Process sequencing agreed for what

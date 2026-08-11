@@ -2,6 +2,10 @@
 
 Date: 2026-08-11
 
+> **Status: vision / reference — not sealed.** Binding decisions live in the ADRs and
+> `AGENTS.md`; this document is direction and design rationale, not law. Contradicting it
+> is a finding to note, not a deviation-protocol event.
+
 ## Decision
 
 The SDK build-out will stop sequencing ingestion, binding, emission, transport, and the
