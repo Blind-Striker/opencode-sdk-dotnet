@@ -54,7 +54,7 @@ internal sealed class SchemaBuilder
                 throw new ArgumentException("Required names cannot contain null or whitespace.", nameof(names));
             }
 
-            if (!required.Any(node => node?.GetValue<string>() == name))
+            if (required.All(node => node?.GetValue<string>() != name))
             {
                 required.Add(name);
             }
