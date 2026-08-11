@@ -106,27 +106,9 @@ internal sealed class OperationBuilder
         return this;
     }
 
-    public OperationBuilder ResponseWithHeader(int status)
-    {
-        _responses.AddWithHeader(status);
-        return this;
-    }
-
-    public OperationBuilder ResponseWithItemSchema(int status)
-    {
-        _responses.AddWithItemSchema(status);
-        return this;
-    }
-
     public OperationBuilder ResponseMediaTypes(int status, params string[] mediaTypes)
     {
         _responses.AddMediaTypes(status, mediaTypes);
-        return this;
-    }
-
-    public OperationBuilder ResponseWithEncoding(int status)
-    {
-        _responses.AddWithEncoding(status);
         return this;
     }
 
@@ -199,18 +181,6 @@ internal sealed class OperationBuilder
     {
         _operation["tags"] = new JsonArray("test");
         _operation["security"] = new JsonArray();
-        return this;
-    }
-
-    public OperationBuilder Callback()
-    {
-        _operation["callbacks"] = new JsonObject
-        {
-            ["result"] = new JsonObject
-            {
-                ["{$request.body#/callbackUrl}"] = new JsonObject(),
-            },
-        };
         return this;
     }
 

@@ -3,19 +3,12 @@ using Microsoft.OpenApi;
 
 namespace OpenCode.Sdk.Tools.Generator.Ingestion.Walls;
 
-internal sealed class PathItemWallPolicy
+internal static class PathItemWallPolicy
 {
     private static readonly FrozenSet<string> AdmittedMethods = new[] { "delete", "get", "patch", "post", "put", }
         .ToFrozenSet(StringComparer.Ordinal);
 
-    private readonly HostMemberWhitelist<OpenApiPathItem> _members = new("path item",
-    [
-        nameof(OpenApiPathItem.Operations),
-        nameof(OpenApiPathItem.Parameters),
-        nameof(OpenApiPathItem.Servers),
-    ]);
-
-    public void Check(IOpenApiPathItem pathItem, string location, IngestionErrorCollector errors)
+    public static void Check(IOpenApiPathItem pathItem, string location, IngestionErrorCollector errors)
     {
         ArgumentNullException.ThrowIfNull(pathItem);
         ArgumentException.ThrowIfNullOrWhiteSpace(location);
@@ -33,15 +26,11 @@ internal sealed class PathItemWallPolicy
             return;
         }
 
-        _members.Check(concrete, location, errors);
+        // Silently skipping either of these would drop a real parameter or a whole
+        // operation from the generated client — both are semantic loss, so they refuse.
         if (concrete.Parameters is { Count: > 0 })
         {
             errors.Add(location, "path-level parameters are not supported");
-        }
-
-        if (concrete.Servers is { Count: > 0 })
-        {
-            errors.Add(location, "path-level servers are not supported");
         }
 
         if (concrete.Operations is null)

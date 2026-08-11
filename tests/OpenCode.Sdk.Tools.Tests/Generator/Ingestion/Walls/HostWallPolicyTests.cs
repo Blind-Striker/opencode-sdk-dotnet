@@ -28,78 +28,6 @@ public sealed class HostWallPolicyTests
     }
 
     [Test]
-    public async Task Project_Should_Refuse_Document_Webhooks()
-    {
-        var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithWebhook());
-
-        var ex = await host.ProjectExpectingRefusalAsync(scenario);
-
-        await Assert.That(ex.Message).Contains("document");
-        await Assert.That(ex.Message).Contains("webhooks");
-    }
-
-    [Test]
-    public async Task Project_Should_Refuse_Non_Schema_Component()
-    {
-        var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithNonSchemaComponent());
-
-        var ex = await host.ProjectExpectingRefusalAsync(scenario);
-
-        await Assert.That(ex.Message).Contains("components");
-        await Assert.That(ex.Message).Contains("parameters");
-    }
-
-    [Test]
-    public async Task Project_Should_Refuse_Path_Level_Servers()
-    {
-        var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithPathServer("v2.test.server"));
-
-        var ex = await host.ProjectExpectingRefusalAsync(scenario);
-
-        await Assert.That(ex.Message).Contains("path-level servers");
-    }
-
-    [Test]
-    public async Task Project_Should_Refuse_Response_Headers()
-    {
-        var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.headers", configure: operation => operation.ResponseWithHeader(200)));
-
-        var ex = await host.ProjectExpectingRefusalAsync(scenario);
-
-        await Assert.That(ex.Message).Contains("headers");
-        await Assert.That(ex.Message).Contains("responses/200");
-    }
-
-    [Test]
-    public async Task Project_Should_Refuse_Media_ItemSchema_With_Location()
-    {
-        var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.item", configure: operation => operation.ResponseWithItemSchema(200)));
-
-        var ex = await host.ProjectExpectingRefusalAsync(scenario);
-
-        await Assert.That(ex.Message).Contains("itemSchema");
-        await Assert.That(ex.Message).Contains("paths");
-    }
-
-    [Test]
-    public async Task Project_Should_Refuse_Media_Encoding()
-    {
-        var host = new OperationProjectionTestHost();
-        var scenario =
-            SpecScenario.Define(spec => spec.WithOperation("v2.test.encoding", configure: operation => operation.ResponseWithEncoding(200)));
-
-        var ex = await host.ProjectExpectingRefusalAsync(scenario);
-
-        await Assert.That(ex.Message).Contains("encoding");
-        await Assert.That(ex.Message).Contains("responses/200/content/application~1json");
-    }
-
-    [Test]
     public async Task Project_Should_Refuse_Header_Parameter()
     {
         var host = new OperationProjectionTestHost();
@@ -204,31 +132,6 @@ public sealed class HostWallPolicyTests
     }
 
     [Test]
-    public async Task Project_Should_Refuse_Unknown_Operation_Extension()
-    {
-        var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.extension", configure: operation => operation
-            .Extension("x-unknown", "true")));
-
-        var ex = await host.ProjectExpectingRefusalAsync(scenario);
-
-        await Assert.That(ex.Message).Contains("x-unknown");
-        await Assert.That(ex.Message).Contains("operation");
-    }
-
-    [Test]
-    public async Task Project_Should_Refuse_Operation_Callbacks()
-    {
-        var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.callback", configure: operation => operation.Callback()));
-
-        var ex = await host.ProjectExpectingRefusalAsync(scenario);
-
-        await Assert.That(ex.Message).Contains("callbacks");
-        await Assert.That(ex.Message).Contains("operation");
-    }
-
-    [Test]
     public async Task Project_Should_Locate_Malformed_Media_Type()
     {
         var host = new OperationProjectionTestHost();
@@ -239,5 +142,17 @@ public sealed class HostWallPolicyTests
 
         await Assert.That(ex.Message).Contains("application-json");
         await Assert.That(ex.Message).Contains("responses/200/content");
+    }
+
+    [Test]
+    public async Task Project_Should_Ignore_Unknown_Operation_Extension()
+    {
+        var host = new OperationProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.extension", configure: operation => operation
+            .Extension("x-unknown", "true")));
+
+        var result = await host.ProjectAsync(scenario);
+
+        await Assert.That(result.Operations).Count().IsEqualTo(1);
     }
 }

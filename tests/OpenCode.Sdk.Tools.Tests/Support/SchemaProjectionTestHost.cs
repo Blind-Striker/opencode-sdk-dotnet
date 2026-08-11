@@ -3,14 +3,12 @@ using System.Text.Json.Nodes;
 using OpenCode.Sdk.Tools.Generator.Ingestion;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
-using OpenCode.Sdk.Tools.Generator.Ingestion.Walls;
 
 namespace OpenCode.Sdk.Tools.Tests.Support;
 
 internal sealed class SchemaProjectionTestHost
 {
     private readonly GraphKeyBuilder _keys = new();
-    private readonly SchemaWallPolicy _wall = new();
 
     public async Task<SchemaProjectionResult> ProjectAsync(SpecScenario scenario)
     {
@@ -35,7 +33,7 @@ internal sealed class SchemaProjectionTestHost
         try
         {
             var loaded = await new SpecReader(context.FileSystem).LoadAsync(context.SpecPath, errors, CancellationToken.None);
-            var projector = new SchemaProjector(_wall, _keys);
+            var projector = new SchemaProjector(_keys);
             var rawPointerLookup = ImmutableDictionary<string, JsonNode>.Empty;
             var state = new ProjectionState(errors, loaded.Document, rawPointerLookup);
 

@@ -1,7 +1,6 @@
 using System.Globalization;
 using Microsoft.OpenApi;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
-using OpenCode.Sdk.Tools.Generator.Ingestion.Walls;
 
 namespace OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
 
@@ -9,17 +8,12 @@ internal sealed class ResponseProjector
 {
     private readonly EnvelopeClassifier _envelopes;
     private readonly GraphKeyBuilder _keys;
-    private readonly MediaTypeProjector _mediaTypes;
     private readonly SchemaProjector _schemaProjector;
-    private readonly ResponseWallPolicy _wall;
 
-    public ResponseProjector(SchemaProjector schemaProjector, GraphKeyBuilder keys, ResponseWallPolicy wall, MediaTypeProjector mediaTypes,
-        EnvelopeClassifier envelopes)
+    public ResponseProjector(SchemaProjector schemaProjector, GraphKeyBuilder keys, EnvelopeClassifier envelopes)
     {
         _schemaProjector = schemaProjector ?? throw new ArgumentNullException(nameof(schemaProjector));
         _keys = keys ?? throw new ArgumentNullException(nameof(keys));
-        _wall = wall ?? throw new ArgumentNullException(nameof(wall));
-        _mediaTypes = mediaTypes ?? throw new ArgumentNullException(nameof(mediaTypes));
         _envelopes = envelopes ?? throw new ArgumentNullException(nameof(envelopes));
     }
 
@@ -72,8 +66,16 @@ internal sealed class ResponseProjector
         var pointer = _keys.Append(_keys.Append(string.Empty, "responses"), status);
         var location = string.Concat(root, pointer);
         var errorCount = state.Errors.Count;
-        if (!_wall.Check(response, location, state.Errors))
+        if (response is not OpenApiResponse)
         {
+            state.Errors.Add(location, $"response implementation '{response.GetType().Name}' is not supported");
+            return null;
+        }
+
+        // Two media entries would leave the envelope/payload mapping ambiguous.
+        if (response.Content is { Count: > 1 })
+        {
+            state.Errors.Add(location, "response content supports at most one media type");
             return null;
         }
 
@@ -96,7 +98,7 @@ internal sealed class ResponseProjector
         var mediaEntry = content.Single();
         var mediaPointer = _keys.Append(_keys.Append(pointer, "content"), mediaEntry.Key);
         var mediaLocation = string.Concat(root, mediaPointer);
-        var media = _mediaTypes.Project(mediaEntry.Key, mediaEntry.Value, mediaLocation, state.Errors);
+        var media = MediaTypeProjector.Project(mediaEntry.Key, mediaEntry.Value, mediaLocation, state.Errors);
         if (media is null)
         {
             return null;

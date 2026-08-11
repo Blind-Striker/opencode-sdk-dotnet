@@ -9,13 +9,11 @@ internal sealed class ParameterProjector
 {
     private readonly GraphKeyBuilder _keys;
     private readonly SchemaProjector _schemaProjector;
-    private readonly ParameterWallPolicy _wall;
 
-    public ParameterProjector(SchemaProjector schemaProjector, GraphKeyBuilder keys, ParameterWallPolicy wall)
+    public ParameterProjector(SchemaProjector schemaProjector, GraphKeyBuilder keys)
     {
         _schemaProjector = schemaProjector ?? throw new ArgumentNullException(nameof(schemaProjector));
         _keys = keys ?? throw new ArgumentNullException(nameof(keys));
-        _wall = wall ?? throw new ArgumentNullException(nameof(wall));
     }
 
     public IReadOnlyList<SpecParameter> Project(OpenApiOperation operation, JsonObject rawOperation, string root, ProjectionState state)
@@ -50,7 +48,7 @@ internal sealed class ParameterProjector
 
             var parameter = parameters[index];
             var errorCount = state.Errors.Count;
-            var isDeepObject = _wall.Check(parameter, rawParameter, location, state.Errors);
+            var isDeepObject = ParameterWallPolicy.Check(parameter, rawParameter, location, state.Errors);
             if (string.IsNullOrWhiteSpace(parameter.Name))
             {
                 state.Errors.Add(location, "parameter name is required");

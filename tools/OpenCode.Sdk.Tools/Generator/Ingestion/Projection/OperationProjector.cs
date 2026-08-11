@@ -7,12 +7,9 @@ namespace OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
 
 internal sealed class OperationProjector
 {
-    private readonly DocumentWallPolicy _documentWall = new();
     private readonly OperationIdentityParser _identityParser = new();
     private readonly GraphKeyBuilder _keys;
-    private readonly OperationWallPolicy _operationWall = new();
     private readonly ParameterProjector _parameters;
-    private readonly PathItemWallPolicy _pathItemWall = new();
     private readonly PathTemplateValidator _pathTemplates = new();
     private readonly RequestBodyProjector _requestBodies;
     private readonly ResponseProjector _responses;
@@ -22,10 +19,9 @@ internal sealed class OperationProjector
         ArgumentNullException.ThrowIfNull(schemaProjector);
         _keys = keys ?? throw new ArgumentNullException(nameof(keys));
 
-        var mediaTypes = new MediaTypeProjector(new MediaTypeWallPolicy());
-        _parameters = new ParameterProjector(schemaProjector, keys, new ParameterWallPolicy());
-        _requestBodies = new RequestBodyProjector(schemaProjector, keys, new RequestBodyWallPolicy(), mediaTypes);
-        _responses = new ResponseProjector(schemaProjector, keys, new ResponseWallPolicy(), mediaTypes, new EnvelopeClassifier());
+        _parameters = new ParameterProjector(schemaProjector, keys);
+        _requestBodies = new RequestBodyProjector(schemaProjector, keys);
+        _responses = new ResponseProjector(schemaProjector, keys, new EnvelopeClassifier());
     }
 
     public IReadOnlyList<SpecOperation> Project(LoadedSpec loaded, ProjectionState state)
@@ -33,7 +29,6 @@ internal sealed class OperationProjector
         ArgumentNullException.ThrowIfNull(loaded);
         ArgumentNullException.ThrowIfNull(state);
 
-        _documentWall.Check(loaded.Document, state.Errors);
         if (loaded.Raw is not JsonObject rawDocument || rawDocument["paths"] is not JsonObject rawPaths)
         {
             state.Errors.Add("document/paths", "raw paths object was unavailable");
@@ -52,7 +47,7 @@ internal sealed class OperationProjector
     private void ProjectPath(string path, IOpenApiPathItem pathItem, OperationProjectionContext context)
     {
         var pathLocation = $"paths/{path}";
-        _pathItemWall.Check(pathItem, pathLocation, context.State.Errors);
+        PathItemWallPolicy.Check(pathItem, pathLocation, context.State.Errors);
         if (pathItem is not OpenApiPathItem { Operations: not null } concrete)
         {
             return;
@@ -88,7 +83,7 @@ internal sealed class OperationProjector
         }
 
         var operationErrorCount = context.State.Errors.Count;
-        var isWebSocket = _operationWall.Check(operation, location, context.State.Errors);
+        var isWebSocket = OperationExtensionPolicy.Check(operation, location, context.State.Errors);
         if (string.IsNullOrWhiteSpace(operation.OperationId))
         {
             context.State.Errors.Add(location, "operationId is required");
@@ -134,7 +129,6 @@ internal sealed class OperationProjector
             Parameters = parameters,
             RequestBody = requestBody,
             Responses = responses,
-            RawContentHash = string.Empty,
         });
     }
 }

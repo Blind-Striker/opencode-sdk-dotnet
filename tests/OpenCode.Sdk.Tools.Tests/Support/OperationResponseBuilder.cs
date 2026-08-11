@@ -47,31 +47,6 @@ internal sealed class OperationResponseBuilder(JsonObject responses, FixtureLoad
         _responses[FormatStatus(status)] = CreateResponse(mediaType, JsonNode.Parse(_fixtureLoader.Load(fixtureName)));
     }
 
-    public void AddWithHeader(int status)
-    {
-        Add(status, mediaType: null, configureSchema: null);
-        _responses[FormatStatus(status)]!["headers"] = new JsonObject
-        {
-            ["x-test"] = new JsonObject
-            {
-                ["schema"] = new JsonObject
-                {
-                    ["type"] = "string",
-                },
-            },
-        };
-    }
-
-    public void AddWithItemSchema(int status)
-    {
-        Add(status, "application/json", configureSchema: null);
-        var media = _responses[FormatStatus(status)]!["content"]!["application/json"]!;
-        media["itemSchema"] = new JsonObject
-        {
-            ["type"] = "string",
-        };
-    }
-
     public void AddMediaTypes(int status, IReadOnlyList<string> mediaTypes)
     {
         ValidateStatus(status);
@@ -92,21 +67,6 @@ internal sealed class OperationResponseBuilder(JsonObject responses, FixtureLoad
         {
             ["description"] = "Response",
             ["content"] = content,
-        };
-    }
-
-    public void AddWithEncoding(int status)
-    {
-        Add(status, "application/json", schema => schema
-            .Type("object")
-            .Property("data", property => property.Type("string")));
-        var media = _responses[FormatStatus(status)]!["content"]!["application/json"]!;
-        media["encoding"] = new JsonObject
-        {
-            ["data"] = new JsonObject
-            {
-                ["contentType"] = "text/plain",
-            },
         };
     }
 

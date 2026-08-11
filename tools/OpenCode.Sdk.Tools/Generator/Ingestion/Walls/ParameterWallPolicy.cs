@@ -3,19 +3,9 @@ using Microsoft.OpenApi;
 
 namespace OpenCode.Sdk.Tools.Generator.Ingestion.Walls;
 
-internal sealed class ParameterWallPolicy
+internal static class ParameterWallPolicy
 {
-    private readonly HostMemberWhitelist<OpenApiParameter> _members = new("parameter",
-    [
-        nameof(OpenApiParameter.Explode),
-        nameof(OpenApiParameter.In),
-        nameof(OpenApiParameter.Name),
-        nameof(OpenApiParameter.Required),
-        nameof(OpenApiParameter.Schema),
-        nameof(OpenApiParameter.Style),
-    ]);
-
-    public bool Check(IOpenApiParameter parameter, JsonObject rawParameter, string location, IngestionErrorCollector errors)
+    public static bool Check(IOpenApiParameter parameter, JsonObject rawParameter, string location, IngestionErrorCollector errors)
     {
         ArgumentNullException.ThrowIfNull(parameter);
         ArgumentNullException.ThrowIfNull(rawParameter);
@@ -28,10 +18,16 @@ internal sealed class ParameterWallPolicy
             return false;
         }
 
-        _members.Check(concrete, location, errors);
+        // Every check here guards request serialization: a mislocated, content-encoded,
+        // or differently styled parameter would produce a wrong request on the wire.
         if (concrete.In is not ParameterLocation.Path and not ParameterLocation.Query)
         {
             errors.Add(location, $"parameter location '{GetLocationName(concrete.In)}' is not supported");
+        }
+
+        if (concrete.Content is { Count: > 0 })
+        {
+            errors.Add(location, "content-based parameters are not supported");
         }
 
         var hasStyle = rawParameter.ContainsKey("style");

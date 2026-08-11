@@ -18,13 +18,11 @@ internal sealed class UnionNormalizer
     private readonly LiteralClassifier _literalClassifier;
     private readonly SchemaProjector _schemaProjector;
     private readonly SchemaShapeClassifier _shapeClassifier;
-    private readonly SchemaWallPolicy _wall;
 
-    public UnionNormalizer(SchemaProjector schemaProjector, SchemaWallPolicy wall, GraphKeyBuilder keys, SchemaShapeClassifier shapeClassifier,
+    public UnionNormalizer(SchemaProjector schemaProjector, GraphKeyBuilder keys, SchemaShapeClassifier shapeClassifier,
         LiteralClassifier literalClassifier)
     {
         _schemaProjector = schemaProjector ?? throw new ArgumentNullException(nameof(schemaProjector));
-        _wall = wall ?? throw new ArgumentNullException(nameof(wall));
         _keys = keys ?? throw new ArgumentNullException(nameof(keys));
         _shapeClassifier = shapeClassifier ?? throw new ArgumentNullException(nameof(shapeClassifier));
         _literalClassifier = literalClassifier ?? throw new ArgumentNullException(nameof(literalClassifier));
@@ -120,7 +118,7 @@ internal sealed class UnionNormalizer
             }
 
             var branchPointer = _keys.UnionBranch(pointer, keyword, index, marker: null);
-            _wall.Check(branch, string.Concat(root, branchPointer), state.Errors);
+            SchemaWallPolicy.Check(branch, string.Concat(root, branchPointer), state.Errors);
         }
 
         return state.Errors.Count == errorCount;
@@ -140,7 +138,7 @@ internal sealed class UnionNormalizer
             if (source is OpenApiSchema { Type: JsonSchemaType.Null } concrete)
             {
                 var errorCount = state.Errors.Count;
-                _wall.Check(concrete, branchLocation, state.Errors);
+                SchemaWallPolicy.Check(concrete, branchLocation, state.Errors);
                 var shape = _shapeClassifier.Classify(concrete, branchLocation, state.Errors);
                 if (state.Errors.Count == errorCount && shape is CoreSchemaShape.Null)
                 {

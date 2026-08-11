@@ -20,7 +20,6 @@ public sealed class OperationProjectorTests
         await Assert.That(result.Operations[0].Surface).IsEqualTo(SpecSurface.Modern);
         await Assert.That(result.Operations[0].Segments[0]).IsEqualTo("session");
         await Assert.That(result.Operations[0].Segments[1]).IsEqualTo("list");
-        await Assert.That(result.Operations[0].RawContentHash).IsEqualTo(string.Empty);
         await Assert.That(result.Operations[1].OperationId).IsEqualTo("session.list");
         await Assert.That(result.Operations[1].Surface).IsEqualTo(SpecSurface.Legacy);
         await Assert.That(result.Operations[1].Segments[0]).IsEqualTo("session");

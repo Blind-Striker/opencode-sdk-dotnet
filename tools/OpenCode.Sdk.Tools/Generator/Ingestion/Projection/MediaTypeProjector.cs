@@ -1,14 +1,11 @@
 using Microsoft.OpenApi;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
-using OpenCode.Sdk.Tools.Generator.Ingestion.Walls;
 
 namespace OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
 
-internal sealed class MediaTypeProjector(MediaTypeWallPolicy wall)
+internal static class MediaTypeProjector
 {
-    private readonly MediaTypeWallPolicy _wall = wall ?? throw new ArgumentNullException(nameof(wall));
-
-    public MediaTypeProjection? Project(string raw, IOpenApiMediaType media, string location, IngestionErrorCollector errors)
+    public static MediaTypeProjection? Project(string raw, IOpenApiMediaType media, string location, IngestionErrorCollector errors)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(raw);
         ArgumentNullException.ThrowIfNull(media);
@@ -26,7 +23,38 @@ internal sealed class MediaTypeProjector(MediaTypeWallPolicy wall)
             return null;
         }
 
-        var effectStreamJson = _wall.Check(media, contentType, location, errors);
-        return new MediaTypeProjection(contentType, effectStreamJson);
+        if (media is not OpenApiMediaType concrete)
+        {
+            errors.Add(location, $"media type implementation '{media.GetType().Name}' is not supported");
+            return null;
+        }
+
+        return new MediaTypeProjection(contentType, ExtractEffectStream(concrete, contentType, location, errors));
+    }
+
+    private static string? ExtractEffectStream(OpenApiMediaType media, SpecMediaType contentType, string location,
+        IngestionErrorCollector errors)
+    {
+        // x-effect-stream is the one media extension with declared semantics (the SSE item
+        // contract); it must be JSON and may only sit on text/event-stream. Other extensions
+        // carry no generator semantics and are ignored.
+        if (media.Extensions is null || !media.Extensions.TryGetValue("x-effect-stream", out var extension))
+        {
+            return null;
+        }
+
+        if (!contentType.IsEventStream)
+        {
+            errors.Add(location, "media extension 'x-effect-stream' is supported only on text/event-stream");
+            return null;
+        }
+
+        if (extension is JsonNodeExtension json)
+        {
+            return json.Node.ToJsonString();
+        }
+
+        errors.Add(location, "media extension 'x-effect-stream' must contain JSON");
+        return null;
     }
 }

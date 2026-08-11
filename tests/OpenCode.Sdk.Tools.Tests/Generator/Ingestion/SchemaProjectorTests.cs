@@ -2,7 +2,6 @@ using System.Text.Json.Nodes;
 using OpenCode.Sdk.Tools.Generator.Ingestion;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
-using OpenCode.Sdk.Tools.Generator.Ingestion.Walls;
 using OpenCode.Sdk.Tools.Tests.Support;
 
 namespace OpenCode.Sdk.Tools.Tests.Generator.Ingestion;
@@ -243,13 +242,13 @@ public sealed class SchemaProjectorTests
         var host = new SchemaProjectionTestHost();
         var scenario = SpecScenario.Define(spec => spec
             .WithSchema("BadArray", schema => schema.Type("array"))
-            .WithSchema("BadTitle", schema => schema.Raw("title", "\"unsupported\"")));
+            .WithSchema("BadKeyword", schema => schema.Raw("madeUpKeyword", "true")));
 
         var ex = await host.ProjectExpectingRefusalAsync(scenario);
 
         await Assert.That(ex.Errors).Count().IsEqualTo(2);
         await Assert.That(ex.Message).Contains("BadArray");
-        await Assert.That(ex.Message).Contains("BadTitle");
+        await Assert.That(ex.Message).Contains("BadKeyword");
     }
 
     [Test]
@@ -262,7 +261,7 @@ public sealed class SchemaProjectorTests
         var errors = new IngestionErrorCollector();
         var loaded = await new SpecReader(context.FileSystem).LoadAsync(context.SpecPath, errors, CancellationToken.None);
         var keys = new GraphKeyBuilder();
-        var projector = new SchemaProjector(new SchemaWallPolicy(), keys);
+        var projector = new SchemaProjector(keys);
         var state = new ProjectionState(errors, loaded.Document, new Dictionary<string, JsonNode>(StringComparer.Ordinal));
 
         _ = projector.Project(loaded.Document.Components!.Schemas!["First"], "Shared", "/value", state);

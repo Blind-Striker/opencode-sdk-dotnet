@@ -14,18 +14,16 @@ internal sealed class SchemaProjector
     private readonly PrefixItemsAdapter _prefixItemsAdapter;
     private readonly UnionNormalizer _unionNormalizer;
     private readonly SchemaShapeClassifier _shapeClassifier;
-    private readonly SchemaWallPolicy _wall;
 
-    public SchemaProjector(SchemaWallPolicy wall, GraphKeyBuilder keys)
+    public SchemaProjector(GraphKeyBuilder keys)
     {
-        _wall = wall ?? throw new ArgumentNullException(nameof(wall));
         _keys = keys ?? throw new ArgumentNullException(nameof(keys));
         _shapeClassifier = new SchemaShapeClassifier();
         _enumProjector = new EnumSchemaProjector();
         _literalClassifier = new LiteralClassifier();
         _jsonStringProjector = new JsonStringSchemaProjector(this, _keys);
         _objectProjector = new ObjectSchemaProjector(this, _keys, new ErrorStyleClassifier());
-        _unionNormalizer = new UnionNormalizer(this, _wall, _keys, _shapeClassifier, _literalClassifier);
+        _unionNormalizer = new UnionNormalizer(this, _keys, _shapeClassifier, _literalClassifier);
         _prefixItemsAdapter = new PrefixItemsAdapter(this, _keys);
     }
 
@@ -55,7 +53,7 @@ internal sealed class SchemaProjector
         }
 
         var errorCount = state.Errors.Count;
-        _wall.Check(concrete, location, state.Errors);
+        SchemaWallPolicy.Check(concrete, location, state.Errors);
         if (state.Errors.Count != errorCount)
         {
             return null;

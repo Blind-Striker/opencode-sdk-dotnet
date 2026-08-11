@@ -92,15 +92,4 @@ public sealed record SpecOperation
             field = Array.AsReadOnly([.. value]);
         }
     } = Array.AsReadOnly(Array.Empty<SpecResponse>());
-
-    /// <summary>Gets the canonical raw-content hash, when hash projection is enabled.</summary>
-    public required string RawContentHash
-    {
-        get;
-        init
-        {
-            ArgumentNullException.ThrowIfNull(value);
-            field = value;
-        }
-    }
 }
