@@ -1,0 +1,2 @@
+v2.health.get
+v2.session.message

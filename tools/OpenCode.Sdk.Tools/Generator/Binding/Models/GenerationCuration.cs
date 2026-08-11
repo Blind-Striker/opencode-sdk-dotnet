@@ -1,0 +1,40 @@
+using System.Collections.ObjectModel;
+using System.Text.Json.Serialization;
+
+namespace OpenCode.Sdk.Tools.Generator.Binding.Models;
+
+internal sealed record GenerationCuration
+{
+    [JsonPropertyName("groups")]
+    public required IReadOnlyDictionary<string, GroupCuration> Groups
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = new ReadOnlyDictionary<string, GroupCuration>(new Dictionary<string, GroupCuration>(value, StringComparer.Ordinal));
+        }
+    } = new ReadOnlyDictionary<string, GroupCuration>(new Dictionary<string, GroupCuration>(StringComparer.Ordinal));
+
+    [JsonPropertyName("envelopePayloadNames")]
+    public required IReadOnlyDictionary<string, string> EnvelopePayloadNames
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(value, StringComparer.Ordinal));
+        }
+    } = new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal));
+
+    [JsonPropertyName("propertyOverrides")]
+    public required IReadOnlyList<PropertyOverride> PropertyOverrides
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<PropertyOverride>());
+}

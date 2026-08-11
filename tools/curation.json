@@ -1,0 +1,29 @@
+{
+  "groups": {
+    "health": {
+      "placement": "root"
+    },
+    "session": {
+      "placement": "client",
+      "clientName": "Sessions",
+      "handleName": "SessionClient"
+    }
+  },
+  "envelopePayloadNames": {
+    "v2.session.message": "Message"
+  },
+  "propertyOverrides": [
+    {
+      "schema": "PromptFileAttachment",
+      "property": "uri",
+      "type": "uri",
+      "reason": "The wire field carries a URI, but the pinned schema omits format: uri."
+    },
+    {
+      "schema": "ToolFileContent",
+      "property": "uri",
+      "type": "uri",
+      "reason": "The wire field carries a URI, but the pinned schema omits format: uri."
+    }
+  ]
+}

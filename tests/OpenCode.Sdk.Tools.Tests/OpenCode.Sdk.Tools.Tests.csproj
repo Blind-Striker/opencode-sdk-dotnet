@@ -21,6 +21,12 @@
     <None Include="../../spec/openapi.json"
           Link="Fixtures/openapi.json"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../tools/generation-profile.txt"
+          Link="Fixtures/generation-profile.txt"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../tools/curation.json"
+          Link="Fixtures/curation.json"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
