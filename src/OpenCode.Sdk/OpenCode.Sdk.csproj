@@ -5,6 +5,8 @@
     <Description>Unofficial .NET SDK for opencode: a typed client for the opencode HTTP API.</Description>
     <PackageTags>opencode;sdk;client;ai;agent</PackageTags>
     <IsAotCompatible Condition="'$(TargetFramework)' == 'net10.0'">true</IsAotCompatible>
+    <!-- Roslyn workspace matching needs project-produced reference assemblies for downlevel multi-TFM references. -->
+    <ProduceReferenceAssembly Condition="'$(TargetFramework)' == 'netstandard2.0' Or '$(TargetFramework)' == 'net472'">true</ProduceReferenceAssembly>
   </PropertyGroup>
 
 </Project>
