@@ -471,7 +471,7 @@ public sealed class SpecReaderTests
   `Models/UnrestrictedNode.cs`
 - Create: `Generator/Ingestion/Walls/SchemaWallPolicy.cs` (internal sealed)
 - Create: `Generator/Ingestion/Projection/SchemaProjector.cs` (internal sealed),
-  `Projection/GraphKeyBuilder.cs` (internal sealed)
+  `Projection/GraphKeyBuilder.cs` (internal sealed), `Projection/ProjectionState.cs` (internal)
 - Create: `tests/OpenCode.Sdk.Tools.Tests/Support/SchemaProjectionTestHost.cs`,
   `Support/SchemaProjectionResult.cs`
 - Test: `tests/.../SchemaWallPolicyTests.cs`, `SchemaProjectorTests.cs`, `GraphKeyBuilderTests.cs`
@@ -497,8 +497,7 @@ public sealed class SpecReaderTests
     (`prefixItems` at `Config/properties/plugin/items/anyOf/1` — Task 6 consumes it);
     schema-level `Extensions` → error. Bookkeeping members (`Metadata`) exempt.
   - `internal sealed class GraphKeyBuilder` — `string Root(string wireNameOrOpId)`,
-    `string Append(string parentPointer, string segment)` (escapes `~`→`~0`, `/`→`~1`),
-    `string UnionBranch(string parentPointer, string keyword, int index, LiteralMarker? marker)`.
+    `string Append(string parentPointer, string segment)` (escapes `~`→`~0`, `/`→`~1`).
   - `internal sealed class SchemaProjector(SchemaWallPolicy wall, GraphKeyBuilder keys)` —
     `SchemaNode? Project(IOpenApiSchema schema, string root, string pointer, ProjectionState state)`
     where `ProjectionState` (internal) carries the graph dictionary + error collector +
@@ -638,7 +637,8 @@ public async Task Project_Should_Keep_Property_Schema_And_Dictionary_Value_For_H
   `Models/TupleNode.cs`, `Models/JsonStringNode.cs`, `Models/ErrorStyle.cs`
 - Create: `Projection/UnionNormalizer.cs`, `Projection/LiteralClassifier.cs`,
   `Projection/ErrorStyleClassifier.cs`, `Projection/PrefixItemsAdapter.cs` (all internal sealed)
-- Modify: `Projection/SchemaProjector.cs`, `Models/ObjectNode.cs` construction site
+- Modify: `Projection/SchemaProjector.cs`, `Projection/GraphKeyBuilder.cs`,
+  `Models/ObjectNode.cs` construction site
 - Test: `tests/.../UnionNormalizerTests.cs`, `LiteralClassifierTests.cs`,
   `ErrorStyleClassifierTests.cs`, `PrefixItemsAdapterTests.cs`
 
@@ -653,6 +653,10 @@ public async Task Project_Should_Keep_Property_Schema_And_Dictionary_Value_For_H
   - `LiteralMarker { required string PropertyName; required LiteralKind Kind; required string Value; }` —
     computed on `ObjectNode` construction: required properties whose schema is a
     `LiteralNode`, property order (mechanical — never a name list).
+  - `GraphKeyBuilder` gains
+    `string UnionBranch(string parentPointer, string keyword, int index, LiteralMarker? marker)`
+    once the marker model exists; marked branches use `{property}={value}` and unmarked
+    branches use the ordinal index.
   - `ErrorStyle { None, EffectTag, NameData }` via `ErrorStyleClassifier`: required `_tag`
     literal → `EffectTag`; required `name` literal + required `data` → `NameData`.
   - `UnionNode { required IReadOnlyList<SchemaNode> Branches; required UnionKeyword Keyword; required UnionClassification Classification; }`
