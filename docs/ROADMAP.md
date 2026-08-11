@@ -1,22 +1,18 @@
 # Roadmap
 
-Date: 2026-08-11
+Date: 2026-08-12
 
 Operational state: what is done, what is next, what is open. This file shrinks as work lands.
 Evergreen rules and locked decisions live in `../AGENTS.md`; decision records in `adr/`.
 
 ## Status
 
-Structural skeleton, three-OS CI, the pinned spec snapshot, and the Slice 0 tooling skeleton
-are in place. The generator-complexity checkpoint (research doc 13; research log session 15)
-redirected the build-out: the design specs under `superpowers/` are vision/reference
-documents (the sealed surface is the ADRs plus `AGENTS.md`), the slice map is retired in
-favor of the milestone list below, and ingestion policy moved from exhaustive DOM
-surveillance to semantic-risk fail-closed validation. Slice 1 closed lean on
-`feature/slice-01-ingestion-specir`: `ISpecIngestion` projects the complete pin (both
-surfaces, landmark smoke green, deterministic) behind the Microsoft.OpenApi boundary
-guards; `generate` remains a fail-loud stub until M1's compiler arc. Issue #2 closes with
-that branch's PR.
+Structural skeleton, three-OS CI, the pinned spec snapshot, Slice 0 tooling, and complete-pin
+SpecIR ingestion are in place. M1's compiler arc selects the two walking-skeleton operations,
+binds their reachable closure, emits committed Roslyn-built models plus source-generated JSON
+metadata, and owns deterministic `generate` / `generate --verify` writes through a guarded
+manifest. The partial-operation marker blocks every package while breadth remains incomplete.
+The next M1 arc is the minimal transport and callable client with typed errors and `NoThrow`.
 
 ## Milestones
 

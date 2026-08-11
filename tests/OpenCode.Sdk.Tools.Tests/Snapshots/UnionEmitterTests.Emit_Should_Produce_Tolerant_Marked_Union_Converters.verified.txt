@@ -38,7 +38,15 @@ public sealed record UnknownExampleEvent : ExampleEvent
     [JsonConstructor]
     public UnknownExampleEvent(string type, JsonElement payload)
     {
+#if NET8_0_OR_GREATER
         ArgumentException.ThrowIfNullOrEmpty(type);
+#else
+        if (string.IsNullOrEmpty(type))
+        {
+            throw new ArgumentException("Value cannot be null or empty.", nameof(type));
+        }
+#endif
+
         _marker = type;
         Payload = payload.Clone();
     }
@@ -74,12 +82,30 @@ internal sealed class ExampleEventJsonConverter : JsonConverter<ExampleEvent>
 
     public override ExampleEvent Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
+#if NET8_0_OR_GREATER
         ArgumentNullException.ThrowIfNull(typeToConvert);
+#else
+        if (typeToConvert is null)
+        {
+            throw new ArgumentNullException(nameof(typeToConvert));
+        }
+#endif
+
+#if NET8_0_OR_GREATER
         ArgumentNullException.ThrowIfNull(options);
+#else
+        if (options is null)
+        {
+            throw new ArgumentNullException(nameof(options));
+        }
+#endif
+
         if (reader.TokenType == JsonTokenType.Null)
             throw new JsonException("The ExampleEvent payload cannot be null.");
         using var document = JsonDocument.ParseValue(ref reader);
         var payload = document.RootElement;
+        if (payload.ValueKind != JsonValueKind.Object)
+            throw new JsonException("The ExampleEvent payload must be a JSON object.");
         if (!payload.TryGetProperty("type", out var markerElement))
             throw new JsonException("The ExampleEvent payload must contain 'type'.");
         if (markerElement.ValueKind != JsonValueKind.String)
@@ -98,9 +124,33 @@ internal sealed class ExampleEventJsonConverter : JsonConverter<ExampleEvent>
 
     public override void Write(Utf8JsonWriter writer, ExampleEvent value, JsonSerializerOptions options)
     {
+#if NET8_0_OR_GREATER
         ArgumentNullException.ThrowIfNull(writer);
+#else
+        if (writer is null)
+        {
+            throw new ArgumentNullException(nameof(writer));
+        }
+#endif
+
+#if NET8_0_OR_GREATER
         ArgumentNullException.ThrowIfNull(value);
+#else
+        if (value is null)
+        {
+            throw new ArgumentNullException(nameof(value));
+        }
+#endif
+
+#if NET8_0_OR_GREATER
         ArgumentNullException.ThrowIfNull(options);
+#else
+        if (options is null)
+        {
+            throw new ArgumentNullException(nameof(options));
+        }
+#endif
+
         if (value is UnknownExampleEvent unknown)
         {
             unknown.Payload.WriteTo(writer);

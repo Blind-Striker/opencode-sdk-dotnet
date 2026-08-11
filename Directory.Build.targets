@@ -1,0 +1,8 @@
+<Project>
+  <!-- A partial generated SDK surface blocks every publishable package, including Extensions. -->
+  <Target Name="RefuseIncompleteGenerationPack"
+          BeforeTargets="GenerateNuspec"
+          Condition="'$(IsPackable)' == 'true' And Exists('$(MSBuildThisFileDirectory)src/OpenCode.Sdk/.generation-incomplete')">
+    <Error Text="Packages cannot be created while src/OpenCode.Sdk/.generation-incomplete records pending operations." />
+  </Target>
+</Project>

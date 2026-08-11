@@ -28,6 +28,7 @@ public sealed record BadRequestError : OpenCodeError
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace OpenCode.Sdk.Models;
@@ -58,8 +59,8 @@ public sealed record ExampleItem
         get;
         init
         {
-            ArgumentNullException.ThrowIfNull(value);
-            field = new List<string>(value).AsReadOnly();
+            // Source-generated deserialization passes null for an absent optional init-only collection.
+            field = value is null ? Array.Empty<string>() : new List<string>(value).AsReadOnly();
         }
     } = Array.Empty<string>();
 
@@ -72,8 +73,8 @@ public sealed record ExampleItem
         get;
         init
         {
-            ArgumentNullException.ThrowIfNull(value);
-            field = new ReadOnlyDictionary<string, Uri>(new Dictionary<string, Uri>(value, StringComparer.Ordinal));
+            // Source-generated deserialization passes null for an absent optional init-only collection.
+            field = value is null ? new ReadOnlyDictionary<string, Uri>(new Dictionary<string, Uri>(StringComparer.Ordinal)) : new ReadOnlyDictionary<string, Uri>(value.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal));
         }
     } = new ReadOnlyDictionary<string, Uri>(new Dictionary<string, Uri>(StringComparer.Ordinal));
 }

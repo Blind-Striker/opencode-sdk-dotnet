@@ -93,9 +93,7 @@ internal static class UnionEmitter
         var statements = new List<StatementSyntax>();
         if (union.MarkerKind is LiteralKind.String)
         {
-            statements.Add(SyntaxFactory.ExpressionStatement(EmissionSyntax.Invocation(
-                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("ArgumentException"), "ThrowIfNullOrEmpty"),
-                SyntaxFactory.Argument(SyntaxFactory.IdentifierName(markerParameterName)))));
+            statements.AddRange(EmissionSyntax.ArgumentNullOrEmptyGuard(markerParameterName));
         }
 
         statements.Add(SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
@@ -206,10 +204,11 @@ internal static class UnionEmitter
 
     private static MethodDeclarationSyntax EmitRead(UnionPlan union)
     {
-        var statements = new List<StatementSyntax>
-        {
-            Guard("typeToConvert"),
-            Guard("options"),
+        var statements = new List<StatementSyntax>();
+        statements.AddRange(EmissionSyntax.ArgumentNullGuard("typeToConvert"));
+        statements.AddRange(EmissionSyntax.ArgumentNullGuard("options"));
+        statements.AddRange(
+        [
             SyntaxFactory.IfStatement(
                 SyntaxFactory.BinaryExpression(
                     SyntaxKind.EqualsExpression,
@@ -218,8 +217,9 @@ internal static class UnionEmitter
                 ThrowJson($"The {union.Name} payload cannot be null.")),
             EmitPayloadDocument(),
             Local("payload", EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("document"), "RootElement")),
+            EmitObjectPayloadCheck(union),
             EmitMarkerPresenceCheck(union),
-        };
+        ]);
         statements.AddRange(EmitMarkerRead(union));
         statements.Add(EmitKnownDispatch(union));
         statements.Add(SyntaxFactory.ReturnStatement(SyntaxFactory.ObjectCreationExpression(
@@ -256,6 +256,14 @@ internal static class UnionEmitter
                     SyntaxFactory.VariableDeclarator("document").WithInitializer(SyntaxFactory.EqualsValueClause(parse)))))
             .WithUsingKeyword(SyntaxFactory.Token(SyntaxKind.UsingKeyword));
     }
+
+    private static IfStatementSyntax EmitObjectPayloadCheck(UnionPlan union) =>
+        SyntaxFactory.IfStatement(
+            SyntaxFactory.BinaryExpression(
+                SyntaxKind.NotEqualsExpression,
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("payload"), "ValueKind"),
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("JsonValueKind"), "Object")),
+            ThrowJson($"The {union.Name} payload must be a JSON object."));
 
     private static IfStatementSyntax EmitMarkerPresenceCheck(UnionPlan union)
     {
@@ -383,6 +391,13 @@ internal static class UnionEmitter
             SyntaxFactory.Argument(SyntaxFactory.IdentifierName("writer")),
             SyntaxFactory.Argument(SyntaxFactory.IdentifierName("value")),
             SyntaxFactory.Argument(SyntaxFactory.IdentifierName("typeInfo")));
+        var statements = new List<StatementSyntax>();
+        statements.AddRange(EmissionSyntax.ArgumentNullGuard("writer"));
+        statements.AddRange(EmissionSyntax.ArgumentNullGuard("value"));
+        statements.AddRange(EmissionSyntax.ArgumentNullGuard("options"));
+        statements.Add(SyntaxFactory.IfStatement(unknownPattern, writeUnknown));
+        statements.Add(Local("typeInfo", typeInfo));
+        statements.Add(SyntaxFactory.ExpressionStatement(serialize));
         return SyntaxFactory.MethodDeclaration(
                 SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.VoidKeyword)),
                 "Write")
@@ -395,19 +410,8 @@ internal static class UnionEmitter
                 SyntaxFactory.Parameter(SyntaxFactory.Identifier("value")).WithType(TypeSyntaxEmitter.EmitNamed(union.Name)),
                 SyntaxFactory.Parameter(SyntaxFactory.Identifier("options")).WithType(SyntaxFactory.IdentifierName("JsonSerializerOptions")),
             ])))
-            .WithBody(SyntaxFactory.Block(
-                Guard("writer"),
-                Guard("value"),
-                Guard("options"),
-                SyntaxFactory.IfStatement(unknownPattern, writeUnknown),
-                Local("typeInfo", typeInfo),
-                SyntaxFactory.ExpressionStatement(serialize)));
+            .WithBody(SyntaxFactory.Block(statements));
     }
-
-    private static ExpressionStatementSyntax Guard(string parameterName) =>
-        SyntaxFactory.ExpressionStatement(EmissionSyntax.Invocation(
-            EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("ArgumentNullException"), "ThrowIfNull"),
-            SyntaxFactory.Argument(SyntaxFactory.IdentifierName(parameterName))));
 
     private static LocalDeclarationStatementSyntax Local(string name, ExpressionSyntax value) =>
         SyntaxFactory.LocalDeclarationStatement(SyntaxFactory.VariableDeclaration(SyntaxFactory.IdentifierName("var"))

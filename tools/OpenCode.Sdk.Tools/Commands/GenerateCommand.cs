@@ -1,42 +1,94 @@
+using System.ComponentModel;
+using System.Globalization;
 using Microsoft.Extensions.Logging;
+using OpenCode.Sdk.Tools.Generator;
+using OpenCode.Sdk.Tools.Output;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace OpenCode.Sdk.Tools.Commands;
 
-/// <summary>Fail-loud stub; the generator pipeline replaces the body in a later slice.</summary>
-public sealed partial class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
+internal sealed partial class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
 {
     private readonly IAnsiConsole _console;
+    private readonly GenerationCoordinator _coordinator;
     private readonly ILogger<GenerateCommand> _logger;
 
-    /// <summary>Creates the command with its console and logging seams.</summary>
-    public GenerateCommand(IAnsiConsole console, ILogger<GenerateCommand> logger)
+    public GenerateCommand(IAnsiConsole console, GenerationCoordinator coordinator, ILogger<GenerateCommand> logger)
     {
         ArgumentNullException.ThrowIfNull(console);
+        ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(logger);
 
         _console = console;
+        _coordinator = coordinator;
         _logger = logger;
     }
 
-    /// <inheritdoc/>
-    protected override Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    protected override async Task<int> ExecuteAsync(
+        CommandContext context,
+        Settings settings,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(settings);
-
-        cancellationToken.ThrowIfCancellationRequested();
-
         LogInvocation(_logger);
-        _console.MarkupLine("[red]generate is not implemented yet[/] — the generator pipeline has not landed.");
+        var report = await _coordinator.GenerateAsync(
+            GenerationRequest.RepositoryDefault(settings.Verify),
+            cancellationToken).ConfigureAwait(false);
+        WriteSummary(report);
 
-        return Task.FromResult(1);
+        if (settings.Verify && report.WriteResult.HasChanges)
+        {
+            _console.MarkupLine("[red]Generated output was stale and has been repaired:[/]");
+            WritePaths(report.WriteResult);
+            return 1;
+        }
+
+        _console.MarkupLine(settings.Verify
+            ? "[green]Generated output is current.[/]"
+            : "[green]Generated output updated.[/]");
+        return 0;
     }
 
     [LoggerMessage(EventId = 1, Level = LogLevel.Debug, Message = "Generate command invoked.")]
     private static partial void LogInvocation(ILogger logger);
 
-    /// <summary>Defines settings for the generate command.</summary>
-    public sealed class Settings : GlobalSettings;
+    private void WriteSummary(GenerationReport report)
+    {
+        _console.MarkupLine(string.Concat(
+            "[grey]Selected operations:[/] ",
+            report.SelectedOperationIds.Count.ToString(CultureInfo.InvariantCulture)));
+        _console.MarkupLine(string.Concat(
+            "[yellow]Pending modern operations:[/] ",
+            report.PendingModernOperationIds.Count.ToString(CultureInfo.InvariantCulture)));
+        _console.MarkupLine(string.Concat(
+            "[yellow]Pending legacy operations:[/] ",
+            report.PendingLegacyOperationIds.Count.ToString(CultureInfo.InvariantCulture)));
+    }
+
+    private void WritePaths(WriteResult result)
+    {
+        foreach (var path in result.CreatedPaths)
+        {
+            _console.MarkupLine(string.Concat("[green]+[/] ", Markup.Escape(path)));
+        }
+
+        foreach (var path in result.ChangedPaths)
+        {
+            _console.MarkupLine(string.Concat("[yellow]~[/] ", Markup.Escape(path)));
+        }
+
+        foreach (var path in result.DeletedPaths)
+        {
+            _console.MarkupLine(string.Concat("[red]-[/] ", Markup.Escape(path)));
+        }
+    }
+
+    internal sealed class Settings : GlobalSettings
+    {
+        [CommandOption("--verify")]
+        [Description("Return a nonzero exit code when generated output was stale before this run.")]
+        public bool Verify { get; init; }
+    }
 }

@@ -21,7 +21,9 @@ internal static class RegistryEmitter
                 SyntaxFactory.AttributeArgument(EmissionSyntax.MemberAccess(
                         SyntaxFactory.IdentifierName("JsonSourceGenerationMode"),
                         "Metadata"))
-                    .WithNameEquals(SyntaxFactory.NameEquals("GenerationMode"))));
+                    .WithNameEquals(SyntaxFactory.NameEquals("GenerationMode")),
+                SyntaxFactory.AttributeArgument(SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression))
+                    .WithNameEquals(SyntaxFactory.NameEquals("RespectNullableAnnotations"))));
         foreach (var typeName in plan.TypeNames.Order(StringComparer.Ordinal))
         {
             declaration = declaration.AddAttributeLists(EmissionSyntax.Attribute(

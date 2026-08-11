@@ -102,7 +102,9 @@ internal static class ModelEmitter
 
         declaration = declaration
             .WithModifiers(SyntaxFactory.TokenList(modifiers))
-            .WithAccessorList(property.Type.IsCollection ? EmitCollectionAccessors(property.Type) : EmitAutoAccessors());
+            .WithAccessorList(property.Type.IsCollection
+                ? EmitCollectionAccessors(property.Type, property.IsRequired)
+                : EmitAutoAccessors());
         var initializer = EmitCollectionInitializer(property.Type);
         return initializer is null
             ? declaration
@@ -118,7 +120,7 @@ internal static class ModelEmitter
             .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
     ]));
 
-    private static AccessorListSyntax EmitCollectionAccessors(TypeReferencePlan type)
+    private static AccessorListSyntax EmitCollectionAccessors(TypeReferencePlan type, bool isRequired)
     {
         var copy = EmitCollectionCopy(type, SyntaxFactory.IdentifierName("value"));
         StatementSyntax assignment;
@@ -135,11 +137,26 @@ internal static class ModelEmitter
                     SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression),
                     copy)));
         }
+        else if (!isRequired)
+        {
+            var empty = EmitCollectionInitializer(type)
+                        ?? throw new InvalidOperationException("A non-null collection plan has no empty initializer.");
+            assignment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
+                    SyntaxKind.SimpleAssignmentExpression,
+                    SyntaxFactory.IdentifierName("field"),
+                    SyntaxFactory.ConditionalExpression(
+                        SyntaxFactory.IsPatternExpression(
+                            SyntaxFactory.IdentifierName("value"),
+                            SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
+                        empty,
+                        copy)))
+                .WithLeadingTrivia(
+                    SyntaxFactory.Comment("// Source-generated deserialization passes null for an absent optional init-only collection."),
+                    SyntaxFactory.EndOfLine("\n"));
+        }
         else
         {
-            statements.Add(SyntaxFactory.ExpressionStatement(EmissionSyntax.Invocation(
-                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("ArgumentNullException"), "ThrowIfNull"),
-                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("value")))));
+            statements.AddRange(EmissionSyntax.ArgumentNullGuard("value"));
             assignment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
                 SyntaxKind.SimpleAssignmentExpression,
                 SyntaxFactory.IdentifierName("field"),
@@ -176,28 +193,44 @@ internal static class ModelEmitter
 
     private static ExpressionSyntax EmitCollectionCopy(TypeReferencePlan type, ExpressionSyntax value) => type switch
     {
-        ListTypeReferencePlan list => EmissionSyntax.Invocation(
-            EmissionSyntax.MemberAccess(
-                SyntaxFactory.ObjectCreationExpression(TypeSyntaxEmitter.Generic("List", TypeSyntaxEmitter.Emit(list.ElementType)))
-                    .WithArgumentList(SyntaxFactory.ArgumentList(
-                        SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Argument(value)))),
-                "AsReadOnly")),
+        ListTypeReferencePlan list => EmitListCopy(list, value),
         DictionaryTypeReferencePlan dictionary => EmitDictionaryCopy(dictionary, value),
         _ => throw new InvalidOperationException($"Unknown collection plan '{type.GetType().Name}'."),
     };
 
+    private static InvocationExpressionSyntax EmitListCopy(ListTypeReferencePlan list, ExpressionSyntax value)
+    {
+        var source = list.ElementType.IsCollection
+            ? EmissionSyntax.Invocation(
+                EmissionSyntax.MemberAccess(value, "Select"),
+                SyntaxFactory.Argument(Projection(
+                    "element",
+                    SyntaxFactory.CastExpression(
+                        TypeSyntaxEmitter.Emit(list.ElementType),
+                        EmitNestedCollectionCopy(list.ElementType, SyntaxFactory.IdentifierName("element"))))))
+            : value;
+        return EmissionSyntax.Invocation(
+            EmissionSyntax.MemberAccess(
+                SyntaxFactory.ObjectCreationExpression(TypeSyntaxEmitter.Generic("List", TypeSyntaxEmitter.Emit(list.ElementType)))
+                    .WithArgumentList(SyntaxFactory.ArgumentList(
+                        SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Argument(source)))),
+                "AsReadOnly"));
+    }
+
     private static ObjectCreationExpressionSyntax EmitDictionaryCopy(DictionaryTypeReferencePlan dictionary, ExpressionSyntax value)
     {
-        var dictionaryType = TypeSyntaxEmitter.Generic(
-            "Dictionary",
-            SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword)),
-            TypeSyntaxEmitter.Emit(dictionary.ValueType));
-        var mutableCopy = SyntaxFactory.ObjectCreationExpression(dictionaryType)
-            .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(
-            [
-                SyntaxFactory.Argument(value),
-                SyntaxFactory.Argument(EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("StringComparer"), "Ordinal")),
-            ])));
+        var pair = SyntaxFactory.IdentifierName("pair");
+        var mutableCopy = EmissionSyntax.Invocation(
+            EmissionSyntax.MemberAccess(value, "ToDictionary"),
+            SyntaxFactory.Argument(Projection("pair", EmissionSyntax.MemberAccess(pair, "Key"))),
+            SyntaxFactory.Argument(Projection(
+                "pair",
+                dictionary.ValueType.IsCollection
+                    ? SyntaxFactory.CastExpression(
+                        TypeSyntaxEmitter.Emit(dictionary.ValueType),
+                        EmitNestedCollectionCopy(dictionary.ValueType, EmissionSyntax.MemberAccess(pair, "Value")))
+                    : EmissionSyntax.MemberAccess(pair, "Value"))),
+            SyntaxFactory.Argument(EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("StringComparer"), "Ordinal")));
         var readOnlyType = TypeSyntaxEmitter.Generic(
             "ReadOnlyDictionary",
             SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword)),
@@ -206,6 +239,25 @@ internal static class ModelEmitter
             .WithArgumentList(SyntaxFactory.ArgumentList(
                 SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Argument(mutableCopy))));
     }
+
+    private static ExpressionSyntax EmitNestedCollectionCopy(TypeReferencePlan type, ExpressionSyntax value)
+    {
+        var copy = EmitCollectionCopy(type, value);
+        return type.IsNullable
+            ? SyntaxFactory.ConditionalExpression(
+                SyntaxFactory.IsPatternExpression(
+                    value,
+                    SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
+                SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression),
+                copy)
+            : copy;
+    }
+
+    private static SimpleLambdaExpressionSyntax Projection(string parameterName, ExpressionSyntax expression) =>
+        SyntaxFactory.SimpleLambdaExpression(
+                SyntaxFactory.Parameter(SyntaxFactory.Identifier(parameterName)),
+                expression)
+            .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.StaticKeyword)));
 
     private static ObjectCreationExpressionSyntax EmitEmptyDictionary(DictionaryTypeReferencePlan dictionary)
     {
@@ -264,12 +316,18 @@ internal static class ModelEmitter
             case ListTypeReferencePlan list:
                 _ = usings.Add("System");
                 _ = usings.Add("System.Collections.Generic");
+                if (list.ElementType.IsCollection)
+                {
+                    _ = usings.Add("System.Linq");
+                }
+
                 CollectTypeUsings(list.ElementType, usings);
                 break;
             case DictionaryTypeReferencePlan dictionary:
                 _ = usings.Add("System");
                 _ = usings.Add("System.Collections.Generic");
                 _ = usings.Add("System.Collections.ObjectModel");
+                _ = usings.Add("System.Linq");
                 CollectTypeUsings(dictionary.ValueType, usings);
                 break;
         }
