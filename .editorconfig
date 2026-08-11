@@ -751,6 +751,13 @@ dotnet_diagnostic.CA1034.severity = none
 [tools/OpenCode.Sdk.Tools/Generator/Ingestion/Models/PrimitiveKind.cs]
 dotnet_diagnostic.CA1720.severity = none
 
+# GraphKeyBuilder is an injected collaborator whose instance interface keeps graph-key
+# policy replaceable as later projection slices deepen it. Winner: the sealed projector
+# collaborator contract; static-member rules remain enabled for every other file.
+[tools/OpenCode.Sdk.Tools/Generator/Ingestion/Projection/GraphKeyBuilder.cs]
+dotnet_diagnostic.CA1822.severity = none
+dotnet_diagnostic.S2325.severity = none
+
 # The wire-faithful SpecIR literal-kind contract likewise requires the exact
 # String member name. Winner: the wire-faithful public contract; CA1720 remains
 # enabled for every other file.
