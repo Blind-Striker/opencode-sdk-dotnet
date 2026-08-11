@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "properties": {
+    "data": {
+      "type": "string"
+    },
+    "hasMore": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "data",
+    "hasMore"
+  ]
+}

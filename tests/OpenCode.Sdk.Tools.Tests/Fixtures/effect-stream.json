@@ -1,0 +1,11 @@
+{
+  "events": [
+    {
+      "type": "session.updated",
+      "payload": {
+        "type": "string"
+      }
+    }
+  ],
+  "nullable": true
+}

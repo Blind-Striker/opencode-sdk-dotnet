@@ -1,21 +1,42 @@
+using System.IO.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using OpenCode.Sdk.Tools.Commands;
+using OpenCode.Sdk.Tools.Generator.Ingestion;
+using OpenCode.Sdk.Tools.Generator.Ingestion.Abstractions;
+using OpenCode.Sdk.Tools.Infrastructure;
+using OpenCode.Sdk.Tools.Infrastructure.Logging;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Spectre.Console.Cli.Extensions.DependencyInjection;
+using Testably.Abstractions;
 
 namespace OpenCode.Sdk.Tools;
 
 /// <summary>Composition root for the repo tool: DI registrar plus the command surface.</summary>
 public static class ToolApp
 {
+    /// <summary>Builds the tool's complete production service collection.</summary>
+    public static ServiceCollection CreateServices(Action<IServiceCollection>? overrideServices = null)
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IFileSystem, RealFileSystem>();
+        services.AddSingleton(AnsiConsole.Console);
+        services.AddSingleton<ToolLoggingOptions>();
+        services.AddLogging(logging => logging.SetMinimumLevel(LogLevel.Trace));
+        services.AddSingleton<ILoggerProvider, SpectreConsoleLoggerProvider>();
+        services.AddSingleton<ILoggerProvider, FileLoggerProvider>();
+        services.AddSingleton<ISpecIngestion, SpecIngestion>();
+        services.AddSingleton<ICommandInterceptor, GlobalOptionsInterceptor>();
+
+        overrideServices?.Invoke(services);
+        return services;
+    }
+
     /// <summary>Builds the DI registrar; tests inject service overrides.</summary>
     public static DependencyInjectionRegistrar CreateRegistrar(Action<IServiceCollection>? overrideServices = null)
     {
-        var services = new ServiceCollection();
-        services.AddSingleton(AnsiConsole.Console);
-        overrideServices?.Invoke(services);
-        return new DependencyInjectionRegistrar(services);
+        return new DependencyInjectionRegistrar(CreateServices(overrideServices));
     }
 
     /// <summary>Registers the command surface; shared by the app and <c>CommandAppTester</c>.</summary>

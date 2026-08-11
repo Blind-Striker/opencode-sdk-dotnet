@@ -2,6 +2,10 @@
 
 Date: 2026-08-11
 
+> **Status: vision / reference — not sealed.** Binding decisions live in the ADRs and
+> `AGENTS.md`; this document is direction and design rationale, not law. Contradicting it
+> is a finding to note, not a deviation-protocol event.
+
 Design specification produced by the testing-architecture brainstorm session (2026-08-09/10,
 ROADMAP queue item 1 — its final design step). Every decision below was discussed and sealed
 individually with the maintainer. This spec owns the ROADMAP Open Questions item "Testing
@@ -487,8 +491,7 @@ this session's to revisit). Revisions:
    missing, guarded getter / guarded `PrintMembers`) are product tests and land in
    `OpenCode.Sdk.Tests` (level 1), not Tools.Tests.
 
-Dependency note: Verify (Verify.TUnit) is not yet in `Directory.Packages.props` — added at
-build-out.
+Dependency note: Verify.TUnit is centrally pinned for the tooling snapshot tests.
 
 ## 11. CI architecture
 

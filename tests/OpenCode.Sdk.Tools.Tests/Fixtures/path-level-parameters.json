@@ -1,0 +1,22 @@
+{
+  "/api/items/{id}": {
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "get": {
+      "operationId": "item.get",
+      "responses": {
+        "200": {
+          "description": "Response"
+        }
+      }
+    }
+  }
+}

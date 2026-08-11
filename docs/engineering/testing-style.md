@@ -58,13 +58,13 @@ sized to need:
 
 ## 2. Filesystem rule
 
-**TestableIO is the repository's only filesystem seam** (sealed decision; the TestableIO
-analyzer enforces it repo-wide — even test code reaches `Path` through
-`IFileSystem.Path`):
+**Testably supplies the repository's only filesystem seam** through the shared
+`System.IO.Abstractions.IFileSystem` contract (sealed decision; the independent TestableIO
+analyzer enforces it repo-wide — even test code reaches `Path` through `IFileSystem.Path`):
 
-- Levels 1–2 (unit, contract): `MockFileSystem` (`TestingHelpers`), assembled through
-  the scenario builders.
-- Level 3 and full-artifact smoke tests: the real `FileSystem` (`Wrappers`).
+- Levels 1–2 (unit, contract): `Testably.Abstractions.Testing.MockFileSystem`, assembled
+  through the scenario builders.
+- Level 3 and full-artifact smoke tests: `Testably.Abstractions.RealFileSystem`.
 - Raw `System.IO` never appears in test code, and no second filesystem fake is ever
   introduced — one canonical fake per repository.
 
@@ -109,9 +109,9 @@ goes through 1 or 2.
   test files only when it outgrows comfortable navigation.
 - TUnit creates a fresh instance per test: setup belongs in the constructor or
   `[Before(Test)]`; no state carried between tests, no shared mutable fields.
-- Assertions state intent in the test body — snapshot testing is reserved for its three
-  sealed uses (emitter micro-snapshots, the ingestion SpecIR-of-the-pin snapshot, the
-  public API surface lock); behavior tests never snapshot.
+- Assertions state intent in the test body — snapshot testing is reserved for its two
+  sealed uses (emitter micro-snapshots and the public API surface lock); behavior tests
+  never snapshot.
 
 ## 6. Anti-patterns (never)
 

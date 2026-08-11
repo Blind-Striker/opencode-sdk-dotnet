@@ -1,0 +1,28 @@
+{
+  "type": "object",
+  "properties": {
+    "plugin": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object"
+              }
+            ],
+            "maxItems": 2,
+            "minItems": 2
+          }
+        ]
+      }
+    }
+  }
+}

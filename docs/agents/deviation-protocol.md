@@ -28,14 +28,18 @@ for exactly this case (e.g. the generator spec §3.3 two-condition entry fallbac
 state that the trigger fired, and the documents the fallback touches are corrected in the
 same change. Add a research-log entry when the evidence is worth keeping.
 
-### Level 2 — Spec correction
+### Level 2 — Canonical correction
 
-Reality contradicts a sealed spec claim and no fallback is recorded: upstream behaves
-differently, an API does not exist, a verified count is wrong, a design detail cannot be
+Reality contradicts a canonical claim — the engineering canon, `CONTEXT.md`, an active
+plan's binding constraint, a verified research fact — and no fallback is recorded:
+upstream behaves differently, an API does not exist, a count is wrong, a detail cannot be
 built as written. **Stop the affected task** (neighboring tasks may continue if
 untouched). Capture the evidence — commands, output, source references. Propose the
-correction to the maintainer; on approval, the spec/plan is corrected in place and the
+correction to the maintainer; on approval, the document is corrected in place and the
 task resumes. Findings worth keeping go to the research log.
+
+Vision/reference documents (`docs/superpowers/`) are not protocol subjects: contradicting
+one is a level-0 note in the PR, and the document is corrected opportunistically.
 
 ### Level 3 — Locked-decision challenge
 

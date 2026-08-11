@@ -57,10 +57,10 @@ for a pile of static steps.
       public static ServiceCollection CreateServices()
       {
           var services = new ServiceCollection();
-          services.AddSingleton<IFileSystem>(new FileSystem());
+          services.AddSingleton<IFileSystem, RealFileSystem>();
           services.AddSingleton<IAnsiConsole>(AnsiConsole.Console);
           services.AddSingleton<ToolLoggingOptions>();
-          services.AddLogging();
+          services.AddLogging(logging => logging.SetMinimumLevel(LogLevel.Trace));
           services.AddSingleton<ILoggerProvider, SpectreConsoleLoggerProvider>();
           services.AddSingleton<ILoggerProvider, FileLoggerProvider>();
           services.AddSingleton<ISpecIngestion, SpecIngestion>();
@@ -83,7 +83,7 @@ for a pile of static steps.
   `IAnsiConsole`, process/network collaborators), Microsoft.Extensions.Logging providers,
   application services, and interceptors. Tool logging uses MEL end to end: structured
   `ILogger<T>` consumption, a Spectre-backed console provider, and an optional
-  TestableIO-backed file provider configured by global log-level/log-file settings. Tests
+  Testably-backed file provider configured by global log-level/log-file settings. Tests
   start from the same production registration path and replace seams after composition;
   they never reproduce the registration list in a parallel test-only root.
 - **Cross-cutting CLI concerns ride an interceptor** (logging verbosity, global

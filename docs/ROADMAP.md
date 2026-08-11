@@ -7,72 +7,55 @@ Evergreen rules and locked decisions live in `../AGENTS.md`; decision records in
 
 ## Status
 
-Structural skeleton in place: `OpenCode.slnx`; `src/OpenCode.Sdk` + `src/OpenCode.Sdk.Extensions`
-(empty multi-targeted shells, full TFM matrix); `tests/OpenCode.Sdk.Tests` (TUnit smoke test,
-net472 leg Windows-only); three-OS CI (`.github/workflows/ci.yml`: build + test + TRX reporting);
-pinned OpenAPI snapshot (`spec/openapi.json`, provenance in `spec/SNAPSHOT.md`). Packages current
-as of 2026-08-08. Design runway complete and grill-hardened: three sealed specs under
-`superpowers/specs/` (public API, generator architecture, testing architecture), ADRs 0001–0009,
-research log sessions 1–14. Implementation planning is maintained in the slice map at
-`superpowers/plans/2026-08-10-implementation-slice-map.md` (12 vertical slices), slice issues
-**#1–#12** with native `blocked_by` ordering; deviation protocol added
-(`docs/agents/deviation-protocol.md`), falsifiability working agreement added to `AGENTS.md`.
-The Slice 0 tooling skeleton has landed. Repo-local Slopwatch pinning, a committed zero-entry
-baseline, and the Linux CI gate are active. Slice 1 is ready for execution: the pinned
-`Microsoft.OpenApi` reader feeds a fail-closed semantic projection into minimal SpecIR
-(ADR-0003; generator spec §4.1); the foundation is the complete PathSmith-shaped ToolApp
-host (single production/test composition path, TestableIO, `IAnsiConsole`, MEL
-Spectre/optional-file providers, global settings, interceptor); test setup is centralized
-and lambda-first, with named scenarios promoted only for reuse, complexity, or durable
-domain identity. The wall/tripwire design and the execution plan survived independent
-Grok/GLM/Kimi review; the only duplicate removed is Task 8's small-document determinism
-assertion, superseded by Task 10's pinned-document repeat (research log sessions 12–14).
-The retired parser remains read-only on `feature/slice-01-parser-specir` as evidence; delete
-its worktree only with maintainer approval. The corrected plan is
-`superpowers/plans/2026-08-11-slice-01-ingestion-specir.md`; issue #2 is
-`ready-for-agent`; next is the execution handoff
-(`docs/agents/handover-prompts/HANDOFF-2026-08-11.md`).
+Structural skeleton, three-OS CI, the pinned spec snapshot, and the Slice 0 tooling skeleton
+are in place. The generator-complexity checkpoint (research doc 13; research log session 15)
+redirected the build-out: the design specs under `superpowers/` are vision/reference
+documents (the sealed surface is the ADRs plus `AGENTS.md`), the slice map is retired in
+favor of the milestone list below, and ingestion policy moved from exhaustive DOM
+surveillance to semantic-risk fail-closed validation. Slice 1 closed lean on
+`feature/slice-01-ingestion-specir`: `ISpecIngestion` projects the complete pin (both
+surfaces, landmark smoke green, deterministic) behind the Microsoft.OpenApi boundary
+guards; `generate` remains a fail-loud stub until M1's compiler arc. Issue #2 closes with
+that branch's PR.
 
-## Queue
+## Milestones
 
-In order — do not improvise beyond it without asking the maintainer.
+Deliverable-first: every milestone ends in something callable or demonstrable. The next
+milestone gets a short (1–2 page) plan when it starts — never earlier. Ordering beyond M2
+is revisited at each milestone boundary.
 
-1. **SDK build-out — remaining slice issues #2–#12.** Scope, sequencing, and the per-slice done
-   definition live in the slice map
-   (`superpowers/plans/2026-08-10-implementation-slice-map.md`); task-level progress lives in
-   per-slice plan checkboxes (plans written just-in-time; a slice whose plan exists gets
-   `ready-for-agent`). Execution: `subagent-driven-development` per slice on a
-   `feature/slice-NN-*` worktree branch; one PR to master closes the issue; per-task commits on
-   the slice branch are the agreed development loop (the `AGENTS.md` commit-rule exception).
-   TDD for transport/SSE/launcher; `api-design` (extend-only) + `snapshot-testing` (Verify)
-   lock the public surface as implementation lands (testing spec §12; slices 4–5). **Spec
-   retirement rides slice 11:** durable sealed decisions without an ADR home distill into ADRs
-   before the transient `docs/superpowers/` documents are deleted.
-2. **Later** — **MCP server**: in this repo as a thin SDK adapter (ADR-0006). Tech targeting
-   decided 2026-08-08 (research doc 05), **re-sealed at phase start against the then-current
-   MCP landscape:** the 2026-07-28 protocol revision via MCP C# SDK v2.0, stdio + streamable
-   HTTP, no investment in deprecated features. Evaluate NuGet's `McpServer` package type for
-   distribution; its SDK usage defines the deep-tested legacy set (ADR-0005). Aspire AppHost
-   for local dev/test (mini UI, `opencode serve` as a resource) — planned. "opencode HQ" —
-   multi-instance aggregation above the SDK — is a valued future deliverable in its own
-   right, not SDK scope.
+1. **M1 — Walking skeleton.** `v2.health.get` + `v2.session.message` end to end
+   (SpecDocument → Binder → EmitPlan → Roslyn emitters → committed source under
+   `src/OpenCode.Sdk` → minimal transport core → callable client), demonstrated once by
+   hand against a real `opencode serve` with the output pasted into the PR. Two
+   independently mergeable arcs: selected compiler + committed models, then the callable
+   client with typed errors and `NoThrow`. Design reference:
+   `superpowers/specs/2026-08-11-production-walking-skeleton-design.md`.
+2. **M2 — Breadth batches.** The generation profile grows in vertical operation batches;
+   each batch lands its curation rows, reachable models, operation methods, and contract
+   tests together.
+3. **M3 — Streams.** SSE engine, live/durable subscribe with `after` resume; demo: watching
+   a real session's event stream. The net472 `ServicePointManager` item lands here.
+4. **M4 — Launcher.** `OpenCodeServer.StartAsync` with three-OS acceptance (ADR-0001);
+   demo: the SDK starts the server itself and calls health. The net472 stdout/tree-kill
+   items land here.
+5. **M5 — Full surface.** Legacy hub, complete generation profile, exclusion fingerprints
+   (ADR-0008), packaging unblocked.
+6. **M6 — Operational closure.** `refresh-spec`, Extensions DI breadth,
+   retry/telemetry/hooks, quarantine lane, nightly canary; durable decisions distill into
+   ADRs and the `superpowers/` documents retire.
 
 ## Open Questions
 
-- **net472 spike items** — distributed to their SUT slices (slice map, sealed decision 4):
-  polyfill-set validation + generated-model downlevel compile → slice 3 (the 5-TFM
-  milestone; checklist in generator spec §12); async stdout reading + `taskkill /T /F`
-  tree-kill → slice 6; SSE long-lived-response behavior
-  (`ServicePointManager.DefaultConnectionLimit = 2`) → slice 8.
-- **Spec tracking:** `openapi.json` changes on every upstream push — snapshot per SDK release +
-  diff/regen workflow (`spec/SNAPSHOT.md` is the pin; the submodule tracks upstream). The
-  `refresh-spec` tool lands in slice 11; the refresh **cadence** policy stays open.
-- **Launcher deep-dive items** (public API spec §13; doc 06 §3) — owned by slice 6, including
-  release-binary confirmation of `--port 0`.
-- **Release mechanics** — decided parts live in ADR-0006 (independent semver, per-merge GitHub
-  Packages CD, manual NuGet.org release pipeline). Still open: pre-1.0/preview numbering,
-  `VersionPrefix`, RELEASE_NOTES flow, the concrete workflows. **Not covered by the slice
-  map** — scheduled when the first publishable increment approaches.
+- **Spec refresh cadence** — the `refresh-spec` tool lands in M6; the cadence policy stays
+  open.
+- **Structural-union emission shape** — the five structural-union pin sites
+  (`Config.formatter` et al.) need an emission decision when a breadth batch first reaches
+  one (a public API review).
+- **Release mechanics** — decided parts live in ADR-0006 (independent semver, per-merge
+  GitHub Packages CD, manual NuGet.org releases). Pre-1.0 numbering, `VersionPrefix`,
+  RELEASE_NOTES flow, and the concrete workflows are scheduled when the first publishable
+  increment approaches.
 - **Upstream v2 watch:** the active upstream `v2` branch publishes its spec at
   `packages/protocol/openapi.json`; its dialect adds single-element `allOf` wrappers
   (validation keywords, occasionally with annotations), keeps `v2.`-prefixed operationIds,

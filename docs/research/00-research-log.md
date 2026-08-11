@@ -1095,18 +1095,20 @@ decision was touched; the two-stage pipeline, wall philosophy, and node-kind mod
 absorbed all four findings without structural change. The plan's wall tables carry the
 complete known/known-ignored/refused sets validated by the census.
 
-## Q54: Which packages seal the slice, and does the TestableIO analyzer join the wall?
+## Q54: Which filesystem packages seal the slice, and does the TestableIO analyzer join the wall?
 
 **How researched:** NuGet flat-container/registration queries for newest stable versions
-and dependency shapes; the analyzer's rule docs read from its repository
+and dependency shapes; the official Testably package README and repository documentation;
+restored package API surfaces; the analyzer's rule docs read from its repository
 (`TestableIO/System.IO.Abstractions.Analyzers`, active, last push 2026-07); a scratchpad
 strict-analyzer probe for CA1720 on the planned node-type names; TUnit exception-assert
 syntax verified against its documentation.
 
-**Found:** TestableIO trio newest stable **22.2.0** — in v22 the interfaces moved to the
-shared `Testably.Abstractions.FileSystem.Interface` package (namespace
-`System.IO.Abstractions` retained), `TestingHelpers` depends on `Wrappers`; library needs
-only the abstractions package, tests add `TestingHelpers` + `Wrappers`.
+**Found:** the active two-package filesystem setup is `Testably.Abstractions` **10.3.0**
+for production and `Testably.Abstractions.Testing` **7.0.2** for tests. Both implement the
+shared `System.IO.Abstractions.IFileSystem` contract; production supplies
+`Testably.Abstractions.RealFileSystem`, and tests supply
+`Testably.Abstractions.Testing.MockFileSystem`.
 `TestableIO.System.IO.Abstractions.Analyzers` newest stable **2022.0.0** (maintainer
 proposal): rules IO0001–IO0011 all default-enabled at Warning — TWAE escalates them, so
 no `.editorconfig` section is needed; **IO0006 covers `Path`**, which caught the plan's
@@ -1115,12 +1117,12 @@ sealing). CA1720 does not fire on compound type names (`ObjectNode`,
 `ContentEncodedStringNode` shapes probed clean). TUnit's
 `await Assert.That(action).Throws<T>()` returns the exception for follow-up asserts.
 
-**Decision:** four CPM pins for slice 1 — the trio at 22.2.0 plus the IO analyzer at
-2022.0.0, the analyzer wired repo-wide in `Directory.Build.props` like its seven
-siblings (fail-closed maximalist posture: the TestableIO seam is now mechanically
-enforced, not review-enforced). The analyzer is an older-Roslyn build; if the current
-compiler refuses to load it, the plan marks that a stop-and-report finding, never a
-silent drop.
+**Decision:** three filesystem CPM pins for slice 1 — the Testably production/test pair
+plus the IO analyzer at 2022.0.0. The analyzer remains an independent package and is wired
+repo-wide in `Directory.Build.props` like its seven siblings (fail-closed maximalist
+posture: the shared filesystem seam is mechanically enforced, not review-enforced). The
+analyzer is an older-Roslyn build; if the current compiler refuses to load it, the plan
+marks that a stop-and-report finding, never a silent drop.
 
 # Session 12 — 2026-08-11: redesign research — Microsoft.OpenApi ingestion
 
@@ -1166,7 +1168,7 @@ radar. A ~240-line projection answers all Task 10 landmarks 19/19, with typed re
 access (`OpenApiSchemaReference.Reference.Id` — the spike's reflection was unnecessary) and
 deterministic repeated ingestion (SHA-256-stable, including `x-effect-stream`
 serialization). `OpenApiModelFactory.Parse<OpenApiSchema>` parses the raw `prefixItems`
-items with host-document context. `LeaveStreamOpen` is honored (TestableIO seam intact).
+items with host-document context. `LeaveStreamOpen` is honored (Testably seam intact).
 Iteration order is deterministic across loads and equals document order (observed behavior,
 not a contract — outputs still sort). No ref cycles in the pin (deepest `Target` chain 15);
 parse cost 72 ms / 26 MB. 3.9.0 is the newest stable. Direct-Binder input (no SpecIR) was
@@ -1360,7 +1362,7 @@ code path over the full pin, while Task 8's hash properties remain independently
 `ToolApp.CreateServices` root behind `DependencyInjectionRegistrar`/`CommandApp`, options,
 `IFileSystem`, `IAnsiConsole`, core and application services, global settings, and an
 `ICommandInterceptor`. Logging is intentionally adapted rather than transplanted:
-Microsoft.Extensions.Logging `ILogger<T>` with Spectre and optional TestableIO-backed file
+Microsoft.Extensions.Logging `ILogger<T>` with Spectre and optional Testably-backed file
 providers replaces PathSmith's custom logger; tests override seams after the production
 registrations and never copy the service list. Test setup becomes lambda-first through one
 central scenario mechanism and domain builders. A named scenario class is promoted only for
@@ -1395,3 +1397,75 @@ container leg. The recorded ~15-minute measurement guard remains the only trigge
 TFM trimming. The fake LLM stays limited to the published `/v1/chat/completions` contract and
 currently required scripted behaviors; quarantine/skip discipline and the label-deduped
 nightly canary issue flow remain as designed.
+
+# Session 15 — 2026-08-11: course correction — checkpoint absorbed, lean close-out
+
+The maintainer reviewed the Slice 1 branch outcome (8.6K lines, no SDK output) together
+with the complexity checkpoint (research doc 13) and redirected process, assurance policy,
+and sequencing in one pass. Decisions sealed in-session; the branch was then closed lean in
+the same session. This entry is the chain.
+
+## Q63: Where did Slice 1's budget actually go, and which failure causes hold?
+
+**How researched:** per-area line accounting over `master...feature/slice-01-ingestion-specir`
+(git numstat bucketed by path); the checkpoint's probes re-read; the maintainer's two
+hypothesized causes tested against the numbers.
+
+**Found:** 8,593 added lines split into generator production 3,372 (≈1K of it surveillance
+walls), test-infrastructure DSL 1,472, tests 2,159, docs 1,075, hosting 299 — before Binder,
+emitters, or any SDK source existed. Both maintainer causes confirmed, with the mechanisms
+named: (1) fail-closed maximalism was transplanted from the analyzer wall — where it is
+cheap, rules pre-exist and misfires cost one arbitration comment — onto the reader DOM,
+where a whitelist wall's cost scales with the *library's* surface, not with product risk;
+(2) the slice map was a layer cake in vertical clothing — first compiled SDK code at
+slice 3, first callable client at slice 5, first real request at slice 7 — so the
+learn-what-works moment sat behind maximal investment. A third cause joined them: paper
+grill sessions ratchet monotonically — every discovered risk gets a mechanism because
+nothing on paper answers "what does this cost in code?" — and assurance intensity was never
+scaled by blast radius (repo tooling got the shipped-SDK treatment). The checkpoint's
+absorption and Kiota wire-fidelity probes also stand as the counter-evidence that the
+architecture itself was right: the projection absorbs the full pin and no OSS generator
+preserves this dialect.
+
+**Decisions (maintainer):** red lines kept — the analyzer wall and the
+Testably/`IFileSystem` seam with its enforcement analyzer stay untouched; `Microsoft.OpenApi`
+stays the reader. Everything else lightened: git diffs of committed generated output plus
+the test suites become the primary drift radar, with targeted validators only at known
+lossy seams.
+
+## Q64: What was cut, folded, and kept in the lean close-out?
+
+**Found/decided (keep/drop list approved item by item, then executed on the branch):**
+**Dies** — `HostMemberWhitelist<T>`/`SchemaMemberWhitelist` reflection surveillance, the
+document wall, fatal handling of typed annotation/validation members (`title`, `default`,
+`readOnly`, `examples`, length/bound keywords — now silently ignored: known vocabulary that
+cannot change emitted behavior), fatal unknown `x-*` (ignored; a generation-report line
+lands with the real `generate`), the DOM member/default inventory, the SpecIR-of-the-pin
+Verify snapshot, raw content hashes and `SpecOperation.RawContentHash` (no consumer;
+returns with the fingerprint feature), the per-keyword red-test inventory, and the
+23-landmark census (trimmed to ~10 representative landmarks). **Folds** — path-level
+parameters, unknown HTTP methods, parameter location/style/content, multi-media
+bodies/responses, and non-integer status keys survive as explicit typed-member checks
+inside the projectors (semantic loss ⇒ wrong wire). **Stays** — reader gate (version,
+diagnostics-as-errors, crash translation), the semantic projection core, unrecognized-raw-
+keyword refusal (the one construct nothing downstream can ever see) with the admitted
+`prefixItems` site, the `$ref`-sibling raw scan and dangling-reference sweep, the
+`prefixItems` library-upgrade tripwire, both DOM boundary guards, determinism, and batched
+located errors. Post-surgery evidence: the ingestion seam (`ISpecIngestion`) still absorbs
+the complete pin — 188 operations (61/127), 1,501 graph nodes, all landmarks green,
+repeat-deterministic — at −851/+131 for the deletion pass.
+
+## Q65: What replaces the spec-and-slice-map process?
+
+**Decisions (maintainer):** the three design specs and the walking-skeleton design are
+demoted to vision/reference (banner added; the sealed surface is the ADRs plus `AGENTS.md`
+— its two edits: the vision/reference framing and blast-radius-scaled assurance). The
+deviation protocol's level 2 narrows to canonical documents; vision-doc contradictions are
+level-0 notes. The slice map is retired; `docs/ROADMAP.md` now carries a six-item
+deliverable-first milestone list (M1 walking skeleton → M6 operational closure) with
+just-in-time 1–2-page plans. The first deliverable is sealed: `v2.health.get` +
+`v2.session.message` through the full pipeline into a callable client, demonstrated once
+by hand against a real `opencode serve` — deliberately process-free (no launcher, no
+harness, no CI leg; the demo output rides the PR description). Consumer-pull is the
+standing rule: every SpecIR fact, mechanism, and test names a consumer or a concrete
+failure it prevents.
