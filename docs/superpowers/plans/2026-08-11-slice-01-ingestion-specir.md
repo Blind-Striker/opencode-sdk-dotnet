@@ -488,14 +488,14 @@ public sealed class SpecReaderTests
   - `internal sealed class SchemaWallPolicy` —
     `void Check(OpenApiSchema schema, string location, IngestionErrorCollector errors)`:
     the §4.1 schema table rendered as code. Refuses populated `AllOf` (outside union
-    analysis — Task 6 consumes it first), multi-flag `Type`, `Discriminator`, `Not`,
+    analysis — Task 5 consumes it first), multi-flag `Type`, `Discriminator`, `Not`,
     `If`/`Then`/`Else`, `DependentSchemas`/`DependentRequired`, `PropertyNames`, `Contains`,
     `UnevaluatedProperties == false`, `$defs`/dynamic members, `Title`, `Default`,
     `Examples`/`Example`, `ReadOnly`/`WriteOnly`, `Xml`, `ExternalDocs`,
     `MinLength`/`MaxLength`, `MultipleOf`, `MinProperties`/`MaxProperties`, `UniqueItems`;
     known-ignored: `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `minItems`,
     `maxItems`; `UnrecognizedKeywords` non-empty → error unless the admitted site
-    (`prefixItems` at `Config/properties/plugin/items/anyOf/1` — Task 6 consumes it);
+    (`prefixItems` at `Config/properties/plugin/items/anyOf/1` — Task 5 consumes it);
     schema-level `Extensions` → error. Bookkeeping members (`Metadata`) exempt.
   - `internal sealed class GraphKeyBuilder` — `string Root(string wireNameOrOpId)`,
     `string Append(string parentPointer, string segment)` (escapes `~`→`~0`, `/`→`~1`).
@@ -510,12 +510,12 @@ public sealed class SpecReaderTests
     constraint member populated; annotations allowed) → `UnrestrictedNode`; scalar `Type`
     → `PrimitiveNode` (+`Format` recorded); `string`+multi-value `Enum` → `EnumNode`;
     `array`+`Items` → `ArrayNode`; array without items → error; promotion: inline
-    `EnumNode` (this task; `ObjectNode`/`UnionNode` in Tasks 5–6) registers under
+    `EnumNode` (this task; `ObjectNode`/`UnionNode` in Task 5) registers under
     `{root}#{pointer}` and returns a `RefNode`; key collision → error.
 
 - [ ] **Step 1: Write the failing tests.** Exemplars in full; every listed case becomes a
   real `[Test]` following the same pattern. `SchemaProjectionTestHost` is the reusable
-  named host for Tasks 4–6: it takes a `SpecScenario`, runs the real reader + projector,
+  named host for Tasks 4–5: it takes a `SpecScenario`, runs the real reader + projector,
   and returns `SchemaProjectionResult` (schemas + optional refusal) — never a tuple. One-off
   arrangements stay inline:
 
@@ -566,26 +566,39 @@ public async Task Project_Should_Refuse_When_Schema_Uses_AllOf()
 
 ---
 
-### Task 5: Object family — objects, hybrids, dictionaries, free-form
+### Task 5: Object family, literals, unions, special numbers, tuples, content-encoded strings
 
 **Files:**
 - Create: `Models/ObjectNode.cs`, `Models/SpecProperty.cs`, `Models/AdditionalPropertiesKind.cs`,
-  `Models/DictionaryNode.cs`, `Models/FreeFormObjectNode.cs`
-- Modify: `Projection/SchemaProjector.cs`
-- Test: `tests/.../SchemaProjectorObjectTests.cs`
+  `Models/DictionaryNode.cs`, `Models/FreeFormObjectNode.cs`, `Models/LiteralNode.cs`,
+  `Models/LiteralKind.cs`, `Models/LiteralDialect.cs`, `Models/LiteralMarker.cs`,
+  `Models/UnionNode.cs`, `Models/UnionKeyword.cs`, `Models/UnionClassification.cs`,
+  `Models/NullableNode.cs`, `Models/SpecialNumberNode.cs`, `Models/TupleNode.cs`,
+  `Models/JsonStringNode.cs`, `Models/ErrorStyle.cs`
+- Create: `Projection/ObjectSchemaProjector.cs`, `Projection/UnionNormalizer.cs`,
+  `Projection/LiteralClassifier.cs`, `Projection/ErrorStyleClassifier.cs`,
+  `Projection/PrefixItemsAdapter.cs` (all internal sealed)
+- Modify: `Projection/SchemaProjector.cs`, `Projection/ProjectionState.cs`,
+  `Projection/SchemaShapeClassifier.cs`, `Projection/CoreSchemaShape.cs`,
+  `Projection/GraphKeyBuilder.cs`
+- Create: `tests/OpenCode.Sdk.Tools.Tests/Fixtures/special-number.json`,
+  `Fixtures/config-plugin-tuple.json`
+- Test: `tests/OpenCode.Sdk.Tools.Tests/Generator/Ingestion/SchemaProjectorObjectTests.cs`,
+  `Generator/Ingestion/UnionNormalizerTests.cs`, `Generator/Ingestion/LiteralClassifierTests.cs`,
+  `Generator/Ingestion/ErrorStyleClassifierTests.cs`,
+  `Generator/Ingestion/PrefixItemsAdapterTests.cs`
 
 **Interfaces:**
-- Consumes: Task 4's dispatch + promotion + wall.
+- Consumes: Task 4's fail-closed dispatch, promotion, wall, and raw-pointer state.
 - Produces:
   - `SpecProperty { required string Name; required SchemaNode Schema; required bool IsRequired; }`
-  - `ObjectNode { required IReadOnlyList<SpecProperty> Properties; required AdditionalPropertiesKind AdditionalProperties; SchemaNode? AdditionalPropertiesSchema; required IReadOnlyList<LiteralMarker> LiteralMarkers; required ErrorStyle ErrorStyle; }`
-    — `LiteralMarkers`/`ErrorStyle` arrive in Task 6; this task constructs them empty/None
-    at the single construction site. **Hybrid objects** (properties **and** an
-    additionalProperties schema — 6 pin sites) populate both `Properties` and
-    `AdditionalPropertiesSchema` with `AdditionalProperties == Schema`.
+  - `ObjectNode { required IReadOnlyList<SpecProperty> Properties; required AdditionalPropertiesKind AdditionalProperties; SchemaNode? AdditionalPropertiesSchema; required IReadOnlyList<LiteralMarker> LiteralMarkers; required ErrorStyle ErrorStyle; }`.
+    **Hybrid objects** (properties **and** an additionalProperties schema — 6 pin sites)
+    populate both `Properties` and `AdditionalPropertiesSchema` with
+    `AdditionalProperties == Schema`.
   - `AdditionalPropertiesKind { Open, Forbidden, Schema }`;
     `DictionaryNode { required SchemaNode Value; }`; `FreeFormObjectNode`.
-  - Dispatch rules: `properties` present → `ObjectNode` (property names are opaque wire
+  - Object dispatch: `properties` present → `ObjectNode` (property names are opaque wire
     data — a property named `type`/`properties`/`required` never keyword-matches; property
     order is document order; `required` names must match properties, else error);
     no properties + AP schema → `DictionaryNode`; no properties + single
@@ -594,8 +607,39 @@ public async Task Project_Should_Refuse_When_Schema_Uses_AllOf()
     `FreeFormObjectNode`; `additionalProperties: true` explicit → treated as absent
     (`AdditionalPropertiesAllowed` default-true semantics; the tripwire snapshot pins the
     default); inline `ObjectNode` becomes promotion-eligible.
+  - `LiteralNode { required LiteralKind Kind; required string Value; required LiteralDialect Dialect; }`
+    (`Kind`: `String|Boolean`; `Dialect`: `SingleValueEnum|Const`); `const` admitted **only
+    on string-typed schemas** (the DOM's `Const` is a string and cannot preserve other
+    literal kinds — session 13); boolean single-value enum accepted; multi-value boolean
+    enum refuses; `enum`+`const` together refuses.
+  - `LiteralMarker { required string PropertyName; required LiteralKind Kind; required string Value; }` —
+    computed at the single `ObjectNode` construction site from required properties whose
+    schema is a `LiteralNode`, in property order (mechanical — never a name list).
+  - `ErrorStyle { None, EffectTag, NameData }` via `ErrorStyleClassifier`: required `_tag`
+    literal → `EffectTag`; required `name` literal + required `data` → `NameData`.
+  - `GraphKeyBuilder` gains
+    `string UnionBranch(string parentPointer, string keyword, int index, LiteralMarker? marker)`;
+    marked branches use `{property}={value}` and unmarked branches use the ordinal index.
+  - `UnionNode { required IReadOnlyList<SchemaNode> Branches; required UnionKeyword Keyword; required UnionClassification Classification; }`
+    (`Keyword`: `AnyOf|OneOf`; `Classification`: `Marked` — every object branch carries ≥1
+    literal marker — else `Structural`; the 5 heterogeneous pin sites are `Structural`).
+  - `UnionNormalizer` — locked order: (1) special-number check (one `number` branch + only
+    NaN/Infinity string-literal branches, subset rule absorbs the combined literal) →
+    `SpecialNumberNode`; (2) duplicate-`$ref` dedup by target id; (3) null-branch extraction
+    → `NullableNode { required SchemaNode Inner }`; (4) one branch left → that node plain;
+    zero → error; (5) otherwise `UnionNode` with keyword + classification;
+    `anyOf`+`oneOf` together → error.
+  - `PrefixItemsAdapter` — reads the admitted raw `prefixItems` array; each item parses via
+    `OpenApiModelFactory.Parse<OpenApiSchema>(itemJson, OpenApiSpecVersion.OpenApi3_1, hostDocument, out var diagnostic, "json")`;
+    diagnostic errors → located errors; result →
+    `TupleNode { required IReadOnlyList<SchemaNode> Items }`; `items`+`prefixItems` together
+    → error; `minItems`/`maxItems` must equal arity → else error. Non-admitted
+    `prefixItems` sites stay wall errors (Task 4).
+  - `type: "string"` + `ContentSchema` →
+    `JsonStringNode { required SchemaNode Inner }`; `ContentMediaType` must be
+    `application/json` → else error.
 
-- [ ] **Step 1: Write the failing tests** — exemplar plus inventory (each written in full):
+- [ ] **Step 1: Write the failing object-family tests.** Exemplar plus every inventory case:
 
 ```csharp
 [Test]
@@ -616,68 +660,14 @@ public async Task Project_Should_Keep_Property_Schema_And_Dictionary_Value_For_H
 }
 ```
 
-  Inventory: object with required set; property order = document order; promoted inline
-  object property (graph key asserted); keyword-named properties as plain data (the
-  `GlobalEvent` trap — properties literally named `type`/`properties`/`required`);
-  dictionary via AP schema; dictionary via single patternProperties; patternProperties
-  multi-pattern refuse; patternProperties+properties refuse; free-form; empty-properties
-  object; `required` naming a missing property → located error; `additionalProperties: true`
-  → `Open`.
-- [ ] **Step 2: verify fail.** — [ ] **Step 3: Implement.** — [ ] **Step 4: verify pass.**
-- [ ] **Step 5: Full gate.** — [ ] **Step 6: Commit** —
-  `feat(tools): object, hybrid, dictionary and free-form projection`
+  Object inventory: required set; property order = document order; promoted inline object
+  property (graph key asserted); keyword-named properties as plain data (the `GlobalEvent`
+  trap — properties literally named `type`/`properties`/`required`); dictionary via AP
+  schema; dictionary via single patternProperties; patternProperties multi-pattern refuse;
+  patternProperties+properties refuse; free-form; empty-properties object; `required`
+  naming a missing property → located error; `additionalProperties: true` → `Open`.
 
----
-
-### Task 6: Unions, literals, special numbers, tuples, content-encoded strings
-
-**Files:**
-- Create: `Models/LiteralNode.cs`, `Models/LiteralKind.cs`, `Models/LiteralDialect.cs`,
-  `Models/LiteralMarker.cs`, `Models/UnionNode.cs`, `Models/UnionKeyword.cs`,
-  `Models/UnionClassification.cs`, `Models/NullableNode.cs`, `Models/SpecialNumberNode.cs`,
-  `Models/TupleNode.cs`, `Models/JsonStringNode.cs`, `Models/ErrorStyle.cs`
-- Create: `Projection/UnionNormalizer.cs`, `Projection/LiteralClassifier.cs`,
-  `Projection/ErrorStyleClassifier.cs`, `Projection/PrefixItemsAdapter.cs` (all internal sealed)
-- Modify: `Projection/SchemaProjector.cs`, `Projection/GraphKeyBuilder.cs`,
-  `Models/ObjectNode.cs` construction site
-- Test: `tests/.../UnionNormalizerTests.cs`, `LiteralClassifierTests.cs`,
-  `ErrorStyleClassifierTests.cs`, `PrefixItemsAdapterTests.cs`
-
-**Interfaces:**
-- Consumes: Tasks 4–5 dispatch/promotion; the raw admitted-site rule (wall).
-- Produces:
-  - `LiteralNode { required LiteralKind Kind; required string Value; required LiteralDialect Dialect; }`
-    (`Kind`: `String|Boolean`; `Dialect`: `SingleValueEnum|Const`); `const` admitted **only
-    on string-typed schemas** (the DOM's `Const` is a string and cannot preserve other
-    literal kinds — session 13); boolean single-value enum accepted; multi-value boolean
-    enum refuses; `enum`+`const` together refuses.
-  - `LiteralMarker { required string PropertyName; required LiteralKind Kind; required string Value; }` —
-    computed on `ObjectNode` construction: required properties whose schema is a
-    `LiteralNode`, property order (mechanical — never a name list).
-  - `GraphKeyBuilder` gains
-    `string UnionBranch(string parentPointer, string keyword, int index, LiteralMarker? marker)`
-    once the marker model exists; marked branches use `{property}={value}` and unmarked
-    branches use the ordinal index.
-  - `ErrorStyle { None, EffectTag, NameData }` via `ErrorStyleClassifier`: required `_tag`
-    literal → `EffectTag`; required `name` literal + required `data` → `NameData`.
-  - `UnionNode { required IReadOnlyList<SchemaNode> Branches; required UnionKeyword Keyword; required UnionClassification Classification; }`
-    (`Keyword`: `AnyOf|OneOf`; `Classification`: `Marked` — every object branch carries ≥1
-    literal marker — else `Structural`; the 5 heterogeneous pin sites are `Structural`).
-  - `UnionNormalizer` — the locked analysis order: (1) special-number check (one `number`
-    branch + only NaN/Infinity string-literal branches, subset rule absorbs the combined
-    literal) → `SpecialNumberNode`; (2) duplicate-`$ref` dedup by target id; (3) null-branch
-    extraction → wrap result in `NullableNode { required SchemaNode Inner }`; (4) single
-    branch left → that node plain; zero → error; (5) else `UnionNode` with keyword +
-    classification; `anyOf`+`oneOf` together → error.
-  - `PrefixItemsAdapter` — reads the admitted raw `prefixItems` array; each item parses via
-    `OpenApiModelFactory.Parse<OpenApiSchema>(itemJson, OpenApiSpecVersion.OpenApi3_1, hostDocument, out var diagnostic, "json")`;
-    diagnostic errors → located errors; result → `TupleNode { required IReadOnlyList<SchemaNode> Items }`;
-    `items`+`prefixItems` together → error; `minItems`/`maxItems` must equal arity → else
-    error. Non-admitted `prefixItems` sites stay wall errors (Task 4).
-  - `type: "string"` + `ContentSchema` → `JsonStringNode { required SchemaNode Inner }`;
-    `ContentMediaType` must be `application/json` → else error.
-
-- [ ] **Step 1: Write the failing tests.** Exemplar:
+- [ ] **Step 2: Write the failing literal/union/normalization tests.** Exemplar:
 
 ```csharp
 [Test]
@@ -707,13 +697,18 @@ public async Task Project_Should_Classify_Structural_Union_When_Branches_Carry_N
   `Workspace.timeUsed` five-branch shape incl. combined literal, via embedded fixture
   `special-number.json` + `WithRawSchema`); special-number near-miss (extra branch) →
   ordinary union; `boolean|string-enum` parameter-style union stays union; tuple via
-  admitted site (fixture reproducing `Config.plugin`); tuple arity conflict refuse;
-  `items`+`prefixItems` refuse; content-encoded string (ref inner); wrong
-  `contentMediaType` refuse; `EffectTag`/`NameData`/`None` classification; multi-value
-  boolean enum refuse.
-- [ ] **Step 2: verify fail.** — [ ] **Step 3: Implement.** — [ ] **Step 4: verify pass.**
-- [ ] **Step 5: Full gate.** — [ ] **Step 6: Commit** —
-  `feat(tools): union analysis, literal dialects, tuples and special numbers`
+  `config-plugin-tuple.json`; tuple arity conflict refuse; `items`+`prefixItems` refuse;
+  content-encoded string (ref inner); wrong `contentMediaType` refuse;
+  `EffectTag`/`NameData`/`None` classification; multi-value boolean enum refuse.
+
+- [ ] **Step 3: Run the combined focused tests to verify RED.**
+- [ ] **Step 4: Implement in dependency order:** literal classification → object-family
+  projection/markers/error style → union normalization/promotion → tuple/content adapters.
+  Extend `SchemaShapeClassifier` and `ProjectionState` fail-closed; keep policy in the named
+  collaborators above rather than accumulating private methods in `SchemaProjector`.
+- [ ] **Step 5: Run the combined focused tests to verify GREEN.**
+- [ ] **Step 6: Full gate.**
+- [ ] **Step 7: Commit** — `feat(tools): object, literal and union schema projection`
 
 ---
 
@@ -735,7 +730,7 @@ public async Task Project_Should_Classify_Structural_Union_When_Branches_Carry_N
   `EnvelopeClassifierTests.cs`, `SpecMediaTypeTests.cs`
 
 **Interfaces:**
-- Consumes: Tasks 3–6 (reader, schema projection under `op:{operationId}` roots).
+- Consumes: Tasks 3–5 (reader, schema projection under `op:{operationId}` roots).
 - Produces:
   - `SpecMediaType { required string Raw; required string Stripped; required bool IsJson; required bool IsEventStream; }`
     with `static SpecMediaType Create(string raw)` — parameter-stripped, lowercased,
