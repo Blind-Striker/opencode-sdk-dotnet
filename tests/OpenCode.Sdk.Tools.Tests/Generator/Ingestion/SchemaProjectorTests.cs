@@ -1,4 +1,3 @@
-using System.Text.Json.Nodes;
 using OpenCode.Sdk.Tools.Generator.Ingestion;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
@@ -262,7 +261,7 @@ public sealed class SchemaProjectorTests
         var loaded = await new SpecReader(context.FileSystem).LoadAsync(context.SpecPath, errors, CancellationToken.None);
         var keys = new GraphKeyBuilder();
         var projector = new SchemaProjector(keys);
-        var state = new ProjectionState(errors, loaded.Document, new Dictionary<string, JsonNode>(StringComparer.Ordinal));
+        var state = new ProjectionState(errors, loaded.Document);
 
         _ = projector.Project(loaded.Document.Components!.Schemas!["First"], "Shared", "/value", state);
         _ = projector.Project(loaded.Document.Components.Schemas["Second"], "Shared", "/value", state);

@@ -2,6 +2,8 @@ using System.IO.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OpenCode.Sdk.Tools.Commands;
+using OpenCode.Sdk.Tools.Generator.Ingestion;
+using OpenCode.Sdk.Tools.Generator.Ingestion.Abstractions;
 using OpenCode.Sdk.Tools.Infrastructure;
 using OpenCode.Sdk.Tools.Infrastructure.Logging;
 using Spectre.Console;
@@ -24,6 +26,7 @@ public static class ToolApp
         services.AddLogging(logging => logging.SetMinimumLevel(LogLevel.Trace));
         services.AddSingleton<ILoggerProvider, SpectreConsoleLoggerProvider>();
         services.AddSingleton<ILoggerProvider, FileLoggerProvider>();
+        services.AddSingleton<ISpecIngestion, SpecIngestion>();
         services.AddSingleton<ICommandInterceptor, GlobalOptionsInterceptor>();
 
         overrideServices?.Invoke(services);

@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Text.Json.Nodes;
 using Microsoft.OpenApi;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 
@@ -8,30 +7,20 @@ namespace OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
 internal sealed class ProjectionState
 {
     private readonly Dictionary<string, SchemaNode> _graph = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, JsonNode> _rawPointerLookup;
     private readonly HashSet<IOpenApiSchema> _visited = new(ReferenceEqualityComparer.Instance);
 
-    public ProjectionState(IngestionErrorCollector errors, OpenApiDocument document, IReadOnlyDictionary<string, JsonNode> rawPointerLookup)
+    public ProjectionState(IngestionErrorCollector errors, OpenApiDocument document)
     {
         ArgumentNullException.ThrowIfNull(errors);
         ArgumentNullException.ThrowIfNull(document);
-        ArgumentNullException.ThrowIfNull(rawPointerLookup);
 
         Errors = errors;
         Document = document;
-        _rawPointerLookup = rawPointerLookup.ToDictionary(pair => pair.Key, pair => pair.Value.DeepClone(), StringComparer.Ordinal);
     }
 
     public IngestionErrorCollector Errors { get; }
 
     public OpenApiDocument Document { get; }
-
-    public JsonNode? FindRawSchema(string pointer)
-    {
-        ArgumentNullException.ThrowIfNull(pointer);
-
-        return _rawPointerLookup.TryGetValue(pointer, out var schema) ? schema.DeepClone() : null;
-    }
 
     public SchemaNode? Register(SchemaNode? schema, string root, string pointer, string location)
     {

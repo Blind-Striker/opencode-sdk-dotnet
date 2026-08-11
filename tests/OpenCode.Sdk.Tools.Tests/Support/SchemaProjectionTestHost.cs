@@ -1,5 +1,3 @@
-using System.Collections.Immutable;
-using System.Text.Json.Nodes;
 using OpenCode.Sdk.Tools.Generator.Ingestion;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
@@ -34,8 +32,7 @@ internal sealed class SchemaProjectionTestHost
         {
             var loaded = await new SpecReader(context.FileSystem).LoadAsync(context.SpecPath, errors, CancellationToken.None);
             var projector = new SchemaProjector(_keys);
-            var rawPointerLookup = ImmutableDictionary<string, JsonNode>.Empty;
-            var state = new ProjectionState(errors, loaded.Document, rawPointerLookup);
+            var state = new ProjectionState(errors, loaded.Document);
 
             if (loaded.Document.Components?.Schemas is not null)
             {
