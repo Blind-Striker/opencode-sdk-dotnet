@@ -21,7 +21,7 @@ The Slice 0 tooling skeleton has landed. Repo-local Slopwatch pinning, a committ
 baseline, and the Linux CI gate are active. Slice 1 is ready for execution: the pinned
 `Microsoft.OpenApi` reader feeds a fail-closed semantic projection into minimal SpecIR
 (ADR-0003; generator spec §4.1); the foundation is the complete PathSmith-shaped ToolApp
-host (single production/test composition path, TestableIO, `IAnsiConsole`, MEL
+host (single production/test composition path, Testably `IFileSystem`, `IAnsiConsole`, MEL
 Spectre/optional-file providers, global settings, interceptor); test setup is centralized
 and lambda-first, with named scenarios promoted only for reuse, complexity, or durable
 domain identity. The wall/tripwire design and the execution plan survived independent

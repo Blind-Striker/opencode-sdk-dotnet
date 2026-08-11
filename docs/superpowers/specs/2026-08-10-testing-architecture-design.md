@@ -487,8 +487,7 @@ this session's to revisit). Revisions:
    missing, guarded getter / guarded `PrintMembers`) are product tests and land in
    `OpenCode.Sdk.Tests` (level 1), not Tools.Tests.
 
-Dependency note: Verify (Verify.TUnit) is not yet in `Directory.Packages.props` — added at
-build-out.
+Dependency note: Verify.TUnit is centrally pinned for the tooling snapshot tests.
 
 ## 11. CI architecture
 

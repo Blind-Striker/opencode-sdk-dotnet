@@ -75,9 +75,10 @@ invocation forms; the Tools.Tests harness pattern.
 
 Foundation first: the full ToolApp composition root (`docs/engineering/coding-style.md`
 §2: `IFileSystem`, `IAnsiConsole`, MEL Spectre/optional-file providers, global settings,
-interceptor, and the shared production/test registration path), the TestableIO seam +
-analyzer joining the repo-wide wall, and the lambda-first scenario/builder/fixture test
-infrastructure with promotion-only named scenarios (`docs/engineering/testing-style.md`
+interceptor, and the shared production/test registration path), the Testably filesystem seam
+and independent TestableIO analyzer joining the repo-wide wall, and the lambda-first
+scenario/builder/fixture test infrastructure with promotion-only named scenarios
+(`docs/engineering/testing-style.md`
 §1). On that foundation, the
 pinned Microsoft.OpenApi reader as the tooling ingestion layer; the fail-closed
 projection behind the whitelist dialect wall (admitted typed members, the
@@ -87,8 +88,9 @@ Binder/emitter/refresh-diff consumption); projection normalizations (duplicate-r
 dedup, envelope-shape classification, error-style detection, literal markers in both
 dialects, special-value numbers, parameter-stripped media types, opaque
 `x-effect-stream`, unrestricted `{}` nodes, the `prefixItems` fragment adapter).
-Filesystem I/O via TestableIO. Tests: projection quirk fixtures loaded through the
-real reader + wall red tests + tripwires + the full-spec landmark smoke test (no
+Filesystem I/O via Testably's shared `IFileSystem` contract. Tests: projection quirk
+fixtures loaded through the real reader + wall red tests + tripwires + the full-spec
+landmark smoke test (no
 count assertions). Honest note: the generation pipeline remains a fail-loud stub until
 slice 3, while the complete hosting composition and its global CLI options become live
 in this slice.

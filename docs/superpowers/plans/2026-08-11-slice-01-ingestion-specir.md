@@ -7,8 +7,8 @@ Date: 2026-08-11
 > use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** stand up the tooling foundation (full-battery DI composition, MEL logging,
-global CLI interception, TestableIO seam, first-class test infrastructure) and build the
-fail-closed ingestion stage on it — the pinned Microsoft.OpenApi
+global CLI interception, Testably filesystem seam, first-class test infrastructure) and
+build the fail-closed ingestion stage on it — the pinned Microsoft.OpenApi
 reader, the per-host whitelist dialect wall, the semantic projection into the minimal
 immutable SpecIR, raw-content hashes, library-upgrade tripwires, DOM-boundary guards, and the
 full pinned-spec landmark smoke test (generator spec §4.1).
@@ -25,10 +25,11 @@ composition, seams + DI, signature hygiene) and `docs/engineering/testing-style.
 no inline JSON dumps). The mutable Microsoft.OpenApi DOM never escapes
 `Generator/Ingestion/`.
 
-**Tech Stack:** Microsoft.OpenApi 3.9.0 (pinned; tooling-only), TestableIO trio 22.2.0 +
+**Tech Stack:** Microsoft.OpenApi 3.9.0 (pinned; tooling-only), Testably.Abstractions 10.3.0,
+Testably.Abstractions.Testing 7.0.2, and the independent
 `TestableIO.System.IO.Abstractions.Analyzers` 2022.0.0 (repo-wide), Spectre.Console +
 Spectre.Console.Cli + DI registrar (already pinned), Microsoft.Extensions.Logging with
-Spectre and optional TestableIO-backed file providers, System.Text.Json (in-box), TUnit on
+Spectre and optional Testably-backed file providers, System.Text.Json (in-box), TUnit on
 MTP (pinned), Verify.TUnit (new pin — the SpecIR-of-the-pin snapshot).
 
 ## Global Constraints
@@ -60,7 +61,8 @@ MTP (pinned), Verify.TUnit (new pin — the SpecIR-of-the-pin snapshot).
   `var ex = await Assert.That(() => ...).Throws<IngestionException>();` then assert on
   `ex!.Message`. Adapt in place if the pinned TUnit differs — level-0 deviation.
 - CPM: new pins are `Microsoft.Extensions.Logging`, `Spectre.Console`,
-  `Microsoft.OpenApi` 3.9.0, the TestableIO trio 22.2.0,
+  `Microsoft.OpenApi` 3.9.0, `Testably.Abstractions` 10.3.0,
+  `Testably.Abstractions.Testing` 7.0.2,
   `TestableIO.System.IO.Abstractions.Analyzers` 2022.0.0, and `Verify.TUnit` (newest stable).
   Before pinning, re-check with `dotnet package search <id> --exact-match` and pin the newer
   stable if one exists. If the ingestion behavior differs on a newer Microsoft.OpenApi,
@@ -165,7 +167,7 @@ flag (operations), `x-effect-stream` opaque (SSE media only), all other `x-*` re
     single registration root. Defaults are registered first; the optional callback runs
     last for seam replacement. `CreateRegistrar` retains its existing optional override
     callback and delegates to this method. Tests never reproduce the registration list.
-  - Core seams: singleton `IFileSystem` → `FileSystem` and `IAnsiConsole` →
+  - Core seams: singleton `IFileSystem` → `RealFileSystem` and `IAnsiConsole` →
     `AnsiConsole.Console`; later tasks extend this same root with `ISpecIngestion`, Binder,
     emitters, Writer, and infrastructure wrappers.
   - MEL end to end: commands/services consume `ILogger<T>`; a Spectre provider writes
@@ -183,21 +185,20 @@ flag (operations), `x-effect-stream` opaque (SSE media only), all other `x-*` re
     invocation, and remains the same nonzero fail-loud stub. Future command settings derive
     from the same global base.
 
-- [ ] **Step 1: Add the package pins.** In `Directory.Packages.props` (re-check newest
+- [x] **Step 1: Add the package pins.** In `Directory.Packages.props` (re-check newest
   stable first — Global Constraints): add `Microsoft.Extensions.Logging` beside the
   existing DI package; add the direct `Spectre.Console` dependency beside its CLI packages;
   under third-party analyzers add `TestableIO.System.IO.Abstractions.Analyzers` `2022.0.0`;
   under third-party packages add `Microsoft.OpenApi` `3.9.0` and
-  `TestableIO.System.IO.Abstractions` `22.2.0`; under test packages add
-  `TestableIO.System.IO.Abstractions.TestingHelpers` `22.2.0`,
-  `TestableIO.System.IO.Abstractions.Wrappers` `22.2.0`, and `Verify.TUnit` (newest stable).
+  `Testably.Abstractions` `10.3.0`; under test packages add
+  `Testably.Abstractions.Testing` `7.0.2` and `Verify.TUnit` (newest stable).
   In `Directory.Build.props`, append the analyzer to the repo-wide analyzer ItemGroup with
   the same `PrivateAssets`/`IncludeAssets` shape as its siblings. (The analyzer is an
   older-Roslyn build; if the compiler refuses to load it, stop — level 2.)
-- [ ] **Step 2: Reference packages.** Tools csproj adds `Microsoft.Extensions.Logging`,
-  `Spectre.Console`, `Microsoft.OpenApi`, and `TestableIO.System.IO.Abstractions`; tests
-  csproj adds `TestingHelpers`, `Wrappers`, and `Verify.TUnit`.
-- [ ] **Step 3: Write the failing tests:**
+- [x] **Step 2: Reference packages.** Tools csproj adds `Microsoft.Extensions.Logging`,
+  `Spectre.Console`, `Microsoft.OpenApi`, and `Testably.Abstractions`; tests csproj adds
+  `Testably.Abstractions.Testing` and `Verify.TUnit`.
+- [x] **Step 3: Write the failing tests:**
   - `CreateServices_Should_Resolve_Full_Hosting_Composition` builds `CreateServices()` and resolves
     the concrete filesystem, `IAnsiConsole`, `ILogger<GenerateCommand>`,
     `ToolLoggingOptions`, and `IEnumerable<ICommandInterceptor>` containing exactly the
@@ -211,17 +212,17 @@ flag (operations), `x-effect-stream` opaque (SSE media only), all other `x-*` re
     the file is created through the fake, and its content includes the command log.
   - Focused provider tests prove default-warning filtering, Spectre markup-safe output,
     and fail-loud behavior when an explicitly configured log file cannot be initialized.
-- [ ] **Step 4: Run to verify they fail** — missing composition/settings/provider types and
+- [x] **Step 4: Run to verify they fail** — missing composition/settings/provider types and
   `ToolApp.CreateServices` are the red state.
-- [ ] **Step 5: Implement** the Produces block. Provider logic is split by destination;
+- [x] **Step 5: Implement** the Produces block. Provider logic is split by destination;
   the interceptor owns invocation configuration; `ToolApp` owns registration and command
   wiring only. All file paths and writes ride `IFileSystem`; no custom logger facade and no
   silent logging-I/O fallback.
-- [ ] **Step 6: Run to verify pass** — full suite green (slice-0 command behavior retained).
-- [ ] **Step 7: Full gate** (all four commands clean). Expect the new IO analyzer to fire
+- [x] **Step 6: Run to verify pass** — full suite green (slice-0 command behavior retained).
+- [x] **Step 7: Full gate** (all four commands clean). Expect the new IO analyzer to fire
   wherever slice-0 code touched `File`/`Path` directly; fix by routing through the injected
   `IFileSystem` — that is the analyzer doing its job, not a misfire.
-- [ ] **Step 8: Commit** — `feat(tools): full hosting composition and ingestion package pins`
+- [x] **Step 8: Commit** — `feat(tools): full hosting composition and ingestion package pins`
 
 ---
 
@@ -238,7 +239,7 @@ flag (operations), `x-effect-stream` opaque (SSE media only), all other `x-*` re
   `Support/SpecScenarioTests.cs`, `Support/FixtureLoaderTests.cs`
 
 **Interfaces:**
-- Consumes: `MockFileSystem` (TestingHelpers).
+- Consumes: `Testably.Abstractions.Testing.MockFileSystem`.
 - Produces the centralized testing-style §1 shape:
   - `SpecDocumentBuilder` — sealed, fluent, JSON-producing:
     `WithOpenApiVersion(string version = "3.1.0")`,
@@ -899,7 +900,7 @@ public async Task Hash_Should_Be_Stable_Under_Key_Reordering()
     (a) reflection over `SpecDocument`'s transitive public surface: no type from the
     `Microsoft.OpenApi` assembly reachable;
     (b) source scan: enumerate `tools/OpenCode.Sdk.Tools/**/*.cs` through the real
-    `FileSystem`; any file outside `Generator/Ingestion/` containing
+    `RealFileSystem`; any file outside `Generator/Ingestion/` containing
     `using Microsoft.OpenApi` fails with the path named.
 - [ ] **Step 3: Run — all green against the pin;** verify the snapshot's `.verified.txt`
   is committed and stable across two runs.
@@ -914,7 +915,7 @@ public async Task Hash_Should_Be_Stable_Under_Key_Reordering()
 - Test: `tests/OpenCode.Sdk.Tools.Tests/PinnedSpecSmokeTests.cs`
 
 **Interfaces:**
-- Consumes: `ISpecIngestion` + the real `FileSystem` (Wrappers) + the linked pinned spec.
+- Consumes: `ISpecIngestion` + `RealFileSystem` + the linked pinned spec.
 - Produces: the structural gate every future spec refresh runs through. **No count
   assertions.**
 

@@ -89,14 +89,14 @@ tools/
         ├── Logging/                  ← Spectre + optional file MEL providers
         └── …                         ← I/O, git/process wrappers
 
-tests/OpenCode.Sdk.Tools.Tests/       ← TUnit + Spectre.Console.Cli.Testing + TestingHelpers
+tests/OpenCode.Sdk.Tools.Tests/       ← TUnit + Spectre.Console.Cli.Testing + Testably.Abstractions.Testing
 ```
 
 This resolves ADR-0003's "emission library behind a thin file-based entry" by synthesis:
 the library carries a full DI composition per the repo's coding style
 (`docs/engineering/coding-style.md` §2 — one `ServiceCollection` composition root behind
 Spectre's `DependencyInjectionRegistrar`; `IFileSystem` and `IAnsiConsole`; MEL structured
-logging with Spectre and optional TestableIO-backed file providers; global log-level/file
+logging with Spectre and optional Testably-backed file providers; global log-level/file
 settings applied by an `ICommandInterceptor`; collaborators behind seams in per-slice
 `Abstractions/` folders), but the
 `CommandApp` wiring lives in a `ToolApp` factory so `Spectre.Console.Cli.Testing`'s
@@ -118,7 +118,8 @@ a second composition root.
 
 **Stack** (ROADMAP queue 2, confirmed): Spectre.Console.Cli (+ the DI registrar + Testing
 packages), Microsoft.Extensions.Logging, CliWrap for git and `dotnet format` invocations
-(the no-CliWrap rule is SDK-product-scoped, ADR-0001), the TestableIO trio for all
+(the no-CliWrap rule is SDK-product-scoped, ADR-0001), Testably.Abstractions in production,
+Testably.Abstractions.Testing in tests, and the independent TestableIO analyzer for all
 filesystem I/O (public API spec §3), the pinned Microsoft.OpenApi reader for spec ingestion,
 System.Text.Json for curation parsing, Microsoft.CodeAnalysis.CSharp for emission
 (ADR-0003). All versions enter `Directory.Packages.props`.
@@ -192,7 +193,7 @@ and operations) from `emitPromise`/`emitEffect`/`write` over that IR
 
 **Reader.** The pinned `Microsoft.OpenApi` package (CPM-pinned; tooling-only — it never
 enters the shipped packages) parses `spec/openapi.json` into its typed DOM via
-`OpenApiDocument.LoadAsync` over a stream opened through the TestableIO seam
+`OpenApiDocument.LoadAsync` over a stream opened through the Testably filesystem seam
 (`LeaveStreamOpen` honored **[verified]**). The library owns lexical JSON parsing,
 OpenAPI container parsing, `$ref` construction and resolution, and lossless retention
 of unknown schema keywords (`UnrecognizedKeywords`) and vendor extensions. Three

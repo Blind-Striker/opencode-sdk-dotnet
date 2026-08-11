@@ -121,7 +121,7 @@ reachable via `docs/ROADMAP.md`) until build-out distills them.
   infrastructure is first-class (central scenario assembly, domain-aware fluent builders;
   named scenario classes promoted only on reuse/complexity/domain identity); test data lives
   in embedded fixtures, typed builders, or centralized constants — never as inline dumps in
-  test bodies; TestableIO is the only filesystem seam.
+  test bodies; Testably supplies the repository's shared `IFileSystem` seam and canonical fake.
 - **Test naming:** `{Symbol}_Should_{Expected_Behavior}[_When_{Condition}]`. Symbol names stay
   intact as one token (`TryResolve`, `NuGet`); every other word is `_`-separated and starts with
   a capital. Example: `TryResolve_Should_Return_False_When_Routes_Are_Invalid`. Test classes are

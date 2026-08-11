@@ -1095,18 +1095,20 @@ decision was touched; the two-stage pipeline, wall philosophy, and node-kind mod
 absorbed all four findings without structural change. The plan's wall tables carry the
 complete known/known-ignored/refused sets validated by the census.
 
-## Q54: Which packages seal the slice, and does the TestableIO analyzer join the wall?
+## Q54: Which filesystem packages seal the slice, and does the TestableIO analyzer join the wall?
 
 **How researched:** NuGet flat-container/registration queries for newest stable versions
-and dependency shapes; the analyzer's rule docs read from its repository
+and dependency shapes; the official Testably package README and repository documentation;
+restored package API surfaces; the analyzer's rule docs read from its repository
 (`TestableIO/System.IO.Abstractions.Analyzers`, active, last push 2026-07); a scratchpad
 strict-analyzer probe for CA1720 on the planned node-type names; TUnit exception-assert
 syntax verified against its documentation.
 
-**Found:** TestableIO trio newest stable **22.2.0** — in v22 the interfaces moved to the
-shared `Testably.Abstractions.FileSystem.Interface` package (namespace
-`System.IO.Abstractions` retained), `TestingHelpers` depends on `Wrappers`; library needs
-only the abstractions package, tests add `TestingHelpers` + `Wrappers`.
+**Found:** the active two-package filesystem setup is `Testably.Abstractions` **10.3.0**
+for production and `Testably.Abstractions.Testing` **7.0.2** for tests. Both implement the
+shared `System.IO.Abstractions.IFileSystem` contract; production supplies
+`Testably.Abstractions.RealFileSystem`, and tests supply
+`Testably.Abstractions.Testing.MockFileSystem`.
 `TestableIO.System.IO.Abstractions.Analyzers` newest stable **2022.0.0** (maintainer
 proposal): rules IO0001–IO0011 all default-enabled at Warning — TWAE escalates them, so
 no `.editorconfig` section is needed; **IO0006 covers `Path`**, which caught the plan's
@@ -1115,12 +1117,12 @@ sealing). CA1720 does not fire on compound type names (`ObjectNode`,
 `ContentEncodedStringNode` shapes probed clean). TUnit's
 `await Assert.That(action).Throws<T>()` returns the exception for follow-up asserts.
 
-**Decision:** four CPM pins for slice 1 — the trio at 22.2.0 plus the IO analyzer at
-2022.0.0, the analyzer wired repo-wide in `Directory.Build.props` like its seven
-siblings (fail-closed maximalist posture: the TestableIO seam is now mechanically
-enforced, not review-enforced). The analyzer is an older-Roslyn build; if the current
-compiler refuses to load it, the plan marks that a stop-and-report finding, never a
-silent drop.
+**Decision:** three filesystem CPM pins for slice 1 — the Testably production/test pair
+plus the IO analyzer at 2022.0.0. The analyzer remains an independent package and is wired
+repo-wide in `Directory.Build.props` like its seven siblings (fail-closed maximalist
+posture: the shared filesystem seam is mechanically enforced, not review-enforced). The
+analyzer is an older-Roslyn build; if the current compiler refuses to load it, the plan
+marks that a stop-and-report finding, never a silent drop.
 
 # Session 12 — 2026-08-11: redesign research — Microsoft.OpenApi ingestion
 
@@ -1166,7 +1168,7 @@ radar. A ~240-line projection answers all Task 10 landmarks 19/19, with typed re
 access (`OpenApiSchemaReference.Reference.Id` — the spike's reflection was unnecessary) and
 deterministic repeated ingestion (SHA-256-stable, including `x-effect-stream`
 serialization). `OpenApiModelFactory.Parse<OpenApiSchema>` parses the raw `prefixItems`
-items with host-document context. `LeaveStreamOpen` is honored (TestableIO seam intact).
+items with host-document context. `LeaveStreamOpen` is honored (Testably seam intact).
 Iteration order is deterministic across loads and equals document order (observed behavior,
 not a contract — outputs still sort). No ref cycles in the pin (deepest `Target` chain 15);
 parse cost 72 ms / 26 MB. 3.9.0 is the newest stable. Direct-Binder input (no SpecIR) was
@@ -1360,7 +1362,7 @@ code path over the full pin, while Task 8's hash properties remain independently
 `ToolApp.CreateServices` root behind `DependencyInjectionRegistrar`/`CommandApp`, options,
 `IFileSystem`, `IAnsiConsole`, core and application services, global settings, and an
 `ICommandInterceptor`. Logging is intentionally adapted rather than transplanted:
-Microsoft.Extensions.Logging `ILogger<T>` with Spectre and optional TestableIO-backed file
+Microsoft.Extensions.Logging `ILogger<T>` with Spectre and optional Testably-backed file
 providers replaces PathSmith's custom logger; tests override seams after the production
 registrations and never copy the service list. Test setup becomes lambda-first through one
 central scenario mechanism and domain builders. A named scenario class is promoted only for

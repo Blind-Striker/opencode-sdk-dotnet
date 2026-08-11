@@ -1,6 +1,6 @@
 # Public API Design — OpenCode.Sdk & OpenCode.Sdk.Extensions
 
-Date: 2026-08-09
+Date: 2026-08-11
 
 Design specification produced by the public-API brainstorm session (2026-08-08/09, ROADMAP
 queue item 1). Every decision below was discussed and sealed individually with the
@@ -83,8 +83,10 @@ ADR-0006 and unchanged. This spec adds/confirms:
   evolve together in the same change (the `AddOpenCodeClient` → `IHttpClientBuilder`
   shape is part of the core transport design, not an afterthought). Versioning stays
   independent (ADR-0006). The MCP server remains sequenced after both.
-- Wherever the SDK or its tooling performs filesystem I/O, the TestableIO trio is used
-  (`TestableIO.System.IO.Abstractions` + `.TestingHelpers` + the analyzer package).
+- Wherever the SDK or its tooling performs filesystem I/O, Testably supplies the shared
+  `System.IO.Abstractions.IFileSystem` contract: `Testably.Abstractions` in production and
+  `Testably.Abstractions.Testing` in tests. The independent
+  `TestableIO.System.IO.Abstractions.Analyzers` package enforces the seam repo-wide.
 
 ## 4. Error model
 

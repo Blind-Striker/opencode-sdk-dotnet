@@ -6,12 +6,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="TUnit"/>
-    <PackageReference Include="Spectre.Console.Cli.Testing"/>
+    <PackageReference Include="Testably.Abstractions.Testing" />
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Spectre.Console.Cli.Testing" />
+    <PackageReference Include="Verify.TUnit" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../tools/OpenCode.Sdk.Tools/OpenCode.Sdk.Tools.csproj"/>
+    <ProjectReference Include="../../tools/OpenCode.Sdk.Tools/OpenCode.Sdk.Tools.csproj" />
   </ItemGroup>
 
 </Project>
