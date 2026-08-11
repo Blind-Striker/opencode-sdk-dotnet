@@ -12,14 +12,15 @@ public sealed class GenerateCommand : AsyncCommand
     public GenerateCommand(IAnsiConsole console)
     {
         ArgumentNullException.ThrowIfNull(console);
+
         _console = console;
     }
 
     /// <inheritdoc/>
     protected override Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
-        _console.MarkupLine(
-            "[red]generate is not implemented yet[/] — the generator pipeline has not landed.");
+        _console.MarkupLine("[red]generate is not implemented yet[/] — the generator pipeline has not landed.");
+
         return Task.FromResult(1);
     }
 }

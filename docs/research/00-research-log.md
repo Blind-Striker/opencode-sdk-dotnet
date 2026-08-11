@@ -1,5 +1,7 @@
 # Research log — 2026-08-08
 
+Date: 2026-08-11
+
 > How this project's understanding was built: the questions asked, how each was
 > researched, what was found, and what decision or lesson came out of it.
 > Chronological. Details live in the numbered topic docs; this is the chain.
@@ -1329,3 +1331,67 @@ parameter table); structural-union emission shape **deferred** — §4.2 narrowe
 *marked* unions" and §15 carries the open item (`JsonElement` carrier vs generated
 wrapper type, decided at slice 2/3 planning as an API review). Verification verdict:
 sealable — the redesigned §4.1 stands.
+
+# Session 14 — 2026-08-11: overengineering grill — tooling host and testing scope
+
+Pre-execution adversarial review of all three design specs, the slice map, and the Slice 1
+plan. Three fresh-context model lineages (Grok 4.5, GLM 5.2, Kimi K3) independently read the
+same evidence set: the live repository, sessions 12–13, the engineering canon, the retired
+parser evidence map, the maintainer's PathSmith hosting/DI model, and the external scenario/
+builder references. The maintainer then resolved disagreements one decision at a time.
+
+## Q61: Is Slice 1 overengineered, and does its tooling foundation match the required shape?
+
+**Found:** the ingestion design is not broadly overengineered. Reader red tests, per-host
+wall tests, the DOM member/default inventory, the `prefixItems` tripwire, both DOM-boundary
+guards, the SpecIR-of-the-pin snapshot, canonical-hash units, and landmark smoke each guard
+a distinct failure channel demonstrated in sessions 12–13; removing one would create a
+specific silent-loss window. Slice 1 is one coherent dependency chain — partial projection
+without orchestration/tripwires is not a useful handoff to Binder. Two local defects did
+surface. First, Task 1 called `IFileSystem` registration a DI foundation while omitting the
+full hosting topology the reference and coding style require: console seam, logging,
+global settings, interceptor, core/application registrations, and one production/test
+composition path. Second, the plan converted nearly every five-line builder variation into
+a named scenario subclass/file, turning reusable infrastructure into ceremony. Task 8's
+small-document repeated-ingest assertion was the sole duplicate: Task 10 repeats the same
+code path over the full pin, while Task 8's hash properties remain independently valuable.
+
+**Decisions (maintainer):** Task 1 takes the PathSmith hosting/DI topology completely — one
+`ToolApp.CreateServices` root behind `DependencyInjectionRegistrar`/`CommandApp`, options,
+`IFileSystem`, `IAnsiConsole`, core and application services, global settings, and an
+`ICommandInterceptor`. Logging is intentionally adapted rather than transplanted:
+Microsoft.Extensions.Logging `ILogger<T>` with Spectre and optional TestableIO-backed file
+providers replaces PathSmith's custom logger; tests override seams after the production
+registrations and never copy the service list. Test setup becomes lambda-first through one
+central scenario mechanism and domain builders. A named scenario class is promoted only for
+cross-class reuse, non-trivial fixture-plus-shaping, or durable cross-slice domain/landmark
+identity. Every planned test case and the full four-command gate after every task remain.
+The duplicate Task 8 determinism assertion is deleted; the Task 10 pin-level repeat stays.
+Slice 1 remains one slice and one PR, split only on measured mid-flight growth under the
+deviation protocol.
+
+## Q62: Which later testing mechanisms are infrastructure, and which are excessive breadth?
+
+**Found:** the level-2 generated fixtures and level-3 mechanisms answer different questions.
+Contract fixtures bind generated methods, routes, serializers, envelopes, and every declared
+error without hand-authored per-operation cost; consumer-driven legacy depth therefore does
+not justify leaving shipped legacy bindings untested. The 61/61 declaration plus observed-2xx
+ledger is a breadth gate, not a requirement for 61 isolated deep stories: one workflow can
+exercise several operations, while deep state assertions belong on streams, launcher,
+errors, permission/question flows, and stateful mutations. The auth sweep remains the
+counterparty-real reachability break in the same-source loop. Direct/container duplication
+has value only where process, workspace/filesystem, stream, or basic clean-install behavior
+can differ. Fake-LLM, quarantine, and canary designs are already bounded by explicit growth
+triggers and non-blocking lanes.
+
+**Decisions (maintainer):** level-2 fixtures cover both modern and legacy shipped surfaces.
+Modern integration retains the hard declaration + observed-2xx gate with reasoned
+`ErrorPathOnly`; workflow grouping and risk-based depth prevent ceremonial per-operation
+tests. Dual-mode is selective, not the whole catalog copied twice. Direct integration runs
+net472 on Windows and net8.0/net9.0/net10.0 on all three OSes. The maintainer explicitly
+overrode the prior net10-only container decision after its duplication cost was challenged:
+the selected Linux container suite runs in full on net8.0, net9.0, and net10.0; net472 has no
+container leg. The recorded ~15-minute measurement guard remains the only trigger for later
+TFM trimming. The fake LLM stays limited to the published `/v1/chat/completions` contract and
+currently required scripted behaviors; quarantine/skip discipline and the label-deduped
+nightly canary issue flow remain as designed.

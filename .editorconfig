@@ -175,6 +175,21 @@ csharp_using_directive_placement = outside_namespace:error
 # 3.7 Wrapping (ReSharper)
 # -----------------------------------------------------------------------------
 resharper_wrap_object_and_collection_initializer_style = chop_always
+# Intentional layout policy: declaration parameters stay on one line when they
+# fit max_line_length; existing declaration-paren arrangements are not
+# preserved; a wrapped fluent chain puts the receiver on its own line, the
+# first call below it, and each following call on its own line with leading
+# dots at the normal continuation indentation (no outdenting, no alignment).
+# The broad keep_existing_linebreaks options are deliberately not set: they
+# would freeze formatting outside the constructs this section controls.
+resharper_csharp_keep_existing_declaration_parens_arrangement = false
+resharper_csharp_wrap_parameters_style = wrap_if_long
+resharper_csharp_wrap_after_declaration_lpar = false
+resharper_csharp_wrap_before_declaration_rpar = false
+resharper_csharp_wrap_chained_method_calls = chop_if_long
+resharper_csharp_wrap_before_first_method_call = true
+resharper_csharp_align_multiline_calls_chain = false
+resharper_csharp_outdent_dots = false
 
 # =============================================================================
 # SECTION 4: C#-SPECIFIC PREFERENCES
@@ -633,7 +648,9 @@ dotnet_diagnostic.MA0181.severity = none
 dotnet_diagnostic.MA0182.severity = suggestion
 dotnet_diagnostic.MA0183.severity = error
 dotnet_diagnostic.MA0184.severity = error
-dotnet_diagnostic.MA0185.severity = suggestion
+# MA0185 is semantics-preserving: it removes string.Create(CultureInfo.InvariantCulture, ...)
+# only when every interpolation is culture-invariant; RCS1140/RCS1141 stay suggestion (best-effort)
+dotnet_diagnostic.MA0185.severity = error
 dotnet_diagnostic.MA0186.severity = suggestion
 dotnet_diagnostic.MA0187.severity = none
 dotnet_diagnostic.MA0188.severity = suggestion
@@ -721,3 +738,15 @@ dotnet_diagnostic.VSTHRD111.severity = none
 # for every other file, generated output included (emission keeps file = type).
 [tools/opencode-tool.cs]
 dotnet_diagnostic.MA0048.severity = none
+
+# The wire-faithful SpecIR primitive-kind contract requires the exact String
+# and Integer member names. Winner: the wire-faithful public contract; CA1720
+# remains enabled for every other file.
+[tools/OpenCode.Sdk.Tools/Generator/Ingestion/Models/PrimitiveKind.cs]
+dotnet_diagnostic.CA1720.severity = none
+
+# The wire-faithful SpecIR literal-kind contract likewise requires the exact
+# String member name. Winner: the wire-faithful public contract; CA1720 remains
+# enabled for every other file.
+[tools/OpenCode.Sdk.Tools/Generator/Ingestion/Models/LiteralKind.cs]
+dotnet_diagnostic.CA1720.severity = none

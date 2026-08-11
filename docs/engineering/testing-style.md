@@ -13,23 +13,35 @@ there.
 ## 1. Test infrastructure is a first-class citizen
 
 Test setup is designed, reviewed, and refactored like product code — never accumulated
-as copy-paste arrange blocks. The canonical shape is a trio, sized to need:
+as copy-paste arrange blocks. The canonical shape is a scenario, context, and builder,
+sized to need:
 
-- **Named scenario classes.** A non-trivial setup is a `sealed` scenario class whose
-  name states the situation, deriving from a small scenario base that owns assembly
-  mechanics and returns a context object carrying exactly what the SUT needs
-  (filesystem, input paths, configuration). One scenario, one concept, one file:
+- **Inline scenarios are the default for small, one-off variations.** The shared scenario
+  mechanism owns assembly (a fresh fake filesystem, rendering, and the context); the test
+  supplies only a domain-aware builder action. A one-line variation does not earn a class
+  and file:
 
   ```csharp
-  internal sealed class UnrestrictedSchemaScenario : SpecScenarioBase
+  var context = SpecScenario.Define(spec =>
+      spec.WithSchema("ToolResult", schema => schema.Unrestricted()))
+      .Build();
+  var document = ingestion.Project(context.SpecPath);
+  ```
+
+- **Named scenario classes are promoted, not automatic.** A `sealed` scenario class earns
+  one-concept/one-file status when at least one of these holds: the same arrangement is
+  reused across test classes; setup is non-trivial (roughly more than five fluent
+  statements, or an embedded fixture plus additional shaping); or the situation carries
+  durable domain/landmark identity used across slices. The promoted shape:
+
+  ```csharp
+  internal sealed class ConfigPluginTupleScenario : SpecScenario
   {
       protected override void Arrange(SpecDocumentBuilder spec) =>
-          spec.WithSchema("ToolResult", schema => schema.Unrestricted());
+          spec.WithRawSchema("Config", "config-plugin-tuple.json");
   }
 
-  // in a test:
-  var context = new UnrestrictedSchemaScenario().Build();   // filesystem + spec path
-  var document = ingestion.Project(context.SpecPath);
+  var context = new ConfigPluginTupleScenario().Build();
   ```
 
   (Type names illustrative — the concrete infrastructure is named at slice planning.)
@@ -38,10 +50,11 @@ as copy-paste arrange blocks. The canonical shape is a trio, sized to need:
   scattered through test bodies. Builders live in the owning test project's `Support/`
   area, compose over the canonical filesystem fake, and follow coding-style rules
   (sealed, no tuple returns, no concrete-collection parameters).
-- **Grow on demand.** The trio — scenario base, context, builder — is the pattern; the
-  scenario catalog and builder vocabulary grow with the slices that need them. No
-  speculative infrastructure, and no infrastructure duplication either: the second
-  copy-paste of an arrange block is the signal to grow the builder.
+- **Grow on demand.** The scenario mechanism, context, and builder are the pattern; named
+  scenarios, test hosts, and builder vocabulary grow only when a promotion/reuse signal
+  fires. No speculative infrastructure, and no infrastructure duplication either: the
+  second copy-paste of an arrange block first grows a reusable builder verb or preset;
+  class promotion follows the rule above rather than file-count convention.
 
 ## 2. Filesystem rule
 

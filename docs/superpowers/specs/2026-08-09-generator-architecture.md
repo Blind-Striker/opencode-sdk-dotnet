@@ -1,6 +1,6 @@
 # Generator Architecture — the model-layer generator and repo tooling
 
-Date: 2026-08-09
+Date: 2026-08-11
 
 Design specification produced by the generator-architecture brainstorm session (2026-08-09,
 ROADMAP queue item 1). Every decision below was discussed and sealed individually with the
@@ -75,6 +75,7 @@ tools/
 ├── curation.json                     ← curation config (§5)
 └── OpenCode.Sdk.Tools/               ← csproj library, bound to the repo build rules
     ├── ToolApp.cs                    ← CommandApp + DI composition (testable factory)
+    ├── GlobalSettings.cs             ← global log-level/log-file CLI settings
     ├── Commands/                     ← CLI surface for all tooling areas
     │   ├── GenerateCommand.cs        ←   generate [--verify] [--update-fingerprints]
     │   └── RefreshSpecCommand.cs     ←   refresh-spec --ref <tag|commit>
@@ -83,7 +84,10 @@ tools/
     │   ├── Binding/                  ← Binder + curation models + EmitPlan types (§4.2)
     │   ├── Emission/                 ← per-artifact-family emitters (§6)
     │   └── Output/                   ← Writer: output manifest, stale cleanup, format (§8)
-    └── Infrastructure/               ← shared: IFileSystem, git/process wrappers
+    └── Infrastructure/
+        ├── GlobalOptionsInterceptor.cs
+        ├── Logging/                  ← Spectre + optional file MEL providers
+        └── …                         ← I/O, git/process wrappers
 
 tests/OpenCode.Sdk.Tools.Tests/       ← TUnit + Spectre.Console.Cli.Testing + TestingHelpers
 ```
@@ -91,8 +95,10 @@ tests/OpenCode.Sdk.Tools.Tests/       ← TUnit + Spectre.Console.Cli.Testing + 
 This resolves ADR-0003's "emission library behind a thin file-based entry" by synthesis:
 the library carries a full DI composition per the repo's coding style
 (`docs/engineering/coding-style.md` §2 — one `ServiceCollection` composition root behind
-Spectre's `DependencyInjectionRegistrar`; collaborators behind seams in per-slice
-`Abstractions/` folders; cross-cutting CLI concerns on an `ICommandInterceptor`), but the
+Spectre's `DependencyInjectionRegistrar`; `IFileSystem` and `IAnsiConsole`; MEL structured
+logging with Spectre and optional TestableIO-backed file providers; global log-level/file
+settings applied by an `ICommandInterceptor`; collaborators behind seams in per-slice
+`Abstractions/` folders), but the
 `CommandApp` wiring lives in a `ToolApp` factory so `Spectre.Console.Cli.Testing`'s
 `CommandAppTester` can exercise it; the file-based entry shrinks to three lines and merely
 delegates. The shebang uses the documented `-S dotnet --` form (without `--`, `dotnet` can
@@ -106,12 +112,16 @@ Two deliberate composition choices: `ToolApp` factory instead of logic in
 `Program.cs` (testability of the wiring); pipeline-stage folders under `Generator/` instead of
 a flat `Services/` (MA0048/IDE0130 make file=type and folder=namespace mandatory anyway, and
 the generator is one tooling area among future siblings — §2 principle 3).
+`ToolApp.CreateServices` is the only registration path: production builds the registrar from
+it, while tests apply seam replacements after the same registrations rather than maintaining
+a second composition root.
 
 **Stack** (ROADMAP queue 2, confirmed): Spectre.Console.Cli (+ the DI registrar + Testing
-packages), CliWrap for git and `dotnet format` invocations (the no-CliWrap rule is
-SDK-product-scoped, ADR-0001), the TestableIO trio for all filesystem I/O (public API spec
-§3), the pinned Microsoft.OpenApi reader for spec ingestion, System.Text.Json for curation parsing, Microsoft.CodeAnalysis.CSharp for
-emission (ADR-0003). All versions enter `Directory.Packages.props`.
+packages), Microsoft.Extensions.Logging, CliWrap for git and `dotnet format` invocations
+(the no-CliWrap rule is SDK-product-scoped, ADR-0001), the TestableIO trio for all
+filesystem I/O (public API spec §3), the pinned Microsoft.OpenApi reader for spec ingestion,
+System.Text.Json for curation parsing, Microsoft.CodeAnalysis.CSharp for emission
+(ADR-0003). All versions enter `Directory.Packages.props`.
 
 ### 3.2 Command surface
 
@@ -600,7 +610,9 @@ follows is the sealed tooling-test design.
   spec projects without error and structural landmarks hold. Exact counts (188/61/127)
   stay out of tests — they are research-doc facts, and count assertions would turn
   every legitimate refresh into test noise. Microsoft.OpenApi internals are never
-  re-tested.
+  re-tested. Small one-off variations compose the shared domain builder inline; a named
+  scenario class appears only when the arrangement is reused across test classes,
+  non-trivial, or a durable cross-slice landmark (`testing-style.md` §1).
 - **Binder:** one red test per coverage check (missing group, unnamed envelope, orphan row,
   unknown config field — each verified present in the batched, categorized report); name
   computation cases (acronyms, dotted mangling, brand overrides); handle routing;
@@ -663,8 +675,10 @@ build itself is the compile gate for generated output (§11).
 
 ## 14. Sealed decisions (summary)
 
-1. **Tools hosting:** synthesis — a DI-composed csproj library + 3-line file-based entry
-   delegating to a testable `ToolApp` factory; ADR-0003 packaging unchanged (§3.1).
+1. **Tools hosting:** synthesis — a full DI-composed csproj library + 3-line file-based
+   entry delegating to a testable `ToolApp` factory; one production/test registration path,
+   filesystem/console seams, MEL Spectre/optional-file providers, global settings, and the
+   interceptor are part of that host; ADR-0003 packaging unchanged (§3.1).
 2. **`tools/` is the centralized repo-tooling home;** the generator lives in a `Generator/`
    subtree as its first area, not as the project's identity (§2 principle 3).
 3. **Curation config is JSON** — `tools/curation.json`, reasons as data (mandatory on

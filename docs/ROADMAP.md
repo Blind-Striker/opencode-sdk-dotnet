@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-10
+Date: 2026-08-11
 
 Operational state: what is done, what is next, what is open. This file shrinks as work lands.
 Evergreen rules and locked decisions live in `../AGENTS.md`; decision records in `adr/`.
@@ -13,23 +13,24 @@ net472 leg Windows-only); three-OS CI (`.github/workflows/ci.yml`: build + test 
 pinned OpenAPI snapshot (`spec/openapi.json`, provenance in `spec/SNAPSHOT.md`). Packages current
 as of 2026-08-08. Design runway complete and grill-hardened: three sealed specs under
 `superpowers/specs/` (public API, generator architecture, testing architecture), ADRs 0001–0009,
-research log sessions 1–9. Implementation planning complete (2026-08-10): slice map at
+research log sessions 1–14. Implementation planning is maintained in the slice map at
 `superpowers/plans/2026-08-10-implementation-slice-map.md` (12 vertical slices), slice issues
 **#1–#12** with native `blocked_by` ordering; deviation protocol added
 (`docs/agents/deviation-protocol.md`), falsifiability working agreement added to `AGENTS.md`.
 The Slice 0 tooling skeleton has landed. Repo-local Slopwatch pinning, a committed zero-entry
-baseline, and the Linux CI gate are active. Slice 1 is in redesign: the generator's ingestion
-stage rides the pinned `Microsoft.OpenApi` reader with a fail-closed semantic projection into
-a minimal SpecIR (ADR-0003; generator spec §4.1; evidence: research log session 12). The
-superseded Slice 1 plan is removed; its implementation survives on the
-`feature/slice-01-parser-specir` evidence branch (worktree kept as reference — delete only
-with maintainer approval; its two file-scoped CA1720 arbitrations retire with it). The
-grill session over the corrected generator spec is complete and its corrections are in the
-spec (research log session 13). The Slice 1 re-plan is written
-(`superpowers/plans/2026-08-11-slice-01-ingestion-specir.md` — tooling foundation: DI
-composition, TestableIO seam, scenario test infrastructure; plus the ingestion stage — one
-slice), issue #2 is `ready-for-agent`, and the engineering style canon landed under
-`docs/engineering/`; next is the Slice 1 execution session
+baseline, and the Linux CI gate are active. Slice 1 is ready for execution: the pinned
+`Microsoft.OpenApi` reader feeds a fail-closed semantic projection into minimal SpecIR
+(ADR-0003; generator spec §4.1); the foundation is the complete PathSmith-shaped ToolApp
+host (single production/test composition path, TestableIO, `IAnsiConsole`, MEL
+Spectre/optional-file providers, global settings, interceptor); test setup is centralized
+and lambda-first, with named scenarios promoted only for reuse, complexity, or durable
+domain identity. The wall/tripwire design and the execution plan survived independent
+Grok/GLM/Kimi review; the only duplicate removed is Task 8's small-document determinism
+assertion, superseded by Task 10's pinned-document repeat (research log sessions 12–14).
+The retired parser remains read-only on `feature/slice-01-parser-specir` as evidence; delete
+its worktree only with maintainer approval. The corrected plan is
+`superpowers/plans/2026-08-11-slice-01-ingestion-specir.md`; issue #2 is
+`ready-for-agent`; next is the execution handoff
 (`docs/agents/handover-prompts/HANDOFF-2026-08-11.md`).
 
 ## Queue

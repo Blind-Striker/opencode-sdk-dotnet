@@ -1,6 +1,6 @@
 # Testing Architecture & Strategy — OpenCode.Sdk, OpenCode.Sdk.Extensions, tools/
 
-Date: 2026-08-10
+Date: 2026-08-11
 
 Design specification produced by the testing-architecture brainstorm session (2026-08-09/10,
 ROADMAP queue item 1 — its final design step). Every decision below was discussed and sealed
@@ -109,6 +109,11 @@ GitHub (`localstack-dotnet/localstack-dotnet-client`,
 | **2 — Contract** | Every operation's happy path + every declared error response maps to the right model/envelope/exception — mechanical 100% endpoint breadth | Tool-generated fixtures (from SpecIR) fed through the same in-memory stub handler | `OpenCode.Sdk.Tests` (`Contract/` area) |
 | **3 — Integration** | The SDK works for real: real HTTP, real serialization boundary, real SSE over the network, real process lifecycle | A real `opencode serve` via the dual-mode harness (§5), fake LLM where assistant activity is needed (§6) | `OpenCode.Sdk.Integration.Tests` |
 
+Level 2's "every operation" means both shipped surfaces: modern and legacy success/error
+bindings are generated and tested under the same regen-verified mechanism. ADR-0005's
+consumer-driven legacy limit governs deep level-3 scenarios, not contract coverage of public
+methods the package ships.
+
 **Mocking-framework decision (sealed): no WireMock, no third-party mock server at any
 level.** WireMock (Java and .NET alike) has no SSE/streaming support — the body is delivered
 whole, delays and faults are whole-response only (wiremock/wiremock#460, open for years) —
@@ -136,7 +141,7 @@ tests/
 | OpenCode.Sdk.Tests | net472 (Windows-only) + net8.0/net9.0/net10.0 | 3 OS |
 | OpenCode.Sdk.Extensions.Tests | same | 3 OS |
 | OpenCode.Sdk.Tools.Tests | net10.0 only (the tool runs single-TFM; a matrix proves nothing) | 3 OS (path/git behavior is OS-sensitive) |
-| OpenCode.Sdk.Integration.Tests | net472 (Windows-only) + net8.0/net9.0/net10.0 — **all TFMs, maintainer decision** | 3 OS direct + Linux container |
+| OpenCode.Sdk.Integration.Tests | net472 (Windows-only) + net8.0/net9.0/net10.0 — **all TFMs, maintainer decision** | 3 OS direct; Linux container on net8.0/net9.0/net10.0 |
 
 Rationale notes: the contract area shares the unit project because its dependency set is
 identical (no process, stub handler, fixture JSON) — separation is by folder/namespace and
@@ -145,8 +150,9 @@ separate project because its run profile differs (duration, opencode-installed p
 distinct CI gating). netstandard2.0 has no runtime; the net472 legs are its proxy coverage
 (ADR-0002) — the integration net472 leg is the *behavioral* half of that claim
 (`HttpWebRequest`-based handler stack, `ServicePointManager` limits, long-lived SSE on
-Framework). The Linux container leg runs net10.0 only (§11.2). Launcher acceptance tests
-live inside Integration.Tests in their own folder and do
+Framework). The Linux container lane runs every runtime-capable modern TFM
+(`net8.0;net9.0;net10.0`); net472 remains Windows/direct only (§11.2). Launcher acceptance
+tests live inside Integration.Tests in their own folder and do
 **not** use the dual-mode harness — the launcher is the SUT there (§9.2). The fake LLM fixture
 lives under Integration.Tests (`Support/`) until a second consumer forces extraction (YAGNI).
 
@@ -159,9 +165,14 @@ Two fixture types over a common base: `DirectOpenCodeServerFixture` and
 `[ClassDataSource<T>(Shared = ...)]` injection — the mode is a visible, per-test-class choice;
 no bespoke environment variable exists (sealed: a single global switch was explicitly
 rejected). Suites that must run against both modes use an abstract base test class with two
-thin `[InheritsTests]` subclasses. The container fixture self-skips via a TUnit conditional
-skip attribute when Docker is unavailable or the OS leg cannot run it. If a global override is
-ever added it must be platform-native — the channel exists and is run-verified: MTP discovers
+thin `[InheritsTests]` subclasses. Dual-mode is selective rather than a blind duplicate of
+the whole operation catalog: process, workspace/filesystem, and stream-sensitive scenarios
+run in both modes, alongside basic container health/typed-CRUD smoke; ordinary operation
+breadth remains direct-mode unless container behavior can change its outcome. The selected
+container suite runs on net8.0, net9.0, and net10.0. The container fixture self-skips via a
+TUnit conditional skip attribute when Docker is unavailable or the OS leg cannot run it. If
+a global override is ever added it must be platform-native — the channel exists and is
+run-verified: MTP discovers
 `[AppName].testconfig.json` and TUnit reads arbitrary nested keys from it via
 `TestContext.Configuration.Get("harness:mode")`. Tests see only the surface: `Uri Endpoint`,
 `OpenCodeClient CreateClient()`, and `Workspace CreateWorkspace()` (§5.4).
@@ -316,6 +327,11 @@ declarations against the inventory:
   operation observed at least one 2xx** — observation, not declaration. The route-template
   matcher is shared with the sweep (§7.3; the inventory carries method + path template,
   §7.1). Stage 1 (day one, before the scenario suite exists) is the declaration diff alone.
+  This is breadth, not a mandate for 61 isolated deep test methods: one real workflow may
+  declare and observe several operations. Deep state-building assertions concentrate on the
+  risk surfaces (streams, launcher, error mapping, permission/question flows, and stateful
+  mutations); low-risk operations still cross the real typed boundary and satisfy the 2xx
+  ledger without ceremonial one-test-per-operation expansion.
 - **`ErrorPathOnly` is an honest, reasoned exemption.** Operations whose success path
   structurally needs an upstream-private backend (§2 principle 6; day-one candidates: the
   `integration.connect.*` / `integration.attempt.*` family) declare it on the attribute —
@@ -487,11 +503,9 @@ format gate, and the generator spec §13 `generate --verify` step):
    steps, the image build workflow (tag + build arg), the container fixture (which tag to
    pull), and the canary's pin-vs-latest report. Invariant made mechanical: *an SDK
    generated from spec vX is tested against server vX.*
-2. **New Linux container leg:** pulls the pinned GHCR image, runs Integration.Tests in
-   container mode (the clean-install lane), **net10.0 only** (sealed): the lane's subject is
-   the server side — clean install, image, process management — while TFM sensitivity lives
-   in the client's HTTP stack, which the three-OS direct legs already cover on every TFM;
-   more container TFMs would multiply container churn for no new signal. The image
+2. **New Linux container legs:** pull the pinned GHCR image and run the selective
+   container-mode suite (the clean-install lane) on **net8.0, net9.0, and net10.0**;
+   net472 is Windows-only and has no container leg. The image
    build+push workflow is separate and runs only when the Dockerfile or the pin changes —
    no scheduled rebuilds and no tag cleanup (public GHCR, YAGNI): the image refreshes
    naturally on every pin bump, i.e. at the refresh cadence itself.

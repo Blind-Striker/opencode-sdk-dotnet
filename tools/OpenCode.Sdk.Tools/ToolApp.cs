@@ -10,8 +10,7 @@ namespace OpenCode.Sdk.Tools;
 public static class ToolApp
 {
     /// <summary>Builds the DI registrar; tests inject service overrides.</summary>
-    public static DependencyInjectionRegistrar CreateRegistrar(
-        Action<IServiceCollection>? overrideServices = null)
+    public static DependencyInjectionRegistrar CreateRegistrar(Action<IServiceCollection>? overrideServices = null)
     {
         var services = new ServiceCollection();
         services.AddSingleton(AnsiConsole.Console);
@@ -23,8 +22,10 @@ public static class ToolApp
     public static void Configure(IConfigurator configurator)
     {
         ArgumentNullException.ThrowIfNull(configurator);
-        configurator.SetApplicationName("opencode-tool");
-        configurator.AddCommand<GenerateCommand>("generate")
+
+        configurator
+            .SetApplicationName("opencode-tool")
+            .AddCommand<GenerateCommand>("generate")
             .WithDescription("Regenerate the SDK model layer from spec/openapi.json.");
     }
 
@@ -32,6 +33,7 @@ public static class ToolApp
     public static async Task<int> RunAsync(string[] args)
     {
         ArgumentNullException.ThrowIfNull(args);
+
         using var registrar = CreateRegistrar();
         var app = new CommandApp(registrar);
         app.Configure(Configure);

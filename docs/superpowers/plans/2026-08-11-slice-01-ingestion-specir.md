@@ -1,11 +1,14 @@
 # Slice 1 — Ingestion + SpecIR Implementation Plan
 
+Date: 2026-08-11
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use deniz-process:subagent-driven-development
 > (recommended) or deniz-process:executing-plans to implement this plan task-by-task. Steps
 > use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** stand up the tooling foundation (DI composition, TestableIO seam, first-class test
-infrastructure) and build the fail-closed ingestion stage on it — the pinned Microsoft.OpenApi
+**Goal:** stand up the tooling foundation (full-battery DI composition, MEL logging,
+global CLI interception, TestableIO seam, first-class test infrastructure) and build the
+fail-closed ingestion stage on it — the pinned Microsoft.OpenApi
 reader, the per-host whitelist dialect wall, the semantic projection into the minimal
 immutable SpecIR, raw-content hashes, library-upgrade tripwires, DOM-boundary guards, and the
 full pinned-spec landmark smoke test (generator spec §4.1).
@@ -16,15 +19,17 @@ full pinned-spec landmark smoke test (generator spec §4.1).
 diagnostics to errors, translates reader exceptions), the per-host wall policies (whitelist
 tables over every consumed DOM type), and the projectors (schema classification,
 normalizations, operation surface, graph keys, raw-content hashes) producing `SpecDocument`.
-Everything follows `docs/engineering/coding-style.md` (named collaborators, seams + DI,
-signature hygiene) and `docs/engineering/testing-style.md` (scenario classes, domain builders,
-embedded fixtures — no inline JSON dumps). The mutable Microsoft.OpenApi DOM never escapes
+Everything follows `docs/engineering/coding-style.md` (named collaborators, full CLI
+composition, seams + DI, signature hygiene) and `docs/engineering/testing-style.md`
+(lambda-first one-off scenarios, promoted named scenarios, domain builders, embedded fixtures —
+no inline JSON dumps). The mutable Microsoft.OpenApi DOM never escapes
 `Generator/Ingestion/`.
 
 **Tech Stack:** Microsoft.OpenApi 3.9.0 (pinned; tooling-only), TestableIO trio 22.2.0 +
-`TestableIO.System.IO.Abstractions.Analyzers` 2022.0.0 (repo-wide), Spectre.Console.Cli +
-DI registrar (already pinned), System.Text.Json (in-box), TUnit on MTP (pinned),
-Verify.TUnit (new pin — the SpecIR-of-the-pin snapshot).
+`TestableIO.System.IO.Abstractions.Analyzers` 2022.0.0 (repo-wide), Spectre.Console +
+Spectre.Console.Cli + DI registrar (already pinned), Microsoft.Extensions.Logging with
+Spectre and optional TestableIO-backed file providers, System.Text.Json (in-box), TUnit on
+MTP (pinned), Verify.TUnit (new pin — the SpecIR-of-the-pin snapshot).
 
 ## Global Constraints
 
@@ -40,8 +45,13 @@ Verify.TUnit (new pin — the SpecIR-of-the-pin snapshot).
   constraints of every task** — named collaborators over private-method accumulation;
   interfaces at seams only, `sealed` elsewhere; no tuple returns or concrete-collection
   parameters across class boundaries; vertical layout with `Abstractions/`+`Models/` groups;
-  scenario classes + domain builders + embedded fixtures; **no inline JSON dumps in test
-  bodies**. Violations are defects, not preferences.
+  centralized scenario assembly + domain builders + embedded fixtures; **no inline JSON
+  dumps in test bodies**. Violations are defects, not preferences.
+- **Scenario granularity:** small one-off variations use `SpecScenario.Define(...)` or
+  `SpecScenario.FromRawJson(...)` inline. A named scenario class is promoted only when the
+  arrangement is reused across test classes, is non-trivial (roughly more than five fluent
+  statements or fixture-plus-shaping), or carries durable cross-slice domain/landmark
+  identity. Every inventory case remains a full test; only its setup housing changes.
 - Analyzer misfires: per-rule arbitration with a winner-naming comment — never a rollback,
   never an inline suppression without arbitration.
 - Test naming: `{Symbol}_Should_{Expected_Behavior}[_When_{Condition}]`; classes
@@ -49,8 +59,9 @@ Verify.TUnit (new pin — the SpecIR-of-the-pin snapshot).
   `await Assert.That(x).IsEqualTo(y)`; exception capture:
   `var ex = await Assert.That(() => ...).Throws<IngestionException>();` then assert on
   `ex!.Message`. Adapt in place if the pinned TUnit differs — level-0 deviation.
-- CPM: new pins are `Microsoft.OpenApi` 3.9.0, the TestableIO trio 22.2.0,
-  `TestableIO.System.IO.Abstractions.Analyzers` 2022.0.0, `Verify.TUnit` (newest stable).
+- CPM: new pins are `Microsoft.Extensions.Logging`, `Spectre.Console`,
+  `Microsoft.OpenApi` 3.9.0, the TestableIO trio 22.2.0,
+  `TestableIO.System.IO.Abstractions.Analyzers` 2022.0.0, and `Verify.TUnit` (newest stable).
   Before pinning, re-check with `dotnet package search <id> --exact-match` and pin the newer
   stable if one exists. If the ingestion behavior differs on a newer Microsoft.OpenApi,
   stop — level 2 (the spec's evidence is 3.9.0).
@@ -130,7 +141,7 @@ flag (operations), `x-effect-stream` opaque (SSE media only), all other `x-*` re
 
 ---
 
-### Task 1: Package pins + DI composition root
+### Task 1: Package pins + full ToolApp composition root
 
 **Files:**
 - Modify: `Directory.Packages.props`
@@ -138,77 +149,106 @@ flag (operations), `x-effect-stream` opaque (SSE media only), all other `x-*` re
 - Modify: `tools/OpenCode.Sdk.Tools/OpenCode.Sdk.Tools.csproj`
 - Modify: `tests/OpenCode.Sdk.Tools.Tests/OpenCode.Sdk.Tools.Tests.csproj`
 - Modify: `tools/OpenCode.Sdk.Tools/ToolApp.cs`
-- Test: `tests/OpenCode.Sdk.Tools.Tests/ToolAppTests.cs` (extend the existing class)
+- Modify: `tools/OpenCode.Sdk.Tools/Commands/GenerateCommand.cs`
+- Create: `tools/OpenCode.Sdk.Tools/GlobalSettings.cs`
+- Create: `tools/OpenCode.Sdk.Tools/Infrastructure/GlobalOptionsInterceptor.cs`
+- Create: `tools/OpenCode.Sdk.Tools/Infrastructure/Logging/ToolLoggingOptions.cs`,
+  `SpectreConsoleLoggerProvider.cs`, `FileLoggerProvider.cs`, `ToolLogLevelConverter.cs`
+- Test: `tests/OpenCode.Sdk.Tools.Tests/ToolAppTests.cs` (extend the existing class),
+  `tests/OpenCode.Sdk.Tools.Tests/Infrastructure/Logging/ToolLoggingTests.cs`
 
 **Interfaces:**
 - Consumes: slice 0's `ToolApp` factory seam (`CreateRegistrar`/`Configure`) and the
   existing `CommandAppTester` harness.
-- Produces: a `ToolApp` whose `ServiceCollection` is the single composition root
-  (coding-style §2): `IFileSystem` → `FileSystem` registered singleton; later tasks add
-  `ISpecIngestion` here. `GenerateCommand` resolves through DI and stays the fail-loud stub.
+- Produces the complete CLI hosting/DI topology (coding-style §2), not a skeleton:
+  - `ToolApp.CreateServices(Action<IServiceCollection>? overrideServices = null)` is the
+    single registration root. Defaults are registered first; the optional callback runs
+    last for seam replacement. `CreateRegistrar` retains its existing optional override
+    callback and delegates to this method. Tests never reproduce the registration list.
+  - Core seams: singleton `IFileSystem` → `FileSystem` and `IAnsiConsole` →
+    `AnsiConsole.Console`; later tasks extend this same root with `ISpecIngestion`, Binder,
+    emitters, Writer, and infrastructure wrappers.
+  - MEL end to end: commands/services consume `ILogger<T>`; a Spectre provider writes
+    through `IAnsiConsole`; an optional file provider writes only through `IFileSystem`.
+    Both providers read the singleton `ToolLoggingOptions` applied per invocation.
+  - `GlobalSettings : CommandSettings` carries global `--log-level` and `--log-file`.
+    Accepted levels match the tooling UX (`trace`, `debug`, `info`, `warning`, `error`,
+    `none`), default `warning`; `ToolLogLevelConverter` maps them to MEL. Every command's
+    settings derive from this base.
+  - `GlobalOptionsInterceptor : ICommandInterceptor` maps `GlobalSettings` into
+    `ToolLoggingOptions` before command execution. It is DI-registered; do not use the
+    obsolete single-interceptor setter.
+  - `GenerateCommand.Settings : GlobalSettings` is its nested concrete settings type;
+    `GenerateCommand` injects `ILogger<GenerateCommand>` alongside `IAnsiConsole`, logs its
+    invocation, and remains the same nonzero fail-loud stub. Future command settings derive
+    from the same global base.
 
 - [ ] **Step 1: Add the package pins.** In `Directory.Packages.props` (re-check newest
-  stable first — Global Constraints): under third-party analyzers
-  `TestableIO.System.IO.Abstractions.Analyzers` `2022.0.0`; under third-party packages
-  `Microsoft.OpenApi` `3.9.0` and `TestableIO.System.IO.Abstractions` `22.2.0`; under test
-  packages `TestableIO.System.IO.Abstractions.TestingHelpers` `22.2.0`,
+  stable first — Global Constraints): add `Microsoft.Extensions.Logging` beside the
+  existing DI package; add the direct `Spectre.Console` dependency beside its CLI packages;
+  under third-party analyzers add `TestableIO.System.IO.Abstractions.Analyzers` `2022.0.0`;
+  under third-party packages add `Microsoft.OpenApi` `3.9.0` and
+  `TestableIO.System.IO.Abstractions` `22.2.0`; under test packages add
+  `TestableIO.System.IO.Abstractions.TestingHelpers` `22.2.0`,
   `TestableIO.System.IO.Abstractions.Wrappers` `22.2.0`, and `Verify.TUnit` (newest stable).
   In `Directory.Build.props`, append the analyzer to the repo-wide analyzer ItemGroup with
   the same `PrivateAssets`/`IncludeAssets` shape as its siblings. (The analyzer is an
   older-Roslyn build; if the compiler refuses to load it, stop — level 2.)
-- [ ] **Step 2: Reference packages.** Tools csproj adds `Microsoft.OpenApi` and
-  `TestableIO.System.IO.Abstractions`; tests csproj adds `TestingHelpers`, `Wrappers`, and
-  `Verify.TUnit`.
-- [ ] **Step 3: Write the failing test** — `ToolAppTests` gains:
-
-```csharp
-[Test]
-public async Task ToolApp_Should_Resolve_FileSystem_Seam_From_Composition_Root()
-{
-    var services = ToolApp.CreateServices();
-
-    await using var provider = services.BuildServiceProvider();
-    await Assert.That(provider.GetRequiredService<IFileSystem>()).IsTypeOf<FileSystem>();
-}
-```
-
-- [ ] **Step 4: Run to verify it fails** — `dotnet test tests/OpenCode.Sdk.Tools.Tests`:
-  CS0117 (`ToolApp.CreateServices` not defined).
-- [ ] **Step 5: Implement.** `ToolApp` gains
-  `public static ServiceCollection CreateServices()` — the composition root: registers
-  `IFileSystem` (singleton `FileSystem`); `CreateRegistrar` builds its
-  `DependencyInjectionRegistrar` from `CreateServices()` so the CLI and tests share one
-  composition. Existing wiring/commands unchanged.
-- [ ] **Step 6: Run to verify pass** — full suite green (slice-0 tests untouched).
+- [ ] **Step 2: Reference packages.** Tools csproj adds `Microsoft.Extensions.Logging`,
+  `Spectre.Console`, `Microsoft.OpenApi`, and `TestableIO.System.IO.Abstractions`; tests
+  csproj adds `TestingHelpers`, `Wrappers`, and `Verify.TUnit`.
+- [ ] **Step 3: Write the failing tests:**
+  - `CreateServices_Should_Resolve_Full_Hosting_Composition` builds `CreateServices()` and resolves
+    the concrete filesystem, `IAnsiConsole`, `ILogger<GenerateCommand>`,
+    `ToolLoggingOptions`, and `IEnumerable<ICommandInterceptor>` containing exactly the
+    global interceptor.
+  - `CreateRegistrar_Should_Apply_Seam_Overrides_After_Production_Registrations` replaces
+    `IFileSystem` with one `MockFileSystem` through the callback and proves the resolved
+    singleton is that instance — no test-only service-list reconstruction.
+  - `RunAsync_Should_Apply_Global_Logging_Options_Before_Command_Execution` runs
+    `generate --log-level debug --log-file logs/tool.log` through `CommandAppTester` with
+    MockFileSystem/console seam replacements; the existing nonzero stub result remains,
+    the file is created through the fake, and its content includes the command log.
+  - Focused provider tests prove default-warning filtering, Spectre markup-safe output,
+    and fail-loud behavior when an explicitly configured log file cannot be initialized.
+- [ ] **Step 4: Run to verify they fail** — missing composition/settings/provider types and
+  `ToolApp.CreateServices` are the red state.
+- [ ] **Step 5: Implement** the Produces block. Provider logic is split by destination;
+  the interceptor owns invocation configuration; `ToolApp` owns registration and command
+  wiring only. All file paths and writes ride `IFileSystem`; no custom logger facade and no
+  silent logging-I/O fallback.
+- [ ] **Step 6: Run to verify pass** — full suite green (slice-0 command behavior retained).
 - [ ] **Step 7: Full gate** (all four commands clean). Expect the new IO analyzer to fire
   wherever slice-0 code touched `File`/`Path` directly; fix by routing through the injected
   `IFileSystem` — that is the analyzer doing its job, not a misfire.
-- [ ] **Step 8: Commit** — `feat(tools): ingestion package pins and DI composition root`
+- [ ] **Step 8: Commit** — `feat(tools): full hosting composition and ingestion package pins`
 
 ---
 
-### Task 2: Test infrastructure — scenario base, builders, embedded fixtures
+### Task 2: Test infrastructure — scenarios, builders, embedded fixtures
 
 **Files:**
-- Create: `tests/OpenCode.Sdk.Tools.Tests/Support/SpecScenarioBase.cs`,
+- Create: `tests/OpenCode.Sdk.Tools.Tests/Support/SpecScenario.cs`,
   `Support/ScenarioContext.cs`, `Support/SpecDocumentBuilder.cs`, `Support/SchemaBuilder.cs`,
-  `Support/FixtureLoader.cs`
+  `Support/OperationBuilder.cs`, `Support/FixtureLoader.cs`
 - Modify: `tests/OpenCode.Sdk.Tools.Tests/OpenCode.Sdk.Tools.Tests.csproj` (embed
   `Fixtures/**/*.json`; link `spec/openapi.json` as `Fixtures/openapi.json`,
   `CopyToOutputDirectory="PreserveNewest"`)
-- Create: `tests/OpenCode.Sdk.Tools.Tests/Fixtures/.gitkeep`
 - Test: `tests/OpenCode.Sdk.Tools.Tests/Support/SpecDocumentBuilderTests.cs`,
-  `Support/FixtureLoaderTests.cs`
+  `Support/SpecScenarioTests.cs`, `Support/FixtureLoaderTests.cs`
 
 **Interfaces:**
 - Consumes: `MockFileSystem` (TestingHelpers).
-- Produces (testing-style §1's trio — all `internal sealed`):
-  - `SpecDocumentBuilder` — fluent, JSON-producing:
+- Produces the centralized testing-style §1 shape:
+  - `SpecDocumentBuilder` — sealed, fluent, JSON-producing:
     `WithOpenApiVersion(string version = "3.1.0")`,
     `WithSchema(string name, Action<SchemaBuilder> configure)`,
     `WithRawSchema(string name, string fixtureName)` (embedded-fixture body),
     `WithOperation(string operationId, string method = "get", string path = "/api/x", Action<OperationBuilder>? configure = null)`,
-    `WithRawTopLevel(string key, string rawJson)` (wall red tests), `string BuildJson()`.
+    `WithRawTopLevel(string key, string rawJson)` (short subject literals),
+    `WithRawTopLevelFromFixture(string key, string fixtureName)` (structural wall fixtures),
+    `string BuildJson()`. The builder receives one `FixtureLoader` collaborator; scenario
+    assembly supplies it centrally.
   - `SchemaBuilder` — domain verbs used across this plan: `Type(string)`,
     `Property(string name, Action<SchemaBuilder>, bool required = false)`,
     `Required(params string[])`, `Enum(params string[])`, `Const(string)`,
@@ -223,14 +263,24 @@ public async Task ToolApp_Should_Resolve_FileSystem_Seam_From_Composition_Root()
     `RequestBody(string mediaType, Action<SchemaBuilder>, bool required = false)`,
     `Response(int status, string? mediaType = null, Action<SchemaBuilder>? schema = null)`,
     `SseResponse(Action<SchemaBuilder> schema, string? effectStreamJson = null)`,
-    `Extension(string key, string rawJson)`, `Deprecated()`, `Summary(string)`.
-  - `SpecScenarioBase` — `protected abstract void Arrange(SpecDocumentBuilder spec);`
-    `public ScenarioContext Build()` writes `BuildJson()` to `spec/openapi.json` on a fresh
-    `MockFileSystem`.
-  - `ScenarioContext` — `record ScenarioContext(IFileSystem FileSystem, string SpecPath)`.
-  - `FixtureLoader` — `string Load(string name)` from embedded resources
+    `Extension(string key, string rawJson)`, `Raw(string key, string rawJson)`,
+    `Deprecated()`, `Summary(string)`.
+  - `SpecScenario` — the common scenario mechanism. `Define(Action<SpecDocumentBuilder>)`
+    creates the default one-off arranged scenario; `FromRawJson(string)` creates a scenario
+    whose literal payload is itself the test subject; `Build()` writes to
+    `spec/openapi.json` on a fresh `MockFileSystem` and returns the context. A promoted named
+    scenario derives from this same type and overrides its arrangement hook — there is no
+    second base/factory hierarchy.
+  - `ScenarioContext` —
+    `record ScenarioContext(IFileSystem FileSystem, string SpecPath)`.
+  - `FixtureLoader` — a sealed instance collaborator with `string Load(string name)` from embedded resources
     (`OpenCode.Sdk.Tools.Tests.Fixtures.{name}`), throwing with the known-names list on a
     miss.
+
+The promotion rule in Global Constraints is binding throughout Tasks 3–7. A one-verb wall
+case stays inline; the test remains individually named and asserted. Reusable builder verbs
+or presets are extracted at the second repeated arrangement; named scenario classes appear
+only when their stronger promotion rule fires.
 
 - [ ] **Step 1: Write the failing tests:**
 
@@ -258,31 +308,40 @@ public async Task BuildJson_Should_Produce_Document_With_Schema_And_Operation()
 [Test]
 public async Task Build_Should_Write_Spec_To_Mock_FileSystem()
 {
-    var context = new EmptyDocumentScenario().Build();
+    var context = SpecScenario.Define(_ => { }).Build();
 
     await Assert.That(context.FileSystem.File.Exists(context.SpecPath)).IsTrue();
 }
 
-// Scenarios/EmptyDocumentScenario.cs — the first catalog entry:
-// internal sealed class EmptyDocumentScenario : SpecScenarioBase
-// { protected override void Arrange(SpecDocumentBuilder spec) { } }
+[Test]
+public async Task FromRawJson_Should_Write_The_Subject_Payload_Unchanged()
+{
+    var context = SpecScenario.FromRawJson("{ not json").Build();
+
+    await Assert.That(context.FileSystem.File.ReadAllText(context.SpecPath))
+        .IsEqualTo("{ not json");
+}
 
 [Test]
 public async Task Load_Should_Throw_With_Known_Names_When_Fixture_Missing()
 {
-    var ex = await Assert.That(() => FixtureLoader.Load("no-such-fixture"))
+    var loader = new FixtureLoader();
+
+    var ex = await Assert.That(() => loader.Load("no-such-fixture"))
         .Throws<ArgumentException>();
     await Assert.That(ex!.Message).Contains("no-such-fixture");
 }
 ```
 
 - [ ] **Step 2: Run to verify they fail** (CS0246 for the new types).
-- [ ] **Step 3: Implement** the five Support types + `Scenarios/EmptyDocumentScenario.cs`.
-  Builders compose `JsonObject` trees internally (never string concatenation); coding-style
-  applies (sealed, no tuples, no concrete-collection parameters on non-private members).
+- [ ] **Step 3: Implement** the six Support types. Builders compose `JsonObject` trees
+  internally (never string concatenation); coding-style applies (sealed concrete helpers,
+  no tuples, no concrete-collection parameters on non-private members). The private
+  implementations behind `SpecScenario.Define`/`FromRawJson` stay inside the scenario
+  mechanism rather than creating one top-level type/file per test variation.
 - [ ] **Step 4: Run to verify pass.**
 - [ ] **Step 5: Full gate.**
-- [ ] **Step 6: Commit** — `test(tools): scenario base, spec document builders and fixture loader`
+- [ ] **Step 6: Commit** — `test(tools): centralized spec scenarios, builders and fixtures`
 
 ---
 
@@ -294,10 +353,11 @@ public async Task Load_Should_Throw_With_Known_Names_When_Fixture_Missing()
 - Create: `tools/OpenCode.Sdk.Tools/Generator/Ingestion/IngestionErrorCollector.cs` (internal)
 - Create: `tools/OpenCode.Sdk.Tools/Generator/Ingestion/SpecReader.cs` (internal sealed)
 - Create: `tools/OpenCode.Sdk.Tools/Generator/Ingestion/LoadedSpec.cs` (internal record)
+- Create: `tests/OpenCode.Sdk.Tools.Tests/Fixtures/boolean-property-schema.json`
 - Test: `tests/OpenCode.Sdk.Tools.Tests/SpecReaderTests.cs`
 
 **Interfaces:**
-- Consumes: `IFileSystem` (Task 1 DI), `SpecDocumentBuilder`/`SpecScenarioBase` (Task 2).
+- Consumes: `IFileSystem` (Task 1 DI), `SpecScenario` and the domain builders (Task 2).
 - Produces:
   - `public sealed record IngestionError(string Location, string Problem);`
   - `public sealed class IngestionException : Exception` —
@@ -324,7 +384,7 @@ public async Task Load_Should_Throw_With_Known_Names_When_Fixture_Missing()
 ```csharp
 public sealed class SpecReaderTests
 {
-    private static async Task<IngestionException> LoadExpectingRefusal(SpecScenarioBase scenario)
+    private static async Task<IngestionException> LoadExpectingRefusal(SpecScenario scenario)
     {
         var context = scenario.Build();
         var reader = new SpecReader(context.FileSystem);
@@ -337,7 +397,7 @@ public sealed class SpecReaderTests
     [Test]
     public async Task LoadAsync_Should_Return_Document_And_Raw_For_Valid_31_Document()
     {
-        var context = new EmptyDocumentScenario().Build();
+        var context = SpecScenario.Define(_ => { }).Build();
         var reader = new SpecReader(context.FileSystem);
 
         var loaded = await reader.LoadAsync(context.SpecPath, new IngestionErrorCollector(), CancellationToken.None);
@@ -349,7 +409,8 @@ public sealed class SpecReaderTests
     [Test]
     public async Task LoadAsync_Should_Refuse_When_Version_Is_Not_31()
     {
-        var ex = await LoadExpectingRefusal(new FutureVersionScenario());   // WithOpenApiVersion("3.2.0")
+        var ex = await LoadExpectingRefusal(
+            SpecScenario.Define(spec => spec.WithOpenApiVersion("3.2.0")));
         await Assert.That(ex.Message).Contains("3.2");
     }
 
@@ -365,36 +426,33 @@ public sealed class SpecReaderTests
     [Test]
     public async Task LoadAsync_Should_Translate_Reader_Crash_When_Schema_Is_Boolean()
     {
-        // {"properties":{"x":true}} — legal 2020-12; the pinned reader NREs (session 13).
-        var ex = await LoadExpectingRefusal(new BooleanPropertySchemaScenario());
+        var ex = await LoadExpectingRefusal(SpecScenario.Define(spec =>
+            spec.WithRawSchema("Bad", "boolean-property-schema.json")));
         await Assert.That(ex.Message).Contains("reader failed");
     }
 
     [Test]
     public async Task LoadAsync_Should_Promote_Reader_Diagnostics_To_Errors()
     {
-        // unknown non-x- key at a non-schema host: only the diagnostic sees it (session 13)
-        var ex = await LoadExpectingRefusal(new UnknownOperationKeyScenario());
+        var ex = await LoadExpectingRefusal(SpecScenario.Define(spec =>
+            spec.WithOperation("v2.test.get", configure: operation =>
+                operation.Raw("madeUpKey", "{}"))));
         await Assert.That(ex.Message).Contains("madeUpKey");
     }
 
     [Test]
     public async Task LoadAsync_Should_Refuse_When_Json_Is_Malformed()
     {
-        var ex = await LoadExpectingRefusal(new MalformedJsonScenario());
+        var ex = await LoadExpectingRefusal(SpecScenario.FromRawJson("{ not json"));
         await Assert.That(ex.Message).Contains("reader failed");
     }
 }
 ```
 
-  New scenario classes (each ~5 lines, `Scenarios/`): `FutureVersionScenario`,
-  `BooleanPropertySchemaScenario` (uses `SchemaBuilder.Raw` /
-  `SpecDocumentBuilder.WithRawSchema` to place `{"type":"object","properties":{"x":true}}`),
-  `UnknownOperationKeyScenario` (operation `.Extension`-like raw non-`x-` key via
-  `OperationBuilder` raw support — add `Raw(string key, string rawJson)` to
-  `OperationBuilder`), `MalformedJsonScenario` (overrides `Build()` payload with `"{ not json"`
-  via a `SpecScenarioBase`-provided `protected virtual string Render(SpecDocumentBuilder)`
-  hook).
+  These are deliberately inline one-off variations. The boolean-schema payload is an
+  embedded fixture because it is structural wire data; malformed JSON uses
+  `FromRawJson` because the literal itself is the subject. No scenario class/file is
+  created for version, unknown-key, or malformed-input variants.
 - [ ] **Step 2: Run to verify they fail** (CS0246).
 - [ ] **Step 3: Implement** per the Produces block. Keep `SpecReader` small — it is the
   reader *gate*, not the wall.
@@ -413,6 +471,8 @@ public sealed class SpecReaderTests
 - Create: `Generator/Ingestion/Walls/SchemaWallPolicy.cs` (internal sealed)
 - Create: `Generator/Ingestion/Projection/SchemaProjector.cs` (internal sealed),
   `Projection/GraphKeyBuilder.cs` (internal sealed)
+- Create: `tests/OpenCode.Sdk.Tools.Tests/Support/SchemaProjectionTestHost.cs`,
+  `Support/SchemaProjectionResult.cs`
 - Test: `tests/.../SchemaWallPolicyTests.cs`, `SchemaProjectorTests.cs`, `GraphKeyBuilderTests.cs`
 
 **Interfaces:**
@@ -453,15 +513,20 @@ public sealed class SpecReaderTests
     `{root}#{pointer}` and returns a `RefNode`; key collision → error.
 
 - [ ] **Step 1: Write the failing tests.** Exemplars in full; every listed case becomes a
-  real `[Test]` following the same pattern (builder-composed docs through a shared local
-  helper `ProjectSchemas(SpecScenarioBase)` that runs reader + projector and returns
-  `(schemas, errorsOrNull)` as a small internal result record — not a tuple):
+  real `[Test]` following the same pattern. `SchemaProjectionTestHost` is the reusable
+  named host for Tasks 4–6: it takes a `SpecScenario`, runs the real reader + projector,
+  and returns `SchemaProjectionResult` (schemas + optional refusal) — never a tuple. One-off
+  arrangements stay inline:
 
 ```csharp
 [Test]
 public async Task Project_Should_Produce_Unrestricted_Node_For_Empty_Schema()
 {
-    var result = await ProjectSchemas(new UnrestrictedSchemaScenario());   // WithSchema("ToolResult", s => s.Unrestricted())
+    var host = new SchemaProjectionTestHost();
+    var scenario = SpecScenario.Define(spec =>
+        spec.WithSchema("ToolResult", schema => schema.Unrestricted()));
+
+    var result = await host.ProjectAsync(scenario);
 
     await Assert.That(result.Schemas["ToolResult"]).IsTypeOf<UnrestrictedNode>();
 }
@@ -469,7 +534,11 @@ public async Task Project_Should_Produce_Unrestricted_Node_For_Empty_Schema()
 [Test]
 public async Task Project_Should_Refuse_When_Schema_Uses_AllOf()
 {
-    var ex = await ProjectExpectingRefusal(new AllOfSchemaScenario());     // s => s.AllOf(b => b.Type("string"))
+    var host = new SchemaProjectionTestHost();
+    var scenario = SpecScenario.Define(spec =>
+        spec.WithSchema("Bad", schema => schema.AllOf(branch => branch.Type("string"))));
+
+    var ex = await host.ProjectExpectingRefusalAsync(scenario);
 
     await Assert.That(ex.Message).Contains("allOf");
     await Assert.That(ex.Message).Contains("Bad");
@@ -484,7 +553,8 @@ public async Task Project_Should_Refuse_When_Schema_Uses_AllOf()
   `readOnly`, `multipleOf`, `uniqueItems`, unknown raw keyword (via `SchemaBuilder.Raw`),
   schema-level `x-*`, ref target missing, array without items, batched multi-error
   (two bad schemas both named); known-ignored validation keywords parse clean;
-  `GraphKeyBuilder` escaping (`a/b` → `a~1b`, `a~b` → `a~0b`).
+  `GraphKeyBuilder` escaping (`a/b` → `a~1b`, `a~b` → `a~0b`). The one-verb variants
+  use inline scenarios; no per-keyword scenario files are created.
 - [ ] **Step 2: Run to verify they fail.**
 - [ ] **Step 3: Implement** per Produces. `SchemaWallPolicy` is a table-driven check, not a
   method chain; `SchemaProjector` dispatch stays a thin switch delegating to small
@@ -530,10 +600,13 @@ public async Task Project_Should_Refuse_When_Schema_Uses_AllOf()
 [Test]
 public async Task Project_Should_Keep_Property_Schema_And_Dictionary_Value_For_Hybrid_Objects()
 {
-    var result = await ProjectSchemas(new HybridObjectScenario());
-    // WithSchema("ProviderOptions", s => s.Type("object")
-    //     .Property("timeout", p => p.Type("number"))
-    //     .AdditionalProperties(v => v.Type("string")))
+    var host = new SchemaProjectionTestHost();
+    var scenario = SpecScenario.Define(spec => spec.WithSchema("ProviderOptions", schema =>
+        schema.Type("object")
+            .Property("timeout", property => property.Type("number"))
+            .AdditionalProperties(value => value.Type("string"))));
+
+    var result = await host.ProjectAsync(scenario);
 
     var node = (ObjectNode)result.Schemas["ProviderOptions"];
     await Assert.That(node.AdditionalProperties).IsEqualTo(AdditionalPropertiesKind.Schema);
@@ -604,10 +677,14 @@ public async Task Project_Should_Keep_Property_Schema_And_Dictionary_Value_For_H
 [Test]
 public async Task Project_Should_Classify_Structural_Union_When_Branches_Carry_No_Markers()
 {
-    var result = await ProjectSchemas(new StructuralUnionScenario());
-    // WithSchema("Formatter", s => s.AnyOf(
-    //     b => b.Type("boolean"),
-    //     b => b.Type("object").AdditionalProperties(v => v.Type("string"))))
+    var host = new SchemaProjectionTestHost();
+    var scenario = SpecScenario.Define(spec => spec.WithSchema("Formatter", schema =>
+        schema.AnyOf(
+            branch => branch.Type("boolean"),
+            branch => branch.Type("object")
+                .AdditionalProperties(value => value.Type("string")))));
+
+    var result = await host.ProjectAsync(scenario);
 
     var union = (UnionNode)result.Schemas["Formatter"];
     await Assert.That(union.Classification).IsEqualTo(UnionClassification.Structural);
@@ -645,6 +722,9 @@ public async Task Project_Should_Classify_Structural_Union_When_Branches_Carry_N
   `Walls/RequestBodyWallPolicy.cs`, `Walls/ResponseWallPolicy.cs`,
   `Walls/MediaTypeWallPolicy.cs` (internal sealed, one file each)
 - Create: `Projection/OperationProjector.cs`, `Projection/EnvelopeClassifier.cs` (internal sealed)
+- Create: `tests/OpenCode.Sdk.Tools.Tests/Support/OperationProjectionTestHost.cs`,
+  `Support/OperationProjectionResult.cs`,
+  `Fixtures/path-level-parameters.json`
 - Test: `tests/.../HostWallPolicyTests.cs`, `OperationProjectorTests.cs`,
   `EnvelopeClassifierTests.cs`, `SpecMediaTypeTests.cs`
 
@@ -693,9 +773,11 @@ public async Task Project_Should_Classify_Structural_Union_When_Branches_Carry_N
 [Test]
 public async Task Project_Should_Refuse_Path_Level_Parameters()
 {
-    // PathItem.Parameters lands typed with zero diagnostics; unwalled it silently
-    // drops a real parameter (session 13) — the wall must name it.
-    var ex = await IngestExpectingRefusal(new PathLevelParametersScenario());
+    var host = new OperationProjectionTestHost();
+    var scenario = SpecScenario.Define(spec => spec.WithRawTopLevelFromFixture(
+        "paths", "path-level-parameters.json"));
+
+    var ex = await host.ProjectExpectingRefusalAsync(scenario);
 
     await Assert.That(ex.Message).Contains("path-level parameters");
 }
@@ -714,7 +796,8 @@ public async Task Project_Should_Refuse_Path_Level_Parameters()
   fixtures + bare + none; envelope ref-cycle refuse; SSE detection + opaque
   `x-effect-stream` carried verbatim (round-trip compare); `x-effect-stream` on JSON media
   refuse; `SpecMediaType` parameter stripping / `+json` / case; responses sorted; status
-  `"default"` refuse.
+  `"default"` refuse. One-off host-wall variations stay inline; fixtures carry structural
+  raw payloads and no per-case scenario class/file is created.
 - [ ] **Step 2: verify fail.** — [ ] **Step 3: Implement.** — [ ] **Step 4: verify pass.**
 - [ ] **Step 5: Full gate.** — [ ] **Step 6: Commit** —
   `feat(tools): per-host walls and operation projection`
@@ -772,9 +855,12 @@ public async Task Hash_Should_Be_Stable_Under_Key_Reordering()
   Inventory: hash differs on value change; array order preserved (reordering array items
   changes the hash); `IngestAsync` end-to-end on a builder scenario → operations +
   schemas + hashes populated, per-op hash non-empty; `$ref`+`pattern` sibling refuse;
-  `$ref`+`description` sibling admitted; dangling `RefNode` sweep error; determinism —
-  `IngestAsync` twice on the same scenario → equal operation ids, schema keys, and hash
-  sets; DI resolution test (`provider.GetRequiredService<ISpecIngestion>()`).
+  `$ref`+`description` sibling admitted; dangling `RefNode` sweep error; DI resolution test
+  starts from `ToolApp.CreateServices(...)`, replaces `IFileSystem` with the scenario's
+  instance after production registration, then resolves
+  `provider.GetRequiredService<ISpecIngestion>()`. Full-ingestion repeat determinism is
+  asserted once, against the pinned document in Task 10; this task keeps the distinct
+  canonical-hash unit properties.
 - [ ] **Step 2: verify fail.** — [ ] **Step 3: Implement.** — [ ] **Step 4: verify pass.**
 - [ ] **Step 5: Full gate.** — [ ] **Step 6: Commit** —
   `feat(tools): ingestion seam with raw-content hashes and sibling scan`
@@ -859,22 +945,28 @@ public async Task Hash_Should_Be_Stable_Under_Key_Reordering()
 
 **Files:**
 - Modify: `docs/ROADMAP.md`; `docs/research/00-research-log.md` (only if execution produced
-  findings beyond sessions 12–13)
+  findings beyond sessions 12–14)
 
 - [ ] **Step 1:** ROADMAP status: Slice 1 landed (ingestion + SpecIR under
-  `Generator/Ingestion/`, DI composition + scenario test infrastructure live; `generate`
-  remains a fail-loud stub until slice 3); next is Slice 2 planning (issue #3).
+  `Generator/Ingestion/`, full ToolApp hosting + centralized scenario/builder test
+  infrastructure live; `generate` remains a fail-loud stub until slice 3); next is Slice 2
+  planning (issue #3).
 - [ ] **Step 2:** Research-log entry only for new evidence (wall refusals the plan did not
   predict, analyzer arbitrations, library surprises).
 - [ ] **Step 3:** Final full gate on the branch.
 - [ ] **Step 4:** Push `feature/slice-01-ingestion-specir`; PR
-  `feat(tools): slice 1 — ingestion + SpecIR` (body: what landed; the honest CLI-unchanged
-  note; deviations with levels; `Closes #2`). Three CI legs green; maintainer merge.
+  `feat(tools): slice 1 — ingestion + SpecIR` (body: what landed; the honest "generation
+  remains stubbed while full hosting/global options are live" note; deviations with levels;
+  `Closes #2`). Three CI legs green; maintainer merge.
 
 ---
 
 ## Handoff to Slice 2 (Binder + curation v0)
 
+- **`ToolApp.CreateServices` is the only composition path.** Slice 2 extends it with Binder
+  and curation collaborators; tests replace seams after the production registrations rather
+  than constructing a second root. Global settings, MEL providers, and the interceptor are
+  already live.
 - **`SpecDocument` is the Binder's sole spec-side input**; the reachable closure walks
   `SchemaNode.Children`/`RefNode.Target` keys. Envelope-classified response-root schemas
   are already classified per response — the Binder subtracts them from model emission

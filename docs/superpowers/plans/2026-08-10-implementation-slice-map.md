@@ -1,6 +1,6 @@
 # Implementation Slice Map — SDK build-out
 
-Date: 2026-08-10
+Date: 2026-08-11
 
 > **For agentic workers:** this is the **master map**, not an executable plan. Execution
 > happens through per-slice plan files in this directory (checkbox tasks, written
@@ -73,9 +73,12 @@ invocation forms; the Tools.Tests harness pattern.
 
 **Depends on:** 0 · **Spec anchors:** generator spec §4.1, §11 (projection tests)
 
-Foundation first: the DI composition root (`docs/engineering/coding-style.md` §2), the
-TestableIO seam + analyzer joining the repo-wide wall, and the scenario/builder/fixture
-test infrastructure (`docs/engineering/testing-style.md` §1). On that foundation, the
+Foundation first: the full ToolApp composition root (`docs/engineering/coding-style.md`
+§2: `IFileSystem`, `IAnsiConsole`, MEL Spectre/optional-file providers, global settings,
+interceptor, and the shared production/test registration path), the TestableIO seam +
+analyzer joining the repo-wide wall, and the lambda-first scenario/builder/fixture test
+infrastructure with promotion-only named scenarios (`docs/engineering/testing-style.md`
+§1). On that foundation, the
 pinned Microsoft.OpenApi reader as the tooling ingestion layer; the fail-closed
 projection behind the whitelist dialect wall (admitted typed members, the
 unrecognized-keyword net, extension dispositions, library-upgrade tripwires); the
@@ -86,12 +89,12 @@ dialects, special-value numbers, parameter-stripped media types, opaque
 `x-effect-stream`, unrestricted `{}` nodes, the `prefixItems` fragment adapter).
 Filesystem I/O via TestableIO. Tests: projection quirk fixtures loaded through the
 real reader + wall red tests + tripwires + the full-spec landmark smoke test (no
-count assertions). Honest note: this slice's working software is the ingestion
-library plus its test suite — the CLI surface does not change (`generate` stays a
-stub until slice 3).
+count assertions). Honest note: the generation pipeline remains a fail-loud stub until
+slice 3, while the complete hosting composition and its global CLI options become live
+in this slice.
 
-**Hands over:** SpecIR types consumed by the Binder; the DI composition and the
-scenario test infrastructure every later slice builds on.
+**Hands over:** SpecIR types consumed by the Binder; the full ToolApp hosting composition
+and centralized scenario/builder test infrastructure every later slice builds on.
 
 ### Slice 2 — Binder + curation v0
 
@@ -239,9 +242,10 @@ Clean-install Dockerfile (pinned opencode) + GHCR image build/push workflow (pin
 rebuilt only on Dockerfile/pin change); `ContainerOpenCodeServerFixture` (Testcontainers:
 workspace bind mount at `/workspace`, host-port exposure for the fake LLM, port + health
 readiness, Docker-unavailable conditional skip); the §14 UNVERIFIED items (Testcontainers
-API shapes, GHCR anonymous pull, health-probe choice) resolve here; dual-mode suites via
-abstract base + `[InheritsTests]` for the scenarios that must run in both modes; the
-Linux container CI leg (net10.0 only, sealed).
+API shapes, GHCR anonymous pull, health-probe choice) resolve here; selective dual-mode
+suites via abstract base + `[InheritsTests]` for process, workspace/filesystem, and
+stream-sensitive scenarios plus basic container health/typed-CRUD smoke; Linux container
+CI legs for net8.0, net9.0, and net10.0 (net472 remains Windows/direct only).
 
 **Hands over:** the process-management control lane ("direct red, container green
 indicts the launcher").
@@ -250,8 +254,10 @@ indicts the launcher").
 
 **Depends on:** 8 · **Spec anchors:** testing spec §7.2 (stage 2), §7.3; ADR-0005
 
-The remaining modern-surface scenarios to 61/61 (with honest `ErrorPathOnly` declarations
-for the console-backed `integration.connect.*`/`integration.attempt.*` family); the
+The remaining modern-surface coverage to 61/61 (one workflow may declare and observe
+multiple operations; deep scenarios concentrate on risk, with honest `ErrorPathOnly`
+declarations for the console-backed `integration.connect.*`/`integration.attempt.*`
+family); the
 auth + reachability sweep (dedicated password-enabled instance, sequential, data-driven
 over the inventory, `SendAsync` + `OpenCodeRoutes` probes, curated probe table with
 mandatory reasons + `authOnly` flags, SSE probes via `ResponseHeadersRead`); the status
@@ -310,3 +316,11 @@ reverse.
 8. **Branching:** worktree + `feature/slice-NN-<name>` per slice, one PR per slice.
 9. **Deviation protocol** (`docs/agents/deviation-protocol.md`) governs all mid-slice
    contradictions; AGENTS.md carries the falsifiability working agreement.
+10. **Slice 1 hosting and test-authorship correction:** the ToolApp foundation is the
+    full PathSmith-shaped DI host rendered through MEL; small one-off spec variations are
+    inline scenarios, while named scenario classes require reuse, complexity, or durable
+    domain identity. Every test case and full per-task gate remains.
+11. **Integration breadth without ceremonial depth:** modern 61/61 declaration + observed
+    2xx remains hard; workflows may cover multiple operations and deep assertions are
+    risk-based. Dual-mode is selective, and its Linux container set runs on every modern
+    runtime TFM (`net8.0;net9.0;net10.0`).

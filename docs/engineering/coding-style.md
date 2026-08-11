@@ -48,25 +48,50 @@ for a pile of static steps.
   `ServiceCollection` that registers each collaborator behind its seam, handed to the
   CLI framework through its DI registrar. Commands and services receive dependencies
   through constructors — no service locators, no static mutable state, no behavior on
-  static classes (`static` is for pure functions only). The shape:
+  static classes. The executable's static composition-root factory is wiring only: it may
+  construct/register concrete adapters but performs no I/O itself. The shape:
 
   ```csharp
-  var services = new ServiceCollection();
-  services.AddSingleton<IFileSystem>(new FileSystem());
-  services.AddSingleton<ISpecIngestion, SpecIngestion>();
-  services.AddSingleton<ICommandInterceptor, GlobalOptionsInterceptor>();
+  public static class ToolApp
+  {
+      public static ServiceCollection CreateServices()
+      {
+          var services = new ServiceCollection();
+          services.AddSingleton<IFileSystem>(new FileSystem());
+          services.AddSingleton<IAnsiConsole>(AnsiConsole.Console);
+          services.AddSingleton<ToolLoggingOptions>();
+          services.AddLogging();
+          services.AddSingleton<ILoggerProvider, SpectreConsoleLoggerProvider>();
+          services.AddSingleton<ILoggerProvider, FileLoggerProvider>();
+          services.AddSingleton<ISpecIngestion, SpecIngestion>();
+          services.AddSingleton<ICommandInterceptor, GlobalOptionsInterceptor>();
+          return services;
+      }
 
-  using var registrar = new DependencyInjectionRegistrar(services);
-  var app = new CommandApp(registrar);
-  app.Configure(config => config.AddCommand<GenerateCommand>("generate"));
-  return await app.RunAsync(args);
+      public static async Task<int> RunAsync(string[] args)
+      {
+          using var registrar = new DependencyInjectionRegistrar(CreateServices());
+          var app = new CommandApp(registrar);
+          app.Configure(config => config.AddCommand<GenerateCommand>("generate"));
+          return await app.RunAsync(args);
+      }
+  }
   ```
 
+- **CLI composition is full-battery, not skeletal.** The single root owns configuration
+  and mutable invocation options where needed, every external seam (`IFileSystem`,
+  `IAnsiConsole`, process/network collaborators), Microsoft.Extensions.Logging providers,
+  application services, and interceptors. Tool logging uses MEL end to end: structured
+  `ILogger<T>` consumption, a Spectre-backed console provider, and an optional
+  TestableIO-backed file provider configured by global log-level/log-file settings. Tests
+  start from the same production registration path and replace seams after composition;
+  they never reproduce the registration list in a parallel test-only root.
 - **Cross-cutting CLI concerns ride an interceptor** (logging verbosity, global
   options), never copy-pasted per command.
-- **Statics never touch the outside world.** The TestableIO analyzer enforces the
-  `IFileSystem` seam mechanically; the same posture applies to time, environment
-  variables, and process access — reach them through an injected seam.
+- **Statics never perform outside-world operations.** The composition root may instantiate
+  and register adapters; actual filesystem, console, time, environment, process, and network
+  work occurs only through injected seams. The TestableIO analyzer enforces the filesystem
+  half mechanically.
 
 ## 3. Signature hygiene
 
