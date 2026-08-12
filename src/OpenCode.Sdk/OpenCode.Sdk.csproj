@@ -13,10 +13,4 @@
     <PackageReference Include="System.Text.Json" />
   </ItemGroup>
 
-  <!-- The cross-targeting outer build does not evaluate the SDK's implicit Compile glob.
-       Expose source files there for project-system navigation; inner builds keep the SDK glob. -->
-  <ItemGroup Condition="'$(TargetFramework)' == ''">
-    <Compile Include="**/*.cs" Exclude="bin/**;obj/**" />
-  </ItemGroup>
-
 </Project>
