@@ -16,15 +16,7 @@ public sealed record UnknownOpenCodeError : OpenCodeError
     [JsonConstructor]
     public UnknownOpenCodeError(string tag, JsonElement payload)
     {
-#if NET8_0_OR_GREATER
         ArgumentException.ThrowIfNullOrEmpty(tag);
-#else
-        if (string.IsNullOrEmpty(tag))
-        {
-            throw new ArgumentException("Value cannot be null or empty.", nameof(tag));
-        }
-#endif
-
         _marker = tag;
         Payload = payload.Clone();
     }

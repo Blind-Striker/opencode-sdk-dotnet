@@ -112,69 +112,21 @@ internal static class EmissionSyntax
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(parameterName);
         var parameter = SyntaxFactory.IdentifierName(parameterName);
-        var modern = SyntaxFactory.ExpressionStatement(Invocation(
+        var guard = SyntaxFactory.ExpressionStatement(Invocation(
                 MemberAccess(SyntaxFactory.IdentifierName("ArgumentNullException"), "ThrowIfNull"),
-                SyntaxFactory.Argument(parameter)))
-            .WithLeadingTrivia(IfModernRuntime());
-        var fallback = SyntaxFactory.IfStatement(
-                SyntaxFactory.IsPatternExpression(
-                    parameter,
-                    SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
-                SyntaxFactory.Block(SyntaxFactory.ThrowStatement(
-                    SyntaxFactory.ObjectCreationExpression(SyntaxFactory.IdentifierName("ArgumentNullException"))
-                    .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(
-                        SyntaxFactory.Argument(NameOf(parameterName))))))))
-            .WithLeadingTrivia(ElseRuntime())
-            .WithTrailingTrivia(EndIfRuntime());
-        return Array.AsReadOnly<StatementSyntax>([modern, fallback]);
+                SyntaxFactory.Argument(parameter)));
+        return Array.AsReadOnly<StatementSyntax>([guard]);
     }
 
     public static IReadOnlyList<StatementSyntax> ArgumentNullOrEmptyGuard(string parameterName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(parameterName);
         var parameter = SyntaxFactory.IdentifierName(parameterName);
-        var modern = SyntaxFactory.ExpressionStatement(Invocation(
+        var guard = SyntaxFactory.ExpressionStatement(Invocation(
                 MemberAccess(SyntaxFactory.IdentifierName("ArgumentException"), "ThrowIfNullOrEmpty"),
-                SyntaxFactory.Argument(parameter)))
-            .WithLeadingTrivia(IfModernRuntime());
-        var fallback = SyntaxFactory.IfStatement(
-                Invocation(
-                    MemberAccess(SyntaxFactory.IdentifierName("string"), "IsNullOrEmpty"),
-                    SyntaxFactory.Argument(parameter)),
-                SyntaxFactory.Block(SyntaxFactory.ThrowStatement(
-                    SyntaxFactory.ObjectCreationExpression(SyntaxFactory.IdentifierName("ArgumentException"))
-                    .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(
-                    [
-                        SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
-                            SyntaxKind.StringLiteralExpression,
-                            SyntaxFactory.Literal("Value cannot be null or empty."))),
-                        SyntaxFactory.Argument(NameOf(parameterName)),
-                    ]))))))
-            .WithLeadingTrivia(ElseRuntime())
-            .WithTrailingTrivia(EndIfRuntime());
-        return Array.AsReadOnly<StatementSyntax>([modern, fallback]);
+                SyntaxFactory.Argument(parameter)));
+        return Array.AsReadOnly<StatementSyntax>([guard]);
     }
-
-    private static InvocationExpressionSyntax NameOf(string parameterName) => Invocation(
-        SyntaxFactory.IdentifierName("nameof"),
-        SyntaxFactory.Argument(SyntaxFactory.IdentifierName(parameterName)));
-
-    private static SyntaxTriviaList IfModernRuntime() => SyntaxFactory.TriviaList(
-        SyntaxFactory.Trivia(SyntaxFactory.IfDirectiveTrivia(
-            SyntaxFactory.IdentifierName("NET8_0_OR_GREATER"),
-            isActive: true,
-            branchTaken: true,
-            conditionValue: true)),
-        LineFeed);
-
-    private static SyntaxTriviaList ElseRuntime() => SyntaxFactory.TriviaList(
-        SyntaxFactory.Trivia(SyntaxFactory.ElseDirectiveTrivia(isActive: true, branchTaken: false)),
-        LineFeed);
-
-    private static SyntaxTriviaList EndIfRuntime() => SyntaxFactory.TriviaList(
-        LineFeed,
-        SyntaxFactory.Trivia(SyntaxFactory.EndIfDirectiveTrivia(isActive: true)),
-        LineFeed);
 
     private static string NormalizeDocumentation(string value)
     {

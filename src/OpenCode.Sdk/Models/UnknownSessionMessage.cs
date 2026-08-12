@@ -16,15 +16,7 @@ public sealed record UnknownSessionMessage : SessionMessage
     [JsonConstructor]
     public UnknownSessionMessage(string type, JsonElement payload)
     {
-#if NET8_0_OR_GREATER
         ArgumentException.ThrowIfNullOrEmpty(type);
-#else
-        if (string.IsNullOrEmpty(type))
-        {
-            throw new ArgumentException("Value cannot be null or empty.", nameof(type));
-        }
-#endif
-
         _marker = type;
         Payload = payload.Clone();
     }

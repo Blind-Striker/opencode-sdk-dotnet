@@ -63,15 +63,7 @@ public sealed record SessionMessageAssistant : SessionMessage
         get;
         init
         {
-#if NET8_0_OR_GREATER
             ArgumentNullException.ThrowIfNull(value);
-#else
-            if (value is null)
-            {
-                throw new ArgumentNullException(nameof(value));
-            }
-#endif
-
             field = new List<SessionMessageAssistantContent>(value).AsReadOnly();
         }
     } = [];

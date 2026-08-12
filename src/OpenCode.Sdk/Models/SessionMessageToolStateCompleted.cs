@@ -25,15 +25,7 @@ public sealed record SessionMessageToolStateCompleted : SessionMessageToolState
         get;
         init
         {
-#if NET8_0_OR_GREATER
             ArgumentNullException.ThrowIfNull(value);
-#else
-            if (value is null)
-            {
-                throw new ArgumentNullException(nameof(value));
-            }
-#endif
-
             field = new ReadOnlyDictionary<string, JsonElement>(value.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal));
         }
     } = new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal));
@@ -61,15 +53,7 @@ public sealed record SessionMessageToolStateCompleted : SessionMessageToolState
         get;
         init
         {
-#if NET8_0_OR_GREATER
             ArgumentNullException.ThrowIfNull(value);
-#else
-            if (value is null)
-            {
-                throw new ArgumentNullException(nameof(value));
-            }
-#endif
-
             field = new List<LlmToolContent>(value).AsReadOnly();
         }
     } = [];
@@ -97,15 +81,7 @@ public sealed record SessionMessageToolStateCompleted : SessionMessageToolState
         get;
         init
         {
-#if NET8_0_OR_GREATER
             ArgumentNullException.ThrowIfNull(value);
-#else
-            if (value is null)
-            {
-                throw new ArgumentNullException(nameof(value));
-            }
-#endif
-
             field = new ReadOnlyDictionary<string, JsonElement>(value.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal));
         }
     } = new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal));

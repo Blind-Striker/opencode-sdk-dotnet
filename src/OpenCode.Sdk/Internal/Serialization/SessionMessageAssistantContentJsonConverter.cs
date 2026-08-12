@@ -18,24 +18,8 @@ internal sealed class SessionMessageAssistantContentJsonConverter : JsonConverte
 
     public override SessionMessageAssistantContent Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-#if NET8_0_OR_GREATER
         ArgumentNullException.ThrowIfNull(typeToConvert);
-#else
-        if (typeToConvert is null)
-        {
-            throw new ArgumentNullException(nameof(typeToConvert));
-        }
-#endif
-
-#if NET8_0_OR_GREATER
         ArgumentNullException.ThrowIfNull(options);
-#else
-        if (options is null)
-        {
-            throw new ArgumentNullException(nameof(options));
-        }
-#endif
-
         if (reader.TokenType == JsonTokenType.Null)
         {
             throw new JsonException("The SessionMessageAssistantContent payload cannot be null.");
@@ -70,33 +54,9 @@ internal sealed class SessionMessageAssistantContentJsonConverter : JsonConverte
 
     public override void Write(Utf8JsonWriter writer, SessionMessageAssistantContent value, JsonSerializerOptions options)
     {
-#if NET8_0_OR_GREATER
         ArgumentNullException.ThrowIfNull(writer);
-#else
-        if (writer is null)
-        {
-            throw new ArgumentNullException(nameof(writer));
-        }
-#endif
-
-#if NET8_0_OR_GREATER
         ArgumentNullException.ThrowIfNull(value);
-#else
-        if (value is null)
-        {
-            throw new ArgumentNullException(nameof(value));
-        }
-#endif
-
-#if NET8_0_OR_GREATER
         ArgumentNullException.ThrowIfNull(options);
-#else
-        if (options is null)
-        {
-            throw new ArgumentNullException(nameof(options));
-        }
-#endif
-
         if (value is UnknownSessionMessageAssistantContent unknown)
         {
             unknown.Payload.WriteTo(writer);

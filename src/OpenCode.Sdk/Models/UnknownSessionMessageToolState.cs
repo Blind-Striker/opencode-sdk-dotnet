@@ -16,15 +16,7 @@ public sealed record UnknownSessionMessageToolState : SessionMessageToolState
     [JsonConstructor]
     public UnknownSessionMessageToolState(string status, JsonElement payload)
     {
-#if NET8_0_OR_GREATER
         ArgumentException.ThrowIfNullOrEmpty(status);
-#else
-        if (string.IsNullOrEmpty(status))
-        {
-            throw new ArgumentException("Value cannot be null or empty.", nameof(status));
-        }
-#endif
-
         _marker = status;
         Payload = payload.Clone();
     }
