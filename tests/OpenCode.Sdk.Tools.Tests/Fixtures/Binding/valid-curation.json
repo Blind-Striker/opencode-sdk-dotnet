@@ -1,0 +1,9 @@
+{
+  "groups": {
+    "health": {
+      "placement": "root"
+    }
+  },
+  "envelopePayloadNames": {},
+  "propertyOverrides": []
+}

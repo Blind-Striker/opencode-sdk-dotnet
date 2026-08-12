@@ -3,8 +3,11 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFrameworks>net8.0;net9.0;$(DefaultTargetFramework)</TargetFrameworks>
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
     <!-- net472 tests run on Windows only; adding the TFM conditionally keeps Linux/macOS legs green. -->
     <TargetFrameworks Condition="'$(OS)' == 'Windows_NT'">net472;$(TargetFrameworks)</TargetFrameworks>
+    <!-- .NET Framework reads feature switches from App.config rather than runtimeconfig.json. -->
+    <AppConfig Condition="'$(TargetFramework)' == 'net472'">App.net472.config</AppConfig>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,6 +21,10 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/OpenCode.Sdk/OpenCode.Sdk.csproj"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Fixtures/**/*.json" />
   </ItemGroup>
 
 </Project>

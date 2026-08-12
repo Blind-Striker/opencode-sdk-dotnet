@@ -9,4 +9,8 @@
     <ProduceReferenceAssembly Condition="'$(TargetFramework)' == 'netstandard2.0' Or '$(TargetFramework)' == 'net472'">true</ProduceReferenceAssembly>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" />
+  </ItemGroup>
+
 </Project>

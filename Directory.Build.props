@@ -105,6 +105,10 @@
   <!-- Downlevel support: Polyfill (source-only, internal) supplies the compiler attributes
        C# 14 needs on netstandard2.0/net472 plus BCL API polyfills (Stream Memory overloads,
        Task.WaitAsync, ...). Upstream guidance: reference it on ALL TFMs, not just downlevel. -->
+  <PropertyGroup>
+    <PolyArgumentExceptions>true</PolyArgumentExceptions>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Polyfill">
       <PrivateAssets>all</PrivateAssets>
