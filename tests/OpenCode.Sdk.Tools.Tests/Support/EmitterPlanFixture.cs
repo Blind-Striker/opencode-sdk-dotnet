@@ -26,6 +26,7 @@ internal static class EmitterPlanFixture
             SelectedOperationIds = ["v2.example.get"],
             Models = models,
             Unions = unions,
+            Clients = CreateClientPlans(),
             Registry = new RegistryPlan
             {
                 TypeNames =
@@ -41,10 +42,168 @@ internal static class EmitterPlanFixture
                     "UnknownOpenCodeError",
                 ],
             },
-            Clients = [],
             PendingOperations = [],
         };
     }
+
+    public static IReadOnlyList<ClientPlan> CreateClientPlans() =>
+    [
+        new ClientPlan
+        {
+            Name = "OpenCodeClient",
+            Namespace = "OpenCode.Sdk",
+            Role = ClientRole.Root,
+            SubClients =
+            [
+                new ClientReferencePlan
+                {
+                    PropertyName = "Widgets",
+                    TypeName = "WidgetsClient",
+                },
+            ],
+            Operations = [CreatePingOperation()],
+        },
+        new ClientPlan
+        {
+            Name = "WidgetClient",
+            Namespace = "OpenCode.Sdk",
+            Role = ClientRole.Handle,
+            SubClients = [],
+            HandleParameter = CreateWidgetParameter(),
+            Operations = [CreateItemOperation()],
+        },
+        new ClientPlan
+        {
+            Name = "WidgetsClient",
+            Namespace = "OpenCode.Sdk",
+            Role = ClientRole.Collection,
+            SubClients = [],
+            HandleFactory = new HandleFactoryPlan
+            {
+                MethodName = "GetWidgetClient",
+                HandleTypeName = "WidgetClient",
+                Parameter = CreateWidgetParameter(),
+            },
+            Operations = [CreateOverviewOperation()],
+        },
+    ];
+
+    private static OperationPlan CreatePingOperation() =>
+        new()
+        {
+            MethodName = "GetPingAsync",
+            HttpMethod = "get",
+            RouteTemplate = "/api/ping",
+            RouteContainerName = "Ping",
+            RouteMemberName = "Get",
+            Parameters = [],
+            Envelope = new EnvelopePlan
+            {
+                ResponseTypeName = "PingResponse",
+                AdapterTypeName = "PingResponseAdapter",
+                PayloadName = "Ping",
+                PayloadTypeName = "ExampleItem",
+                HasDataEnvelope = false,
+            },
+            ErrorMap = new ErrorMapPlan
+            {
+                Statuses =
+                [
+                    new ErrorStatusPlan
+                    {
+                        StatusCode = 400,
+                        Tags = [new ErrorTagPlan { Tag = "BadRequestError", TypeName = "BadRequestError", }],
+                    },
+                ],
+            },
+            Summary = "Check example ping",
+            Description = "Reports the example service state.",
+        };
+
+    private static OperationPlan CreateOverviewOperation() =>
+        new()
+        {
+            MethodName = "GetOverviewAsync",
+            HttpMethod = "get",
+            RouteTemplate = "/api/widget-overview",
+            RouteContainerName = "Widgets",
+            RouteMemberName = "GetOverview",
+            Parameters = [],
+            Envelope = new EnvelopePlan
+            {
+                ResponseTypeName = "WidgetOverviewResponse",
+                AdapterTypeName = "WidgetOverviewResponseAdapter",
+                PayloadName = "Overview",
+                PayloadTypeName = "ExampleItem",
+                HasDataEnvelope = false,
+            },
+            ErrorMap = new ErrorMapPlan
+            {
+                Statuses = [],
+            },
+            Summary = "List the widget overview",
+            Description = null,
+        };
+
+    private static OperationPlan CreateItemOperation() =>
+        new()
+        {
+            MethodName = "GetItemAsync",
+            HttpMethod = "get",
+            RouteTemplate = "/api/widget/{widgetID}/item/{itemID}",
+            RouteContainerName = "Widgets",
+            RouteMemberName = "GetItem",
+            Parameters =
+            [
+                CreateWidgetParameter(),
+                new OperationParameterPlan
+                {
+                    WireName = "itemID",
+                    Name = "itemId",
+                    TypeName = "string",
+                    IsHandleParameter = false,
+                },
+            ],
+            Envelope = new EnvelopePlan
+            {
+                ResponseTypeName = "WidgetItemResponse",
+                AdapterTypeName = "WidgetItemResponseAdapter",
+                PayloadName = "Item",
+                PayloadTypeName = "ExampleItem",
+                HasDataEnvelope = true,
+            },
+            ErrorMap = new ErrorMapPlan
+            {
+                Statuses =
+                [
+                    new ErrorStatusPlan
+                    {
+                        StatusCode = 400,
+                        Tags = [new ErrorTagPlan { Tag = "BadRequestError", TypeName = "BadRequestError", }],
+                    },
+                    new ErrorStatusPlan
+                    {
+                        StatusCode = 404,
+                        Tags =
+                        [
+                            new ErrorTagPlan { Tag = "GoneError", TypeName = "GoneError", },
+                            new ErrorTagPlan { Tag = "MissingError", TypeName = "MissingError", },
+                        ],
+                    },
+                ],
+            },
+            Summary = "Get one widget item",
+            Description = "Retrieves one item owned by the widget.",
+        };
+
+    private static OperationParameterPlan CreateWidgetParameter() =>
+        new()
+        {
+            WireName = "widgetID",
+            Name = "widgetId",
+            TypeName = "string",
+            IsHandleParameter = true,
+        };
 
     public static EmitPlan CreateModelSnapshot()
     {

@@ -74,6 +74,34 @@ internal static class EmissionSyntax
         return SyntaxFactory.ParseLeadingTrivia(text);
     }
 
+    public static SyntaxTriviaList MemberDocumentation(string summary, IReadOnlyList<DocumentedParameter> parameters,
+        string? returns = null, IReadOnlyList<DocumentedException>? exceptions = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(summary);
+        ArgumentNullException.ThrowIfNull(parameters);
+
+        var text = new StringBuilder()
+            .Append("/// <summary>\n/// ").Append(EscapeXml(NormalizeDocumentation(summary))).Append("\n/// </summary>\n");
+        foreach (var parameter in parameters)
+        {
+            _ = text.Append("/// <param name=\"").Append(parameter.Name).Append("\">")
+                .Append(EscapeXml(NormalizeDocumentation(parameter.Text))).Append("</param>\n");
+        }
+
+        if (returns is not null)
+        {
+            _ = text.Append("/// <returns>").Append(EscapeXml(NormalizeDocumentation(returns))).Append("</returns>\n");
+        }
+
+        foreach (var exception in exceptions ?? [])
+        {
+            _ = text.Append("/// <exception cref=\"").Append(exception.TypeName).Append("\">")
+                .Append(EscapeXml(NormalizeDocumentation(exception.Text))).Append("</exception>\n");
+        }
+
+        return SyntaxFactory.ParseLeadingTrivia(text.ToString());
+    }
+
     public static AttributeListSyntax Attribute(string name, params AttributeArgumentSyntax[] arguments)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
