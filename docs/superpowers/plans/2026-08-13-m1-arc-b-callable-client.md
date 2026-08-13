@@ -143,13 +143,13 @@ and committed generated models.
 
 ## Task 4: Contracts And M1 Closure
 
-- [ ] Test real generated clients through a recording `HttpMessageHandler`: health 200/400/401;
+- [x] Test real generated clients through a recording `HttpMessageHandler`: health 200/400/401;
   message 200/400/401 and both 404 variants; default and `NoThrow`; unknown/malformed errors;
   guarded payloads; route escaping; endpoint joining; auth/directory/User-Agent; cancellation;
   transport failure; response disposal; owned/BYO lifetime; and protected mock seams.
-- [ ] Assert an undeclared status and a known tag returned at the wrong declared status both
+- [x] Assert an undeclared status and a known tag returned at the wrong declared status both
   produce `UnknownOpenCodeError` with the exact tag and raw payload.
-- [ ] For malformed non-2xx JSON, assert `Error` is null and exact `RawBody` is retained on both
+- [x] For malformed non-2xx JSON, assert `Error` is null and exact `RawBody` is retained on both
   `OpenCodeApiException` and the `NoThrow` response. Assert success responses have no raw body.
 - [ ] Pin `PublicApiGenerator` 11.5.4 centrally, add it plus `Verify.TUnit` to
   `OpenCode.Sdk.Tests`, and review one baseline after casing and callable surface settle. Keep
