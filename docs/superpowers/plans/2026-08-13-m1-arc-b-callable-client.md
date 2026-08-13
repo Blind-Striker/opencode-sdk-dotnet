@@ -77,7 +77,7 @@ and committed generated models.
 - [x] Route optional non-null collection copying through an internal helper whose input is
   nullable and output is non-null. Preserve immutable recursive copies; verify absent -> empty
   and explicit null -> `JsonException` under source-generated System.Text.Json.
-- [ ] Add `handleParameter` to group curation. Require it and `handleName` together,
+- [x] Add `handleParameter` to group curation. Require it and `handleName` together,
   validate it names a required path parameter, and never consume a query/body value. Keep
   every pending operation flat.
 - [ ] Add consumed-only `ClientPlan`, `OperationPlan`, `OperationParameterPlan`, `EnvelopePlan`,

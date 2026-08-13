@@ -52,8 +52,8 @@ internal sealed class CurationValidator
     {
         switch (group.Placement)
         {
-            case GroupPlacement.Root when group.ClientName is not null || group.HandleName is not null:
-                errors.Add(BindingErrorCategory.Curation, wireName, "root group cannot declare clientName or handleName");
+            case GroupPlacement.Root when group.ClientName is not null || group.HandleName is not null || group.HandleParameter is not null:
+                errors.Add(BindingErrorCategory.Curation, wireName, "root group cannot declare clientName, handleName, or handleParameter");
                 break;
             case GroupPlacement.Client when string.IsNullOrWhiteSpace(group.ClientName):
                 errors.Add(BindingErrorCategory.Curation, wireName, "client group must declare clientName");
@@ -70,15 +70,58 @@ internal sealed class CurationValidator
             errors.Add(BindingErrorCategory.Naming, wireName, $"handle name '{group.HandleName}' is not a valid C# identifier");
         }
 
-        var requiresSessionHandle = selected.Any(operation => string.Equals(GetGroup(operation), wireName, StringComparison.Ordinal)
-            && operation.Parameters.Any(static parameter => parameter is
-            {
-                Name: "sessionID",
-                Location: SpecParameterLocation.Path,
-            }));
-        if (requiresSessionHandle && string.IsNullOrWhiteSpace(group.HandleName))
+        if ((group.HandleName is not null) != (group.HandleParameter is not null))
         {
-            errors.Add(BindingErrorCategory.Curation, wireName, "session-scoped selected operation requires handleName");
+            errors.Add(BindingErrorCategory.Curation, wireName, "handleName and handleParameter must be declared together");
+            return;
+        }
+
+        if (group.HandleParameter is null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(group.HandleParameter))
+        {
+            errors.Add(BindingErrorCategory.Curation, wireName, "handleParameter cannot be blank");
+            return;
+        }
+
+        ValidateHandleParameterCoverage(wireName, group, selected, errors);
+    }
+
+    /// <summary>
+    /// Coverage is selection-scoped: during staged generation only selected operations can
+    /// witness the handle parameter, and a group with no selected operations already fails
+    /// the global orphan check.
+    /// </summary>
+    private static void ValidateHandleParameterCoverage(string wireName, GroupCuration group, IReadOnlyList<SpecOperation> selected,
+        BindingErrorCollector errors)
+    {
+        if (group.Placement is not GroupPlacement.Client)
+        {
+            return;
+        }
+
+        var groupOperations = selected
+            .Where(operation => string.Equals(GetGroup(operation), wireName, StringComparison.Ordinal))
+            .ToArray();
+        if (groupOperations.Length is 0)
+        {
+            return;
+        }
+
+        var covered = groupOperations.Any(operation => operation.Parameters.Any(parameter => parameter is
+        {
+            Location: SpecParameterLocation.Path,
+            IsRequired: true,
+        } && string.Equals(parameter.Name, group.HandleParameter, StringComparison.Ordinal)));
+        if (!covered)
+        {
+            errors.Add(
+                BindingErrorCategory.Curation,
+                wireName,
+                $"handle parameter '{group.HandleParameter}' does not name a required path parameter on any selected operation in the group");
         }
     }
 

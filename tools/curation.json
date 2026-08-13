@@ -6,7 +6,8 @@
     "session": {
       "placement": "client",
       "clientName": "Sessions",
-      "handleName": "SessionClient"
+      "handleName": "SessionClient",
+      "handleParameter": "sessionID"
     }
   },
   "envelopePayloadNames": {

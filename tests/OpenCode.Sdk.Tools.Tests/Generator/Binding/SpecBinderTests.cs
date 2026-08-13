@@ -242,6 +242,112 @@ public sealed class SpecBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Refuse_HandleName_Without_HandleParameter()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.session.message", path: "/api/session/{sessionID}/message", configure: operation => operation
+                .Parameter("sessionID", "path", schema => schema.Type("string"), required: true)
+                .Response(200, "application/json", schema => schema.Type("object")
+                    .Property("value", property => property.Type("string"), required: true)))));
+        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+        {
+            ["session"] = ClientGroup(handleParameter: null),
+        };
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.session.message"),
+            Curation(groups)));
+
+        await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Curation).Problem)
+            .Contains("together");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_HandleParameter_Without_HandleName()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.session.message", path: "/api/session/{sessionID}/message", configure: operation => operation
+                .Parameter("sessionID", "path", schema => schema.Type("string"), required: true)
+                .Response(200, "application/json", schema => schema.Type("object")
+                    .Property("value", property => property.Type("string"), required: true)))));
+        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+        {
+            ["session"] = ClientGroup(handleName: null),
+        };
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.session.message"),
+            Curation(groups)));
+
+        await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Curation).Problem)
+            .Contains("together");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_HandleParameter_On_Root_Group()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec.WithOperation("v2.health.get")));
+        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+        {
+            ["health"] = new GroupCuration
+            {
+                Placement = GroupPlacement.Root,
+                HandleParameter = "sessionID",
+            },
+        };
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(groups)));
+
+        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+            && error.Problem.Contains("root group cannot declare", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Require_HandleParameter_To_Name_A_Selected_Required_Path_Parameter()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.session.message", path: "/api/session/message/{messageID}", configure: operation => operation
+                .Parameter("messageID", "path", schema => schema.Type("string"), required: true)
+                .Response(200, "application/json", schema => schema.Type("object")
+                    .Property("value", property => property.Type("string"), required: true)))));
+        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+        {
+            ["session"] = ClientGroup(),
+        };
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.session.message"),
+            Curation(groups)));
+
+        await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Curation).Problem)
+            .Contains("required path parameter");
+    }
+
+    [Test]
+    public async Task Bind_Should_Allow_Flat_Client_Group_When_Selected_Operation_Carries_A_Path_Parameter()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.session.message", path: "/api/session/{sessionID}/message", configure: operation => operation
+                .Parameter("sessionID", "path", schema => schema.Type("string"), required: true)
+                .Response(200, "application/json", schema => schema.Type("object")
+                    .Property("value", property => property.Type("string"), required: true)))));
+        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+        {
+            ["session"] = ClientGroup(handleName: null, handleParameter: null),
+        };
+
+        var plan = new BindingTestHost().Bind(document, Selection("v2.session.message"), Curation(groups));
+
+        await Assert.That(plan.SelectedOperationIds.SequenceEqual(["v2.session.message"], StringComparer.Ordinal)).IsTrue();
+    }
+
+    [Test]
     public async Task Bind_Should_Require_Curation_For_Every_Selected_Group()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec.WithOperation("v2.health.get")));
@@ -327,11 +433,12 @@ public sealed class SpecBinderTests
             Placement = GroupPlacement.Root,
         };
 
-    private static GroupCuration ClientGroup() =>
+    private static GroupCuration ClientGroup(string? handleName = "SessionClient", string? handleParameter = "sessionID") =>
         new()
         {
             Placement = GroupPlacement.Client,
             ClientName = "Sessions",
-            HandleName = "SessionClient",
+            HandleName = handleName,
+            HandleParameter = handleParameter,
         };
 }
