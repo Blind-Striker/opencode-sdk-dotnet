@@ -1,0 +1,471 @@
+using OpenCode.Sdk.Tools.Generator.Binding.Models;
+using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
+using OpenCode.Sdk.Tools.Tests.Support;
+using static OpenCode.Sdk.Tools.Tests.Support.BindingScenarioData;
+
+namespace OpenCode.Sdk.Tools.Tests.Generator.Binding;
+
+public sealed class OperationPlanBinderTests
+{
+    [Test]
+    public async Task Bind_Should_Create_The_Selected_Pinned_Client_Plans()
+    {
+        var plan = await new BindingTestHost().BindPinnedAsync();
+
+        await Assert.That(plan.Clients.Select(static client => client.Name)
+            .SequenceEqual(["OpenCodeClient", "SessionClient", "SessionsClient"], StringComparer.Ordinal)).IsTrue();
+        await Assert.That(plan.Clients.All(static client => client.Namespace == "OpenCode.Sdk")).IsTrue();
+
+        var root = plan.Clients.Single(static client => client.Role == ClientRole.Root);
+        await Assert.That(root.Name).IsEqualTo("OpenCodeClient");
+        await Assert.That(root.SubClients.Single().PropertyName).IsEqualTo("Sessions");
+        await Assert.That(root.SubClients.Single().TypeName).IsEqualTo("SessionsClient");
+        await Assert.That(root.HandleFactory).IsNull();
+        await Assert.That(root.HandleParameter).IsNull();
+
+        var health = root.Operations.Single();
+        await Assert.That(health.MethodName).IsEqualTo("GetHealthAsync");
+        await Assert.That(health.HttpMethod).IsEqualTo("get");
+        await Assert.That(health.RouteTemplate).IsEqualTo("/api/health");
+        await Assert.That(health.Parameters).IsEmpty();
+        await Assert.That(health.Summary).IsEqualTo("Check server health");
+        await Assert.That(health.Description).IsNotNull();
+        await Assert.That(health.Envelope.ResponseTypeName).IsEqualTo("HealthResponse");
+        await Assert.That(health.Envelope.AdapterTypeName).IsEqualTo("HealthResponseAdapter");
+        await Assert.That(health.Envelope.PayloadName).IsEqualTo("Health");
+        await Assert.That(health.Envelope.PayloadTypeName).IsEqualTo("ServiceHealth");
+        await Assert.That(health.Envelope.HasDataEnvelope).IsFalse();
+        await Assert.That(health.ErrorMap.Statuses.Select(static status => status.StatusCode)
+            .SequenceEqual([400, 401])).IsTrue();
+        await Assert.That(health.ErrorMap.Statuses[0].Tags.Single().Tag).IsEqualTo("InvalidRequestError");
+        await Assert.That(health.ErrorMap.Statuses[0].Tags.Single().TypeName).IsEqualTo("InvalidRequestError");
+        await Assert.That(health.ErrorMap.Statuses[1].Tags.Single().Tag).IsEqualTo("UnauthorizedError");
+
+        var sessions = plan.Clients.Single(static client => client.Role == ClientRole.Collection);
+        await Assert.That(sessions.Name).IsEqualTo("SessionsClient");
+        await Assert.That(sessions.Operations).IsEmpty();
+        await Assert.That(sessions.HandleFactory!.MethodName).IsEqualTo("GetSessionClient");
+        await Assert.That(sessions.HandleFactory.HandleTypeName).IsEqualTo("SessionClient");
+        await Assert.That(sessions.HandleFactory.Parameter.WireName).IsEqualTo("sessionID");
+        await Assert.That(sessions.HandleFactory.Parameter.Name).IsEqualTo("sessionId");
+        await Assert.That(sessions.HandleFactory.Parameter.TypeName).IsEqualTo("string");
+
+        var session = plan.Clients.Single(static client => client.Role == ClientRole.Handle);
+        await Assert.That(session.Name).IsEqualTo("SessionClient");
+        await Assert.That(session.HandleParameter!.WireName).IsEqualTo("sessionID");
+        await Assert.That(session.HandleParameter.IsHandleParameter).IsTrue();
+
+        var message = session.Operations.Single();
+        await Assert.That(message.MethodName).IsEqualTo("GetMessageAsync");
+        await Assert.That(message.RouteTemplate).IsEqualTo("/api/session/{sessionID}/message/{messageID}");
+        await Assert.That(message.Summary).IsEqualTo("Get session message");
+        await Assert.That(message.Parameters.Select(static parameter => parameter.Name)
+            .SequenceEqual(["sessionId", "messageId"], StringComparer.Ordinal)).IsTrue();
+        await Assert.That(message.Parameters[0].IsHandleParameter).IsTrue();
+        await Assert.That(message.Parameters[1].IsHandleParameter).IsFalse();
+        await Assert.That(message.Parameters[1].WireName).IsEqualTo("messageID");
+        await Assert.That(message.Parameters[1].TypeName).IsEqualTo("string");
+        await Assert.That(message.Envelope.ResponseTypeName).IsEqualTo("SessionMessageResponse");
+        await Assert.That(message.Envelope.AdapterTypeName).IsEqualTo("SessionMessageResponseAdapter");
+        await Assert.That(message.Envelope.PayloadName).IsEqualTo("Message");
+        await Assert.That(message.Envelope.PayloadTypeName).IsEqualTo("SessionMessageInfo");
+        await Assert.That(message.Envelope.HasDataEnvelope).IsTrue();
+        await Assert.That(message.ErrorMap.Statuses.Select(static status => status.StatusCode)
+            .SequenceEqual([400, 401, 404])).IsTrue();
+        await Assert.That(message.ErrorMap.Statuses[2].Tags.Select(static tag => tag.Tag)
+            .SequenceEqual(["MessageNotFoundError", "SessionNotFoundError"], StringComparer.Ordinal)).IsTrue();
+        await Assert.That(message.ErrorMap.Statuses[2].Tags.All(static tag => tag.Tag == tag.TypeName)).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Bind_A_Synthetic_Same_Shape_Group_Through_The_Same_Rules()
+    {
+        var document = await BindingTestHost.IngestAsync(GadgetScenario());
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.gadget.part"),
+            Curation(Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID"))));
+
+        var root = plan.Clients.Single(static client => client.Role == ClientRole.Root);
+        await Assert.That(root.SubClients.Single().PropertyName).IsEqualTo("Gadgets");
+        await Assert.That(root.SubClients.Single().TypeName).IsEqualTo("GadgetsClient");
+
+        var gadgets = plan.Clients.Single(static client => client.Role == ClientRole.Collection);
+        await Assert.That(gadgets.HandleFactory!.MethodName).IsEqualTo("GetGadgetClient");
+        await Assert.That(gadgets.HandleFactory.Parameter.Name).IsEqualTo("gadgetId");
+
+        var gadget = plan.Clients.Single(static client => client.Role == ClientRole.Handle);
+        await Assert.That(gadget.Name).IsEqualTo("GadgetClient");
+        var part = gadget.Operations.Single();
+        await Assert.That(part.MethodName).IsEqualTo("GetPartAsync");
+        await Assert.That(part.RouteTemplate).IsEqualTo("/api/gadget/{gadgetID}/part/{partID}");
+        await Assert.That(part.Parameters.Select(static parameter => parameter.Name)
+            .SequenceEqual(["gadgetId", "partId"], StringComparer.Ordinal)).IsTrue();
+        await Assert.That(part.Envelope.ResponseTypeName).IsEqualTo("GadgetPartResponse");
+        await Assert.That(part.Envelope.AdapterTypeName).IsEqualTo("GadgetPartResponseAdapter");
+        await Assert.That(part.Envelope.PayloadName).IsEqualTo("Part");
+        await Assert.That(part.Envelope.PayloadTypeName).IsEqualTo("GadgetPart");
+        await Assert.That(part.Envelope.HasDataEnvelope).IsTrue();
+        await Assert.That(part.ErrorMap.Statuses.Single().StatusCode).IsEqualTo(404);
+        await Assert.That(part.ErrorMap.Statuses.Single().Tags.Single().TypeName).IsEqualTo("GadgetMissingError");
+    }
+
+    [Test]
+    public async Task Bind_Should_Keep_A_Group_Without_Handle_Declaration_Flat()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.item", path: "/api/widget/{sessionID}/item", configure: operation => operation
+                .Parameter("sessionID", "path", schema => schema.Type("string"), required: true)
+                .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.item"),
+            Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null))));
+
+        await Assert.That(plan.Clients.Any(static client => client.Role == ClientRole.Handle)).IsFalse();
+        var widgets = plan.Clients.Single(static client => client.Role == ClientRole.Collection);
+        await Assert.That(widgets.HandleFactory).IsNull();
+        var item = widgets.Operations.Single();
+        await Assert.That(item.MethodName).IsEqualTo("GetItemAsync");
+        await Assert.That(item.Parameters.Single().Name).IsEqualTo("sessionId");
+        await Assert.That(item.Parameters.Single().IsHandleParameter).IsFalse();
+    }
+
+    [Test]
+    public async Task Bind_Should_Keep_Collection_Operations_On_The_Collection_Client()
+    {
+        var document = await BindingTestHost.IngestAsync(GadgetScenario(spec => spec
+            .WithOperation("v2.gadget.overview", path: "/api/gadget-overview", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("GadgetPart")))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.gadget.part", "v2.gadget.overview"),
+            Curation(Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID"))));
+
+        var gadgets = plan.Clients.Single(static client => client.Role == ClientRole.Collection);
+        await Assert.That(gadgets.Operations.Single().MethodName).IsEqualTo("GetOverviewAsync");
+        var gadget = plan.Clients.Single(static client => client.Role == ClientRole.Handle);
+        await Assert.That(gadget.Operations.Single().MethodName).IsEqualTo("GetPartAsync");
+    }
+
+    [Test]
+    public async Task Bind_Should_Order_Parameters_By_Route_Template_Position()
+    {
+        var document = await BindingTestHost.IngestAsync(GadgetScenario(parametersReversed: true));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.gadget.part"),
+            Curation(Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID"))));
+
+        var part = plan.Clients.Single(static client => client.Role == ClientRole.Handle).Operations.Single();
+        await Assert.That(part.Parameters.Select(static parameter => parameter.WireName)
+            .SequenceEqual(["gadgetID", "partID"], StringComparer.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Non_Get_Operation()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.health.reset", method: "post", path: "/api/health-reset", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
+
+        await AssertOperationRefusalAsync(document, "v2.health.reset", "only GET operations");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Query_Parameter()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Parameter("limit", "query", schema => schema.Type("string"))
+                .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
+
+        await AssertOperationRefusalAsync(document, "v2.health.get", "required path parameter");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Request_Body()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .RequestBody("application/json", schema => schema.Type("object")
+                    .Property("value", property => property.Type("string"), required: true))
+                .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
+
+        await AssertOperationRefusalAsync(document, "v2.health.get", "request bodies");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_Multiple_Success_Statuses()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("ItemInfo"))
+                .Response(201, "application/json", schema => schema.Ref("ItemInfo")))));
+
+        await AssertOperationRefusalAsync(document, "v2.health.get", "exactly one success response");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Non_200_Success()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .WithoutResponse(200)
+                .Response(201, "application/json", schema => schema.Ref("ItemInfo")))));
+
+        await AssertOperationRefusalAsync(document, "v2.health.get", "status 200");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Success_Without_Json_Content()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.health.get")));
+
+        await AssertOperationRefusalAsync(document, "v2.health.get", "JSON schema");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_An_Unsupported_Envelope_Shape()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Type("object")
+                    .Property("data", property => property.Ref("ItemInfo"), required: true)
+                    .Property("location", property => property.Type("string"), required: true)))));
+
+        await AssertOperationRefusalAsync(document, "v2.health.get", "envelope shape");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Bare_Success_Without_A_Named_Schema()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Type("object")
+                    .Property("value", property => property.Type("string"), required: true)))));
+
+        await AssertOperationRefusalAsync(document, "v2.health.get", "named schema");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_An_Untagged_Error_Response()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("PlainProblem", schema => schema.Type("object")
+                .Property("message", property => property.Type("string"), required: true))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("ItemInfo"))
+                .Response(404, "application/json", schema => schema.Ref("PlainProblem")))));
+
+        await AssertOperationRefusalAsync(document, "v2.health.get", "tagged error");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_An_Event_Stream_Response()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .SseResponse(schema => schema.Ref("ItemInfo")))));
+
+        await AssertOperationRefusalAsync(document, "v2.health.get", "event-stream");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Wildcard_Path()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.health.get", path: "/api/health/*", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
+
+        await AssertOperationRefusalAsync(document, "v2.health.get", "wildcard");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_Colliding_Method_Names_On_A_Client()
+    {
+        var document = await BindingTestHost.IngestAsync(GadgetScenario(spec => spec
+            .WithOperation("v2.gadget.get.part", path: "/api/gadget/{gadgetID}/part-alias/{partID}", configure: operation => operation
+                .Parameter("gadgetID", "path", schema => schema.Type("string"), required: true)
+                .Parameter("partID", "path", schema => schema.Type("string"), required: true)
+                .Response(200, "application/json", schema => schema.Type("object")
+                    .Property("data", property => property.Ref("GadgetPart"), required: true)))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.gadget.part", "v2.gadget.get.part"),
+            Curation(Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID")))));
+
+        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
+            && error.Problem.Contains("GetPartAsync", StringComparison.Ordinal))).IsTrue();
+        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
+            && error.Problem.Contains("GadgetPartResponse", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_Colliding_Client_Type_Names()
+    {
+        var document = await BindingTestHost.IngestAsync(GadgetScenario());
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.gadget.part"),
+            Curation(Groups("gadget", ClientGroup(clientName: "Gadget", handleName: "GadgetClient", handleParameter: "gadgetID")))));
+
+        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
+            && error.Problem.Contains("GadgetClient", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Apply_A_Curated_Payload_Name_Override()
+    {
+        var document = await BindingTestHost.IngestAsync(GadgetScenario());
+        var payloadNames = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["v2.gadget.part"] = "Component",
+        };
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.gadget.part"),
+            Curation(
+                Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID")),
+                payloadNames));
+
+        var part = plan.Clients.Single(static client => client.Role == ClientRole.Handle).Operations.Single();
+        await Assert.That(part.Envelope.PayloadName).IsEqualTo("Component");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Payload_Name_Colliding_With_The_Response_Spine()
+    {
+        var document = await BindingTestHost.IngestAsync(StatusScenario());
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.status"),
+            Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)))));
+
+        await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Naming).Problem)
+            .Contains("Status");
+    }
+
+    [Test]
+    public async Task Bind_Should_Accept_An_Override_That_Resolves_A_Reserved_Payload_Collision()
+    {
+        var document = await BindingTestHost.IngestAsync(StatusScenario());
+        var payloadNames = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["v2.widget.status"] = "WidgetStatus",
+        };
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.status"),
+            Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)), payloadNames));
+
+        var status = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(status.Envelope.PayloadName).IsEqualTo("WidgetStatus");
+    }
+
+    [Test]
+    public async Task Bind_Should_Report_Failures_For_Every_Selected_Operation()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Parameter("limit", "query", schema => schema.Type("string"))
+                .Response(200, "application/json", schema => schema.Ref("ItemInfo")))
+            .WithOperation("v2.health.probe", path: "/api/health-probe", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("ItemInfo"))
+                .Response(302, "application/json", schema => schema.Ref("ItemInfo")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get", "v2.health.probe"),
+            Curation(Groups("health", RootGroup()))));
+
+        var subjects = exception.Errors
+            .Where(static error => error.Category == BindingErrorCategory.Operation)
+            .Select(static error => error.Subject)
+            .ToArray();
+        await Assert.That(subjects).Contains("v2.health.get");
+        await Assert.That(subjects).Contains("v2.health.probe");
+    }
+
+    private static async Task AssertOperationRefusalAsync(SpecDocument document, string operationId, string expectedProblem)
+    {
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection(operationId),
+            Curation(Groups("health", RootGroup()))));
+
+        await Assert.That(exception.Errors.Any(error => error.Category == BindingErrorCategory.Operation
+            && string.Equals(error.Subject, operationId, StringComparison.Ordinal)
+            && error.Problem.Contains(expectedProblem, StringComparison.Ordinal))).IsTrue();
+    }
+
+    private static SpecScenario GadgetScenario(Action<SpecDocumentBuilder>? extend = null, bool parametersReversed = false) =>
+        SpecScenario.Define(spec =>
+        {
+            _ = spec
+                .WithSchema("GadgetPart", schema => schema.Type("object")
+                    .Property("id", property => property.Type("string"), required: true))
+                .WithSchema("GadgetMissingError", schema => schema.Type("object")
+                    .Property("_tag", property => property.Type("string").Enum("GadgetMissingError"), required: true)
+                    .Property("message", property => property.Type("string"), required: true))
+                .WithOperation("v2.gadget.part", path: "/api/gadget/{gadgetID}/part/{partID}", configure: operation =>
+                {
+                    if (parametersReversed)
+                    {
+                        _ = operation.Parameter("partID", "path", schema => schema.Type("string"), required: true)
+                            .Parameter("gadgetID", "path", schema => schema.Type("string"), required: true);
+                    }
+                    else
+                    {
+                        _ = operation.Parameter("gadgetID", "path", schema => schema.Type("string"), required: true)
+                            .Parameter("partID", "path", schema => schema.Type("string"), required: true);
+                    }
+
+                    _ = operation
+                        .Summary("Get gadget part")
+                        .Response(200, "application/json", schema => schema.Type("object")
+                            .Property("data", property => property.Ref("GadgetPart"), required: true))
+                        .Response(404, "application/json", schema => schema.Ref("GadgetMissingError"));
+                });
+            extend?.Invoke(spec);
+        });
+
+    private static SpecScenario StatusScenario() =>
+        SpecScenario.Define(spec => spec
+            .WithSchema("WidgetState", schema => schema.Type("object")
+                .Property("value", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.status", path: "/api/widget-status", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetState"))));
+}

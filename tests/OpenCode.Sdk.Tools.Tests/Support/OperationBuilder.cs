@@ -100,6 +100,12 @@ internal sealed class OperationBuilder
         return this;
     }
 
+    public OperationBuilder WithoutResponse(int status)
+    {
+        _responses.Remove(status);
+        return this;
+    }
+
     public OperationBuilder ResponseFromFixture(int status, string mediaType, string fixtureName)
     {
         _responses.AddFromFixture(status, mediaType, fixtureName);

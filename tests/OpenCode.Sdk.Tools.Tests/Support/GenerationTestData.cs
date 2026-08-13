@@ -34,7 +34,10 @@ internal static class GenerationTestData
     public static MockFileSystem CreateCommandFileSystem()
     {
         var spec = new SpecDocumentBuilder()
-            .WithOperation("v2.health.get", path: "/api/health")
+            .WithSchema("ExampleHealth", schema => schema.Type("object")
+                .Property("healthy", property => property.Type("boolean"), required: true))
+            .WithOperation("v2.health.get", path: "/api/health", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("ExampleHealth")))
             .WithOperation("v2.session.list", path: "/api/session")
             .BuildJson();
         var fileSystem = CreateFileSystem();

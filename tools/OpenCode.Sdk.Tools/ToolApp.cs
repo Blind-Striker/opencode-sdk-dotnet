@@ -38,6 +38,7 @@ public static class ToolApp
         services.AddSingleton<CurationValidator>();
         services.AddSingleton<SchemaNameResolver>();
         services.AddSingleton<SchemaPlanBinder>();
+        services.AddSingleton<OperationPlanBinder>();
         services.AddSingleton<ISpecBinder, SpecBinder>();
         services.AddSingleton<IProjectFormatter, CliWrapProjectFormatter>();
         services.AddSingleton<IGenerationWriter, GenerationWriter>();

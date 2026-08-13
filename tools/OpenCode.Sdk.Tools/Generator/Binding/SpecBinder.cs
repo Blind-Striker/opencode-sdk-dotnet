@@ -9,9 +9,11 @@ internal sealed class SpecBinder(
     ReachableSchemaCollector reachableSchemas,
     CurationValidator curationValidator,
     SchemaNameResolver schemaNames,
-    SchemaPlanBinder schemaPlans) : ISpecBinder
+    SchemaPlanBinder schemaPlans,
+    OperationPlanBinder operationPlans) : ISpecBinder
 {
     private readonly CurationValidator _curationValidator = curationValidator ?? throw new ArgumentNullException(nameof(curationValidator));
+    private readonly OperationPlanBinder _operationPlans = operationPlans ?? throw new ArgumentNullException(nameof(operationPlans));
     private readonly ReachableSchemaCollector _reachableSchemas = reachableSchemas ?? throw new ArgumentNullException(nameof(reachableSchemas));
     private readonly SchemaNameResolver _schemaNames = schemaNames ?? throw new ArgumentNullException(nameof(schemaNames));
     private readonly SchemaPlanBinder _schemaPlans = schemaPlans ?? throw new ArgumentNullException(nameof(schemaPlans));
@@ -32,6 +34,7 @@ internal sealed class SpecBinder(
         // consume the same map so neither can reinterpret a schema under another name.
         var typeNames = _schemaNames.Resolve(document, reachable, errors);
         var schemaResult = _schemaPlans.Bind(document, reachable, curation, typeNames, errors);
+        var clients = _operationPlans.Bind(document, selected, curation, typeNames, errors);
         var selectedIds = selected.Select(static operation => operation.OperationId).ToHashSet(StringComparer.Ordinal);
         var pending = document.Operations
             .Where(operation => !selectedIds.Contains(operation.OperationId))
@@ -49,6 +52,7 @@ internal sealed class SpecBinder(
             Models = schemaResult.Models,
             Unions = schemaResult.Unions,
             Registry = schemaResult.Registry,
+            Clients = clients,
             PendingOperations = pending,
         };
     }

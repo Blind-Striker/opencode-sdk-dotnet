@@ -18,6 +18,12 @@ names, or concrete client names. Generated methods delegate once into a hand-wri
   `SessionClient`, and `sessionID` as its handle parameter. The Binder applies one general
   partial-application rule; no Binder or emitter branch names `session` or either selected
   operation. All other operations stay pending in M1.
+- Envelope payload names derive mechanically from the operation subject (the identifier
+  segments after the group that do not restate the HTTP method; the group name when none
+  remain): `Message`, `Health`. `envelopePayloadNames` rows are overrides for collisions
+  with the response spine and C#-illegal results only — a collision fails generation until
+  an override lands (maintainer, 2026-08-13; supersedes the earlier required-per-operation
+  curation).
 - C# identifiers use ordinary PascalCase for acronym tokens regardless of length:
   `id` -> `Id`, `sessionID` -> `SessionId`, `callID` -> `CallId`, `URL` -> `Url`.
   `[JsonPropertyName]` preserves wire spelling; exceptional brand spelling remains curated.
@@ -49,10 +55,13 @@ evidence: research doc 15).
 - [x] Add one ingestion-wall admit rule: a single-element `allOf` wrapper carrying only
   validation keywords unwraps into its base schema; every other `allOf` stays refused.
   Re-census `prefixItems`/`patternProperties`/empty-schema sites against the new pin.
-- [ ] Re-derive the selected wire contracts from the new pin: `v2.health.get` success is the
+- [x] Re-derive the selected wire contracts from the new pin: `v2.health.get` success is the
   `ServiceHealth` object (`{healthy, version, pid}` observed live 2026-08-13), and
   `v2.session.message` keeps the `{data}` envelope over the dotted `Session.Message.Info`
-  schema. Error maps are re-read from the v2 responses — do not assume the 1.x tables.
+  schema. Error maps derived from the v2 responses: health declares 400 `InvalidRequestError`
+  and 401 `UnauthorizedError`; message adds 404 as an inline `anyOf` of
+  `SessionNotFoundError` and `MessageNotFoundError`. All four are `_tag`-marked Effect
+  errors; the pinned operation-plan tests assert the maps.
 - [x] Map dotted schema names mechanically (`Session.Message.Info` → `SessionMessageInfo`;
   283 of 324 v2 schemas are dotted, so mechanical is the only sane default). Curated
   overrides exist only for collisions, C#-illegal results, and brand spellings — no taste
@@ -80,13 +89,13 @@ and committed generated models.
 - [x] Add `handleParameter` to group curation. Require it and `handleName` together,
   validate it names a required path parameter, and never consume a query/body value. Keep
   every pending operation flat.
-- [ ] Add consumed-only `ClientPlan`, `OperationPlan`, `OperationParameterPlan`, `EnvelopePlan`,
+- [x] Add consumed-only `ClientPlan`, `OperationPlan`, `OperationParameterPlan`, `EnvelopePlan`,
   and `ErrorMapPlan` plus an `OperationPlanBinder`. Reuse schema-resolved type names instead of
   reinterpreting schemas.
-- [ ] Bind only ordinary GET + JSON + path-parameter operations with one 200 success and
-  no body/query/stream/wildcard. Bind the health success object to `HealthResponse`, curated
-  `{data}` to `SessionMessageResponse.Message`, and the error maps Task 0 derived.
-- [ ] Test complete plans, handle-versus-method parameters, collisions, documentation, status
+- [x] Bind only ordinary GET + JSON + path-parameter operations with one 200 success and
+  no body/query/stream/wildcard. Bind the health success object to `HealthResponse.Health`,
+  the `{data}` envelope to `SessionMessageResponse.Message`, and the error maps Task 0 derived.
+- [x] Test complete plans, handle-versus-method parameters, collisions, documentation, status
   maps, batched failures, and determinism. A synthetic same-shape operation with different names
   must bind without new production branches; an operation in a group without a handle
   declaration must remain flat even when it carries `sessionID`.

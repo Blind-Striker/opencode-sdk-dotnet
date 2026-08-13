@@ -4,6 +4,7 @@ using OpenCode.Sdk.Tools.Generator.Ingestion;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 using OpenCode.Sdk.Tools.Tests.Support;
 using Testably.Abstractions;
+using static OpenCode.Sdk.Tools.Tests.Support.BindingScenarioData;
 
 namespace OpenCode.Sdk.Tools.Tests.Generator.Binding;
 
@@ -74,6 +75,12 @@ public sealed class SpecBinderTests
         await Assert.That(first.Unions.Select(static union => union.Name)
             .SequenceEqual(second.Unions.Select(static union => union.Name), StringComparer.Ordinal)).IsTrue();
         await Assert.That(first.Registry.TypeNames.SequenceEqual(second.Registry.TypeNames, StringComparer.Ordinal)).IsTrue();
+        await Assert.That(first.Clients.Select(static client => client.Name)
+            .SequenceEqual(second.Clients.Select(static client => client.Name), StringComparer.Ordinal)).IsTrue();
+        await Assert.That(first.Clients.SelectMany(static client => client.Operations.Select(static operation => operation.MethodName))
+            .SequenceEqual(
+                second.Clients.SelectMany(static client => client.Operations.Select(static operation => operation.MethodName)),
+                StringComparer.Ordinal)).IsTrue();
     }
 
     [Test]
@@ -115,28 +122,6 @@ public sealed class SpecBinderTests
 
         await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Schema).Problem)
             .Contains("structural union");
-    }
-
-    [Test]
-    public async Task Bind_Should_Require_Selected_Envelope_Payload_Name()
-    {
-        var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.session.message", path: "/api/session/{sessionID}/message", configure: operation => operation
-                .Parameter("sessionID", "path", schema => schema.Type("string"), required: true)
-                .Response(200, "application/json", schema => schema.Type("object")
-                    .Property("data", property => property.Type("string"), required: true)))));
-        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
-        {
-            ["session"] = ClientGroup(),
-        };
-
-        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
-            document,
-            Selection("v2.session.message"),
-            Curation(groups)));
-
-        await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Curation).Problem)
-            .Contains("payload name");
     }
 
     [Test]
@@ -330,24 +315,6 @@ public sealed class SpecBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Allow_Flat_Client_Group_When_Selected_Operation_Carries_A_Path_Parameter()
-    {
-        var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.session.message", path: "/api/session/{sessionID}/message", configure: operation => operation
-                .Parameter("sessionID", "path", schema => schema.Type("string"), required: true)
-                .Response(200, "application/json", schema => schema.Type("object")
-                    .Property("value", property => property.Type("string"), required: true)))));
-        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
-        {
-            ["session"] = ClientGroup(handleName: null, handleParameter: null),
-        };
-
-        var plan = new BindingTestHost().Bind(document, Selection("v2.session.message"), Curation(groups));
-
-        await Assert.That(plan.SelectedOperationIds.SequenceEqual(["v2.session.message"], StringComparer.Ordinal)).IsTrue();
-    }
-
-    [Test]
     public async Task Bind_Should_Require_Curation_For_Every_Selected_Group()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec.WithOperation("v2.health.get")));
@@ -401,23 +368,6 @@ public sealed class SpecBinderTests
         return await new SpecIngestion(context.FileSystem).IngestAsync(context.SpecPath, CancellationToken.None);
     }
 
-    private static OperationSelection Selection(params string[] operationIds) =>
-        new()
-        {
-            OperationIds = operationIds,
-        };
-
-    private static GenerationCuration Curation(
-        IReadOnlyDictionary<string, GroupCuration> groups,
-        IReadOnlyDictionary<string, string>? envelopePayloadNames = null,
-        IReadOnlyList<PropertyOverride>? propertyOverrides = null) =>
-        new()
-        {
-            Groups = groups,
-            EnvelopePayloadNames = envelopePayloadNames ?? new Dictionary<string, string>(StringComparer.Ordinal),
-            PropertyOverrides = propertyOverrides ?? [],
-        };
-
     private static PropertyOverride UriOverride(string schema, string property) =>
         new()
         {
@@ -425,20 +375,5 @@ public sealed class SpecBinderTests
             Property = property,
             Type = PropertyOverrideType.Uri,
             Reason = "The fixture omits format: uri.",
-        };
-
-    private static GroupCuration RootGroup() =>
-        new()
-        {
-            Placement = GroupPlacement.Root,
-        };
-
-    private static GroupCuration ClientGroup(string? handleName = "SessionClient", string? handleParameter = "sessionID") =>
-        new()
-        {
-            Placement = GroupPlacement.Client,
-            ClientName = "Sessions",
-            HandleName = handleName,
-            HandleParameter = handleParameter,
         };
 }

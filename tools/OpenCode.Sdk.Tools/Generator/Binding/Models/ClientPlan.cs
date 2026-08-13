@@ -1,0 +1,37 @@
+namespace OpenCode.Sdk.Tools.Generator.Binding.Models;
+
+internal sealed record ClientPlan
+{
+    public required string Name { get; init; }
+
+    public required string Namespace { get; init; }
+
+    public required ClientRole Role { get; init; }
+
+    /// <summary>Gets the group client properties exposed by the root client.</summary>
+    public required IReadOnlyList<ClientReferencePlan> SubClients
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<ClientReferencePlan>());
+
+    /// <summary>Gets the handle factory a collection client exposes, when its group declares a handle.</summary>
+    public HandleFactoryPlan? HandleFactory { get; init; }
+
+    /// <summary>Gets the partially applied parameter a handle client carries as immutable state.</summary>
+    public OperationParameterPlan? HandleParameter { get; init; }
+
+    public required IReadOnlyList<OperationPlan> Operations
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<OperationPlan>());
+}

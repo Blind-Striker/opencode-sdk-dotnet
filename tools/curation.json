@@ -10,9 +10,7 @@
       "handleParameter": "sessionID"
     }
   },
-  "envelopePayloadNames": {
-    "v2.session.message": "Message"
-  },
+  "envelopePayloadNames": {},
   "propertyOverrides": [
     {
       "schema": "Prompt.FileSource#/anyOf/type=uri",

@@ -21,7 +21,7 @@ internal sealed class CurationValidator
         var documentIds = document.Operations.Select(static operation => operation.OperationId).ToHashSet(_comparer);
         var documentGroups = document.Operations.Select(GetGroup).ToHashSet(_comparer);
         ValidateGroups(selected, selectedGroups, documentGroups, curation, errors);
-        ValidateEnvelopeNames(selected, selectedIds, documentIds, curation, errors);
+        ValidateEnvelopeNames(selectedIds, documentIds, curation, errors);
         ValidatePropertyOverrides(document, reachable, curation, errors);
     }
 
@@ -125,20 +125,14 @@ internal sealed class CurationValidator
         }
     }
 
-    private static void ValidateEnvelopeNames(IReadOnlyList<SpecOperation> selected, HashSet<string> selectedIds,
-        HashSet<string> documentIds, GenerationCuration curation, BindingErrorCollector errors)
+    /// <summary>
+    /// Payload names derive mechanically from the operation subject; curated entries are
+    /// overrides only (maintainer, 2026-08-13), so validation covers orphans and identifier
+    /// legality, never presence.
+    /// </summary>
+    private static void ValidateEnvelopeNames(HashSet<string> selectedIds, HashSet<string> documentIds,
+        GenerationCuration curation, BindingErrorCollector errors)
     {
-        foreach (var operation in selected)
-        {
-            var requiresPayloadName = operation.Responses.Any(static response => response.StatusCode is >= 200 and < 300
-                && response.EnvelopeShape is SpecEnvelopeShape.Data or SpecEnvelopeShape.DataLocation
-                    or SpecEnvelopeShape.CursorData or SpecEnvelopeShape.DataHasMore);
-            if (requiresPayloadName && !curation.EnvelopePayloadNames.ContainsKey(operation.OperationId))
-            {
-                errors.Add(BindingErrorCategory.Curation, operation.OperationId, "selected response envelope has no payload name");
-            }
-        }
-
         foreach (var (operationId, payloadName) in curation.EnvelopePayloadNames.OrderBy(static pair => pair.Key, StringComparer.Ordinal))
         {
             if (!documentIds.Contains(operationId))

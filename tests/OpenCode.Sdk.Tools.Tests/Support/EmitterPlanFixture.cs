@@ -41,6 +41,7 @@ internal static class EmitterPlanFixture
                     "UnknownOpenCodeError",
                 ],
             },
+            Clients = [],
             PendingOperations = [],
         };
     }

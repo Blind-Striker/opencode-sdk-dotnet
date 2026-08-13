@@ -34,6 +34,16 @@ internal sealed record EmitPlan
 
     public required RegistryPlan Registry { get; init; }
 
+    public required IReadOnlyList<ClientPlan> Clients
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<ClientPlan>());
+
     public required IReadOnlyList<PendingOperationPlan> PendingOperations
     {
         get;
