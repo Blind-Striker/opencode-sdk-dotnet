@@ -3,6 +3,7 @@
 using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
@@ -34,15 +35,7 @@ public sealed record SessionMessageToolStateCompleted : SessionMessageToolState
     /// Gets the attachments value.
     /// </summary>
     [JsonPropertyName("attachments")]
-    public IReadOnlyList<PromptFileAttachment> Attachments
-    {
-        get;
-        init
-        {
-            // Source-generated deserialization passes null for an absent optional init-only collection.
-            field = value is null ? Array.Empty<PromptFileAttachment>() : new List<PromptFileAttachment>(value).AsReadOnly();
-        }
-    } = [];
+    public IReadOnlyList<PromptFileAttachment> Attachments { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new List<PromptFileAttachment>(input).AsReadOnly()); } = [];
 
     /// <summary>
     /// Gets the content value.
@@ -62,15 +55,7 @@ public sealed record SessionMessageToolStateCompleted : SessionMessageToolState
     /// Gets the output paths value.
     /// </summary>
     [JsonPropertyName("outputPaths")]
-    public IReadOnlyList<string> OutputPaths
-    {
-        get;
-        init
-        {
-            // Source-generated deserialization passes null for an absent optional init-only collection.
-            field = value is null ? Array.Empty<string>() : new List<string>(value).AsReadOnly();
-        }
-    } = [];
+    public IReadOnlyList<string> OutputPaths { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new List<string>(input).AsReadOnly()); } = [];
 
     /// <summary>
     /// Gets the structured value.

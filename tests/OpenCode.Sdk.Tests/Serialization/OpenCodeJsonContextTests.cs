@@ -18,11 +18,25 @@ public sealed class OpenCodeJsonContextTests
 
         await Assert.That(result).IsTypeOf<SessionMessageUser>();
         var user = (SessionMessageUser)result;
-        await Assert.That(user.ID).IsEqualTo("message-1");
+        await Assert.That(user.Id).IsEqualTo("message-1");
         await Assert.That(user.Text).IsEqualTo("hello");
         var serialized = _serializer.Serialize<SessionMessage>(user);
         using var document = JsonDocument.Parse(serialized);
         await Assert.That(document.RootElement.GetProperty("type").GetString()).IsEqualTo("user");
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Normalize_Absent_Optional_Nonnull_Collections_To_Empty()
+    {
+        var json = _fixtures.LoadJson("Serialization.known-session-message.json");
+
+        var result = _serializer.Deserialize<SessionMessage>(json);
+
+        await Assert.That(result).IsTypeOf<SessionMessageUser>();
+        var user = (SessionMessageUser)result;
+        await Assert.That(user.Metadata).IsEmpty();
+        await Assert.That(user.Files).IsEmpty();
+        await Assert.That(user.Agents).IsEmpty();
     }
 
     [Test]
@@ -147,7 +161,7 @@ public sealed class OpenCodeJsonContextTests
         };
         var model = new SessionMessageAssistantReasoning
         {
-            ID = "part-1",
+            Id = "part-1",
             Text = "reasoning",
             ProviderMetadata = outer,
         };

@@ -123,55 +123,53 @@ internal static class ModelEmitter
     private static AccessorListSyntax EmitCollectionAccessors(TypeReferencePlan type, bool isRequired)
     {
         var copy = EmitCollectionCopy(type, SyntaxFactory.IdentifierName("value"));
-        StatementSyntax assignment;
-        var statements = new List<StatementSyntax>();
+        AccessorDeclarationSyntax initAccessor;
         if (type.IsNullable)
         {
-            assignment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
-                SyntaxKind.SimpleAssignmentExpression,
-                SyntaxFactory.IdentifierName("field"),
-                SyntaxFactory.ConditionalExpression(
-                    SyntaxFactory.IsPatternExpression(
-                        SyntaxFactory.IdentifierName("value"),
-                        SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
-                    SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression),
-                    copy)));
+            initAccessor = EmitExpressionBodiedInit(SyntaxFactory.ConditionalExpression(
+                SyntaxFactory.IsPatternExpression(
+                    SyntaxFactory.IdentifierName("value"),
+                    SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
+                SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression),
+                copy));
         }
         else if (!isRequired)
         {
-            var empty = EmitCollectionInitializer(type)
-                        ?? throw new InvalidOperationException("A non-null collection plan has no empty initializer.");
-            assignment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
-                    SyntaxKind.SimpleAssignmentExpression,
-                    SyntaxFactory.IdentifierName("field"),
-                    SyntaxFactory.ConditionalExpression(
-                        SyntaxFactory.IsPatternExpression(
-                            SyntaxFactory.IdentifierName("value"),
-                            SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
-                        empty,
-                        copy)))
-                .WithLeadingTrivia(
-                    SyntaxFactory.Comment("// Source-generated deserialization passes null for an absent optional init-only collection."),
-                    SyntaxFactory.EndOfLine("\n"));
+            initAccessor = EmitExpressionBodiedInit(EmissionSyntax.Invocation(
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("OptionalCollectionInput"), "Normalize"),
+                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("value")),
+                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("field")),
+                SyntaxFactory.Argument(Projection(
+                    "input",
+                    EmitCollectionCopy(type, SyntaxFactory.IdentifierName("input"))))));
         }
         else
         {
+            var statements = new List<StatementSyntax>();
             statements.AddRange(EmissionSyntax.ArgumentNullGuard("value"));
-            assignment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
+            statements.Add(SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
                 SyntaxKind.SimpleAssignmentExpression,
                 SyntaxFactory.IdentifierName("field"),
-                copy));
+                copy)));
+            initAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.InitAccessorDeclaration)
+                .WithBody(SyntaxFactory.Block(statements));
         }
 
-        statements.Add(assignment);
         return SyntaxFactory.AccessorList(SyntaxFactory.List(
         [
             SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
                 .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
-            SyntaxFactory.AccessorDeclaration(SyntaxKind.InitAccessorDeclaration)
-                .WithBody(SyntaxFactory.Block(statements)),
+            initAccessor,
         ]));
     }
+
+    private static AccessorDeclarationSyntax EmitExpressionBodiedInit(ExpressionSyntax value) =>
+        SyntaxFactory.AccessorDeclaration(SyntaxKind.InitAccessorDeclaration)
+            .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(SyntaxFactory.AssignmentExpression(
+                SyntaxKind.SimpleAssignmentExpression,
+                SyntaxFactory.IdentifierName("field"),
+                value)))
+            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
 
     private static ExpressionSyntax? EmitCollectionInitializer(TypeReferencePlan type)
     {
@@ -297,6 +295,11 @@ internal static class ModelEmitter
 
         foreach (var property in model.Properties)
         {
+            if (property.Type is { IsCollection: true, IsNullable: false } && !property.IsRequired)
+            {
+                _ = result.Add("OpenCode.Sdk.Internal.Serialization");
+            }
+
             CollectTypeUsings(property.Type, result);
         }
 

@@ -16,37 +16,48 @@ internal sealed class GenerationCoordinator(
     ISpecBinder binder,
     IGenerationWriter writer)
 {
-    private readonly ISpecBinder _binder = binder ?? throw new ArgumentNullException(nameof(binder));
-    private readonly CurationLoader _curationLoader = curationLoader ?? throw new ArgumentNullException(nameof(curationLoader));
     private readonly ISpecIngestion _ingestion = ingestion ?? throw new ArgumentNullException(nameof(ingestion));
     private readonly OperationSelectionLoader _selectionLoader = selectionLoader ?? throw new ArgumentNullException(nameof(selectionLoader));
+    private readonly CurationLoader _curationLoader = curationLoader ?? throw new ArgumentNullException(nameof(curationLoader));
+    private readonly ISpecBinder _binder = binder ?? throw new ArgumentNullException(nameof(binder));
     private readonly IGenerationWriter _writer = writer ?? throw new ArgumentNullException(nameof(writer));
 
     public async Task<GenerationReport> GenerateAsync(GenerationRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+
         var document = await _ingestion.IngestAsync(request.SpecPath, cancellationToken).ConfigureAwait(false);
         var selection = await _selectionLoader.LoadAsync(request.ProfilePath, cancellationToken).ConfigureAwait(false);
         var curation = await _curationLoader.LoadAsync(request.CurationPath, cancellationToken).ConfigureAwait(false);
+
         var plan = _binder.Bind(document, selection, curation);
-        var modern = plan.PendingOperations
+
+        var modern = plan
+            .PendingOperations
             .Where(static operation => operation.Surface == SpecSurface.Modern)
             .Select(static operation => operation.OperationId)
             .Order(StringComparer.Ordinal)
             .ToArray();
-        var legacy = plan.PendingOperations
+
+        var legacy = plan
+            .PendingOperations
             .Where(static operation => operation.Surface == SpecSurface.Legacy)
             .Select(static operation => operation.OperationId)
             .Order(StringComparer.Ordinal)
             .ToArray();
+
         var marker = modern.Length + legacy.Length > 0 ? CreatePartialMarker(plan.SelectedOperationIds, modern, legacy) : null;
-        var writeResult = await _writer.WriteAsync(
-            request.OutputRoot,
-            request.ProjectPath,
-            SourceEmitter.Emit(plan),
-            marker,
-            request.Verify,
-            cancellationToken).ConfigureAwait(false);
+
+        var writeResult = await _writer
+            .WriteAsync(
+                request.OutputRoot,
+                request.ProjectPath,
+                SourceEmitter.Emit(plan),
+                marker,
+                request.Verify,
+                cancellationToken)
+            .ConfigureAwait(false);
+
         return new GenerationReport
         {
             SelectedOperationIds = plan.SelectedOperationIds,
@@ -69,6 +80,7 @@ internal sealed class GenerationCoordinator(
         AppendOperations(content, "Selected", selected);
         AppendOperations(content, "Pending modern", modern);
         AppendOperations(content, "Pending legacy", legacy);
+
         return content.ToString().ReplaceLineEndings("\n");
     }
 

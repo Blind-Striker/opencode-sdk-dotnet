@@ -35,8 +35,7 @@ internal sealed class ReachableSchemaCollector
         return traversal.Snapshot();
     }
 
-    private sealed class ReachabilityTraversal(IReadOnlyDictionary<string, SchemaNode> graph, BindingErrorCollector errors,
-        StringComparer comparer)
+    private sealed class ReachabilityTraversal(IReadOnlyDictionary<string, SchemaNode> graph, BindingErrorCollector errors, StringComparer comparer)
     {
         private readonly StringComparer _comparer = comparer ?? throw new ArgumentNullException(nameof(comparer));
         private readonly BindingErrorCollector _errors = errors ?? throw new ArgumentNullException(nameof(errors));

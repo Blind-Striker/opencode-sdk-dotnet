@@ -8,8 +8,7 @@ internal sealed class SchemaNameResolver
 {
     private readonly StringComparer _comparer = StringComparer.Ordinal;
 
-    public IReadOnlyDictionary<string, string> Resolve(SpecDocument document, ReachableSchemaSet reachable,
-        BindingErrorCollector errors)
+    public IReadOnlyDictionary<string, string> Resolve(SpecDocument document, ReachableSchemaSet reachable, BindingErrorCollector errors)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(reachable);

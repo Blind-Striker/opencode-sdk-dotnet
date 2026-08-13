@@ -12,8 +12,11 @@ SpecIR ingestion are in place. M1's compiler arc selects the two walking-skeleto
 binds their reachable closure, emits committed Roslyn-built models plus source-generated JSON
 metadata, and owns deterministic `generate` / `generate --verify` writes through a guarded
 manifest. The partial-operation marker blocks every package while breadth remains incomplete.
-The active work is M1 Arc B's minimal transport and callable client with typed errors and
-`NoThrow`; see the just-in-time
+
+Direction sealed 2026-08-13: the SDK targets the **v2 protocol surface only** (ADR-0005;
+platform evidence: research doc 15). `spec/` still holds the 1.18.15 pin until the retarget
+task at the head of M1 Arc B executes. The active work is M1 Arc B: the retarget plus the
+minimal transport and callable client with typed errors and `NoThrow`; see the just-in-time
 [M1 Arc B callable-client plan](superpowers/plans/2026-08-13-m1-arc-b-callable-client.md).
 
 ## Milestones
@@ -25,40 +28,48 @@ is revisited at each milestone boundary.
 1. **M1 — Walking skeleton.** `v2.health.get` + `v2.session.message` end to end
    (SpecDocument → Binder → EmitPlan → Roslyn emitters → committed source under
    `src/OpenCode.Sdk` → minimal transport core → callable client), demonstrated once by
-   hand against a real `opencode serve` with the output pasted into the PR. Two
-   independently mergeable arcs: selected compiler + committed models, then the callable
-   client with typed errors and `NoThrow`. Design reference:
+   hand against a real `opencode2 serve` with the output pasted into the PR. Arc B opens
+   with the v2 retarget task (pin snapshot, ingestion-wall admit rule, regenerated
+   closure). Two independently mergeable arcs: selected compiler + committed models
+   (landed), then the callable client with typed errors and `NoThrow`. Design reference:
    `superpowers/specs/2026-08-11-production-walking-skeleton-design.md`.
 2. **M2 — Breadth batches.** The generation profile grows in vertical operation batches;
    each batch lands its curation rows, reachable models, operation methods, and contract
    tests together.
-3. **M3 — Streams.** SSE engine, live/durable subscribe with `after` resume; demo: watching
-   a real session's event stream. The net472 `ServicePointManager` item lands here.
-4. **M4 — Launcher.** `OpenCodeServer.StartAsync` with three-OS acceptance (ADR-0001);
-   demo: the SDK starts the server itself and calls health. The net472 stdout/tree-kill
-   items land here.
-5. **M5 — Full surface.** Legacy hub, complete generation profile, exclusion fingerprints
-   (ADR-0008), packaging unblocked.
+3. **M3 — Streams.** SSE engine over the v2 stream surface (`v2.event.subscribe`,
+   `v2.session.log` with `after`/`follow`, cursor-paged `v2.message.list`); the v1
+   durable-stream design does not carry over and is re-derived here. Demo: watching a
+   real session's event stream. The net472 `ServicePointManager` item lands here.
+4. **M4 — Launcher.** `OpenCodeServer.StartAsync` with three-OS acceptance (ADR-0001)
+   over `opencode2 serve`; demo: the SDK starts the server itself and calls health. The
+   net472 stdout/tree-kill items land here. (`serve --stdio`'s stdin leash and the
+   background service's discovery file are candidate mechanisms — decided in the M4 plan;
+   platform detail: research doc 15.)
+5. **M5 — Full surface.** Complete generation profile over the protocol surface,
+   exclusion fingerprints (ADR-0008), packaging unblocked.
 6. **M6 — Operational closure.** `refresh-spec`, Extensions DI breadth,
    retry/telemetry/hooks, quarantine lane, nightly canary; durable decisions distill into
    ADRs and the `superpowers/` documents retire.
 
 ## Open Questions
 
+- **v2 GA watch** — the v2 line ships as `opencode2` (npm `@opencode-ai/cli@next`, desktop
+  beta via `update.opencode.ai`) with no GA date; the spec pin stays a deliberate snapshot,
+  refreshed at milestone boundaries. Platform detail: research doc 15.
+- **`v2.session.log` semantics** — it replaces the v1 durable stream (`after` + `follow` on
+  an experimental path); resume guarantees are unestablished. Owned by M3.
+- **Location addressing** — v2 operations take `location[...]` query parameters where the
+  v1 design leaned on the `x-opencode-directory` header; the client/per-call directory
+  decoration policy is decided in Arc B's retarget task.
 - **Spec refresh cadence** — the `refresh-spec` tool lands in M6; the cadence policy stays
   open.
-- **Structural-union emission shape** — the five structural-union pin sites
-  (`Config.formatter` et al.) need an emission decision when a breadth batch first reaches
-  one (a public API review).
+- **Structural-union emission shape** — the v1 pin had five structural-union sites
+  (`Config.formatter` et al.); the population is re-censused at the retarget, and the
+  emission decision lands when a breadth batch first reaches one (a public API review).
 - **Release mechanics** — decided parts live in ADR-0006 (independent semver, per-merge
   GitHub Packages CD, manual NuGet.org releases). Pre-1.0 numbering, `VersionPrefix`,
   RELEASE_NOTES flow, and the concrete workflows are scheduled when the first publishable
   increment approaches.
-- **Upstream v2 watch:** the active upstream `v2` branch publishes its spec at
-  `packages/protocol/openapi.json`; its dialect adds single-element `allOf` wrappers
-  (validation keywords, occasionally with annotations), keeps `v2.`-prefixed operationIds,
-  and returns literals to single-value `enum` (research log sessions 12–13). No plan impact
-  today; re-check at each spec refresh and before the upstream-absorbing major.
 
 ## Known Gaps
 

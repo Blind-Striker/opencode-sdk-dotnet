@@ -48,8 +48,7 @@ internal sealed class CurationValidator
         }
     }
 
-    private static void ValidateGroupShape(string wireName, GroupCuration group, IReadOnlyList<SpecOperation> selected,
-        BindingErrorCollector errors)
+    private static void ValidateGroupShape(string wireName, GroupCuration group, IReadOnlyList<SpecOperation> selected, BindingErrorCollector errors)
     {
         switch (group.Placement)
         {
@@ -115,8 +114,7 @@ internal sealed class CurationValidator
         }
     }
 
-    private static void ValidatePropertyOverrides(SpecDocument document, ReachableSchemaSet reachable,
-        GenerationCuration curation, BindingErrorCollector errors)
+    private static void ValidatePropertyOverrides(SpecDocument document, ReachableSchemaSet reachable, GenerationCuration curation, BindingErrorCollector errors)
     {
         var reachableKeys = reachable.GraphKeys.ToHashSet(StringComparer.Ordinal);
         var targets = new HashSet<(string Schema, string Property)>();

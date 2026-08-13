@@ -18,7 +18,7 @@ public sealed record SessionMessageAssistantText : SessionMessageAssistantConten
     /// Gets the id value.
     /// </summary>
     [JsonPropertyName("id")]
-    public required string ID { get; init; }
+    public required string Id { get; init; }
 
     /// <summary>
     /// Gets the text value.

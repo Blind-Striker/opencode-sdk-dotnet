@@ -30,6 +30,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text.Json.Serialization;
+using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
@@ -54,29 +55,13 @@ public sealed record ExampleItem
     /// Gets the item tags.
     /// </summary>
     [JsonPropertyName("tags")]
-    public IReadOnlyList<string> Tags
-    {
-        get;
-        init
-        {
-            // Source-generated deserialization passes null for an absent optional init-only collection.
-            field = value is null ? Array.Empty<string>() : new List<string>(value).AsReadOnly();
-        }
-    } = Array.Empty<string>();
+    public IReadOnlyList<string> Tags { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new List<string>(input).AsReadOnly()); } = Array.Empty<string>();
 
     /// <summary>
     /// Gets links by relation.
     /// </summary>
     [JsonPropertyName("links")]
-    public IReadOnlyDictionary<string, Uri> Links
-    {
-        get;
-        init
-        {
-            // Source-generated deserialization passes null for an absent optional init-only collection.
-            field = value is null ? new ReadOnlyDictionary<string, Uri>(new Dictionary<string, Uri>(StringComparer.Ordinal)) : new ReadOnlyDictionary<string, Uri>(value.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal));
-        }
-    } = new ReadOnlyDictionary<string, Uri>(new Dictionary<string, Uri>(StringComparer.Ordinal));
+    public IReadOnlyDictionary<string, Uri> Links { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new ReadOnlyDictionary<string, Uri>(input.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal))); } = new ReadOnlyDictionary<string, Uri>(new Dictionary<string, Uri>(StringComparer.Ordinal));
 }
 
 // File: Models/ExampleMode.cs

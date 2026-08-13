@@ -8,6 +8,7 @@ internal sealed class GraphKeyBuilder
     public string Root(string wireNameOrOpId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(wireNameOrOpId);
+
         return wireNameOrOpId;
     }
 

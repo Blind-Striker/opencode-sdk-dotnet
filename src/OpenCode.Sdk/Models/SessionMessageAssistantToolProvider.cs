@@ -3,6 +3,7 @@
 using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
@@ -20,27 +21,11 @@ public sealed record SessionMessageAssistantToolProvider
     /// Gets the metadata value.
     /// </summary>
     [JsonPropertyName("metadata")]
-    public IReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>> Metadata
-    {
-        get;
-        init
-        {
-            // Source-generated deserialization passes null for an absent optional init-only collection.
-            field = value is null ? new ReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>>(new Dictionary<string, IReadOnlyDictionary<string, JsonElement>>(StringComparer.Ordinal)) : new ReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>>(value.ToDictionary(static pair => pair.Key, static pair => (IReadOnlyDictionary<string, JsonElement>)new ReadOnlyDictionary<string, JsonElement>(pair.Value.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal)), StringComparer.Ordinal));
-        }
-    } = new ReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>>(new Dictionary<string, IReadOnlyDictionary<string, JsonElement>>(StringComparer.Ordinal));
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>> Metadata { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new ReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>>(input.ToDictionary(static pair => pair.Key, static pair => (IReadOnlyDictionary<string, JsonElement>)new ReadOnlyDictionary<string, JsonElement>(pair.Value.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal)), StringComparer.Ordinal))); } = new ReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>>(new Dictionary<string, IReadOnlyDictionary<string, JsonElement>>(StringComparer.Ordinal));
 
     /// <summary>
     /// Gets the result metadata value.
     /// </summary>
     [JsonPropertyName("resultMetadata")]
-    public IReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>> ResultMetadata
-    {
-        get;
-        init
-        {
-            // Source-generated deserialization passes null for an absent optional init-only collection.
-            field = value is null ? new ReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>>(new Dictionary<string, IReadOnlyDictionary<string, JsonElement>>(StringComparer.Ordinal)) : new ReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>>(value.ToDictionary(static pair => pair.Key, static pair => (IReadOnlyDictionary<string, JsonElement>)new ReadOnlyDictionary<string, JsonElement>(pair.Value.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal)), StringComparer.Ordinal));
-        }
-    } = new ReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>>(new Dictionary<string, IReadOnlyDictionary<string, JsonElement>>(StringComparer.Ordinal));
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>> ResultMetadata { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new ReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>>(input.ToDictionary(static pair => pair.Key, static pair => (IReadOnlyDictionary<string, JsonElement>)new ReadOnlyDictionary<string, JsonElement>(pair.Value.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal)), StringComparer.Ordinal))); } = new ReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>>(new Dictionary<string, IReadOnlyDictionary<string, JsonElement>>(StringComparer.Ordinal));
 }

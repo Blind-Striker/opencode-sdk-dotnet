@@ -12,13 +12,13 @@ public sealed record ModelRef
     /// Gets the id value.
     /// </summary>
     [JsonPropertyName("id")]
-    public required string ID { get; init; }
+    public required string Id { get; init; }
 
     /// <summary>
     /// Gets the provider id value.
     /// </summary>
     [JsonPropertyName("providerID")]
-    public required string ProviderID { get; init; }
+    public required string ProviderId { get; init; }
 
     /// <summary>
     /// Gets the variant value.

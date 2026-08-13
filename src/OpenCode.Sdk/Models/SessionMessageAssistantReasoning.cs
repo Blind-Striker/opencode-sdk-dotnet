@@ -3,6 +3,7 @@
 using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
@@ -20,7 +21,7 @@ public sealed record SessionMessageAssistantReasoning : SessionMessageAssistantC
     /// Gets the id value.
     /// </summary>
     [JsonPropertyName("id")]
-    public required string ID { get; init; }
+    public required string Id { get; init; }
 
     /// <summary>
     /// Gets the text value.
@@ -32,15 +33,7 @@ public sealed record SessionMessageAssistantReasoning : SessionMessageAssistantC
     /// Gets the provider metadata value.
     /// </summary>
     [JsonPropertyName("providerMetadata")]
-    public IReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>> ProviderMetadata
-    {
-        get;
-        init
-        {
-            // Source-generated deserialization passes null for an absent optional init-only collection.
-            field = value is null ? new ReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>>(new Dictionary<string, IReadOnlyDictionary<string, JsonElement>>(StringComparer.Ordinal)) : new ReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>>(value.ToDictionary(static pair => pair.Key, static pair => (IReadOnlyDictionary<string, JsonElement>)new ReadOnlyDictionary<string, JsonElement>(pair.Value.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal)), StringComparer.Ordinal));
-        }
-    } = new ReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>>(new Dictionary<string, IReadOnlyDictionary<string, JsonElement>>(StringComparer.Ordinal));
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>> ProviderMetadata { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new ReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>>(input.ToDictionary(static pair => pair.Key, static pair => (IReadOnlyDictionary<string, JsonElement>)new ReadOnlyDictionary<string, JsonElement>(pair.Value.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal)), StringComparer.Ordinal))); } = new ReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>>(new Dictionary<string, IReadOnlyDictionary<string, JsonElement>>(StringComparer.Ordinal));
 
     /// <summary>
     /// Gets the time value.

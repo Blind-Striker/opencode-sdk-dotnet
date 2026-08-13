@@ -8,8 +8,7 @@ internal sealed class SchemaPlanBinder(SchemaNameResolver schemaNames)
     private const string ModelNamespace = "OpenCode.Sdk.Models";
     private readonly SchemaNameResolver _schemaNames = schemaNames ?? throw new ArgumentNullException(nameof(schemaNames));
 
-    public SchemaBindingResult Bind(SpecDocument document, ReachableSchemaSet reachable, GenerationCuration curation,
-        BindingErrorCollector errors)
+    public SchemaBindingResult Bind(SpecDocument document, ReachableSchemaSet reachable, GenerationCuration curation, BindingErrorCollector errors)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(reachable);
@@ -259,8 +258,10 @@ internal sealed class SchemaPlanBinder(SchemaNameResolver schemaNames)
             return null;
         }
 
-        var duplicate = properties.GroupBy(static property => property.Name, StringComparer.Ordinal)
-            .FirstOrDefault(static group => group.Count() > 1);
+        var duplicate = properties
+            .GroupBy(static property => property.Name, StringComparer.Ordinal)
+            .FirstOrDefault(static group => group.Skip(1).Any());
+
         if (duplicate is not null)
         {
             errors.Add(BindingErrorCategory.Naming, key, $"multiple properties map to C# name '{duplicate.Key}'");

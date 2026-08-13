@@ -5,6 +5,10 @@ Date: 2026-08-13
 > **Status: vision / reference — not sealed.** Binding decisions live in the ADRs and
 > `AGENTS.md`; this document is direction and design rationale, not law. Contradicting it
 > is a finding to note, not a deviation-protocol event.
+>
+> The v1.x dual-surface facts here (operation counts, the legacy hub, envelope inventories)
+> predate the 2026-08-13 v2 retarget (ADR-0005) and are historical; the mechanisms remain
+> reference material.
 
 Design specification produced by the testing-architecture brainstorm session (2026-08-09/10,
 ROADMAP queue item 1 — its final design step). Every decision below was discussed and sealed

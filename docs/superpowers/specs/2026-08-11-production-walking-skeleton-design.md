@@ -620,7 +620,7 @@ design and revised execution plan.
 - `docs/research/08-codegen-spike.md`
 - `docs/adr/0003-model-layer-codegen.md`
 - `docs/adr/0004-generated-model-principles.md`
-- `docs/adr/0005-both-api-surfaces.md`
+- `docs/adr/0005-v2-protocol-surface-only.md`
 - `docs/adr/0007-error-model.md`
 - `docs/adr/0008-generated-operation-methods.md`
 - `docs/adr/0009-unknown-variant-tolerance.md`

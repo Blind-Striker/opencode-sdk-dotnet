@@ -14,10 +14,10 @@ names, or concrete client names. Generated methods delegate once into a hand-wri
 
 - This is an opencode SDK generator, not a general OpenAPI generator. Arc B supports only
   selected opencode dialect shapes consumed by M1 and fails closed on any other selected shape.
-- Public API policy is curation-driven. The modern `session` row declares `Sessions`,
+- Public API policy is curation-driven. The `session` group row declares `Sessions`,
   `SessionClient`, and `sessionID` as its handle parameter. The Binder applies one general
   partial-application rule; no Binder or emitter branch names `session` or either selected
-  operation. Legacy operations remain flat and pending in M1.
+  operation. All other operations stay pending in M1.
 - C# identifiers use ordinary PascalCase for acronym tokens regardless of length:
   `id` -> `Id`, `sessionID` -> `SessionId`, `callID` -> `CallId`, `URL` -> `Url`.
   `[JsonPropertyName]` preserves wire spelling; exceptional brand spelling remains curated.
@@ -37,6 +37,29 @@ names, or concrete client names. Generated methods delegate once into a hand-wri
 - Retry, telemetry, hooks, DI Extensions, launcher, SSE, raw `SendAsync`, bodies, query
   parameters, and operation breadth are out of scope.
 
+## Task 0: Retarget The Spec Pin To The v2 Branch
+
+**Areas:** `spec/`, `Generator/Ingestion/Walls`, `tools/curation.json`, regenerated models.
+
+Executes the 2026-08-13 direction (ADR-0005 revised: v2 protocol surface only; platform
+evidence: research doc 15).
+
+- [ ] Pin a `v2`-branch snapshot of `packages/protocol/openapi.json` as `spec/openapi.json`
+  and rewrite `spec/SNAPSHOT.md` provenance (branch, commit, retrieval date, refresh steps).
+- [ ] Add one ingestion-wall admit rule: a single-element `allOf` wrapper carrying only
+  validation keywords unwraps into its base schema; every other `allOf` stays refused.
+  Re-census `prefixItems`/`patternProperties`/empty-schema sites against the new pin.
+- [ ] Re-derive the selected wire contracts from the new pin: `v2.health.get` success is the
+  `ServiceHealth` object (`{healthy, version, pid}` observed live 2026-08-13), and
+  `v2.session.message` keeps the `{data}` envelope over the dotted `Session.Message.Info`
+  schema. Error maps are re-read from the v2 responses — do not assume the 1.x tables.
+- [ ] Decide dotted-name mapping for the selected closure (`Session.Message.Info` and
+  friends): mechanical mangling, curated overrides only where the mechanical name misfires.
+- [ ] Decide the directory/location decoration policy: v2 addresses per-request scope with
+  `location[...]` query parameters; the `x-opencode-directory` header plan is v1-derived.
+- [ ] Regenerate the selected model closure; update curation rows, serialization tests, and
+  fixtures to the v2 shapes; run the full repository gates.
+
 ## Task 1: Model Policy And Operation Binding
 
 **Areas:** `Generator/Binding/`, `ModelEmitter`, `tools/curation.json`, Binder/emitter tests,
@@ -48,19 +71,19 @@ and committed generated models.
 - [ ] Route optional non-null collection copying through an internal helper whose input is
   nullable and output is non-null. Preserve immutable recursive copies; verify absent -> empty
   and explicit null -> `JsonException` under source-generated System.Text.Json.
-- [ ] Add `handleParameter` to modern group curation. Require it and `handleName` together,
-  validate it names a required path parameter, and never consume a query/body value. Keep all
-  pending legacy operations flat.
+- [ ] Add `handleParameter` to group curation. Require it and `handleName` together,
+  validate it names a required path parameter, and never consume a query/body value. Keep
+  every pending operation flat.
 - [ ] Add consumed-only `ClientPlan`, `OperationPlan`, `OperationParameterPlan`, `EnvelopePlan`,
   and `ErrorMapPlan` plus an `OperationPlanBinder`. Reuse schema-resolved type names instead of
   reinterpreting schemas.
-- [ ] Bind only modern ordinary GET + JSON + path-parameter operations with one 200 success and
-  no body/query/stream/wildcard. Bind `{healthy}` to `HealthResponse.Healthy`, curated `{data}`
-  to `SessionMessageResponse.Message`, and the normalized 404 union to two semantic variants.
+- [ ] Bind only ordinary GET + JSON + path-parameter operations with one 200 success and
+  no body/query/stream/wildcard. Bind the health success object to `HealthResponse`, curated
+  `{data}` to `SessionMessageResponse.Message`, and the error maps Task 0 derived.
 - [ ] Test complete plans, handle-versus-method parameters, collisions, documentation, status
   maps, batched failures, and determinism. A synthetic same-shape operation with different names
-  must bind without new production branches; a legacy operation carrying `sessionID` must remain
-  flat.
+  must bind without new production branches; an operation in a group without a handle
+  declaration must remain flat even when it carries `sessionID`.
 
 ## Task 2: Hand-Written HTTP Core
 
@@ -117,11 +140,12 @@ and committed generated models.
   `.generation-incomplete`; packing must still fail only because breadth is pending.
 - [ ] Run `generate`, clean `generate --verify`, Release build, supported test legs, format,
   Slopwatch, and intentional pack refusal.
-- [ ] Start a password-enabled real `opencode serve` in a directory containing a message. Obtain
-  IDs with authenticated raw calls to `GET /api/session?limit=1` and
-  `GET /api/session/{sessionID}/message?limit=1`, then call only the two generated operations
-  from a temporary `.scratchpad/` console. Print `Healthy`, concrete message type, and message
-  `Id`; paste command/output into the PR and move `docs/ROADMAP.md` to M2.
+- [ ] Start a password-enabled real `opencode2 serve` (v2 pre-release channel; record the
+  exact installed build version as demo evidence). Obtain IDs with authenticated raw calls to
+  the pinned surface's session-list and message-list operations, then call only the two
+  generated operations from a temporary `.scratchpad/` console. Print the health payload,
+  concrete message type, and message `Id`; paste command/output into the PR and move
+  `docs/ROADMAP.md` to M2.
 
 ## Acceptance Shape
 

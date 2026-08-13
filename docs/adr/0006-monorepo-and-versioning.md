@@ -6,7 +6,7 @@ The MCP server is developed in this repository, not a separate one. It is by des
 adapter over our own SDK, and that architecture wants compile-time coupling: SDK breaking
 changes surface in the same CI run instead of after a publish (the cross-repo
 private-internals dependency was the failure mode that sank the unofficial `opencode-mcp`),
-the consumer-driven legacy-test scope (ADR-0005) stays mechanically derivable, and the repo's
+the MCP server's consumed-operation set stays mechanically derivable for test scoping, and the repo's
 infrastructure — analyzer wall, three-OS CI, real-process integration harness, docs
 discipline — is paid for once.
 

@@ -88,12 +88,6 @@ internal static class CSharpNamePolicy
 
     private static void AppendPascalWord(StringBuilder result, string word)
     {
-        if (word.Length is 2 && word.All(char.IsLetter))
-        {
-            _ = result.Append(word.ToUpperInvariant());
-            return;
-        }
-
         _ = result.Append(char.ToUpperInvariant(word[0]));
         if (word.Length > 1)
         {

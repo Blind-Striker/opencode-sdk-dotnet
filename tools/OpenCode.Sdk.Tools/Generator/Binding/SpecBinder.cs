@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using OpenCode.Sdk.Tools.Generator.Binding.Abstractions;
 using OpenCode.Sdk.Tools.Generator.Binding.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
@@ -48,7 +49,7 @@ internal sealed class SpecBinder(
         };
     }
 
-    private static System.Collections.ObjectModel.ReadOnlyCollection<SpecOperation> SelectOperations(OperationSelection selection,
+    private static ReadOnlyCollection<SpecOperation> SelectOperations(OperationSelection selection,
         Dictionary<string, SpecOperation> operationsById, BindingErrorCollector errors)
     {
         var selected = new List<SpecOperation>(selection.OperationIds.Count);

@@ -3,6 +3,7 @@
     "Internal/Serialization/LlmToolContentJsonConverter.cs",
     "Internal/Serialization/OpenCodeErrorJsonConverter.cs",
     "Internal/Serialization/OpenCodeJsonContext.cs",
+    "Internal/Serialization/OptionalCollectionInput.cs",
     "Internal/Serialization/SessionMessageAssistantContentJsonConverter.cs",
     "Internal/Serialization/SessionMessageJsonConverter.cs",
     "Internal/Serialization/SessionMessageToolStateJsonConverter.cs",
