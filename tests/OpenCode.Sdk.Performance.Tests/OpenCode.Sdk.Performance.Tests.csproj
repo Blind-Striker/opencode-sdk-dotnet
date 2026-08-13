@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>$(DefaultTargetFramework)</TargetFramework>
+    <!-- BenchmarkDotNet refuses to measure unoptimized assemblies. -->
+    <Optimize>true</Optimize>
+    <!-- Everything measured goes through the source-generated context, exactly like the SDK. -->
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+    <!-- slopwatch-ignore: SW005 benchmark-harness arbitration: the canned endpoint/credential ARE the fixture, not a real address or secret (S1075, S2068) -->
+    <NoWarn>$(NoWarn);S1075;S2068</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OpenCode.Sdk/OpenCode.Sdk.csproj"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Fixtures/**/*.json" />
+  </ItemGroup>
+
+</Project>
