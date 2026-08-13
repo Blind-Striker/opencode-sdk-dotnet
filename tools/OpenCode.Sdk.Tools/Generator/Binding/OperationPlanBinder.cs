@@ -353,10 +353,9 @@ internal sealed class OperationPlanBinder
             {
                 SpecEnvelopeShape.Bare => BindBarePayload(success.Schema),
                 SpecEnvelopeShape.Data => BindDataPayload(success.Schema),
-                SpecEnvelopeShape.None or SpecEnvelopeShape.DataLocation or SpecEnvelopeShape.CursorData
-                    or SpecEnvelopeShape.DataHasMore
-                    => RefuseNull($"envelope shape '{success.EnvelopeShape}' is not supported in M1"),
-                _ => RefuseNull($"envelope shape '{success.EnvelopeShape}' is not supported in M1"),
+                SpecEnvelopeShape.CursorData => BindCursorListPayload(success.Schema),
+                SpecEnvelopeShape.None or SpecEnvelopeShape.DataLocation or SpecEnvelopeShape.DataHasMore or _ =>
+                    RefuseNull($"envelope shape '{success.EnvelopeShape}' is not supported"),
             };
             if (payload is null)
             {
@@ -383,7 +382,13 @@ internal sealed class OperationPlanBinder
                 AdapterTypeName = $"{responseTypeName}Adapter",
                 PayloadName = payloadName,
                 PayloadTypeName = payload,
-                HasDataEnvelope = success.EnvelopeShape is SpecEnvelopeShape.Data,
+                Kind = success.EnvelopeShape switch
+                {
+                    SpecEnvelopeShape.Data => EnvelopeKind.Data,
+                    SpecEnvelopeShape.CursorData => EnvelopeKind.CursorList,
+                    SpecEnvelopeShape.Bare or SpecEnvelopeShape.None or SpecEnvelopeShape.DataLocation
+                        or SpecEnvelopeShape.DataHasMore or _ => EnvelopeKind.Bare,
+                },
             };
         }
 
@@ -406,6 +411,53 @@ internal sealed class OperationPlanBinder
             }
 
             return RefuseNull("envelope payload must be a required reference to a named schema");
+        }
+
+        private string? BindCursorListPayload(SchemaNode schema)
+        {
+            if (schema is not RefNode reference
+                || !_document.Schemas.TryGetValue(reference.Target, out var target)
+                || target is not ObjectNode wrapper)
+            {
+                return RefuseNull("cursor-list envelope must reference an object schema");
+            }
+
+            var data = wrapper.Properties.FirstOrDefault(static property => property.Name is "data");
+            var cursor = wrapper.Properties.FirstOrDefault(static property => property.Name is "cursor");
+            if (wrapper.Properties.Count is not 2 || data is not { IsRequired: true } || cursor is not { IsRequired: true })
+            {
+                return RefuseNull("cursor-list envelope must require exactly 'data' and 'cursor'");
+            }
+
+            if (!IsListCursorShape(cursor.Schema))
+            {
+                return RefuseNull("cursor-list 'cursor' must be the optional-nullable previous/next cursor object");
+            }
+
+            // Items must reference top-level components: a promoted inline item would take its
+            // name from the excluded response root, so the dialect keeps list items nominal.
+            if (data.Schema is not ArrayNode { Item: RefNode item }
+                || item.Target.Contains('#', StringComparison.Ordinal)
+                || !_typeNames.TryGetValue(item.Target, out var itemName))
+            {
+                return RefuseNull("cursor-list 'data' must be an array of a named component schema");
+            }
+
+            return itemName;
+        }
+
+        /// <summary>Recognizes the wire cursor contract: exactly optional-nullable string <c>previous</c> and <c>next</c>.</summary>
+        private bool IsListCursorShape(SchemaNode schema)
+        {
+            if (Resolve(schema) is not ObjectNode cursor
+                || cursor.Properties.Count is not 2
+                || cursor.Properties.Select(static property => property.Name).Distinct(StringComparer.Ordinal).Count() is not 2)
+            {
+                return false;
+            }
+
+            return cursor.Properties.All(property => property is { IsRequired: false, Name: "previous" or "next" }
+                && Resolve(property.Schema) is NullableNode { Inner: PrimitiveNode { Kind: PrimitiveKind.String } });
         }
 
         private ErrorMapPlan? BindErrorMap()

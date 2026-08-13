@@ -103,7 +103,7 @@ internal static class EmitterPlanFixture
                 AdapterTypeName = "PingResponseAdapter",
                 PayloadName = "Ping",
                 PayloadTypeName = "ExampleItem",
-                HasDataEnvelope = false,
+                Kind = EnvelopeKind.Bare,
             },
             ErrorMap = new ErrorMapPlan
             {
@@ -135,7 +135,7 @@ internal static class EmitterPlanFixture
                 AdapterTypeName = "WidgetOverviewResponseAdapter",
                 PayloadName = "Overview",
                 PayloadTypeName = "ExampleItem",
-                HasDataEnvelope = false,
+                Kind = EnvelopeKind.Bare,
             },
             ErrorMap = new ErrorMapPlan
             {
@@ -170,7 +170,7 @@ internal static class EmitterPlanFixture
                 AdapterTypeName = "WidgetItemResponseAdapter",
                 PayloadName = "Item",
                 PayloadTypeName = "ExampleItem",
-                HasDataEnvelope = true,
+                Kind = EnvelopeKind.Data,
             },
             ErrorMap = new ErrorMapPlan
             {

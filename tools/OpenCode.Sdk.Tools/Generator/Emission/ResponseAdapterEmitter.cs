@@ -129,7 +129,13 @@ internal static class ResponseAdapterEmitter
 
     private static ObjectCreationExpressionSyntax EmitSuccessCreation(EnvelopePlan envelope)
     {
-        var reader = envelope.HasDataEnvelope ? "ReadDataPayload" : "ReadBarePayload";
+        var reader = envelope.Kind switch
+        {
+            EnvelopeKind.Bare => "ReadBarePayload",
+            EnvelopeKind.Data => "ReadDataPayload",
+            EnvelopeKind.CursorList or _ =>
+                throw new InvalidOperationException($"Envelope kind '{envelope.Kind}' has no adapter reader yet."),
+        };
         var payload = EmissionSyntax.Invocation(
             SyntaxFactory.IdentifierName(reader),
             SyntaxFactory.Argument(SyntaxFactory.IdentifierName("rawBody")),

@@ -36,7 +36,7 @@ public sealed class OperationPlanBinderTests
         await Assert.That(health.Envelope.AdapterTypeName).IsEqualTo("HealthResponseAdapter");
         await Assert.That(health.Envelope.PayloadName).IsEqualTo("Health");
         await Assert.That(health.Envelope.PayloadTypeName).IsEqualTo("ServiceHealth");
-        await Assert.That(health.Envelope.HasDataEnvelope).IsFalse();
+        await Assert.That(health.Envelope.Kind).IsEqualTo(EnvelopeKind.Bare);
         await Assert.That(health.ErrorMap.Statuses.Select(static status => status.StatusCode)
             .SequenceEqual([400, 401])).IsTrue();
         await Assert.That(health.ErrorMap.Statuses[0].Tags.Single().Tag).IsEqualTo("InvalidRequestError");
@@ -73,7 +73,7 @@ public sealed class OperationPlanBinderTests
         await Assert.That(message.Envelope.AdapterTypeName).IsEqualTo("SessionMessageResponseAdapter");
         await Assert.That(message.Envelope.PayloadName).IsEqualTo("Message");
         await Assert.That(message.Envelope.PayloadTypeName).IsEqualTo("SessionMessageInfo");
-        await Assert.That(message.Envelope.HasDataEnvelope).IsTrue();
+        await Assert.That(message.Envelope.Kind).IsEqualTo(EnvelopeKind.Data);
         await Assert.That(message.ErrorMap.Statuses.Select(static status => status.StatusCode)
             .SequenceEqual([400, 401, 404])).IsTrue();
         await Assert.That(message.ErrorMap.Statuses[2].Tags.Select(static tag => tag.Tag)
@@ -112,7 +112,7 @@ public sealed class OperationPlanBinderTests
         await Assert.That(part.Envelope.AdapterTypeName).IsEqualTo("GadgetPartResponseAdapter");
         await Assert.That(part.Envelope.PayloadName).IsEqualTo("Part");
         await Assert.That(part.Envelope.PayloadTypeName).IsEqualTo("GadgetPart");
-        await Assert.That(part.Envelope.HasDataEnvelope).IsTrue();
+        await Assert.That(part.Envelope.Kind).IsEqualTo(EnvelopeKind.Data);
         await Assert.That(part.ErrorMap.Statuses.Single().StatusCode).IsEqualTo(404);
         await Assert.That(part.ErrorMap.Statuses.Single().Tags.Single().TypeName).IsEqualTo("GadgetMissingError");
     }
@@ -371,6 +371,67 @@ public sealed class OperationPlanBinderTests
 
         var part = plan.Clients.Single(static client => client.Role == ClientRole.Handle).Operations.Single();
         await Assert.That(part.Options).IsNull();
+    }
+
+    [Test]
+    public async Task Bind_Should_Bind_A_Cursor_List_Envelope()
+    {
+        var document = await BindingTestHost.IngestAsync(CursorListScenario());
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.Envelope.Kind).IsEqualTo(EnvelopeKind.CursorList);
+        await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("WidgetInfo");
+        await Assert.That(plan.Models.Select(static model => model.Name)
+            .SequenceEqual(["WidgetInfo"], StringComparer.Ordinal)).IsTrue();
+        await Assert.That(plan.Registry.TypeNames
+            .SequenceEqual(["WidgetInfo"], StringComparer.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Bind_A_Component_Data_Envelope_Without_Modeling_The_Wrapper()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("WidgetResponse", schema => schema.Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("data", property => property.Ref("WidgetInfo"), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetResponse")))));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.Envelope.Kind).IsEqualTo(EnvelopeKind.Data);
+        await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("WidgetInfo");
+        await Assert.That(plan.Models.Select(static model => model.Name)
+            .SequenceEqual(["WidgetInfo"], StringComparer.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Cursor_List_With_A_Malformed_Cursor()
+    {
+        var document = await BindingTestHost.IngestAsync(CursorListScenario(cursor => cursor.Type("object")
+            .AdditionalPropertiesFalse()
+            .Property("previous", property => property.AnyOf(
+                static branch => branch.Type("string"),
+                static branch => branch.Type("null")), required: true)
+            .Property("next", property => property.AnyOf(
+                static branch => branch.Type("string"),
+                static branch => branch.Type("null")))));
+
+        await AssertWidgetRefusalAsync(document, "cursor object");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Cursor_List_Whose_Items_Are_Not_Component_References()
+    {
+        var document = await BindingTestHost.IngestAsync(CursorListScenario(items: items => items.Type("object")
+            .Property("id", property => property.Type("string"), required: true)));
+
+        await AssertWidgetRefusalAsync(document, "array of a named component schema");
     }
 
     [Test]
@@ -687,6 +748,28 @@ public sealed class OperationPlanBinderTests
                 configureParameters(operation);
                 _ = operation.Response(200, "application/json", schema => schema.Ref("WidgetInfo"));
             }));
+
+    private static SpecScenario CursorListScenario(Action<SchemaBuilder>? cursor = null, Action<SchemaBuilder>? items = null) =>
+        SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("WidgetsResponse", schema => schema.Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("data", property => property
+                    .Type("array")
+                    .Items(items ?? (static item => item.Ref("WidgetInfo"))), required: true)
+                .Property("cursor", cursor ?? DefaultCursor, required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetsResponse"))));
+
+    private static void DefaultCursor(SchemaBuilder cursor) => cursor.Type("object")
+        .AdditionalPropertiesFalse()
+        .Property("previous", static property => property.AnyOf(
+            static branch => branch.Type("string"),
+            static branch => branch.Type("null")))
+        .Property("next", static property => property.AnyOf(
+            static branch => branch.Type("string"),
+            static branch => branch.Type("null")));
 
     private static SpecScenario WidgetCreateScenario(Action<SchemaBuilder> configureBody,
         string mediaType = "application/json", bool required = true) =>
