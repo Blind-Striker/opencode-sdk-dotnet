@@ -3,20 +3,21 @@ using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 
 namespace OpenCode.Sdk.Tools.Generator.Binding;
 
-internal sealed class SchemaPlanBinder(SchemaNameResolver schemaNames)
+internal sealed class SchemaPlanBinder
 {
     private const string ModelNamespace = "OpenCode.Sdk.Models";
-    private readonly SchemaNameResolver _schemaNames = schemaNames ?? throw new ArgumentNullException(nameof(schemaNames));
+    private readonly StringComparer _comparer = StringComparer.Ordinal;
 
-    public SchemaBindingResult Bind(SpecDocument document, ReachableSchemaSet reachable, GenerationCuration curation, BindingErrorCollector errors)
+    public SchemaBindingResult Bind(SpecDocument document, ReachableSchemaSet reachable, GenerationCuration curation,
+        IReadOnlyDictionary<string, string> typeNames, BindingErrorCollector errors)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(reachable);
         ArgumentNullException.ThrowIfNull(curation);
+        ArgumentNullException.ThrowIfNull(typeNames);
         ArgumentNullException.ThrowIfNull(errors);
 
-        var typeNames = _schemaNames.Resolve(document, reachable, errors);
-        var responseRoots = reachable.ResponseRootKeys.ToHashSet(StringComparer.Ordinal);
+        var responseRoots = reachable.ResponseRootKeys.ToHashSet(_comparer);
         RefuseStructuralUnions(document, reachable, errors);
 
         var inheritance = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -52,12 +53,12 @@ internal sealed class SchemaPlanBinder(SchemaNameResolver schemaNames)
             }
         }
 
-        var orderedModels = models.OrderBy(static model => model.Name, StringComparer.Ordinal).ToArray();
-        var orderedUnions = unions.OrderBy(static union => union.Name, StringComparer.Ordinal).ToArray();
+        var orderedModels = models.OrderBy(static model => model.Name, _comparer).ToArray();
+        var orderedUnions = unions.OrderBy(static union => union.Name, _comparer).ToArray();
         var registryNames = orderedModels.Select(static model => model.Name)
             .Concat(orderedUnions.SelectMany(static union => new[] { union.Name, union.UnknownTypeName, }))
-            .Distinct(StringComparer.Ordinal)
-            .Order(StringComparer.Ordinal)
+            .Distinct(_comparer)
+            .Order(_comparer)
             .ToArray();
         return new SchemaBindingResult
         {

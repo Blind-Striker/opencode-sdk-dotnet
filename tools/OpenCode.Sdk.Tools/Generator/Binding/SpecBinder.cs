@@ -8,10 +8,12 @@ namespace OpenCode.Sdk.Tools.Generator.Binding;
 internal sealed class SpecBinder(
     ReachableSchemaCollector reachableSchemas,
     CurationValidator curationValidator,
+    SchemaNameResolver schemaNames,
     SchemaPlanBinder schemaPlans) : ISpecBinder
 {
     private readonly CurationValidator _curationValidator = curationValidator ?? throw new ArgumentNullException(nameof(curationValidator));
     private readonly ReachableSchemaCollector _reachableSchemas = reachableSchemas ?? throw new ArgumentNullException(nameof(reachableSchemas));
+    private readonly SchemaNameResolver _schemaNames = schemaNames ?? throw new ArgumentNullException(nameof(schemaNames));
     private readonly SchemaPlanBinder _schemaPlans = schemaPlans ?? throw new ArgumentNullException(nameof(schemaPlans));
 
     public EmitPlan Bind(SpecDocument document, OperationSelection selection, GenerationCuration curation)
@@ -25,7 +27,11 @@ internal sealed class SpecBinder(
         var selected = SelectOperations(selection, operationsById, errors);
         var reachable = _reachableSchemas.Collect(document, selected, errors);
         _curationValidator.Validate(document, selected, reachable, curation, errors);
-        var schemaResult = _schemaPlans.Bind(document, reachable, curation, errors);
+
+        // Type names are resolved exactly once per bind; schema and operation binding
+        // consume the same map so neither can reinterpret a schema under another name.
+        var typeNames = _schemaNames.Resolve(document, reachable, errors);
+        var schemaResult = _schemaPlans.Bind(document, reachable, curation, typeNames, errors);
         var selectedIds = selected.Select(static operation => operation.OperationId).ToHashSet(StringComparer.Ordinal);
         var pending = document.Operations
             .Where(operation => !selectedIds.Contains(operation.OperationId))

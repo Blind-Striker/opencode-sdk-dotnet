@@ -12,11 +12,11 @@ internal sealed class BindingTestHost
 
     public BindingTestHost()
     {
-        var schemaNames = new SchemaNameResolver();
         _binder = new SpecBinder(
             new ReachableSchemaCollector(),
             new CurationValidator(),
-            new SchemaPlanBinder(schemaNames));
+            new SchemaNameResolver(),
+            new SchemaPlanBinder());
     }
 
     public EmitPlan Bind(SpecDocument document, OperationSelection selection, GenerationCuration curation)
