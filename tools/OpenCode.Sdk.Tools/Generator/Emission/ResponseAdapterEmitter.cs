@@ -91,6 +91,15 @@ internal static class ResponseAdapterEmitter
             SyntaxFactory.SwitchExpressionArm(
                 SyntaxFactory.ConstantPattern(Number(200)),
                 EmitSuccessCreation(envelope)),
+            // Any other 2xx is outside the declared contract: a protocol failure, never an API error.
+            SyntaxFactory.SwitchExpressionArm(
+                SyntaxFactory.BinaryPattern(
+                    SyntaxKind.AndPattern,
+                    SyntaxFactory.RelationalPattern(SyntaxFactory.Token(SyntaxKind.GreaterThanEqualsToken), Number(200)),
+                    SyntaxFactory.RelationalPattern(SyntaxFactory.Token(SyntaxKind.LessThanToken), Number(300))),
+                SyntaxFactory.ThrowExpression(EmissionSyntax.Invocation(
+                    SyntaxFactory.IdentifierName("UndeclaredSuccessFailure"),
+                    SyntaxFactory.Argument(SyntaxFactory.IdentifierName("status"))))),
         };
         arms.AddRange(operation.ErrorMap.Statuses.Select(status => SyntaxFactory.SwitchExpressionArm(
             SyntaxFactory.ConstantPattern(Number(status.StatusCode)),

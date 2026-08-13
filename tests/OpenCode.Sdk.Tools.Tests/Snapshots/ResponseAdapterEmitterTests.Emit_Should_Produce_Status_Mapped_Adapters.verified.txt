@@ -33,6 +33,7 @@ internal sealed class PingResponseAdapter : ResponseAdapter<PingResponse>
                 Status = status,
                 Ping = ReadBarePayload(rawBody, OpenCodeJsonContext.Default.ExampleItem)
             },
+            >= 200 and < 300 => throw UndeclaredSuccessFailure(status),
             400 => new PingResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),
             _ => new PingResponse(status, ReadTolerantError(rawBody, null), rawBody)};
     }
@@ -74,6 +75,7 @@ internal sealed class WidgetItemResponseAdapter : ResponseAdapter<WidgetItemResp
                 Status = status,
                 Item = ReadDataPayload(rawBody, OpenCodeJsonContext.Default.ExampleItem)
             },
+            >= 200 and < 300 => throw UndeclaredSuccessFailure(status),
             400 => new WidgetItemResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),
             404 => new WidgetItemResponse(status, ReadTolerantError(rawBody, Status404Tags), rawBody),
             _ => new WidgetItemResponse(status, ReadTolerantError(rawBody, null), rawBody)};
@@ -114,6 +116,7 @@ internal sealed class WidgetOverviewResponseAdapter : ResponseAdapter<WidgetOver
                 Status = status,
                 Overview = ReadBarePayload(rawBody, OpenCodeJsonContext.Default.ExampleItem)
             },
+            >= 200 and < 300 => throw UndeclaredSuccessFailure(status),
             _ => new WidgetOverviewResponse(status, ReadTolerantError(rawBody, null), rawBody)};
     }
 }

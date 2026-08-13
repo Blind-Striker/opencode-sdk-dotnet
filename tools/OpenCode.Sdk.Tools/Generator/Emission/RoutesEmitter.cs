@@ -76,7 +76,7 @@ internal static class RoutesEmitter
         var statements = new List<StatementSyntax>();
         foreach (var parameter in operation.Parameters)
         {
-            statements.AddRange(EmissionSyntax.ArgumentNullOrEmptyGuard(parameter.Name));
+            statements.AddRange(EmitRouteValueGuard(parameter.Name));
         }
 
         statements.Add(SyntaxFactory.ReturnStatement(EmitConcatenation(operation)));
@@ -96,6 +96,35 @@ internal static class RoutesEmitter
                     .WithType(TypeSyntaxEmitter.EmitNamed(parameter.TypeName))))))
             .WithBody(SyntaxFactory.Block(statements))
             .WithLeadingTrivia(documentation);
+    }
+
+    /// <summary>
+    /// Guards one route value: null/empty/whitespace is refused, and so are the dot segments
+    /// <c>Uri</c> canonicalization would silently rewrite into a different request path.
+    /// </summary>
+    private static StatementSyntax[] EmitRouteValueGuard(string parameterName)
+    {
+        var parameter = SyntaxFactory.IdentifierName(parameterName);
+        var whitespaceGuard = SyntaxFactory.ExpressionStatement(EmissionSyntax.Invocation(
+            EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("ArgumentException"), "ThrowIfNullOrWhiteSpace"),
+            SyntaxFactory.Argument(parameter)));
+        var dotSegmentGuard = SyntaxFactory.IfStatement(
+            SyntaxFactory.IsPatternExpression(
+                parameter,
+                SyntaxFactory.BinaryPattern(
+                    SyntaxKind.OrPattern,
+                    SyntaxFactory.ConstantPattern(StringLiteral(".")),
+                    SyntaxFactory.ConstantPattern(StringLiteral("..")))),
+            SyntaxFactory.Block(SyntaxFactory.ThrowStatement(SyntaxFactory.ObjectCreationExpression(
+                    SyntaxFactory.IdentifierName("ArgumentException"))
+                .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(
+                [
+                    SyntaxFactory.Argument(StringLiteral("Route values must not be dot segments.")),
+                    SyntaxFactory.Argument(EmissionSyntax.Invocation(
+                        SyntaxFactory.IdentifierName("nameof"),
+                        SyntaxFactory.Argument(parameter))),
+                ]))))));
+        return [whitespaceGuard, dotSegmentGuard];
     }
 
     /// <summary>Folds the template into literal + escaped-parameter concatenation, in template order.</summary>

@@ -37,8 +37,18 @@ public static class OpenCodeRoutes
         /// <returns>The escaped route.</returns>
         public static string GetItem(string widgetId, string itemId)
         {
-            ArgumentException.ThrowIfNullOrEmpty(widgetId);
-            ArgumentException.ThrowIfNullOrEmpty(itemId);
+            ArgumentException.ThrowIfNullOrWhiteSpace(widgetId);
+            if (widgetId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(widgetId));
+            }
+
+            ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
+            if (itemId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(itemId));
+            }
+
             return "/api/widget/" + Uri.EscapeDataString(widgetId) + "/item/" + Uri.EscapeDataString(itemId);
         }
 

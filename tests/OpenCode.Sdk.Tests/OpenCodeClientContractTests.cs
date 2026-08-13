@@ -199,6 +199,69 @@ public sealed class OpenCodeClientContractTests
     }
 
     [Test]
+    public async Task GetHealthAsync_Should_Treat_An_Undeclared_2xx_As_A_Protocol_Failure()
+    {
+        using var handler = new RecordingHttpHandler(static _ => JsonResponse(
+            HttpStatusCode.Created,
+            "{\"healthy\":true,\"version\":\"0.0.0-test\",\"pid\":42}"));
+        using var httpClient = new HttpClient(handler);
+        using var client = CreateClient(httpClient);
+
+        _ = await Assert
+            .That(async () => _ = await client.GetHealthAsync())
+            .Throws<OpenCodeTransportException>();
+
+        _ = await Assert
+            .That(async () => _ = await client.GetHealthAsync(OpenCodeRequestOptions.NoThrow))
+            .Throws<OpenCodeTransportException>();
+    }
+
+    [Test]
+    public async Task GetHealthAsync_Should_Preserve_The_Raw_Body_For_An_Empty_Error_Tag()
+    {
+        using var handler = new RecordingHttpHandler(static _ => JsonResponse(
+            HttpStatusCode.BadRequest,
+            "{\"_tag\":\"\"}"));
+        using var httpClient = new HttpClient(handler);
+        using var client = CreateClient(httpClient);
+
+        var response = await client.GetHealthAsync(OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Error).IsNull();
+        await Assert.That(response.RawBody).IsEqualTo("{\"_tag\":\"\"}");
+    }
+
+    [Test]
+    public async Task GetMessageAsync_Should_Treat_An_Empty_Success_Marker_As_A_Protocol_Failure()
+    {
+        using var handler = new RecordingHttpHandler(static _ => JsonResponse(
+            HttpStatusCode.OK,
+            "{\"data\":{\"type\":\"\",\"id\":\"m\"}}"));
+        using var httpClient = new HttpClient(handler);
+        using var client = CreateClient(httpClient);
+
+        _ = await Assert
+            .That(async () => _ = await client.Sessions.GetSessionClient("s").GetMessageAsync("m"))
+            .Throws<OpenCodeTransportException>();
+    }
+
+    [Test]
+    public async Task GetMessageAsync_Should_Escape_Route_Values_Into_The_Request_Uri()
+    {
+        using var handler = new RecordingHttpHandler(static _ => JsonResponse(
+            HttpStatusCode.OK,
+            "{\"data\":{\"id\":\"message-1\",\"time\":{\"created\":1},\"text\":\"hello\",\"type\":\"user\"}}"));
+        using var httpClient = new HttpClient(handler);
+        using var client = CreateClient(httpClient);
+
+        _ = await client.Sessions.GetSessionClient("a b").GetMessageAsync("c/d");
+
+        await Assert.That(handler.Requests.Single().RequestUri!.AbsoluteUri)
+            .IsEqualTo("http://localhost:4096/api/session/a%20b/message/c%2Fd");
+    }
+
+    [Test]
     public async Task Payload_Should_Guard_Access_And_Printing_On_The_Error_Path()
     {
         using var handler = new RecordingHttpHandler(static _ => JsonResponse(

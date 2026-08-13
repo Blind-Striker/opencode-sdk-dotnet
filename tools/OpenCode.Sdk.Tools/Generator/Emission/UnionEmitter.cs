@@ -321,11 +321,22 @@ internal static class UnionEmitter
             ThrowJson($"The '{union.MarkerWireName}' marker must be a string.")),
         Local("marker", EmissionSyntax.Invocation(
             EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("markerElement"), "GetString"))),
+        // An empty or whitespace marker is malformed input, classified before any dispatch so the
+        // unknown-variant carrier's own guard can never surface as a BCL escape (ADR-0009). The
+        // explicit null disjunct carries the non-null flow fact on TFMs whose BCL lacks the
+        // IsNullOrWhiteSpace annotation.
         SyntaxFactory.IfStatement(
-            SyntaxFactory.IsPatternExpression(
-                SyntaxFactory.IdentifierName("marker"),
-                SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
-            ThrowJson($"The '{union.MarkerWireName}' marker cannot be null.")),
+            SyntaxFactory.BinaryExpression(
+                SyntaxKind.LogicalOrExpression,
+                SyntaxFactory.IsPatternExpression(
+                    SyntaxFactory.IdentifierName("marker"),
+                    SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
+                EmissionSyntax.Invocation(
+                    EmissionSyntax.MemberAccess(
+                        SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword)),
+                        "IsNullOrWhiteSpace"),
+                    SyntaxFactory.Argument(SyntaxFactory.IdentifierName("marker")))),
+            ThrowJson($"The '{union.MarkerWireName}' marker must be a non-empty string.")),
     ];
 
     private static IReadOnlyList<StatementSyntax> EmitBooleanMarkerRead(UnionPlan union)

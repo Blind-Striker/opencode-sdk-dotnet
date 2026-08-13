@@ -34,8 +34,18 @@ public static class OpenCodeRoutes
         /// <returns>The escaped route.</returns>
         public static string GetMessage(string sessionId, string messageId)
         {
-            ArgumentException.ThrowIfNullOrEmpty(sessionId);
-            ArgumentException.ThrowIfNullOrEmpty(messageId);
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            ArgumentException.ThrowIfNullOrWhiteSpace(messageId);
+            if (messageId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(messageId));
+            }
+
             return "/api/session/" + Uri.EscapeDataString(sessionId) + "/message/" + Uri.EscapeDataString(messageId);
         }
     }

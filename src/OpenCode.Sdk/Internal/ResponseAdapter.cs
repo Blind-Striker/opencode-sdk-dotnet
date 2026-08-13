@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using OpenCode.Sdk.Internal.Serialization;
@@ -64,6 +65,12 @@ internal abstract class ResponseAdapter<TResponse>
             throw new OpenCodeTransportException("The opencode API returned a malformed success body.", exception);
         }
     }
+
+    /// <summary>Builds the protocol failure for a success status the operation does not declare.</summary>
+    /// <param name="status">The undeclared 2xx status code.</param>
+    /// <returns>The transport failure the adapter throws.</returns>
+    protected static OpenCodeTransportException UndeclaredSuccessFailure(int status) =>
+        new($"The opencode API returned undeclared success status {status.ToString(CultureInfo.InvariantCulture)}.");
 
     /// <summary>
     /// Reads a typed error tolerantly: malformed JSON yields <see langword="null"/> so the raw

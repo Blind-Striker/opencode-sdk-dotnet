@@ -156,6 +156,15 @@ public sealed class OpenCodeJsonContextTests
     }
 
     [Test]
+    public async Task Deserialize_Should_Throw_When_Union_Marker_Is_Empty()
+    {
+        var json = _fixtures.LoadJson("Serialization.empty-assistant-marker.json");
+
+        _ = await Assert.That(() => _serializer.Deserialize<SessionMessageAssistantContent>(json))
+            .Throws<JsonException>();
+    }
+
+    [Test]
     public async Task Deserialize_Should_Throw_When_Union_Marker_Has_The_Wrong_Type()
     {
         var json = _fixtures.LoadJson("Serialization.malformed-assistant-marker.json");

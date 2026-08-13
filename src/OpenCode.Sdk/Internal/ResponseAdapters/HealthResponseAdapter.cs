@@ -32,6 +32,7 @@ internal sealed class HealthResponseAdapter : ResponseAdapter<HealthResponse>
                 Status = status,
                 Health = ReadBarePayload(rawBody, OpenCodeJsonContext.Default.ServiceHealth)
             },
+            >= 200 and < 300 => throw UndeclaredSuccessFailure(status),
             400 => new HealthResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),
             401 => new HealthResponse(status, ReadTolerantError(rawBody, Status401Tags), rawBody),
             _ => new HealthResponse(status, ReadTolerantError(rawBody, null), rawBody)

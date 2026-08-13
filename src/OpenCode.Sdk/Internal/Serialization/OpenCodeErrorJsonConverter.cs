@@ -43,7 +43,12 @@ internal sealed class OpenCodeErrorJsonConverter : JsonConverter<OpenCodeError>
             throw new JsonException("The '_tag' marker must be a string.");
         }
 
-        var marker = markerElement.GetString() ?? throw new JsonException("The '_tag' marker cannot be null.");
+        var marker = markerElement.GetString();
+        if (marker is null || string.IsNullOrWhiteSpace(marker))
+        {
+            throw new JsonException("The '_tag' marker must be a non-empty string.");
+        }
+
         if (TypesByTag.TryGetValue(marker, out var targetType))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for OpenCodeError.");
