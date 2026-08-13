@@ -435,6 +435,85 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Merge_Groups_Sharing_A_Client_Name()
+    {
+        var document = await BindingTestHost.IngestAsync(GadgetScenario(spec => spec
+            .WithOperation("v2.gizmo.list", path: "/api/gadget/{gadgetID}/gizmo", configure: operation => operation
+                .Parameter("gadgetID", "path", schema => schema.Type("string"), required: true)
+                .Response(200, "application/json", schema => schema.Type("object")
+                    .Property("data", property => property.Ref("GadgetPart"), required: true)))));
+
+        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+        {
+            ["gadget"] = ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID"),
+            ["gizmo"] = ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID"),
+        };
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.gadget.part", "v2.gizmo.list"),
+            Curation(groups));
+
+        var root = plan.Clients.Single(static client => client.Role == ClientRole.Root);
+        await Assert.That(root.SubClients.Single().TypeName).IsEqualTo("GadgetsClient");
+        var collection = plan.Clients.Single(static client => client.Role == ClientRole.Collection);
+        await Assert.That(collection.Operations).IsEmpty();
+        var handle = plan.Clients.Single(static client => client.Role == ClientRole.Handle);
+        await Assert.That(handle.Operations.Select(static operation => operation.MethodName)
+            .Order(StringComparer.Ordinal)
+            .SequenceEqual(["GetListAsync", "GetPartAsync"], StringComparer.Ordinal)).IsTrue();
+        await Assert.That(handle.Operations.All(static operation => operation.RouteContainerName == "Gadgets")).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_Merged_Groups_With_Diverging_Handles()
+    {
+        var document = await BindingTestHost.IngestAsync(GadgetScenario(spec => spec
+            .WithOperation("v2.gizmo.list", path: "/api/gadget/{gadgetID}/gizmo", configure: operation => operation
+                .Parameter("gadgetID", "path", schema => schema.Type("string"), required: true)
+                .Response(200, "application/json", schema => schema.Type("object")
+                    .Property("data", property => property.Ref("GadgetPart"), required: true)))));
+
+        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+        {
+            ["gadget"] = ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID"),
+            ["gizmo"] = ClientGroup(clientName: "Gadgets", handleName: null, handleParameter: null),
+        };
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.gadget.part", "v2.gizmo.list"),
+            Curation(groups)));
+
+        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+            && error.Problem.Contains("identical handle", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Bind_A_500_Error_Arm()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("UnknownFailure", schema => schema.Type("object")
+                .Property("_tag", property => property.Type("string").Enum("UnknownFailure"), required: true)
+                .Property("message", property => property.Type("string"), required: true))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("ItemInfo"))
+                .Response(500, "application/json", schema => schema.Ref("UnknownFailure")))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(Groups("health", RootGroup())));
+
+        var health = plan.Clients.Single(static client => client.Role == ClientRole.Root).Operations.Single();
+        var status = health.ErrorMap.Statuses.Single();
+        await Assert.That(status.StatusCode).IsEqualTo(500);
+        await Assert.That(status.Tags.Single().TypeName).IsEqualTo("UnknownFailure");
+    }
+
+    [Test]
     public async Task Bind_Should_Refuse_A_Required_Query_Parameter()
     {
         var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation

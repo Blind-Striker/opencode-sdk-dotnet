@@ -57,9 +57,12 @@ internal sealed class OperationPlanBinder
             .ToArray();
         var subClients = new List<ClientReferencePlan>();
         var clients = new List<ClientPlan>();
+
+        // Wire groups sharing a curated client name merge into one client family; the
+        // curation validator has already demanded identical handle declarations.
         foreach (var group in bound
                      .Where(static operation => operation.Row.Placement is GroupPlacement.Client)
-                     .GroupBy(static operation => operation.Group, _comparer)
+                     .GroupBy(static operation => operation.Row.ClientName!, _comparer)
                      .OrderBy(static group => group.Key, _comparer))
         {
             var members = group.ToArray();

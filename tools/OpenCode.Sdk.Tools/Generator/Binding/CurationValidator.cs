@@ -47,6 +47,25 @@ internal sealed class CurationValidator
 
             ValidateGroupShape(wireName, group, selected, errors);
         }
+
+        // Groups sharing a client name merge into one client family, so their handle
+        // declarations must agree exactly — a divergent row would fork the family.
+        foreach (var clientName in curation.Groups
+                     .Where(static pair => pair.Value is { Placement: GroupPlacement.Client, ClientName: not null })
+                     .GroupBy(static pair => pair.Value.ClientName!, StringComparer.Ordinal)
+                     .Where(static family => family
+                         .Select(static pair => (pair.Value.HandleName, pair.Value.HandleParameter))
+                         .Distinct()
+                         .Skip(1)
+                         .Any())
+                     .Select(static family => family.Key)
+                     .Order(StringComparer.Ordinal))
+        {
+            errors.Add(
+                BindingErrorCategory.Curation,
+                clientName,
+                $"groups sharing client '{clientName}' must declare identical handle configuration");
+        }
     }
 
     private static void ValidateGroupShape(string wireName, GroupCuration group, IReadOnlyList<SpecOperation> selected, BindingErrorCollector errors)
