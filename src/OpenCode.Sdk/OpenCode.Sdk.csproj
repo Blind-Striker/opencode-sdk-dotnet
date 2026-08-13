@@ -5,12 +5,19 @@
     <Description>Unofficial .NET SDK for opencode: a typed client for the opencode HTTP API.</Description>
     <PackageTags>opencode;sdk;client;ai;agent</PackageTags>
     <IsAotCompatible Condition="'$(TargetFramework)' == 'net10.0'">true</IsAotCompatible>
+    <!-- Keep source-only polyfills hidden from friend test assemblies, which compile their own copy. -->
+    <PolyUseEmbeddedAttribute>true</PolyUseEmbeddedAttribute>
     <!-- Roslyn workspace matching needs project-produced reference assemblies for downlevel multi-TFM references. -->
     <ProduceReferenceAssembly Condition="'$(TargetFramework)' == 'netstandard2.0' Or '$(TargetFramework)' == 'net472'">true</ProduceReferenceAssembly>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="System.Text.Json" />
+  </ItemGroup>
+
+  <!-- .NET Framework ships HttpClient in this framework assembly; no NuGet HTTP stack is added. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <Reference Include="System.Net.Http" />
   </ItemGroup>
 
 </Project>

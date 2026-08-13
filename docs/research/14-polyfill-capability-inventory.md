@@ -56,7 +56,7 @@ other optional groups opt-in by removing their source when the corresponding pro
 | `PolyNullability` | Unset | Disabled |
 | `PolyStringInterpolation` | Unset | Disabled |
 | `PolyPublic` | Unset | Polyfill types remain internal |
-| `PolyUseEmbeddedAttribute` | Unset in product; `true` in the tooling project | Product uses ordinary internal types; tooling hides them from friend assemblies |
+| `PolyUseEmbeddedAttribute` | `true` in the SDK and tooling projects | Both declare friend test assemblies that compile their own Polyfill copy; embedded types stay hidden from them |
 | `AllowUnsafeBlocks` | Unset | Unsafe-only overload bodies are not enabled |
 
 `tests/Directory.Build.props` also disables TUnit's separate polyfill injection because the
