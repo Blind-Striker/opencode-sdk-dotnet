@@ -233,9 +233,10 @@ internal sealed class OperationPlanBinder
             var envelope = BindEnvelope(success);
             var errorMap = BindErrorMap();
             var parameters = BindParameters(row);
-            var optionsErrorsBefore = _errors.Count;
+            var optionalPlanErrorsBefore = _errors.Count;
             var options = BindQueryOptions();
-            if (envelope is null || errorMap is null || parameters is null || _errors.Count != optionsErrorsBefore)
+            var requestBody = BindRequestBody();
+            if (envelope is null || errorMap is null || parameters is null || _errors.Count != optionalPlanErrorsBefore)
             {
                 return null;
             }
@@ -255,6 +256,7 @@ internal sealed class OperationPlanBinder
                     RouteMemberName = OperationNamePolicy.RouteMemberName(_operation),
                     Parameters = parameters,
                     Options = options,
+                    RequestBody = requestBody,
                     Envelope = envelope,
                     ErrorMap = errorMap,
                     Summary = _operation.Summary,
@@ -266,9 +268,11 @@ internal sealed class OperationPlanBinder
         private bool CheckWireShape()
         {
             var before = _errors.Count;
-            if (!string.Equals(_operation.Method, "get", StringComparison.Ordinal))
+            var isGet = string.Equals(_operation.Method, "get", StringComparison.Ordinal);
+            var isPost = string.Equals(_operation.Method, "post", StringComparison.Ordinal);
+            if (!isGet && !isPost)
             {
-                Refuse("only GET operations are supported in M1");
+                Refuse($"HTTP method '{_operation.Method}' is not supported");
             }
 
             if (_operation.HasWildcardPath)
@@ -286,9 +290,14 @@ internal sealed class OperationPlanBinder
                 Refuse("event-stream responses are not supported in M1");
             }
 
-            if (_operation.RequestBody is not null)
+            if (isGet && _operation.RequestBody is not null)
             {
-                Refuse("request bodies are not supported in M1");
+                Refuse("GET operations must not carry a request body");
+            }
+
+            if (isPost && _operation.RequestBody is null)
+            {
+                Refuse("POST operations must carry a request body");
             }
 
             CheckParameterShapes();
@@ -605,6 +614,46 @@ internal sealed class OperationPlanBinder
                 TypeName = OperationNamePolicy.OptionsTypeName(_operation),
                 DerivesFromListOptions = properties.Count > 0 && properties[0].IsInherited,
                 Properties = properties,
+            };
+        }
+
+        private RequestBodyPlan? BindRequestBody()
+        {
+            var body = _operation.RequestBody;
+            if (body is null)
+            {
+                return null;
+            }
+
+            if (body.ContentType is not { IsJson: true })
+            {
+                Refuse("the request body must carry a JSON schema");
+                return null;
+            }
+
+            if (!body.IsRequired)
+            {
+                Refuse("the request body must be declared required");
+                return null;
+            }
+
+            if (body.Schema is not RefNode reference || Resolve(body.Schema) is not ObjectNode target)
+            {
+                Refuse("the request body must reference an object schema");
+                return null;
+            }
+
+            if (!_typeNames.TryGetValue(reference.Target, out var typeName))
+            {
+                _errors.Add(BindingErrorCategory.Naming, reference.Target, "request body schema has no unique C# type name");
+                return null;
+            }
+
+            return new RequestBodyPlan
+            {
+                TypeName = typeName,
+                ParameterName = "request",
+                IsOptional = target.Properties.All(static property => !property.IsRequired),
             };
         }
 

@@ -175,7 +175,19 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Refuse_A_Non_Get_Operation()
+    public async Task Bind_Should_Refuse_An_Unsupported_Http_Method()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.health.reset", method: "put", path: "/api/health-reset", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
+
+        await AssertOperationRefusalAsync(document, "v2.health.reset", "HTTP method");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Post_Without_A_Request_Body()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
             .WithSchema("ItemInfo", schema => schema.Type("object")
@@ -183,7 +195,71 @@ public sealed class OperationPlanBinderTests
             .WithOperation("v2.health.reset", method: "post", path: "/api/health-reset", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
 
-        await AssertOperationRefusalAsync(document, "v2.health.reset", "only GET operations");
+        await AssertOperationRefusalAsync(document, "v2.health.reset", "must carry a request body");
+    }
+
+    [Test]
+    public async Task Bind_Should_Bind_A_Json_Request_Body_Into_A_Request_Model()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetCreateScenario(body => body.Type("object")
+            .AdditionalPropertiesFalse()
+            .Property("id", property => property.AnyOf(
+                static branch => branch.Type("string"),
+                static branch => branch.Type("null")))
+            .Property("title", property => property.AnyOf(
+                static branch => branch.Type("string"),
+                static branch => branch.Type("null")))));
+
+        var plan = BindWidgets(document, "v2.widget.create");
+
+        var create = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(create.HttpMethod).IsEqualTo("post");
+        await Assert.That(create.RequestBody).IsNotNull();
+        await Assert.That(create.RequestBody!.TypeName).IsEqualTo("WidgetCreateRequest");
+        await Assert.That(create.RequestBody.ParameterName).IsEqualTo("request");
+        await Assert.That(create.RequestBody.IsOptional).IsTrue();
+        await Assert.That(plan.Models.Select(static model => model.Name)).Contains("WidgetCreateRequest");
+        await Assert.That(plan.Registry.TypeNames).Contains("WidgetCreateRequest");
+    }
+
+    [Test]
+    public async Task Bind_Should_Require_The_Request_Parameter_When_The_Body_Has_Required_Properties()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetCreateScenario(body => body.Type("object")
+            .Property("title", property => property.Type("string"), required: true)));
+
+        var plan = BindWidgets(document, "v2.widget.create");
+
+        var create = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(create.RequestBody!.IsOptional).IsFalse();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Non_Json_Request_Body()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetCreateScenario(
+            body => body.Type("object").Property("title", property => property.Type("string")),
+            mediaType: "text/plain"));
+
+        await AssertWidgetRefusalAsync(document, "JSON", "v2.widget.create");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Non_Object_Request_Body()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetCreateScenario(body => body.Type("string")));
+
+        await AssertWidgetRefusalAsync(document, "object schema", "v2.widget.create");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_An_Optional_Request_Body()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetCreateScenario(
+            body => body.Type("object").Property("title", property => property.Type("string")),
+            required: false));
+
+        await AssertWidgetRefusalAsync(document, "declared required", "v2.widget.create");
     }
 
     [Test]
@@ -348,7 +424,7 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Refuse_A_Request_Body()
+    public async Task Bind_Should_Refuse_A_Request_Body_On_A_Get_Operation()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
             .WithSchema("ItemInfo", schema => schema.Type("object")
@@ -358,7 +434,7 @@ public sealed class OperationPlanBinderTests
                     .Property("value", property => property.Type("string"), required: true))
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
 
-        await AssertOperationRefusalAsync(document, "v2.health.get", "request bodies");
+        await AssertOperationRefusalAsync(document, "v2.health.get", "must not carry a request body");
     }
 
     [Test]
@@ -612,18 +688,28 @@ public sealed class OperationPlanBinderTests
                 _ = operation.Response(200, "application/json", schema => schema.Ref("WidgetInfo"));
             }));
 
-    private static EmitPlan BindWidgets(SpecDocument document) =>
+    private static SpecScenario WidgetCreateScenario(Action<SchemaBuilder> configureBody,
+        string mediaType = "application/json", bool required = true) =>
+        SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.create", method: "post", path: "/api/widget", configure: operation => operation
+                .RequestBody(mediaType, configureBody, required)
+                .Response(200, "application/json", schema => schema.Ref("WidgetInfo"))));
+
+    private static EmitPlan BindWidgets(SpecDocument document, string operationId = "v2.widget.list") =>
         new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.list"),
+            Selection(operationId),
             Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null))));
 
-    private static async Task AssertWidgetRefusalAsync(SpecDocument document, string expectedProblem)
+    private static async Task AssertWidgetRefusalAsync(SpecDocument document, string expectedProblem,
+        string operationId = "v2.widget.list")
     {
-        var exception = Assert.Throws<BindingException>(() => _ = BindWidgets(document));
+        var exception = Assert.Throws<BindingException>(() => _ = BindWidgets(document, operationId));
 
         await Assert.That(exception.Errors.Any(error => error.Category == BindingErrorCategory.Operation
-            && string.Equals(error.Subject, "v2.widget.list", StringComparison.Ordinal)
+            && string.Equals(error.Subject, operationId, StringComparison.Ordinal)
             && error.Problem.Contains(expectedProblem, StringComparison.Ordinal))).IsTrue();
     }
 

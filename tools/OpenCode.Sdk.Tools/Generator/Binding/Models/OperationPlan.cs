@@ -29,6 +29,9 @@ internal sealed record OperationPlan
     /// <summary>Gets the query-options record plan, or <see langword="null"/> when the operation has no query parameters.</summary>
     public OperationOptionsPlan? Options { get; init; }
 
+    /// <summary>Gets the request-body plan, or <see langword="null"/> when the operation sends no body.</summary>
+    public RequestBodyPlan? RequestBody { get; init; }
+
     public required EnvelopePlan Envelope { get; init; }
 
     public required ErrorMapPlan ErrorMap { get; init; }

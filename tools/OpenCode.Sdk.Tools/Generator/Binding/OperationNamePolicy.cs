@@ -29,6 +29,13 @@ internal static class OperationNamePolicy
         return $"{CSharpNamePolicy.ToPascalCase(operation.Segments[0])}{MiddleSubject(operation)}{Verb(operation)}Options";
     }
 
+    public static string RequestTypeName(SpecOperation operation)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+
+        return $"{CSharpNamePolicy.ToPascalCase(operation.Segments[0])}{MiddleSubject(operation)}{Verb(operation)}Request";
+    }
+
     public static string MethodName(SpecOperation operation, GroupPlacement placement)
     {
         ArgumentNullException.ThrowIfNull(operation);

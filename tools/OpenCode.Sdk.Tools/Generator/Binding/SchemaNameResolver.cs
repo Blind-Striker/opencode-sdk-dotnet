@@ -15,6 +15,7 @@ internal sealed class SchemaNameResolver
         ArgumentNullException.ThrowIfNull(errors);
 
         var responseRoots = reachable.ResponseRootKeys.ToHashSet(_comparer);
+        var requestRoots = ResolveRequestBodyRootNames(document);
         var result = new Dictionary<string, string>(_comparer);
         var owners = new Dictionary<string, string>(_comparer);
         foreach (var key in reachable.GraphKeys)
@@ -24,7 +25,15 @@ internal sealed class SchemaNameResolver
                 continue;
             }
 
-            var name = schema is UnionNode union ? ResolveUnionName(key, union, document.Schemas) : ResolveDefault(key);
+            string name;
+            if (requestRoots.TryGetValue(key, out var requestName))
+            {
+                name = requestName;
+            }
+            else
+            {
+                name = schema is UnionNode union ? ResolveUnionName(key, union, document.Schemas) : ResolveDefault(key);
+            }
             if (owners.TryGetValue(name, out var existing))
             {
                 errors.Add(BindingErrorCategory.Naming, key, $"C# type name '{name}' collides with schema '{existing}'");
@@ -39,6 +48,26 @@ internal sealed class SchemaNameResolver
     }
 
     private static bool IsNominal(SchemaNode schema) => schema is ObjectNode or EnumNode or UnionNode;
+
+    /// <summary>
+    /// Inline request bodies are named from their operation identity — the mechanical
+    /// <c>{Subject}{Verb}Request</c> rule — because their graph keys carry the raw
+    /// operation id, which public names never surface (ADR-0005 strips the protocol prefix).
+    /// </summary>
+    private Dictionary<string, string> ResolveRequestBodyRootNames(SpecDocument document)
+    {
+        var names = new Dictionary<string, string>(_comparer);
+        foreach (var operation in document.Operations)
+        {
+            if (operation.RequestBody?.Schema is RefNode reference
+                && reference.Target.StartsWith($"op:{operation.OperationId}#", StringComparison.Ordinal))
+            {
+                names[reference.Target] = OperationNamePolicy.RequestTypeName(operation);
+            }
+        }
+
+        return names;
+    }
 
     private string ResolveUnionName(string key, UnionNode union, IReadOnlyDictionary<string, SchemaNode> graph)
     {
