@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using OpenCode.Sdk.Internal.Abstractions;
 
 namespace OpenCode.Sdk.Internal;
@@ -69,8 +71,26 @@ internal sealed class Pipeline : IDisposable
         return new Pipeline(httpClient, ownsHttpClient: false, options.Endpoint, options.Password, environment);
     }
 
-    public async Task<TResponse> ExecuteAsync<TResponse>(HttpMethod method, string route, ResponseAdapter<TResponse> adapter,
+    public Task<TResponse> ExecuteAsync<TResponse>(HttpMethod method, string route, ResponseAdapter<TResponse> adapter,
         OpenCodeRequestOptions? options, CancellationToken cancellationToken)
+        where TResponse : OpenCodeResponse =>
+        ExecuteCoreAsync<object, TResponse>(method, route, body: null, bodyTypeInfo: null, adapter, options, cancellationToken);
+
+    public Task<TResponse> ExecuteAsync<TBody, TResponse>(HttpMethod method, string route, TBody body,
+        JsonTypeInfo<TBody> bodyTypeInfo, ResponseAdapter<TResponse> adapter, OpenCodeRequestOptions? options,
+        CancellationToken cancellationToken)
+        where TBody : class
+        where TResponse : OpenCodeResponse
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        ArgumentNullException.ThrowIfNull(bodyTypeInfo);
+        return ExecuteCoreAsync(method, route, body, bodyTypeInfo, adapter, options, cancellationToken);
+    }
+
+    private async Task<TResponse> ExecuteCoreAsync<TBody, TResponse>(HttpMethod method, string route, TBody? body,
+        JsonTypeInfo<TBody>? bodyTypeInfo, ResponseAdapter<TResponse> adapter, OpenCodeRequestOptions? options,
+        CancellationToken cancellationToken)
+        where TBody : class
         where TResponse : OpenCodeResponse
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -93,6 +113,11 @@ internal sealed class Pipeline : IDisposable
         string rawBody;
         using (var request = new HttpRequestMessage(method, new Uri(_endpointBase + route, UriKind.Absolute)))
         {
+            if (body is not null)
+            {
+                request.Content = CreateJsonContent(body, bodyTypeInfo!);
+            }
+
             Decorate(request);
             using var response = await SendCoreAsync(request, cancellationToken).ConfigureAwait(false);
             status = (int)response.StatusCode;
@@ -103,6 +128,14 @@ internal sealed class Pipeline : IDisposable
         return adapted.IsError && errorBehavior is ErrorBehavior.Default
             ? throw CreateApiException(adapted)
             : adapted;
+    }
+
+    /// <summary>JSON is UTF-8 by definition (RFC 8259); the content type carries no charset.</summary>
+    private static ByteArrayContent CreateJsonContent<TBody>(TBody body, JsonTypeInfo<TBody> bodyTypeInfo)
+    {
+        var content = new ByteArrayContent(JsonSerializer.SerializeToUtf8Bytes(body, bodyTypeInfo));
+        content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        return content;
     }
 
     public void Dispose()

@@ -110,6 +110,77 @@ public sealed class PipelineTests
     }
 
     [Test]
+    public async Task ExecuteAsync_Should_Send_The_Json_Body_With_The_Json_Content_Type()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+
+        _ = await pipeline.ExecuteAsync(
+            HttpMethod.Post,
+            "/api/session",
+            new TestBody { Value = "created" },
+            TestBodyJsonContext.Default.TestBody,
+            new RecordingResponseAdapter(),
+            options: null,
+            CancellationToken.None);
+
+        await Assert.That(handler.Requests.Single().Method).IsEqualTo(HttpMethod.Post);
+        await Assert.That(handler.Requests.Single().ContentType).IsEqualTo("application/json");
+        await Assert.That(handler.Requests.Single().Body).IsEqualTo("""{"value":"created"}""");
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Keep_The_Bodyless_Path_Body_Free()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None);
+
+        await Assert.That(handler.Requests.Single().Body).IsNull();
+        await Assert.That(handler.Requests.Single().ContentType).IsNull();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Guard_The_Body_Arguments()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+
+        _ = await Assert
+            .That(async () => _ = await pipeline.ExecuteAsync(
+                HttpMethod.Post, "/api/session", null!, TestBodyJsonContext.Default.TestBody,
+                new RecordingResponseAdapter(), options: null, CancellationToken.None))
+            .Throws<ArgumentNullException>();
+        _ = await Assert
+            .That(async () => _ = await pipeline.ExecuteAsync(
+                HttpMethod.Post, "/api/session", new TestBody { Value = "created" }, bodyTypeInfo: null!,
+                new RecordingResponseAdapter(), options: null, CancellationToken.None))
+            .Throws<ArgumentNullException>();
+        await Assert.That(handler.Requests).IsEmpty();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Guard_The_Route_On_The_Body_Path()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+
+        var exception = await Assert
+            .That(async () => _ = await pipeline.ExecuteAsync(
+                HttpMethod.Post, "api/session", new TestBody { Value = "created" }, TestBodyJsonContext.Default.TestBody,
+                new RecordingResponseAdapter(), options: null, CancellationToken.None))
+            .Throws<ArgumentException>();
+
+        await Assert.That(exception!.Message).Contains("Routes must start with '/'");
+        await Assert.That(handler.Requests).IsEmpty();
+    }
+
+    [Test]
     public async Task ExecuteAsync_Should_Buffer_The_Body_For_The_Adapter()
     {
         using var handler = new RecordingHttpHandler(static _ => new HttpResponseMessage(HttpStatusCode.OK)

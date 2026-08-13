@@ -9,4 +9,8 @@ internal sealed record RecordedRequest
     public string? Authorization { get; init; }
 
     public string? UserAgent { get; init; }
+
+    public string? ContentType { get; init; }
+
+    public string? Body { get; init; }
 }

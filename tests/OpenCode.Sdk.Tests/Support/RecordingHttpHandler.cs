@@ -26,7 +26,7 @@ internal sealed class RecordingHttpHandler : HttpMessageHandler
 
     public bool IsDisposed { get; private set; }
 
-    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         _requests.Add(new RecordedRequest
         {
@@ -34,8 +34,10 @@ internal sealed class RecordingHttpHandler : HttpMessageHandler
             Method = request.Method,
             Authorization = request.Headers.Authorization?.ToString(),
             UserAgent = request.Headers.UserAgent.Count is 0 ? null : request.Headers.UserAgent.ToString(),
+            ContentType = request.Content?.Headers.ContentType?.ToString(),
+            Body = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken),
         });
-        return Task.FromResult(_responder(request));
+        return _responder(request);
     }
 
     protected override void Dispose(bool disposing)
