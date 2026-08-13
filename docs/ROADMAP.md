@@ -13,10 +13,11 @@ binds their reachable closure, emits committed Roslyn-built models plus source-g
 metadata, and owns deterministic `generate` / `generate --verify` writes through a guarded
 manifest. The partial-operation marker blocks every package while breadth remains incomplete.
 
-Direction sealed 2026-08-13: the SDK targets the **v2 protocol surface only** (ADR-0005;
-platform evidence: research doc 15). `spec/` still holds the 1.18.15 pin until the retarget
-task at the head of M1 Arc B executes. The active work is M1 Arc B: the retarget plus the
-minimal transport and callable client with typed errors and `NoThrow`; see the just-in-time
+Direction sealed and executed 2026-08-13: the SDK targets the **v2 protocol surface only**
+(ADR-0005; platform evidence: research doc 15), and `spec/` pins v2-branch commit `a6a712a`
+(Arc B Task 0 — landed). The active work is the rest of M1 Arc B: operation binding, the
+minimal transport core, and the callable client with typed errors and `NoThrow`; see the
+just-in-time
 [M1 Arc B callable-client plan](superpowers/plans/2026-08-13-m1-arc-b-callable-client.md).
 
 ## Milestones
