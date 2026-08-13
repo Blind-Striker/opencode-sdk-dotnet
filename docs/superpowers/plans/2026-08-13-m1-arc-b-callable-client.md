@@ -156,7 +156,7 @@ and committed generated models.
   `.generation-incomplete`; packing must still fail only because breadth is pending.
 - [x] Run `generate`, clean `generate --verify`, Release build, supported test legs, format,
   Slopwatch, and intentional pack refusal.
-- [ ] Start a password-enabled real `opencode2 serve` (v2 pre-release channel; record the
+- [x] Start a password-enabled real `opencode2 serve` (v2 pre-release channel; record the
   exact installed build version as demo evidence). Obtain IDs with authenticated raw calls to
   the pinned surface's session-list and message-list operations, then call only the two
   generated operations from a temporary `.scratchpad/` console. Print the health payload,

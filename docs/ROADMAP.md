@@ -7,18 +7,21 @@ Evergreen rules and locked decisions live in `../AGENTS.md`; decision records in
 
 ## Status
 
-Structural skeleton, three-OS CI, the pinned spec snapshot, Slice 0 tooling, and complete-pin
-SpecIR ingestion are in place. M1's compiler arc selects the two walking-skeleton operations,
-binds their reachable closure, emits committed Roslyn-built models plus source-generated JSON
-metadata, and owns deterministic `generate` / `generate --verify` writes through a guarded
-manifest. The partial-operation marker blocks every package while breadth remains incomplete.
+**M1 is complete.** The SDK targets the v2 protocol surface only (ADR-0005; `spec/` pins
+v2-branch commit `a6a712a`), and the walking skeleton runs end to end: SpecIR plus curation
+bind into client/operation/envelope/route/error plans, generic emitters render the callable
+surface as committed source under `src/OpenCode.Sdk` (`OpenCodeClient.GetHealthAsync`,
+`Sessions.GetSessionClient(...)`, `SessionClient.GetMessageAsync`, guarded envelopes,
+`OpenCodeRoutes`, response adapters), and one hand-written `Pipeline` owns endpoint authority,
+Basic-auth/User-Agent decoration, buffering, throw-versus-`NoThrow`, and transport-failure
+mapping. The public API is locked in a reviewed `PublicApiGenerator` baseline; the writer
+refuses unmanifested overwrites and headerless manifest entries; packing still fails on the
+partial-operation marker while breadth is pending. Demonstrated live 2026-08-13 against
+`opencode2 serve` v0.0.0-next-17403 (pin `a6a712a` — deliberate version skew accepted): both
+generated methods returned typed 200 payloads (`ServiceHealth`; `SessionMessageAssistant`
+with its wire `id`).
 
-Direction sealed and executed 2026-08-13: the SDK targets the **v2 protocol surface only**
-(ADR-0005; platform evidence: research doc 15), and `spec/` pins v2-branch commit `a6a712a`
-(Arc B Task 0 — landed). The active work is the rest of M1 Arc B: operation binding, the
-minimal transport core, and the callable client with typed errors and `NoThrow`; see the
-just-in-time
-[M1 Arc B callable-client plan](superpowers/plans/2026-08-13-m1-arc-b-callable-client.md).
+The next work is M2 — the first breadth batch, planned when it starts.
 
 ## Milestones
 
