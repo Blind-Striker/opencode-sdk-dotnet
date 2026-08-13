@@ -11,6 +11,26 @@
         public required OpenCode.Sdk.Models.ServiceHealth Health { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
+    public sealed class ListCursor : System.IEquatable<OpenCode.Sdk.ListCursor>
+    {
+        public ListCursor() { }
+        [System.Text.Json.Serialization.JsonPropertyName("next")]
+        public string? Next { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("previous")]
+        public string? Previous { get; init; }
+    }
+    public abstract class ListOptions : System.IEquatable<OpenCode.Sdk.ListOptions>
+    {
+        protected ListOptions() { }
+        public string? Cursor { get; init; }
+        public int? Limit { get; init; }
+        public OpenCode.Sdk.ListOrder? Order { get; init; }
+    }
+    public enum ListOrder
+    {
+        Ascending = 0,
+        Descending = 1,
+    }
     public class OpenCodeApiException : OpenCode.Sdk.OpenCodeException
     {
         public OpenCodeApiException() { }
@@ -86,6 +106,11 @@
         public SessionMessageResponse() { }
         public required OpenCode.Sdk.Models.SessionMessageInfo Message { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class SessionParentFilter
+    {
+        public static OpenCode.Sdk.SessionParentFilter RootOnly { get; }
+        public static OpenCode.Sdk.SessionParentFilter Of(string sessionId) { }
     }
     public class SessionsClient
     {
