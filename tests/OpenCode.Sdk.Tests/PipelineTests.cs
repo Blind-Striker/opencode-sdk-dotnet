@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
 using NSubstitute;
@@ -199,6 +200,60 @@ public sealed class PipelineTests
             .Throws<OpenCodeTransportException>();
 
         await Assert.That(exception!.InnerException).IsTypeOf<HttpRequestException>();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Wrap_An_Invalid_Charset_As_A_Transport_Failure()
+    {
+        using var handler = new RecordingHttpHandler(static _ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent("{\"healthy\":true}"u8.ToArray()),
+            };
+            response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json") { CharSet = "not-an-encoding" };
+            return response;
+        });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+
+        var exception = await Assert
+            .That(async () => _ = await pipeline.ExecuteAsync(
+                HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception!.InnerException).IsTypeOf<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Wrap_A_Disposal_Race_On_Send_As_A_Transport_Failure()
+    {
+        using var handler = new RecordingHttpHandler(static _ => throw new ObjectDisposedException(nameof(HttpClient)));
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+
+        var exception = await Assert
+            .That(async () => _ = await pipeline.ExecuteAsync(
+                HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception!.InnerException).IsTypeOf<ObjectDisposedException>();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Refuse_An_Undefined_Error_Behavior_Before_Sending()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+        var options = new OpenCodeRequestOptions { ErrorBehavior = (ErrorBehavior)2 };
+
+        _ = await Assert
+            .That(async () => _ = await pipeline.ExecuteAsync(
+                HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options, CancellationToken.None))
+            .Throws<ArgumentOutOfRangeException>();
+
+        await Assert.That(handler.Requests.Any()).IsFalse();
     }
 
     [Test]

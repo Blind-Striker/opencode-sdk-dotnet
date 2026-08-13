@@ -82,6 +82,13 @@ internal sealed class Pipeline : IDisposable
             throw new ArgumentException("Routes must start with '/'.", nameof(route));
         }
 
+        // Refused before sending: an undefined value must never silently pick an error channel.
+        var errorBehavior = options?.ErrorBehavior ?? ErrorBehavior.Default;
+        if (errorBehavior is not (ErrorBehavior.Default or ErrorBehavior.NoThrow))
+        {
+            throw new ArgumentOutOfRangeException(nameof(options), errorBehavior, "Unknown ErrorBehavior value.");
+        }
+
         int status;
         string rawBody;
         using (var request = new HttpRequestMessage(method, new Uri(_endpointBase + route, UriKind.Absolute)))
@@ -93,7 +100,7 @@ internal sealed class Pipeline : IDisposable
         }
 
         var adapted = adapter.Adapt(status, rawBody);
-        return adapted.IsError && (options?.ErrorBehavior ?? ErrorBehavior.Default) is ErrorBehavior.Default
+        return adapted.IsError && errorBehavior is ErrorBehavior.Default
             ? throw CreateApiException(adapted)
             : adapted;
     }
@@ -130,9 +137,10 @@ internal sealed class Pipeline : IDisposable
                 .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
                 .ConfigureAwait(false);
         }
-        catch (HttpRequestException exception)
+        catch (Exception exception) when (exception is HttpRequestException or ObjectDisposedException)
         {
-            // OperationCanceledException deliberately passes through untouched.
+            // ObjectDisposedException covers a dispose-during-send race; the pre-send disposed
+            // guard stays outside this catch. OperationCanceledException passes through untouched.
             throw new OpenCodeTransportException("The opencode server could not be reached.", exception);
         }
     }
@@ -145,9 +153,11 @@ internal sealed class Pipeline : IDisposable
                 ? string.Empty
                 : await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is HttpRequestException or IOException or ObjectDisposedException)
+        catch (Exception exception) when (exception is HttpRequestException or IOException or ObjectDisposedException
+                                              or InvalidOperationException)
         {
-            // OperationCanceledException deliberately passes through untouched.
+            // InvalidOperationException covers an unusable response charset surfaced by
+            // ReadAsStringAsync. OperationCanceledException deliberately passes through untouched.
             throw new OpenCodeTransportException("The opencode response body could not be read.", exception);
         }
     }
