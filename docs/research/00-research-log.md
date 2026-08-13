@@ -1609,3 +1609,51 @@ of the v1 `x-opencode-directory` header is decided inside the retarget task.
 v2 platform picture; docs 09/10 corrected in place (resolved UNVERIFIED items, stamped
 consequence updates); ADR-0005 revised in place; `AGENTS.md`, `docs/ROADMAP.md`, and the Arc B
 plan updated to the single-surface v2 target.
+
+# Session 18 — 2026-08-13: M1 Arc B execution decisions
+
+An implementation session, not a research sweep: Tasks 1–4 of the Arc B plan landed and M1
+closed with a live demonstration. This entry records only the decisions sealed along the way;
+execution detail lives in git and the (now consumed) Arc B plan checkboxes.
+
+## Q73: Are envelope payload names curated per operation or derived mechanically?
+
+**How researched:** the sealed API design (payload names from a fail-closed curation map,
+§5.1/§8.5) collided with the maintainer's retarget-era "no taste curation" convention when the
+bare `ServiceHealth` payload needed a name; both models were priced against the ~100
+payload-carrying operations of the full v2 surface.
+
+**Found:** the mechanical candidate — the operation's subject tokens (identifier segments
+after the group that do not restate the HTTP method; the group name when none remain) —
+reproduces both sealed M1 values exactly (`Message`, `Health`), and a fail-closed collision
+check against the response spine (`Error`, `IsError`, `RawBody`, `Status`, the response type
+name) preserves the forced-review property for the cases that actually need a human.
+
+**Decision (maintainer, sealed):** payload names derive mechanically;
+`envelopePayloadNames` demotes to an override ledger for spine collisions and C#-illegal
+results only; a collision fails generation until an override lands. The required-per-operation
+validation retired with it.
+
+## Q74: What may the User-Agent version token contain when the informational version is unusable?
+
+**Found:** SourceLink appends `+<commit>` to `AssemblyInformationalVersionAttribute`; a
+missing or unparsable attribute is possible in exotic build contexts, and the handoff banned
+a silent assembly-version substitute.
+
+**Decision (maintainer, sealed):** strip build metadata after `+`; when the remainder is
+missing or fails `ProductHeaderValue` parsing, omit the version token entirely
+(`OpenCode.Sdk` alone) — never a silent fallback, never a construction failure
+(`UserAgentPolicy`).
+
+## Q75: What shape do generated route members take?
+
+**Decision (maintainer, sealed):** `OpenCodeRoutes` nests one static container per operation
+group (client name, or the Pascal group for root placement); parameterless operations emit a
+`const`, parameterized ones a `<Member>Template` const plus an escaped `<Member>(...)`
+builder; members never restate their container (`Health.Get`, `Sessions.GetMessage`). CA1034
+is arbitrated for the one generated file. Route member names ride the plan
+(`RouteContainerName`/`RouteMemberName`) so emitters stay name-blind.
+
+**Documentation pass (this session):** ROADMAP moved to M1-complete/M2-next; the Arc B plan's
+checkboxes closed in the same commits as their code; the consumed handover was deleted and a
+fresh one (`HANDOFF-2026-08-13-3.md`) records the ship/M2/horizon queue.
