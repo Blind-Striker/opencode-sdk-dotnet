@@ -20,4 +20,9 @@
     <Reference Include="System.Net.Http" />
   </ItemGroup>
 
+  <!-- Implicit usings inject System.Net.Http only on net6.0+; downlevel targets need it globally too. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472' Or '$(TargetFramework)' == 'netstandard2.0'">
+    <Using Include="System.Net.Http" />
+  </ItemGroup>
+
 </Project>

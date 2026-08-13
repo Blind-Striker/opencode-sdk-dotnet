@@ -106,19 +106,19 @@ and committed generated models.
 `Internal/Abstractions/IEnvironmentProvider`,
 `Internal/{Pipeline,ResponseAdapter,SystemEnvironmentProvider}`, friend metadata, and tests.
 
-- [ ] Add the conditional `net472` framework reference. Add `ErrorBehavior`, client/request
+- [x] Add the conditional `net472` framework reference. Add `ErrorBehavior`, client/request
   options, `OpenCodeResponse` including nullable error-path `RawBody`, and the
   `OpenCodeException` spine with complete XML documentation.
-- [ ] Implement endpoint validation/joining and owned-versus-injected `HttpClient` lifetime.
+- [x] Implement endpoint validation/joining and owned-versus-injected `HttpClient` lifetime.
   Disposing the root makes its wrappers unusable and never disposes a BYO client.
-- [ ] Resolve explicit password before one-time `OPENCODE_SERVER_PASSWORD` fallback. Decorate
+- [x] Resolve explicit password before one-time `OPENCODE_SERVER_PASSWORD` fallback. Decorate
   each request, never default headers, with Basic user `opencode` and the
   `OpenCode.Sdk/<informational-version>` User-Agent; per-request scoping rides the v2
   `location[...]` query convention, bound as operation parameters rather than a header.
-- [ ] Use only `HttpClient.SendAsync(request, ResponseHeadersRead, cancellationToken)`. Own each
+- [x] Use only `HttpClient.SendAsync(request, ResponseHeadersRead, cancellationToken)`. Own each
   request and buffered response, preserve cancellation, and wrap network/protocol failures as
   `OpenCodeTransportException`.
-- [ ] Centralize default throw versus per-call `NoThrow` in
+- [x] Centralize default throw versus per-call `NoThrow` in
   `Pipeline.ExecuteAsync<TResponse>(HttpMethod, string, ResponseAdapter<TResponse>,
   OpenCodeRequestOptions?, CancellationToken)` where `TResponse : OpenCodeResponse`. Adapters
   deserialize only through `OpenCodeJsonContext` and construct success/error envelopes.

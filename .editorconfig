@@ -781,3 +781,10 @@ dotnet_diagnostic.S2325.severity = none
 # enabled for every other file.
 [tools/OpenCode.Sdk.Tools/Generator/Ingestion/Models/LiteralKind.cs]
 dotnet_diagnostic.CA1720.severity = none
+
+# Generated response adapters gain shared, non-virtual mapping helpers on this
+# base at emission build-out, and default interface members cannot carry shared
+# behavior on the locked net472/netstandard2.0 targets (CS8701). Winner: the
+# abstract adapter base; S1694 remains enabled for every other file.
+[src/OpenCode.Sdk/Internal/ResponseAdapter.cs]
+dotnet_diagnostic.S1694.severity = none
