@@ -11,10 +11,26 @@ internal sealed class OperationPlanBinder
     private const string RootClientName = "OpenCodeClient";
 
     /// <summary>
-    /// Member names every generated response envelope inherits from the response spine; a
-    /// payload landing on one of them needs a curated override.
+    /// Member names every generated response envelope inherits from the response spine or
+    /// from <see cref="object"/>/record synthesis; a payload landing on one of them needs a
+    /// curated override.
     /// </summary>
-    private static readonly string[] ReservedPayloadNames = ["Error", "IsError", "RawBody", "Status"];
+    private static readonly string[] ReservedPayloadNames =
+    [
+        "Deconstruct",
+        "EqualityContract",
+        "Equals",
+        "Error",
+        "GetHashCode",
+        "GetType",
+        "IsError",
+        "MemberwiseClone",
+        "PrintMembers",
+        "RawBody",
+        "ReferenceEquals",
+        "Status",
+        "ToString",
+    ];
 
     private readonly StringComparer _comparer = StringComparer.Ordinal;
 
@@ -239,6 +255,14 @@ internal sealed class OperationPlanBinder
             var optionalPlanErrorsBefore = _errors.Count;
             var options = BindQueryOptions();
             var requestBody = BindRequestBody();
+            var methodName = OperationNamePolicy.MethodName(_operation);
+            var routeMemberName = OperationNamePolicy.RouteMemberName(_operation, row.Placement);
+            if (methodName is null || routeMemberName is null)
+            {
+                Refuse("the operation's names cannot be derived mechanically: the group does not pluralize naively");
+                return null;
+            }
+
             if (envelope is null || errorMap is null || parameters is null || _errors.Count != optionalPlanErrorsBefore)
             {
                 return null;
@@ -252,11 +276,11 @@ internal sealed class OperationPlanBinder
                 IsHandleOperation = parameters.Any(static parameter => parameter.IsHandleParameter),
                 Plan = new OperationPlan
                 {
-                    MethodName = OperationNamePolicy.MethodName(_operation, row.Placement),
+                    MethodName = methodName,
                     HttpMethod = _operation.Method,
                     RouteTemplate = _operation.Path,
                     RouteContainerName = row.ClientName ?? CSharpNamePolicy.ToPascalCase(group),
-                    RouteMemberName = OperationNamePolicy.RouteMemberName(_operation),
+                    RouteMemberName = routeMemberName,
                     Parameters = parameters,
                     Options = options,
                     RequestBody = requestBody,
@@ -369,6 +393,22 @@ internal sealed class OperationPlanBinder
             var payloadName = _curation.EnvelopePayloadNames.TryGetValue(_operation.OperationId, out var curated)
                 ? curated
                 : OperationNamePolicy.PayloadName(_operation);
+            if (payloadName is null)
+            {
+                Refuse("the payload name cannot be derived mechanically: the group does not pluralize naively; curate an envelope payload name");
+                return null;
+            }
+
+            // Mechanical names are PascalCase by construction, but the wall covers both origins.
+            if (!CSharpNamePolicy.IsValidIdentifier(payloadName))
+            {
+                _errors.Add(
+                    BindingErrorCategory.Naming,
+                    _operation.OperationId,
+                    $"payload name '{payloadName}' is not a valid C# identifier");
+                return null;
+            }
+
             if (ReservedPayloadNames.Contains(payloadName, StringComparer.Ordinal)
                 || string.Equals(payloadName, responseTypeName, StringComparison.Ordinal))
             {

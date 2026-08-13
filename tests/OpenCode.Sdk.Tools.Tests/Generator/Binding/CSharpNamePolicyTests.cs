@@ -17,4 +17,15 @@ public sealed class CSharpNamePolicyTests
 
         await Assert.That(result).IsEqualTo(expected);
     }
+
+    [Test]
+    [Arguments("class", false)]
+    [Arguments("string", false)]
+    [Arguments("record", true)]
+    [Arguments("Session", true)]
+    [Arguments("_reserved", true)]
+    public async Task IsValidIdentifier_Should_Reject_Reserved_Keywords(string candidate, bool expected)
+    {
+        await Assert.That(CSharpNamePolicy.IsValidIdentifier(candidate)).IsEqualTo(expected);
+    }
 }

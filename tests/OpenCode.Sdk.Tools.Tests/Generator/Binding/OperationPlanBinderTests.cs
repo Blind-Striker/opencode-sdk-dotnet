@@ -461,7 +461,7 @@ public sealed class OperationPlanBinderTests
         var handle = plan.Clients.Single(static client => client.Role == ClientRole.Handle);
         await Assert.That(handle.Operations.Select(static operation => operation.MethodName)
             .Order(StringComparer.Ordinal)
-            .SequenceEqual(["GetListAsync", "GetPartAsync"], StringComparer.Ordinal)).IsTrue();
+            .SequenceEqual(["GetPartAsync", "ListGizmosAsync"], StringComparer.Ordinal)).IsTrue();
         await Assert.That(handle.Operations.All(static operation => operation.RouteContainerName == "Gadgets")).IsTrue();
     }
 
@@ -680,7 +680,7 @@ public sealed class OperationPlanBinderTests
     public async Task Bind_Should_Refuse_Colliding_Method_Names_On_A_Client()
     {
         var document = await BindingTestHost.IngestAsync(GadgetScenario(spec => spec
-            .WithOperation("v2.gadget.get.part", path: "/api/gadget/{gadgetID}/part-alias/{partID}", configure: operation => operation
+            .WithOperation("v2.gadget.part.get", path: "/api/gadget/{gadgetID}/part-alias/{partID}", configure: operation => operation
                 .Parameter("gadgetID", "path", schema => schema.Type("string"), required: true)
                 .Parameter("partID", "path", schema => schema.Type("string"), required: true)
                 .Response(200, "application/json", schema => schema.Type("object")
@@ -688,7 +688,7 @@ public sealed class OperationPlanBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.gadget.part", "v2.gadget.get.part"),
+            Selection("v2.gadget.part", "v2.gadget.part.get"),
             Curation(Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID")))));
 
         await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
@@ -760,6 +760,28 @@ public sealed class OperationPlanBinderTests
 
         await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Naming).Problem)
             .Contains("Status");
+    }
+
+    [Test]
+    [Arguments("EqualityContract")]
+    [Arguments("ToString")]
+    [Arguments("GetHashCode")]
+    [Arguments("PrintMembers")]
+    public async Task Bind_Should_Refuse_A_Payload_Name_Colliding_With_Record_Members(string payloadName)
+    {
+        var document = await BindingTestHost.IngestAsync(StatusScenario());
+        var payloadNames = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["v2.widget.status"] = payloadName,
+        };
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.status"),
+            Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)), payloadNames)));
+
+        await Assert.That(exception.Errors.Any(error => error.Category == BindingErrorCategory.Naming
+            && error.Problem.Contains(payloadName, StringComparison.Ordinal))).IsTrue();
     }
 
     [Test]
