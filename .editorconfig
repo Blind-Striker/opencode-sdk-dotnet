@@ -699,7 +699,9 @@ dotnet_diagnostic.S6602.severity = none
 # =============================================================================
 # SECTION 13: COMPILER DIAGNOSTICS (CSxxxx)
 # =============================================================================
-dotnet_diagnostic.CS1591.severity = none
+# Every public member on the shipped surface is documented: generated docs come from the
+# spec, hand-written docs by hand (ADR-0004). Tests are exempted in Section 15.
+dotnet_diagnostic.CS1591.severity = error
 
 # =============================================================================
 # SECTION 14: GENERATED CODE
@@ -717,6 +719,7 @@ generated_code = true
 # =============================================================================
 [{*Tests/**/*.cs,tests/**/*.cs}]
 dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CS1591.severity = none
 
 # TUnit Assert.That reports false positives for MA0042 because the analyzer cannot model the assertion API shape.
 dotnet_diagnostic.MA0042.severity = none
@@ -788,3 +791,10 @@ dotnet_diagnostic.CA1720.severity = none
 # abstract adapter base; S1694 remains enabled for every other file.
 [src/OpenCode.Sdk/Internal/ResponseAdapter.cs]
 dotnet_diagnostic.S1694.severity = none
+
+# The generated route surface deliberately nests one static container per operation group
+# (maintainer-approved shape, 2026-08-13); flattening would erase the grouping the public
+# API promises. Winner: the generated route shape; CA1034 remains enabled for every other
+# file.
+[src/OpenCode.Sdk/OpenCodeRoutes.cs]
+dotnet_diagnostic.CA1034.severity = none

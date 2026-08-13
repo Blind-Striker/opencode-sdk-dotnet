@@ -145,7 +145,7 @@ public sealed class ToolAppTests
         var generateTester = new CommandAppTester(registrar);
         generateTester.Configure(ToolApp.Configure);
         _ = await generateTester.RunAsync(["generate"]);
-        await fileSystem.File.WriteAllTextAsync(generatedPath, "drift", CancellationToken.None);
+        await fileSystem.File.WriteAllTextAsync(generatedPath, GenerationTestData.OwnedContent("drift"), CancellationToken.None);
 
         var verifyTester = new CommandAppTester(registrar);
         verifyTester.Configure(ToolApp.Configure);

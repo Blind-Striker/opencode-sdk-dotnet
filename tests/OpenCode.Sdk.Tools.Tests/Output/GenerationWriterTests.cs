@@ -1,4 +1,5 @@
 using System.Text.Json;
+using OpenCode.Sdk.Tools.Generator.Emission;
 using OpenCode.Sdk.Tools.Output;
 using OpenCode.Sdk.Tools.Tests.Support;
 using Testably.Abstractions.Testing;
@@ -102,7 +103,7 @@ public sealed class GenerationWriterTests
         var manifest = JsonSerializer.Serialize(new GenerationManifest { Files = ["Models/Stale.cs"], });
         fileSystem.Initialize().With(
             new FileDescription(GenerationTestData.ManifestPath, manifest),
-            new FileDescription(stalePath, "stale"),
+            new FileDescription(stalePath, GenerationTestData.OwnedContent("stale")),
             new FileDescription(unrelatedPath, "manual"));
         var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
 
@@ -172,7 +173,7 @@ public sealed class GenerationWriterTests
             verify: false,
             CancellationToken.None);
         var outputPath = fileSystem.Path.Combine(GenerationTestData.OutputRoot, relativePath);
-        await fileSystem.File.WriteAllTextAsync(outputPath, "drift\n", CancellationToken.None);
+        await fileSystem.File.WriteAllTextAsync(outputPath, GenerationTestData.OwnedContent("drift\n"), CancellationToken.None);
 
         var result = await writer.WriteAsync(
             GenerationTestData.OutputRoot,
@@ -185,7 +186,121 @@ public sealed class GenerationWriterTests
         await Assert.That(result.HasChanges).IsTrue();
         await Assert.That(result.ChangedPaths).Contains(relativePath);
         var repaired = await fileSystem.File.ReadAllTextAsync(outputPath, CancellationToken.None);
-        await Assert.That(repaired).IsEqualTo("expected\n");
+        await Assert.That(repaired).IsEqualTo(GenerationTestData.OwnedContent("expected\n"));
+    }
+
+    [Test]
+    public async Task WriteAsync_Should_Admit_Root_And_Adapter_Sources()
+    {
+        var fileSystem = GenerationTestData.CreateFileSystem();
+        var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
+
+        var result = await writer.WriteAsync(
+            GenerationTestData.OutputRoot,
+            GenerationTestData.ProjectPath,
+            [
+                GenerationTestData.Source("ExampleClient.cs", "client"),
+                GenerationTestData.Source("Internal/ResponseAdapters/ExampleAdapter.cs", "adapter"),
+            ],
+            partialMarkerContent: null,
+            verify: false,
+            CancellationToken.None);
+
+        await Assert.That(result.CreatedPaths).Contains("ExampleClient.cs");
+        await Assert.That(result.CreatedPaths).Contains("Internal/ResponseAdapters/ExampleAdapter.cs");
+    }
+
+    [Test]
+    public async Task WriteAsync_Should_Refuse_Overwriting_An_Unmanifested_File()
+    {
+        var fileSystem = GenerationTestData.CreateFileSystem();
+        fileSystem.Initialize().With(new FileDescription("src/OpenCode.Sdk/ExampleClient.cs", "hand-written"));
+        var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
+
+        var exception = await Assert
+            .That(async () => _ = await writer.WriteAsync(
+                GenerationTestData.OutputRoot,
+                GenerationTestData.ProjectPath,
+                [GenerationTestData.Source("ExampleClient.cs", "generated")],
+                partialMarkerContent: null,
+                verify: false,
+                CancellationToken.None))
+            .Throws<InvalidOperationException>();
+
+        await Assert.That(exception!.Message).Contains("unmanifested");
+        var untouched = await fileSystem.File.ReadAllTextAsync("src/OpenCode.Sdk/ExampleClient.cs", CancellationToken.None);
+        await Assert.That(untouched).IsEqualTo("hand-written");
+    }
+
+    [Test]
+    public async Task WriteAsync_Should_Refuse_Overwriting_A_Manifest_Entry_Without_Provenance()
+    {
+        var fileSystem = GenerationTestData.CreateFileSystem();
+        var manifest = JsonSerializer.Serialize(new GenerationManifest { Files = ["Models/Example.cs"], });
+        fileSystem.Initialize().With(
+            new FileDescription(GenerationTestData.ManifestPath, manifest),
+            new FileDescription("src/OpenCode.Sdk/Models/Example.cs", "hand-edited without a header"));
+        var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
+
+        var exception = await Assert
+            .That(async () => _ = await writer.WriteAsync(
+                GenerationTestData.OutputRoot,
+                GenerationTestData.ProjectPath,
+                [GenerationTestData.Source("Models/Example.cs", "generated")],
+                partialMarkerContent: null,
+                verify: false,
+                CancellationToken.None))
+            .Throws<InvalidOperationException>();
+
+        await Assert.That(exception!.Message).Contains("provenance");
+    }
+
+    [Test]
+    public async Task WriteAsync_Should_Refuse_Deleting_A_Manifest_Entry_Without_Provenance()
+    {
+        var fileSystem = GenerationTestData.CreateFileSystem();
+        var manifest = JsonSerializer.Serialize(new GenerationManifest { Files = ["Models/Stale.cs"], });
+        fileSystem.Initialize().With(
+            new FileDescription(GenerationTestData.ManifestPath, manifest),
+            new FileDescription("src/OpenCode.Sdk/Models/Stale.cs", "hand-edited without a header"));
+        var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
+
+        var exception = await Assert
+            .That(async () => _ = await writer.WriteAsync(
+                GenerationTestData.OutputRoot,
+                GenerationTestData.ProjectPath,
+                [GenerationTestData.Source("Models/Fresh.cs", "generated")],
+                partialMarkerContent: null,
+                verify: false,
+                CancellationToken.None))
+            .Throws<InvalidOperationException>();
+
+        await Assert.That(exception!.Message).Contains("provenance");
+        await Assert.That(fileSystem.File.Exists("src/OpenCode.Sdk/Models/Stale.cs")).IsTrue();
+    }
+
+    [Test]
+    public async Task WriteAsync_Should_Refuse_Headerless_Generated_Sources()
+    {
+        var fileSystem = GenerationTestData.CreateFileSystem();
+        var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
+        var headerless = new GeneratedSource
+        {
+            RelativePath = "Models/Example.cs",
+            Utf8Source = "no header"u8.ToArray(),
+        };
+
+        var exception = await Assert
+            .That(async () => _ = await writer.WriteAsync(
+                GenerationTestData.OutputRoot,
+                GenerationTestData.ProjectPath,
+                [headerless],
+                partialMarkerContent: null,
+                verify: false,
+                CancellationToken.None))
+            .Throws<InvalidOperationException>();
+
+        await Assert.That(exception?.Message).Contains("provenance header");
     }
 
     [Test]

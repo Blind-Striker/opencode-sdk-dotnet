@@ -12,6 +12,9 @@ internal static class GenerationTestData
     public const string OutputRoot = "src/OpenCode.Sdk";
     public const string ProjectPath = "src/OpenCode.Sdk/OpenCode.Sdk.csproj";
 
+    /// <summary>Provenance-headed content for a generated file that already sits on disk.</summary>
+    public static string OwnedContent(string content) => $"{GenerationProvenance.Header}{content}";
+
     private const string Curation = """
         {
           "groups": {
@@ -52,6 +55,6 @@ internal static class GenerationTestData
         new()
         {
             RelativePath = relativePath,
-            Utf8Source = Encoding.UTF8.GetBytes(source),
+            Utf8Source = Encoding.UTF8.GetBytes(OwnedContent(source)),
         };
 }
