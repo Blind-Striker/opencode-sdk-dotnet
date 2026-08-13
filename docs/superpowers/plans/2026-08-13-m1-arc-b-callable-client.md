@@ -151,10 +151,10 @@ and committed generated models.
   produce `UnknownOpenCodeError` with the exact tag and raw payload.
 - [x] For malformed non-2xx JSON, assert `Error` is null and exact `RawBody` is retained on both
   `OpenCodeApiException` and the `NoThrow` response. Assert success responses have no raw body.
-- [ ] Pin `PublicApiGenerator` 11.5.4 centrally, add it plus `Verify.TUnit` to
+- [x] Pin `PublicApiGenerator` 11.5.4 centrally, add it plus `Verify.TUnit` to
   `OpenCode.Sdk.Tests`, and review one baseline after casing and callable surface settle. Keep
   `.generation-incomplete`; packing must still fail only because breadth is pending.
-- [ ] Run `generate`, clean `generate --verify`, Release build, supported test legs, format,
+- [x] Run `generate`, clean `generate --verify`, Release build, supported test legs, format,
   Slopwatch, and intentional pack refusal.
 - [ ] Start a password-enabled real `opencode2 serve` (v2 pre-release channel; record the
   exact installed build version as demo evidence). Obtain IDs with authenticated raw calls to

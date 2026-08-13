@@ -41,6 +41,7 @@
     <PackageVersion Include="Spectre.Console.Cli.Testing" Version="0.55.0" />
     <PackageVersion Include="Testably.Abstractions.Testing" Version="7.0.2" />
     <PackageVersion Include="TUnit" Version="1.63.25" />
+    <PackageVersion Include="PublicApiGenerator" Version="11.5.4" />
     <PackageVersion Include="Verify.TUnit" Version="31.28.0" />
   </ItemGroup>
 </Project>
