@@ -1,6 +1,6 @@
 # Error-channel scope: per-call NoThrow only, or a client-level default too?
 
-Date: 2026-08-09
+Date: 2026-08-13
 
 > Research snapshot, 2026-08-09. Question: given the sealed throw-by-default error model
 > (typed `OpenCodeException` spine, per-call `OpenCodeRequestOptions.ErrorBehavior`),
@@ -15,7 +15,7 @@ Date: 2026-08-09
 ## 1. The question
 
 Every operation throws typed exceptions by default and returns a typed envelope
-(`Status`/`IsError`/`Error` + guarded payload getter); a per-call
+(`Status`/`IsError`/`Error`/`RawBody` + guarded payload getter); a per-call
 `OpenCodeRequestOptions { ErrorBehavior = Default | NoThrow }` exists. The only open
 point is scope: is per-call the *only* channel switch, or does
 `OpenCodeClientOptions` get an `ErrorBehavior` default (per-call still overriding)?
@@ -165,7 +165,7 @@ Against (per-call only):
 - **DI sharing.** One registration serves many consumers; a library or second team
   member resolving `OpenCodeClient` inherits a silently flipped contract. None of the
   surveyed .NET SDKs make this possible.
-- **The 204 exposure.** 24 of 61 modern ops return 204 (design spec §6): under NoThrow
+- **The 204 exposure.** 19 of 61 modern ops return 204 (design spec §6): under NoThrow
   there is no payload getter to trip, so an unchecked failure is *completely* silent.
   A client-level NoThrow default converts this from a per-call, locally visible risk
   into a config-at-a-distance one.
@@ -177,8 +177,8 @@ For (client-level default):
 
 - **Dogfood ergonomics.** The MCP server maps failures to tool-error results uniformly;
   per-call-only means `OpenCodeRequestOptions.NoThrow` on nearly every call. Upstream
-  felt the mirror-image pain: the TUI sprinkled 113 `throwOnError: true` call sites to
-  escape its result-default (design spec §6).
+  felt the mirror-image pain: its app/CLI layers carry approximately 76 non-generated
+  `throwOnError: true` call sites to escape result-default behavior (design spec §6).
 - **Upstream symmetry.** The JS SDK has the client-level knob and upstream's app uses
   it — but §2 shows it is inherited hey-api machinery, opposite in direction, and
   type-guarded in a way C# cannot replicate. The symmetry is superficial.
@@ -190,7 +190,7 @@ For (client-level default):
 per-call/per-signature scope; the only client-level precedents run in the safe
 (escalating) direction on response-default clients; FDG explicitly forbids
 option-conditional throwing, and the per-call form is the ecosystem's tightly contained
-deviation from that rule. The 24×204 silent-failure surface makes the suppressing
+deviation from that rule. The 19×204 silent-failure surface makes the suppressing
 direction uniquely dangerous for this API, and per-call-only is the extend-only choice.
 
 Middle path, if MCP-server ergonomics prove painful in practice: a **scoped no-throw

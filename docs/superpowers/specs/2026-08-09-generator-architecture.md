@@ -1,6 +1,6 @@
 # Generator Architecture — the model-layer generator and repo tooling
 
-Date: 2026-08-11
+Date: 2026-08-13
 
 > **Status: vision / reference — not sealed.** Binding decisions live in the ADRs and
 > `AGENTS.md`; this document is direction and design rationale, not law. Contradicting it
@@ -132,18 +132,10 @@ System.Text.Json for curation parsing, Microsoft.CodeAnalysis.CSharp for emissio
 
 - **`generate`** — parse → bind → emit → write. Fingerprint verification (§9) runs inside
   every invocation, not as a separate command.
-  - `--verify` — CI/regen-verify mode: full in-place regeneration (including the format
-    post-step), then `git status --porcelain` over the generated paths; dirty ⇒ nonzero exit
-    plus the file list. Precondition, self-checked: `--verify` refuses to start when the
-    generated paths already carry uncommitted changes, exiting with a distinct
-    "dirty generated paths" error — a pre-dirty tree would otherwise surface as false
-    drift (CI checkouts are clean; the check exists for local runs; hand-written WIP
-    outside the generated paths does not block it). In-memory comparison was considered
-    and rejected: the `dotnet format` post-step requires an MSBuild workspace, so a
-    memory-side compare would diff unformatted output against formatted commits and always
-    report drift. In-place regen + git-clean check is the ecosystem's regen-verify shape
-    (upstream commits and regen-verifies its generated client the same way — research
-    doc 08).
+  - `--verify` — CI/regen-verify mode: snapshot old/new manifest-owned paths, regenerate and
+    format in place, byte-compare the final owned artifacts, and return nonzero with the
+    created/changed/deleted path list when drift existed. It repairs drift as part of the run
+    and has no Git or clean-worktree precondition.
   - `--update-fingerprints` — the explicit human review gate for fingerprint drift (§9).
 - **`refresh-spec --ref <tag|commit>`** — the spec-refresh workflow (§10).
 
@@ -221,58 +213,19 @@ refuses with zero diagnostics (run-proven: raw `prefixItems`, injected
 `allOf`/`if`/type-arrays/`discriminator`, typed `headers`/`callbacks`/`webhooks`/
 `$defs` payloads all load clean) — hence the projection wall below.
 
-**Projection.** One DOM visitor walks the document once and produces the SpecIR plus
-batched, located errors (§2 principle 5; JSON-pointer-style locations). Everything
-opencode-specific lives here:
+**Projection.** Explicit projectors produce minimal SpecIR plus batched, located errors.
+Validation is semantic-risk fail-closed: a selected construct refuses when dropping it could
+change emitted wire or public behavior, while descriptive or unconsumed library metadata does
+not create a maintenance wall. Standing guards cover reader version, diagnostics, exception
+translation, unsupported selected operation/media shapes, unresolved references, `$ref`
+siblings, the pinned raw `prefixItems` adapter, and no Microsoft.OpenApi leakage beyond
+ingestion. Generated-source diffs plus focused semantic/runtime tests are the primary drift
+radar; there is no reflection member/default inventory or full SpecIR snapshot.
 
-- **Dialect wall — whitelist-shaped, per host type.** The wall covers **every
-  consumed DOM type**, not only schemas: the library types constructs silently at
-  every level (path-level `parameters` would otherwise drop a real parameter;
-  `headers`, `callbacks`, `webhooks`, media `ItemSchema`, content-based parameters
-  and non-deepObject styles all land typed with zero diagnostics **[verified]**).
-  Each host carries a recorded admitted / known-ignored / refused member table; any
-  populated *spec-derived* member outside its table refuses (library bookkeeping
-  members — `BaseUri`, `Self`, `Workspace`, `Metadata` — sit outside the wall but
-  inside the tripwire snapshots):
-
-  | Host | Admitted | Known-ignored | Refused explicitly |
-  |---|---|---|---|
-  | document | `paths`, `components.schemas` (+ the version gate above) | `info`, `security`, `tags` | `webhooks`, `servers`, `jsonSchemaDialect`, other `components` members |
-  | path item | the five HTTP methods | — | path-level `parameters`, `$ref`, `servers`, other methods |
-  | operation | `operationId`, `summary`, `description`, `deprecated`, `parameters`, `requestBody`, `responses` | `tags`, `security` | `callbacks`, `servers` |
-  | parameter | `name`, `in` (`path`/`query`), `schema`, `required`, `style`+`explode` only as the `deepObject`+`true` pair | — | `content` (content-based parameters), other styles and locations, `examples` |
-  | request body | `content` (exactly one media entry), `required` | — | everything else |
-  | response | `description`, `content` (0 or 1 media entries) | — | `headers`, `links` |
-  | media type | `schema`; `x-effect-stream` on `text/event-stream` only | — | `itemSchema`/`itemEncoding`/`prefixEncoding` (3.2 members already typed in the pinned DOM), `encoding`, `examples` |
-  | schema | the node-kind constraint members (list below); `description` and `format` (both recorded on the node) | `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `minItems`, `maxItems` (validation-only — the pin's population) | `allOf`, type arrays, `discriminator`, `not`, `if`/`then`/`else`, `dependentSchemas`/`dependentRequired`, `propertyNames`, `contains`, `unevaluatedProperties`/`unevaluatedItems`, `$defs` and dynamic anchors, `title`, `default`, `examples`, `readOnly`/`writeOnly`, `xml`, `externalDocs`, `minLength`/`maxLength`, `multipleOf`, `minProperties`/`maxProperties`, `uniqueItems` |
-
-  `UnrecognizedKeywords` must be empty at every schema except the admitted
-  raw-keyword sites (today exactly one: `prefixItems` under `Config.plugin`; the
-  admit rule names its site, so a moved or multiplied site refuses loudly — the
-  active `v2`-branch spec carries 6 `prefixItems` sites at other locations, every
-  one reported **[verified]**). Unresolved reference targets refuse; `$ref` siblings
-  beyond `description`/`summary` refuse (reference members proxy to the target
-  *except* sibling annotations — the projection reads references explicitly, never
-  through the proxy **[verified]**). Sibling detection rides the raw key-scan
-  ingestion already performs for the raw-content hashes: the typed members cannot
-  distinguish a local sibling from the proxied target value **[verified]**. Extension dispositions per host:
-  `x-codeSamples` (operations) known-ignored, `x-websocket` (operations) recorded as
-  a flag, `x-effect-stream` (SSE media only) carried opaque, any other `x-*` at any
-  host refuses. The wall is the drift radar in action: run against the active
-  upstream `v2`-branch spec it reports that document's 422 `allOf` sites and 6
-  relocated `prefixItems` sites individually, batched and located **[verified]** —
-  upstream evolution arrives as a reviewed admit-rule, never as silent
-  mis-generation.
-- **Library-upgrade tripwires.** A version bump must not move the wall silently: one
-  test pins that `prefixItems` still lands in `UnrecognizedKeywords`; a reflection
-  snapshot covers the member inventory **and fresh-instance default values** of
-  every consumed DOM type (defaults carry wall semantics: `UnevaluatedProperties`
-  and `AdditionalPropertiesAllowed` default `true` **[verified]**); and a serialized
-  SpecIR-of-the-pin Verify snapshot catches behavior drift the member lists cannot
-  see (iteration order, reference resolution, diagnostics) — it changes only on a
-  spec refresh or an admit-rule change, both reviewed events, and doubles as the
-  §10 refresh-diff serialization. The admitted-member tables are recorded
-  decisions, never inferred from the library.
+Extension handling is explicit: `x-codeSamples` is known-ignored, `x-websocket` projects
+operation behavior, and `x-effect-stream` is carried on SSE media. Other extensions are located
+informational drift unless a selected projection would otherwise lose behavior it claims to
+emit.
 - **Unrestricted schemas.** A schema with **no admitted constraint member**
   populated (annotations such as `description` permitted) accepts any JSON value
   and projects to an explicit any-value node — 19 sites in the pin, including
@@ -318,14 +271,11 @@ never a document-global counter) — classified into the semantic node kinds the
 Binder consumes: object (including the six hybrid objects carrying both properties
 and an `additionalProperties` schema), dictionary, free-form, **unrestricted**,
 union (marked/structural), enum, literal, special-number, tuple,
-content-encoded-string, nullable, primitive, ref. Nodes carry `description` and
-`format` (Binder doc-text and payload-rule inputs). Ingestion additionally computes
-a **raw-content SHA-256 per operation and per named schema** (canonical JSON over
-the raw `JsonNode` subtree) and carries them as opaque strings — the §9 fingerprint
-source; the Binder composes and persists, and never re-reads the spec. Ordering:
+   content-encoded-string, nullable, primitive, ref. Nodes carry `description` and
+   `format` (Binder doc-text and payload-rule inputs). Hashes are not carried before the
+   excluded/hand-wired fingerprint feature has a consumer. Ordering:
 schema-graph keys sort ordinal; operation lists and object member order are
-document order — DOM iteration order is *observed* to be document order, not a
-library contract, so the SpecIR-of-the-pin snapshot guards it across version bumps.
+   document order — generated-source determinism tests guard the ordering that reaches output.
 The exact record inventory is derived backward from Binder, emitter and
 refresh-diff consumption at slice planning — a field nothing consumes is not
 carried.
@@ -362,15 +312,15 @@ The Binder is where every decision lands. Inputs: SpecIR + `curation.json`. Step
    a row referencing an unreachable schema is an error. Upstream corroborates the
    dead-schema stance: its own SDK build deletes unreachable `SessionNext*1` schemas from
    the document before generation (`packages/sdk/js/script/build.ts`).
-4. **Name computation** — mechanical PascalCase with `[JsonPropertyName]` wire fidelity;
-   FDG acronym casing with curated brand exceptions (ADR-0004); dotted-schema-name mangling
+4. **Name computation** — mechanical ordinary PascalCase, including acronym tokens, with
+   `[JsonPropertyName]` wire fidelity and curated brand exceptions (ADR-0004); dotted-schema-name mangling
    (7 dotted names: `session.status`, `question.replied`, `question.rejected`,
    `Event.tui.*` ×4 **[verified]**; doc 09's requirement); trailing-digit names
    (`ProviderAuthError1`, `UnknownError1` **[verified]**; the third such name,
    `OutputFormat1`, sits outside the reachable closure and is never emitted) pass through
-   mechanically unless a curated schema-name override renames them; the bound-handle rule
-   (operations with a `{sessionID}` path parameter emit into `SessionClient` — ADR-0008)
-   plus curated handle children.
+   mechanically unless a curated schema-name override renames them; curation declares each
+   bound handle's collection name, handle name, and required path parameter, and the Binder
+   partially applies that parameter without operation-specific branches (ADR-0008).
 5. **Derived emission decisions** — which operations get forward-only paginators (those with
    the `{cursor, data}` envelope), which unions get tolerant converters (all *marked*
    unions — ADR-0009's rule is mechanical over them; the structural-union emission
@@ -383,9 +333,8 @@ The Binder is where every decision lands. Inputs: SpecIR + `curation.json`. Step
    models: the pinned spec documents 185/188 operations but only 3/472 schemas and 27/1836
    properties **[verified]** — CS1591 stays `error` with no exemption, so emission must
    cover every public member.
-6. **Fingerprint computation** for every excluded or hand-wired operation (§9), composed
-   from the raw-content hashes ingestion carries on SpecIR (§4.1) — the Binder never
-   re-reads the spec.
+6. **Fingerprint computation** is deferred until the first excluded or hand-wired operation
+   enters the intended product surface (§9); no unused hash facts live in SpecIR beforehand.
 
 Output: **EmitPlan** — the complete file list with final names, namespaces, members, plus
 registry, routes, paginator, and manifest contents. Emitters receive no open questions.
@@ -415,7 +364,7 @@ is a few hundred rows, which justifies the dedicated data file.
 
 | Field | Content | Example |
 |---|---|---|
-| `groups` | wire group → client name; optional handle `{name, children}` | `session` → `Sessions`, handle `SessionClient`, children `[Permissions, Questions, Revert, Events]` |
+| `groups` | modern wire group → placement and client name; paired optional `handleName` + required path `handleParameter` | `session` → client `Sessions`, handle `SessionClient`, parameter `sessionID` |
 | `envelopePayloadNames` | opId → payload property name | `v2.session.list` → `Sessions` |
 | `exclusions` | `[{op, reason}]`, reason mandatory | `pty.connect` (both surfaces): WebSocket upgrade masquerading as GET (doc 10; public API spec §14) |
 | `contentTypePayloads` | parameter-stripped media type → `stream` / `string` (§4.1 normalization) | `application/octet-stream` → `stream`; `text/x-diff` → `string` (matches the wire's `text/x-diff; charset=utf-8`) **[verified: the only two non-JSON, non-SSE response content types]** |
@@ -426,15 +375,18 @@ is a few hundred rows, which justifies the dedicated data file.
 
 ### 5.3 Fail-closed mechanics — the drift radar, all four layers
 
-**Layer 1 — Binder coverage checks (bidirectional set comparison, batched):**
+**Layer 1 — Binder coverage checks (bidirectional set comparison, batched):** during staged
+generation, spec-to-curation checks cover only selected operations and their reachable closure;
+curation-to-spec checks remain global so orphan rows always fail. The release profile expands
+the forward checks to both complete surfaces. Legacy placement remains mechanically flat and
+does not require modern group-handle rows.
 
 | Direction | Check | Failure message shape |
 |---|---|---|
-| spec → curation | every operationId ∈ naming-map coverage ∪ exclusions | `operation 'v2.widget.list': no curation entry` |
-| spec → curation | every operationId-prefix group has a `groups` row | `group 'widget': unnamed` |
-| spec → curation | every enveloped response has a payload name | `v2.widget.list: payload unnamed` |
-| spec → curation | every response content type ∈ map (JSON and SSE built in) | `image/png: unmapped content type` |
-| spec → curation | every `anyOf`-null field has a null-semantics decision (7 model fields **[verified]** — an eighth `anyOf`-null location sits inside the opaque `x-effect-stream` metadata and never reaches the schema graph, §4.1) | ADR-0004: an unmapped `anyOf`-null fails generation |
+| selected spec → curation | every selected modern group has a `groups` row | `group 'widget': unnamed` |
+| selected spec → curation | every selected enveloped response has a payload name | `v2.widget.list: payload unnamed` |
+| selected spec → curation | every selected response content type is supported (JSON and SSE built in) | `image/png: unmapped content type` |
+| selected closure → curation | every reached `anyOf`-null field has a null-semantics decision | ADR-0004: an unmapped `anyOf`-null fails generation |
 | curation → spec | every curation key references an existing spec construct | `curation row 'session.prompt': matches nothing` (renames orphan their rows — orphans are errors, or the config rots silently) |
 
 Upstream comparison: `httpapi-codegen` throws `GenerationError` on every ambiguity it meets
@@ -520,23 +472,25 @@ folder convention.
 1. **Output manifest** — `src/OpenCode.Sdk/.generated-manifest.json`, the sorted list of
    generated file paths, committed. Files present in the previous manifest but absent from
    the current plan are deleted (no zombie API); the Writer never **writes or deletes**
-   outside the manifest (hand-written code is structurally safe from emission and cleanup —
-   only the project-wide format post-step, below, may touch it). Pattern precedent:
+   outside the manifest. Mixed generated/hand-written roots additionally refuse unmanifested
+   overwrites and require the exact provenance header before overwrite or deletion. Pattern precedent:
    upstream's `.httpapi-codegen.json` manifest with stale-file removal and unsafe-path
    refusal (`index.ts`, `write()`). The test-consumed artifacts (operation inventory and
    contract fixtures — testing spec §7.1/§3) form a second manifest root under the same
    write/delete discipline.
 2. **Determinism** (§2 principle 4): stable orderings, culture-invariant formatting, LF endings —
    byte-identical output for identical inputs.
-3. **`dotnet format` post-step** runs on the whole SDK project rather than a per-file
-   include list: hundreds of `--include` paths would strain the Windows command-line length
-   limit, whole-project formatting is idempotent, and it matches what the CI format gate
-   checks anyway. Consequence, stated openly: running `generate` with unformatted
-   hand-written WIP in the project will format that WIP too — the post-step is project-wide
-   by design and applies only the rules the CI gate enforces anyway. Upstream's equivalent
-   is prettier-per-file inside `write()`.
+3. **`dotnet format` post-step** receives only the current manifest-owned source paths through
+   `--include`, so generation cannot rewrite hand-written WIP. `--verify` snapshots old/new
+   owned paths, regenerates and formats them, then byte-compares without depending on Git.
+   Upstream's equivalent is prettier-per-file inside `write()`.
 
 ## 9. Fingerprint manifest (ADR-0008 mechanics)
+
+This section is a deferred design. It has no Arc B consumer and does not add fields to current
+SpecIR. Before the first excluded or hand-wired operation enters the intended full surface, the
+implementation plan must choose and test a canonical subtree acquisition mechanism without
+making Binder or emitters parse OpenAPI.
 
 - **Location:** `spec/fingerprints.json` — next to the spec pin, because what it pins are
   spec subtrees. Committed; written only by the tool.
@@ -544,7 +498,7 @@ folder convention.
   (`v2.pty.connect`, legacy `pty.connect` — public API spec §14) and the four hand-wired SSE
   stream endpoints (§4.1 list). Entries carry `{surface, kind, hash, reason}`; `kind`
   (`excluded` | `handwired`) selects the hash coverage.
-- **Hash:** SHA-256 composed from the raw-content hashes ingestion computes (§4.1:
+- **Hash:** SHA-256 over canonical raw subtrees acquired by the fingerprint feature:
   canonical JSON per raw subtree — sorted keys, no whitespace, so cosmetic reordering
   of the spec file cannot move a hash); the composition depends on `kind`:
   - `excluded` — the full subtree: the **HTTP method and path** (included explicitly — the
@@ -630,7 +584,7 @@ follows is the sealed tooling-test design.
   compile harness dissolves into the product build itself: committed output compiles in
   normal CI (5 TFMs × 3 OSes × the on-merit analyzer wall).
 - **Inventory & fixtures:** inventory fidelity to curation (excluded ops absent, SSE ops
-  flagged); fixture-synthesis determinism, snapshot-verified.
+  flagged); fixture-synthesis determinism by direct byte comparison.
 - **Writer/commands:** MockFileSystem for manifest write and stale deletion; git/format
   calls behind `Infrastructure` wrapper interfaces, faked in tests; command wiring via
   `CommandAppTester`; `refresh-spec` covered the same way (faked git/copy wrappers,
@@ -694,17 +648,15 @@ build itself is the compile gate for generated output (§11).
    (§5.3; exceeds upstream's one-directional `omitEndpoints`).
 5. **Pipeline is two-stage** — Microsoft.OpenApi reader → projection → SpecIR →
    Binder → EmitPlan → Emitters → Writer (§4; ingestion: ADR-0003). Ingestion
-   mechanics sealed with it: per-host wall tables, the `OpenApi3_1` version gate,
-   reader diagnostics as errors, the DOM-boundary guard tests, envelope-root
-   subtraction, and ingestion-computed raw-content hashes as the fingerprint source
-   (§4.1, §4.2, §9, §11).
+   mechanics retain the `OpenApi3_1` version gate, reader diagnostics as errors, targeted
+   semantic guards, DOM-boundary tests, and envelope-root subtraction (§4.1, §4.2, §11).
 6. **File mechanics:** plain `.cs` names, non-magic do-not-edit header, no
    `[GeneratedCode]`, no per-file `#nullable`; manifest tracks generated-ness (§7).
-7. **Writer:** output manifest + stale cleanup; whole-project `dotnet format`;
-   `--verify` = in-place regen + git-porcelain check (in-memory compare rejected — §3.2/§8).
-8. **Fingerprints:** `spec/fingerprints.json`, canonical-JSON SHA-256 with two-kind
-   coverage — full subtree (method and path included) for exclusions, transport shape
-   for the hand-wired SSE ops — `--update-fingerprints` as the human review gate (§9).
+7. **Writer:** output manifest + stale cleanup; owned-path `dotnet format`; `--verify` =
+   in-place regen plus before/after byte comparison without Git (§3.2/§8).
+8. **Fingerprints are deferred until consumed:** the first excluded or hand-wired operation
+   lands `spec/fingerprints.json`, canonical subtree hashing, two-kind coverage, and the human
+   update gate together (§9).
 9. **Refresh procedure is a playbook, not an ADR** — canonical home `spec/SNAPSHOT.md`,
    rewritten to the tool-based flow when the tool lands (§10).
 10. **Multi-TFM: uniform source, zero `#if`;** inexpressible constructs fail generation

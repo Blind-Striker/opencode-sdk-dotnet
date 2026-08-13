@@ -1,12 +1,14 @@
 # Error model: typed exception spine carrying tagged error data
 
-Date: 2026-08-09
+Date: 2026-08-13
 
-All SDK failures surface through a typed exception spine (`OpenCodeException` →
-`OpenCodeApiException` / `OpenCodeTransportException`); the spec's tagged error payloads
-are generated as typed models under an `OpenCodeError` base and ride **as data** on the
-exception, pattern-matchable without string sniffing. Channel selection is per call
-site: throw by default, `NoThrow` opt-in per call, no client-level switch. This
+API failures throw through a typed exception spine (`OpenCodeException` →
+`OpenCodeApiException`) by default; per-call `NoThrow` returns them on the response spine.
+Transport and protocol failures always throw `OpenCodeTransportException`. The spec's tagged
+error payloads are generated as typed models under an `OpenCodeError` base and ride **as data**
+on either channel, pattern-matchable without string sniffing. There is no client-level switch. Throwing API errors
+retain the raw body on `OpenCodeApiException`; `NoThrow` responses retain it on their shared
+response spine, including when a typed error cannot be parsed. This
 deliberately renders upstream's own idiom — tagged structural domain failures consumed
 as values — through .NET's nominal idiom instead; nothing in the taxonomy is lost, and
 the per-call `NoThrow` path preserves errors-as-values consumption where a call site

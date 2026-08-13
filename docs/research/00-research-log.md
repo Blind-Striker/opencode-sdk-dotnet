@@ -1,6 +1,6 @@
 # Research log — 2026-08-08
 
-Date: 2026-08-11
+Date: 2026-08-13
 
 > How this project's understanding was built: the questions asked, how each was
 > researched, what was found, and what decision or lesson came out of it.
@@ -1469,3 +1469,43 @@ by hand against a real `opencode serve` — deliberately process-free (no launch
 harness, no CI leg; the demo output rides the PR description). Consumer-pull is the
 standing rule: every SpecIR fact, mechanism, and test names a consumer or a concrete
 failure it prevents.
+
+# Session 16 — 2026-08-13: M1 Arc B planning
+
+## Q66: Is the session handle a mechanical fact or an API-policy decision?
+
+**Found:** OpenAPI says only that `sessionID` is a required path parameter. It cannot imply
+that consumers should obtain a `SessionClient`, keep the ID on that handle, or omit the ID from
+operation signatures. Hard-coding `{sessionID}` or `SessionClient` in an emitter would make
+curation incomplete and turn breadth into endpoint-specific branches.
+
+**Decision (maintainer):** modern group curation may declare the collection client, bound
+handle, and handle path parameter. The Binder applies that declaration as one general
+partial-application rule; emitters consume final plans and know no operation IDs, wire groups,
+or concrete clients. The legacy surface remains flat.
+
+## Q67: Which acronym casing should generated C# identifiers use?
+
+**Found:** the prior two-letter-uppercase rule emits `ID`, `SessionID`, and `CallID`, while the
+maintainer wants one predictable PascalCase convention and the first API baseline has not yet
+shipped. Wire fidelity is independent because `[JsonPropertyName]` retains the source spelling.
+
+**Decision (maintainer):** normalize acronym tokens with ordinary PascalCase regardless of
+length (`Id`, `SessionId`, `CallId`, `Url`, `Api`); exceptional brand spelling remains curated.
+Apply the change before approving the first public API baseline.
+
+## Q68: Should optional collection properties become nullable to model deserializer input?
+
+**How researched:** checked `SessionMessageAgentSwitched.metadata` in the pin and ran a
+source-generated System.Text.Json 10.0.11 probe with `RespectNullableAnnotations=true`, init-only
+record properties, `[AllowNull]`, and a nullable-input normalization helper.
+
+**Found:** optionality and nullability are independent. The pin omits `metadata` from `required`
+but declares `type: object`, so absence is valid and explicit null is not. STJ's record path may
+feed an absent optional collection through the init path as null; `[AllowNull]` removes the C#
+warning but also admits explicit JSON null. A non-null property delegating to a nullable-input
+helper preserves empty-on-absence while STJ rejects explicit null before assignment.
+
+**Decision (maintainer):** optional non-null collections remain non-null in public C#. Normalize
+absent values to immutable empty collections through an internal nullable-input helper, preserve
+defensive copies, and reject explicit null unless the schema itself admits null.

@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-12
+Date: 2026-08-13
 
 Operational state: what is done, what is next, what is open. This file shrinks as work lands.
 Evergreen rules and locked decisions live in `../AGENTS.md`; decision records in `adr/`.
@@ -12,7 +12,9 @@ SpecIR ingestion are in place. M1's compiler arc selects the two walking-skeleto
 binds their reachable closure, emits committed Roslyn-built models plus source-generated JSON
 metadata, and owns deterministic `generate` / `generate --verify` writes through a guarded
 manifest. The partial-operation marker blocks every package while breadth remains incomplete.
-The next M1 arc is the minimal transport and callable client with typed errors and `NoThrow`.
+The active work is M1 Arc B's minimal transport and callable client with typed errors and
+`NoThrow`; see the just-in-time
+[M1 Arc B callable-client plan](superpowers/plans/2026-08-13-m1-arc-b-callable-client.md).
 
 ## Milestones
 

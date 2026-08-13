@@ -1,6 +1,6 @@
 # All operation methods are generated; hand-wired constructs are fingerprint-pinned
 
-Date: 2026-08-09
+Date: 2026-08-13
 
 Every operation method on both surfaces (61 modern + 127 legacy) is generator-emitted
 as a one-line delegation into the hand-written behavior core; behavior (retry, error
@@ -27,5 +27,8 @@ envelope; `text/*` → `string`); an unknown content type breaks generation.
 - The generator emits public API, so its emission rules (naming map, envelope payload
   names, guard clauses, XML docs) are review surface — curation config changes are API
   reviews.
-- The bound-handle projection (spec §7.2) is one mechanical rule: operations with a
-  `{sessionID}` path parameter emit into `SessionClient`.
+- Bound handles are opt-in modern group curation: a row declares a client name, handle name,
+  and required path parameter. The Binder applies one mechanical rule to that declaration:
+  modern operations carrying the parameter emit on the handle with it partially applied;
+  collection operations stay on the collection client. The legacy surface remains flat.
+  Emitters never branch on operation IDs, wire group names, or concrete client names.

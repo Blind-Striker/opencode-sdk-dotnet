@@ -1,6 +1,6 @@
 # Production walking skeleton: first callable SDK milestone
 
-Date: 2026-08-11
+Date: 2026-08-13
 
 > **Status: vision / reference — not sealed.** Binding decisions live in the ADRs and
 > `AGENTS.md`; this document is direction and design rationale, not law. Contradicting it
@@ -346,9 +346,9 @@ method bodies.
 
 ## Public Surface
 
-The selected modern health group is a single-operation root group, so it produces a root client
-method. The selected message operation carries `{sessionID}` and therefore lives only on the
-bound session handle. The intended shape is:
+The selected modern health group is curated as a single-operation root group, so it produces a
+root client method. The session group curation declares `{sessionID}` as its handle parameter,
+so the selected message operation lives only on the bound session handle. The intended shape is:
 
 ```csharp
 var client = new OpenCodeClient(new Uri("http://localhost:4096"));
@@ -387,7 +387,7 @@ The runtime arc lands only public members whose behavior is complete:
 | `OpenCodeRequestOptions` | `ErrorBehavior`, per-call `Directory`, and static `NoThrow` exactly as the public API design specifies |
 | `ErrorBehavior` | `Default` and `NoThrow` values used only through per-call request options |
 | Exception spine | Hand-written `OpenCodeException`, `OpenCodeApiException`, and `OpenCodeTransportException` with their final inheritance and payload roles |
-| Response spine | Hand-written `OpenCodeResponse` base with status, `IsError`, and guarded error/success behavior |
+| Response spine | Hand-written `OpenCodeResponse` base with status, `IsError`, typed error, raw error body, and guarded success behavior |
 | Generated clients | `Sessions`, bound `SessionClient`, `GetHealthAsync`, and `GetMessageAsync` only |
 | Generated data | Selected success/error models, envelopes, marked unions, unknown carriers, converter set, routes, and serializer context |
 
@@ -434,7 +434,9 @@ models and their unknown carrier are generated. Default calls throw `OpenCodeApi
 the status and typed `OpenCodeError`. `NoThrow`
 returns `SessionMessageResponse` with `IsError = true`, the typed error populated, and guarded
 success payload access. An unknown future error tag becomes the generic unknown-error carrier;
-the raw payload remains available.
+an undeclared status or known tag at the wrong status uses the same carrier rather than widening
+the operation contract. The raw body remains available on both the exception and the `NoThrow`
+response. A malformed error body preserves that raw body with a null typed error.
 
 Transport failures and cancellation stay separate: network/protocol failures use the transport
 exception spine; cancellation follows the BCL `OperationCanceledException` convention.
@@ -616,7 +618,6 @@ design and revised execution plan.
 
 - `docs/research/13-generator-complexity-checkpoint.md`
 - `docs/research/08-codegen-spike.md`
-- `.superpowers/sdd/2026-08-11-slice-01-ingestion-specir/progress.md`
 - `docs/adr/0003-model-layer-codegen.md`
 - `docs/adr/0004-generated-model-principles.md`
 - `docs/adr/0005-both-api-surfaces.md`
@@ -626,6 +627,5 @@ design and revised execution plan.
 - `docs/superpowers/specs/2026-08-09-generator-architecture.md`
 - `docs/superpowers/specs/2026-08-09-public-api-design.md`
 - `docs/superpowers/specs/2026-08-10-testing-architecture-design.md`
-- `docs/superpowers/plans/2026-08-10-implementation-slice-map.md`
-- `docs/superpowers/plans/2026-08-11-slice-01-ingestion-specir.md`
+- `docs/superpowers/plans/2026-08-13-m1-arc-b-callable-client.md`
 - `spec/openapi.json`

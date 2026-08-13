@@ -1,6 +1,6 @@
 # Testing Architecture & Strategy — OpenCode.Sdk, OpenCode.Sdk.Extensions, tools/
 
-Date: 2026-08-11
+Date: 2026-08-13
 
 > **Status: vision / reference — not sealed.** Binding decisions live in the ADRs and
 > `AGENTS.md`; this document is direction and design rationale, not law. Contradicting it
@@ -483,7 +483,8 @@ this session's to revisit). Revisions:
 
 1. **New tool outputs get tests.** This design added two tool responsibilities (operation
    inventory §7.1, contract fixtures §3 level 2): Tools.Tests covers inventory fidelity to
-   curation (exclusions absent, SSE flagged) and fixture-synthesis determinism (snapshots).
+   curation (exclusions absent, SSE flagged) and fixture-synthesis determinism by direct byte
+   comparison.
 2. **`refresh-spec` command tests** were missing from the sketch: faked git/copy wrappers,
    `SNAPSHOT.md` rewrite, diff-summary output — `CommandAppTester` + MockFileSystem.
 3. **Placement clarification:** §11's "round-trip behavior" tests (known tag → variant,
@@ -536,9 +537,8 @@ format gate, and the generator spec §13 `generate --verify` step):
 
 ## 12. Fixtures, snapshots, coverage philosophy
 
-- **Verify has exactly three uses** (sealed): emitter micro-snapshots (§10), the ingestion
-  SpecIR-of-the-pin snapshot (generator spec §4.1's library-upgrade tripwire), and the
-  **public API surface lock** — a PublicApiGenerator-style surface dump per package under Verify approval,
+- **Verify has exactly two uses**: emitter micro-snapshots (§10) and the **public API surface
+  lock** — a PublicApiGenerator-style surface dump per package under Verify approval,
   which turns any member removal or signature change into a reviewable diff (the ROADMAP
   queue-1 `api-design`/`snapshot-testing` intent made concrete). Behavior tests never use
   snapshots — assertion intent stays explicit in the test body.
@@ -577,7 +577,6 @@ format gate, and the generator spec §13 `generate --verify` step):
   installer script, version pinning syntax) — resolved when the CI legs are built.
 - **Health endpoint choice** for container readiness probing (modern `global.health` vs a
   cheaper TCP-only check).
-- **Verify.TUnit** package addition to `Directory.Packages.props`.
 - **Fake-binary launcher test technique** portability (script vs tiny compiled helper) across
   the three OS legs. Reference for its scripted stdout: upstream's own readiness parse is
   `/listening on (http:\/\/([^\s:]+):(\d+))/` (`cli-process.ts`) — the fake binary replays

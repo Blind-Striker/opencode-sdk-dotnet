@@ -1,24 +1,24 @@
 # Generated models: immutable, required, empty-not-null
 
-Date: 2026-08-08
+Date: 2026-08-13
 
 Generated models are immutable by default (records, `init`-only properties, read-only
 collections) and mirror the spec's `required` with the C# `required` modifier. Nullability is
-a last resort: absent collections deserialize to empty instead of null, and nullable
-annotations appear only where absence carries meaning in the contract. This trades wire-shape
-fidelity (null vs missing vs empty collapses where the distinction carries no meaning) for
-consumer ergonomics, thread-safety, and AOT-friendly serialization — a deliberate deviation a
-reader might otherwise "fix" back toward spec-literal emission. These principles are generator
+a last resort: absent optional collections deserialize to empty instead of null, while an
+explicit wire `null` is rejected unless the schema admits null; nullable annotations appear
+only where null carries meaning in the contract. This trades missing-vs-empty fidelity where
+the distinction carries no meaning for consumer ergonomics, thread-safety, and AOT-friendly
+serialization without weakening the schema's null contract. These principles are generator
 policy: they apply mechanically to every emitted type.
 
-## Generator policy additions (2026-08-09, API design + grill sessions)
+## Generator policy
 
 - **`Uri` for URL-semantic properties** (spec `format: uri` or curation-marked);
   filesystem paths stay `string`. CA1056/CA1054 firing on a generated `*Url` string
   property is the fail-closed detector; a per-property fallback to `string` is the
   recorded escape for version-skew malformed URLs.
-- **Acronym casing follows the Framework Design Guidelines** (`ApiError`, `Pty`, `Mcp`,
-  `Tui`; two-letter acronyms upper; brand spellings via curated exceptions — `OAuth`).
+- **Acronyms use ordinary PascalCase regardless of length** (`Id`, `Io`, `Ip`, `Url`,
+  `Api`, `Pty`, `Mcp`, `Tui`); brand spellings use curated exceptions (`OAuth`).
 - **Identifier mapping is mechanical** — every wire name maps to PascalCase with
   `[JsonPropertyName]` carrying wire fidelity (`_tag`, snake_case, dotted schema
   names).
