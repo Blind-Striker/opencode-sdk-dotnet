@@ -38,6 +38,13 @@ internal sealed class OperationResponseBuilder(JsonObject responses, FixtureLoad
         _responses[FormatStatus(status)] = response;
     }
 
+    public void Remove(int status)
+    {
+        ValidateStatus(status);
+
+        _ = _responses.Remove(FormatStatus(status));
+    }
+
     public void AddFromFixture(int status, string mediaType, string fixtureName)
     {
         ValidateStatus(status);

@@ -32,6 +32,17 @@ internal sealed class SchemaShapeClassifier
 
         var populatedRules = _constraintRules.Where(rule => rule.IsPopulated(schema)).ToArray();
         var constraints = populatedRules.Aggregate(Constraint.None, static (current, rule) => current | rule.Constraint);
+
+        // The v2 dialect wraps validation keywords in a single-element allOf
+        // ({"type":"integer","allOf":[{"exclusiveMinimum":0}]}). A wrapper carrying only the
+        // validation/annotation vocabulary the projection deliberately ignores unwraps to the
+        // host's own shape; a wrapper with anything structural, consumed (format), referencing,
+        // applicator-typed, or unrecognized keeps the fail-closed refusal below.
+        if (constraints is (Constraint.Type | Constraint.AllOf) && IsValidationOnlyAllOfWrapper(schema))
+        {
+            constraints = Constraint.Type;
+        }
+
         var shape = (constraints, schema.Type) switch
         {
             (Constraint.None, _) => CoreSchemaShape.Unrestricted,
@@ -40,11 +51,14 @@ internal sealed class SchemaShapeClassifier
             (Constraint.Type | Constraint.Enum, JsonSchemaType.String) when schema.Enum?.Count is 1 => CoreSchemaShape.Literal,
             (Constraint.Type | Constraint.Enum, JsonSchemaType.String) => CoreSchemaShape.Enum,
             (Constraint.Type | Constraint.Enum, JsonSchemaType.Boolean) => CoreSchemaShape.Literal,
+            (Constraint.Type | Constraint.Enum, JsonSchemaType.Number or JsonSchemaType.Integer) when schema.Enum?.Count is 1 => CoreSchemaShape
+                .Literal,
             (Constraint.Type | Constraint.Const, _) => CoreSchemaShape.Literal,
             (Constraint.AnyOf, _) => CoreSchemaShape.Union,
             (Constraint.OneOf, _) => CoreSchemaShape.Union,
             (Constraint.Type, JsonSchemaType.Null) => CoreSchemaShape.Null,
             (Constraint.Type | Constraint.PrefixItems, JsonSchemaType.Array) => CoreSchemaShape.Tuple,
+            (Constraint.Type | Constraint.Items | Constraint.PrefixItems, JsonSchemaType.Array) => CoreSchemaShape.Tuple,
             (Constraint.Type | Constraint.ContentSchema, JsonSchemaType.String) => CoreSchemaShape.JsonString,
             (Constraint.Type | Constraint.ContentMediaType | Constraint.ContentSchema, JsonSchemaType.String) => CoreSchemaShape.JsonString,
             (Constraint.Type, JsonSchemaType.Array) => CoreSchemaShape.Array,
@@ -62,6 +76,45 @@ internal sealed class SchemaShapeClassifier
         errors.Add(location, $"schema node-kind constraints '{names}' do not form a supported core shape");
 
         return shape;
+    }
+
+    private bool IsValidationOnlyAllOfWrapper(OpenApiSchema schema)
+    {
+        if (schema.AllOf is not { Count: 1 } || schema.AllOf[0] is not OpenApiSchema element)
+        {
+            return false;
+        }
+
+        if (_constraintRules.Any(rule => rule.IsPopulated(element)))
+        {
+            return false;
+        }
+
+        return element is
+        {
+            Format: null,
+            Not: null,
+            If: null,
+            Then: null,
+            Else: null,
+            Contains: null,
+            PropertyNames: null,
+            Discriminator: null,
+            Xml: null,
+            ExternalDocs: null,
+            Default: null,
+            Example: null,
+            Deprecated: false,
+            ReadOnly: false,
+            WriteOnly: false,
+        }
+            && element.DependentSchemas is not { Count: > 0 }
+            && element.DependentRequired is not { Count: > 0 }
+            && element.Definitions is not { Count: > 0 }
+            && element.Examples is not { Count: > 0 }
+            && element.Vocabulary is not { Count: > 0 }
+            && element.Extensions is not { Count: > 0 }
+            && element.UnrecognizedKeywords is not { Count: > 0 };
     }
 
     private static bool IsObjectShape(Constraint constraints, JsonSchemaType? type)

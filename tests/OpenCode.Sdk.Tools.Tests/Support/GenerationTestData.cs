@@ -12,6 +12,9 @@ internal static class GenerationTestData
     public const string OutputRoot = "src/OpenCode.Sdk";
     public const string ProjectPath = "src/OpenCode.Sdk/OpenCode.Sdk.csproj";
 
+    /// <summary>Provenance-headed content for a generated file that already sits on disk.</summary>
+    public static string OwnedContent(string content) => $"{GenerationProvenance.Header}{content}";
+
     private const string Curation = """
         {
           "groups": {
@@ -34,8 +37,11 @@ internal static class GenerationTestData
     public static MockFileSystem CreateCommandFileSystem()
     {
         var spec = new SpecDocumentBuilder()
-            .WithOperation("v2.health.get", path: "/api/health")
-            .WithOperation("session.list", path: "/session")
+            .WithSchema("ExampleHealth", schema => schema.Type("object")
+                .Property("healthy", property => property.Type("boolean"), required: true))
+            .WithOperation("v2.health.get", path: "/api/health", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("ExampleHealth")))
+            .WithOperation("v2.session.list", path: "/api/session")
             .BuildJson();
         var fileSystem = CreateFileSystem();
         fileSystem.Initialize().With(
@@ -49,6 +55,6 @@ internal static class GenerationTestData
         new()
         {
             RelativePath = relativePath,
-            Utf8Source = Encoding.UTF8.GetBytes(source),
+            Utf8Source = Encoding.UTF8.GetBytes(OwnedContent(source)),
         };
 }

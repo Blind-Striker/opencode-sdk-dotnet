@@ -1,8 +1,8 @@
 # All operation methods are generated; hand-wired constructs are fingerprint-pinned
 
-Date: 2026-08-09
+Date: 2026-08-13
 
-Every operation method on both surfaces (61 modern + 127 legacy) is generator-emitted
+Every operation method on the generated surface is generator-emitted
 as a one-line delegation into the hand-written behavior core; behavior (retry, error
 mapping, `NoThrow`, telemetry) never lives in method bodies. Hand-written op methods
 sit outside CI regen-verify and go silently stale as upstream moves — generated methods
@@ -27,5 +27,9 @@ envelope; `text/*` → `string`); an unknown content type breaks generation.
 - The generator emits public API, so its emission rules (naming map, envelope payload
   names, guard clauses, XML docs) are review surface — curation config changes are API
   reviews.
-- The bound-handle projection (spec §7.2) is one mechanical rule: operations with a
-  `{sessionID}` path parameter emit into `SessionClient`.
+- Bound handles are opt-in group curation: a row declares a client name, handle name,
+  and required path parameter. The Binder applies one mechanical rule to that declaration:
+  operations carrying the parameter emit on the handle with it partially applied;
+  collection operations stay on the collection client. Groups without a handle declaration
+  stay flat. Emitters never branch on operation IDs, wire group names, or concrete client
+  names.

@@ -12,16 +12,25 @@ internal sealed class BindingTestHost
 
     public BindingTestHost()
     {
-        var schemaNames = new SchemaNameResolver();
         _binder = new SpecBinder(
             new ReachableSchemaCollector(),
             new CurationValidator(),
-            new SchemaPlanBinder(schemaNames));
+            new SchemaNameResolver(),
+            new SchemaPlanBinder(),
+            new OperationPlanBinder());
     }
 
     public EmitPlan Bind(SpecDocument document, OperationSelection selection, GenerationCuration curation)
     {
         return _binder.Bind(document, selection, curation);
+    }
+
+    public static async Task<SpecDocument> IngestAsync(SpecScenario scenario, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(scenario);
+
+        var context = scenario.Build();
+        return await new SpecIngestion(context.FileSystem).IngestAsync(context.SpecPath, cancellationToken);
     }
 
     public async Task<EmitPlan> BindPinnedAsync(CancellationToken cancellationToken = default)

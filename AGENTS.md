@@ -21,12 +21,11 @@ lazily); this list is the complete inventory of what is settled. Do not reopen w
 evidence. The design specs under `docs/superpowers/` are vision/reference material —
 direction and rationale, not law; only this list and the ADRs bind.
 
-- **Target artifact:** upstream's `packages/sdk/openapi.json` (OpenAPI 3.1), pinned under
-  `spec/` — the same spec the official JS SDK generates from.
-- **API surface:** both generations of the pinned 1.x spec — the modern block takes the
-  unmarked public names ("V2" never appears); legacy lives behind a legacy-marked
-  sub-surface, deleted at our upstream-absorbing major; legacy deep-testing is
-  consumer-driven (ADR-0005).
+- **Target artifact:** upstream's `packages/protocol/openapi.json` from the active `v2`
+  branch (OpenAPI 3.1), pinned as a snapshot under `spec/` (ADR-0005; the 1.x pin retires
+  at the M1 retarget task).
+- **API surface:** the v2 protocol surface only — public names strip the `v2.` operationId
+  prefix ("V2" never appears) (ADR-0005).
 - **Hybrid construction:** hand-written behavior core; models *and* operation methods from
   our own Roslyn-emission generator; spec ingestion rides the pinned `Microsoft.OpenApi`
   reader — the generator owns a fail-closed semantic projection, never an OpenAPI parser;
@@ -45,8 +44,9 @@ direction and rationale, not law; only this list and the ADRs bind.
 - **Monorepo, independent versioning:** per-merge GitHub Packages CD, manual NuGet.org
   releases (ADR-0006).
 - **Licensing:** MIT (`PackageLicenseFile`).
-- **SSE:** `IAsyncEnumerable<T>`, no auto-reconnect; the durable stream resumes via the
-  `after` cursor (research doc 02).
+- **SSE:** `IAsyncEnumerable<T>`, no auto-reconnect (research doc 02); the durable-stream
+  resume design is re-derived against the v2 surface at M3 (`v2.session.log` carries
+  `after`/`follow`).
 - **`ConfigureAwait(false)`:** triple-enforced in product code, off in tests (research
   doc 07).
 - **Analyzer policy:** fail-closed maximalist (research doc 07; relitigation ban: Hard
@@ -116,6 +116,14 @@ direction and rationale, not law; only this list and the ADRs bind.
 - **Defensive programming is the default, everywhere:** guard public inputs, assert internal
   invariants, fail loudly rather than guess — silent fallbacks exist only as explicitly
   recorded tolerances (ADR-0009 pattern).
+- **Performance is a standing concern, weighted by artifact:** the shipped SDK targets both
+  speed and minimal allocation on its hot paths (zero *avoidable* allocations — ADR-0004's
+  immutable models and ADR-0007's raw-body retention are contracts, not waste); repo tooling
+  targets speed. No speculative optimization, but obvious waste (redundant parses, needless
+  copies, avoidable buffering) is always evaluated, starting with the low-hanging fruit.
+  Performance claims are settled by benchmarks (`tests/OpenCode.Sdk.Performance.Tests`,
+  `MemoryDiagnoser` on), never by argument; performance-touching PRs carry before/after
+  numbers.
 - **Code style is canonical in `docs/engineering/coding-style.md`:** named collaborator
   classes over private-method accumulation; interfaces at seams with full-battery DI-first
   executable composition, sealed everywhere else; no tuple returns or concrete-collection

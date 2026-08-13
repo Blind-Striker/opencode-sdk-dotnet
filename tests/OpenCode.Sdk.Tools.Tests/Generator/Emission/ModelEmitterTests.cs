@@ -12,4 +12,13 @@ public sealed class ModelEmitterTests
 
         await Verify(EmitterSnapshot.Create(sources));
     }
+
+    [Test]
+    public async Task Emit_Should_Route_Optional_Nonnull_Collections_Through_The_Nullable_Input_Helper()
+    {
+        var source = EmitterSnapshot.Create(ModelEmitter.Emit(EmitterPlanFixture.CreateModelSnapshot()));
+
+        await Assert.That(source).Contains("OptionalCollectionInput.Normalize");
+        await Assert.That(source).DoesNotContain("value is null");
+    }
 }

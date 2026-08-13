@@ -1,10 +1,14 @@
 # Public API Design — OpenCode.Sdk & OpenCode.Sdk.Extensions
 
-Date: 2026-08-11
+Date: 2026-08-13
 
 > **Status: vision / reference — not sealed.** Binding decisions live in the ADRs and
 > `AGENTS.md`; this document is direction and design rationale, not law. Contradicting it
 > is a finding to note, not a deviation-protocol event.
+>
+> The v1.x dual-surface facts here (operation counts, the legacy hub, envelope inventories)
+> predate the 2026-08-13 v2 retarget (ADR-0005) and are historical; the mechanisms remain
+> reference material.
 
 Design specification produced by the public-API brainstorm session (2026-08-08/09, ROADMAP
 queue item 1). Every decision below was discussed and sealed individually with the
@@ -96,7 +100,8 @@ ADR-0006 and unchanged. This spec adds/confirms:
 
 ### 4.1 Decision
 
-All failures surface through a **typed exception spine**:
+API failures throw through a **typed exception spine** by default; per-call `NoThrow` returns
+them on the response spine. Transport and protocol failures always throw:
 
 ```csharp
 public class OpenCodeException : Exception { }              // base — one catch point
@@ -205,6 +210,7 @@ public abstract record OpenCodeResponse
     public required int Status { get; init; }
     public bool IsError { get; init; }
     public OpenCodeError? Error { get; init; }   // populated only on NoThrow error path
+    public string? RawBody { get; init; }        // populated only on NoThrow error path
 }
 
 public sealed record SessionListResponse : OpenCodeResponse
@@ -230,8 +236,8 @@ public sealed record SessionListResponse : OpenCodeResponse
   map to named properties (`Location`, `Cursor` alongside the payload). A handful of
   modern responses are not enveloped (`{healthy}`, bare `LocationInfo`,
   `ProjectCopyCopy`) — the fail-closed curation map names their payloads like any other.
-- 204 operations return an envelope with no payload property (`Status`/`IsError`/`Error`
-  only).
+- 204 operations return an envelope with no payload property beyond the shared response
+  metadata.
 - Payload property names come from the curation map (fail-closed: an unmapped envelope
   breaks generation, § 8.5).
 - Pagination follows upstream's Page discipline (doc 02): continuation accepts **only the
@@ -447,12 +453,18 @@ broken build. Method bodies are one-line delegations —
 ```csharp
 public virtual Task<SessionGetResponse> GetAsync(
     string sessionId, OpenCodeRequestOptions? options = null, CancellationToken cancellationToken = default)
-    => Pipeline.ExecuteAsync<SessionGetResponse>(OpenCodeRoutes.Sessions.Get(sessionId), options, cancellationToken);
+    => Pipeline.ExecuteAsync(
+        HttpMethod.Get,
+        OpenCodeRoutes.Sessions.Get(sessionId),
+        SessionGetResponseAdapter.Instance,
+        options,
+        cancellationToken);
 ```
 
 — behavior (NoThrow, retry, error mapping) lives once in the hand-written core (§9), never
-in bodies. The bound-handle projection is one mechanical generator rule (ops with a
-`{sessionID}` path parameter emit into `SessionClient`). Hand-written remains the identity
+in bodies. Modern group curation may declare a bound handle's collection name, handle name, and
+required path parameter; the Binder mechanically partially applies that parameter. Legacy stays
+flat. Hand-written remains the identity
 core: transport pipeline, SSE engine + stream endpoint wiring (stream endpoints are
 detected by their `text/event-stream` content type — `x-effect-stream` exists only on
 the durable endpoint — and are hand-wired; the generator emits their item schemas),
@@ -627,9 +639,9 @@ forward-compatibility question parked by the codegen spike.
    generated `*Url` string property breaks the build and forces Uri-or-arbitration.
    Escape hatch if version skew ever delivers malformed URLs: per-property fallback to
    string, recorded in curation.
-2. **Acronym casing: Framework Design Guidelines** — 3+ letters PascalCase (`ApiError`,
-   `Pty`, `Mcp`, `Tui`, `Vcs`, `Lsp`), two letters upper, brand spellings via curated
-   exceptions (`OAuth`). Resolves the spike's S101/CA1707 findings mechanically.
+2. **Acronym casing: ordinary PascalCase** — all acronym tokens normalize consistently
+   (`Id`, `Io`, `Ip`, `Url`, `Api`, `Pty`, `Mcp`, `Tui`, `Vcs`, `Lsp`); brand spellings use
+   curated exceptions (`OAuth`). Resolves the spike's S101/CA1707 findings mechanically.
 3. **Identifier mapping** — every wire name maps mechanically to PascalCase with
    `[JsonPropertyName]` carrying wire fidelity (`_tag`, snake_case, dotted schema names
    per doc 09's mangling requirement).

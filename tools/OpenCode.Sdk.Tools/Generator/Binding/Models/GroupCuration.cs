@@ -12,4 +12,7 @@ internal sealed record GroupCuration
 
     [JsonPropertyName("handleName")]
     public string? HandleName { get; init; }
+
+    [JsonPropertyName("handleParameter")]
+    public string? HandleParameter { get; init; }
 }

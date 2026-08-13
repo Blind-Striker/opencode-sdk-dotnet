@@ -4,6 +4,7 @@ using OpenCode.Sdk.Tools.Generator.Ingestion;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 using OpenCode.Sdk.Tools.Tests.Support;
 using Testably.Abstractions;
+using static OpenCode.Sdk.Tools.Tests.Support.BindingScenarioData;
 
 namespace OpenCode.Sdk.Tools.Tests.Generator.Binding;
 
@@ -25,12 +26,11 @@ public sealed class SpecBinderTests
         var plan = new BindingTestHost().Bind(document, selection, curation);
 
         await Assert.That(plan.SelectedOperationIds.SequenceEqual(selection.OperationIds, StringComparer.Ordinal)).IsTrue();
-        await Assert.That(plan.PendingOperations.Any(static operation => operation.Surface == SpecSurface.Modern)).IsTrue();
-        await Assert.That(plan.PendingOperations.Any(static operation => operation.Surface == SpecSurface.Legacy)).IsTrue();
-        await Assert.That(plan.Models.Any(static model => model.Name == "PromptFileAttachment")).IsTrue();
-        await Assert.That(plan.Models.Any(static model => model.Name == "Config")).IsFalse();
+        await Assert.That(plan.PendingOperations).IsNotEmpty();
+        await Assert.That(plan.Models.Any(static model => model.Name == "PromptFileSourceUri")).IsTrue();
+        await Assert.That(plan.Models.Any(static model => model.Name == "ConfigInfo")).IsFalse();
 
-        var promptFile = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "PromptFileAttachment");
+        var promptFile = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "PromptFileSourceUri");
         var promptUri = promptFile.Properties.Single(static property => property.WireName == "uri").Type;
         await Assert.That(promptUri).IsTypeOf<NamedTypeReferencePlan>();
         await Assert.That(((NamedTypeReferencePlan)promptUri).Name).IsEqualTo("Uri");
@@ -40,12 +40,21 @@ public sealed class SpecBinderTests
         await Assert.That(toolUri).IsTypeOf<NamedTypeReferencePlan>();
         await Assert.That(((NamedTypeReferencePlan)toolUri).Name).IsEqualTo("Uri");
 
-        var sessionMessage = plan.Unions.Single(static union => union.Name == "SessionMessage");
+        var sessionMessage = plan.Unions.Single(static union => union.Name == "SessionMessageInfo");
         await Assert.That(sessionMessage.MarkerWireName).IsEqualTo("type");
-        await Assert.That(sessionMessage.Variants).Count().IsEqualTo(8);
+        await Assert.That(sessionMessage.Variants).Count().IsEqualTo(10);
+
+        var compaction = plan.Unions.Single(static union => union.Name == "SessionMessageCompaction");
+        await Assert.That(compaction.MarkerWireName).IsEqualTo("status");
+        await Assert.That(compaction.BaseTypeName).IsEqualTo("SessionMessageInfo");
+        await Assert.That(compaction.FixedMarker!.WireName).IsEqualTo("type");
+        await Assert.That(compaction.FixedMarker.Value).IsEqualTo("compaction");
+        await Assert.That(compaction.Variants).Count().IsEqualTo(3);
+
         await Assert.That(plan.Unions.Any(static union => union.Name == "SessionMessageAssistantContent")).IsTrue();
         await Assert.That(plan.Unions.Any(static union => union.Name == "SessionMessageToolState")).IsTrue();
-        await Assert.That(plan.Unions.Any(static union => union.Name == "LlmToolContent")).IsTrue();
+        await Assert.That(plan.Unions.Any(static union => union.Name == "PromptFileSource")).IsTrue();
+        await Assert.That(plan.Unions.Any(static union => union.Name == "ToolContent")).IsTrue();
 
         var errors = plan.Unions.Single(static union => union.Name == "OpenCodeError");
         await Assert.That(errors.Variants.Select(static variant => variant.TypeName).Order(StringComparer.Ordinal)
@@ -66,6 +75,12 @@ public sealed class SpecBinderTests
         await Assert.That(first.Unions.Select(static union => union.Name)
             .SequenceEqual(second.Unions.Select(static union => union.Name), StringComparer.Ordinal)).IsTrue();
         await Assert.That(first.Registry.TypeNames.SequenceEqual(second.Registry.TypeNames, StringComparer.Ordinal)).IsTrue();
+        await Assert.That(first.Clients.Select(static client => client.Name)
+            .SequenceEqual(second.Clients.Select(static client => client.Name), StringComparer.Ordinal)).IsTrue();
+        await Assert.That(first.Clients.SelectMany(static client => client.Operations.Select(static operation => operation.MethodName))
+            .SequenceEqual(
+                second.Clients.SelectMany(static client => client.Operations.Select(static operation => operation.MethodName)),
+                StringComparer.Ordinal)).IsTrue();
     }
 
     [Test]
@@ -107,28 +122,6 @@ public sealed class SpecBinderTests
 
         await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Schema).Problem)
             .Contains("structural union");
-    }
-
-    [Test]
-    public async Task Bind_Should_Require_Selected_Envelope_Payload_Name()
-    {
-        var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.session.message", path: "/api/session/{sessionID}/message", configure: operation => operation
-                .Parameter("sessionID", "path", schema => schema.Type("string"), required: true)
-                .Response(200, "application/json", schema => schema.Type("object")
-                    .Property("data", property => property.Type("string"), required: true)))));
-        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
-        {
-            ["session"] = ClientGroup(),
-        };
-
-        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
-            document,
-            Selection("v2.session.message"),
-            Curation(groups)));
-
-        await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Curation).Problem)
-            .Contains("payload name");
     }
 
     [Test]
@@ -176,6 +169,149 @@ public sealed class SpecBinderTests
         await Assert.That(items).IsTypeOf<ListTypeReferencePlan>();
         await Assert.That(((ListTypeReferencePlan)items).ElementType).IsTypeOf<NamedTypeReferencePlan>();
         await Assert.That(((NamedTypeReferencePlan)((ListTypeReferencePlan)items).ElementType).Name).IsEqualTo("Shared");
+    }
+
+    [Test]
+    public async Task Bind_Should_Bind_Nested_Marked_Union_With_The_Discriminating_Marker()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("Alpha", schema => schema.Type("object")
+                .Property("type", property => property.Type("string").Enum("alpha"), required: true))
+            .WithSchema("WrapOne", schema => schema.Type("object")
+                .Property("type", property => property.Type("string").Enum("wrap"), required: true)
+                .Property("status", property => property.Type("string").Enum("one"), required: true))
+            .WithSchema("WrapTwo", schema => schema.Type("object")
+                .Property("type", property => property.Type("string").Enum("wrap"), required: true)
+                .Property("status", property => property.Type("string").Enum("two"), required: true))
+            .WithSchema("Wrap", schema => schema.AnyOf(one => one.Ref("WrapOne"), two => two.Ref("WrapTwo")))
+            .WithSchema("Outer", schema => schema.AnyOf(alpha => alpha.Ref("Alpha"), wrap => wrap.Ref("Wrap")))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("Outer")))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), }));
+
+        var outer = plan.Unions.Single(static union => union.Name == "Outer");
+        await Assert.That(outer.MarkerWireName).IsEqualTo("type");
+        await Assert.That(outer.Variants.Select(static variant => variant.Tag).Order(StringComparer.Ordinal)
+            .SequenceEqual(["alpha", "wrap"], StringComparer.Ordinal)).IsTrue();
+
+        var nested = plan.Unions.Single(static union => union.Name == "Wrap");
+        await Assert.That(nested.MarkerWireName).IsEqualTo("status");
+        await Assert.That(nested.BaseTypeName).IsEqualTo("Outer");
+        await Assert.That(nested.FixedMarker!.WireName).IsEqualTo("type");
+        await Assert.That(nested.FixedMarker.Value).IsEqualTo("wrap");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_Union_When_Branches_Share_No_Discriminating_Marker()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("First", schema => schema.Type("object")
+                .Property("type", property => property.Type("string").Enum("same"), required: true))
+            .WithSchema("Second", schema => schema.Type("object")
+                .Property("type", property => property.Type("string").Enum("same"), required: true))
+            .WithSchema("Twin", schema => schema.AnyOf(first => first.Ref("First"), second => second.Ref("Second")))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("Twin")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), })));
+
+        await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Schema).Problem)
+            .Contains("no discriminating marker");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_HandleName_Without_HandleParameter()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.session.message", path: "/api/session/{sessionID}/message", configure: operation => operation
+                .Parameter("sessionID", "path", schema => schema.Type("string"), required: true)
+                .Response(200, "application/json", schema => schema.Type("object")
+                    .Property("value", property => property.Type("string"), required: true)))));
+        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+        {
+            ["session"] = ClientGroup(handleParameter: null),
+        };
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.session.message"),
+            Curation(groups)));
+
+        await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Curation).Problem)
+            .Contains("together");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_HandleParameter_Without_HandleName()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.session.message", path: "/api/session/{sessionID}/message", configure: operation => operation
+                .Parameter("sessionID", "path", schema => schema.Type("string"), required: true)
+                .Response(200, "application/json", schema => schema.Type("object")
+                    .Property("value", property => property.Type("string"), required: true)))));
+        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+        {
+            ["session"] = ClientGroup(handleName: null),
+        };
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.session.message"),
+            Curation(groups)));
+
+        await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Curation).Problem)
+            .Contains("together");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_HandleParameter_On_Root_Group()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec.WithOperation("v2.health.get")));
+        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+        {
+            ["health"] = new GroupCuration
+            {
+                Placement = GroupPlacement.Root,
+                HandleParameter = "sessionID",
+            },
+        };
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(groups)));
+
+        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+            && error.Problem.Contains("root group cannot declare", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Require_HandleParameter_To_Name_A_Selected_Required_Path_Parameter()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.session.message", path: "/api/session/message/{messageID}", configure: operation => operation
+                .Parameter("messageID", "path", schema => schema.Type("string"), required: true)
+                .Response(200, "application/json", schema => schema.Type("object")
+                    .Property("value", property => property.Type("string"), required: true)))));
+        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+        {
+            ["session"] = ClientGroup(),
+        };
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.session.message"),
+            Curation(groups)));
+
+        await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Curation).Problem)
+            .Contains("required path parameter");
     }
 
     [Test]
@@ -232,23 +368,6 @@ public sealed class SpecBinderTests
         return await new SpecIngestion(context.FileSystem).IngestAsync(context.SpecPath, CancellationToken.None);
     }
 
-    private static OperationSelection Selection(params string[] operationIds) =>
-        new()
-        {
-            OperationIds = operationIds,
-        };
-
-    private static GenerationCuration Curation(
-        IReadOnlyDictionary<string, GroupCuration> groups,
-        IReadOnlyDictionary<string, string>? envelopePayloadNames = null,
-        IReadOnlyList<PropertyOverride>? propertyOverrides = null) =>
-        new()
-        {
-            Groups = groups,
-            EnvelopePayloadNames = envelopePayloadNames ?? new Dictionary<string, string>(StringComparer.Ordinal),
-            PropertyOverrides = propertyOverrides ?? [],
-        };
-
     private static PropertyOverride UriOverride(string schema, string property) =>
         new()
         {
@@ -256,19 +375,5 @@ public sealed class SpecBinderTests
             Property = property,
             Type = PropertyOverrideType.Uri,
             Reason = "The fixture omits format: uri.",
-        };
-
-    private static GroupCuration RootGroup() =>
-        new()
-        {
-            Placement = GroupPlacement.Root,
-        };
-
-    private static GroupCuration ClientGroup() =>
-        new()
-        {
-            Placement = GroupPlacement.Client,
-            ClientName = "Sessions",
-            HandleName = "SessionClient",
         };
 }

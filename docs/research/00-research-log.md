@@ -1,6 +1,6 @@
 # Research log — 2026-08-08
 
-Date: 2026-08-11
+Date: 2026-08-13
 
 > How this project's understanding was built: the questions asked, how each was
 > researched, what was found, and what decision or lesson came out of it.
@@ -1469,3 +1469,191 @@ by hand against a real `opencode serve` — deliberately process-free (no launch
 harness, no CI leg; the demo output rides the PR description). Consumer-pull is the
 standing rule: every SpecIR fact, mechanism, and test names a consumer or a concrete
 failure it prevents.
+
+# Session 16 — 2026-08-13: M1 Arc B planning
+
+## Q66: Is the session handle a mechanical fact or an API-policy decision?
+
+**Found:** OpenAPI says only that `sessionID` is a required path parameter. It cannot imply
+that consumers should obtain a `SessionClient`, keep the ID on that handle, or omit the ID from
+operation signatures. Hard-coding `{sessionID}` or `SessionClient` in an emitter would make
+curation incomplete and turn breadth into endpoint-specific branches.
+
+**Decision (maintainer):** modern group curation may declare the collection client, bound
+handle, and handle path parameter. The Binder applies that declaration as one general
+partial-application rule; emitters consume final plans and know no operation IDs, wire groups,
+or concrete clients. The legacy surface remains flat.
+
+## Q67: Which acronym casing should generated C# identifiers use?
+
+**Found:** the prior two-letter-uppercase rule emits `ID`, `SessionID`, and `CallID`, while the
+maintainer wants one predictable PascalCase convention and the first API baseline has not yet
+shipped. Wire fidelity is independent because `[JsonPropertyName]` retains the source spelling.
+
+**Decision (maintainer):** normalize acronym tokens with ordinary PascalCase regardless of
+length (`Id`, `SessionId`, `CallId`, `Url`, `Api`); exceptional brand spelling remains curated.
+Apply the change before approving the first public API baseline.
+
+## Q68: Should optional collection properties become nullable to model deserializer input?
+
+**How researched:** checked `SessionMessageAgentSwitched.metadata` in the pin and ran a
+source-generated System.Text.Json 10.0.11 probe with `RespectNullableAnnotations=true`, init-only
+record properties, `[AllowNull]`, and a nullable-input normalization helper.
+
+**Found:** optionality and nullability are independent. The pin omits `metadata` from `required`
+but declares `type: object`, so absence is valid and explicit null is not. STJ's record path may
+feed an absent optional collection through the init path as null; `[AllowNull]` removes the C#
+warning but also admits explicit JSON null. A non-null property delegating to a nullable-input
+helper preserves empty-on-absence while STJ rejects explicit null before assignment.
+
+**Decision (maintainer):** optional non-null collections remain non-null in public C#. Normalize
+absent values to immutable empty collections through an internal nullable-input helper, preserve
+defensive copies, and reject explicit null unless the schema itself admits null.
+
+# Session 17 — 2026-08-13: v2 retarget research
+
+The maintainer opened the direction question before Arc B implementation: is the dual-surface
+v1 investment worth its complexity while upstream's investment moves to v2? Live inspection of
+`anomalyco/opencode` branch `v2` (head `1288161`, retrieved 2026-08-13) via shallow clone,
+GitHub API, npm registry dist-tags, and `update.opencode.ai` probes, plus a live install and
+run of the v2 CLI on this machine. Platform detail is canonical in
+`15-opencode-v2-platform.md`; decisions were sealed with the maintainer in-session and the
+canonical documents corrected in the same change. This entry is the chain.
+
+## Q69: Is the dual-surface v1 investment still justified given upstream's v2 line?
+
+**How researched:** the v2 branch tree read at file level (server handlers, protocol groups,
+TUI dependencies, CLI command specs, desktop wiring); commit cadence via the GitHub API; the
+ROADMAP v2-watch item's session-12 censuses re-run against today's head.
+
+**Found:** the legacy surface's source is gone — `packages/opencode` does not exist on the v2
+branch; the restructured monorepo (`core`/`server`/`client`/`protocol`/`sdk-next`) serves only
+the protocol surface (30 server handler files ↔ 30 protocol groups, 1:1). The TUI runs on the
+protocol-derived `@opencode-ai/client`, not the dual-generation `@opencode-ai/sdk`. A v1→v2
+session-history migration is being built in code (`v2.experimental.migration.v1.status`:
+"Return the progress of the V1 to V2 session history migration"). Commit volume on 2026-08-13
+alone: 15 (features, fixes, tests, docs), while `dev` — the default branch — carries 1.x
+maintenance. The two-endpoint-surface problem the SDK's dual-surface design absorbs is a
+v1-line artifact; v2 has one surface.
+
+**Decision (maintainer, sealed): retarget — the SDK targets the v2 protocol surface only; the
+legacy surface is never built.** ADR-0005 is revised in place (the ADR-0003 precedent), not
+superseded. M1 Arc B continues with a prepended retarget task (pin swap + wall admit +
+regeneration). The staged alternative — finish Arc B on the 1.18.15 pin, retarget at the M2
+boundary — was weighed and rejected: after the live-server demonstration (Q72) removed the
+"no real v2 server to demo against" cost, staging would only buy double generation, a double
+API-baseline review, and a walking-skeleton demo against a surface already declared dead.
+
+## Q70: What is the v2 spec artifact, and how far has the surface moved since our pin?
+
+**Found:** `packages/protocol/openapi.json` — 104 paths / 120 operations / 324 schemas, all
+mounted under `/api`, operationIds still `v2.`-prefixed (the prefix-strip naming policy
+carries over). The artifact is maintained: `generate-openapi.ts --check` is upstream's own
+regen-verify, "chore: generate" commits land daily, and the CLI's `api` command resolves
+OpenAPI operationIds against it. Versus the pinned 61-op modern block: 8 operations dropped —
+including the durable-stream trio `v2.session.events` / `v2.session.history` /
+`v2.session.messages` — and 67 added; the new families (`mcp` 6, `config`, `vcs` 3,
+`project` 3, `shell` 6, `websearch`, `generate`) absorb what doc 10 enumerated as the 78-op
+legacy capability gap, and `tui.*` is gone as a remote-control surface. Dialect census: 420
+`allOf` occurrences, every one a single-element validation-only wrapper; 0 `const` (literals
+back to single-value `enum`, 370 sites); 446 `anyOf`, 0 `discriminator` — the union machinery
+and ADR-0009 carry over unchanged; dotted component names; `v2.session.log` (`after` +
+`follow` parameters) replaces the durable stream; `v2.pty.connect` carries `x-websocket`.
+
+**Decision:** the wall admit rule for the single-element validation-only `allOf` wrapper class
+lands in the Arc B retarget task; the M3 stream design is re-derived against `session.log`
+when M3 starts.
+
+## Q71: Does opencode v2 ship its own MCP server?
+
+**Found:** no. The protocol `mcp` group (list/add/remove/connect/disconnect/resource.catalog)
+manages *configured* MCP servers — opencode as MCP host/client (`@modelcontextprotocol/sdk`
+1.29.0; `packages/core/src/mcp/{client,stdio,oauth}.ts` are all client-side). The
+self-exposure protocol upstream chose is ACP, not MCP: `opencode acp` — "Start an Agent
+Client Protocol server" — targets editor embedding.
+
+**Decision:** the MCP-server premise (research docs 03/04) stands on v2 — the gap this
+repository's second deliverable fills remains open. ACP is recorded as an adjacent surface to
+watch: it may absorb some drive-opencode-from-another-agent use cases.
+
+## Q72: How is v2 distributed, and what is its server model?
+
+**How researched:** npm registry dist-tags for the scoped packages; `update.opencode.ai`
+channel feeds; GitHub releases of `anomalyco/opencode-beta`; CLI/client/desktop source read at
+file level; then a live install and run on this machine.
+
+**Found:** distribution is two-channel and bypasses the old `opencode-ai` package: the CLI
+ships as `@opencode-ai/cli@next` (0.0.0-next-17403, published 2026-08-13), installing
+side-by-side as `opencode2`; the desktop beta rides `update.opencode.ai` (channel feeds,
+OIDC-authenticated publish) over `anomalyco/opencode-beta` GitHub releases
+(0.0.0-beta-17406, same day), bundling its own CLI. Installation starts no server. The server
+model is a shared per-user background service: a 0600 registration file in the XDG state
+directory (`{id, version, url, pid, password}`) is the complete discovery contract;
+`Service.ensure` reuses a healthy compatible server, replaces a version-mismatched one, and
+otherwise spawns detached contenders until one wins registration. Explicit modes: `serve`
+(foreground), `serve --service` (managed daemon, `service start/stop/status/restart`),
+`serve --stdio` (embedding: JSON `{url}` handshake on stdout, stdin as liveness leash),
+`--standalone` (private server), `--server <url>` (remote). `pair` prints server URLs + Basic
+username `opencode` + password (+ QR) — the v1 auth model unchanged. Live verification on
+this machine: `opencode2 service status` → `stopped` after install; `opencode2 serve
+--hostname 127.0.0.1 --port 41999` up; unauthenticated `GET /api/health` → 401;
+authenticated → 200 `{"healthy":true,"version":"0.0.0-next-17403","pid":…}`;
+`GET /api/session?limit=2` → `{data:[…]}` containing this machine's real session history (the
+central store reads existing opencode data).
+
+**Decision:** the launcher milestone (M4) maps to `opencode2 serve`; connect-or-launch fits
+the discovery-file contract; whether the SDK adopts `location[...]` query addressing in place
+of the v1 `x-opencode-directory` header is decided inside the retarget task.
+
+**Documentation pass (this session):** `15-opencode-v2-platform.md` created as the canonical
+v2 platform picture; docs 09/10 corrected in place (resolved UNVERIFIED items, stamped
+consequence updates); ADR-0005 revised in place; `AGENTS.md`, `docs/ROADMAP.md`, and the Arc B
+plan updated to the single-surface v2 target.
+
+# Session 18 — 2026-08-13: M1 Arc B execution decisions
+
+An implementation session, not a research sweep: Tasks 1–4 of the Arc B plan landed and M1
+closed with a live demonstration. This entry records only the decisions sealed along the way;
+execution detail lives in git and the (now consumed) Arc B plan checkboxes.
+
+## Q73: Are envelope payload names curated per operation or derived mechanically?
+
+**How researched:** the sealed API design (payload names from a fail-closed curation map,
+§5.1/§8.5) collided with the maintainer's retarget-era "no taste curation" convention when the
+bare `ServiceHealth` payload needed a name; both models were priced against the ~100
+payload-carrying operations of the full v2 surface.
+
+**Found:** the mechanical candidate — the operation's subject tokens (identifier segments
+after the group that do not restate the HTTP method; the group name when none remain) —
+reproduces both sealed M1 values exactly (`Message`, `Health`), and a fail-closed collision
+check against the response spine (`Error`, `IsError`, `RawBody`, `Status`, the response type
+name) preserves the forced-review property for the cases that actually need a human.
+
+**Decision (maintainer, sealed):** payload names derive mechanically;
+`envelopePayloadNames` demotes to an override ledger for spine collisions and C#-illegal
+results only; a collision fails generation until an override lands. The required-per-operation
+validation retired with it.
+
+## Q74: What may the User-Agent version token contain when the informational version is unusable?
+
+**Found:** SourceLink appends `+<commit>` to `AssemblyInformationalVersionAttribute`; a
+missing or unparsable attribute is possible in exotic build contexts, and the handoff banned
+a silent assembly-version substitute.
+
+**Decision (maintainer, sealed):** strip build metadata after `+`; when the remainder is
+missing or fails `ProductHeaderValue` parsing, omit the version token entirely
+(`OpenCode.Sdk` alone) — never a silent fallback, never a construction failure
+(`UserAgentPolicy`).
+
+## Q75: What shape do generated route members take?
+
+**Decision (maintainer, sealed):** `OpenCodeRoutes` nests one static container per operation
+group (client name, or the Pascal group for root placement); parameterless operations emit a
+`const`, parameterized ones a `<Member>Template` const plus an escaped `<Member>(...)`
+builder; members never restate their container (`Health.Get`, `Sessions.GetMessage`). CA1034
+is arbitrated for the one generated file. Route member names ride the plan
+(`RouteContainerName`/`RouteMemberName`) so emitters stay name-blind.
+
+**Documentation pass (this session):** ROADMAP moved to M1-complete/M2-next; the Arc B plan's
+checkboxes closed in the same commits as their code; the consumed handover was deleted and a
+fresh one (`HANDOFF-2026-08-13-3.md`) records the ship/M2/horizon queue.

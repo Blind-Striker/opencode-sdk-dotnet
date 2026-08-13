@@ -67,7 +67,9 @@ most of the TUI.
 
 1. Both surfaces of the pinned 1.x spec are generated: the MCP-server goal needs today's full
    capability, and the modern block alone does not provide it. Deep integration testing
-   targets the modern surface; legacy is best-effort.
+   targets the modern surface; legacy is best-effort. (2026-08-13: ADR-0005 revised in place
+   — the SDK targets the v2 protocol surface only and the legacy surface is never built;
+   current v2-line state: `15-opencode-v2-platform.md`.)
 2. Public naming must not bake in the transitional `v2.` prefix — it does not exist in 2.0;
    the 2.0 rename wave is absorbed at a major release (evolve/deprecate on the evidence then).
 3. Generator: parse `const` alongside single-value `enum`, and mangle dotted schema names.
@@ -78,7 +80,8 @@ most of the TUI.
   ops; not inspected individually).
 - Whether a migration guide exists outside the repo (blog/Discord) — none found in
   docs/README; GitHub issue/discussion search failed this session (API 422), so maintainer
-  statements there are unchecked.
+  statements there are unchecked. (2026-08-13: official v2 documentation now exists at
+  opencode.ai/v2/docs.)
 - The exact 61 → 112 operation rename mapping (spot-checked only; a full side-by-side diff
   belongs to the API design session).
 - How long 1.x releases will keep publishing the `v2.*` `/api` projection.

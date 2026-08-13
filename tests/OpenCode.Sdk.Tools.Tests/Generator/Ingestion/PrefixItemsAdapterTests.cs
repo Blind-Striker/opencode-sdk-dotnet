@@ -42,7 +42,61 @@ public sealed class PrefixItemsAdapterTests
     }
 
     [Test]
-    public async Task Project_Should_Refuse_When_Items_And_PrefixItems_Are_Combined()
+    public async Task Project_Should_Produce_Array_When_Single_Prefix_Element_Shares_The_Items_Target()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec
+            .WithSchema("Field", schema => schema.Type("string"))
+            .WithSchema("Fields", schema => schema
+                .Type("array")
+                .PrefixItems(item => item.Ref("Field"))
+                .MinItems(1)
+                .Items(item => item.Ref("Field"))));
+
+        var result = await host.ProjectAsync(scenario);
+
+        var array = (ArrayNode)result.Schemas["Fields"];
+        await Assert.That(((RefNode)array.Item).Target).IsEqualTo("Field");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_When_Prefix_Element_Differs_From_The_Items_Target()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec
+            .WithSchema("Field", schema => schema.Type("string"))
+            .WithSchema("Other", schema => schema.Type("string"))
+            .WithSchema("Bad", schema => schema
+                .Type("array")
+                .PrefixItems(item => item.Ref("Other"))
+                .MinItems(1)
+                .Items(item => item.Ref("Field"))));
+
+        var exception = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(exception.Message).Contains("prefixItems");
+        await Assert.That(exception.Message).Contains("$ref");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_When_Items_Are_Paired_With_Multiple_Prefix_Elements()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec
+            .WithSchema("Field", schema => schema.Type("string"))
+            .WithSchema("Bad", schema => schema
+                .Type("array")
+                .PrefixItems(item => item.Ref("Field"), item => item.Ref("Field"))
+                .MinItems(2)
+                .Items(item => item.Ref("Field"))));
+
+        var exception = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(exception.Message).Contains("single prefix element");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_When_Combined_Items_And_PrefixItems_Are_Inline()
     {
         var host = new SchemaProjectionTestHost();
         var scenario = SpecScenario.Define(spec => spec.WithConfigPluginTuple(tuple => tuple

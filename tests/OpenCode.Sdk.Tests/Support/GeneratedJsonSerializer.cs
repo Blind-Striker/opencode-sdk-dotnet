@@ -35,7 +35,7 @@ internal sealed class GeneratedJsonSerializer
 
     private static JsonSerializerContext LoadContext()
     {
-        var contextType = typeof(SessionMessage).Assembly.GetType(ContextTypeName, throwOnError: true, ignoreCase: false)
+        var contextType = typeof(SessionMessageInfo).Assembly.GetType(ContextTypeName, throwOnError: true, ignoreCase: false)
                           ?? throw new InvalidOperationException($"The generated JSON context '{ContextTypeName}' was not found.");
         var defaultProperty = contextType.GetProperty("Default", BindingFlags.Public | BindingFlags.Static)
                               ?? throw new InvalidOperationException("The generated JSON context has no Default property.");

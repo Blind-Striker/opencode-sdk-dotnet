@@ -1,5 +1,3 @@
-using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
-
 namespace OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
 
-internal sealed record OperationIdentity(SpecSurface Surface, IReadOnlyList<string> Segments, bool HasWildcardPath);
+internal sealed record OperationIdentity(IReadOnlyList<string> Segments, bool HasWildcardPath);

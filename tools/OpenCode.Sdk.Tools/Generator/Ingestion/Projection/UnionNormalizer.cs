@@ -119,6 +119,21 @@ internal sealed class UnionNormalizer
 
             var branchPointer = _keys.UnionBranch(pointer, keyword, index, marker: null);
             SchemaWallPolicy.Check(branch, string.Concat(root, branchPointer), state.Errors);
+            if (branch.AnyOf is not { Count: > 0 } nested)
+            {
+                continue;
+            }
+
+            for (var innerIndex = 0; innerIndex < nested.Count; innerIndex++)
+            {
+                if (nested[innerIndex] is not OpenApiSchema inner)
+                {
+                    continue;
+                }
+
+                var innerPointer = _keys.UnionBranch(branchPointer, "anyOf", innerIndex, marker: null);
+                SchemaWallPolicy.Check(inner, string.Concat(root, innerPointer), state.Errors);
+            }
         }
 
         return state.Errors.Count == errorCount;
@@ -133,6 +148,7 @@ internal sealed class UnionNormalizer
         {
             var source = sourceBranches[index];
             var marker = _literalClassifier.FindFirstMarker(source);
+            var isMarkedUnionReference = marker is null && IsMarkedUnionReference(source);
             var branchPointer = _keys.UnionBranch(pointer, keyword, index, marker);
             var branchLocation = string.Concat(root, branchPointer);
             if (source is OpenApiSchema { Type: JsonSchemaType.Null } concrete)
@@ -142,7 +158,7 @@ internal sealed class UnionNormalizer
                 var shape = _shapeClassifier.Classify(concrete, branchLocation, state.Errors);
                 if (state.Errors.Count == errorCount && shape is CoreSchemaShape.Null)
                 {
-                    branches.Add(new ProjectedBranch(Node: null, marker, IsNull: true));
+                    branches.Add(new ProjectedBranch(Node: null, marker, IsNull: true, IsMarkedUnionReference: false));
                 }
                 else
                 {
@@ -159,11 +175,22 @@ internal sealed class UnionNormalizer
                 continue;
             }
 
-            branches.Add(new ProjectedBranch(projected, marker, IsNull: false));
+            branches.Add(new ProjectedBranch(projected, marker, IsNull: false, isMarkedUnionReference));
         }
 
         return failed ? null : [.. branches];
     }
+
+    /// <summary>
+    /// Accepts a branch referencing a nested marked union (exactly one level): every variant
+    /// of the referenced union is itself a marked object. The Binder validates that the
+    /// nested variants contribute one uniform outer tag; this records only markedness.
+    /// </summary>
+    private bool IsMarkedUnionReference(IOpenApiSchema source) =>
+        source is OpenApiSchemaReference { Target: OpenApiSchema target }
+        && IsPureAnyOfBranch(target)
+        && target.AnyOf is { Count: > 1 } nested
+        && nested.All(branch => _literalClassifier.FindFirstMarker(branch) is not null);
 
     private static ProjectedBranch[] DeduplicateReferences(IReadOnlyList<ProjectedBranch> branches)
     {
@@ -181,7 +208,7 @@ internal sealed class UnionNormalizer
             return branches[0].Node ?? throw new InvalidOperationException("A non-null union branch had no projected node.");
         }
 
-        var classification = branches.All(static branch => branch.Marker is not null)
+        var classification = branches.All(static branch => branch.Marker is not null || branch.IsMarkedUnionReference)
             ? UnionClassification.Marked
             : UnionClassification.Structural;
         return new UnionNode
@@ -200,6 +227,14 @@ internal sealed class UnionNormalizer
     {
         var numberBranches = 0;
         var specialBranches = 0;
+        return CountSpecialNumberBranches(branches, allowNested: true, ref numberBranches, ref specialBranches)
+               && numberBranches is 1
+               && specialBranches > 0;
+    }
+
+    private static bool CountSpecialNumberBranches(IEnumerable<IOpenApiSchema> branches, bool allowNested, ref int numberBranches,
+        ref int specialBranches)
+    {
         foreach (var branch in branches)
         {
             if (branch is not OpenApiSchema schema)
@@ -213,6 +248,19 @@ internal sealed class UnionNormalizer
                 continue;
             }
 
+            // The v2 dialect nests the special-number union one level deeper
+            // (anyOf: [anyOf of number-and-specials, a redundant specials enum]); exactly one
+            // nesting level flattens, anything deeper or impure stays refused.
+            if (allowNested && IsPureAnyOfBranch(schema))
+            {
+                if (!CountSpecialNumberBranches(schema.AnyOf!, allowNested: false, ref numberBranches, ref specialBranches))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
             if (!IsSpecialStringBranch(schema))
             {
                 return false;
@@ -221,8 +269,17 @@ internal sealed class UnionNormalizer
             specialBranches++;
         }
 
-        return numberBranches is 1 && specialBranches > 0;
+        return true;
     }
+
+    private static bool IsPureAnyOfBranch(OpenApiSchema schema) =>
+        schema is { AnyOf.Count: > 0, Type: null, Enum: null, Const: null, Items: null, Properties: null, AdditionalProperties: null }
+        && schema.OneOf is not { Count: > 0 }
+        && schema.AllOf is not { Count: > 0 }
+        && schema.Required is not { Count: > 0 }
+        && schema.PatternProperties is not { Count: > 0 }
+        && schema.AdditionalPropertiesAllowed
+        && schema is { ContentEncoding: null, ContentMediaType: null, ContentSchema: null };
 
     private static bool IsSpecialStringBranch(OpenApiSchema schema)
     {
@@ -260,5 +317,5 @@ internal sealed class UnionNormalizer
         || schema.ContentMediaType is not null
         || schema.ContentSchema is not null;
 
-    private sealed record ProjectedBranch(SchemaNode? Node, LiteralMarker? Marker, bool IsNull);
+    private sealed record ProjectedBranch(SchemaNode? Node, LiteralMarker? Marker, bool IsNull, bool IsMarkedUnionReference);
 }

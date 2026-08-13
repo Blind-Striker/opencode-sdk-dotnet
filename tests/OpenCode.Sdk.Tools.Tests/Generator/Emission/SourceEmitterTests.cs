@@ -21,21 +21,11 @@ public sealed class SourceEmitterTests
     }
 
     [Test]
-    public async Task Emit_Should_Produce_Compilable_Source()
-    {
-        var sources = SourceEmitter.Emit(EmitterPlanFixture.Create());
-
-        var diagnostics = GeneratedSourceCompiler.Compile(sources);
-
-        await Assert.That(diagnostics).IsEmpty();
-    }
-
-    [Test]
     public async Task Emit_Should_Produce_Compilable_Source_For_The_Selected_Pin()
     {
         var plan = await new BindingTestHost().BindPinnedAsync();
 
-        var diagnostics = GeneratedSourceCompiler.Compile(SourceEmitter.Emit(plan));
+        var diagnostics = await GeneratedSourceCompiler.CompileWithSdkCoreAsync(SourceEmitter.Emit(plan));
 
         await Assert.That(diagnostics).IsEmpty();
     }

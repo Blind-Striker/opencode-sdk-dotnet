@@ -3,6 +3,7 @@
 using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
@@ -31,65 +32,22 @@ public sealed record SessionMessageToolStateCompleted : SessionMessageToolState
     } = new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal));
 
     /// <summary>
-    /// Gets the attachments value.
-    /// </summary>
-    [JsonPropertyName("attachments")]
-    public IReadOnlyList<PromptFileAttachment> Attachments
-    {
-        get;
-        init
-        {
-            // Source-generated deserialization passes null for an absent optional init-only collection.
-            field = value is null ? Array.Empty<PromptFileAttachment>() : new List<PromptFileAttachment>(value).AsReadOnly();
-        }
-    } = [];
-
-    /// <summary>
     /// Gets the content value.
     /// </summary>
     [JsonPropertyName("content")]
-    public required IReadOnlyList<LlmToolContent> Content
+    public required IReadOnlyList<ToolContent> Content
     {
         get;
         init
         {
             ArgumentNullException.ThrowIfNull(value);
-            field = new List<LlmToolContent>(value).AsReadOnly();
+            field = new List<ToolContent>(value).AsReadOnly();
         }
     } = [];
 
     /// <summary>
-    /// Gets the output paths value.
+    /// Gets the metadata value.
     /// </summary>
-    [JsonPropertyName("outputPaths")]
-    public IReadOnlyList<string> OutputPaths
-    {
-        get;
-        init
-        {
-            // Source-generated deserialization passes null for an absent optional init-only collection.
-            field = value is null ? Array.Empty<string>() : new List<string>(value).AsReadOnly();
-        }
-    } = [];
-
-    /// <summary>
-    /// Gets the structured value.
-    /// </summary>
-    [JsonPropertyName("structured")]
-    public required IReadOnlyDictionary<string, JsonElement> Structured
-    {
-        get;
-        init
-        {
-            ArgumentNullException.ThrowIfNull(value);
-            field = new ReadOnlyDictionary<string, JsonElement>(value.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal));
-        }
-    } = new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal));
-
-    /// <summary>
-    /// Gets the result value.
-    /// </summary>
-    [JsonPropertyName("result")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public JsonElement? Result { get; init; }
+    [JsonPropertyName("metadata")]
+    public IReadOnlyDictionary<string, JsonElement> Metadata { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new ReadOnlyDictionary<string, JsonElement>(input.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal))); } = new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal));
 }

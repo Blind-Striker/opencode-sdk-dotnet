@@ -3,32 +3,25 @@
 using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message synthetic value.
 /// </summary>
-public sealed record SessionMessageSynthetic : SessionMessage
+public sealed record SessionMessageSynthetic : SessionMessageInfo
 {
     /// <summary>
     /// Gets the id value.
     /// </summary>
     [JsonPropertyName("id")]
-    public required string ID { get; init; }
+    public required string Id { get; init; }
 
     /// <summary>
     /// Gets the metadata value.
     /// </summary>
     [JsonPropertyName("metadata")]
-    public IReadOnlyDictionary<string, JsonElement> Metadata
-    {
-        get;
-        init
-        {
-            // Source-generated deserialization passes null for an absent optional init-only collection.
-            field = value is null ? new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal)) : new ReadOnlyDictionary<string, JsonElement>(value.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal));
-        }
-    } = new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal));
+    public IReadOnlyDictionary<string, JsonElement> Metadata { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new ReadOnlyDictionary<string, JsonElement>(input.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal))); } = new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal));
 
     /// <summary>
     /// Gets the time value.
@@ -37,16 +30,17 @@ public sealed record SessionMessageSynthetic : SessionMessage
     public required SessionMessageSyntheticTime Time { get; init; }
 
     /// <summary>
-    /// Gets the session id value.
-    /// </summary>
-    [JsonPropertyName("sessionID")]
-    public required string SessionID { get; init; }
-
-    /// <summary>
     /// Gets the text value.
     /// </summary>
     [JsonPropertyName("text")]
     public required string Text { get; init; }
+
+    /// <summary>
+    /// Gets the description value.
+    /// </summary>
+    [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; init; }
 
     /// <summary>
     /// Gets the type value.

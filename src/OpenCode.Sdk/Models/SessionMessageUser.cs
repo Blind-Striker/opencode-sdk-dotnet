@@ -3,32 +3,25 @@
 using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message user value.
 /// </summary>
-public sealed record SessionMessageUser : SessionMessage
+public sealed record SessionMessageUser : SessionMessageInfo
 {
     /// <summary>
     /// Gets the id value.
     /// </summary>
     [JsonPropertyName("id")]
-    public required string ID { get; init; }
+    public required string Id { get; init; }
 
     /// <summary>
     /// Gets the metadata value.
     /// </summary>
     [JsonPropertyName("metadata")]
-    public IReadOnlyDictionary<string, JsonElement> Metadata
-    {
-        get;
-        init
-        {
-            // Source-generated deserialization passes null for an absent optional init-only collection.
-            field = value is null ? new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal)) : new ReadOnlyDictionary<string, JsonElement>(value.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal));
-        }
-    } = new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal));
+    public IReadOnlyDictionary<string, JsonElement> Metadata { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new ReadOnlyDictionary<string, JsonElement>(input.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal))); } = new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal));
 
     /// <summary>
     /// Gets the time value.
@@ -46,29 +39,19 @@ public sealed record SessionMessageUser : SessionMessage
     /// Gets the files value.
     /// </summary>
     [JsonPropertyName("files")]
-    public IReadOnlyList<PromptFileAttachment> Files
-    {
-        get;
-        init
-        {
-            // Source-generated deserialization passes null for an absent optional init-only collection.
-            field = value is null ? Array.Empty<PromptFileAttachment>() : new List<PromptFileAttachment>(value).AsReadOnly();
-        }
-    } = [];
+    public IReadOnlyList<PromptFileAttachment> Files { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new List<PromptFileAttachment>(input).AsReadOnly()); } = [];
 
     /// <summary>
     /// Gets the agents value.
     /// </summary>
     [JsonPropertyName("agents")]
-    public IReadOnlyList<PromptAgentAttachment> Agents
-    {
-        get;
-        init
-        {
-            // Source-generated deserialization passes null for an absent optional init-only collection.
-            field = value is null ? Array.Empty<PromptAgentAttachment>() : new List<PromptAgentAttachment>(value).AsReadOnly();
-        }
-    } = [];
+    public IReadOnlyList<PromptAgentAttachment> Agents { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new List<PromptAgentAttachment>(input).AsReadOnly()); } = [];
+
+    /// <summary>
+    /// Gets the skills value.
+    /// </summary>
+    [JsonPropertyName("skills")]
+    public IReadOnlyList<PromptSkillAttachment> Skills { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new List<PromptSkillAttachment>(input).AsReadOnly()); } = [];
 
     /// <summary>
     /// Gets the type value.

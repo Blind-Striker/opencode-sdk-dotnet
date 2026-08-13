@@ -24,6 +24,7 @@ public sealed record UnknownSessionMessageToolState : SessionMessageToolState
     /// <summary>
     /// Gets the unrecognized &apos;status&apos; marker.
     /// </summary>
+    [JsonPropertyName("status")]
     public override string Status => _marker;
     /// <summary>
     /// Gets the preserved raw JSON payload.

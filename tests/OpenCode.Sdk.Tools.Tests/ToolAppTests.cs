@@ -107,8 +107,7 @@ public sealed class ToolAppTests
         await Assert.That(result.ExitCode).IsEqualTo(0);
         await Assert.That(fileSystem.File.Exists(GenerationTestData.ManifestPath)).IsTrue();
         await Assert.That(fileSystem.File.Exists(GenerationTestData.MarkerPath)).IsTrue();
-        await Assert.That(result.Output).Contains("Pending modern");
-        await Assert.That(result.Output).Contains("Pending legacy");
+        await Assert.That(result.Output).Contains("Pending operations");
     }
 
     [Test]
@@ -146,7 +145,7 @@ public sealed class ToolAppTests
         var generateTester = new CommandAppTester(registrar);
         generateTester.Configure(ToolApp.Configure);
         _ = await generateTester.RunAsync(["generate"]);
-        await fileSystem.File.WriteAllTextAsync(generatedPath, "drift", CancellationToken.None);
+        await fileSystem.File.WriteAllTextAsync(generatedPath, GenerationTestData.OwnedContent("drift"), CancellationToken.None);
 
         var verifyTester = new CommandAppTester(registrar);
         verifyTester.Configure(ToolApp.Configure);

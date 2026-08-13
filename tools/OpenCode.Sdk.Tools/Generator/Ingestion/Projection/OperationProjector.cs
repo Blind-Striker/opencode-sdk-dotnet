@@ -116,7 +116,6 @@ internal sealed class OperationProjector
         context.Add(new SpecOperation
         {
             OperationId = operationId,
-            Surface = identity.Surface,
             Segments = identity.Segments,
             Method = normalizedMethod,
             Path = path,

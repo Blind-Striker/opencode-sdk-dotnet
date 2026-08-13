@@ -46,6 +46,7 @@ public sealed record UnknownExampleEvent : ExampleEvent
     /// <summary>
     /// Gets the unrecognized &apos;type&apos; marker.
     /// </summary>
+    [JsonPropertyName("type")]
     public override string Type => _marker;
     /// <summary>
     /// Gets the preserved raw JSON payload.
@@ -87,8 +88,8 @@ internal sealed class ExampleEventJsonConverter : JsonConverter<ExampleEvent>
         if (markerElement.ValueKind != JsonValueKind.String)
             throw new JsonException("The 'type' marker must be a string.");
         var marker = markerElement.GetString();
-        if (marker is null)
-            throw new JsonException("The 'type' marker cannot be null.");
+        if (marker is null || string.IsNullOrWhiteSpace(marker))
+            throw new JsonException("The 'type' marker must be a non-empty string.");
         if (TypesByTag.TryGetValue(marker, out var targetType))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for ExampleEvent.");

@@ -13,6 +13,8 @@
   <ItemGroup>
     <PackageReference Include="TUnit"/>
     <PackageReference Include="NSubstitute"/>
+    <PackageReference Include="PublicApiGenerator"/>
+    <PackageReference Include="Verify.TUnit"/>
     <PackageReference Include="NSubstitute.Analyzers.CSharp">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -21,6 +23,17 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/OpenCode.Sdk/OpenCode.Sdk.csproj"/>
+  </ItemGroup>
+
+  <!-- .NET Framework ships HttpClient in this framework assembly; no NuGet HTTP stack is added. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
+  <!-- Implicit usings apply only on net6.0+; the net472 leg needs these globally too. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <Using Include="System.Linq" />
+    <Using Include="System.Net.Http" />
   </ItemGroup>
 
   <ItemGroup>

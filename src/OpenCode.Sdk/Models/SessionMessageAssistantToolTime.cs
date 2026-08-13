@@ -27,11 +27,4 @@ public sealed record SessionMessageAssistantToolTime
     [JsonPropertyName("completed")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public double? Completed { get; init; }
-
-    /// <summary>
-    /// Gets the pruned value.
-    /// </summary>
-    [JsonPropertyName("pruned")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public double? Pruned { get; init; }
 }

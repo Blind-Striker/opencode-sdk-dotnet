@@ -21,7 +21,7 @@ internal sealed class CurationValidator
         var documentIds = document.Operations.Select(static operation => operation.OperationId).ToHashSet(_comparer);
         var documentGroups = document.Operations.Select(GetGroup).ToHashSet(_comparer);
         ValidateGroups(selected, selectedGroups, documentGroups, curation, errors);
-        ValidateEnvelopeNames(selected, selectedIds, documentIds, curation, errors);
+        ValidateEnvelopeNames(selectedIds, documentIds, curation, errors);
         ValidatePropertyOverrides(document, reachable, curation, errors);
     }
 
@@ -48,13 +48,12 @@ internal sealed class CurationValidator
         }
     }
 
-    private static void ValidateGroupShape(string wireName, GroupCuration group, IReadOnlyList<SpecOperation> selected,
-        BindingErrorCollector errors)
+    private static void ValidateGroupShape(string wireName, GroupCuration group, IReadOnlyList<SpecOperation> selected, BindingErrorCollector errors)
     {
         switch (group.Placement)
         {
-            case GroupPlacement.Root when group.ClientName is not null || group.HandleName is not null:
-                errors.Add(BindingErrorCategory.Curation, wireName, "root group cannot declare clientName or handleName");
+            case GroupPlacement.Root when group.ClientName is not null || group.HandleName is not null || group.HandleParameter is not null:
+                errors.Add(BindingErrorCategory.Curation, wireName, "root group cannot declare clientName, handleName, or handleParameter");
                 break;
             case GroupPlacement.Client when string.IsNullOrWhiteSpace(group.ClientName):
                 errors.Add(BindingErrorCategory.Curation, wireName, "client group must declare clientName");
@@ -71,32 +70,69 @@ internal sealed class CurationValidator
             errors.Add(BindingErrorCategory.Naming, wireName, $"handle name '{group.HandleName}' is not a valid C# identifier");
         }
 
-        var requiresSessionHandle = selected.Any(operation => string.Equals(GetGroup(operation), wireName, StringComparison.Ordinal)
-            && operation.Parameters.Any(static parameter => parameter is
-            {
-                Name: "sessionID",
-                Location: SpecParameterLocation.Path,
-            }));
-        if (requiresSessionHandle && string.IsNullOrWhiteSpace(group.HandleName))
+        if ((group.HandleName is not null) != (group.HandleParameter is not null))
         {
-            errors.Add(BindingErrorCategory.Curation, wireName, "session-scoped selected operation requires handleName");
+            errors.Add(BindingErrorCategory.Curation, wireName, "handleName and handleParameter must be declared together");
+            return;
+        }
+
+        if (group.HandleParameter is null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(group.HandleParameter))
+        {
+            errors.Add(BindingErrorCategory.Curation, wireName, "handleParameter cannot be blank");
+            return;
+        }
+
+        ValidateHandleParameterCoverage(wireName, group, selected, errors);
+    }
+
+    /// <summary>
+    /// Coverage is selection-scoped: during staged generation only selected operations can
+    /// witness the handle parameter, and a group with no selected operations already fails
+    /// the global orphan check.
+    /// </summary>
+    private static void ValidateHandleParameterCoverage(string wireName, GroupCuration group, IReadOnlyList<SpecOperation> selected,
+        BindingErrorCollector errors)
+    {
+        if (group.Placement is not GroupPlacement.Client)
+        {
+            return;
+        }
+
+        var groupOperations = selected
+            .Where(operation => string.Equals(GetGroup(operation), wireName, StringComparison.Ordinal))
+            .ToArray();
+        if (groupOperations.Length is 0)
+        {
+            return;
+        }
+
+        var covered = groupOperations.Any(operation => operation.Parameters.Any(parameter => parameter is
+        {
+            Location: SpecParameterLocation.Path,
+            IsRequired: true,
+        } && string.Equals(parameter.Name, group.HandleParameter, StringComparison.Ordinal)));
+        if (!covered)
+        {
+            errors.Add(
+                BindingErrorCategory.Curation,
+                wireName,
+                $"handle parameter '{group.HandleParameter}' does not name a required path parameter on any selected operation in the group");
         }
     }
 
-    private static void ValidateEnvelopeNames(IReadOnlyList<SpecOperation> selected, HashSet<string> selectedIds,
-        HashSet<string> documentIds, GenerationCuration curation, BindingErrorCollector errors)
+    /// <summary>
+    /// Payload names derive mechanically from the operation subject; curated entries are
+    /// overrides only (maintainer, 2026-08-13), so validation covers orphans and identifier
+    /// legality, never presence.
+    /// </summary>
+    private static void ValidateEnvelopeNames(HashSet<string> selectedIds, HashSet<string> documentIds,
+        GenerationCuration curation, BindingErrorCollector errors)
     {
-        foreach (var operation in selected)
-        {
-            var requiresPayloadName = operation.Responses.Any(static response => response.StatusCode is >= 200 and < 300
-                && response.EnvelopeShape is SpecEnvelopeShape.Data or SpecEnvelopeShape.DataLocation
-                    or SpecEnvelopeShape.CursorData or SpecEnvelopeShape.DataHasMore);
-            if (requiresPayloadName && !curation.EnvelopePayloadNames.ContainsKey(operation.OperationId))
-            {
-                errors.Add(BindingErrorCategory.Curation, operation.OperationId, "selected response envelope has no payload name");
-            }
-        }
-
         foreach (var (operationId, payloadName) in curation.EnvelopePayloadNames.OrderBy(static pair => pair.Key, StringComparer.Ordinal))
         {
             if (!documentIds.Contains(operationId))
@@ -115,8 +151,7 @@ internal sealed class CurationValidator
         }
     }
 
-    private static void ValidatePropertyOverrides(SpecDocument document, ReachableSchemaSet reachable,
-        GenerationCuration curation, BindingErrorCollector errors)
+    private static void ValidatePropertyOverrides(SpecDocument document, ReachableSchemaSet reachable, GenerationCuration curation, BindingErrorCollector errors)
     {
         var reachableKeys = reachable.GraphKeys.ToHashSet(StringComparer.Ordinal);
         var targets = new HashSet<(string Schema, string Property)>();

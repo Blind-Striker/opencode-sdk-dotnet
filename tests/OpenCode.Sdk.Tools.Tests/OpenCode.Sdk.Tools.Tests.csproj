@@ -27,6 +27,12 @@
     <None Include="../../tools/curation.json"
           Link="Fixtures/curation.json"
           CopyToOutputDirectory="PreserveNewest" />
+    <!-- The generated-source compile probe references only BCL assemblies; the hand-written
+         SDK sources ride along so generated clients resolve the behavior core. -->
+    <None Include="../../src/OpenCode.Sdk/**/*.cs"
+          Exclude="../../src/OpenCode.Sdk/bin/**;../../src/OpenCode.Sdk/obj/**"
+          Link="Fixtures/SdkSource/%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

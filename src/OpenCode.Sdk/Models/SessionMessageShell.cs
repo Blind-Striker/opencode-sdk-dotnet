@@ -3,32 +3,25 @@
 using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message shell value.
 /// </summary>
-public sealed record SessionMessageShell : SessionMessage
+public sealed record SessionMessageShell : SessionMessageInfo
 {
     /// <summary>
     /// Gets the id value.
     /// </summary>
     [JsonPropertyName("id")]
-    public required string ID { get; init; }
+    public required string Id { get; init; }
 
     /// <summary>
     /// Gets the metadata value.
     /// </summary>
     [JsonPropertyName("metadata")]
-    public IReadOnlyDictionary<string, JsonElement> Metadata
-    {
-        get;
-        init
-        {
-            // Source-generated deserialization passes null for an absent optional init-only collection.
-            field = value is null ? new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal)) : new ReadOnlyDictionary<string, JsonElement>(value.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal));
-        }
-    } = new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal));
+    public IReadOnlyDictionary<string, JsonElement> Metadata { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new ReadOnlyDictionary<string, JsonElement>(input.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal))); } = new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal));
 
     /// <summary>
     /// Gets the time value.
@@ -43,10 +36,10 @@ public sealed record SessionMessageShell : SessionMessage
     public override string Type => "shell";
 
     /// <summary>
-    /// Gets the call id value.
+    /// Gets the shell id value.
     /// </summary>
-    [JsonPropertyName("callID")]
-    public required string CallID { get; init; }
+    [JsonPropertyName("shellID")]
+    public required string ShellId { get; init; }
 
     /// <summary>
     /// Gets the command value.
@@ -55,8 +48,22 @@ public sealed record SessionMessageShell : SessionMessage
     public required string Command { get; init; }
 
     /// <summary>
+    /// Gets the status value.
+    /// </summary>
+    [JsonPropertyName("status")]
+    public required SessionMessageShellStatus Status { get; init; }
+
+    /// <summary>
+    /// Gets the exit value.
+    /// </summary>
+    [JsonPropertyName("exit")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? Exit { get; init; }
+
+    /// <summary>
     /// Gets the output value.
     /// </summary>
     [JsonPropertyName("output")]
-    public required string Output { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SessionMessageShellOutput? Output { get; init; }
 }

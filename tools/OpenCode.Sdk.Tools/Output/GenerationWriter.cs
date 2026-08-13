@@ -36,6 +36,8 @@ internal sealed class GenerationWriter(IFileSystem fileSystem, IProjectFormatter
         var oldManifest = await LoadManifestAsync(outputRoot, cancellationToken).ConfigureAwait(false);
         var oldPaths = ValidateManifest(outputRoot, oldManifest);
         RefuseCaseOnlyPathChanges(oldPaths, newSources.Keys);
+        RefuseUnmanifestedOverwrites(outputRoot, oldPaths, newSources.Keys);
+        await RequireProvenanceOnManifestEntriesAsync(outputRoot, oldPaths, cancellationToken).ConfigureAwait(false);
         var trackedPaths = oldPaths
             .Concat(newSources.Keys)
             .Append(ManifestRelativePath)
@@ -68,6 +70,12 @@ internal sealed class GenerationWriter(IFileSystem fileSystem, IProjectFormatter
 
             ValidateRelativePath(outputRoot, source.RelativePath);
             ValidateGeneratedSourcePath(source.RelativePath);
+
+            // A headerless source would deadlock the next run's provenance requirement.
+            if (!GenerationProvenance.HasHeader(Encoding.UTF8.GetString(source.Utf8Source.Span)))
+            {
+                throw new InvalidOperationException($"Generated source '{source.RelativePath}' lacks the provenance header.");
+            }
 
             if (!result.TryAdd(source.RelativePath, source))
             {
@@ -161,7 +169,7 @@ internal sealed class GenerationWriter(IFileSystem fileSystem, IProjectFormatter
         {
             Files = [.. paths.Order(StringComparer.Ordinal)],
         };
-        var json = string.Concat(JsonSerializer.Serialize(manifest, ToolJsonContext.Default.GenerationManifest), "\n");
+        var json = $"{JsonSerializer.Serialize(manifest, ToolJsonContext.Default.GenerationManifest)}\n";
         await WriteBytesAsync(
             ResolveOwnedPath(outputRoot, ManifestRelativePath),
             Encoding.UTF8.GetBytes(json),
@@ -205,10 +213,46 @@ internal sealed class GenerationWriter(IFileSystem fileSystem, IProjectFormatter
     private static void ValidateGeneratedSourcePath(string relativePath)
     {
         if (!relativePath.EndsWith(".cs", StringComparison.Ordinal)
-            || !(relativePath.StartsWith("Models/", StringComparison.Ordinal)
-                 || relativePath.StartsWith("Internal/Serialization/", StringComparison.Ordinal)))
+            || !(!relativePath.Contains('/', StringComparison.Ordinal)
+                 || relativePath.StartsWith("Models/", StringComparison.Ordinal)
+                 || relativePath.StartsWith("Internal/Serialization/", StringComparison.Ordinal)
+                 || relativePath.StartsWith("Internal/ResponseAdapters/", StringComparison.Ordinal)))
         {
             throw new InvalidOperationException($"Generated source path '{relativePath}' is outside the owned source directories.");
+        }
+    }
+
+    /// <summary>A new path that already exists on disk belongs to somebody else until the manifest owns it.</summary>
+    private void RefuseUnmanifestedOverwrites(string outputRoot, HashSet<string> oldPaths, IEnumerable<string> newPaths)
+    {
+        var overwrite = newPaths
+            .Where(path => !oldPaths.Contains(path))
+            .Order(StringComparer.Ordinal)
+            .FirstOrDefault(path => _fileSystem.File.Exists(ResolveOwnedPath(outputRoot, path)));
+        if (overwrite is not null)
+        {
+            throw new InvalidOperationException($"Generated source path '{overwrite}' would overwrite an unmanifested file.");
+        }
+    }
+
+    /// <summary>The writer only overwrites or deletes files that still carry the generated provenance header.</summary>
+    private async Task RequireProvenanceOnManifestEntriesAsync(string outputRoot, IReadOnlySet<string> oldPaths,
+        CancellationToken cancellationToken)
+    {
+        foreach (var relativePath in oldPaths.Order(StringComparer.Ordinal))
+        {
+            var path = ResolveOwnedPath(outputRoot, relativePath);
+            if (!_fileSystem.File.Exists(path))
+            {
+                continue;
+            }
+
+            var content = await _fileSystem.File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
+            if (!GenerationProvenance.HasHeader(content))
+            {
+                throw new InvalidOperationException(
+                    $"Manifest entry '{relativePath}' does not carry the provenance header; refusing to overwrite or delete it.");
+            }
         }
     }
 

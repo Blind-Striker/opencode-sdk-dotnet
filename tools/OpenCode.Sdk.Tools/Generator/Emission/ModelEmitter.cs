@@ -18,7 +18,7 @@ internal static class ModelEmitter
         {
             result.Add(model switch
             {
-                ObjectModelPlan objectModel => EmitObject(objectModel, ResolveBaseUnion(objectModel, unions)),
+                ObjectModelPlan objectModel => EmitObject(objectModel, ResolveBaseUnion(objectModel, unions), unions),
                 EnumModelPlan enumModel => EmitEnum(enumModel),
                 _ => throw new InvalidOperationException($"Unknown model plan '{model.GetType().Name}'."),
             });
@@ -27,11 +27,16 @@ internal static class ModelEmitter
         return Array.AsReadOnly([.. result]);
     }
 
-    private static GeneratedSource EmitObject(ObjectModelPlan model, UnionPlan? baseUnion)
+    private static GeneratedSource EmitObject(ObjectModelPlan model, UnionPlan? baseUnion, IReadOnlyDictionary<string, UnionPlan> unions)
     {
-        if (baseUnion is not null && model.Properties.Count(property => IsDiscriminator(property, baseUnion)) is not 1)
+        // A variant overrides one abstract marker per level of its union chain: a nested
+        // union's variant carries both its own tag and the fixed outer tag.
+        var chainMarkers = GetChainMarkerWireNames(baseUnion, unions);
+        var unmatched = chainMarkers.Find(wireName =>
+            model.Properties.Count(property => IsDiscriminator(property, wireName)) is not 1);
+        if (unmatched is not null)
         {
-            throw new InvalidOperationException($"Union variant '{model.Name}' must carry exactly one '{baseUnion.MarkerWireName}' marker.");
+            throw new InvalidOperationException($"Union variant '{model.Name}' must carry exactly one '{unmatched}' marker.");
         }
 
         var declaration = SyntaxFactory.RecordDeclaration(SyntaxFactory.Token(SyntaxKind.RecordKeyword), model.Name)
@@ -41,7 +46,7 @@ internal static class ModelEmitter
             .WithOpenBraceToken(SyntaxFactory.Token(SyntaxKind.OpenBraceToken))
             .WithCloseBraceToken(SyntaxFactory.Token(SyntaxKind.CloseBraceToken))
             .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>(model.Properties.Select(property =>
-                EmitProperty(property, baseUnion is not null && IsDiscriminator(property, baseUnion)))))
+                EmitProperty(property, chainMarkers.Any(wireName => IsDiscriminator(property, wireName))))))
             .WithLeadingTrivia(EmissionSyntax.Documentation(model.Description ?? $"Represents a {DisplayName(model.Name)} value."));
         if (model.BaseTypeName is not null)
         {
@@ -123,55 +128,53 @@ internal static class ModelEmitter
     private static AccessorListSyntax EmitCollectionAccessors(TypeReferencePlan type, bool isRequired)
     {
         var copy = EmitCollectionCopy(type, SyntaxFactory.IdentifierName("value"));
-        StatementSyntax assignment;
-        var statements = new List<StatementSyntax>();
+        AccessorDeclarationSyntax initAccessor;
         if (type.IsNullable)
         {
-            assignment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
-                SyntaxKind.SimpleAssignmentExpression,
-                SyntaxFactory.IdentifierName("field"),
-                SyntaxFactory.ConditionalExpression(
-                    SyntaxFactory.IsPatternExpression(
-                        SyntaxFactory.IdentifierName("value"),
-                        SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
-                    SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression),
-                    copy)));
+            initAccessor = EmitExpressionBodiedInit(SyntaxFactory.ConditionalExpression(
+                SyntaxFactory.IsPatternExpression(
+                    SyntaxFactory.IdentifierName("value"),
+                    SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
+                SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression),
+                copy));
         }
         else if (!isRequired)
         {
-            var empty = EmitCollectionInitializer(type)
-                        ?? throw new InvalidOperationException("A non-null collection plan has no empty initializer.");
-            assignment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
-                    SyntaxKind.SimpleAssignmentExpression,
-                    SyntaxFactory.IdentifierName("field"),
-                    SyntaxFactory.ConditionalExpression(
-                        SyntaxFactory.IsPatternExpression(
-                            SyntaxFactory.IdentifierName("value"),
-                            SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
-                        empty,
-                        copy)))
-                .WithLeadingTrivia(
-                    SyntaxFactory.Comment("// Source-generated deserialization passes null for an absent optional init-only collection."),
-                    SyntaxFactory.EndOfLine("\n"));
+            initAccessor = EmitExpressionBodiedInit(EmissionSyntax.Invocation(
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("OptionalCollectionInput"), "Normalize"),
+                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("value")),
+                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("field")),
+                SyntaxFactory.Argument(Projection(
+                    "input",
+                    EmitCollectionCopy(type, SyntaxFactory.IdentifierName("input"))))));
         }
         else
         {
+            var statements = new List<StatementSyntax>();
             statements.AddRange(EmissionSyntax.ArgumentNullGuard("value"));
-            assignment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
+            statements.Add(SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
                 SyntaxKind.SimpleAssignmentExpression,
                 SyntaxFactory.IdentifierName("field"),
-                copy));
+                copy)));
+            initAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.InitAccessorDeclaration)
+                .WithBody(SyntaxFactory.Block(statements));
         }
 
-        statements.Add(assignment);
         return SyntaxFactory.AccessorList(SyntaxFactory.List(
         [
             SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
                 .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
-            SyntaxFactory.AccessorDeclaration(SyntaxKind.InitAccessorDeclaration)
-                .WithBody(SyntaxFactory.Block(statements)),
+            initAccessor,
         ]));
     }
+
+    private static AccessorDeclarationSyntax EmitExpressionBodiedInit(ExpressionSyntax value) =>
+        SyntaxFactory.AccessorDeclaration(SyntaxKind.InitAccessorDeclaration)
+            .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(SyntaxFactory.AssignmentExpression(
+                SyntaxKind.SimpleAssignmentExpression,
+                SyntaxFactory.IdentifierName("field"),
+                value)))
+            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
 
     private static ExpressionSyntax? EmitCollectionInitializer(TypeReferencePlan type)
     {
@@ -284,6 +287,7 @@ internal static class ModelEmitter
             SyntaxFactory.Literal(property.LiteralValue ?? throw new InvalidOperationException("String literal had no value."))),
         LiteralKind.Boolean when bool.TryParse(property.LiteralValue, out var value) => SyntaxFactory.LiteralExpression(
             value ? SyntaxKind.TrueLiteralExpression : SyntaxKind.FalseLiteralExpression),
+        LiteralKind.Number => throw new InvalidOperationException($"Property '{property.Name}' uses a number literal, which has no emission consumer."),
         _ => throw new InvalidOperationException($"Property '{property.Name}' has an invalid literal plan."),
     };
 
@@ -297,6 +301,11 @@ internal static class ModelEmitter
 
         foreach (var property in model.Properties)
         {
+            if (property.Type is { IsCollection: true, IsNullable: false } && !property.IsRequired)
+            {
+                _ = result.Add("OpenCode.Sdk.Internal.Serialization");
+            }
+
             CollectTypeUsings(property.Type, result);
         }
 
@@ -345,8 +354,21 @@ internal static class ModelEmitter
             : throw new InvalidOperationException($"Model '{model.Name}' references absent union '{model.BaseTypeName}'.");
     }
 
-    private static bool IsDiscriminator(ModelPropertyPlan property, UnionPlan union) =>
-        property.IsLiteral && string.Equals(property.WireName, union.MarkerWireName, StringComparison.Ordinal);
+    private static bool IsDiscriminator(ModelPropertyPlan property, string markerWireName) =>
+        property.IsLiteral && string.Equals(property.WireName, markerWireName, StringComparison.Ordinal);
+
+    private static List<string> GetChainMarkerWireNames(UnionPlan? baseUnion, IReadOnlyDictionary<string, UnionPlan> unions)
+    {
+        var result = new List<string>();
+        var current = baseUnion;
+        while (current is not null)
+        {
+            result.Add(current.MarkerWireName);
+            current = current.BaseTypeName is not null && unions.TryGetValue(current.BaseTypeName, out var outer) ? outer : null;
+        }
+
+        return result;
+    }
 
     private static string DisplayName(string name) =>
         string.Join(' ', CSharpNamePolicy.SplitWords(name).Select(static word => word.ToLowerInvariant()));

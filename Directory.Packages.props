@@ -29,6 +29,7 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.17.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.17.0" />
     <!-- third-party packages -->
+    <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="CliWrap" Version="3.10.4" />
     <PackageVersion Include="Microsoft.OpenApi" Version="3.9.0" />
     <PackageVersion Include="Spectre.Console" Version="0.55.0" />
@@ -41,6 +42,7 @@
     <PackageVersion Include="Spectre.Console.Cli.Testing" Version="0.55.0" />
     <PackageVersion Include="Testably.Abstractions.Testing" Version="7.0.2" />
     <PackageVersion Include="TUnit" Version="1.63.25" />
+    <PackageVersion Include="PublicApiGenerator" Version="11.5.4" />
     <PackageVersion Include="Verify.TUnit" Version="31.28.0" />
   </ItemGroup>
 </Project>

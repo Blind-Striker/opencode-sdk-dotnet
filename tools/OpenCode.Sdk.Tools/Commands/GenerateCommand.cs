@@ -25,17 +25,16 @@ internal sealed partial class GenerateCommand : AsyncCommand<GenerateCommand.Set
         _logger = logger;
     }
 
-    protected override async Task<int> ExecuteAsync(
-        CommandContext context,
-        Settings settings,
-        CancellationToken cancellationToken)
+    protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(settings);
+
         LogInvocation(_logger);
-        var report = await _coordinator.GenerateAsync(
-            GenerationRequest.RepositoryDefault(settings.Verify),
-            cancellationToken).ConfigureAwait(false);
+
+        var generationRequest = GenerationRequest.RepositoryDefault(settings.Verify);
+        var report = await _coordinator.GenerateAsync(generationRequest, cancellationToken).ConfigureAwait(false);
+
         WriteSummary(report);
 
         if (settings.Verify && report.WriteResult.HasChanges)
@@ -56,32 +55,25 @@ internal sealed partial class GenerateCommand : AsyncCommand<GenerateCommand.Set
 
     private void WriteSummary(GenerationReport report)
     {
-        _console.MarkupLine(string.Concat(
-            "[grey]Selected operations:[/] ",
-            report.SelectedOperationIds.Count.ToString(CultureInfo.InvariantCulture)));
-        _console.MarkupLine(string.Concat(
-            "[yellow]Pending modern operations:[/] ",
-            report.PendingModernOperationIds.Count.ToString(CultureInfo.InvariantCulture)));
-        _console.MarkupLine(string.Concat(
-            "[yellow]Pending legacy operations:[/] ",
-            report.PendingLegacyOperationIds.Count.ToString(CultureInfo.InvariantCulture)));
+        _console.MarkupLine($"[grey]Selected operations:[/] {report.SelectedOperationIds.Count.ToString(CultureInfo.InvariantCulture)}");
+        _console.MarkupLine($"[yellow]Pending operations:[/] {report.PendingOperationIds.Count.ToString(CultureInfo.InvariantCulture)}");
     }
 
     private void WritePaths(WriteResult result)
     {
         foreach (var path in result.CreatedPaths)
         {
-            _console.MarkupLine(string.Concat("[green]+[/] ", Markup.Escape(path)));
+            _console.MarkupLine($"[green]+[/] {Markup.Escape(path)}");
         }
 
         foreach (var path in result.ChangedPaths)
         {
-            _console.MarkupLine(string.Concat("[yellow]~[/] ", Markup.Escape(path)));
+            _console.MarkupLine($"[yellow]~[/] {Markup.Escape(path)}");
         }
 
         foreach (var path in result.DeletedPaths)
         {
-            _console.MarkupLine(string.Concat("[red]-[/] ", Markup.Escape(path)));
+            _console.MarkupLine($"[red]-[/] {Markup.Escape(path)}");
         }
     }
 

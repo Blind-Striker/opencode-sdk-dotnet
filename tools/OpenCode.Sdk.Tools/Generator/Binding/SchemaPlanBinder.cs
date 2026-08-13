@@ -3,21 +3,21 @@ using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 
 namespace OpenCode.Sdk.Tools.Generator.Binding;
 
-internal sealed class SchemaPlanBinder(SchemaNameResolver schemaNames)
+internal sealed class SchemaPlanBinder
 {
     private const string ModelNamespace = "OpenCode.Sdk.Models";
-    private readonly SchemaNameResolver _schemaNames = schemaNames ?? throw new ArgumentNullException(nameof(schemaNames));
+    private readonly StringComparer _comparer = StringComparer.Ordinal;
 
     public SchemaBindingResult Bind(SpecDocument document, ReachableSchemaSet reachable, GenerationCuration curation,
-        BindingErrorCollector errors)
+        IReadOnlyDictionary<string, string> typeNames, BindingErrorCollector errors)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(reachable);
         ArgumentNullException.ThrowIfNull(curation);
+        ArgumentNullException.ThrowIfNull(typeNames);
         ArgumentNullException.ThrowIfNull(errors);
 
-        var typeNames = _schemaNames.Resolve(document, reachable, errors);
-        var responseRoots = reachable.ResponseRootKeys.ToHashSet(StringComparer.Ordinal);
+        var responseRoots = reachable.ResponseRootKeys.ToHashSet(_comparer);
         RefuseStructuralUnions(document, reachable, errors);
 
         var inheritance = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -53,12 +53,12 @@ internal sealed class SchemaPlanBinder(SchemaNameResolver schemaNames)
             }
         }
 
-        var orderedModels = models.OrderBy(static model => model.Name, StringComparer.Ordinal).ToArray();
-        var orderedUnions = unions.OrderBy(static union => union.Name, StringComparer.Ordinal).ToArray();
+        var orderedModels = models.OrderBy(static model => model.Name, _comparer).ToArray();
+        var orderedUnions = unions.OrderBy(static union => union.Name, _comparer).ToArray();
         var registryNames = orderedModels.Select(static model => model.Name)
             .Concat(orderedUnions.SelectMany(static union => new[] { union.Name, union.UnknownTypeName, }))
-            .Distinct(StringComparer.Ordinal)
-            .Order(StringComparer.Ordinal)
+            .Distinct(_comparer)
+            .Order(_comparer)
             .ToArray();
         return new SchemaBindingResult
         {
@@ -83,9 +83,10 @@ internal sealed class SchemaPlanBinder(SchemaNameResolver schemaNames)
     }
 
     private static List<UnionPlan> BindExplicitUnions(SpecDocument document, ReachableSchemaSet reachable, HashSet<string> responseRoots,
-        IReadOnlyDictionary<string, string> names, IDictionary<string, string> inheritance, BindingErrorCollector errors)
+        IReadOnlyDictionary<string, string> names, Dictionary<string, string> inheritance, BindingErrorCollector errors)
     {
-        var result = new List<UnionPlan>();
+        var plans = new Dictionary<string, UnionPlan>(StringComparer.Ordinal);
+        var fixedMarkers = new Dictionary<string, UnionFixedMarkerPlan>(StringComparer.Ordinal);
         foreach (var key in reachable.GraphKeys)
         {
             if (responseRoots.Contains(key)
@@ -96,69 +97,181 @@ internal sealed class SchemaPlanBinder(SchemaNameResolver schemaNames)
                 continue;
             }
 
-            var plan = BindUnion(name, key, union, document.Schemas, names, inheritance, errors);
+            var plan = BindUnion(name, key, union, document.Schemas, names, inheritance, fixedMarkers, errors);
             if (plan is not null)
             {
-                result.Add(plan);
+                plans.Add(key, plan);
             }
+        }
+
+        // A nested union learns its base type and fixed outer marker while the outer union
+        // binds, which can happen after the nested plan was built — the wiring is a post-pass.
+        var result = new List<UnionPlan>(plans.Count);
+        foreach (var (key, plan) in plans)
+        {
+            result.Add(fixedMarkers.TryGetValue(key, out var fixedMarker) && inheritance.TryGetValue(key, out var baseType)
+                ? plan with { BaseTypeName = baseType, FixedMarker = fixedMarker }
+                : plan);
         }
 
         return result;
     }
 
     private static UnionPlan? BindUnion(string name, string key, UnionNode union, IReadOnlyDictionary<string, SchemaNode> graph,
-        IReadOnlyDictionary<string, string> names, IDictionary<string, string> inheritance, BindingErrorCollector errors)
+        IReadOnlyDictionary<string, string> names, Dictionary<string, string> inheritance,
+        Dictionary<string, UnionFixedMarkerPlan> fixedMarkers, BindingErrorCollector errors)
     {
-        var variants = new List<UnionVariantPlan>(union.Branches.Count);
-        LiteralMarker? expectedMarker = null;
-        var tags = new HashSet<string>(StringComparer.Ordinal);
+        var resolved = ResolveBranches(key, union, graph, names, errors);
+        if (resolved is null)
+        {
+            return null;
+        }
+
+        var marker = SelectDiscriminatingMarker(resolved);
+        if (marker is null)
+        {
+            errors.Add(BindingErrorCategory.Schema, key, "marked union branches share no discriminating marker property");
+            return null;
+        }
+
+        var variants = new List<UnionVariantPlan>(resolved.Count);
+        foreach (var branch in resolved)
+        {
+            var tag = branch.Markers.First(candidate =>
+                string.Equals(candidate.PropertyName, marker.PropertyName, StringComparison.Ordinal)).Value;
+            AddInheritance(branch.TargetKey, name, inheritance, errors);
+            if (branch.IsNestedUnion)
+            {
+                fixedMarkers[branch.TargetKey] = new UnionFixedMarkerPlan
+                {
+                    WireName = marker.PropertyName,
+                    Name = CSharpNamePolicy.ToPascalCase(marker.PropertyName),
+                    Kind = marker.Kind,
+                    Value = tag,
+                };
+            }
+
+            variants.Add(new UnionVariantPlan
+            {
+                TypeName = branch.TypeName,
+                Tag = tag,
+                IsNestedUnion = branch.IsNestedUnion,
+            });
+        }
+
+        return new UnionPlan
+        {
+            Name = name,
+            Namespace = ModelNamespace,
+            UnknownTypeName = $"Unknown{name}",
+            MarkerWireName = marker.PropertyName,
+            MarkerName = CSharpNamePolicy.ToPascalCase(marker.PropertyName),
+            MarkerKind = marker.Kind,
+            Variants = variants,
+            Description = union.Description,
+        };
+    }
+
+    private static List<ResolvedUnionBranch>? ResolveBranches(string key, UnionNode union, IReadOnlyDictionary<string, SchemaNode> graph,
+        IReadOnlyDictionary<string, string> names, BindingErrorCollector errors)
+    {
+        var resolved = new List<ResolvedUnionBranch>(union.Branches.Count);
         foreach (var branch in union.Branches)
         {
             if (branch is not RefNode reference
                 || !graph.TryGetValue(reference.Target, out var target)
-                || target is not ObjectNode { LiteralMarkers.Count: > 0 } objectNode
                 || !names.TryGetValue(reference.Target, out var typeName))
             {
-                errors.Add(BindingErrorCategory.Schema, key, "marked union branch must reference a named object with a literal marker");
+                errors.Add(
+                    BindingErrorCategory.Schema,
+                    key,
+                    "marked union branch must reference a named object or nested marked union with a literal marker");
                 continue;
             }
 
-            var marker = objectNode.LiteralMarkers[0];
-            expectedMarker ??= marker;
-            if (!string.Equals(marker.PropertyName, expectedMarker.PropertyName, StringComparison.Ordinal) || marker.Kind != expectedMarker.Kind)
+            var markers = target switch
             {
-                errors.Add(BindingErrorCategory.Schema, key, "marked union branches do not share one marker property and kind");
+                ObjectNode { LiteralMarkers.Count: > 0 } objectNode => objectNode.LiteralMarkers,
+                UnionNode { Classification: UnionClassification.Marked } nested => ResolveUniformNestedMarkers(nested, graph),
+                _ => null,
+            };
+            if (markers is not { Count: > 0 })
+            {
+                errors.Add(
+                    BindingErrorCategory.Schema,
+                    key,
+                    "marked union branch must reference a named object or nested marked union with a literal marker");
                 continue;
             }
 
-            if (!tags.Add(marker.Value))
-            {
-                errors.Add(BindingErrorCategory.Schema, key, $"marked union tag '{marker.Value}' is duplicated");
-                continue;
-            }
-
-            AddInheritance(reference.Target, name, inheritance, errors);
-            variants.Add(new UnionVariantPlan
-            {
-                TypeName = typeName,
-                Tag = marker.Value,
-            });
+            resolved.Add(new ResolvedUnionBranch(reference.Target, typeName, markers, target is UnionNode));
         }
 
-        return expectedMarker is null || variants.Count != union.Branches.Count
-            ? null
-            : new UnionPlan
-            {
-                Name = name,
-                Namespace = ModelNamespace,
-                UnknownTypeName = $"Unknown{name}",
-                MarkerWireName = expectedMarker.PropertyName,
-                MarkerName = CSharpNamePolicy.ToPascalCase(expectedMarker.PropertyName),
-                MarkerKind = expectedMarker.Kind,
-                Variants = variants,
-                Description = union.Description,
-            };
+        return resolved.Count == union.Branches.Count ? resolved : null;
     }
+
+    /// <summary>
+    /// Resolves the markers every variant of a nested union fixes to one shared value — for
+    /// those properties the whole nested union behaves like a single tag.
+    /// </summary>
+    private static IReadOnlyList<LiteralMarker>? ResolveUniformNestedMarkers(UnionNode nested,
+        IReadOnlyDictionary<string, SchemaNode> graph)
+    {
+        var variantMarkers = new List<IReadOnlyList<LiteralMarker>>(nested.Branches.Count);
+        foreach (var branch in nested.Branches)
+        {
+            if (branch is not RefNode reference
+                || !graph.TryGetValue(reference.Target, out var target)
+                || target is not ObjectNode { LiteralMarkers.Count: > 0 } objectNode)
+            {
+                return null;
+            }
+
+            variantMarkers.Add(objectNode.LiteralMarkers);
+        }
+
+        return
+        [
+            .. variantMarkers[0]
+                .Where(candidate => variantMarkers.Skip(1).All(markers => markers.Any(other =>
+                    string.Equals(other.PropertyName, candidate.PropertyName, StringComparison.Ordinal)
+                    && other.Kind == candidate.Kind
+                    && string.Equals(other.Value, candidate.Value, StringComparison.Ordinal)))),
+        ];
+    }
+
+    /// <summary>
+    /// Selects the first property (in the first branch's document order) that every branch
+    /// carries with one kind and a value distinct from every other branch.
+    /// </summary>
+    private static LiteralMarker? SelectDiscriminatingMarker(IReadOnlyList<ResolvedUnionBranch> branches)
+    {
+        foreach (var candidate in branches[0].Markers)
+        {
+            var values = new HashSet<string>(StringComparer.Ordinal);
+            var qualified = true;
+            foreach (var branch in branches)
+            {
+                var match = branch.Markers.FirstOrDefault(marker =>
+                    string.Equals(marker.PropertyName, candidate.PropertyName, StringComparison.Ordinal)
+                    && marker.Kind == candidate.Kind);
+                if (match is null || !values.Add(match.Value))
+                {
+                    qualified = false;
+                    break;
+                }
+            }
+
+            if (qualified)
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private sealed record ResolvedUnionBranch(string TargetKey, string TypeName, IReadOnlyList<LiteralMarker> Markers, bool IsNestedUnion);
 
     private static UnionPlan? BindErrorUnion(SpecDocument document, ReachableSchemaSet reachable, HashSet<string> responseRoots,
         IReadOnlyDictionary<string, string> names, IDictionary<string, string> inheritance, BindingErrorCollector errors)
@@ -259,8 +372,10 @@ internal sealed class SchemaPlanBinder(SchemaNameResolver schemaNames)
             return null;
         }
 
-        var duplicate = properties.GroupBy(static property => property.Name, StringComparer.Ordinal)
-            .FirstOrDefault(static group => group.Count() > 1);
+        var duplicate = properties
+            .GroupBy(static property => property.Name, StringComparer.Ordinal)
+            .FirstOrDefault(static group => group.Skip(1).Any());
+
         if (duplicate is not null)
         {
             errors.Add(BindingErrorCategory.Naming, key, $"multiple properties map to C# name '{duplicate.Key}'");

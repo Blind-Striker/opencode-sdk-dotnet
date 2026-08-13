@@ -28,7 +28,9 @@ public sealed class SpecIngestion : ISpecIngestion
         var keys = new GraphKeyBuilder();
         var schemaProjector = new SchemaProjector(keys);
         var state = new ProjectionState(errors, loaded.Document);
-        var operations = new OperationProjector(schemaProjector, keys).Project(loaded, state);
+        var operationProjector = new OperationProjector(schemaProjector, keys);
+
+        var operations = operationProjector.Project(loaded, state);
         if (loaded.Document.Components?.Schemas is { } namedSchemas)
         {
             foreach (var (name, schema) in namedSchemas)
@@ -53,7 +55,8 @@ public sealed class SpecIngestion : ISpecIngestion
         IngestionErrorCollector errors)
     {
         var roots = operations
-            .SelectMany(static operation => operation.Parameters.Select(static parameter => parameter.Schema)
+            .SelectMany(static operation => operation
+                .Parameters.Select(static parameter => parameter.Schema)
                 .Concat(operation.Responses.Where(static response => response.Schema is not null).Select(static response => response.Schema!))
                 .Append(operation.RequestBody?.Schema))
             .Concat(schemas.Values)

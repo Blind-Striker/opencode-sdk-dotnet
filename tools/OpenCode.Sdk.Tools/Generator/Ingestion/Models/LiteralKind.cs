@@ -8,4 +8,7 @@ public enum LiteralKind
 
     /// <summary>A JSON boolean literal.</summary>
     Boolean = 1,
+
+    /// <summary>A JSON number literal.</summary>
+    Number = 2,
 }

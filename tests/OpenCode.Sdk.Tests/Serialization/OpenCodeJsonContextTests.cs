@@ -14,15 +14,30 @@ public sealed class OpenCodeJsonContextTests
     {
         var json = _fixtures.LoadJson("Serialization.known-session-message.json");
 
-        var result = _serializer.Deserialize<SessionMessage>(json);
+        var result = _serializer.Deserialize<SessionMessageInfo>(json);
 
         await Assert.That(result).IsTypeOf<SessionMessageUser>();
         var user = (SessionMessageUser)result;
-        await Assert.That(user.ID).IsEqualTo("message-1");
+        await Assert.That(user.Id).IsEqualTo("message-1");
         await Assert.That(user.Text).IsEqualTo("hello");
-        var serialized = _serializer.Serialize<SessionMessage>(user);
+        var serialized = _serializer.Serialize<SessionMessageInfo>(user);
         using var document = JsonDocument.Parse(serialized);
         await Assert.That(document.RootElement.GetProperty("type").GetString()).IsEqualTo("user");
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Normalize_Absent_Optional_Nonnull_Collections_To_Empty()
+    {
+        var json = _fixtures.LoadJson("Serialization.known-session-message.json");
+
+        var result = _serializer.Deserialize<SessionMessageInfo>(json);
+
+        await Assert.That(result).IsTypeOf<SessionMessageUser>();
+        var user = (SessionMessageUser)result;
+        await Assert.That(user.Metadata).IsEmpty();
+        await Assert.That(user.Files).IsEmpty();
+        await Assert.That(user.Agents).IsEmpty();
+        await Assert.That(user.Skills).IsEmpty();
     }
 
     [Test]
@@ -30,12 +45,45 @@ public sealed class OpenCodeJsonContextTests
     {
         var json = _fixtures.LoadJson("Serialization.unknown-session-message.json");
 
-        var result = _serializer.Deserialize<SessionMessage>(json);
+        var result = _serializer.Deserialize<SessionMessageInfo>(json);
 
-        await Assert.That(result).IsTypeOf<UnknownSessionMessage>();
-        var unknown = (UnknownSessionMessage)result;
+        await Assert.That(result).IsTypeOf<UnknownSessionMessageInfo>();
+        var unknown = (UnknownSessionMessageInfo)result;
         await Assert.That(unknown.Type).IsEqualTo("future-message");
-        var roundTrip = _serializer.Serialize<SessionMessage>(unknown);
+        var roundTrip = _serializer.Serialize<SessionMessageInfo>(unknown);
+        await Assert.That(roundTrip).IsEqualTo(json);
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Create_Nested_Compaction_Variant_Through_The_Outer_Union()
+    {
+        var json = _fixtures.LoadJson("Serialization.known-compaction-message.json");
+
+        var result = _serializer.Deserialize<SessionMessageInfo>(json);
+
+        await Assert.That(result).IsTypeOf<SessionMessageCompactionRunning>();
+        var running = (SessionMessageCompactionRunning)result;
+        await Assert.That(running.Type).IsEqualTo("compaction");
+        await Assert.That(running.Status).IsEqualTo("running");
+        await Assert.That(running.Reason).IsEqualTo(SessionMessageCompactionRunningReason.Auto);
+        var serialized = _serializer.Serialize<SessionMessageInfo>(running);
+        using var document = JsonDocument.Parse(serialized);
+        await Assert.That(document.RootElement.GetProperty("type").GetString()).IsEqualTo("compaction");
+        await Assert.That(document.RootElement.GetProperty("status").GetString()).IsEqualTo("running");
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Preserve_Unknown_Compaction_Status_Byte_For_Byte()
+    {
+        var json = _fixtures.LoadJson("Serialization.unknown-compaction-status.json");
+
+        var result = _serializer.Deserialize<SessionMessageInfo>(json);
+
+        await Assert.That(result).IsTypeOf<UnknownSessionMessageCompaction>();
+        var unknown = (UnknownSessionMessageCompaction)result;
+        await Assert.That(unknown.Type).IsEqualTo("compaction");
+        await Assert.That(unknown.Status).IsEqualTo("paused");
+        var roundTrip = _serializer.Serialize<SessionMessageInfo>(unknown);
         await Assert.That(roundTrip).IsEqualTo(json);
     }
 
@@ -76,12 +124,12 @@ public sealed class OpenCodeJsonContextTests
 
         var result = _serializer.Deserialize<SessionMessageToolState>(json);
 
-        await Assert.That(result).IsTypeOf<SessionMessageToolStatePending>();
-        var pending = (SessionMessageToolStatePending)result;
-        await Assert.That(pending.Input).IsEqualTo("queued input");
-        var serialized = _serializer.Serialize<SessionMessageToolState>(pending);
+        await Assert.That(result).IsTypeOf<SessionMessageToolStateRunning>();
+        var running = (SessionMessageToolStateRunning)result;
+        await Assert.That(running.Input["query"].GetString()).IsEqualTo("queued input");
+        var serialized = _serializer.Serialize<SessionMessageToolState>(running);
         using var document = JsonDocument.Parse(serialized);
-        await Assert.That(document.RootElement.GetProperty("status").GetString()).IsEqualTo("pending");
+        await Assert.That(document.RootElement.GetProperty("status").GetString()).IsEqualTo("running");
     }
 
     [Test]
@@ -108,6 +156,15 @@ public sealed class OpenCodeJsonContextTests
     }
 
     [Test]
+    public async Task Deserialize_Should_Throw_When_Union_Marker_Is_Empty()
+    {
+        var json = _fixtures.LoadJson("Serialization.empty-assistant-marker.json");
+
+        _ = await Assert.That(() => _serializer.Deserialize<SessionMessageAssistantContent>(json))
+            .Throws<JsonException>();
+    }
+
+    [Test]
     public async Task Deserialize_Should_Throw_When_Union_Marker_Has_The_Wrong_Type()
     {
         var json = _fixtures.LoadJson("Serialization.malformed-assistant-marker.json");
@@ -121,7 +178,7 @@ public sealed class OpenCodeJsonContextTests
     {
         var json = _fixtures.LoadJson("Serialization.null-optional-collection.json");
 
-        _ = await Assert.That(() => _serializer.Deserialize<SessionMessage>(json))
+        _ = await Assert.That(() => _serializer.Deserialize<SessionMessageInfo>(json))
             .Throws<JsonException>();
     }
 
@@ -135,35 +192,30 @@ public sealed class OpenCodeJsonContextTests
     }
 
     [Test]
-    public async Task ProviderMetadata_Should_Recursively_Copy_Collections()
+    public async Task State_Should_Defensively_Copy_The_Input_Collection()
     {
-        var inner = new Dictionary<string, JsonElement>(StringComparer.Ordinal)
+        var state = new Dictionary<string, JsonElement>(StringComparer.Ordinal)
         {
             ["original"] = default,
         };
-        var outer = new Dictionary<string, IReadOnlyDictionary<string, JsonElement>>(StringComparer.Ordinal)
-        {
-            ["provider"] = inner,
-        };
         var model = new SessionMessageAssistantReasoning
         {
-            ID = "part-1",
             Text = "reasoning",
-            ProviderMetadata = outer,
+            State = state,
         };
 
-        inner.Add("inner-mutation", default);
-        outer.Add("outer-mutation", new Dictionary<string, JsonElement>(StringComparer.Ordinal));
+        state.Add("mutation", default);
 
-        await Assert.That(model.ProviderMetadata.ContainsKey("outer-mutation")).IsFalse();
-        await Assert.That(model.ProviderMetadata["provider"].ContainsKey("inner-mutation")).IsFalse();
+        await Assert.That(model.State.ContainsKey("mutation")).IsFalse();
+        await Assert.That(model.State.ContainsKey("original")).IsTrue();
     }
 
     [Test]
     public async Task GetTypeInfo_Should_Resolve_Union_Metadata_Without_Reflection_Fallback()
     {
         await Assert.That(JsonSerializer.IsReflectionEnabledByDefault).IsFalse();
-        await Assert.That(_serializer.GetTypeInfo(typeof(SessionMessage))).IsNotNull();
+        await Assert.That(_serializer.GetTypeInfo(typeof(SessionMessageInfo))).IsNotNull();
+        await Assert.That(_serializer.GetTypeInfo(typeof(SessionMessageCompaction))).IsNotNull();
         await Assert.That(_serializer.GetTypeInfo(typeof(SessionMessageAssistantContent))).IsNotNull();
         await Assert.That(_serializer.GetTypeInfo(typeof(SessionMessageToolState))).IsNotNull();
     }

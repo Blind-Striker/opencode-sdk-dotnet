@@ -86,6 +86,11 @@ jobs:
         if: runner.os == 'Linux'
         run: ./tools/opencode-tool.cs --help
 
+      # Regenerating the pinned profile must be a byte-identical no-op on a clean checkout.
+      - name: Verify generated output
+        if: runner.os == 'Linux'
+        run: dotnet run --file tools/opencode-tool.cs -- generate --verify
+
       # TUnit's always-on HTML report self-uploads as a workflow artifact, but only if these
       # runtime vars (normally JS/Docker-action-only) are re-exported to run steps.
       - name: Enable TUnit report artifact upload

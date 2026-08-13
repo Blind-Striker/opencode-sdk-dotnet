@@ -31,10 +31,10 @@ public sealed record SessionMessageToolStateRunning : SessionMessageToolState
     } = new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal));
 
     /// <summary>
-    /// Gets the structured value.
+    /// Gets the metadata value.
     /// </summary>
-    [JsonPropertyName("structured")]
-    public required IReadOnlyDictionary<string, JsonElement> Structured
+    [JsonPropertyName("metadata")]
+    public required IReadOnlyDictionary<string, JsonElement> Metadata
     {
         get;
         init
@@ -43,18 +43,4 @@ public sealed record SessionMessageToolStateRunning : SessionMessageToolState
             field = new ReadOnlyDictionary<string, JsonElement>(value.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal));
         }
     } = new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal));
-
-    /// <summary>
-    /// Gets the content value.
-    /// </summary>
-    [JsonPropertyName("content")]
-    public required IReadOnlyList<LlmToolContent> Content
-    {
-        get;
-        init
-        {
-            ArgumentNullException.ThrowIfNull(value);
-            field = new List<LlmToolContent>(value).AsReadOnly();
-        }
-    } = [];
 }

@@ -18,13 +18,13 @@ public sealed record MessageNotFoundError : OpenCodeError
     /// Gets the session id value.
     /// </summary>
     [JsonPropertyName("sessionID")]
-    public required string SessionID { get; init; }
+    public required string SessionId { get; init; }
 
     /// <summary>
     /// Gets the message id value.
     /// </summary>
     [JsonPropertyName("messageID")]
-    public required string MessageID { get; init; }
+    public required string MessageId { get; init; }
 
     /// <summary>
     /// Gets the message value.

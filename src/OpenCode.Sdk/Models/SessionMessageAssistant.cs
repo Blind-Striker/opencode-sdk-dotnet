@@ -3,32 +3,25 @@
 using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message assistant value.
 /// </summary>
-public sealed record SessionMessageAssistant : SessionMessage
+public sealed record SessionMessageAssistant : SessionMessageInfo
 {
     /// <summary>
     /// Gets the id value.
     /// </summary>
     [JsonPropertyName("id")]
-    public required string ID { get; init; }
+    public required string Id { get; init; }
 
     /// <summary>
     /// Gets the metadata value.
     /// </summary>
     [JsonPropertyName("metadata")]
-    public IReadOnlyDictionary<string, JsonElement> Metadata
-    {
-        get;
-        init
-        {
-            // Source-generated deserialization passes null for an absent optional init-only collection.
-            field = value is null ? new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal)) : new ReadOnlyDictionary<string, JsonElement>(value.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal));
-        }
-    } = new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal));
+    public IReadOnlyDictionary<string, JsonElement> Metadata { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new ReadOnlyDictionary<string, JsonElement>(input.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal))); } = new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal));
 
     /// <summary>
     /// Gets the time value.
@@ -80,7 +73,7 @@ public sealed record SessionMessageAssistant : SessionMessage
     /// </summary>
     [JsonPropertyName("finish")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Finish { get; init; }
+    public SessionMessageAssistantFinish? Finish { get; init; }
 
     /// <summary>
     /// Gets the cost value.
@@ -94,12 +87,19 @@ public sealed record SessionMessageAssistant : SessionMessage
     /// </summary>
     [JsonPropertyName("tokens")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public SessionMessageAssistantTokens? Tokens { get; init; }
+    public TokenUsageInfo? Tokens { get; init; }
 
     /// <summary>
     /// Gets the error value.
     /// </summary>
     [JsonPropertyName("error")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public SessionErrorUnknown? Error { get; init; }
+    public SessionStructuredError? Error { get; init; }
+
+    /// <summary>
+    /// Gets the retry value.
+    /// </summary>
+    [JsonPropertyName("retry")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SessionMessageAssistantRetry? Retry { get; init; }
 }

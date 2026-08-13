@@ -182,15 +182,15 @@ public sealed class SchemaProjectorTests
     }
 
     [Test]
-    public async Task Project_Should_Refuse_When_Array_Has_No_Items()
+    public async Task Project_Should_Produce_Array_Of_Any_Value_When_Items_Are_Absent()
     {
         var host = new SchemaProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithSchema("Bad", schema => schema.Type("array")));
+        var scenario = SpecScenario.Define(spec => spec.WithSchema("Value", schema => schema.Type("array")));
 
-        var ex = await host.ProjectExpectingRefusalAsync(scenario);
+        var result = await host.ProjectAsync(scenario);
 
-        await Assert.That(ex.Message).Contains("items");
-        await Assert.That(ex.Message).Contains("Bad");
+        await Assert.That(result.Schemas["Value"]).IsTypeOf<ArrayNode>();
+        await Assert.That(((ArrayNode)result.Schemas["Value"]).Item).IsTypeOf<UnrestrictedNode>();
     }
 
     [Test]
@@ -240,13 +240,15 @@ public sealed class SchemaProjectorTests
     {
         var host = new SchemaProjectionTestHost();
         var scenario = SpecScenario.Define(spec => spec
-            .WithSchema("BadArray", schema => schema.Type("array"))
+            .WithSchema("BadAllOf", schema => schema
+                .Type("string")
+                .AllOf(first => first.Raw("pattern", "\"^a\""), second => second.Raw("minLength", "1")))
             .WithSchema("BadKeyword", schema => schema.Raw("madeUpKeyword", "true")));
 
         var ex = await host.ProjectExpectingRefusalAsync(scenario);
 
         await Assert.That(ex.Errors).Count().IsEqualTo(2);
-        await Assert.That(ex.Message).Contains("BadArray");
+        await Assert.That(ex.Message).Contains("BadAllOf");
         await Assert.That(ex.Message).Contains("BadKeyword");
     }
 
@@ -269,5 +271,190 @@ public sealed class SchemaProjectorTests
 
         await Assert.That(ex!.Message).Contains("collision");
         await Assert.That(ex.Message).Contains("Shared#/value");
+    }
+
+    [Test]
+    public async Task Project_Should_Unwrap_Validation_Only_AllOf_Wrapper()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema(
+            "Value",
+            schema => schema.Type("integer").AllOf(element => element.Raw("exclusiveMinimum", "0"))));
+
+        var result = await host.ProjectAsync(scenario);
+
+        await Assert.That(result.Schemas["Value"]).IsTypeOf<PrimitiveNode>();
+        await Assert.That(((PrimitiveNode)result.Schemas["Value"]).Kind).IsEqualTo(PrimitiveKind.Integer);
+    }
+
+    [Test]
+    public async Task Project_Should_Unwrap_Validation_Only_AllOf_Wrapper_When_Annotated()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema(
+            "Value",
+            schema => schema
+                .Type("string")
+                .AllOf(element => element.Raw("pattern", "\"^ses_\"").Description("session identifier"))));
+
+        var result = await host.ProjectAsync(scenario);
+
+        await Assert.That(result.Schemas["Value"]).IsTypeOf<PrimitiveNode>();
+        await Assert.That(((PrimitiveNode)result.Schemas["Value"]).Kind).IsEqualTo(PrimitiveKind.String);
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_AllOf_When_It_Has_Multiple_Elements()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema(
+            "Bad",
+            schema => schema
+                .Type("string")
+                .AllOf(first => first.Raw("pattern", "\"^a\""), second => second.Raw("minLength", "1"))));
+
+        var ex = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(ex.Message).Contains("allOf");
+        await Assert.That(ex.Message).Contains("Bad");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_AllOf_Wrapper_When_Element_Has_Structural_Member()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema(
+            "Bad",
+            schema => schema.Type("string").AllOf(element => element.Type("string"))));
+
+        var ex = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(ex.Message).Contains("allOf");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_AllOf_Wrapper_When_Element_Has_Format()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema(
+            "Bad",
+            schema => schema.Type("string").AllOf(element => element.Format("uuid"))));
+
+        var ex = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(ex.Message).Contains("allOf");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_AllOf_Wrapper_When_Element_Has_Unrecognized_Keyword()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema(
+            "Bad",
+            schema => schema.Type("string").AllOf(element => element.Raw("customKeyword", "true"))));
+
+        var ex = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(ex.Message).Contains("allOf");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_AllOf_Wrapper_When_Element_Is_A_Reference()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec
+            .WithSchema("Other", schema => schema.Type("string"))
+            .WithSchema("Bad", schema => schema.Type("string").AllOf(element => element.Ref("Other"))));
+
+        var ex = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(ex.Message).Contains("allOf");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_AllOf_Wrapper_When_Element_Carries_An_Applicator()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema(
+            "Bad",
+            schema => schema.Type("string").AllOf(element => element.Raw("not", "{\"type\":\"number\"}"))));
+
+        var ex = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(ex.Message).Contains("allOf");
+    }
+
+    [Test]
+    public async Task Project_Should_Produce_Number_Literal_From_Single_Value_Enum()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema(
+            "Value",
+            schema => schema.Type("number").Raw("enum", "[1]")));
+
+        var result = await host.ProjectAsync(scenario);
+
+        var literal = (LiteralNode)result.Schemas["Value"];
+        await Assert.That(literal.Kind).IsEqualTo(LiteralKind.Number);
+        await Assert.That(literal.Value).IsEqualTo("1");
+        await Assert.That(literal.Dialect).IsEqualTo(LiteralDialect.SingleValueEnum);
+    }
+
+    [Test]
+    public async Task Project_Should_Produce_Number_Literal_From_Single_Value_Integer_Enum()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema(
+            "Value",
+            schema => schema.Type("integer").Raw("enum", "[3]")));
+
+        var result = await host.ProjectAsync(scenario);
+
+        var literal = (LiteralNode)result.Schemas["Value"];
+        await Assert.That(literal.Kind).IsEqualTo(LiteralKind.Number);
+        await Assert.That(literal.Value).IsEqualTo("3");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_Number_Enum_When_It_Has_Multiple_Values()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema(
+            "Bad",
+            schema => schema.Type("number").Raw("enum", "[1, 2]")));
+
+        var ex = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(ex.Message).Contains("enum");
+        await Assert.That(ex.Message).Contains("Bad");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_Number_Enum_When_Its_Value_Is_Not_A_Number()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema(
+            "Bad",
+            schema => schema.Type("number").Raw("enum", "[\"one\"]")));
+
+        var ex = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(ex.Message).Contains("must contain a number");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_AllOf_When_Host_Carries_Other_Constraints()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema(
+            "Bad",
+            schema => schema
+                .Type("object")
+                .Property("value", property => property.Type("string"))
+                .AllOf(element => element.Raw("pattern", "\"^a\""))));
+
+        var ex = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(ex.Message).Contains("allOf");
     }
 }

@@ -12,6 +12,7 @@ internal sealed class BindingErrorCollector
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(subject);
         ArgumentException.ThrowIfNullOrWhiteSpace(problem);
+
         _errors.Add(new BindingError(category, subject, problem));
     }
 

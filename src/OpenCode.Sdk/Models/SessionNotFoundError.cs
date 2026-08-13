@@ -18,7 +18,7 @@ public sealed record SessionNotFoundError : OpenCodeError
     /// Gets the session id value.
     /// </summary>
     [JsonPropertyName("sessionID")]
-    public required string SessionID { get; init; }
+    public required string SessionId { get; init; }
 
     /// <summary>
     /// Gets the message value.

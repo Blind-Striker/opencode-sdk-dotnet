@@ -14,17 +14,7 @@ internal sealed record GenerationReport
         }
     } = Array.AsReadOnly(Array.Empty<string>());
 
-    public required IReadOnlyList<string> PendingModernOperationIds
-    {
-        get;
-        init
-        {
-            ArgumentNullException.ThrowIfNull(value);
-            field = Array.AsReadOnly([.. value]);
-        }
-    } = Array.AsReadOnly(Array.Empty<string>());
-
-    public required IReadOnlyList<string> PendingLegacyOperationIds
+    public required IReadOnlyList<string> PendingOperationIds
     {
         get;
         init

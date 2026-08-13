@@ -24,6 +24,7 @@ public sealed record UnknownOpenCodeError : OpenCodeError
     /// <summary>
     /// Gets the unrecognized &apos;_tag&apos; marker.
     /// </summary>
+    [JsonPropertyName("_tag")]
     public override string Tag => _marker;
     /// <summary>
     /// Gets the preserved raw JSON payload.
