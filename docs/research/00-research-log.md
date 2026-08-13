@@ -1657,3 +1657,54 @@ is arbitrated for the one generated file. Route member names ride the plan
 **Documentation pass (this session):** ROADMAP moved to M1-complete/M2-next; the Arc B plan's
 checkboxes closed in the same commits as their code; the consumed handover was deleted and a
 fresh one (`HANDOFF-2026-08-13-3.md`) records the ship/M2/horizon queue.
+
+# Session 19 — 2026-08-14: M1 ship, review triage, M2 opening decisions
+
+PR #16 merged after a verified multi-agent review cycle (blocker set fixed red-test-first
+on the branch; every surviving finding milestone-anchored in issues #17–#25) and the
+BenchmarkDotNet performance suite landed with baselines. This entry records the decisions
+sealed while opening M2; execution detail lives in git and the M2 plan.
+
+## Q76: What shape does the generated query surface take?
+
+**How researched:** the four M2 operations extracted from the pinned spec (session.list
+carries 9 optional `anyOf [T, null]` query parameters; both list operations share the
+`limit`/`order`/`cursor` trio and the `{data, cursor:{previous,next}}` envelope); Azure SDK
+.NET design guidelines fetched live ("DO use the options parameter pattern for complex
+service methods"; `Pageable<T>`/`AsyncPageable<T>` for lists); Stripe.net
+(`SessionListOptions : ListOptions` shared base) and OpenAI .NET (`*CollectionOptions`)
+as ecosystem precedent.
+
+**Decision (maintainer, sealed):** per-operation generated options records deriving from a
+shared `ListOptions` base that carries only the cursor-pagination trio; a fail-closed
+generator profile-detection wall derives an operation from the base only on an exact wire
+match (otherwise flat options); the base is the typed seam the M3 paginator will consume.
+`*Options` = call shaping, `*Request` = wire body.
+
+## Q77: How is the string-typed `limit` exposed?
+
+**Found:** the wire types `limit` as a string; `uint` was weighed and rejected — FDG bans
+unsigned types in public APIs (CLS compliance), the ecosystem has zero precedent
+(`Take(int)`, Stripe `long?`, OpenAI `int`), and it does not even buy the invariant
+(zero stays representable, so a guard is needed either way).
+
+**Decision (maintainer, sealed):** public `int?`, invariant-culture conversion at the
+route boundary, non-positive values refused with `ArgumentException`.
+
+## Q78: How does the API express parentID's root-only sentinel?
+
+**Found:** the wire has three states — omitted (all sessions), `parentID=<id>` (children),
+and the literal string `"null"` (root sessions only). The schema shape is
+self-identifying: `anyOf` of a `^ses`-patterned string and a single-value `"null"` enum.
+
+**Decision (maintainer, sealed):** a hand-written public spine type
+`SessionParentFilter` (`RootOnly` singleton, `Of(id)` factory) carried by the options
+record; the binder recognizes the wire shape mechanically, never the parameter name
+(ADR-0008 stays intact); invalid combinations are unrepresentable at compile time.
+
+## Q79: What shape does the first request body take?
+
+**Decision (maintainer, sealed):** `session.create`'s inline all-optional body binds into
+a generated `SessionCreateRequest`; the operation parameter is optional —
+`CreateSessionAsync()` sends an empty JSON body. The `{Subject}{Verb}Request` pattern is
+the mechanical rule for future bodies.

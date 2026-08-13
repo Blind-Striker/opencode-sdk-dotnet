@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-13
+Date: 2026-08-14
 
 Operational state: what is done, what is next, what is open. This file shrinks as work lands.
 Evergreen rules and locked decisions live in `../AGENTS.md`; decision records in `adr/`.
@@ -27,7 +27,9 @@ the blocker set (typed-spine leaks, silent route rewriting) lands on the PR bran
 issues #19–#25 pinned to the milestone that resolves it — nothing on that list outlives the
 M series.
 
-The next work is M2 — the first breadth batch, planned when it starts.
+M2 is open: the first breadth batch (`session.list` + `session.get` + `session.create` +
+`message.list`) executes per `superpowers/plans/2026-08-14-m2-first-breadth-batch.md`,
+with its API decisions sealed (research log Session 19).
 
 ## Milestones
 
