@@ -28,6 +28,7 @@ internal static class TypeSyntaxEmitter
     {
         LiteralKind.String => SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword)),
         LiteralKind.Boolean => SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.BoolKeyword)),
+        LiteralKind.Number => throw new InvalidOperationException("Number markers have no emission consumer."),
         _ => throw new InvalidOperationException($"Unknown literal kind '{kind}'."),
     };
 

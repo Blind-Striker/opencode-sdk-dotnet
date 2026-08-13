@@ -4,9 +4,9 @@ using System.Text.Json.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a session message assistant tokens value.
+/// Represents a token usage info value.
 /// </summary>
-public sealed record SessionMessageAssistantTokens
+public sealed record TokenUsageInfo
 {
     /// <summary>
     /// Gets the input value.
@@ -30,5 +30,5 @@ public sealed record SessionMessageAssistantTokens
     /// Gets the cache value.
     /// </summary>
     [JsonPropertyName("cache")]
-    public required SessionMessageAssistantTokensCache Cache { get; init; }
+    public required TokenUsageInfoCache Cache { get; init; }
 }

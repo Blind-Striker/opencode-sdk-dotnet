@@ -12,15 +12,14 @@ public sealed class PrefixItemsTripwireTests
         // Library-upgrade tripwire: the prefixItems adapter reads the raw keyword the pinned
         // Microsoft.OpenApi retains as unrecognized. A newer library that types prefixItems
         // would leave UnrecognizedKeywords empty, blind the adapter, and silently degrade the
-        // Config.plugin tuple — this test must fail loudly before that can ship.
+        // Form.Fields non-empty array — this test must fail loudly before that can ship.
         var fileSystem = new RealFileSystem();
         var specPath = fileSystem.Path.Combine(AppContext.BaseDirectory, "Fixtures", "openapi.json");
         var errors = new IngestionErrorCollector();
 
         var loaded = await new SpecReader(fileSystem).LoadAsync(specPath, errors, CancellationToken.None);
 
-        var plugin = (OpenApiSchema)loaded.Document.Components!.Schemas!["Config"].Properties!["plugin"];
-        var tupleBranch = (OpenApiSchema)plugin.Items!.AnyOf![1];
-        await Assert.That(tupleBranch.UnrecognizedKeywords!.Keys).Contains("prefixItems");
+        var fields = (OpenApiSchema)loaded.Document.Components!.Schemas!["Form.Fields"];
+        await Assert.That(fields.UnrecognizedKeywords!.Keys).Contains("prefixItems");
     }
 }

@@ -161,7 +161,7 @@ internal sealed class GenerationWriter(IFileSystem fileSystem, IProjectFormatter
         {
             Files = [.. paths.Order(StringComparer.Ordinal)],
         };
-        var json = string.Concat(JsonSerializer.Serialize(manifest, ToolJsonContext.Default.GenerationManifest), "\n");
+        var json = $"{JsonSerializer.Serialize(manifest, ToolJsonContext.Default.GenerationManifest)}\n";
         await WriteBytesAsync(
             ResolveOwnedPath(outputRoot, ManifestRelativePath),
             Encoding.UTF8.GetBytes(json),

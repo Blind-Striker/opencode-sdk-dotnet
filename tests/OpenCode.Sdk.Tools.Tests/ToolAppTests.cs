@@ -107,8 +107,7 @@ public sealed class ToolAppTests
         await Assert.That(result.ExitCode).IsEqualTo(0);
         await Assert.That(fileSystem.File.Exists(GenerationTestData.ManifestPath)).IsTrue();
         await Assert.That(fileSystem.File.Exists(GenerationTestData.MarkerPath)).IsTrue();
-        await Assert.That(result.Output).Contains("Pending modern");
-        await Assert.That(result.Output).Contains("Pending legacy");
+        await Assert.That(result.Output).Contains("Pending operations");
     }
 
     [Test]

@@ -7,10 +7,16 @@ using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a session message agent switched value.
+/// Represents a session message compaction failed value.
 /// </summary>
-public sealed record SessionMessageAgentSwitched : SessionMessage
+public sealed record SessionMessageCompactionFailed : SessionMessageCompaction
 {
+    /// <summary>
+    /// Gets the type value.
+    /// </summary>
+    [JsonPropertyName("type")]
+    public override string Type => "compaction";
+
     /// <summary>
     /// Gets the id value.
     /// </summary>
@@ -27,17 +33,23 @@ public sealed record SessionMessageAgentSwitched : SessionMessage
     /// Gets the time value.
     /// </summary>
     [JsonPropertyName("time")]
-    public required SessionMessageAgentSwitchedTime Time { get; init; }
+    public required SessionMessageCompactionFailedTime Time { get; init; }
 
     /// <summary>
-    /// Gets the type value.
+    /// Gets the status value.
     /// </summary>
-    [JsonPropertyName("type")]
-    public override string Type => "agent-switched";
+    [JsonPropertyName("status")]
+    public override string Status => "failed";
 
     /// <summary>
-    /// Gets the agent value.
+    /// Gets the reason value.
     /// </summary>
-    [JsonPropertyName("agent")]
-    public required string Agent { get; init; }
+    [JsonPropertyName("reason")]
+    public required SessionMessageCompactionFailedReason Reason { get; init; }
+
+    /// <summary>
+    /// Gets the error value.
+    /// </summary>
+    [JsonPropertyName("error")]
+    public required SessionStructuredError Error { get; init; }
 }

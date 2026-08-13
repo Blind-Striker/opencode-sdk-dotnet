@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message user value.
 /// </summary>
-public sealed record SessionMessageUser : SessionMessage
+public sealed record SessionMessageUser : SessionMessageInfo
 {
     /// <summary>
     /// Gets the id value.
@@ -46,6 +46,12 @@ public sealed record SessionMessageUser : SessionMessage
     /// </summary>
     [JsonPropertyName("agents")]
     public IReadOnlyList<PromptAgentAttachment> Agents { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new List<PromptAgentAttachment>(input).AsReadOnly()); } = [];
+
+    /// <summary>
+    /// Gets the skills value.
+    /// </summary>
+    [JsonPropertyName("skills")]
+    public IReadOnlyList<PromptSkillAttachment> Skills { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new List<PromptSkillAttachment>(input).AsReadOnly()); } = [];
 
     /// <summary>
     /// Gets the type value.

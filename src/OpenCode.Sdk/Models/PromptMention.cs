@@ -4,9 +4,9 @@ using System.Text.Json.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a prompt source value.
+/// Represents a prompt mention value.
 /// </summary>
-public sealed record PromptSource
+public sealed record PromptMention
 {
     /// <summary>
     /// Gets the start value.

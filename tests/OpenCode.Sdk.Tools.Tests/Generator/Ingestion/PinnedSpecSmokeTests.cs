@@ -12,12 +12,13 @@ namespace OpenCode.Sdk.Tools.Tests.Generator.Ingestion;
 public sealed class PinnedSpecSmokeTests
 {
     [Test]
-    public async Task Ingest_Should_Absorb_The_Pinned_Spec_With_Both_Surfaces()
+    public async Task Ingest_Should_Absorb_The_Pinned_Spec()
     {
         var document = await IngestPinnedSpecAsync();
 
-        await Assert.That(document.Operations.Any(static operation => operation.Surface == SpecSurface.Modern)).IsTrue();
-        await Assert.That(document.Operations.Any(static operation => operation.Surface == SpecSurface.Legacy)).IsTrue();
+        await Assert.That(document.Operations).IsNotEmpty();
+        await Assert.That(document.Operations.All(static operation =>
+            operation.OperationId.StartsWith("v2.", StringComparison.Ordinal))).IsTrue();
     }
 
     [Test]
@@ -25,27 +26,38 @@ public sealed class PinnedSpecSmokeTests
     {
         var document = await IngestPinnedSpecAsync();
 
-        var durableStream = document.Operations.Single(static operation => operation.OperationId == "v2.session.events");
-        await Assert.That(durableStream.IsSse).IsTrue();
-        await Assert.That(durableStream.Responses.Single(static response => response.IsSse).EffectStreamJson).IsNotNull();
-        await Assert.That(document.Operations.Single(static operation => operation.OperationId == "v2.fs.read").HasWildcardPath).IsTrue();
-        await Assert.That(document.Operations.Single(static operation => operation.OperationId == "v2.pty.connect").IsWebSocket).IsTrue();
+        var sessionLog = document.Operations.Single(static operation => operation.OperationId == "v2.session.log");
+        await Assert.That(sessionLog.IsSse).IsTrue();
+        await Assert.That(sessionLog.Responses.Single(static response => response.IsSse).EffectStreamJson).IsNotNull();
+        await Assert.That(document.Operations.Single(static operation => operation.OperationId == "v2.event.subscribe").IsSse)
+            .IsTrue();
+        await Assert.That(document.Operations.Single(static operation => operation.OperationId == "v2.fs.read").HasWildcardPath)
+            .IsTrue();
+        await Assert.That(document.Operations.Single(static operation => operation.OperationId == "v2.pty.connect").IsWebSocket)
+            .IsTrue();
     }
 
     [Test]
-    public async Task Ingest_Should_Classify_Marked_And_Structural_Union_Landmarks()
+    public async Task Ingest_Should_Classify_Marked_Nested_And_Structural_Union_Landmarks()
     {
         var document = await IngestPinnedSpecAsync();
 
-        var durableEvent = (UnionNode)document.Schemas["SessionDurableEvent"];
+        var durableEvent = (UnionNode)document.Schemas["Session.Event.Durable"];
         await Assert.That(durableEvent.Keyword).IsEqualTo(UnionKeyword.OneOf);
         await Assert.That(durableEvent.Classification).IsEqualTo(UnionClassification.Marked);
 
-        var formatter = (UnionNode)document.Schemas["Config#/properties/formatter"];
+        var message = (UnionNode)document.Schemas["Session.Message.Info"];
+        await Assert.That(message.Classification).IsEqualTo(UnionClassification.Marked);
+
+        var compaction = (UnionNode)document.Schemas["Session.Message.Compaction"];
+        await Assert.That(compaction.Classification).IsEqualTo(UnionClassification.Marked);
+
+        var formatter = (UnionNode)document.Schemas["Config.Info#/properties/formatter"];
         await Assert.That(formatter.Classification).IsEqualTo(UnionClassification.Structural);
 
-        var pluginItems = (UnionNode)document.Schemas["Config#/properties/plugin/items"];
-        await Assert.That(pluginItems.Branches.OfType<TupleNode>().Single().Items).Count().IsEqualTo(2);
+        var fields = (ArrayNode)document.Schemas["Form.Fields"];
+        await Assert.That(fields.Item).IsTypeOf<RefNode>();
+        await Assert.That(((RefNode)fields.Item).Target).IsEqualTo("Form.Field");
     }
 
     [Test]
@@ -53,12 +65,12 @@ public sealed class PinnedSpecSmokeTests
     {
         var document = await IngestPinnedSpecAsync();
 
-        var workspace = (ObjectNode)document.Schemas["Workspace"];
-        await Assert.That(workspace.Properties.Single(static property => property.Name == "timeUsed").Schema)
+        var shell = (ObjectNode)document.Schemas["Session.Message.Shell"];
+        await Assert.That(shell.Properties.Single(static property => property.Name == "exit").Schema)
             .IsTypeOf<SpecialNumberNode>();
 
-        var assistantMessage = (ObjectNode)document.Schemas["AssistantMessage"];
-        await Assert.That(assistantMessage.Properties.Single(static property => property.Name == "structured").Schema)
+        var instructionEntry = (ObjectNode)document.Schemas["InstructionEntry.Info"];
+        await Assert.That(instructionEntry.Properties.Single(static property => property.Name == "value").Schema)
             .IsTypeOf<UnrestrictedNode>();
     }
 
@@ -67,8 +79,8 @@ public sealed class PinnedSpecSmokeTests
     {
         var document = await IngestPinnedSpecAsync();
 
-        await Assert.That(((ObjectNode)document.Schemas["MoveSessionError"]).ErrorStyle).IsEqualTo(ErrorStyle.NameData);
-        await Assert.That(((ObjectNode)document.Schemas["effect_HttpApiError_BadRequest"]).ErrorStyle).IsEqualTo(ErrorStyle.EffectTag);
+        await Assert.That(((ObjectNode)document.Schemas["ProjectCopyError"]).ErrorStyle).IsEqualTo(ErrorStyle.NameData);
+        await Assert.That(((ObjectNode)document.Schemas["UnauthorizedError"]).ErrorStyle).IsEqualTo(ErrorStyle.EffectTag);
     }
 
     [Test]
@@ -77,8 +89,8 @@ public sealed class PinnedSpecSmokeTests
         var document = await IngestPinnedSpecAsync();
 
         await Assert.That(EnvelopeOf(document, "v2.session.list")).IsEqualTo(SpecEnvelopeShape.CursorData);
-        await Assert.That(EnvelopeOf(document, "v2.session.history")).IsEqualTo(SpecEnvelopeShape.DataHasMore);
         await Assert.That(EnvelopeOf(document, "v2.agent.list")).IsEqualTo(SpecEnvelopeShape.DataLocation);
+        await Assert.That(EnvelopeOf(document, "v2.session.message")).IsEqualTo(SpecEnvelopeShape.Data);
     }
 
     [Test]

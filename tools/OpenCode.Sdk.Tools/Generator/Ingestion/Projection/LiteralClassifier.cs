@@ -68,8 +68,13 @@ internal sealed class LiteralClassifier
             return ProjectStringEnum(schema, values[0], location, errors);
         }
 
-        return schema.Type is JsonSchemaType.Boolean
-            ? ProjectBooleanEnum(schema, values[0], location, errors)
+        if (schema.Type is JsonSchemaType.Boolean)
+        {
+            return ProjectBooleanEnum(schema, values[0], location, errors);
+        }
+
+        return schema.Type is JsonSchemaType.Number or JsonSchemaType.Integer
+            ? ProjectNumberEnum(schema, values[0], location, errors)
             : RefuseUnsupportedEnum(location, errors);
     }
 
@@ -109,9 +114,27 @@ internal sealed class LiteralClassifier
         return null;
     }
 
+    private static LiteralNode? ProjectNumberEnum(OpenApiSchema schema, JsonNode? value, string location, IngestionErrorCollector errors)
+    {
+        if (value is JsonValue jsonValue && jsonValue.GetValueKind() is System.Text.Json.JsonValueKind.Number)
+        {
+            return new LiteralNode
+            {
+                Description = schema.Description,
+                Format = schema.Format,
+                Kind = LiteralKind.Number,
+                Value = jsonValue.ToJsonString(),
+                Dialect = LiteralDialect.SingleValueEnum,
+            };
+        }
+
+        errors.Add(location, "single-value number enum must contain a number");
+        return null;
+    }
+
     private static LiteralNode? RefuseUnsupportedEnum(string location, IngestionErrorCollector errors)
     {
-        errors.Add(location, "single-value enums are supported only on string or boolean schemas");
+        errors.Add(location, "single-value enums are supported only on string, number, or boolean schemas");
         return null;
     }
 

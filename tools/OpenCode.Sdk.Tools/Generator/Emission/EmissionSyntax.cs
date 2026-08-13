@@ -18,7 +18,7 @@ internal static class EmissionSyntax
         var normalized = compilationUnit.NormalizeWhitespace(indentation: "    ", eol: "\n", elasticTrivia: false).ToFullString();
         if (normalized.Length is 0 || normalized[^1] is not '\n')
         {
-            normalized = string.Concat(normalized, "\n");
+            normalized = $"{normalized}\n";
         }
 
         return new GeneratedSource
@@ -70,7 +70,7 @@ internal static class EmissionSyntax
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(summary);
         var normalized = NormalizeDocumentation(summary);
-        var text = string.Concat("/// <summary>\n/// ", EscapeXml(normalized), "\n/// </summary>\n");
+        var text = $"/// <summary>\n/// {EscapeXml(normalized)}\n/// </summary>\n";
         return SyntaxFactory.ParseLeadingTrivia(text);
     }
 

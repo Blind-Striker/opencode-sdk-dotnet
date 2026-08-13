@@ -44,26 +44,26 @@ names, or concrete client names. Generated methods delegate once into a hand-wri
 Executes the 2026-08-13 direction (ADR-0005 revised: v2 protocol surface only; platform
 evidence: research doc 15).
 
-- [ ] Pin a `v2`-branch snapshot of `packages/protocol/openapi.json` as `spec/openapi.json`
+- [x] Pin a `v2`-branch snapshot of `packages/protocol/openapi.json` as `spec/openapi.json`
   and rewrite `spec/SNAPSHOT.md` provenance (branch, commit, retrieval date, refresh steps).
-- [ ] Add one ingestion-wall admit rule: a single-element `allOf` wrapper carrying only
+- [x] Add one ingestion-wall admit rule: a single-element `allOf` wrapper carrying only
   validation keywords unwraps into its base schema; every other `allOf` stays refused.
   Re-census `prefixItems`/`patternProperties`/empty-schema sites against the new pin.
 - [ ] Re-derive the selected wire contracts from the new pin: `v2.health.get` success is the
   `ServiceHealth` object (`{healthy, version, pid}` observed live 2026-08-13), and
   `v2.session.message` keeps the `{data}` envelope over the dotted `Session.Message.Info`
   schema. Error maps are re-read from the v2 responses — do not assume the 1.x tables.
-- [ ] Map dotted schema names mechanically (`Session.Message.Info` → `SessionMessageInfo`;
+- [x] Map dotted schema names mechanically (`Session.Message.Info` → `SessionMessageInfo`;
   283 of 324 v2 schemas are dotted, so mechanical is the only sane default). Curated
   overrides exist only for collisions, C#-illegal results, and brand spellings — no taste
   renames (maintainer, 2026-08-13).
-- [ ] Adopt the v2 `location[...]` query convention as the only per-request scoping
+- [x] Adopt the v2 `location[...]` query convention as the only per-request scoping
   mechanism (maintainer, 2026-08-13: the v1 ledger is closed — no v1 convention, including
   `x-opencode-directory`, survives and no backward compatibility is owed).
-- [ ] Retire the Modern/Legacy surface split (`SpecSurface`, pending-legacy reporting,
+- [x] Retire the Modern/Legacy surface split (`SpecSurface`, pending-legacy reporting,
   legacy placement rules): the pinned surface is single; simplify selection, curation
   validation, and generate reporting accordingly.
-- [ ] Regenerate the selected model closure; update curation rows, serialization tests, and
+- [x] Regenerate the selected model closure; update curation rows, serialization tests, and
   fixtures to the v2 shapes; run the full repository gates.
 
 ## Task 1: Model Policy And Operation Binding
@@ -71,10 +71,10 @@ evidence: research doc 15).
 **Areas:** `Generator/Binding/`, `ModelEmitter`, `tools/curation.json`, Binder/emitter tests,
 and committed generated models.
 
-- [ ] Change `CSharpNamePolicy` to ordinary PascalCase acronym handling and regenerate the
+- [x] Change `CSharpNamePolicy` to ordinary PascalCase acronym handling and regenerate the
   selected closure. Assert representative `Id`, `SessionId`, `MessageId`, `CallId`, and `Url`
   mappings before approving an API baseline.
-- [ ] Route optional non-null collection copying through an internal helper whose input is
+- [x] Route optional non-null collection copying through an internal helper whose input is
   nullable and output is non-null. Preserve immutable recursive copies; verify absent -> empty
   and explicit null -> `JsonException` under source-generated System.Text.Json.
 - [ ] Add `handleParameter` to group curation. Require it and `handleName` together,
@@ -103,8 +103,9 @@ and committed generated models.
 - [ ] Implement endpoint validation/joining and owned-versus-injected `HttpClient` lifetime.
   Disposing the root makes its wrappers unusable and never disposes a BYO client.
 - [ ] Resolve explicit password before one-time `OPENCODE_SERVER_PASSWORD` fallback. Decorate
-  each request, never default headers, with Basic user `opencode`, per-call-over-client
-  `x-opencode-directory`, and `OpenCode.Sdk/<informational-version>` User-Agent.
+  each request, never default headers, with Basic user `opencode` and the
+  `OpenCode.Sdk/<informational-version>` User-Agent; per-request scoping rides the v2
+  `location[...]` query convention, bound as operation parameters rather than a header.
 - [ ] Use only `HttpClient.SendAsync(request, ResponseHeadersRead, cancellationToken)`. Own each
   request and buffered response, preserve cancellation, and wrap network/protocol failures as
   `OpenCodeTransportException`.

@@ -5,10 +5,10 @@ using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a llm tool content union.
+/// Represents a tool content union.
 /// </summary>
-[JsonConverter(typeof(LlmToolContentJsonConverter))]
-public abstract record LlmToolContent
+[JsonConverter(typeof(ToolContentJsonConverter))]
+public abstract record ToolContent
 {
     /// <summary>
     /// Gets the &apos;type&apos; union marker.

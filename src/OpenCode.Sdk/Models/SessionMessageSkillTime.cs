@@ -4,9 +4,9 @@ using System.Text.Json.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a session message model switched time value.
+/// Represents a session message skill time value.
 /// </summary>
-public sealed record SessionMessageModelSwitchedTime
+public sealed record SessionMessageSkillTime
 {
     /// <summary>
     /// Gets the created value.

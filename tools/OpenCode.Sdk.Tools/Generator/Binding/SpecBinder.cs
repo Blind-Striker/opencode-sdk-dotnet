@@ -29,12 +29,10 @@ internal sealed class SpecBinder(
         var selectedIds = selected.Select(static operation => operation.OperationId).ToHashSet(StringComparer.Ordinal);
         var pending = document.Operations
             .Where(operation => !selectedIds.Contains(operation.OperationId))
-            .OrderBy(static operation => operation.Surface)
-            .ThenBy(static operation => operation.OperationId, StringComparer.Ordinal)
+            .OrderBy(static operation => operation.OperationId, StringComparer.Ordinal)
             .Select(static operation => new PendingOperationPlan
             {
                 OperationId = operation.OperationId,
-                Surface = operation.Surface,
             })
             .ToArray();
 

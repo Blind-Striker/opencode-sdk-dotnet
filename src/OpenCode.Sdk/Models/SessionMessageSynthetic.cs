@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message synthetic value.
 /// </summary>
-public sealed record SessionMessageSynthetic : SessionMessage
+public sealed record SessionMessageSynthetic : SessionMessageInfo
 {
     /// <summary>
     /// Gets the id value.
@@ -30,16 +30,17 @@ public sealed record SessionMessageSynthetic : SessionMessage
     public required SessionMessageSyntheticTime Time { get; init; }
 
     /// <summary>
-    /// Gets the session id value.
-    /// </summary>
-    [JsonPropertyName("sessionID")]
-    public required string SessionId { get; init; }
-
-    /// <summary>
     /// Gets the text value.
     /// </summary>
     [JsonPropertyName("text")]
     public required string Text { get; init; }
+
+    /// <summary>
+    /// Gets the description value.
+    /// </summary>
+    [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; init; }
 
     /// <summary>
     /// Gets the type value.

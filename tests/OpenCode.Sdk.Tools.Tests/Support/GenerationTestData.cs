@@ -35,7 +35,7 @@ internal static class GenerationTestData
     {
         var spec = new SpecDocumentBuilder()
             .WithOperation("v2.health.get", path: "/api/health")
-            .WithOperation("session.list", path: "/session")
+            .WithOperation("v2.session.list", path: "/api/session")
             .BuildJson();
         var fileSystem = CreateFileSystem();
         fileSystem.Initialize().With(

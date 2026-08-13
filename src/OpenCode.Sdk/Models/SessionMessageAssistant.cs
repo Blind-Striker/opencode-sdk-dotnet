@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message assistant value.
 /// </summary>
-public sealed record SessionMessageAssistant : SessionMessage
+public sealed record SessionMessageAssistant : SessionMessageInfo
 {
     /// <summary>
     /// Gets the id value.
@@ -73,7 +73,7 @@ public sealed record SessionMessageAssistant : SessionMessage
     /// </summary>
     [JsonPropertyName("finish")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Finish { get; init; }
+    public SessionMessageAssistantFinish? Finish { get; init; }
 
     /// <summary>
     /// Gets the cost value.
@@ -87,12 +87,19 @@ public sealed record SessionMessageAssistant : SessionMessage
     /// </summary>
     [JsonPropertyName("tokens")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public SessionMessageAssistantTokens? Tokens { get; init; }
+    public TokenUsageInfo? Tokens { get; init; }
 
     /// <summary>
     /// Gets the error value.
     /// </summary>
     [JsonPropertyName("error")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public SessionErrorUnknown? Error { get; init; }
+    public SessionStructuredError? Error { get; init; }
+
+    /// <summary>
+    /// Gets the retry value.
+    /// </summary>
+    [JsonPropertyName("retry")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SessionMessageAssistantRetry? Retry { get; init; }
 }

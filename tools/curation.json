@@ -14,13 +14,13 @@
   },
   "propertyOverrides": [
     {
-      "schema": "PromptFileAttachment",
+      "schema": "Prompt.FileSource#/anyOf/type=uri",
       "property": "uri",
       "type": "uri",
       "reason": "The wire field carries a URI, but the pinned schema omits format: uri."
     },
     {
-      "schema": "ToolFileContent",
+      "schema": "Tool.FileContent",
       "property": "uri",
       "type": "uri",
       "reason": "The wire field carries a URI, but the pinned schema omits format: uri."

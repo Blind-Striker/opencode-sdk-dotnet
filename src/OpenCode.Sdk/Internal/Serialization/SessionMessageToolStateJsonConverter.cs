@@ -12,8 +12,8 @@ internal sealed class SessionMessageToolStateJsonConverter : JsonConverter<Sessi
     {
         ["completed"] = typeof(SessionMessageToolStateCompleted),
         ["error"] = typeof(SessionMessageToolStateError),
-        ["pending"] = typeof(SessionMessageToolStatePending),
-        ["running"] = typeof(SessionMessageToolStateRunning)
+        ["running"] = typeof(SessionMessageToolStateRunning),
+        ["streaming"] = typeof(SessionMessageToolStateStreaming)
     };
     public override bool HandleNull => true;
 

@@ -56,8 +56,7 @@ internal sealed partial class GenerateCommand : AsyncCommand<GenerateCommand.Set
     private void WriteSummary(GenerationReport report)
     {
         _console.MarkupLine($"[grey]Selected operations:[/] {report.SelectedOperationIds.Count.ToString(CultureInfo.InvariantCulture)}");
-        _console.MarkupLine($"[yellow]Pending modern operations:[/] {report.PendingModernOperationIds.Count.ToString(CultureInfo.InvariantCulture)}");
-        _console.MarkupLine($"[yellow]Pending legacy operations:[/] {report.PendingLegacyOperationIds.Count.ToString(CultureInfo.InvariantCulture)}");
+        _console.MarkupLine($"[yellow]Pending operations:[/] {report.PendingOperationIds.Count.ToString(CultureInfo.InvariantCulture)}");
     }
 
     private void WritePaths(WriteResult result)

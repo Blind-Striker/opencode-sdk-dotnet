@@ -15,9 +15,9 @@ public sealed record PromptAgentAttachment
     public required string Name { get; init; }
 
     /// <summary>
-    /// Gets the source value.
+    /// Gets the mention value.
     /// </summary>
-    [JsonPropertyName("source")]
+    [JsonPropertyName("mention")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public PromptSource? Source { get; init; }
+    public PromptMention? Mention { get; init; }
 }

@@ -4,9 +4,9 @@ using System.Text.Json.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a session message agent switched time value.
+/// Represents a session message agent selected time value.
 /// </summary>
-public sealed record SessionMessageAgentSwitchedTime
+public sealed record SessionMessageAgentSelectedTime
 {
     /// <summary>
     /// Gets the created value.

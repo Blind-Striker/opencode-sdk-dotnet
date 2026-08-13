@@ -9,16 +9,22 @@ namespace OpenCode.Sdk.Models;
 public sealed record PromptFileAttachment
 {
     /// <summary>
-    /// Gets the uri value.
+    /// Gets the data value.
     /// </summary>
-    [JsonPropertyName("uri")]
-    public required Uri Uri { get; init; }
+    [JsonPropertyName("data")]
+    public required string Data { get; init; }
 
     /// <summary>
     /// Gets the mime value.
     /// </summary>
     [JsonPropertyName("mime")]
     public required string Mime { get; init; }
+
+    /// <summary>
+    /// Gets the source value.
+    /// </summary>
+    [JsonPropertyName("source")]
+    public required PromptFileSource Source { get; init; }
 
     /// <summary>
     /// Gets the name value.
@@ -35,9 +41,9 @@ public sealed record PromptFileAttachment
     public string? Description { get; init; }
 
     /// <summary>
-    /// Gets the source value.
+    /// Gets the mention value.
     /// </summary>
-    [JsonPropertyName("source")]
+    [JsonPropertyName("mention")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public PromptSource? Source { get; init; }
+    public PromptMention? Mention { get; init; }
 }

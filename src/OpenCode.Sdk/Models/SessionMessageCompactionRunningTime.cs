@@ -4,9 +4,9 @@ using System.Text.Json.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a session message compaction time value.
+/// Represents a session message compaction running time value.
 /// </summary>
-public sealed record SessionMessageCompactionTime
+public sealed record SessionMessageCompactionRunningTime
 {
     /// <summary>
     /// Gets the created value.

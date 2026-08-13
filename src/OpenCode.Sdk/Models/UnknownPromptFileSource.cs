@@ -5,16 +5,16 @@ using System.Text.Json.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Preserves an unknown llm tool content payload.
+/// Preserves an unknown prompt file source payload.
 /// </summary>
-public sealed record UnknownLlmToolContent : LlmToolContent
+public sealed record UnknownPromptFileSource : PromptFileSource
 {
     private readonly string _marker;
     /// <summary>
     /// Initializes an unknown union value from its marker and raw payload.
     /// </summary>
     [JsonConstructor]
-    public UnknownLlmToolContent(string type, JsonElement payload)
+    public UnknownPromptFileSource(string type, JsonElement payload)
     {
         ArgumentException.ThrowIfNullOrEmpty(type);
         _marker = type;
@@ -24,6 +24,7 @@ public sealed record UnknownLlmToolContent : LlmToolContent
     /// <summary>
     /// Gets the unrecognized &apos;type&apos; marker.
     /// </summary>
+    [JsonPropertyName("type")]
     public override string Type => _marker;
     /// <summary>
     /// Gets the preserved raw JSON payload.

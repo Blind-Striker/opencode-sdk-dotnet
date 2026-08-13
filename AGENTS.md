@@ -25,7 +25,7 @@ direction and rationale, not law; only this list and the ADRs bind.
   branch (OpenAPI 3.1), pinned as a snapshot under `spec/` (ADR-0005; the 1.x pin retires
   at the M1 retarget task).
 - **API surface:** the v2 protocol surface only — public names strip the `v2.` operationId
-  prefix ("V2" never appears); the 1.x legacy surface is never built (ADR-0005).
+  prefix ("V2" never appears) (ADR-0005).
 - **Hybrid construction:** hand-written behavior core; models *and* operation methods from
   our own Roslyn-emission generator; spec ingestion rides the pinned `Microsoft.OpenApi`
   reader — the generator owns a fail-closed semantic projection, never an OpenAPI parser;

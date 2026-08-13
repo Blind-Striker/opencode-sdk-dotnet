@@ -6,24 +6,34 @@ namespace OpenCode.Sdk.Tools.Tests.Generator.Ingestion;
 public sealed class OperationProjectorTests
 {
     [Test]
-    public async Task Project_Should_Preserve_Order_And_Derive_Surface_And_Segments()
+    public async Task Project_Should_Preserve_Order_And_Derive_Segments()
     {
         var host = new OperationProjectionTestHost();
         var scenario = SpecScenario.Define(spec => spec
             .WithOperation("v2.session.list", path: "/api/session")
-            .WithOperation("session.list", path: "/api/v2/session"));
+            .WithOperation("v2.agent.list", path: "/api/agent"));
 
         var result = await host.ProjectAsync(scenario);
 
         await Assert.That(result.Operations).Count().IsEqualTo(2);
         await Assert.That(result.Operations[0].OperationId).IsEqualTo("v2.session.list");
-        await Assert.That(result.Operations[0].Surface).IsEqualTo(SpecSurface.Modern);
         await Assert.That(result.Operations[0].Segments[0]).IsEqualTo("session");
         await Assert.That(result.Operations[0].Segments[1]).IsEqualTo("list");
-        await Assert.That(result.Operations[1].OperationId).IsEqualTo("session.list");
-        await Assert.That(result.Operations[1].Surface).IsEqualTo(SpecSurface.Legacy);
-        await Assert.That(result.Operations[1].Segments[0]).IsEqualTo("session");
+        await Assert.That(result.Operations[1].OperationId).IsEqualTo("v2.agent.list");
+        await Assert.That(result.Operations[1].Segments[0]).IsEqualTo("agent");
         await Assert.That(result.Operations[1].Segments[1]).IsEqualTo("list");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_Operation_Without_The_Protocol_Prefix()
+    {
+        var host = new OperationProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("session.list", path: "/api/session"));
+
+        var ex = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(ex.Message).Contains("protocol prefix");
+        await Assert.That(ex.Message).Contains("session.list");
     }
 
     [Test]
@@ -80,7 +90,7 @@ public sealed class OperationProjectorTests
     public async Task Project_Should_Record_Deprecation_And_Documentation()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("session.old", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.session.old", configure: operation => operation
             .Deprecated()
             .Summary("Old operation")
             .Description("Use the replacement.")));

@@ -4,15 +4,15 @@ using System.Text.Json.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a session message tool state pending value.
+/// Represents a session message tool state streaming value.
 /// </summary>
-public sealed record SessionMessageToolStatePending : SessionMessageToolState
+public sealed record SessionMessageToolStateStreaming : SessionMessageToolState
 {
     /// <summary>
     /// Gets the status value.
     /// </summary>
     [JsonPropertyName("status")]
-    public override string Status => "pending";
+    public override string Status => "streaming";
 
     /// <summary>
     /// Gets the input value.

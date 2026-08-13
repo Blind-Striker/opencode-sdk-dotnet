@@ -4,10 +4,10 @@ using System.Text.Json.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Defines the supported session message compaction reason values.
+/// Defines the supported session message compaction failed reason values.
 /// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter<SessionMessageCompactionReason>))]
-public enum SessionMessageCompactionReason
+[JsonConverter(typeof(JsonStringEnumConverter<SessionMessageCompactionFailedReason>))]
+public enum SessionMessageCompactionFailedReason
 {
     /// <summary>
     /// Represents the &apos;auto&apos; wire value.

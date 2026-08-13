@@ -25,12 +25,11 @@ public sealed class SpecBinderTests
         var plan = new BindingTestHost().Bind(document, selection, curation);
 
         await Assert.That(plan.SelectedOperationIds.SequenceEqual(selection.OperationIds, StringComparer.Ordinal)).IsTrue();
-        await Assert.That(plan.PendingOperations.Any(static operation => operation.Surface == SpecSurface.Modern)).IsTrue();
-        await Assert.That(plan.PendingOperations.Any(static operation => operation.Surface == SpecSurface.Legacy)).IsTrue();
-        await Assert.That(plan.Models.Any(static model => model.Name == "PromptFileAttachment")).IsTrue();
-        await Assert.That(plan.Models.Any(static model => model.Name == "Config")).IsFalse();
+        await Assert.That(plan.PendingOperations).IsNotEmpty();
+        await Assert.That(plan.Models.Any(static model => model.Name == "PromptFileSourceUri")).IsTrue();
+        await Assert.That(plan.Models.Any(static model => model.Name == "ConfigInfo")).IsFalse();
 
-        var promptFile = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "PromptFileAttachment");
+        var promptFile = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "PromptFileSourceUri");
         var promptUri = promptFile.Properties.Single(static property => property.WireName == "uri").Type;
         await Assert.That(promptUri).IsTypeOf<NamedTypeReferencePlan>();
         await Assert.That(((NamedTypeReferencePlan)promptUri).Name).IsEqualTo("Uri");
@@ -40,12 +39,21 @@ public sealed class SpecBinderTests
         await Assert.That(toolUri).IsTypeOf<NamedTypeReferencePlan>();
         await Assert.That(((NamedTypeReferencePlan)toolUri).Name).IsEqualTo("Uri");
 
-        var sessionMessage = plan.Unions.Single(static union => union.Name == "SessionMessage");
+        var sessionMessage = plan.Unions.Single(static union => union.Name == "SessionMessageInfo");
         await Assert.That(sessionMessage.MarkerWireName).IsEqualTo("type");
-        await Assert.That(sessionMessage.Variants).Count().IsEqualTo(8);
+        await Assert.That(sessionMessage.Variants).Count().IsEqualTo(10);
+
+        var compaction = plan.Unions.Single(static union => union.Name == "SessionMessageCompaction");
+        await Assert.That(compaction.MarkerWireName).IsEqualTo("status");
+        await Assert.That(compaction.BaseTypeName).IsEqualTo("SessionMessageInfo");
+        await Assert.That(compaction.FixedMarker!.WireName).IsEqualTo("type");
+        await Assert.That(compaction.FixedMarker.Value).IsEqualTo("compaction");
+        await Assert.That(compaction.Variants).Count().IsEqualTo(3);
+
         await Assert.That(plan.Unions.Any(static union => union.Name == "SessionMessageAssistantContent")).IsTrue();
         await Assert.That(plan.Unions.Any(static union => union.Name == "SessionMessageToolState")).IsTrue();
-        await Assert.That(plan.Unions.Any(static union => union.Name == "LlmToolContent")).IsTrue();
+        await Assert.That(plan.Unions.Any(static union => union.Name == "PromptFileSource")).IsTrue();
+        await Assert.That(plan.Unions.Any(static union => union.Name == "ToolContent")).IsTrue();
 
         var errors = plan.Unions.Single(static union => union.Name == "OpenCodeError");
         await Assert.That(errors.Variants.Select(static variant => variant.TypeName).Order(StringComparer.Ordinal)
@@ -176,6 +184,61 @@ public sealed class SpecBinderTests
         await Assert.That(items).IsTypeOf<ListTypeReferencePlan>();
         await Assert.That(((ListTypeReferencePlan)items).ElementType).IsTypeOf<NamedTypeReferencePlan>();
         await Assert.That(((NamedTypeReferencePlan)((ListTypeReferencePlan)items).ElementType).Name).IsEqualTo("Shared");
+    }
+
+    [Test]
+    public async Task Bind_Should_Bind_Nested_Marked_Union_With_The_Discriminating_Marker()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("Alpha", schema => schema.Type("object")
+                .Property("type", property => property.Type("string").Enum("alpha"), required: true))
+            .WithSchema("WrapOne", schema => schema.Type("object")
+                .Property("type", property => property.Type("string").Enum("wrap"), required: true)
+                .Property("status", property => property.Type("string").Enum("one"), required: true))
+            .WithSchema("WrapTwo", schema => schema.Type("object")
+                .Property("type", property => property.Type("string").Enum("wrap"), required: true)
+                .Property("status", property => property.Type("string").Enum("two"), required: true))
+            .WithSchema("Wrap", schema => schema.AnyOf(one => one.Ref("WrapOne"), two => two.Ref("WrapTwo")))
+            .WithSchema("Outer", schema => schema.AnyOf(alpha => alpha.Ref("Alpha"), wrap => wrap.Ref("Wrap")))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("Outer")))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), }));
+
+        var outer = plan.Unions.Single(static union => union.Name == "Outer");
+        await Assert.That(outer.MarkerWireName).IsEqualTo("type");
+        await Assert.That(outer.Variants.Select(static variant => variant.Tag).Order(StringComparer.Ordinal)
+            .SequenceEqual(["alpha", "wrap"], StringComparer.Ordinal)).IsTrue();
+
+        var nested = plan.Unions.Single(static union => union.Name == "Wrap");
+        await Assert.That(nested.MarkerWireName).IsEqualTo("status");
+        await Assert.That(nested.BaseTypeName).IsEqualTo("Outer");
+        await Assert.That(nested.FixedMarker!.WireName).IsEqualTo("type");
+        await Assert.That(nested.FixedMarker.Value).IsEqualTo("wrap");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_Union_When_Branches_Share_No_Discriminating_Marker()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("First", schema => schema.Type("object")
+                .Property("type", property => property.Type("string").Enum("same"), required: true))
+            .WithSchema("Second", schema => schema.Type("object")
+                .Property("type", property => property.Type("string").Enum("same"), required: true))
+            .WithSchema("Twin", schema => schema.AnyOf(first => first.Ref("First"), second => second.Ref("Second")))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("Twin")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), })));
+
+        await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Schema).Problem)
+            .Contains("no discriminating marker");
     }
 
     [Test]

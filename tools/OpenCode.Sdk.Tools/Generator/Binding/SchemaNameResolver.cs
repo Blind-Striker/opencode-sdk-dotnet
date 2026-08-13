@@ -92,14 +92,28 @@ internal sealed class SchemaNameResolver
         var index = 0;
         while (index < segments.Length - 1)
         {
-            if (!string.Equals(segments[index], "properties", StringComparison.Ordinal))
+            if (string.Equals(segments[index], "properties", StringComparison.Ordinal))
             {
-                index++;
+                _ = result.Append(CSharpNamePolicy.ToPascalCase(DecodePointer(segments[index + 1])));
+                index += 2;
                 continue;
             }
 
-            _ = result.Append(CSharpNamePolicy.ToPascalCase(DecodePointer(segments[index + 1])));
-            index += 2;
+            // A promoted union branch is keyed by its marker ("anyOf/type=inline") or, for
+            // unmarked branches, by ordinal; the branch name appends the marker value so
+            // sibling branches (and their root) never collide: Prompt.FileSource#/anyOf/
+            // type=inline -> PromptFileSourceInline.
+            if (string.Equals(segments[index], "anyOf", StringComparison.Ordinal)
+                || string.Equals(segments[index], "oneOf", StringComparison.Ordinal))
+            {
+                var branch = DecodePointer(segments[index + 1]);
+                var separator = branch.IndexOf('=', StringComparison.Ordinal);
+                _ = result.Append(CSharpNamePolicy.ToPascalCase(separator >= 0 ? branch[(separator + 1)..] : branch));
+                index += 2;
+                continue;
+            }
+
+            index++;
         }
 
         return result.ToString();

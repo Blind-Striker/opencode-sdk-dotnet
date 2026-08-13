@@ -6,7 +6,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a tool file content value.
 /// </summary>
-public sealed record ToolFileContent : LlmToolContent
+public sealed record ToolFileContent : ToolContent
 {
     /// <summary>
     /// Gets the type value.

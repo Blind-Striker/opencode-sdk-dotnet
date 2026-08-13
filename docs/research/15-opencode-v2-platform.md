@@ -116,7 +116,8 @@ mangling rule covers them. Two-day drift against session 12's census of the same
 — the branch moves daily, which is exactly what snapshot pinning is for.
 
 **Streaming reshape.** `text/event-stream` lives on `v2.event.subscribe` and `v2.session.log`;
-`v2.pty.connect` carries `x-websocket`; no `x-effect-stream` marker remains. The v1 durable
+`v2.pty.connect` carries `x-websocket`; `x-effect-stream` rides both SSE operations
+(2026-08-13 ingestion-level correction of this session's earlier jq census). The v1 durable
 stream pair (`v2.session.events` + `v2.session.history`, `after`-cursor resume) is replaced by
 **`v2.session.log`** (`/api/experimental/session/{sessionID}/log`, params `after` + `follow`) and
 cursor pagination on `v2.message.list`. The global `/api/event` stream has **no resume

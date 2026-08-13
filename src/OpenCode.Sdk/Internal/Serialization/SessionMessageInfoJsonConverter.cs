@@ -6,40 +6,42 @@ using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk.Internal.Serialization;
 
-internal sealed class SessionMessageJsonConverter : JsonConverter<SessionMessage>
+internal sealed class SessionMessageInfoJsonConverter : JsonConverter<SessionMessageInfo>
 {
     private static readonly Dictionary<string, Type> TypesByTag = new(StringComparer.Ordinal)
     {
-        ["agent-switched"] = typeof(SessionMessageAgentSwitched),
+        ["agent-switched"] = typeof(SessionMessageAgentSelected),
         ["assistant"] = typeof(SessionMessageAssistant),
         ["compaction"] = typeof(SessionMessageCompaction),
-        ["model-switched"] = typeof(SessionMessageModelSwitched),
+        ["location-switched"] = typeof(SessionMessageLocationSwitched),
+        ["model-switched"] = typeof(SessionMessageModelSelected),
         ["shell"] = typeof(SessionMessageShell),
+        ["skill"] = typeof(SessionMessageSkill),
         ["synthetic"] = typeof(SessionMessageSynthetic),
         ["system"] = typeof(SessionMessageSystem),
         ["user"] = typeof(SessionMessageUser)
     };
     public override bool HandleNull => true;
 
-    public override SessionMessage Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override SessionMessageInfo Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
         if (reader.TokenType == JsonTokenType.Null)
         {
-            throw new JsonException("The SessionMessage payload cannot be null.");
+            throw new JsonException("The SessionMessageInfo payload cannot be null.");
         }
 
         using var document = JsonDocument.ParseValue(ref reader);
         var payload = document.RootElement;
         if (payload.ValueKind != JsonValueKind.Object)
         {
-            throw new JsonException("The SessionMessage payload must be a JSON object.");
+            throw new JsonException("The SessionMessageInfo payload must be a JSON object.");
         }
 
         if (!payload.TryGetProperty("type", out var markerElement))
         {
-            throw new JsonException("The SessionMessage payload must contain 'type'.");
+            throw new JsonException("The SessionMessageInfo payload must contain 'type'.");
         }
 
         if (markerElement.ValueKind != JsonValueKind.String)
@@ -50,25 +52,31 @@ internal sealed class SessionMessageJsonConverter : JsonConverter<SessionMessage
         var marker = markerElement.GetString() ?? throw new JsonException("The 'type' marker cannot be null.");
         if (TypesByTag.TryGetValue(marker, out var targetType))
         {
-            var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for SessionMessage.");
-            return JsonSerializer.Deserialize(payload, typeInfo) as SessionMessage ?? throw new JsonException("The SessionMessage payload deserialized to null.");
+            var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for SessionMessageInfo.");
+            return JsonSerializer.Deserialize(payload, typeInfo) as SessionMessageInfo ?? throw new JsonException("The SessionMessageInfo payload deserialized to null.");
         }
 
-        return new UnknownSessionMessage(marker, payload);
+        return new UnknownSessionMessageInfo(marker, payload);
     }
 
-    public override void Write(Utf8JsonWriter writer, SessionMessage value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, SessionMessageInfo value, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);
         ArgumentNullException.ThrowIfNull(options);
-        if (value is UnknownSessionMessage unknown)
+        if (value is UnknownSessionMessageInfo unknown)
         {
             unknown.Payload.WriteTo(writer);
             return;
         }
 
-        var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(value.GetType()) ?? throw new JsonException("The generated context has no metadata for SessionMessage.");
+        if (value is SessionMessageCompaction nestedSessionMessageCompaction)
+        {
+            JsonSerializer.Serialize(writer, nestedSessionMessageCompaction, OpenCodeJsonContext.Default.SessionMessageCompaction);
+            return;
+        }
+
+        var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(value.GetType()) ?? throw new JsonException("The generated context has no metadata for SessionMessageInfo.");
         JsonSerializer.Serialize(writer, value, typeInfo);
     }
 }

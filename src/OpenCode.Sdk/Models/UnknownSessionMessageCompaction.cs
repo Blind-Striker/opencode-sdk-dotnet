@@ -5,26 +5,33 @@ using System.Text.Json.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Preserves an unknown session message payload.
+/// Preserves an unknown session message compaction payload.
 /// </summary>
-public sealed record UnknownSessionMessage : SessionMessage
+public sealed record UnknownSessionMessageCompaction : SessionMessageCompaction
 {
     private readonly string _marker;
     /// <summary>
     /// Initializes an unknown union value from its marker and raw payload.
     /// </summary>
     [JsonConstructor]
-    public UnknownSessionMessage(string type, JsonElement payload)
+    public UnknownSessionMessageCompaction(string status, JsonElement payload)
     {
-        ArgumentException.ThrowIfNullOrEmpty(type);
-        _marker = type;
+        ArgumentException.ThrowIfNullOrEmpty(status);
+        _marker = status;
         Payload = payload.Clone();
     }
 
     /// <summary>
-    /// Gets the unrecognized &apos;type&apos; marker.
+    /// Gets the unrecognized &apos;status&apos; marker.
     /// </summary>
-    public override string Type => _marker;
+    [JsonPropertyName("status")]
+    public override string Status => _marker;
+
+    /// <summary>
+    /// Gets the fixed &apos;type&apos; marker of this nested union.
+    /// </summary>
+    [JsonPropertyName("type")]
+    public override string Type => "compaction";
     /// <summary>
     /// Gets the preserved raw JSON payload.
     /// </summary>

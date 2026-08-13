@@ -76,7 +76,7 @@ internal sealed class SchemaProjector
             (CoreSchemaShape.Primitive, JsonSchemaType.Number) => CreatePrimitive(schema, PrimitiveKind.Number),
             (CoreSchemaShape.Primitive, JsonSchemaType.Integer) => CreatePrimitive(schema, PrimitiveKind.Integer),
             (CoreSchemaShape.Primitive, JsonSchemaType.Boolean) => CreatePrimitive(schema, PrimitiveKind.Boolean),
-            (CoreSchemaShape.Array, _) => ProjectArray(schema, root, pointer, location, state),
+            (CoreSchemaShape.Array, _) => ProjectArray(schema, root, pointer, state),
             (CoreSchemaShape.Object, _) => _objectProjector.Project(schema, root, pointer, location, state),
             (CoreSchemaShape.Enum, _) => _enumProjector.Project(schema, location, state.Errors),
             (CoreSchemaShape.Literal, _) => _literalClassifier.Project(schema, location, state.Errors),
@@ -89,12 +89,19 @@ internal sealed class SchemaProjector
         };
     }
 
-    private ArrayNode? ProjectArray(OpenApiSchema schema, string root, string pointer, string location, ProjectionState state)
+    private ArrayNode? ProjectArray(OpenApiSchema schema, string root, string pointer, ProjectionState state)
     {
+        // A bare {"type":"array"} constrains its elements to nothing: JSON Schema semantics
+        // admit any value, so the item is the explicit any-value node (the unrestricted-{}
+        // rule); mapping it to anything narrower would silently narrow the wire.
         if (schema.Items is null)
         {
-            state.Errors.Add(location, "array schema must declare items");
-            return null;
+            return new ArrayNode
+            {
+                Description = schema.Description,
+                Format = schema.Format,
+                Item = new UnrestrictedNode(),
+            };
         }
 
         var item = Project(schema.Items, root, _keys.Append(pointer, "items"), state);

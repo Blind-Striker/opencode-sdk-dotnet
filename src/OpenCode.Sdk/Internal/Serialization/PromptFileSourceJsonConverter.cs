@@ -6,34 +6,34 @@ using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk.Internal.Serialization;
 
-internal sealed class LlmToolContentJsonConverter : JsonConverter<LlmToolContent>
+internal sealed class PromptFileSourceJsonConverter : JsonConverter<PromptFileSource>
 {
     private static readonly Dictionary<string, Type> TypesByTag = new(StringComparer.Ordinal)
     {
-        ["file"] = typeof(ToolFileContent),
-        ["text"] = typeof(ToolTextContent)
+        ["inline"] = typeof(PromptFileSourceInline),
+        ["uri"] = typeof(PromptFileSourceUri)
     };
     public override bool HandleNull => true;
 
-    public override LlmToolContent Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override PromptFileSource Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
         if (reader.TokenType == JsonTokenType.Null)
         {
-            throw new JsonException("The LlmToolContent payload cannot be null.");
+            throw new JsonException("The PromptFileSource payload cannot be null.");
         }
 
         using var document = JsonDocument.ParseValue(ref reader);
         var payload = document.RootElement;
         if (payload.ValueKind != JsonValueKind.Object)
         {
-            throw new JsonException("The LlmToolContent payload must be a JSON object.");
+            throw new JsonException("The PromptFileSource payload must be a JSON object.");
         }
 
         if (!payload.TryGetProperty("type", out var markerElement))
         {
-            throw new JsonException("The LlmToolContent payload must contain 'type'.");
+            throw new JsonException("The PromptFileSource payload must contain 'type'.");
         }
 
         if (markerElement.ValueKind != JsonValueKind.String)
@@ -44,25 +44,25 @@ internal sealed class LlmToolContentJsonConverter : JsonConverter<LlmToolContent
         var marker = markerElement.GetString() ?? throw new JsonException("The 'type' marker cannot be null.");
         if (TypesByTag.TryGetValue(marker, out var targetType))
         {
-            var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for LlmToolContent.");
-            return JsonSerializer.Deserialize(payload, typeInfo) as LlmToolContent ?? throw new JsonException("The LlmToolContent payload deserialized to null.");
+            var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for PromptFileSource.");
+            return JsonSerializer.Deserialize(payload, typeInfo) as PromptFileSource ?? throw new JsonException("The PromptFileSource payload deserialized to null.");
         }
 
-        return new UnknownLlmToolContent(marker, payload);
+        return new UnknownPromptFileSource(marker, payload);
     }
 
-    public override void Write(Utf8JsonWriter writer, LlmToolContent value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, PromptFileSource value, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);
         ArgumentNullException.ThrowIfNull(options);
-        if (value is UnknownLlmToolContent unknown)
+        if (value is UnknownPromptFileSource unknown)
         {
             unknown.Payload.WriteTo(writer);
             return;
         }
 
-        var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(value.GetType()) ?? throw new JsonException("The generated context has no metadata for LlmToolContent.");
+        var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(value.GetType()) ?? throw new JsonException("The generated context has no metadata for PromptFileSource.");
         JsonSerializer.Serialize(writer, value, typeInfo);
     }
 }

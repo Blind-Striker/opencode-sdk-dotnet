@@ -4,7 +4,6 @@ using OpenCode.Sdk.Tools.Generator.Binding;
 using OpenCode.Sdk.Tools.Generator.Binding.Abstractions;
 using OpenCode.Sdk.Tools.Generator.Emission;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Abstractions;
-using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 using OpenCode.Sdk.Tools.Output.Abstractions;
 
 namespace OpenCode.Sdk.Tools.Generator;
@@ -32,21 +31,13 @@ internal sealed class GenerationCoordinator(
 
         var plan = _binder.Bind(document, selection, curation);
 
-        var modern = plan
+        var pending = plan
             .PendingOperations
-            .Where(static operation => operation.Surface == SpecSurface.Modern)
             .Select(static operation => operation.OperationId)
             .Order(StringComparer.Ordinal)
             .ToArray();
 
-        var legacy = plan
-            .PendingOperations
-            .Where(static operation => operation.Surface == SpecSurface.Legacy)
-            .Select(static operation => operation.OperationId)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
-
-        var marker = modern.Length + legacy.Length > 0 ? CreatePartialMarker(plan.SelectedOperationIds, modern, legacy) : null;
+        var marker = pending.Length > 0 ? CreatePartialMarker(plan.SelectedOperationIds, pending) : null;
 
         var writeResult = await _writer
             .WriteAsync(
@@ -61,25 +52,21 @@ internal sealed class GenerationCoordinator(
         return new GenerationReport
         {
             SelectedOperationIds = plan.SelectedOperationIds,
-            PendingModernOperationIds = modern,
-            PendingLegacyOperationIds = legacy,
+            PendingOperationIds = pending,
             WriteResult = writeResult,
         };
     }
 
-    private static string CreatePartialMarker(IReadOnlyList<string> selected, string[] modern, string[] legacy)
+    private static string CreatePartialMarker(IReadOnlyList<string> selected, string[] pending)
     {
         var content = new StringBuilder()
             .AppendLine("Generation is incomplete; packages must not be published.")
             .Append("Selected operations: ")
             .AppendLine(selected.Count.ToString(CultureInfo.InvariantCulture))
-            .Append("Pending modern operations: ")
-            .AppendLine(modern.Length.ToString(CultureInfo.InvariantCulture))
-            .Append("Pending legacy operations: ")
-            .AppendLine(legacy.Length.ToString(CultureInfo.InvariantCulture));
+            .Append("Pending operations: ")
+            .AppendLine(pending.Length.ToString(CultureInfo.InvariantCulture));
         AppendOperations(content, "Selected", selected);
-        AppendOperations(content, "Pending modern", modern);
-        AppendOperations(content, "Pending legacy", legacy);
+        AppendOperations(content, "Pending", pending);
 
         return content.ToString().ReplaceLineEndings("\n");
     }

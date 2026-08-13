@@ -59,13 +59,10 @@ A pseudo-terminal session managed through the API.
 
 ### This project's language
 
-**Protocol surface** (historically "modern surface"):
-The `v2.*`-prefixed protocol operation block — the only surface this SDK generates
-(ADR-0005); public names carry no prefix.
-_Avoid_: v2, V2 (in public naming)
-
-**Legacy surface**:
-The un-prefixed operation block of the 1.x spec; never built (ADR-0005).
+**Protocol surface** (historically "modern surface" in dated research docs):
+The `v2.*`-prefixed protocol operation block — the surface this SDK generates (ADR-0005);
+public names carry no prefix.
+_Avoid_: v2, V2 (in public naming); legacy (the retired 1.x dual-surface vocabulary)
 
 **Launcher**:
 The in-core component that starts, monitors, and stops a local `opencode serve` process.

@@ -14,10 +14,7 @@ public sealed record SpecOperation
         }
     }
 
-    /// <summary>Gets the operation surface.</summary>
-    public required SpecSurface Surface { get; init; }
-
-    /// <summary>Gets operation-identifier segments without the modern <c>v2.</c> marker.</summary>
+    /// <summary>Gets operation-identifier segments without the <c>v2.</c> protocol prefix.</summary>
     public required IReadOnlyList<string> Segments
     {
         get;

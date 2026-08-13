@@ -24,6 +24,7 @@ public sealed record UnknownSessionMessageAssistantContent : SessionMessageAssis
     /// <summary>
     /// Gets the unrecognized &apos;type&apos; marker.
     /// </summary>
+    [JsonPropertyName("type")]
     public override string Type => _marker;
     /// <summary>
     /// Gets the preserved raw JSON payload.

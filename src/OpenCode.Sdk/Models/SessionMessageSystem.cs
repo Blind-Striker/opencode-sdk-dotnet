@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message system value.
 /// </summary>
-public sealed record SessionMessageSystem : SessionMessage
+public sealed record SessionMessageSystem : SessionMessageInfo
 {
     /// <summary>
     /// Gets the id value.
@@ -40,4 +40,11 @@ public sealed record SessionMessageSystem : SessionMessage
     /// </summary>
     [JsonPropertyName("text")]
     public required string Text { get; init; }
+
+    /// <summary>
+    /// Gets the description value.
+    /// </summary>
+    [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; init; }
 }

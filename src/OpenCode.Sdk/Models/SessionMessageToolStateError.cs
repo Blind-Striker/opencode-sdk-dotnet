@@ -3,6 +3,7 @@
 using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
@@ -31,43 +32,20 @@ public sealed record SessionMessageToolStateError : SessionMessageToolState
     } = new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal));
 
     /// <summary>
-    /// Gets the content value.
-    /// </summary>
-    [JsonPropertyName("content")]
-    public required IReadOnlyList<LlmToolContent> Content
-    {
-        get;
-        init
-        {
-            ArgumentNullException.ThrowIfNull(value);
-            field = new List<LlmToolContent>(value).AsReadOnly();
-        }
-    } = [];
-
-    /// <summary>
-    /// Gets the structured value.
-    /// </summary>
-    [JsonPropertyName("structured")]
-    public required IReadOnlyDictionary<string, JsonElement> Structured
-    {
-        get;
-        init
-        {
-            ArgumentNullException.ThrowIfNull(value);
-            field = new ReadOnlyDictionary<string, JsonElement>(value.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal));
-        }
-    } = new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal));
-
-    /// <summary>
     /// Gets the error value.
     /// </summary>
     [JsonPropertyName("error")]
-    public required SessionErrorUnknown Error { get; init; }
+    public required SessionStructuredError Error { get; init; }
 
     /// <summary>
-    /// Gets the result value.
+    /// Gets the content value.
     /// </summary>
-    [JsonPropertyName("result")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public JsonElement? Result { get; init; }
+    [JsonPropertyName("content")]
+    public IReadOnlyList<ToolContent> Content { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new List<ToolContent>(input).AsReadOnly()); } = [];
+
+    /// <summary>
+    /// Gets the metadata value.
+    /// </summary>
+    [JsonPropertyName("metadata")]
+    public IReadOnlyDictionary<string, JsonElement> Metadata { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new ReadOnlyDictionary<string, JsonElement>(input.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal))); } = new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>(StringComparer.Ordinal));
 }

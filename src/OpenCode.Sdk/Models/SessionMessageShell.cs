@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message shell value.
 /// </summary>
-public sealed record SessionMessageShell : SessionMessage
+public sealed record SessionMessageShell : SessionMessageInfo
 {
     /// <summary>
     /// Gets the id value.
@@ -36,10 +36,10 @@ public sealed record SessionMessageShell : SessionMessage
     public override string Type => "shell";
 
     /// <summary>
-    /// Gets the call id value.
+    /// Gets the shell id value.
     /// </summary>
-    [JsonPropertyName("callID")]
-    public required string CallId { get; init; }
+    [JsonPropertyName("shellID")]
+    public required string ShellId { get; init; }
 
     /// <summary>
     /// Gets the command value.
@@ -48,8 +48,22 @@ public sealed record SessionMessageShell : SessionMessage
     public required string Command { get; init; }
 
     /// <summary>
+    /// Gets the status value.
+    /// </summary>
+    [JsonPropertyName("status")]
+    public required SessionMessageShellStatus Status { get; init; }
+
+    /// <summary>
+    /// Gets the exit value.
+    /// </summary>
+    [JsonPropertyName("exit")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? Exit { get; init; }
+
+    /// <summary>
     /// Gets the output value.
     /// </summary>
     [JsonPropertyName("output")]
-    public required string Output { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SessionMessageShellOutput? Output { get; init; }
 }

@@ -16,7 +16,7 @@ internal sealed class PrefixItemsAdapter
         _keys = keys ?? throw new ArgumentNullException(nameof(keys));
     }
 
-    public TupleNode? Project(OpenApiSchema schema, string root, string pointer, string location, ProjectionState state)
+    public SchemaNode? Project(OpenApiSchema schema, string root, string pointer, string location, ProjectionState state)
     {
         ArgumentNullException.ThrowIfNull(schema);
         ArgumentException.ThrowIfNullOrWhiteSpace(root);
@@ -30,6 +30,11 @@ internal sealed class PrefixItemsAdapter
         {
             state.Errors.Add(location, "prefixItems was admitted but its raw array was unavailable");
             return null;
+        }
+
+        if (schema.Items is not null)
+        {
+            return ProjectNonEmptyArray(schema, prefixItems, root, pointer, location, state);
         }
 
         if (!ValidateArity(schema, prefixItems.Count, root, pointer, state.Errors))
@@ -80,6 +85,44 @@ internal sealed class PrefixItemsAdapter
                 Description = schema.Description,
                 Format = schema.Format,
                 Items = items,
+            };
+    }
+
+    private ArrayNode? ProjectNonEmptyArray(
+        OpenApiSchema schema,
+        JsonArray prefixItems,
+        string root,
+        string pointer,
+        string location,
+        ProjectionState state)
+    {
+        // The v2 dialect encodes a non-empty homogeneous array as a single-element
+        // prefixItems paired with an items schema referencing the same target (Effect's
+        // NonEmptyArray). The prefix element adds only a minimum-length validation, which
+        // the projection ignores like every other validation keyword, so the schema is an
+        // ordinary array of the shared target. Every other items+prefixItems combination
+        // stays refused.
+        if (prefixItems.Count != 1
+            || prefixItems[0] is not JsonObject prefixElement
+            || prefixElement.Count != 1
+            || !prefixElement.TryGetPropertyValue("$ref", out var rawReference)
+            || rawReference is not JsonValue referenceValue
+            || !referenceValue.TryGetValue<string>(out var reference)
+            || schema.Items is not OpenApiSchemaReference itemsReference
+            || !string.Equals(reference, "#/components/schemas/" + itemsReference.Reference.Id, StringComparison.Ordinal))
+        {
+            state.Errors.Add(location, "items with prefixItems is supported only as a single prefix element sharing the items $ref target");
+            return null;
+        }
+
+        var item = _schemaProjector.Project(schema.Items, root, _keys.Append(pointer, "items"), state);
+        return item is null
+            ? null
+            : new ArrayNode
+            {
+                Description = schema.Description,
+                Format = schema.Format,
+                Item = item,
             };
     }
 

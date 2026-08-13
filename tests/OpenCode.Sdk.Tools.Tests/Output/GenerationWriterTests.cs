@@ -198,7 +198,7 @@ public sealed class GenerationWriterTests
             GenerationTestData.OutputRoot,
             GenerationTestData.ProjectPath,
             [],
-            "Pending modern operations: 1.\nPending legacy operations: 2.\n",
+            "Pending operations: 3.\n",
             verify: false,
             CancellationToken.None);
         var removal = await writer.WriteAsync(

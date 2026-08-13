@@ -7,10 +7,16 @@ using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a session message model switched value.
+/// Represents a session message compaction completed value.
 /// </summary>
-public sealed record SessionMessageModelSwitched : SessionMessage
+public sealed record SessionMessageCompactionCompleted : SessionMessageCompaction
 {
+    /// <summary>
+    /// Gets the type value.
+    /// </summary>
+    [JsonPropertyName("type")]
+    public override string Type => "compaction";
+
     /// <summary>
     /// Gets the id value.
     /// </summary>
@@ -27,17 +33,29 @@ public sealed record SessionMessageModelSwitched : SessionMessage
     /// Gets the time value.
     /// </summary>
     [JsonPropertyName("time")]
-    public required SessionMessageModelSwitchedTime Time { get; init; }
+    public required SessionMessageCompactionCompletedTime Time { get; init; }
 
     /// <summary>
-    /// Gets the type value.
+    /// Gets the status value.
     /// </summary>
-    [JsonPropertyName("type")]
-    public override string Type => "model-switched";
+    [JsonPropertyName("status")]
+    public override string Status => "completed";
 
     /// <summary>
-    /// Gets the model value.
+    /// Gets the reason value.
     /// </summary>
-    [JsonPropertyName("model")]
-    public required ModelRef Model { get; init; }
+    [JsonPropertyName("reason")]
+    public required SessionMessageCompactionCompletedReason Reason { get; init; }
+
+    /// <summary>
+    /// Gets the summary value.
+    /// </summary>
+    [JsonPropertyName("summary")]
+    public required string Summary { get; init; }
+
+    /// <summary>
+    /// Gets the recent value.
+    /// </summary>
+    [JsonPropertyName("recent")]
+    public required string Recent { get; init; }
 }
