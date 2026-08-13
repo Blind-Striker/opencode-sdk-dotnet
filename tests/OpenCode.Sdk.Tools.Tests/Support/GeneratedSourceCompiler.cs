@@ -14,13 +14,6 @@ internal static class GeneratedSourceCompiler
     private static readonly PortableExecutableReference[] References = CreateReferences();
     private static readonly AnalyzerFileReference SourceGenerator = CreateSourceGeneratorReference();
 
-    public static Diagnostic[] Compile(IReadOnlyList<GeneratedSource> sources)
-    {
-        ArgumentNullException.ThrowIfNull(sources);
-
-        return Compile(sources, []);
-    }
-
     /// <summary>
     /// Compiles the generated sources together with the hand-written SDK sources so generated
     /// clients resolve the behavior core; an emitted path shadows its committed twin.

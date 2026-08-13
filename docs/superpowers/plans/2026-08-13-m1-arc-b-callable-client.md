@@ -127,18 +127,18 @@ and committed generated models.
 
 **Areas:** new emitters, `SourceEmitter`, `GenerationWriter`, analyzer config, CI, and tests.
 
-- [ ] Emit one file per public type: `OpenCodeClient`, `SessionsClient`, `SessionClient`, both
+- [x] Emit one file per public type: `OpenCodeClient`, `SessionsClient`, `SessionClient`, both
   responses, and `OpenCodeRoutes`; emit adapters under `Internal/ResponseAdapters/`.
   `OperationMethodEmitter` returns members to `ClientEmitter`, never partial operation files.
-- [ ] Emit virtual client members/protected mock constructors, immutable handle state, escaped
+- [x] Emit virtual client members/protected mock constructors, immutable handle state, escaped
   routes, guarded payload getters and `PrintMembers`, declared exception XML, and one pipeline
   delegation per operation method.
-- [ ] Extend ownership to root generated files and the adapter subtree. Refuse unmanifested
+- [x] Extend ownership to root generated files and the adapter subtree. Refuse unmanifested
   overwrites and refuse overwrite/deletion of manifest entries without the exact provenance
   header; retain case-insensitive collision checks and deterministic stale cleanup.
-- [ ] Add one micro-snapshot per emitter family, aggregate generated-source compilation, and
+- [x] Add one micro-snapshot per emitter family, aggregate generated-source compilation, and
   writer tests for mixed-root preservation, stale deletion, provenance, formatting, and drift.
-- [ ] Enable the decided CS1591 gate, document hand-written public members, add only necessary
+- [x] Enable the decided CS1591 gate, document hand-written public members, add only necessary
   rule arbitration, and add Linux CI `generate --verify`.
 
 ## Task 4: Contracts And M1 Closure

@@ -1,5 +1,8 @@
 {
   "files": [
+    "HealthResponse.cs",
+    "Internal/ResponseAdapters/HealthResponseAdapter.cs",
+    "Internal/ResponseAdapters/SessionMessageResponseAdapter.cs",
     "Internal/Serialization/OpenCodeErrorJsonConverter.cs",
     "Internal/Serialization/OpenCodeJsonContext.cs",
     "Internal/Serialization/OptionalCollectionInput.cs",
@@ -82,6 +85,11 @@
     "Models/UnknownSessionMessageCompaction.cs",
     "Models/UnknownSessionMessageInfo.cs",
     "Models/UnknownSessionMessageToolState.cs",
-    "Models/UnknownToolContent.cs"
+    "Models/UnknownToolContent.cs",
+    "OpenCodeClient.cs",
+    "OpenCodeRoutes.cs",
+    "SessionClient.cs",
+    "SessionMessageResponse.cs",
+    "SessionsClient.cs"
   ]
 }
