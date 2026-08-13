@@ -23,6 +23,7 @@ internal sealed class CurationValidator
         ValidateGroups(selected, selectedGroups, documentGroups, curation, errors);
         ValidateEnvelopeNames(selectedIds, documentIds, curation, errors);
         ValidatePropertyOverrides(document, reachable, curation, errors);
+        ValidateSchemaAliases(document, reachable, curation, errors);
     }
 
     private static void ValidateGroups(IReadOnlyList<SpecOperation> selected, HashSet<string> selectedGroups,
@@ -184,6 +185,66 @@ internal sealed class CurationValidator
             {
                 errors.Add(BindingErrorCategory.Curation, subject, "curated property does not exist on the schema");
             }
+        }
+    }
+
+    /// <summary>
+    /// The alias walls carry the drift contract: a deleted source or target orphans the row,
+    /// a dereferenced source goes dormant, and any structural divergence — the tag included —
+    /// breaks the identity check. Every upstream move on the duplicate is loud.
+    /// </summary>
+    private static void ValidateSchemaAliases(SpecDocument document, ReachableSchemaSet reachable,
+        GenerationCuration curation, BindingErrorCollector errors)
+    {
+        var reachableKeys = reachable.GraphKeys.ToHashSet(StringComparer.Ordinal);
+        var sources = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var alias in curation.SchemaAliases)
+        {
+            if (!sources.Add(alias.Schema))
+            {
+                errors.Add(BindingErrorCategory.Curation, alias.Schema, "schema alias is duplicated");
+            }
+
+            if (string.IsNullOrWhiteSpace(alias.Reason))
+            {
+                errors.Add(BindingErrorCategory.Curation, alias.Schema, "schema alias must declare a reason");
+            }
+
+            if (string.Equals(alias.Schema, alias.AliasOf, StringComparison.Ordinal))
+            {
+                errors.Add(BindingErrorCategory.Curation, alias.Schema, "schema alias cannot target itself");
+                continue;
+            }
+
+            if (!document.Schemas.TryGetValue(alias.Schema, out var source))
+            {
+                errors.Add(BindingErrorCategory.Curation, alias.Schema, "aliased schema does not exist in the spec");
+                continue;
+            }
+
+            if (!document.Schemas.TryGetValue(alias.AliasOf, out var target))
+            {
+                errors.Add(BindingErrorCategory.Curation, alias.Schema, $"alias target '{alias.AliasOf}' does not exist in the spec");
+                continue;
+            }
+
+            if (!reachableKeys.Contains(alias.Schema))
+            {
+                errors.Add(BindingErrorCategory.Curation, alias.Schema, "aliased schema is not referenced by the selected profile");
+            }
+
+            if (!SchemaNodeComparer.DeepEquals(source, target))
+            {
+                errors.Add(BindingErrorCategory.Curation, alias.Schema, "aliased schemas must be structurally identical");
+            }
+        }
+
+        foreach (var alias in curation.SchemaAliases
+                     .Where(alias => !string.Equals(alias.Schema, alias.AliasOf, StringComparison.Ordinal)
+                                     && sources.Contains(alias.AliasOf))
+                     .OrderBy(static alias => alias.Schema, StringComparer.Ordinal))
+        {
+            errors.Add(BindingErrorCategory.Curation, alias.Schema, "schema aliases cannot chain");
         }
     }
 

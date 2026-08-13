@@ -37,4 +37,15 @@ internal sealed record GenerationCuration
             field = Array.AsReadOnly([.. value]);
         }
     } = Array.AsReadOnly(Array.Empty<PropertyOverride>());
+
+    [JsonPropertyName("schemaAliases")]
+    public required IReadOnlyList<SchemaAlias> SchemaAliases
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<SchemaAlias>());
 }

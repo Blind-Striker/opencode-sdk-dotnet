@@ -36,6 +36,7 @@ public static class ToolApp
         services.AddSingleton<CurationLoader>();
         services.AddSingleton<ReachableSchemaCollector>();
         services.AddSingleton<CurationValidator>();
+        services.AddSingleton<SchemaAliasApplier>();
         services.AddSingleton<SchemaNameResolver>();
         services.AddSingleton<SchemaPlanBinder>();
         services.AddSingleton<OperationPlanBinder>();

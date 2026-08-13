@@ -15,6 +15,7 @@ internal sealed class BindingTestHost
         _binder = new SpecBinder(
             new ReachableSchemaCollector(),
             new CurationValidator(),
+            new SchemaAliasApplier(),
             new SchemaNameResolver(),
             new SchemaPlanBinder(),
             new OperationPlanBinder());

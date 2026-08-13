@@ -349,6 +349,169 @@ public sealed class SpecBinderTests
             .Contains("duplicated");
     }
 
+    [Test]
+    public async Task Bind_Should_Collapse_A_Structurally_Identical_Schema_Alias()
+    {
+        var document = await IngestAsync(DuplicateTagScenario());
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.gadget.get"),
+            GadgetCuration(Alias("GadgetError1", "GadgetError")));
+
+        var gadget = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        var status = gadget.ErrorMap.Statuses.Single(static entry => entry.StatusCode == 400);
+        await Assert.That(status.Tags.Select(static tag => tag.TypeName)
+            .SequenceEqual(["GadgetError"], StringComparer.Ordinal)).IsTrue();
+        await Assert.That(plan.Models.Any(static model => model.Name == "GadgetError1")).IsFalse();
+        await Assert.That(plan.Unions.Single(static union => union.Name == "OpenCodeError")
+            .Variants.Select(static variant => variant.TypeName)
+            .SequenceEqual(["GadgetError"], StringComparer.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Duplicate_Error_Tag_Without_An_Alias()
+    {
+        var document = await IngestAsync(DuplicateTagScenario());
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.gadget.get"),
+            GadgetCuration()));
+
+        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Operation
+            && error.Problem.Contains("duplicate error tag", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_An_Alias_Whose_Shapes_Differ()
+    {
+        var document = await IngestAsync(DuplicateTagScenario(duplicate => duplicate.Type("object")
+            .Property("_tag", property => property.Type("string").Enum("GadgetError"), required: true)
+            .Property("message", property => property.Type("string"), required: true)
+            .Property("detail", property => property.Type("string"))));
+
+        await AssertAliasRefusalAsync(document, Alias("GadgetError1", "GadgetError"), "structurally identical");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_An_Alias_Whose_Schema_Is_Missing()
+    {
+        var document = await IngestAsync(DuplicateTagScenario());
+
+        await AssertAliasRefusalAsync(document, Alias("GhostError", "GadgetError"), "does not exist", subject: "GhostError");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_An_Alias_Whose_Target_Is_Missing()
+    {
+        var document = await IngestAsync(DuplicateTagScenario());
+
+        await AssertAliasRefusalAsync(document, Alias("GadgetError1", "GhostError"), "does not exist");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Self_Alias()
+    {
+        var document = await IngestAsync(DuplicateTagScenario());
+
+        await AssertAliasRefusalAsync(document, Alias("GadgetError1", "GadgetError1"), "itself");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Chained_Alias()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec =>
+        {
+            DefineDuplicateTagSpec(spec, DefaultDuplicate);
+            _ = spec.WithSchema("GadgetError2", DefaultDuplicate);
+        }));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.gadget.get"),
+            GadgetCuration(Alias("GadgetError2", "GadgetError1"), Alias("GadgetError1", "GadgetError"))));
+
+        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+            && error.Problem.Contains("chain", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Duplicated_Alias_Source()
+    {
+        var document = await IngestAsync(DuplicateTagScenario());
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.gadget.get"),
+            GadgetCuration(Alias("GadgetError1", "GadgetError"), Alias("GadgetError1", "GadgetError"))));
+
+        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+            && error.Problem.Contains("duplicated", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_An_Alias_Without_A_Reason()
+    {
+        var document = await IngestAsync(DuplicateTagScenario());
+
+        await AssertAliasRefusalAsync(document, Alias("GadgetError1", "GadgetError", reason: " "), "reason");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Dormant_Alias()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec =>
+        {
+            DefineDuplicateTagSpec(spec, DefaultDuplicate);
+            _ = spec.WithSchema("LonelyError", DefaultDuplicate)
+                .WithSchema("LonelyError1", DefaultDuplicate);
+        }));
+
+        await AssertAliasRefusalAsync(
+            document,
+            Alias("LonelyError1", "LonelyError"),
+            "not referenced",
+            subject: "LonelyError1");
+    }
+
+    private static async Task AssertAliasRefusalAsync(SpecDocument document, SchemaAlias alias, string expectedProblem,
+        string? subject = null)
+    {
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.gadget.get"),
+            GadgetCuration(alias)));
+
+        await Assert.That(exception.Errors.Any(error => error.Category == BindingErrorCategory.Curation
+            && string.Equals(error.Subject, subject ?? alias.Schema, StringComparison.Ordinal)
+            && error.Problem.Contains(expectedProblem, StringComparison.Ordinal))).IsTrue();
+    }
+
+    private static SpecScenario DuplicateTagScenario(Action<SchemaBuilder>? duplicate = null) =>
+        SpecScenario.Define(spec => DefineDuplicateTagSpec(spec, duplicate ?? DefaultDuplicate));
+
+    private static void DefineDuplicateTagSpec(SpecDocumentBuilder spec, Action<SchemaBuilder> duplicate) =>
+        _ = spec
+            .WithSchema("GadgetInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("GadgetError", DefaultDuplicate)
+            .WithSchema("GadgetError1", duplicate)
+            .WithOperation("v2.gadget.get", path: "/api/gadget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("GadgetInfo"))
+                .Response(400, "application/json", schema => schema.AnyOf(
+                    static branch => branch.Ref("GadgetError1"),
+                    static branch => branch.Ref("GadgetError"))));
+
+    private static void DefaultDuplicate(SchemaBuilder schema) => schema.Type("object")
+        .Property("_tag", property => property.Type("string").Enum("GadgetError"), required: true)
+        .Property("message", property => property.Type("string"), required: true);
+
+    private static GenerationCuration GadgetCuration(params SchemaAlias[] aliases) =>
+        Curation(
+            Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: null, handleParameter: null)),
+            schemaAliases: aliases);
+
     private static async Task<(SpecDocument Document, OperationSelection Selection, GenerationCuration Curation)> LoadPinnedInputsAsync()
     {
         var fileSystem = new RealFileSystem();
