@@ -116,6 +116,14 @@ direction and rationale, not law; only this list and the ADRs bind.
 - **Defensive programming is the default, everywhere:** guard public inputs, assert internal
   invariants, fail loudly rather than guess — silent fallbacks exist only as explicitly
   recorded tolerances (ADR-0009 pattern).
+- **Performance is a standing concern, weighted by artifact:** the shipped SDK targets both
+  speed and minimal allocation on its hot paths (zero *avoidable* allocations — ADR-0004's
+  immutable models and ADR-0007's raw-body retention are contracts, not waste); repo tooling
+  targets speed. No speculative optimization, but obvious waste (redundant parses, needless
+  copies, avoidable buffering) is always evaluated, starting with the low-hanging fruit.
+  Performance claims are settled by benchmarks (`tests/OpenCode.Sdk.Performance.Tests`,
+  `MemoryDiagnoser` on), never by argument; performance-touching PRs carry before/after
+  numbers.
 - **Code style is canonical in `docs/engineering/coding-style.md`:** named collaborator
   classes over private-method accumulation; interfaces at seams with full-battery DI-first
   executable composition, sealed everywhere else; no tuple returns or concrete-collection
