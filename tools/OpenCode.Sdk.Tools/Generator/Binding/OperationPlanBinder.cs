@@ -171,6 +171,16 @@ internal sealed class OperationPlanBinder
                 operation.OperationId,
                 $"multiple operations map to response type '{operation.Plan.Envelope.ResponseTypeName}'");
         }
+
+        var routeMembers = new HashSet<string>(_comparer);
+        foreach (var operation in bound.Where(operation =>
+                     !routeMembers.Add($"{operation.Plan.RouteContainerName}.{operation.Plan.RouteMemberName}")))
+        {
+            errors.Add(
+                BindingErrorCategory.Naming,
+                operation.OperationId,
+                $"multiple operations map to route member '{operation.Plan.RouteContainerName}.{operation.Plan.RouteMemberName}'");
+        }
     }
 
     private sealed record BoundOperation
@@ -230,6 +240,8 @@ internal sealed class OperationPlanBinder
                     MethodName = OperationNamePolicy.MethodName(_operation, row.Placement),
                     HttpMethod = _operation.Method,
                     RouteTemplate = _operation.Path,
+                    RouteContainerName = row.ClientName ?? CSharpNamePolicy.ToPascalCase(group),
+                    RouteMemberName = OperationNamePolicy.RouteMemberName(_operation),
                     Parameters = parameters,
                     Envelope = envelope,
                     ErrorMap = errorMap,

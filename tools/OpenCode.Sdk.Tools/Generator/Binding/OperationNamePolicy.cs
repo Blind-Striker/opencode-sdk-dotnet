@@ -26,6 +26,13 @@ internal static class OperationNamePolicy
         return $"{CSharpNamePolicy.ToPascalCase(operation.Segments[0])}{Subject(operation)}Response";
     }
 
+    public static string RouteMemberName(SpecOperation operation)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+
+        return $"{CSharpNamePolicy.ToPascalCase(operation.Method)}{Subject(operation)}";
+    }
+
     public static string PayloadName(SpecOperation operation)
     {
         ArgumentNullException.ThrowIfNull(operation);

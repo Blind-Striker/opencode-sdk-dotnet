@@ -27,6 +27,8 @@ public sealed class OperationPlanBinderTests
         await Assert.That(health.MethodName).IsEqualTo("GetHealthAsync");
         await Assert.That(health.HttpMethod).IsEqualTo("get");
         await Assert.That(health.RouteTemplate).IsEqualTo("/api/health");
+        await Assert.That(health.RouteContainerName).IsEqualTo("Health");
+        await Assert.That(health.RouteMemberName).IsEqualTo("Get");
         await Assert.That(health.Parameters).IsEmpty();
         await Assert.That(health.Summary).IsEqualTo("Check server health");
         await Assert.That(health.Description).IsNotNull();
@@ -58,6 +60,8 @@ public sealed class OperationPlanBinderTests
         var message = session.Operations.Single();
         await Assert.That(message.MethodName).IsEqualTo("GetMessageAsync");
         await Assert.That(message.RouteTemplate).IsEqualTo("/api/session/{sessionID}/message/{messageID}");
+        await Assert.That(message.RouteContainerName).IsEqualTo("Sessions");
+        await Assert.That(message.RouteMemberName).IsEqualTo("GetMessage");
         await Assert.That(message.Summary).IsEqualTo("Get session message");
         await Assert.That(message.Parameters.Select(static parameter => parameter.Name)
             .SequenceEqual(["sessionId", "messageId"], StringComparer.Ordinal)).IsTrue();
@@ -100,6 +104,8 @@ public sealed class OperationPlanBinderTests
         var part = gadget.Operations.Single();
         await Assert.That(part.MethodName).IsEqualTo("GetPartAsync");
         await Assert.That(part.RouteTemplate).IsEqualTo("/api/gadget/{gadgetID}/part/{partID}");
+        await Assert.That(part.RouteContainerName).IsEqualTo("Gadgets");
+        await Assert.That(part.RouteMemberName).IsEqualTo("GetPart");
         await Assert.That(part.Parameters.Select(static parameter => parameter.Name)
             .SequenceEqual(["gadgetId", "partId"], StringComparer.Ordinal)).IsTrue();
         await Assert.That(part.Envelope.ResponseTypeName).IsEqualTo("GadgetPartResponse");
@@ -325,6 +331,23 @@ public sealed class OperationPlanBinderTests
             && error.Problem.Contains("GetPartAsync", StringComparison.Ordinal))).IsTrue();
         await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
             && error.Problem.Contains("GadgetPartResponse", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_Colliding_Route_Members_In_A_Container()
+    {
+        var document = await BindingTestHost.IngestAsync(GadgetScenario(spec => spec
+            .WithOperation("v2.gadget.part.get", path: "/api/gadget-part", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("GadgetPart")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.gadget.part", "v2.gadget.part.get"),
+            Curation(Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID")))));
+
+        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
+            && error.Problem.Contains("route member", StringComparison.Ordinal)
+            && error.Problem.Contains("GetPart", StringComparison.Ordinal))).IsTrue();
     }
 
     [Test]

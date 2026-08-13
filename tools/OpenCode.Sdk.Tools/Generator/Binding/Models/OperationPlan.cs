@@ -9,6 +9,12 @@ internal sealed record OperationPlan
 
     public required string RouteTemplate { get; init; }
 
+    /// <summary>Gets the nested container the route members live in (client name, or the group for root placement).</summary>
+    public required string RouteContainerName { get; init; }
+
+    /// <summary>Gets the route member name inside its container; containers never restate the group in members.</summary>
+    public required string RouteMemberName { get; init; }
+
     /// <summary>Gets every route parameter in template order, including the handle-supplied one.</summary>
     public required IReadOnlyList<OperationParameterPlan> Parameters
     {
