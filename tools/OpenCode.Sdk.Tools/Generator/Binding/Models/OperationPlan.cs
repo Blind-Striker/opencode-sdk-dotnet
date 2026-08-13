@@ -26,6 +26,9 @@ internal sealed record OperationPlan
         }
     } = Array.AsReadOnly(Array.Empty<OperationParameterPlan>());
 
+    /// <summary>Gets the query-options record plan, or <see langword="null"/> when the operation has no query parameters.</summary>
+    public OperationOptionsPlan? Options { get; init; }
+
     public required EnvelopePlan Envelope { get; init; }
 
     public required ErrorMapPlan ErrorMap { get; init; }

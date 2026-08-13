@@ -172,6 +172,15 @@ internal sealed class OperationPlanBinder
                 $"multiple operations map to response type '{operation.Plan.Envelope.ResponseTypeName}'");
         }
 
+        foreach (var operation in bound.Where(operation =>
+                     operation.Plan.Options is not null && !owners.Add(operation.Plan.Options.TypeName)))
+        {
+            errors.Add(
+                BindingErrorCategory.Naming,
+                operation.OperationId,
+                $"options type name '{operation.Plan.Options!.TypeName}' collides with another generated type");
+        }
+
         var routeMembers = new HashSet<string>(_comparer);
         foreach (var operation in bound.Where(operation =>
                      !routeMembers.Add($"{operation.Plan.RouteContainerName}.{operation.Plan.RouteMemberName}")))
@@ -224,7 +233,9 @@ internal sealed class OperationPlanBinder
             var envelope = BindEnvelope(success);
             var errorMap = BindErrorMap();
             var parameters = BindParameters(row);
-            if (envelope is null || errorMap is null || parameters is null)
+            var optionsErrorsBefore = _errors.Count;
+            var options = BindQueryOptions();
+            if (envelope is null || errorMap is null || parameters is null || _errors.Count != optionsErrorsBefore)
             {
                 return null;
             }
@@ -243,6 +254,7 @@ internal sealed class OperationPlanBinder
                     RouteContainerName = row.ClientName ?? CSharpNamePolicy.ToPascalCase(group),
                     RouteMemberName = OperationNamePolicy.RouteMemberName(_operation),
                     Parameters = parameters,
+                    Options = options,
                     Envelope = envelope,
                     ErrorMap = errorMap,
                     Summary = _operation.Summary,
@@ -286,17 +298,17 @@ internal sealed class OperationPlanBinder
 
         private void CheckParameterShapes()
         {
-            foreach (var parameter in _operation.Parameters)
+            foreach (var parameter in _operation.Parameters.Where(static parameter => parameter.Location is SpecParameterLocation.Path))
             {
-                if (parameter is not { Location: SpecParameterLocation.Path, IsRequired: true, IsDeepObject: false })
+                if (parameter is not { IsRequired: true, IsDeepObject: false })
                 {
-                    Refuse($"parameter '{parameter.Name}' must be a required path parameter");
+                    Refuse($"path parameter '{parameter.Name}' must be required and plainly encoded");
                     continue;
                 }
 
                 if (Resolve(parameter.Schema) is not PrimitiveNode { Kind: PrimitiveKind.String })
                 {
-                    Refuse($"parameter '{parameter.Name}' must be a plain string");
+                    Refuse($"path parameter '{parameter.Name}' must be a plain string");
                 }
             }
         }
@@ -494,6 +506,7 @@ internal sealed class OperationPlanBinder
         private IReadOnlyList<OperationParameterPlan>? BindParameters(GroupCuration row)
         {
             var plans = _operation.Parameters
+                .Where(static parameter => parameter.Location is SpecParameterLocation.Path)
                 .Select(parameter => new OperationParameterPlan
                 {
                     WireName = parameter.Name,
@@ -523,6 +536,116 @@ internal sealed class OperationPlanBinder
             Debug.Assert(position >= 0, "Ingestion guarantees every path parameter appears in the route template.");
             return position;
         }
+
+        private OperationOptionsPlan? BindQueryOptions()
+        {
+            var query = _operation.Parameters
+                .Where(static parameter => parameter.Location is SpecParameterLocation.Query)
+                .ToArray();
+            if (query.Length is 0)
+            {
+                return null;
+            }
+
+            var properties = new List<OptionsPropertyPlan>(query.Length);
+            foreach (var parameter in query)
+            {
+                if (parameter.IsDeepObject)
+                {
+                    Refuse($"query parameter '{parameter.Name}' must not use deep-object encoding");
+                    continue;
+                }
+
+                if (parameter.IsRequired)
+                {
+                    Refuse($"query parameter '{parameter.Name}' must be optional");
+                    continue;
+                }
+
+                if (Resolve(parameter.Schema) is not NullableNode nullable)
+                {
+                    Refuse($"query parameter '{parameter.Name}' must admit null");
+                    continue;
+                }
+
+                var kind = ResolveQueryValueKind(parameter.Name, nullable.Inner);
+                if (kind is null)
+                {
+                    Refuse($"query parameter '{parameter.Name}' has an unsupported schema shape");
+                    continue;
+                }
+
+                properties.Add(new OptionsPropertyPlan
+                {
+                    WireName = parameter.Name,
+                    PropertyName = CSharpNamePolicy.ToPascalCase(parameter.Name),
+                    Kind = kind.Value,
+                    IsInherited = false,
+                });
+            }
+
+            var duplicate = properties.GroupBy(static property => property.PropertyName, StringComparer.Ordinal)
+                .FirstOrDefault(static property => property.Skip(1).Any());
+            if (duplicate is not null)
+            {
+                _errors.Add(
+                    BindingErrorCategory.Naming,
+                    _operation.OperationId,
+                    $"multiple query parameters map to C# name '{duplicate.Key}'");
+                return null;
+            }
+
+            if (MatchesListOptionsProfile(properties))
+            {
+                properties = [.. properties.Select(static property => property with { IsInherited = true })];
+            }
+
+            return new OperationOptionsPlan
+            {
+                TypeName = OperationNamePolicy.OptionsTypeName(_operation),
+                DerivesFromListOptions = properties.Count > 0 && properties[0].IsInherited,
+                Properties = properties,
+            };
+        }
+
+        /// <summary>
+        /// The fail-closed profile wall: an operation derives from the <c>ListOptions</c> base
+        /// only when its wire query parameters are exactly the cursor-pagination trio.
+        /// </summary>
+        private static bool MatchesListOptionsProfile(List<OptionsPropertyPlan> properties) =>
+            properties.Count is 3
+            && properties.Any(static property => property is { WireName: "limit", Kind: QueryValueKind.PositiveCount })
+            && properties.Any(static property => property is { WireName: "order", Kind: QueryValueKind.ListOrder })
+            && properties.Any(static property => property is { WireName: "cursor", Kind: QueryValueKind.Text });
+
+        private QueryValueKind? ResolveQueryValueKind(string wireName, SchemaNode inner)
+        {
+            return Resolve(inner) switch
+            {
+                PrimitiveNode { Kind: PrimitiveKind.String } =>
+                    string.Equals(wireName, "limit", StringComparison.Ordinal) ? QueryValueKind.PositiveCount : QueryValueKind.Text,
+                EnumNode { Values: ["asc", "desc"] } => QueryValueKind.ListOrder,
+                UnionNode { Classification: UnionClassification.Structural, Branches: [var first, var second] }
+                    when IsParentFilterShape(first, second) => QueryValueKind.SessionParentFilter,
+                _ => null,
+            };
+        }
+
+        /// <summary>
+        /// Recognizes the parent-filter wire shape — a patterned identifier string beside the
+        /// literal <c>"null"</c> — structurally, never by parameter name.
+        /// </summary>
+        private bool IsParentFilterShape(SchemaNode first, SchemaNode second)
+        {
+            var left = Resolve(first);
+            var right = Resolve(second);
+            return (IsIdentifierString(left) && IsNullLiteral(right))
+                   || (IsIdentifierString(right) && IsNullLiteral(left));
+        }
+
+        private static bool IsIdentifierString(SchemaNode schema) => schema is PrimitiveNode { Kind: PrimitiveKind.String };
+
+        private static bool IsNullLiteral(SchemaNode schema) => schema is LiteralNode { Kind: LiteralKind.String, Value: "null" };
 
         private void Refuse(string problem) => _errors.Add(BindingErrorCategory.Operation, _operation.OperationId, problem);
 

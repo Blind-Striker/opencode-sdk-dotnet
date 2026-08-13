@@ -16,7 +16,10 @@ internal sealed class ReachableSchemaCollector
         var traversal = new ReachabilityTraversal(document.Schemas, errors, _comparer);
         foreach (var operation in operations)
         {
-            foreach (var parameter in operation.Parameters)
+            // Query parameter schemas never generate models: the options binder consumes
+            // them shape-wise and fails closed on anything it does not recognize.
+            foreach (var parameter in operation.Parameters
+                         .Where(static parameter => parameter.Location is SpecParameterLocation.Path))
             {
                 traversal.Visit(parameter.Schema);
             }

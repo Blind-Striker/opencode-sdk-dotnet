@@ -187,16 +187,164 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Refuse_A_Query_Parameter()
+    public async Task Bind_Should_Bind_Optional_Nullable_Query_Parameters_Into_Flat_Options()
     {
-        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
-            .WithSchema("ItemInfo", schema => schema.Type("object")
-                .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.health.get", configure: operation => operation
-                .Parameter("limit", "query", schema => schema.Type("string"))
-                .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("limit", "query", QueryScenarioData.NullableString)
+            .Parameter("order", "query", QueryScenarioData.NullableOrderEnum)
+            .Parameter("cursor", "query", QueryScenarioData.NullableString)
+            .Parameter("search", "query", QueryScenarioData.NullableString)
+            .Parameter("parentID", "query", QueryScenarioData.NullableParentFilter)));
 
-        await AssertOperationRefusalAsync(document, "v2.health.get", "required path parameter");
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.Options).IsNotNull();
+        await Assert.That(list.Options!.TypeName).IsEqualTo("WidgetListOptions");
+        await Assert.That(list.Options.DerivesFromListOptions).IsFalse();
+        await Assert.That(list.Options.Properties.Select(static property => property.WireName)
+            .SequenceEqual(["limit", "order", "cursor", "search", "parentID"], StringComparer.Ordinal)).IsTrue();
+        await Assert.That(list.Options.Properties.Select(static property => property.PropertyName)
+            .SequenceEqual(["Limit", "Order", "Cursor", "Search", "ParentId"], StringComparer.Ordinal)).IsTrue();
+        await Assert.That(list.Options.Properties.Select(static property => property.Kind)
+            .SequenceEqual([
+                QueryValueKind.PositiveCount,
+                QueryValueKind.ListOrder,
+                QueryValueKind.Text,
+                QueryValueKind.Text,
+                QueryValueKind.SessionParentFilter,
+            ])).IsTrue();
+        await Assert.That(list.Options.Properties.All(static property => !property.IsInherited)).IsTrue();
+        await Assert.That(list.Parameters).IsEmpty();
+    }
+
+    [Test]
+    public async Task Bind_Should_Keep_Query_Parameter_Schemas_Out_Of_The_Model_Closure()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("order", "query", QueryScenarioData.NullableOrderEnum)
+            .Parameter("parentID", "query", QueryScenarioData.NullableParentFilter)));
+
+        var plan = BindWidgets(document);
+
+        await Assert.That(plan.Models.Select(static model => model.Name)
+            .SequenceEqual(["WidgetInfo"], StringComparer.Ordinal)).IsTrue();
+        await Assert.That(plan.Unions).IsEmpty();
+        await Assert.That(plan.Registry.TypeNames
+            .SequenceEqual(["WidgetInfo"], StringComparer.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Derive_Options_From_The_List_Options_Base_When_The_Trio_Matches_Exactly()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("limit", "query", QueryScenarioData.NullableString)
+            .Parameter("order", "query", QueryScenarioData.NullableOrderEnum)
+            .Parameter("cursor", "query", QueryScenarioData.NullableString)));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.Options!.TypeName).IsEqualTo("WidgetListOptions");
+        await Assert.That(list.Options.DerivesFromListOptions).IsTrue();
+        await Assert.That(list.Options.Properties.Select(static property => property.PropertyName)
+            .SequenceEqual(["Limit", "Order", "Cursor"], StringComparer.Ordinal)).IsTrue();
+        await Assert.That(list.Options.Properties.All(static property => property.IsInherited)).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Keep_Options_Flat_When_The_Trio_Has_Extra_Parameters()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("limit", "query", QueryScenarioData.NullableString)
+            .Parameter("order", "query", QueryScenarioData.NullableOrderEnum)
+            .Parameter("cursor", "query", QueryScenarioData.NullableString)
+            .Parameter("search", "query", QueryScenarioData.NullableString)));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.Options!.DerivesFromListOptions).IsFalse();
+        await Assert.That(list.Options.Properties.All(static property => !property.IsInherited)).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Keep_Options_Flat_When_The_Trio_Is_Incomplete()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("limit", "query", QueryScenarioData.NullableString)
+            .Parameter("cursor", "query", QueryScenarioData.NullableString)));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.Options!.DerivesFromListOptions).IsFalse();
+        await Assert.That(list.Options.Properties.Select(static property => property.PropertyName)
+            .SequenceEqual(["Limit", "Cursor"], StringComparer.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Leave_Options_Absent_When_An_Operation_Has_No_Query_Parameters()
+    {
+        var document = await BindingTestHost.IngestAsync(GadgetScenario());
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.gadget.part"),
+            Curation(Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID"))));
+
+        var part = plan.Clients.Single(static client => client.Role == ClientRole.Handle).Operations.Single();
+        await Assert.That(part.Options).IsNull();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Required_Query_Parameter()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("limit", "query", QueryScenarioData.NullableString, required: true)));
+
+        await AssertWidgetRefusalAsync(document, "must be optional");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Query_Parameter_That_Does_Not_Admit_Null()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("limit", "query", schema => schema.Type("string"))));
+
+        await AssertWidgetRefusalAsync(document, "must admit null");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Query_Enum_Outside_The_Order_Profile()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("order", "query", schema => schema.AnyOf(
+                branch => branch.Type("string").Enum("asc", "desc", "shuffled"),
+                branch => branch.Type("null")))));
+
+        await AssertWidgetRefusalAsync(document, "unsupported schema shape");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_An_Object_Query_Parameter()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("filter", "query", schema => schema.AnyOf(
+                branch => branch.Type("object")
+                    .Property("name", property => property.Type("string"), required: true),
+                branch => branch.Type("null")))));
+
+        await AssertWidgetRefusalAsync(document, "unsupported schema shape");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Deep_Object_Query_Parameter()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("location", "query", QueryScenarioData.NullableString, deepObject: true)));
+
+        await AssertWidgetRefusalAsync(document, "deep-object");
     }
 
     [Test]
@@ -452,6 +600,48 @@ public sealed class OperationPlanBinderTests
         await Assert.That(exception.Errors.Any(error => error.Category == BindingErrorCategory.Operation
             && string.Equals(error.Subject, operationId, StringComparison.Ordinal)
             && error.Problem.Contains(expectedProblem, StringComparison.Ordinal))).IsTrue();
+    }
+
+    private static SpecScenario WidgetListScenario(Action<OperationBuilder> configureParameters) =>
+        SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation =>
+            {
+                configureParameters(operation);
+                _ = operation.Response(200, "application/json", schema => schema.Ref("WidgetInfo"));
+            }));
+
+    private static EmitPlan BindWidgets(SpecDocument document) =>
+        new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.list"),
+            Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null))));
+
+    private static async Task AssertWidgetRefusalAsync(SpecDocument document, string expectedProblem)
+    {
+        var exception = Assert.Throws<BindingException>(() => _ = BindWidgets(document));
+
+        await Assert.That(exception.Errors.Any(error => error.Category == BindingErrorCategory.Operation
+            && string.Equals(error.Subject, "v2.widget.list", StringComparison.Ordinal)
+            && error.Problem.Contains(expectedProblem, StringComparison.Ordinal))).IsTrue();
+    }
+
+    private static class QueryScenarioData
+    {
+        public static void NullableString(SchemaBuilder schema) => schema.AnyOf(
+            static branch => branch.Type("string"),
+            static branch => branch.Type("null"));
+
+        public static void NullableOrderEnum(SchemaBuilder schema) => schema.AnyOf(
+            static branch => branch.Type("string").Enum("asc", "desc"),
+            static branch => branch.Type("null"));
+
+        public static void NullableParentFilter(SchemaBuilder schema) => schema.AnyOf(
+            static branch => branch.AnyOf(
+                static inner => inner.Type("string").AllOf(static constraint => constraint.Raw("pattern", "\"^wid\"")),
+                static inner => inner.Type("string").Enum("null")),
+            static branch => branch.Type("null"));
     }
 
     private static SpecScenario GadgetScenario(Action<SpecDocumentBuilder>? extend = null, bool parametersReversed = false) =>
