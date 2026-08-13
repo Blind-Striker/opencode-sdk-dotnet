@@ -52,7 +52,7 @@ One project-directory context inside a Server process, selected per request via 
 targeting; a Server process hosts many.
 
 **Directory targeting**:
-Per-request project targeting via the `x-opencode-directory` header.
+Per-request project targeting via `location[...]` query parameters (the v2 convention).
 
 **PTY**:
 A pseudo-terminal session managed through the API.

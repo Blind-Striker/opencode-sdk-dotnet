@@ -53,10 +53,16 @@ evidence: research doc 15).
   `ServiceHealth` object (`{healthy, version, pid}` observed live 2026-08-13), and
   `v2.session.message` keeps the `{data}` envelope over the dotted `Session.Message.Info`
   schema. Error maps are re-read from the v2 responses — do not assume the 1.x tables.
-- [ ] Decide dotted-name mapping for the selected closure (`Session.Message.Info` and
-  friends): mechanical mangling, curated overrides only where the mechanical name misfires.
-- [ ] Decide the directory/location decoration policy: v2 addresses per-request scope with
-  `location[...]` query parameters; the `x-opencode-directory` header plan is v1-derived.
+- [ ] Map dotted schema names mechanically (`Session.Message.Info` → `SessionMessageInfo`;
+  283 of 324 v2 schemas are dotted, so mechanical is the only sane default). Curated
+  overrides exist only for collisions, C#-illegal results, and brand spellings — no taste
+  renames (maintainer, 2026-08-13).
+- [ ] Adopt the v2 `location[...]` query convention as the only per-request scoping
+  mechanism (maintainer, 2026-08-13: the v1 ledger is closed — no v1 convention, including
+  `x-opencode-directory`, survives and no backward compatibility is owed).
+- [ ] Retire the Modern/Legacy surface split (`SpecSurface`, pending-legacy reporting,
+  legacy placement rules): the pinned surface is single; simplify selection, curation
+  validation, and generate reporting accordingly.
 - [ ] Regenerate the selected model closure; update curation rows, serialization tests, and
   fixtures to the v2 shapes; run the full repository gates.
 

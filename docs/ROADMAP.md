@@ -58,9 +58,6 @@ is revisited at each milestone boundary.
   refreshed at milestone boundaries. Platform detail: research doc 15.
 - **`v2.session.log` semantics** — it replaces the v1 durable stream (`after` + `follow` on
   an experimental path); resume guarantees are unestablished. Owned by M3.
-- **Location addressing** — v2 operations take `location[...]` query parameters where the
-  v1 design leaned on the `x-opencode-directory` header; the client/per-call directory
-  decoration policy is decided in Arc B's retarget task.
 - **Spec refresh cadence** — the `refresh-spec` tool lands in M6; the cadence policy stays
   open.
 - **Structural-union emission shape** — the v1 pin had five structural-union sites
