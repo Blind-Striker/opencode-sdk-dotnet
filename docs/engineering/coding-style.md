@@ -119,8 +119,19 @@ for a pile of static steps.
   folder) for data shapes, `Abstractions/` for its seams, implementation classes at
   the slice root. Similar things sit together; a reader predicts where a type lives
   before opening the tree.
-- File = type (MA0048) and folder = namespace (IDE0130) are already mechanical; this
-  document adds the *placement* discipline analyzers cannot see.
+- **The shipped SDK slices by client family with flat public namespaces** (maintainer,
+  2026-08-14): client families are folders (`Sessions/`, `Health/`), the pagination
+  spine sits under `Pagination/`, wire models under `Models/`, runtime internals under
+  `Internal/`, and the root client with the response/exception spine at the project
+  root. Public namespaces stay `OpenCode.Sdk` and `OpenCode.Sdk.Models` — a namespace
+  is API surface, folders are placement (Stripe/Azure precedent) — so IDE0130's
+  folder-matches-namespace rule is arbitrated for the SDK's public folders through the
+  standing per-rule pattern.
+- **A test project mirrors the layout of the project under test**: the folder path of a
+  SUT predicts the folder path of its tests.
+- File = type (MA0048) is mechanical everywhere; folder = namespace (IDE0130) is
+  mechanical outside the SDK's arbitrated public folders. This document adds the
+  *placement* discipline analyzers cannot see.
 - **Split before it hurts:** a class approaching a few hundred lines, or a folder
   flattening into dozens of siblings, is a slice asking to be verticalized. Growth is
   handled by extraction and sub-foldering at the moment of pressure, not by a rewrite

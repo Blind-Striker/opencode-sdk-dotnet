@@ -38,8 +38,11 @@ envelopes: `GetMessageAsync` 67.4→56.2 μs, `ListMessagesAsync` baseline 58.1 
 and #22 (List/Create verb rules + C17–C20) landed with it; upstream's `InvalidRequestError1`
 duplicate collapses through the new `schemaAliases` curation. Demonstrated live 2026-08-14
 against `opencode2 serve` v0.0.0-next-17403 (create → list → get → messages, wire cursor
-round-tripped). Maintainer decisions #20 (password semantics) and #25 (IVT) remain open;
-further breadth batches continue M2.
+round-tripped). The #20 decision landed (blank explicit passwords refuse; `null` keeps the
+environment fallback) and #25 closed keep. Next: the alignment batch — uniform `*Request`
+naming (Q83), the feature-slice layout migration (Q84), and the Extensions bring-up (Q85)
+— handed to the next session (`agents/handover-prompts/HANDOFF-2026-08-14-2.md`); further
+breadth batches follow.
 
 ## Milestones
 
@@ -57,9 +60,10 @@ is revisited at each milestone boundary.
    `superpowers/specs/2026-08-11-production-walking-skeleton-design.md`.
 2. **M2 — Breadth batches.** The generation profile grows in vertical operation batches;
    each batch lands its curation rows, reachable models, operation methods, and contract
-   tests together. The first batch (list/get/create/message-list) is complete, carrying
-   the #19/#21/#22 hardening riders; decisions #20 (password semantics) and #25 (IVT)
-   stay before the maintainer.
+   tests together. The first batch (list/get/create/message-list) is complete with every
+   review rider resolved (#19–#22, #20, #25); the alignment batch (uniform `*Request`,
+   feature-slice layout, Extensions bring-up — research log Q83–Q85) precedes further
+   breadth. The Extensions package rises in parallel with these batches from here on.
 3. **M3 — Streams.** SSE engine over the v2 stream surface (`v2.event.subscribe`,
    `v2.session.log` with `after`/`follow`, cursor-paged `v2.message.list`); the v1
    durable-stream design does not carry over and is re-derived here. Demo: watching a
@@ -73,9 +77,9 @@ is revisited at each milestone boundary.
    platform detail: research doc 15.)
 5. **M5 — Full surface.** Complete generation profile over the protocol surface,
    exclusion fingerprints (ADR-0008), packaging unblocked.
-6. **M6 — Operational closure.** `refresh-spec`, Extensions DI breadth,
-   retry/telemetry/hooks, quarantine lane, nightly canary (the performance suite joins
-   it); durable decisions distill into ADRs and the `superpowers/` documents retire. Any
+6. **M6 — Operational closure.** `refresh-spec`, retry/telemetry/hooks, quarantine
+   lane, nightly canary (the performance suite joins it); durable decisions distill
+   into ADRs and the `superpowers/` documents retire. Any
    hygiene-sweep leftovers (#24) are resolved here — nothing from the review queue
    survives the M series.
 

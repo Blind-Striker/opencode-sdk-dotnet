@@ -1767,3 +1767,53 @@ review.
 - The contract matrix caught a real defect before any consumer could: the error-path
   constructor pushed its forgiven null through the list payload's defensive-copy init
   accessor; the copy now passes the forgiven null through uncopied behind the guard.
+
+## Q83: Do operation inputs stay split across *Request and *Options?
+
+**How researched:** maintainer review question (AWS-style Request/Response symmetry);
+ecosystem survey — AWS and Google Cloud use a uniform `{Operation}Request` for every
+operation regardless of wire placement (query vs body is a marshalling detail), Stripe and
+OpenAI use a uniform `*Options` (POST bodies included), Azure's options bag carries only
+optional inputs; **no surveyed SDK splits the suffix by verb** as Q76's dichotomy did.
+
+**Found:** the sealed dichotomy had married halves of two different families, and the
+verb→suffix mapping is unstable — a future query-carrying POST would demand two input bags
+per call where the uniform-Request shape carries one.
+
+**Decision (maintainer, sealed):** uniform `*Request`, revising Q76's naming half. Query
+records rename (`SessionListRequest`, `MessageListRequest`, base `ListRequest`); the body
+models already carry the name; the method and route-builder parameter becomes `request`.
+The profile-detection wall and the M3 paginator seam carry over under the new name. An
+operation declaring both a body and query parameters would mechanically derive one type
+name twice and fail the existing collision wall — deliberate, until a merged-Request
+design (AWS marshalling style) is sealed. Execution: next session
+(`agents/handover-prompts/HANDOFF-2026-08-14-2.md`).
+
+## Q84: How does the shipped SDK lay out?
+
+**Decision (maintainer, sealed):** vertical feature slices with flat public namespaces —
+client families as folders (`Sessions/`, `Health/`), the pagination spine under
+`Pagination/`, `Models/` and `Internal/` unchanged, the root client and response/exception
+spine at the project root. Public namespaces stay `OpenCode.Sdk` and `OpenCode.Sdk.Models`:
+a namespace is API surface, folders are placement (Stripe/Azure precedent). Test projects
+mirror the layout of the project under test. IDE0130's folder-matches-namespace rule is
+arbitrated for the SDK's public folders per the standing per-rule pattern. Canonical
+wording: `engineering/coding-style.md` §4. Execution: next session.
+
+## Q85: When does the Extensions package rise?
+
+**Decision (maintainer, sealed):** in parallel with M2 breadth instead of waiting for M6 —
+an `AddOpenCode` bring-up (overloads mirroring the three client constructors, root plus
+sub-client registrations so a consumer can resolve `SessionsClient` directly) lands as its
+own batch; the ROADMAP moves "Extensions DI breadth" out of M6 accordingly.
+
+## Review decisions closed with the batch
+
+- **#20 (password semantics)** sealed as recommended and landed (`2be2d0f`): `null` = unset
+  with the environment fallback; empty or whitespace refused with `ArgumentException` — an
+  explicitly blank credential has no upstream meaning; `""` = explicit no-auth stays an
+  additive door if upstream ever ships passwordless serve.
+- **#25 (DynamicProxyGenAssembly2 IVT)** closed keep: the friend grant is the standard
+  NSubstitute mechanism over internal seams and a recorded solved-once decision; internals
+  are not a security boundary. The recorded alternative (hand-written fake replacing the
+  grant) applies only if encapsulation purity is ever preferred.
