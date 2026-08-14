@@ -10,10 +10,12 @@ internal sealed class OpenCodeErrorJsonConverter : JsonConverter<OpenCodeError>
 {
     private static readonly Dictionary<string, Type> TypesByTag = new(StringComparer.Ordinal)
     {
+        ["InvalidCursorError"] = typeof(InvalidCursorError),
         ["InvalidRequestError"] = typeof(InvalidRequestError),
         ["MessageNotFoundError"] = typeof(MessageNotFoundError),
         ["SessionNotFoundError"] = typeof(SessionNotFoundError),
-        ["UnauthorizedError"] = typeof(UnauthorizedError)
+        ["UnauthorizedError"] = typeof(UnauthorizedError),
+        ["UnknownError"] = typeof(UnknownError)
     };
     public override bool HandleNull => true;
 

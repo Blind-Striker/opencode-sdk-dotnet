@@ -31,6 +31,17 @@
         Ascending = 0,
         Descending = 1,
     }
+    public sealed class MessageListOptions : OpenCode.Sdk.ListOptions, System.IEquatable<OpenCode.Sdk.MessageListOptions>
+    {
+        public MessageListOptions() { }
+    }
+    public sealed class MessageListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.MessageListResponse>
+    {
+        public MessageListResponse() { }
+        public required OpenCode.Sdk.ListCursor Cursor { get; init; }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.SessionMessageInfo> Messages { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
     public class OpenCodeApiException : OpenCode.Sdk.OpenCodeException
     {
         public OpenCodeApiException() { }
@@ -86,8 +97,15 @@
         }
         public static class Sessions
         {
+            public const string CreateSession = "/api/session";
             public const string GetMessageTemplate = "/api/session/{sessionID}/message/{messageID}";
+            public const string GetSessionTemplate = "/api/session/{sessionID}";
+            public const string ListMessagesTemplate = "/api/session/{sessionID}/message";
+            public const string ListSessionsTemplate = "/api/session";
             public static string GetMessage(string sessionId, string messageId) { }
+            public static string GetSession(string sessionId) { }
+            public static string ListMessages(string sessionId, OpenCode.Sdk.MessageListOptions? options = null) { }
+            public static string ListSessions(OpenCode.Sdk.SessionListOptions? options = null) { }
         }
     }
     public class OpenCodeTransportException : OpenCode.Sdk.OpenCodeException
@@ -100,6 +118,34 @@
     {
         protected SessionClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionMessageResponse> GetMessageAsync(string messageId, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionResponse> GetSessionAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.MessageListResponse> ListMessagesAsync(OpenCode.Sdk.MessageListOptions? options = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class SessionCreateResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionCreateResponse>
+    {
+        public SessionCreateResponse() { }
+        public required OpenCode.Sdk.Models.SessionInfo Session { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class SessionListOptions : System.IEquatable<OpenCode.Sdk.SessionListOptions>
+    {
+        public SessionListOptions() { }
+        public string? Cursor { get; init; }
+        public string? Directory { get; init; }
+        public int? Limit { get; init; }
+        public OpenCode.Sdk.ListOrder? Order { get; init; }
+        public OpenCode.Sdk.SessionParentFilter? ParentId { get; init; }
+        public string? Project { get; init; }
+        public string? Search { get; init; }
+        public string? Subpath { get; init; }
+        public string? Workspace { get; init; }
+    }
+    public sealed class SessionListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionListResponse>
+    {
+        public SessionListResponse() { }
+        public required OpenCode.Sdk.ListCursor Cursor { get; init; }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.SessionInfo> Sessions { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class SessionMessageResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionMessageResponse>
     {
@@ -112,14 +158,54 @@
         public static OpenCode.Sdk.SessionParentFilter RootOnly { get; }
         public static OpenCode.Sdk.SessionParentFilter Of(string sessionId) { }
     }
+    public sealed class SessionResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionResponse>
+    {
+        public SessionResponse() { }
+        public required OpenCode.Sdk.Models.SessionInfo Session { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
     public class SessionsClient
     {
         protected SessionsClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionCreateResponse> CreateSessionAsync(OpenCode.Sdk.Models.SessionCreateRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual OpenCode.Sdk.SessionClient GetSessionClient(string sessionId) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionListResponse> ListSessionsAsync(OpenCode.Sdk.SessionListOptions? options = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
 }
 namespace OpenCode.Sdk.Models
 {
+    public sealed class FileDiffInfo : System.IEquatable<OpenCode.Sdk.Models.FileDiffInfo>
+    {
+        public FileDiffInfo() { }
+        [System.Text.Json.Serialization.JsonPropertyName("additions")]
+        public required long Additions { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("deletions")]
+        public required long Deletions { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("file")]
+        public required string File { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("patch")]
+        public required string Patch { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public required OpenCode.Sdk.Models.FileDiffInfoStatus Status { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<OpenCode.Sdk.Models.FileDiffInfoStatus>))]
+    public enum FileDiffInfoStatus
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("added")]
+        Added = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("deleted")]
+        Deleted = 1,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("modified")]
+        Modified = 2,
+    }
+    public sealed class InvalidCursorError : OpenCode.Sdk.Models.OpenCodeError, System.IEquatable<OpenCode.Sdk.Models.InvalidCursorError>
+    {
+        public InvalidCursorError() { }
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public required string Message { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("_tag")]
+        public override string Tag { get; }
+    }
     public sealed class InvalidRequestError : OpenCode.Sdk.Models.OpenCodeError, System.IEquatable<OpenCode.Sdk.Models.InvalidRequestError>
     {
         public InvalidRequestError() { }
@@ -254,6 +340,104 @@ namespace OpenCode.Sdk.Models
         public required long Pid { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required string Version { get; init; }
+    }
+    public sealed class SessionCreateRequest : System.IEquatable<OpenCode.Sdk.Models.SessionCreateRequest>
+    {
+        public SessionCreateRequest() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("agent")]
+        public string? Agent { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public string? Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("model")]
+        public OpenCode.Sdk.Models.ModelRef? Model { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("title")]
+        public string? Title { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.SessionForkBoundaryJsonConverter))]
+    public abstract class SessionForkBoundary : System.IEquatable<OpenCode.Sdk.Models.SessionForkBoundary>
+    {
+        protected SessionForkBoundary() { }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public abstract string Type { get; }
+    }
+    public sealed class SessionForkBoundaryBefore : OpenCode.Sdk.Models.SessionForkBoundary, System.IEquatable<OpenCode.Sdk.Models.SessionForkBoundaryBefore>
+    {
+        public SessionForkBoundaryBefore() { }
+        [System.Text.Json.Serialization.JsonPropertyName("messageID")]
+        public required string MessageId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public override string Type { get; }
+    }
+    public sealed class SessionForkBoundaryThrough : OpenCode.Sdk.Models.SessionForkBoundary, System.IEquatable<OpenCode.Sdk.Models.SessionForkBoundaryThrough>
+    {
+        public SessionForkBoundaryThrough() { }
+        [System.Text.Json.Serialization.JsonPropertyName("messageID")]
+        public required string MessageId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public override string Type { get; }
+    }
+    public sealed class SessionInfo : System.IEquatable<OpenCode.Sdk.Models.SessionInfo>
+    {
+        public SessionInfo() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("agent")]
+        public string? Agent { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("cost")]
+        public required double Cost { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("fork")]
+        public OpenCode.Sdk.Models.SessionInfoFork? Fork { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public required OpenCode.Sdk.Models.LocationRef Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("model")]
+        public OpenCode.Sdk.Models.ModelRef? Model { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("parentID")]
+        public string? ParentId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("projectID")]
+        public required string ProjectId { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("revert")]
+        public OpenCode.Sdk.Models.SessionRevert? Revert { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("subpath")]
+        public string? Subpath { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("time")]
+        public required OpenCode.Sdk.Models.SessionInfoTime Time { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("title")]
+        public string? Title { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("tokens")]
+        public required OpenCode.Sdk.Models.TokenUsageInfo Tokens { get; init; }
+    }
+    public sealed class SessionInfoFork : System.IEquatable<OpenCode.Sdk.Models.SessionInfoFork>
+    {
+        public SessionInfoFork() { }
+        [System.Text.Json.Serialization.JsonPropertyName("boundary")]
+        public required OpenCode.Sdk.Models.SessionForkBoundary Boundary { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        public required string SessionId { get; init; }
+    }
+    public sealed class SessionInfoTime : System.IEquatable<OpenCode.Sdk.Models.SessionInfoTime>
+    {
+        public SessionInfoTime() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("archived")]
+        public double? Archived { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("updated")]
+        public required double Updated { get; init; }
     }
     public sealed class SessionMessageAgentSelected : OpenCode.Sdk.Models.SessionMessageInfo, System.IEquatable<OpenCode.Sdk.Models.SessionMessageAgentSelected>
     {
@@ -825,6 +1009,20 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("_tag")]
         public override string Tag { get; }
     }
+    public sealed class SessionRevert : System.IEquatable<OpenCode.Sdk.Models.SessionRevert>
+    {
+        public SessionRevert() { }
+        [System.Text.Json.Serialization.JsonPropertyName("files")]
+        public System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.FileDiffInfo> Files { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("messageID")]
+        public required string MessageId { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("partID")]
+        public string? PartId { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("snapshot")]
+        public string? Snapshot { get; init; }
+    }
     public sealed class SessionStructuredError : System.IEquatable<OpenCode.Sdk.Models.SessionStructuredError>
     {
         public SessionStructuredError() { }
@@ -892,6 +1090,17 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("_tag")]
         public override string Tag { get; }
     }
+    public sealed class UnknownError : OpenCode.Sdk.Models.OpenCodeError, System.IEquatable<OpenCode.Sdk.Models.UnknownError>
+    {
+        public UnknownError() { }
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public required string Message { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("ref")]
+        public string? Ref { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("_tag")]
+        public override string Tag { get; }
+    }
     public sealed class UnknownOpenCodeError : OpenCode.Sdk.Models.OpenCodeError, System.IEquatable<OpenCode.Sdk.Models.UnknownOpenCodeError>
     {
         [System.Text.Json.Serialization.JsonConstructor]
@@ -904,6 +1113,14 @@ namespace OpenCode.Sdk.Models
     {
         [System.Text.Json.Serialization.JsonConstructor]
         public UnknownPromptFileSource(string type, System.Text.Json.JsonElement payload) { }
+        public System.Text.Json.JsonElement Payload { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public override string Type { get; }
+    }
+    public sealed class UnknownSessionForkBoundary : OpenCode.Sdk.Models.SessionForkBoundary, System.IEquatable<OpenCode.Sdk.Models.UnknownSessionForkBoundary>
+    {
+        [System.Text.Json.Serialization.JsonConstructor]
+        public UnknownSessionForkBoundary(string type, System.Text.Json.JsonElement payload) { }
         public System.Text.Json.JsonElement Payload { get; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public override string Type { get; }

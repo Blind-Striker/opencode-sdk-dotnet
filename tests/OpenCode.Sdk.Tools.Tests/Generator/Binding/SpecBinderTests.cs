@@ -12,10 +12,12 @@ public sealed class SpecBinderTests
 {
     private static readonly string[] ExpectedErrorTypeNames =
     [
+        "InvalidCursorError",
         "InvalidRequestError",
         "MessageNotFoundError",
         "SessionNotFoundError",
         "UnauthorizedError",
+        "UnknownError",
     ];
 
     [Test]

@@ -8,6 +8,12 @@
       "clientName": "Sessions",
       "handleName": "SessionClient",
       "handleParameter": "sessionID"
+    },
+    "message": {
+      "placement": "client",
+      "clientName": "Sessions",
+      "handleName": "SessionClient",
+      "handleParameter": "sessionID"
     }
   },
   "envelopePayloadNames": {},
@@ -25,5 +31,11 @@
       "reason": "The wire field carries a URI, but the pinned schema omits format: uri."
     }
   ],
-  "schemaAliases": []
+  "schemaAliases": [
+    {
+      "schema": "InvalidRequestError1",
+      "aliasOf": "InvalidRequestError",
+      "reason": "Upstream spec-gen emits a structurally identical duplicate carrying the same _tag."
+    }
+  ]
 }

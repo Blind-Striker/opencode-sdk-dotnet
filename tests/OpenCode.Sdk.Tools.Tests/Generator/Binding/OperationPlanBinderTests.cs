@@ -45,20 +45,56 @@ public sealed class OperationPlanBinderTests
 
         var sessions = plan.Clients.Single(static client => client.Role == ClientRole.Collection);
         await Assert.That(sessions.Name).IsEqualTo("SessionsClient");
-        await Assert.That(sessions.Operations).IsEmpty();
+        await Assert.That(sessions.Operations.Select(static operation => operation.MethodName)
+            .SequenceEqual(["CreateSessionAsync", "ListSessionsAsync"], StringComparer.Ordinal)).IsTrue();
         await Assert.That(sessions.HandleFactory!.MethodName).IsEqualTo("GetSessionClient");
         await Assert.That(sessions.HandleFactory.HandleTypeName).IsEqualTo("SessionClient");
         await Assert.That(sessions.HandleFactory.Parameter.WireName).IsEqualTo("sessionID");
         await Assert.That(sessions.HandleFactory.Parameter.Name).IsEqualTo("sessionId");
         await Assert.That(sessions.HandleFactory.Parameter.TypeName).IsEqualTo("string");
 
+        var list = sessions.Operations.Single(static operation => operation.MethodName == "ListSessionsAsync");
+        await Assert.That(list.Options!.TypeName).IsEqualTo("SessionListOptions");
+        await Assert.That(list.Options.DerivesFromListOptions).IsFalse();
+        await Assert.That(list.Options.Properties.Select(static property => property.PropertyName)
+            .SequenceEqual(
+                ["Workspace", "Limit", "Order", "Search", "ParentId", "Directory", "Project", "Subpath", "Cursor"],
+                StringComparer.Ordinal)).IsTrue();
+        await Assert.That(list.Envelope.Kind).IsEqualTo(EnvelopeKind.CursorList);
+        await Assert.That(list.Envelope.PayloadName).IsEqualTo("Sessions");
+        await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("SessionInfo");
+        await Assert.That(list.ErrorMap.Statuses[0].Tags.Select(static tag => tag.TypeName)
+            .SequenceEqual(["InvalidCursorError", "InvalidRequestError"], StringComparer.Ordinal)).IsTrue();
+
+        var create = sessions.Operations.Single(static operation => operation.MethodName == "CreateSessionAsync");
+        await Assert.That(create.HttpMethod).IsEqualTo("post");
+        await Assert.That(create.RequestBody!.TypeName).IsEqualTo("SessionCreateRequest");
+        await Assert.That(create.RequestBody.IsOptional).IsTrue();
+        await Assert.That(create.Envelope.ResponseTypeName).IsEqualTo("SessionCreateResponse");
+        await Assert.That(create.Envelope.PayloadName).IsEqualTo("Session");
+    }
+
+    [Test]
+    public async Task Bind_Should_Create_The_Selected_Pinned_Handle_Plans()
+    {
+        var plan = await new BindingTestHost().BindPinnedAsync();
+
         var session = plan.Clients.Single(static client => client.Role == ClientRole.Handle);
         await Assert.That(session.Name).IsEqualTo("SessionClient");
         await Assert.That(session.HandleParameter!.WireName).IsEqualTo("sessionID");
         await Assert.That(session.HandleParameter.IsHandleParameter).IsTrue();
+        await Assert.That(session.Operations.Select(static operation => operation.MethodName)
+            .SequenceEqual(["GetMessageAsync", "GetSessionAsync", "ListMessagesAsync"], StringComparer.Ordinal)).IsTrue();
 
-        var message = session.Operations.Single();
-        await Assert.That(message.MethodName).IsEqualTo("GetMessageAsync");
+        var messages = session.Operations.Single(static operation => operation.MethodName == "ListMessagesAsync");
+        await Assert.That(messages.Options!.TypeName).IsEqualTo("MessageListOptions");
+        await Assert.That(messages.Options.DerivesFromListOptions).IsTrue();
+        await Assert.That(messages.Envelope.Kind).IsEqualTo(EnvelopeKind.CursorList);
+        await Assert.That(messages.Envelope.PayloadName).IsEqualTo("Messages");
+        await Assert.That(messages.ErrorMap.Statuses.Select(static status => status.StatusCode)
+            .SequenceEqual([400, 401, 404, 500])).IsTrue();
+
+        var message = session.Operations.Single(static operation => operation.MethodName == "GetMessageAsync");
         await Assert.That(message.RouteTemplate).IsEqualTo("/api/session/{sessionID}/message/{messageID}");
         await Assert.That(message.RouteContainerName).IsEqualTo("Sessions");
         await Assert.That(message.RouteMemberName).IsEqualTo("GetMessage");
