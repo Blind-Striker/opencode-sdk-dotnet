@@ -5,3 +5,4 @@
 	path = external/opencode
 	url = https://github.com/anomalyco/opencode
 	shallow = true
+	branch = v2
