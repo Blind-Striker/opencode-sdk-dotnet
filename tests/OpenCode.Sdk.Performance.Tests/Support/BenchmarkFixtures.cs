@@ -16,6 +16,13 @@ internal static class BenchmarkFixtures
         return [.. "{\"data\":"u8, .. payload, .. "}"u8];
     }
 
+    /// <summary>Wraps one payload in the cursor-list envelope as a single-item page.</summary>
+    public static byte[] CursorListEnvelope(byte[] payload)
+    {
+        ArgumentNullException.ThrowIfNull(payload);
+        return [.. "{\"data\":["u8, .. payload, .. "],\"cursor\":{\"next\":\"cur_bench_next\"}}"u8];
+    }
+
     private static async Task<byte[]> ReadAsync(string name)
     {
         var stream = typeof(BenchmarkFixtures).Assembly

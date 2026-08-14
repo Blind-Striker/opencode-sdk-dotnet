@@ -1101,6 +1101,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("_tag")]
         public override string Tag { get; }
     }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownOpenCodeErrorJsonConverter))]
     public sealed class UnknownOpenCodeError : OpenCode.Sdk.Models.OpenCodeError, System.IEquatable<OpenCode.Sdk.Models.UnknownOpenCodeError>
     {
         [System.Text.Json.Serialization.JsonConstructor]
@@ -1109,6 +1110,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("_tag")]
         public override string Tag { get; }
     }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownPromptFileSourceJsonConverter))]
     public sealed class UnknownPromptFileSource : OpenCode.Sdk.Models.PromptFileSource, System.IEquatable<OpenCode.Sdk.Models.UnknownPromptFileSource>
     {
         [System.Text.Json.Serialization.JsonConstructor]
@@ -1117,6 +1119,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public override string Type { get; }
     }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownSessionForkBoundaryJsonConverter))]
     public sealed class UnknownSessionForkBoundary : OpenCode.Sdk.Models.SessionForkBoundary, System.IEquatable<OpenCode.Sdk.Models.UnknownSessionForkBoundary>
     {
         [System.Text.Json.Serialization.JsonConstructor]
@@ -1125,6 +1128,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public override string Type { get; }
     }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownSessionMessageAssistantContentJsonConverter))]
     public sealed class UnknownSessionMessageAssistantContent : OpenCode.Sdk.Models.SessionMessageAssistantContent, System.IEquatable<OpenCode.Sdk.Models.UnknownSessionMessageAssistantContent>
     {
         [System.Text.Json.Serialization.JsonConstructor]
@@ -1133,6 +1137,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public override string Type { get; }
     }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownSessionMessageCompactionJsonConverter))]
     public sealed class UnknownSessionMessageCompaction : OpenCode.Sdk.Models.SessionMessageCompaction, System.IEquatable<OpenCode.Sdk.Models.UnknownSessionMessageCompaction>
     {
         [System.Text.Json.Serialization.JsonConstructor]
@@ -1143,6 +1148,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public override string Type { get; }
     }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownSessionMessageInfoJsonConverter))]
     public sealed class UnknownSessionMessageInfo : OpenCode.Sdk.Models.SessionMessageInfo, System.IEquatable<OpenCode.Sdk.Models.UnknownSessionMessageInfo>
     {
         [System.Text.Json.Serialization.JsonConstructor]
@@ -1151,6 +1157,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public override string Type { get; }
     }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownSessionMessageToolStateJsonConverter))]
     public sealed class UnknownSessionMessageToolState : OpenCode.Sdk.Models.SessionMessageToolState, System.IEquatable<OpenCode.Sdk.Models.UnknownSessionMessageToolState>
     {
         [System.Text.Json.Serialization.JsonConstructor]
@@ -1159,6 +1166,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("status")]
         public override string Status { get; }
     }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownToolContentJsonConverter))]
     public sealed class UnknownToolContent : OpenCode.Sdk.Models.ToolContent, System.IEquatable<OpenCode.Sdk.Models.UnknownToolContent>
     {
         [System.Text.Json.Serialization.JsonConstructor]

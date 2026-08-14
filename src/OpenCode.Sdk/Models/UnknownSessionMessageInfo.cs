@@ -2,11 +2,13 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Preserves an unknown session message info payload.
 /// </summary>
+[JsonConverter(typeof(UnknownSessionMessageInfoJsonConverter))]
 public sealed record UnknownSessionMessageInfo : SessionMessageInfo
 {
     private readonly string _marker;

@@ -14,11 +14,15 @@ public class ClientOperationBenchmarks : IDisposable
 {
     private CannedResponseHandler? _messageHandler;
     private CannedResponseHandler? _healthHandler;
+    private CannedResponseHandler? _messageListHandler;
     private HttpClient? _messageHttpClient;
     private HttpClient? _healthHttpClient;
+    private HttpClient? _messageListHttpClient;
     private OpenCodeClient? _messageClient;
     private OpenCodeClient? _healthClient;
+    private OpenCodeClient? _messageListClient;
     private SessionClient? _session;
+    private SessionClient? _messageListSession;
 
     [GlobalSetup]
     public async Task SetupAsync()
@@ -38,6 +42,12 @@ public class ClientOperationBenchmarks : IDisposable
         _healthHandler = new CannedResponseHandler(BenchmarkFixtures.HealthBody());
         _healthHttpClient = new HttpClient(_healthHandler);
         _healthClient = new OpenCodeClient(_healthHttpClient, options);
+
+        var page = BenchmarkFixtures.CursorListEnvelope(await BenchmarkFixtures.DeepAssistantMessageAsync().ConfigureAwait(false));
+        _messageListHandler = new CannedResponseHandler(page);
+        _messageListHttpClient = new HttpClient(_messageListHandler);
+        _messageListClient = new OpenCodeClient(_messageListHttpClient, options);
+        _messageListSession = _messageListClient.Sessions.GetSessionClient("ses_bench0000000000000000001");
     }
 
     [Benchmark]
@@ -45,6 +55,9 @@ public class ClientOperationBenchmarks : IDisposable
 
     [Benchmark]
     public Task<HealthResponse> GetHealthAsync() => _healthClient!.GetHealthAsync();
+
+    [Benchmark]
+    public Task<MessageListResponse> ListMessagesAsync() => _messageListSession!.ListMessagesAsync();
 
     [GlobalCleanup]
     public void Cleanup() => Dispose();
@@ -64,9 +77,12 @@ public class ClientOperationBenchmarks : IDisposable
 
         _messageClient?.Dispose();
         _healthClient?.Dispose();
+        _messageListClient?.Dispose();
         _messageHttpClient?.Dispose();
         _healthHttpClient?.Dispose();
+        _messageListHttpClient?.Dispose();
         _messageHandler?.Dispose();
         _healthHandler?.Dispose();
+        _messageListHandler?.Dispose();
     }
 }

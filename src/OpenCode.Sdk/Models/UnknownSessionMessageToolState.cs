@@ -2,11 +2,13 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Preserves an unknown session message tool state payload.
 /// </summary>
+[JsonConverter(typeof(UnknownSessionMessageToolStateJsonConverter))]
 public sealed record UnknownSessionMessageToolState : SessionMessageToolState
 {
     private readonly string _marker;

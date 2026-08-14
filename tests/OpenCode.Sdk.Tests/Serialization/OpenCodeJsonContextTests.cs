@@ -55,6 +55,39 @@ public sealed class OpenCodeJsonContextTests
     }
 
     [Test]
+    public async Task Serialize_Should_Reproduce_The_Raw_Document_Through_The_Concrete_Carrier_Type()
+    {
+        var json = _fixtures.LoadJson("Serialization.unknown-session-message.json");
+        var unknown = (UnknownSessionMessageInfo)_serializer.Deserialize<SessionMessageInfo>(json);
+
+        var roundTrip = _serializer.Serialize(unknown);
+
+        await Assert.That(roundTrip).IsEqualTo(json);
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Preserve_The_Payload_Through_The_Concrete_Carrier_Type()
+    {
+        var json = _fixtures.LoadJson("Serialization.unknown-session-message.json");
+
+        var unknown = _serializer.Deserialize<UnknownSessionMessageInfo>(json);
+
+        await Assert.That(unknown.Type).IsEqualTo("future-message");
+        await Assert.That(_serializer.Serialize(unknown)).IsEqualTo(json);
+    }
+
+    [Test]
+    public async Task Serialize_Should_Reproduce_The_Raw_Error_Through_The_Concrete_Carrier_Type()
+    {
+        const string json = "{\"_tag\":\"BrandNewError\",\"detail\":{\"code\":7}}";
+        var unknown = (UnknownOpenCodeError)_serializer.Deserialize<OpenCodeError>(json);
+
+        var roundTrip = _serializer.Serialize(unknown);
+
+        await Assert.That(roundTrip).IsEqualTo(json);
+    }
+
+    [Test]
     public async Task Deserialize_Should_Create_Nested_Compaction_Variant_Through_The_Outer_Union()
     {
         var json = _fixtures.LoadJson("Serialization.known-compaction-message.json");

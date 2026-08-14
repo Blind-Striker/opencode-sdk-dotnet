@@ -2,11 +2,13 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Preserves an unknown session fork boundary payload.
 /// </summary>
+[JsonConverter(typeof(UnknownSessionForkBoundaryJsonConverter))]
 public sealed record UnknownSessionForkBoundary : SessionForkBoundary
 {
     private readonly string _marker;
