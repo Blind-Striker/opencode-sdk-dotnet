@@ -46,7 +46,11 @@ landed on the same PR: options-only construction with the read-only
 `IOpenCodeClientOptions` view and configurable `Username`, no SDK environment reads,
 `IHttpClientFactory`-based `AddOpenCode` returning the `IHttpClientBuilder`, pooled
 connection lifetime on the owned transport, and the sandbox as the Generic Host DI
-showcase. Further breadth batches follow the PR #26 review cycle.
+showcase. The PR #26 external review ran through adversarial verification (36 findings:
+30 confirmed / 4 plausible / 2 refuted): the ten merge blockers plus small fold-ins are
+queued as the fix batch in `agents/handover-prompts/HANDOFF-2026-08-14-3.md` — gated on
+the open Q91 decision — and every surviving non-blocker lives in issues #27–#30 and the
+#24 hygiene comment. Merge follows the fix batch; further breadth batches follow merge.
 
 ## Milestones
 
@@ -93,6 +97,14 @@ is revisited at each milestone boundary.
 
 ## Open Questions
 
+- **Q91 — the BYO-HttpClient surface** — review blocker #1 exposed the public
+  `(HttpClient, options)` constructor's default-header ambiguity. Recorded leaning:
+  internalize it (IVT to the Extensions package; one public constructor; the
+  `IHttpClientBuilder` as the sanctioned transport seam; no-DI needs met additively via
+  concrete options knobs). Not sealed: an industry survey runs first, and keeping BYO
+  public is acceptable with a first-class-but-pragmatic default-header resolution — the
+  proxy/TLS advantage is real. Owned by the fix-batch session
+  (`agents/handover-prompts/HANDOFF-2026-08-14-3.md` item A); blocker #1 waits on it.
 - **v2 GA watch** — the v2 line ships as `opencode2` (npm `@opencode-ai/cli@next`, desktop
   beta via `update.opencode.ai`) with no GA date; the spec pin stays a deliberate snapshot,
   refreshed at milestone boundaries. Platform detail: research doc 15.
