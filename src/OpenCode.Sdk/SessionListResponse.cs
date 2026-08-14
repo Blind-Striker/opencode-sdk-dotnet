@@ -36,7 +36,7 @@ public sealed record SessionListResponse : OpenCodeResponse
     /// <summary>
     /// Gets the Sessions payload; guarded on the error path.
     /// </summary>
-    public required IReadOnlyList<SessionInfo> Sessions { get => _sessions ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Sessions."); init => _sessions = Array.AsReadOnly([.. value]); }
+    public required IReadOnlyList<SessionInfo> Sessions { get => _sessions ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Sessions."); init => _sessions = value is null ? null : Array.AsReadOnly([.. value]); }
     /// <summary>
     /// Gets the page cursor; guarded on the error path.
     /// </summary>

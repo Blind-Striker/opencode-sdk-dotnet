@@ -122,9 +122,11 @@ internal static class EnvelopeEmitter
 
     private static PropertyDeclarationSyntax EmitPayloadProperty(EnvelopePlan envelope, TypeSyntax payloadType, string fieldName)
     {
-        ExpressionSyntax initValue = envelope.Kind is EnvelopeKind.CursorList
-            ? DefensiveListCopy()
-            : SyntaxFactory.IdentifierName("value");
+        ExpressionSyntax initValue = SyntaxFactory.IdentifierName("value");
+        if (envelope.Kind is EnvelopeKind.CursorList)
+        {
+            initValue = DefensiveListCopy();
+        }
         return EmitGuardedProperty(
             payloadType,
             envelope.PayloadName,
@@ -141,13 +143,21 @@ internal static class EnvelopeEmitter
             SyntaxFactory.IdentifierName("value"),
             "Gets the page cursor; guarded on the error path.");
 
-    /// <summary>List payloads defensively copy on init so the envelope stays immutable.</summary>
-    private static InvocationExpressionSyntax DefensiveListCopy() =>
-        EmissionSyntax.Invocation(
-            EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("Array"), "AsReadOnly"),
-            SyntaxFactory.Argument(SyntaxFactory.CollectionExpression(
-                SyntaxFactory.SingletonSeparatedList<CollectionElementSyntax>(
-                    SyntaxFactory.SpreadElement(SyntaxFactory.IdentifierName("value"))))));
+    /// <summary>
+    /// List payloads defensively copy on init so the envelope stays immutable; the error
+    /// path's forgiven null passes through uncopied and stays behind the getter guard.
+    /// </summary>
+    private static ConditionalExpressionSyntax DefensiveListCopy() =>
+        SyntaxFactory.ConditionalExpression(
+            SyntaxFactory.IsPatternExpression(
+                SyntaxFactory.IdentifierName("value"),
+                SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
+            SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression),
+            EmissionSyntax.Invocation(
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("Array"), "AsReadOnly"),
+                SyntaxFactory.Argument(SyntaxFactory.CollectionExpression(
+                    SyntaxFactory.SingletonSeparatedList<CollectionElementSyntax>(
+                        SyntaxFactory.SpreadElement(SyntaxFactory.IdentifierName("value")))))));
 
     private static PropertyDeclarationSyntax EmitGuardedProperty(TypeSyntax propertyType, string propertyName,
         string fieldName, ExpressionSyntax initValue, string documentation)
