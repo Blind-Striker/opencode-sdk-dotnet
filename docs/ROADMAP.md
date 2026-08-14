@@ -39,11 +39,14 @@ and #22 (List/Create verb rules + C17–C20) landed with it; upstream's `Invalid
 duplicate collapses through the new `schemaAliases` curation. Demonstrated live 2026-08-14
 against `opencode2 serve` v0.0.0-next-17403 (create → list → get → messages, wire cursor
 round-tripped). The #20 decision landed (blank explicit passwords refuse; `null` keeps the
-environment fallback) and #25 closed keep. The alignment batch is complete: the uniform
+environment fallback) and #25 closed keep. The alignment batch is complete — the uniform
 `*Request` rename (Q83), the feature-slice layout migration (Q84), and the Extensions
-bring-up (Q85 — `AddOpenCode` overloads registering the root client and directly
-resolvable sub-clients) have all landed; further breadth batches follow the PR #26
-review cycle.
+bring-up (Q85) — and the follow-on construction/options/DI reshape (research log Q90)
+landed on the same PR: options-only construction with the read-only
+`IOpenCodeClientOptions` view and configurable `Username`, no SDK environment reads,
+`IHttpClientFactory`-based `AddOpenCode` returning the `IHttpClientBuilder`, pooled
+connection lifetime on the owned transport, and the sandbox as the Generic Host DI
+showcase. Further breadth batches follow the PR #26 review cycle.
 
 ## Milestones
 

@@ -1868,3 +1868,38 @@ default `opencode`) — our pipeline's hardcoded `opencode` user is incomplete. 
 password-from-environment resolution lives in the CLI consumer
 (`OPENCODE_PASSWORD` → legacy `OPENCODE_SERVER_PASSWORD`), not in the client library.
 Feeds the pending Q86 batch (options shape, env-fallback ownership, `Username` option).
+
+## Q90: How do client construction, options, and DI align with .NET conventions? (the in-session "Q86" batch)
+
+**How researched:** the maintainer's grill of the Q85 first cut plus the Q87–Q89 upstream
+findings; ecosystem verification of options immutability (init-only binds via the
+reflection binder; the .NET 8+ config source generator's required/init support is the
+buggy edge — dotnet/runtime #95006/#101984/#90974 — so `required` stays out).
+
+**Decisions (maintainer, sealed):**
+
+- **Construction:** `OpenCodeClient(OpenCodeClientOptions)` + the caller-owned-HttpClient
+  overload; the Uri constructors retire — the endpoint has one home and the
+  endpoint-must-stay-unset guard disappears. One way to build a client.
+- **Options:** the .NET convention holds — a settable class with the `Action<>` configure
+  pattern — and immutability is expressed at consumption: the public read-only
+  `IOpenCodeClientOptions` view, snapshotted by the pipeline at construction (pinned by
+  test: post-construction mutation never reaches a built client).
+- **Credentials:** `Username` joins the options (upstream's `--username` /
+  `OPENCODE_SERVER_USERNAME`, default `opencode`; the pipeline's hardcode retired);
+  `Password` stays optional — null sends anonymous requests, matching v2's optional auth;
+  blank refusal stays. The environment fallback left the SDK (upstream layering: the
+  consumer resolves env; the CLI's own chain is `OPENCODE_PASSWORD` →
+  `OPENCODE_SERVER_PASSWORD`) — this revises the env half of the #20 decision on Q89
+  evidence; the blank-refusal half stands.
+- **Extensions:** rebuilt on `IHttpClientFactory` — `AddOpenCode(Action<...>)` +
+  AOT-annotated `AddOpenCode(IConfiguration)` bind options, register a transient typed
+  client over a named factory client, register sub-clients explicitly, and return the
+  `IHttpClientBuilder` so consumer handlers/resilience/telemetry chain on without SDK
+  middleware. The BYO-HttpClient registration overload is gone (a captured instance
+  defeats factory rotation; no surveyed companion package ships one).
+- **Transport:** the self-created path uses `SocketsHttpHandler` with
+  `PooledConnectionLifetime` on modern TFMs (vision §7.5's promise, implemented); the
+  net472 `ServicePointManager` half stays an M3 item.
+- The sandbox is the standing DI showcase (Generic Host, builder-chained consumer
+  handler, direct sub-client resolution).
