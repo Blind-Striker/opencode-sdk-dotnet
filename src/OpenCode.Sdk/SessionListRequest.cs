@@ -4,7 +4,7 @@ namespace OpenCode.Sdk;
 /// <summary>
 /// Shapes the &apos;GET /api/session&apos; query.
 /// </summary>
-public sealed record SessionListOptions
+public sealed record SessionListRequest
 {
     /// <summary>
     /// Gets the &apos;workspace&apos; query value; the server default applies when unset.

@@ -29,7 +29,7 @@ internal static class RoutesEmitter
             usings.Add("System");
         }
 
-        if (operations.Any(static operation => operation.Options is not null))
+        if (operations.Any(static operation => operation.QueryRequest is not null))
         {
             usings.Add("OpenCode.Sdk.Internal");
         }
@@ -43,7 +43,7 @@ internal static class RoutesEmitter
         var members = new List<MemberDeclarationSyntax>();
         foreach (var operation in container.OrderBy(static operation => operation.RouteMemberName, StringComparer.Ordinal))
         {
-            if (operation.Parameters.Count is 0 && operation.Options is null)
+            if (operation.Parameters.Count is 0 && operation.QueryRequest is null)
             {
                 members.Add(EmitConst(
                     operation.RouteMemberName,
@@ -87,7 +87,7 @@ internal static class RoutesEmitter
             statements.AddRange(EmitRouteValueGuard(parameter.Name));
         }
 
-        if (operation.Options is null)
+        if (operation.QueryRequest is null)
         {
             statements.Add(SyntaxFactory.ReturnStatement(EmitConcatenation(operation)));
         }
@@ -99,9 +99,9 @@ internal static class RoutesEmitter
         var parameters = new List<DocumentedParameter>();
         parameters.AddRange(operation.Parameters.Select(static parameter =>
             new DocumentedParameter(parameter.Name, $"The '{parameter.WireName}' route value.")));
-        if (operation.Options is not null)
+        if (operation.QueryRequest is not null)
         {
-            parameters.Add(new DocumentedParameter("options", "The query options."));
+            parameters.Add(new DocumentedParameter("request", "The request shaping the query."));
         }
 
         var documentation = EmissionSyntax.MemberDocumentation(
@@ -127,15 +127,15 @@ internal static class RoutesEmitter
                 .WithType(TypeSyntaxEmitter.EmitNamed(parameter.TypeName));
         }
 
-        if (operation.Options is not null)
+        if (operation.QueryRequest is not null)
         {
-            yield return SyntaxFactory.Parameter(SyntaxFactory.Identifier("options"))
-                .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(operation.Options.TypeName)))
+            yield return SyntaxFactory.Parameter(SyntaxFactory.Identifier("request"))
+                .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(operation.QueryRequest.TypeName)))
                 .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)));
         }
     }
 
-    /// <summary>Unset options short-circuit to the bare path; set ones append the composed query suffix.</summary>
+    /// <summary>An unset request short-circuits to the bare path; a set one appends the composed query suffix.</summary>
     private static IEnumerable<StatementSyntax> EmitQueryComposition(OperationPlan operation)
     {
         yield return SyntaxFactory.LocalDeclarationStatement(SyntaxFactory.VariableDeclaration(
@@ -144,7 +144,7 @@ internal static class RoutesEmitter
                 .WithInitializer(SyntaxFactory.EqualsValueClause(EmitConcatenation(operation))))));
         yield return SyntaxFactory.IfStatement(
             SyntaxFactory.IsPatternExpression(
-                SyntaxFactory.IdentifierName("options"),
+                SyntaxFactory.IdentifierName("request"),
                 SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
             SyntaxFactory.Block(SyntaxFactory.ReturnStatement(SyntaxFactory.IdentifierName("path"))));
         yield return SyntaxFactory.LocalDeclarationStatement(SyntaxFactory.VariableDeclaration(
@@ -153,13 +153,13 @@ internal static class RoutesEmitter
                 .WithInitializer(SyntaxFactory.EqualsValueClause(SyntaxFactory.ObjectCreationExpression(
                         TypeSyntaxEmitter.EmitNamed("QueryStringBuilder"))
                     .WithArgumentList(SyntaxFactory.ArgumentList()))))));
-        foreach (var property in operation.Options!.Properties)
+        foreach (var property in operation.QueryRequest!.Properties)
         {
             yield return SyntaxFactory.ExpressionStatement(EmissionSyntax.Invocation(
                 EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("query"), QueryAddMethod(property.Kind)),
                 SyntaxFactory.Argument(StringLiteral(property.WireName)),
                 SyntaxFactory.Argument(EmissionSyntax.MemberAccess(
-                    SyntaxFactory.IdentifierName("options"),
+                    SyntaxFactory.IdentifierName("request"),
                     property.PropertyName))));
         }
 

@@ -69,7 +69,7 @@ public sealed class SessionClientContractTests
         using var httpClient = new HttpClient(handler);
         using var client = CreateClient(httpClient);
 
-        var response = await client.Sessions.GetSessionClient("ses_100").ListMessagesAsync(new MessageListOptions
+        var response = await client.Sessions.GetSessionClient("ses_100").ListMessagesAsync(new MessageListRequest
         {
             Limit = 2,
             Order = ListOrder.Ascending,

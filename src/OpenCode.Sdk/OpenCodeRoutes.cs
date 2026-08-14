@@ -83,9 +83,9 @@ public static class OpenCodeRoutes
         /// Builds the &apos;/api/session/{sessionID}/message&apos; route.
         /// </summary>
         /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
-        /// <param name = "options">The query options.</param>
+        /// <param name = "request">The request shaping the query.</param>
         /// <returns>The escaped route.</returns>
-        public static string ListMessages(string sessionId, MessageListOptions? options = null)
+        public static string ListMessages(string sessionId, MessageListRequest? request = null)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
             if (sessionId is "." or "..")
@@ -94,15 +94,15 @@ public static class OpenCodeRoutes
             }
 
             var path = "/api/session/" + Uri.EscapeDataString(sessionId) + "/message";
-            if (options is null)
+            if (request is null)
             {
                 return path;
             }
 
             var query = new QueryStringBuilder();
-            query.AddCount("limit", options.Limit);
-            query.AddOrder("order", options.Order);
-            query.AddText("cursor", options.Cursor);
+            query.AddCount("limit", request.Limit);
+            query.AddOrder("order", request.Order);
+            query.AddText("cursor", request.Cursor);
             return path + query.Value;
         }
 
@@ -113,26 +113,26 @@ public static class OpenCodeRoutes
         /// <summary>
         /// Builds the &apos;/api/session&apos; route.
         /// </summary>
-        /// <param name = "options">The query options.</param>
+        /// <param name = "request">The request shaping the query.</param>
         /// <returns>The escaped route.</returns>
-        public static string ListSessions(SessionListOptions? options = null)
+        public static string ListSessions(SessionListRequest? request = null)
         {
             var path = "/api/session";
-            if (options is null)
+            if (request is null)
             {
                 return path;
             }
 
             var query = new QueryStringBuilder();
-            query.AddText("workspace", options.Workspace);
-            query.AddCount("limit", options.Limit);
-            query.AddOrder("order", options.Order);
-            query.AddText("search", options.Search);
-            query.AddParentFilter("parentID", options.ParentId);
-            query.AddText("directory", options.Directory);
-            query.AddText("project", options.Project);
-            query.AddText("subpath", options.Subpath);
-            query.AddText("cursor", options.Cursor);
+            query.AddText("workspace", request.Workspace);
+            query.AddCount("limit", request.Limit);
+            query.AddOrder("order", request.Order);
+            query.AddText("search", request.Search);
+            query.AddParentFilter("parentID", request.ParentId);
+            query.AddText("directory", request.Directory);
+            query.AddText("project", request.Project);
+            query.AddText("subpath", request.Subpath);
+            query.AddText("cursor", request.Cursor);
             return path + query.Value;
         }
     }

@@ -212,7 +212,7 @@ internal static class EmitterPlanFixture
             IsHandleParameter = true,
         };
 
-    /// <summary>A flat options list operation covering every query value kind, a cursor envelope, and a 5xx arm.</summary>
+    /// <summary>A flat query-request list operation covering every query value kind, a cursor envelope, and a 5xx arm.</summary>
     private static OperationPlan CreateWidgetListOperation() =>
         new()
         {
@@ -222,16 +222,16 @@ internal static class EmitterPlanFixture
             RouteContainerName = "Widgets",
             RouteMemberName = "ListWidgets",
             Parameters = [],
-            Options = new OperationOptionsPlan
+            QueryRequest = new QueryRequestPlan
             {
-                TypeName = "WidgetListOptions",
-                DerivesFromListOptions = false,
+                TypeName = "WidgetListRequest",
+                DerivesFromListRequest = false,
                 Properties =
                 [
-                    OptionsProperty("limit", "Limit", QueryValueKind.PositiveCount),
-                    OptionsProperty("order", "Order", QueryValueKind.ListOrder),
-                    OptionsProperty("cursor", "Cursor", QueryValueKind.Text),
-                    OptionsProperty("parentID", "ParentId", QueryValueKind.SessionParentFilter),
+                    QueryProperty("limit", "Limit", QueryValueKind.PositiveCount),
+                    QueryProperty("order", "Order", QueryValueKind.ListOrder),
+                    QueryProperty("cursor", "Cursor", QueryValueKind.Text),
+                    QueryProperty("parentID", "ParentId", QueryValueKind.SessionParentFilter),
                 ],
             },
             Envelope = new EnvelopePlan
@@ -263,7 +263,7 @@ internal static class EmitterPlanFixture
             Description = null,
         };
 
-    /// <summary>A handle-scoped list whose options derive from the ListOptions base.</summary>
+    /// <summary>A handle-scoped list whose query request derives from the ListRequest base.</summary>
     private static OperationPlan CreateItemListOperation() =>
         new()
         {
@@ -273,15 +273,15 @@ internal static class EmitterPlanFixture
             RouteContainerName = "Widgets",
             RouteMemberName = "ListItems",
             Parameters = [CreateWidgetParameter()],
-            Options = new OperationOptionsPlan
+            QueryRequest = new QueryRequestPlan
             {
-                TypeName = "ItemListOptions",
-                DerivesFromListOptions = true,
+                TypeName = "ItemListRequest",
+                DerivesFromListRequest = true,
                 Properties =
                 [
-                    OptionsProperty("limit", "Limit", QueryValueKind.PositiveCount, isInherited: true),
-                    OptionsProperty("order", "Order", QueryValueKind.ListOrder, isInherited: true),
-                    OptionsProperty("cursor", "Cursor", QueryValueKind.Text, isInherited: true),
+                    QueryProperty("limit", "Limit", QueryValueKind.PositiveCount, isInherited: true),
+                    QueryProperty("order", "Order", QueryValueKind.ListOrder, isInherited: true),
+                    QueryProperty("cursor", "Cursor", QueryValueKind.Text, isInherited: true),
                 ],
             },
             Envelope = new EnvelopePlan
@@ -348,7 +348,7 @@ internal static class EmitterPlanFixture
             Description = null,
         };
 
-    private static OptionsPropertyPlan OptionsProperty(string wireName, string propertyName, QueryValueKind kind,
+    private static QueryPropertyPlan QueryProperty(string wireName, string propertyName, QueryValueKind kind,
         bool isInherited = false) =>
         new()
         {

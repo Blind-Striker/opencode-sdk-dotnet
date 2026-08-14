@@ -6,10 +6,10 @@ using OpenCode.Sdk.Tools.Generator.Binding.Models;
 namespace OpenCode.Sdk.Tools.Generator.Emission;
 
 /// <summary>
-/// Emits one public options record per query-carrying operation: derived records inherit the
-/// <c>ListOptions</c> trio verbatim, flat records declare every bound query property.
+/// Emits one public request record per query-carrying operation: derived records inherit the
+/// <c>ListRequest</c> trio verbatim, flat records declare every bound query property.
 /// </summary>
-internal static class OptionsEmitter
+internal static class QueryRequestEmitter
 {
     public static IReadOnlyList<GeneratedSource> Emit(IReadOnlyList<ClientPlan> clients)
     {
@@ -19,16 +19,16 @@ internal static class OptionsEmitter
         [
             .. clients
                 .SelectMany(static client => client.Operations)
-                .Where(static operation => operation.Options is not null)
-                .OrderBy(static operation => operation.Options!.TypeName, StringComparer.Ordinal)
-                .Select(static operation => EmitOptions(operation)),
+                .Where(static operation => operation.QueryRequest is not null)
+                .OrderBy(static operation => operation.QueryRequest!.TypeName, StringComparer.Ordinal)
+                .Select(static operation => EmitQueryRequest(operation)),
         ]);
     }
 
-    private static GeneratedSource EmitOptions(OperationPlan operation)
+    private static GeneratedSource EmitQueryRequest(OperationPlan operation)
     {
-        var options = operation.Options!;
-        var declaration = SyntaxFactory.RecordDeclaration(SyntaxFactory.Token(SyntaxKind.RecordKeyword), options.TypeName)
+        var queryRequest = operation.QueryRequest!;
+        var declaration = SyntaxFactory.RecordDeclaration(SyntaxFactory.Token(SyntaxKind.RecordKeyword), queryRequest.TypeName)
             .WithModifiers(SyntaxFactory.TokenList(
                 SyntaxFactory.Token(SyntaxKind.PublicKeyword),
                 SyntaxFactory.Token(SyntaxKind.SealedKeyword)))
@@ -36,23 +36,23 @@ internal static class OptionsEmitter
             .WithCloseBraceToken(SyntaxFactory.Token(SyntaxKind.CloseBraceToken))
             .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>(
             [
-                .. options.Properties
+                .. queryRequest.Properties
                     .Where(static property => !property.IsInherited)
                     .Select(static property => EmitProperty(property)),
             ]))
             .WithLeadingTrivia(EmissionSyntax.Documentation(
                 $"Shapes the '{operation.HttpMethod.ToUpperInvariant()} {operation.RouteTemplate}' query."));
-        if (options.DerivesFromListOptions)
+        if (queryRequest.DerivesFromListRequest)
         {
             declaration = declaration.WithBaseList(SyntaxFactory.BaseList(SyntaxFactory.SingletonSeparatedList<BaseTypeSyntax>(
-                SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.EmitNamed("ListOptions")))));
+                SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.EmitNamed("ListRequest")))));
         }
 
         var unit = EmissionSyntax.CompilationUnit("OpenCode.Sdk", [], [declaration]);
-        return EmissionSyntax.CreateSource($"{options.TypeName}.cs", unit);
+        return EmissionSyntax.CreateSource($"{queryRequest.TypeName}.cs", unit);
     }
 
-    private static PropertyDeclarationSyntax EmitProperty(OptionsPropertyPlan property)
+    private static PropertyDeclarationSyntax EmitProperty(QueryPropertyPlan property)
     {
         var accessors = SyntaxFactory.AccessorList(SyntaxFactory.List(
         [

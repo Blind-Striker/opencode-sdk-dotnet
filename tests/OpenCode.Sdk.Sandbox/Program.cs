@@ -28,7 +28,7 @@ Console.WriteLine(string.Create(
     CultureInfo.InvariantCulture,
     $"create:  status={created.Status} id={created.Session.Id} title={created.Session.Title}"));
 
-var page = await client.Sessions.ListSessionsAsync(new SessionListOptions
+var page = await client.Sessions.ListSessionsAsync(new SessionListRequest
 {
     Limit = 3,
     Order = ListOrder.Descending,
@@ -47,7 +47,7 @@ Console.WriteLine(string.Create(
     CultureInfo.InvariantCulture,
     $"get:     status={fetched.Status} id={fetched.Session.Id} directory={fetched.Session.Location.Directory}"));
 
-var messages = await handle.ListMessagesAsync(new MessageListOptions
+var messages = await handle.ListMessagesAsync(new MessageListRequest
 {
     Limit = 5,
 }).ConfigureAwait(false);

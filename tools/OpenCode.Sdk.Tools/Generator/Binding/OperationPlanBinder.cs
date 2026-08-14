@@ -20,8 +20,8 @@ internal sealed class OperationPlanBinder
     [
         "ErrorBehavior",
         "ListCursor",
-        "ListOptions",
         "ListOrder",
+        "ListRequest",
         "OpenCodeApiException",
         "OpenCodeClientOptions",
         "OpenCodeException",
@@ -35,7 +35,6 @@ internal sealed class OperationPlanBinder
     private static readonly string[] ReservedParameterNames =
     [
         "cancellationToken",
-        "options",
         "pipeline",
         "request",
         "requestOptions",
@@ -224,12 +223,12 @@ internal sealed class OperationPlanBinder
         }
 
         foreach (var operation in bound.Where(operation =>
-                     operation.Plan.Options is not null && !owners.Add(operation.Plan.Options.TypeName)))
+                     operation.Plan.QueryRequest is not null && !owners.Add(operation.Plan.QueryRequest.TypeName)))
         {
             errors.Add(
                 BindingErrorCategory.Naming,
                 operation.OperationId,
-                $"options type name '{operation.Plan.Options!.TypeName}' collides with another generated type");
+                $"request type name '{operation.Plan.QueryRequest!.TypeName}' collides with another generated type");
         }
 
         var routeMembers = new HashSet<string>(_comparer);
@@ -285,7 +284,7 @@ internal sealed class OperationPlanBinder
             var errorMap = BindErrorMap();
             var parameters = BindParameters(row);
             var optionalPlanErrorsBefore = _errors.Count;
-            var options = BindQueryOptions();
+            var queryRequest = BindQueryRequest();
             var requestBody = BindRequestBody();
             var methodName = OperationNamePolicy.MethodName(_operation);
             var routeMemberName = OperationNamePolicy.RouteMemberName(_operation, row.Placement);
@@ -314,7 +313,7 @@ internal sealed class OperationPlanBinder
                     RouteContainerName = row.ClientName ?? CSharpNamePolicy.ToPascalCase(group),
                     RouteMemberName = routeMemberName,
                     Parameters = parameters,
-                    Options = options,
+                    QueryRequest = queryRequest,
                     RequestBody = requestBody,
                     Envelope = envelope,
                     ErrorMap = errorMap,
@@ -695,7 +694,7 @@ internal sealed class OperationPlanBinder
             return position;
         }
 
-        private OperationOptionsPlan? BindQueryOptions()
+        private QueryRequestPlan? BindQueryRequest()
         {
             var query = _operation.Parameters
                 .Where(static parameter => parameter.Location is SpecParameterLocation.Query)
@@ -705,7 +704,7 @@ internal sealed class OperationPlanBinder
                 return null;
             }
 
-            var properties = new List<OptionsPropertyPlan>(query.Length);
+            var properties = new List<QueryPropertyPlan>(query.Length);
             foreach (var parameter in query)
             {
                 if (parameter.IsDeepObject)
@@ -733,7 +732,7 @@ internal sealed class OperationPlanBinder
                     continue;
                 }
 
-                properties.Add(new OptionsPropertyPlan
+                properties.Add(new QueryPropertyPlan
                 {
                     WireName = parameter.Name,
                     PropertyName = CSharpNamePolicy.ToPascalCase(parameter.Name),
@@ -753,15 +752,15 @@ internal sealed class OperationPlanBinder
                 return null;
             }
 
-            if (MatchesListOptionsProfile(properties))
+            if (MatchesListRequestProfile(properties))
             {
                 properties = [.. properties.Select(static property => property with { IsInherited = true })];
             }
 
-            return new OperationOptionsPlan
+            return new QueryRequestPlan
             {
-                TypeName = OperationNamePolicy.OptionsTypeName(_operation),
-                DerivesFromListOptions = properties.Count > 0 && properties[0].IsInherited,
+                TypeName = OperationNamePolicy.RequestTypeName(_operation),
+                DerivesFromListRequest = properties.Count > 0 && properties[0].IsInherited,
                 Properties = properties,
             };
         }
@@ -807,10 +806,10 @@ internal sealed class OperationPlanBinder
         }
 
         /// <summary>
-        /// The fail-closed profile wall: an operation derives from the <c>ListOptions</c> base
+        /// The fail-closed profile wall: an operation derives from the <c>ListRequest</c> base
         /// only when its wire query parameters are exactly the cursor-pagination trio.
         /// </summary>
-        private static bool MatchesListOptionsProfile(List<OptionsPropertyPlan> properties) =>
+        private static bool MatchesListRequestProfile(List<QueryPropertyPlan> properties) =>
             properties.Count is 3
             && properties.Any(static property => property is { WireName: "limit", Kind: QueryValueKind.PositiveCount })
             && properties.Any(static property => property is { WireName: "order", Kind: QueryValueKind.ListOrder })

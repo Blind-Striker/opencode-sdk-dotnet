@@ -152,15 +152,15 @@ public class WidgetClient
     /// <summary>
     /// List the widget items
     /// </summary>
-    /// <param name = "options">The query options.</param>
+    /// <param name = "request">The request shaping the query.</param>
     /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
     /// <returns>The &apos;WidgetItemListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<WidgetItemListResponse> ListItemsAsync(ItemListOptions? options = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    public virtual Task<WidgetItemListResponse> ListItemsAsync(ItemListRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
-        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Widgets.ListItems(WidgetId, options), WidgetItemListResponseAdapter.Instance, requestOptions, cancellationToken);
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Widgets.ListItems(WidgetId, request), WidgetItemListResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }
 
@@ -225,15 +225,15 @@ public class WidgetsClient
     /// <summary>
     /// List the widgets
     /// </summary>
-    /// <param name = "options">The query options.</param>
+    /// <param name = "request">The request shaping the query.</param>
     /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
     /// <returns>The &apos;WidgetListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 500) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<WidgetListResponse> ListWidgetsAsync(WidgetListOptions? options = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    public virtual Task<WidgetListResponse> ListWidgetsAsync(WidgetListRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
-        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Widgets.ListWidgets(options), WidgetListResponseAdapter.Instance, requestOptions, cancellationToken);
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Widgets.ListWidgets(request), WidgetListResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 
     /// <summary>

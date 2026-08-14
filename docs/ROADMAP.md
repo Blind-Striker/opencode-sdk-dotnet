@@ -30,18 +30,18 @@ M series.
 **M2's first breadth batch is complete** (plan:
 `superpowers/plans/2026-08-14-m2-first-breadth-batch.md`; decisions: research log Sessions
 19–20). `session.list`, `session.get`, `session.create`, and `message.list` are callable
-through their final generated surface — options records over the `ListOptions` seam,
-`SessionCreateRequest` bodies through the pipeline's JSON path, cursor-list envelopes with
-the shared `ListCursor`, query-composing routes, the `Session.Info` model closure, and the
-first 5xx arm. Riders #19 (carrier converters), #21 (fail-closed walls + P2 single-pass
+through their final generated surface — uniform `*Request` operation inputs (Q83) with the
+query records riding the `ListRequest` seam, `SessionCreateRequest` bodies through the
+pipeline's JSON path, cursor-list envelopes with the shared `ListCursor`, query-composing
+routes, the `Session.Info` model closure, and the first 5xx arm. Riders #19 (carrier converters), #21 (fail-closed walls + P2 single-pass
 envelopes: `GetMessageAsync` 67.4→56.2 μs, `ListMessagesAsync` baseline 58.1 μs/28.24 KB),
 and #22 (List/Create verb rules + C17–C20) landed with it; upstream's `InvalidRequestError1`
 duplicate collapses through the new `schemaAliases` curation. Demonstrated live 2026-08-14
 against `opencode2 serve` v0.0.0-next-17403 (create → list → get → messages, wire cursor
 round-tripped). The #20 decision landed (blank explicit passwords refuse; `null` keeps the
-environment fallback) and #25 closed keep. Next: the alignment batch — uniform `*Request`
-naming (Q83), the feature-slice layout migration (Q84), and the Extensions bring-up (Q85)
-— handed to the next session (`agents/handover-prompts/HANDOFF-2026-08-14-2.md`); further
+environment fallback) and #25 closed keep. The alignment batch is underway: the uniform
+`*Request` rename (Q83) has landed; next are the feature-slice layout migration (Q84) and
+the Extensions bring-up (Q85) (`agents/handover-prompts/HANDOFF-2026-08-14-2.md`); further
 breadth batches follow.
 
 ## Milestones

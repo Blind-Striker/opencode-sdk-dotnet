@@ -67,13 +67,6 @@ internal static class OperationNamePolicy
         return subject.Length is 0 ? GroupFallback(operation) : subject;
     }
 
-    public static string OptionsTypeName(SpecOperation operation)
-    {
-        ArgumentNullException.ThrowIfNull(operation);
-
-        return $"{CSharpNamePolicy.ToPascalCase(operation.Segments[0])}{Subject(operation)}{Verb(operation)}Options";
-    }
-
     public static string RequestTypeName(SpecOperation operation)
     {
         ArgumentNullException.ThrowIfNull(operation);

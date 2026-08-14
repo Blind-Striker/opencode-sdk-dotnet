@@ -4,6 +4,6 @@ namespace OpenCode.Sdk;
 /// <summary>
 /// Shapes the &apos;GET /api/session/{sessionID}/message&apos; query.
 /// </summary>
-public sealed record MessageListOptions : ListOptions
+public sealed record MessageListRequest : ListRequest
 {
 }

@@ -58,10 +58,10 @@ internal static class OperationMethodEmitter
                 : body.WithType(TypeSyntaxEmitter.EmitNamed(operation.RequestBody.TypeName));
         }
 
-        if (operation.Options is not null)
+        if (operation.QueryRequest is not null)
         {
-            yield return SyntaxFactory.Parameter(SyntaxFactory.Identifier("options"))
-                .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(operation.Options.TypeName)))
+            yield return SyntaxFactory.Parameter(SyntaxFactory.Identifier("request"))
+                .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(operation.QueryRequest.TypeName)))
                 .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)));
         }
 
@@ -124,7 +124,7 @@ internal static class OperationMethodEmitter
                 SyntaxFactory.IdentifierName("OpenCodeRoutes"),
                 operation.RouteContainerName),
             operation.RouteMemberName);
-        if (operation.Parameters.Count is 0 && operation.Options is null)
+        if (operation.Parameters.Count is 0 && operation.QueryRequest is null)
         {
             return member;
         }
@@ -133,9 +133,9 @@ internal static class OperationMethodEmitter
         arguments.AddRange(operation.Parameters.Select(static parameter => SyntaxFactory.Argument(parameter.IsHandleParameter
             ? SyntaxFactory.IdentifierName(CSharpNamePolicy.ToPascalCase(parameter.Name))
             : SyntaxFactory.IdentifierName(parameter.Name))));
-        if (operation.Options is not null)
+        if (operation.QueryRequest is not null)
         {
-            arguments.Add(SyntaxFactory.Argument(SyntaxFactory.IdentifierName("options")));
+            arguments.Add(SyntaxFactory.Argument(SyntaxFactory.IdentifierName("request")));
         }
 
         return EmissionSyntax.Invocation(member, [.. arguments]);
@@ -155,9 +155,9 @@ internal static class OperationMethodEmitter
                     : "The request body."));
         }
 
-        if (operation.Options is not null)
+        if (operation.QueryRequest is not null)
         {
-            parameters.Add(new DocumentedParameter("options", "The query options."));
+            parameters.Add(new DocumentedParameter("request", "The request shaping the query."));
         }
 
         parameters.Add(new DocumentedParameter("requestOptions", "The per-call options."));

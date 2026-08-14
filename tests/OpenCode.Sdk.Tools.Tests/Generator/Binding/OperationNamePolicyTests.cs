@@ -78,18 +78,13 @@ public sealed class OperationNamePolicyTests
     }
 
     [Test]
-    [Arguments("v2.session.list", "SessionListOptions")]
-    [Arguments("v2.message.list", "MessageListOptions")]
-    public async Task OptionsTypeName_Should_Compose_Group_Subject_And_Verb(string operationId, string expected)
+    [Arguments("v2.session.list", "get", "SessionListRequest")]
+    [Arguments("v2.message.list", "get", "MessageListRequest")]
+    [Arguments("v2.session.create", "post", "SessionCreateRequest")]
+    public async Task RequestTypeName_Should_Compose_Group_Subject_And_Verb(string operationId, string method,
+        string expected)
     {
-        await Assert.That(OperationNamePolicy.OptionsTypeName(Operation(operationId))).IsEqualTo(expected);
-    }
-
-    [Test]
-    public async Task RequestTypeName_Should_Compose_Group_Subject_And_Verb()
-    {
-        await Assert.That(OperationNamePolicy.RequestTypeName(Operation("v2.session.create", "post")))
-            .IsEqualTo("SessionCreateRequest");
+        await Assert.That(OperationNamePolicy.RequestTypeName(Operation(operationId, method))).IsEqualTo(expected);
     }
 
     private static SpecOperation Operation(string operationId, string method = "get")

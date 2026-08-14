@@ -69,9 +69,9 @@ public static class OpenCodeRoutes
         /// Builds the &apos;/api/widget/{widgetID}/item&apos; route.
         /// </summary>
         /// <param name = "widgetId">The &apos;widgetID&apos; route value.</param>
-        /// <param name = "options">The query options.</param>
+        /// <param name = "request">The request shaping the query.</param>
         /// <returns>The escaped route.</returns>
-        public static string ListItems(string widgetId, ItemListOptions? options = null)
+        public static string ListItems(string widgetId, ItemListRequest? request = null)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(widgetId);
             if (widgetId is "." or "..")
@@ -80,15 +80,15 @@ public static class OpenCodeRoutes
             }
 
             var path = "/api/widget/" + Uri.EscapeDataString(widgetId) + "/item";
-            if (options is null)
+            if (request is null)
             {
                 return path;
             }
 
             var query = new QueryStringBuilder();
-            query.AddCount("limit", options.Limit);
-            query.AddOrder("order", options.Order);
-            query.AddText("cursor", options.Cursor);
+            query.AddCount("limit", request.Limit);
+            query.AddOrder("order", request.Order);
+            query.AddText("cursor", request.Cursor);
             return path + query.Value;
         }
 
@@ -99,21 +99,21 @@ public static class OpenCodeRoutes
         /// <summary>
         /// Builds the &apos;/api/widget&apos; route.
         /// </summary>
-        /// <param name = "options">The query options.</param>
+        /// <param name = "request">The request shaping the query.</param>
         /// <returns>The escaped route.</returns>
-        public static string ListWidgets(WidgetListOptions? options = null)
+        public static string ListWidgets(WidgetListRequest? request = null)
         {
             var path = "/api/widget";
-            if (options is null)
+            if (request is null)
             {
                 return path;
             }
 
             var query = new QueryStringBuilder();
-            query.AddCount("limit", options.Limit);
-            query.AddOrder("order", options.Order);
-            query.AddText("cursor", options.Cursor);
-            query.AddParentFilter("parentID", options.ParentId);
+            query.AddCount("limit", request.Limit);
+            query.AddOrder("order", request.Order);
+            query.AddText("cursor", request.Cursor);
+            query.AddParentFilter("parentID", request.ParentId);
             return path + query.Value;
         }
     }

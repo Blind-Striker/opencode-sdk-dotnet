@@ -37,7 +37,7 @@ public sealed class SessionsClientContractTests
         using var httpClient = new HttpClient(handler);
         using var client = CreateClient(httpClient);
 
-        _ = await client.Sessions.ListSessionsAsync(new SessionListOptions
+        _ = await client.Sessions.ListSessionsAsync(new SessionListRequest
         {
             Limit = 5,
             Order = ListOrder.Descending,
@@ -58,7 +58,7 @@ public sealed class SessionsClientContractTests
         using var client = CreateClient(httpClient);
 
         _ = await Assert
-            .That(async () => _ = await client.Sessions.ListSessionsAsync(new SessionListOptions { Limit = 0 }))
+            .That(async () => _ = await client.Sessions.ListSessionsAsync(new SessionListRequest { Limit = 0 }))
             .Throws<ArgumentException>();
         await Assert.That(handler.Requests).IsEmpty();
     }

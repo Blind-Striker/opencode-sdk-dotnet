@@ -54,9 +54,9 @@ public sealed class OperationPlanBinderTests
         await Assert.That(sessions.HandleFactory.Parameter.TypeName).IsEqualTo("string");
 
         var list = sessions.Operations.Single(static operation => operation.MethodName == "ListSessionsAsync");
-        await Assert.That(list.Options!.TypeName).IsEqualTo("SessionListOptions");
-        await Assert.That(list.Options.DerivesFromListOptions).IsFalse();
-        await Assert.That(list.Options.Properties.Select(static property => property.PropertyName)
+        await Assert.That(list.QueryRequest!.TypeName).IsEqualTo("SessionListRequest");
+        await Assert.That(list.QueryRequest.DerivesFromListRequest).IsFalse();
+        await Assert.That(list.QueryRequest.Properties.Select(static property => property.PropertyName)
             .SequenceEqual(
                 ["Workspace", "Limit", "Order", "Search", "ParentId", "Directory", "Project", "Subpath", "Cursor"],
                 StringComparer.Ordinal)).IsTrue();
@@ -87,8 +87,8 @@ public sealed class OperationPlanBinderTests
             .SequenceEqual(["GetMessageAsync", "GetSessionAsync", "ListMessagesAsync"], StringComparer.Ordinal)).IsTrue();
 
         var messages = session.Operations.Single(static operation => operation.MethodName == "ListMessagesAsync");
-        await Assert.That(messages.Options!.TypeName).IsEqualTo("MessageListOptions");
-        await Assert.That(messages.Options.DerivesFromListOptions).IsTrue();
+        await Assert.That(messages.QueryRequest!.TypeName).IsEqualTo("MessageListRequest");
+        await Assert.That(messages.QueryRequest.DerivesFromListRequest).IsTrue();
         await Assert.That(messages.Envelope.Kind).IsEqualTo(EnvelopeKind.CursorList);
         await Assert.That(messages.Envelope.PayloadName).IsEqualTo("Messages");
         await Assert.That(messages.ErrorMap.Statuses.Select(static status => status.StatusCode)
@@ -299,7 +299,7 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Bind_Optional_Nullable_Query_Parameters_Into_Flat_Options()
+    public async Task Bind_Should_Bind_Optional_Nullable_Query_Parameters_Into_A_Flat_Query_Request()
     {
         var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
             .Parameter("limit", "query", QueryScenarioData.NullableString)
@@ -311,14 +311,14 @@ public sealed class OperationPlanBinderTests
         var plan = BindWidgets(document);
 
         var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
-        await Assert.That(list.Options).IsNotNull();
-        await Assert.That(list.Options!.TypeName).IsEqualTo("WidgetListOptions");
-        await Assert.That(list.Options.DerivesFromListOptions).IsFalse();
-        await Assert.That(list.Options.Properties.Select(static property => property.WireName)
+        await Assert.That(list.QueryRequest).IsNotNull();
+        await Assert.That(list.QueryRequest!.TypeName).IsEqualTo("WidgetListRequest");
+        await Assert.That(list.QueryRequest.DerivesFromListRequest).IsFalse();
+        await Assert.That(list.QueryRequest.Properties.Select(static property => property.WireName)
             .SequenceEqual(["limit", "order", "cursor", "search", "parentID"], StringComparer.Ordinal)).IsTrue();
-        await Assert.That(list.Options.Properties.Select(static property => property.PropertyName)
+        await Assert.That(list.QueryRequest.Properties.Select(static property => property.PropertyName)
             .SequenceEqual(["Limit", "Order", "Cursor", "Search", "ParentId"], StringComparer.Ordinal)).IsTrue();
-        await Assert.That(list.Options.Properties.Select(static property => property.Kind)
+        await Assert.That(list.QueryRequest.Properties.Select(static property => property.Kind)
             .SequenceEqual([
                 QueryValueKind.PositiveCount,
                 QueryValueKind.ListOrder,
@@ -326,7 +326,7 @@ public sealed class OperationPlanBinderTests
                 QueryValueKind.Text,
                 QueryValueKind.SessionParentFilter,
             ])).IsTrue();
-        await Assert.That(list.Options.Properties.All(static property => !property.IsInherited)).IsTrue();
+        await Assert.That(list.QueryRequest.Properties.All(static property => !property.IsInherited)).IsTrue();
         await Assert.That(list.Parameters).IsEmpty();
     }
 
@@ -347,7 +347,7 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Derive_Options_From_The_List_Options_Base_When_The_Trio_Matches_Exactly()
+    public async Task Bind_Should_Derive_The_Query_Request_From_The_List_Request_Base_When_The_Trio_Matches_Exactly()
     {
         var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
             .Parameter("limit", "query", QueryScenarioData.NullableString)
@@ -357,15 +357,15 @@ public sealed class OperationPlanBinderTests
         var plan = BindWidgets(document);
 
         var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
-        await Assert.That(list.Options!.TypeName).IsEqualTo("WidgetListOptions");
-        await Assert.That(list.Options.DerivesFromListOptions).IsTrue();
-        await Assert.That(list.Options.Properties.Select(static property => property.PropertyName)
+        await Assert.That(list.QueryRequest!.TypeName).IsEqualTo("WidgetListRequest");
+        await Assert.That(list.QueryRequest.DerivesFromListRequest).IsTrue();
+        await Assert.That(list.QueryRequest.Properties.Select(static property => property.PropertyName)
             .SequenceEqual(["Limit", "Order", "Cursor"], StringComparer.Ordinal)).IsTrue();
-        await Assert.That(list.Options.Properties.All(static property => property.IsInherited)).IsTrue();
+        await Assert.That(list.QueryRequest.Properties.All(static property => property.IsInherited)).IsTrue();
     }
 
     [Test]
-    public async Task Bind_Should_Keep_Options_Flat_When_The_Trio_Has_Extra_Parameters()
+    public async Task Bind_Should_Keep_The_Query_Request_Flat_When_The_Trio_Has_Extra_Parameters()
     {
         var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
             .Parameter("limit", "query", QueryScenarioData.NullableString)
@@ -376,12 +376,12 @@ public sealed class OperationPlanBinderTests
         var plan = BindWidgets(document);
 
         var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
-        await Assert.That(list.Options!.DerivesFromListOptions).IsFalse();
-        await Assert.That(list.Options.Properties.All(static property => !property.IsInherited)).IsTrue();
+        await Assert.That(list.QueryRequest!.DerivesFromListRequest).IsFalse();
+        await Assert.That(list.QueryRequest.Properties.All(static property => !property.IsInherited)).IsTrue();
     }
 
     [Test]
-    public async Task Bind_Should_Keep_Options_Flat_When_The_Trio_Is_Incomplete()
+    public async Task Bind_Should_Keep_The_Query_Request_Flat_When_The_Trio_Is_Incomplete()
     {
         var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
             .Parameter("limit", "query", QueryScenarioData.NullableString)
@@ -390,13 +390,13 @@ public sealed class OperationPlanBinderTests
         var plan = BindWidgets(document);
 
         var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
-        await Assert.That(list.Options!.DerivesFromListOptions).IsFalse();
-        await Assert.That(list.Options.Properties.Select(static property => property.PropertyName)
+        await Assert.That(list.QueryRequest!.DerivesFromListRequest).IsFalse();
+        await Assert.That(list.QueryRequest.Properties.Select(static property => property.PropertyName)
             .SequenceEqual(["Limit", "Cursor"], StringComparer.Ordinal)).IsTrue();
     }
 
     [Test]
-    public async Task Bind_Should_Leave_Options_Absent_When_An_Operation_Has_No_Query_Parameters()
+    public async Task Bind_Should_Leave_The_Query_Request_Absent_When_An_Operation_Has_No_Query_Parameters()
     {
         var document = await BindingTestHost.IngestAsync(GadgetScenario());
 
@@ -406,7 +406,7 @@ public sealed class OperationPlanBinderTests
             Curation(Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID"))));
 
         var part = plan.Clients.Single(static client => client.Role == ClientRole.Handle).Operations.Single();
-        await Assert.That(part.Options).IsNull();
+        await Assert.That(part.QueryRequest).IsNull();
     }
 
     [Test]
@@ -719,8 +719,8 @@ public sealed class OperationPlanBinderTests
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
             .WithSchema("ItemInfo", schema => schema.Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.item", path: "/api/widget/{options}", configure: operation => operation
-                .Parameter("options", "path", schema => schema.Type("string"), required: true)
+            .WithOperation("v2.widget.item", path: "/api/widget/{request}", configure: operation => operation
+                .Parameter("request", "path", schema => schema.Type("string"), required: true)
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
@@ -730,6 +730,46 @@ public sealed class OperationPlanBinderTests
 
         await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
             && error.Problem.Contains("reserved by the emitted method signature", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Admit_A_Path_Parameter_Named_Options()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.item", path: "/api/widget/{options}", configure: operation => operation
+                .Parameter("options", "path", schema => schema.Type("string"), required: true)
+                .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.item"),
+            Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null))));
+
+        var item = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(item.Parameters.Single().Name).IsEqualTo("options");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_An_Operation_Declaring_Both_A_Body_And_Query_Parameters()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.create", method: "post", path: "/api/widget", configure: operation => operation
+                .Parameter("dryRun", "query", QueryScenarioData.NullableString)
+                .RequestBody("application/json", body => body.Type("object")
+                    .Property("title", property => property.AnyOf(
+                        static branch => branch.Type("string"),
+                        static branch => branch.Type("null"))), required: true)
+                .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = BindWidgets(document, "v2.widget.create"));
+
+        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
+            && error.Problem.Contains("WidgetCreateRequest", StringComparison.Ordinal)
+            && error.Problem.Contains("collides", StringComparison.Ordinal))).IsTrue();
     }
 
     [Test]

@@ -19,21 +19,21 @@
         [System.Text.Json.Serialization.JsonPropertyName("previous")]
         public string? Previous { get; init; }
     }
-    public abstract class ListOptions : System.IEquatable<OpenCode.Sdk.ListOptions>
-    {
-        protected ListOptions() { }
-        public string? Cursor { get; init; }
-        public int? Limit { get; init; }
-        public OpenCode.Sdk.ListOrder? Order { get; init; }
-    }
     public enum ListOrder
     {
         Ascending = 0,
         Descending = 1,
     }
-    public sealed class MessageListOptions : OpenCode.Sdk.ListOptions, System.IEquatable<OpenCode.Sdk.MessageListOptions>
+    public abstract class ListRequest : System.IEquatable<OpenCode.Sdk.ListRequest>
     {
-        public MessageListOptions() { }
+        protected ListRequest() { }
+        public string? Cursor { get; init; }
+        public int? Limit { get; init; }
+        public OpenCode.Sdk.ListOrder? Order { get; init; }
+    }
+    public sealed class MessageListRequest : OpenCode.Sdk.ListRequest, System.IEquatable<OpenCode.Sdk.MessageListRequest>
+    {
+        public MessageListRequest() { }
     }
     public sealed class MessageListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.MessageListResponse>
     {
@@ -104,8 +104,8 @@
             public const string ListSessionsTemplate = "/api/session";
             public static string GetMessage(string sessionId, string messageId) { }
             public static string GetSession(string sessionId) { }
-            public static string ListMessages(string sessionId, OpenCode.Sdk.MessageListOptions? options = null) { }
-            public static string ListSessions(OpenCode.Sdk.SessionListOptions? options = null) { }
+            public static string ListMessages(string sessionId, OpenCode.Sdk.MessageListRequest? request = null) { }
+            public static string ListSessions(OpenCode.Sdk.SessionListRequest? request = null) { }
         }
     }
     public class OpenCodeTransportException : OpenCode.Sdk.OpenCodeException
@@ -119,7 +119,7 @@
         protected SessionClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionMessageResponse> GetMessageAsync(string messageId, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionResponse> GetSessionAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.MessageListResponse> ListMessagesAsync(OpenCode.Sdk.MessageListOptions? options = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.MessageListResponse> ListMessagesAsync(OpenCode.Sdk.MessageListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class SessionCreateResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionCreateResponse>
     {
@@ -127,9 +127,9 @@
         public required OpenCode.Sdk.Models.SessionInfo Session { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
-    public sealed class SessionListOptions : System.IEquatable<OpenCode.Sdk.SessionListOptions>
+    public sealed class SessionListRequest : System.IEquatable<OpenCode.Sdk.SessionListRequest>
     {
-        public SessionListOptions() { }
+        public SessionListRequest() { }
         public string? Cursor { get; init; }
         public string? Directory { get; init; }
         public int? Limit { get; init; }
@@ -169,7 +169,7 @@
         protected SessionsClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionCreateResponse> CreateSessionAsync(OpenCode.Sdk.Models.SessionCreateRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual OpenCode.Sdk.SessionClient GetSessionClient(string sessionId) { }
-        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionListResponse> ListSessionsAsync(OpenCode.Sdk.SessionListOptions? options = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionListResponse> ListSessionsAsync(OpenCode.Sdk.SessionListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
 }
 namespace OpenCode.Sdk.Models
