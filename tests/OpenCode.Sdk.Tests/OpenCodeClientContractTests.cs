@@ -294,7 +294,7 @@ public sealed class OpenCodeClientContractTests
     [Test]
     public async Task Dispose_Should_Make_The_Bound_Handles_Unusable()
     {
-        var client = new OpenCodeClient(Endpoint);
+        var client = new OpenCodeClient(new OpenCodeClientOptions { Endpoint = Endpoint });
         var session = client.Sessions.GetSessionClient("s");
         client.Dispose();
 
@@ -310,6 +310,12 @@ public sealed class OpenCodeClientContractTests
         using var httpClient = new HttpClient(handler);
 
         _ = Assert.Throws<ArgumentException>(() => _ = new OpenCodeClient(httpClient, new OpenCodeClientOptions()));
+    }
+
+    [Test]
+    public async Task Constructor_Should_Require_An_Endpoint_For_An_Owned_Client()
+    {
+        _ = Assert.Throws<ArgumentException>(() => _ = new OpenCodeClient(new OpenCodeClientOptions()));
     }
 
     private static OpenCodeClient CreateClient(HttpClient httpClient) =>

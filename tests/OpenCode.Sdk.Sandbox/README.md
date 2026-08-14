@@ -11,21 +11,22 @@ Configuration comes from environment variables, prefilled for the IDE by
 | Variable | Meaning |
 |---|---|
 | `OPENCODE_SANDBOX_ENDPOINT` | Absolute server endpoint (required) |
-| `OPENCODE_SERVER_PASSWORD` | Consumed by the SDK's own auth fallback, not by sandbox code |
+| `OPENCODE_PASSWORD` / `OPENCODE_SERVER_PASSWORD` | Resolved by sandbox code and passed as `OpenCodeClientOptions.Password` — the SDK itself reads no environment |
 
 ## Running
 
-Start a server with a fixed password so the checked-in profile matches (`serve` reads the
-same `OPENCODE_SERVER_PASSWORD` variable the SDK falls back to; without it the server
-generates and prints a random one):
+Start a server with a fixed password so the checked-in profile matches (`serve` adopts the
+same `OPENCODE_SERVER_PASSWORD` variable; without it the server generates and prints a
+random one):
 
 ```sh
 OPENCODE_SERVER_PASSWORD=123456 opencode2 serve --hostname 127.0.0.1 --port 4096
 ```
 
-Then F5 with the `sandbox` profile. The program drives the breadth surface end to end:
-health, `CreateSessionAsync`, `ListSessionsAsync` (typed page + wire cursor),
+Then F5 with the `sandbox` profile. The program composes through the Extensions package —
+a Generic Host whose `AddOpenCode` registers the typed client over `IHttpClientFactory`,
+with the consumer-owned `ConsoleTimingHandler` chained onto the returned
+`IHttpClientBuilder` (the third extensibility rung: the SDK ships no middleware) and
+`SessionsClient` resolved straight from the container — then drives the breadth surface
+end to end: health, `CreateSessionAsync`, `ListSessionsAsync` (typed page + wire cursor),
 `GetSessionAsync` on the created handle, and `ListMessagesAsync`.
-
-The project deliberately stays a flat console for now; it grows a Generic Host composition
-root when the Extensions package (DI) lands.

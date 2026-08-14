@@ -14,19 +14,10 @@ public class OpenCodeClient : IDisposable
     /// <summary>
     /// Initializes a client that owns its connection to the endpoint.
     /// </summary>
-    /// <param name = "endpoint">The absolute HTTP or HTTPS server endpoint.</param>
-    public OpenCodeClient(Uri endpoint) : this(endpoint, options: null)
+    /// <param name = "options">The client options; the endpoint is required.</param>
+    public OpenCodeClient(OpenCodeClientOptions options)
     {
-    }
-
-    /// <summary>
-    /// Initializes a client that owns its connection to the endpoint.
-    /// </summary>
-    /// <param name = "endpoint">The absolute HTTP or HTTPS server endpoint.</param>
-    /// <param name = "options">The client options; its endpoint must stay unset on this path.</param>
-    public OpenCodeClient(Uri endpoint, OpenCodeClientOptions? options)
-    {
-        _pipeline = Pipeline.Create(endpoint, options, new SystemEnvironmentProvider());
+        _pipeline = Pipeline.Create(options);
         _sessions = new SessionsClient(_pipeline);
     }
 
@@ -34,10 +25,10 @@ public class OpenCodeClient : IDisposable
     /// Initializes a client over a caller-owned HttpClient; the SDK never disposes it.
     /// </summary>
     /// <param name = "httpClient">The caller-owned HTTP client.</param>
-    /// <param name = "options">The client options; the endpoint is required on this path.</param>
+    /// <param name = "options">The client options; the endpoint is required.</param>
     public OpenCodeClient(HttpClient httpClient, OpenCodeClientOptions options)
     {
-        _pipeline = Pipeline.Create(httpClient, options, new SystemEnvironmentProvider());
+        _pipeline = Pipeline.Create(httpClient, options);
         _sessions = new SessionsClient(_pipeline);
     }
 

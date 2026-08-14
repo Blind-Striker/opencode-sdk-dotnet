@@ -1,6 +1,9 @@
 using System.Globalization;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using OpenCode.Sdk;
 using OpenCode.Sdk.Models;
+using OpenCode.Sdk.Sandbox;
 
 var endpoint = Environment.GetEnvironmentVariable("OPENCODE_SANDBOX_ENDPOINT");
 if (string.IsNullOrWhiteSpace(endpoint))
@@ -8,19 +11,39 @@ if (string.IsNullOrWhiteSpace(endpoint))
     await Console.Error.WriteLineAsync(
         "Set OPENCODE_SANDBOX_ENDPOINT to an absolute server endpoint; the launchSettings.json profile prefills it.").ConfigureAwait(false);
     await Console.Error.WriteLineAsync(
-        "Optional: OPENCODE_SERVER_PASSWORD (read by the SDK itself).").ConfigureAwait(false);
+        "Optional: OPENCODE_PASSWORD or OPENCODE_SERVER_PASSWORD (resolved here; the SDK reads no environment).").ConfigureAwait(false);
     return 1;
 }
 
-// No explicit password: the SDK resolves OPENCODE_SERVER_PASSWORD on its own at construction.
-using var client = new OpenCodeClient(new Uri(endpoint));
+// The consumer owns environment resolution (upstream's own layering; the CLI does the same):
+// the SDK itself never reads environment variables.
+var password = Environment.GetEnvironmentVariable("OPENCODE_PASSWORD")
+               ?? Environment.GetEnvironmentVariable("OPENCODE_SERVER_PASSWORD");
+
+// The DI composition the Extensions package exists for: AddOpenCode registers the typed
+// client over IHttpClientFactory and returns the IHttpClientBuilder, so consumer-owned
+// delegating handlers (and resilience/telemetry packages) chain on without SDK middleware.
+var builder = Host.CreateApplicationBuilder(args);
+builder.Services.AddTransient<ConsoleTimingHandler>();
+_ = builder.Services.AddOpenCode(options =>
+    {
+        options.Endpoint = new Uri(endpoint);
+        options.Password = string.IsNullOrWhiteSpace(password) ? null : password;
+    })
+    .AddHttpMessageHandler<ConsoleTimingHandler>();
+using var host = builder.Build();
+
+var client = host.Services.GetRequiredService<OpenCodeClient>();
 
 var health = await client.GetHealthAsync().ConfigureAwait(false);
 Console.WriteLine(string.Create(
     CultureInfo.InvariantCulture,
     $"health:  status={health.Status} healthy={health.Health.Healthy} version={health.Health.Version} pid={health.Health.Pid}"));
 
-var created = await client.Sessions.CreateSessionAsync(new SessionCreateRequest
+// Sub-clients resolve directly from the container as well.
+var sessionsClient = host.Services.GetRequiredService<SessionsClient>();
+
+var created = await sessionsClient.CreateSessionAsync(new SessionCreateRequest
 {
     Title = "sdk breadth demo",
 }).ConfigureAwait(false);
@@ -28,7 +51,7 @@ Console.WriteLine(string.Create(
     CultureInfo.InvariantCulture,
     $"create:  status={created.Status} id={created.Session.Id} title={created.Session.Title}"));
 
-var page = await client.Sessions.ListSessionsAsync(new SessionListRequest
+var page = await sessionsClient.ListSessionsAsync(new SessionListRequest
 {
     Limit = 3,
     Order = ListOrder.Descending,
@@ -41,7 +64,7 @@ foreach (var session in page.Sessions)
     Console.WriteLine($"         {session.Id}  {session.Title}");
 }
 
-var handle = client.Sessions.GetSessionClient(created.Session.Id);
+var handle = sessionsClient.GetSessionClient(created.Session.Id);
 var fetched = await handle.GetSessionAsync().ConfigureAwait(false);
 Console.WriteLine(string.Create(
     CultureInfo.InvariantCulture,

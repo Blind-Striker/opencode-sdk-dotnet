@@ -1,63 +1,56 @@
+using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using OpenCode.Sdk;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
-/// Registers the opencode client family with a service collection: the root
-/// <see cref="OpenCodeClient"/> as a singleton the container disposes, plus every
-/// sub-client resolved from it so a consumer can inject <see cref="SessionsClient"/>
-/// directly.
+/// Registers the opencode client family over <c>IHttpClientFactory</c>: a typed
+/// <see cref="OpenCodeClient"/> riding factory-managed transport, plus every sub-client
+/// resolved from it so a consumer can inject <see cref="SessionsClient"/> directly. The
+/// returned <see cref="IHttpClientBuilder"/> is the composition seam — chain
+/// <c>AddHttpMessageHandler</c>, resilience handlers, or telemetry instrumentation onto it.
 /// </summary>
 public static class OpenCodeServiceCollectionExtensions
 {
-    /// <summary>Registers a client that owns its connection to the endpoint.</summary>
+    /// <summary>Registers the opencode client, shaping its options in code.</summary>
     /// <param name="services">The service collection to register with.</param>
-    /// <param name="endpoint">The absolute HTTP or HTTPS server endpoint.</param>
-    /// <returns>The same service collection.</returns>
-    public static IServiceCollection AddOpenCode(this IServiceCollection services, Uri endpoint) =>
-        services.AddOpenCode(endpoint, configure: null);
-
-    /// <summary>Registers a client that owns its connection to the endpoint.</summary>
-    /// <param name="services">The service collection to register with.</param>
-    /// <param name="endpoint">The absolute HTTP or HTTPS server endpoint.</param>
-    /// <param name="configure">Shapes the client options; the endpoint must stay unset on this path.</param>
-    /// <returns>The same service collection.</returns>
-    public static IServiceCollection AddOpenCode(this IServiceCollection services, Uri endpoint,
-        Action<OpenCodeClientOptions>? configure)
+    /// <param name="configure">Shapes the client options; the endpoint is required.</param>
+    /// <returns>The typed-client builder for transport composition.</returns>
+    public static IHttpClientBuilder AddOpenCode(this IServiceCollection services, Action<OpenCodeClientOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(services);
-        ArgumentNullException.ThrowIfNull(endpoint);
-
-        _ = services.AddSingleton(_ => new OpenCodeClient(endpoint, CreateOptions(configure)));
-        return AddSubClients(services);
-    }
-
-    /// <summary>Registers a client over a caller-owned HttpClient; neither the SDK nor the container disposes it.</summary>
-    /// <param name="services">The service collection to register with.</param>
-    /// <param name="httpClient">The caller-owned HTTP client.</param>
-    /// <param name="configure">Shapes the client options; the endpoint is required on this path.</param>
-    /// <returns>The same service collection.</returns>
-    public static IServiceCollection AddOpenCode(this IServiceCollection services, HttpClient httpClient,
-        Action<OpenCodeClientOptions> configure)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-        ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(configure);
 
-        _ = services.AddSingleton(_ => new OpenCodeClient(httpClient, CreateOptions(configure)));
-        return AddSubClients(services);
+        _ = services.Configure(configure);
+        return AddOpenCodeCore(services);
     }
 
-    private static OpenCodeClientOptions CreateOptions(Action<OpenCodeClientOptions>? configure)
+    /// <summary>Registers the opencode client, binding its options from configuration.</summary>
+    /// <param name="services">The service collection to register with.</param>
+    /// <param name="configuration">The configuration section carrying the client options.</param>
+    /// <returns>The typed-client builder for transport composition.</returns>
+    [RequiresDynamicCode("Configuration binding uses reflection over the options type; prefer the configure-action overload on native AOT.")]
+    [RequiresUnreferencedCode("Configuration binding may require members trimming removes; prefer the configure-action overload when trimming.")]
+    public static IHttpClientBuilder AddOpenCode(this IServiceCollection services, IConfiguration configuration)
     {
-        var options = new OpenCodeClientOptions();
-        configure?.Invoke(options);
-        return options;
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        _ = services.AddOptions<OpenCodeClientOptions>().Bind(configuration);
+        return AddOpenCodeCore(services);
     }
 
-    private static IServiceCollection AddSubClients(IServiceCollection services)
+    private static IHttpClientBuilder AddOpenCodeCore(IServiceCollection services)
     {
-        _ = services.AddSingleton(static provider => provider.GetRequiredService<OpenCodeClient>().Sessions);
-        return services;
+        // A named factory client bound as the typed client: the factory owns the HttpClient
+        // and its handler rotation, so the client registers transient and disposes nothing.
+        var builder = services.AddHttpClient(nameof(OpenCodeClient))
+            .AddTypedClient(static (httpClient, provider) => new OpenCodeClient(
+                httpClient,
+                provider.GetRequiredService<IOptions<OpenCodeClientOptions>>().Value));
+        _ = services.AddTransient(static SessionsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Sessions);
+        return builder;
     }
 }

@@ -2,9 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
-using NSubstitute;
 using OpenCode.Sdk.Internal;
-using OpenCode.Sdk.Internal.Abstractions;
 using OpenCode.Sdk.Models;
 using OpenCode.Sdk.Tests.Support;
 
@@ -12,7 +10,6 @@ namespace OpenCode.Sdk.Tests;
 
 public sealed class PipelineTests
 {
-    private const string PasswordVariable = "OPENCODE_SERVER_PASSWORD";
     private static readonly Uri Endpoint = new("http://localhost:4096");
 
     [Test]
@@ -45,31 +42,46 @@ public sealed class PipelineTests
     {
         using var handler = new RecordingHttpHandler();
         using var httpClient = new HttpClient(handler);
-        var environment = Substitute.For<IEnvironmentProvider>();
-        using var pipeline = CreatePipeline(httpClient, password: "secret", environment: environment);
+        using var pipeline = CreatePipeline(httpClient, password: "secret");
 
         _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None);
 
         var expected = $"Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes("opencode:secret"))}";
         await Assert.That(handler.Requests.Single().Authorization).IsEqualTo(expected);
-        _ = environment.DidNotReceive().GetEnvironmentVariable(Arg.Any<string>());
     }
 
     [Test]
-    public async Task ExecuteAsync_Should_Resolve_The_Environment_Password_Once_At_Construction()
+    public async Task ExecuteAsync_Should_Decorate_The_Configured_Username()
     {
         using var handler = new RecordingHttpHandler();
         using var httpClient = new HttpClient(handler);
-        var environment = Substitute.For<IEnvironmentProvider>();
-        _ = environment.GetEnvironmentVariable(PasswordVariable).Returns("fallback");
-        using var pipeline = CreatePipeline(httpClient, environment: environment);
+        using var pipeline = CreatePipeline(httpClient, password: "secret", username: "admin");
 
         _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None);
+
+        var expected = $"Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret"))}";
+        await Assert.That(handler.Requests.Single().Authorization).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task Pipeline_Should_Snapshot_The_Options_At_Construction()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        var options = new OpenCodeClientOptions
+        {
+            Endpoint = Endpoint,
+            Password = "secret",
+        };
+        using var pipeline = new Pipeline(httpClient, ownsHttpClient: false, options);
+        options.Password = "changed";
+        options.Endpoint = new Uri("http://other:1");
+
         _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None);
 
-        var expected = $"Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes("opencode:fallback"))}";
-        await Assert.That(handler.Requests.All(request => request.Authorization == expected)).IsTrue();
-        _ = environment.Received(1).GetEnvironmentVariable(PasswordVariable);
+        var expected = $"Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes("opencode:secret"))}";
+        await Assert.That(handler.Requests.Single().Authorization).IsEqualTo(expected);
+        await Assert.That(handler.Requests.Single().RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/health"));
     }
 
     [Test]
@@ -83,11 +95,37 @@ public sealed class PipelineTests
 
         var exception = Assert.Throws<ArgumentException>(() => _ = CreatePipeline(httpClient, password: password));
 
-        await Assert.That(exception.Message).Contains("OPENCODE_SERVER_PASSWORD");
+        await Assert.That(exception.Message).Contains("password");
     }
 
     [Test]
-    public async Task ExecuteAsync_Should_Send_Anonymously_When_No_Password_Resolves()
+    [Arguments("")]
+    [Arguments(" ")]
+    public async Task Pipeline_Should_Refuse_A_Blank_Username(string username)
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            _ = CreatePipeline(httpClient, password: "secret", username: username));
+
+        await Assert.That(exception.Message).Contains("username");
+    }
+
+    [Test]
+    public async Task Pipeline_Should_Refuse_A_Username_Containing_A_Colon()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            _ = CreatePipeline(httpClient, password: "secret", username: "open:code"));
+
+        await Assert.That(exception.Message).Contains("colon");
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Send_Anonymously_When_No_Password_Is_Set()
     {
         using var handler = new RecordingHttpHandler();
         using var httpClient = new HttpClient(handler);
@@ -413,32 +451,23 @@ public sealed class PipelineTests
 
         var exception = Assert.Throws<ArgumentException>(() => _ = Pipeline.Create(
             httpClient,
-            new OpenCodeClientOptions(),
-            Substitute.For<IEnvironmentProvider>()));
+            new OpenCodeClientOptions()));
 
         await Assert.That(exception.Message).Contains("Endpoint");
     }
 
     [Test]
-    public async Task Create_Should_Refuse_A_Conflicting_Options_Endpoint()
+    public async Task Create_Should_Refuse_A_Missing_Endpoint_On_The_Owned_Path()
     {
-        var options = new OpenCodeClientOptions
-        {
-            Endpoint = new Uri("http://other:1"),
-        };
+        var exception = Assert.Throws<ArgumentException>(() => _ = Pipeline.Create(new OpenCodeClientOptions()));
 
-        var exception = Assert.Throws<ArgumentException>(() => _ = Pipeline.Create(
-            Endpoint,
-            options,
-            Substitute.For<IEnvironmentProvider>()));
-
-        await Assert.That(exception.Message).Contains("endpoint");
+        await Assert.That(exception.Message).Contains("Endpoint");
     }
 
     [Test]
-    public async Task Create_Should_Build_An_Owned_Pipeline_From_The_Endpoint()
+    public async Task Create_Should_Build_An_Owned_Pipeline_From_The_Options()
     {
-        using var pipeline = Pipeline.Create(Endpoint, options: null, Substitute.For<IEnvironmentProvider>());
+        using var pipeline = Pipeline.Create(new OpenCodeClientOptions { Endpoint = Endpoint });
 
         await Assert.That(pipeline).IsNotNull();
     }
@@ -460,6 +489,18 @@ public sealed class PipelineTests
         bool ownsHttpClient = false,
         Uri? endpoint = null,
         string? password = null,
-        IEnvironmentProvider? environment = null) =>
-        new(httpClient, ownsHttpClient, endpoint ?? Endpoint, password, environment ?? Substitute.For<IEnvironmentProvider>());
+        string? username = null)
+    {
+        var options = new OpenCodeClientOptions
+        {
+            Endpoint = endpoint ?? Endpoint,
+            Password = password,
+        };
+        if (username is not null)
+        {
+            options.Username = username;
+        }
+
+        return new Pipeline(httpClient, ownsHttpClient, options);
+    }
 }

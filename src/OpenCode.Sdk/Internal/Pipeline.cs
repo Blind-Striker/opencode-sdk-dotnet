@@ -3,16 +3,12 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
-using OpenCode.Sdk.Internal.Abstractions;
 
 namespace OpenCode.Sdk.Internal;
 
 /// <summary>Owns request decoration, sending, buffering, and error-channel policy for every operation.</summary>
 internal sealed class Pipeline : IDisposable
 {
-    private const string BasicUser = "opencode";
-    private const string PasswordVariable = "OPENCODE_SERVER_PASSWORD";
-
     private readonly AuthenticationHeaderValue? _authorization;
     private readonly string _endpointBase;
     private readonly HttpClient _httpClient;
@@ -20,20 +16,35 @@ internal sealed class Pipeline : IDisposable
     private readonly ProductInfoHeaderValue _userAgent;
     private bool _disposed;
 
-    internal Pipeline(HttpClient httpClient, bool ownsHttpClient, Uri endpoint, string? password, IEnvironmentProvider environment)
+    internal Pipeline(HttpClient httpClient, bool ownsHttpClient, IOpenCodeClientOptions options)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
-        ArgumentNullException.ThrowIfNull(endpoint);
-        ArgumentNullException.ThrowIfNull(environment);
+        ArgumentNullException.ThrowIfNull(options);
+        var endpoint = options.Endpoint
+                       ?? throw new ArgumentException("OpenCodeClientOptions.Endpoint is required.", nameof(options));
 
-        // An explicitly blank password has no upstream meaning (the server always generates
-        // one), so it fails loudly instead of inventing an empty-credential mode; null stays
-        // the unset spelling that reaches the environment fallback below.
+        // Basic credentials ride the wire as "username:password", so a blank name or a colon
+        // inside it would corrupt the header instead of failing a login.
+        var username = options.Username;
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            throw new ArgumentException("The username cannot be empty or whitespace.", nameof(options));
+        }
+
+        if (username.Contains(':', StringComparison.Ordinal))
+        {
+            throw new ArgumentException("The username cannot contain a colon.", nameof(options));
+        }
+
+        // An explicitly blank password has no upstream meaning (a server without configured
+        // authentication expects no credentials at all), so it fails loudly; null is the
+        // anonymous spelling.
+        var password = options.Password;
         if (password is not null && string.IsNullOrWhiteSpace(password))
         {
             throw new ArgumentException(
-                "An explicit password cannot be empty or whitespace; leave it unset to use the OPENCODE_SERVER_PASSWORD fallback.",
-                nameof(password));
+                "An explicit password cannot be empty or whitespace; leave it null for a server without authentication.",
+                nameof(options));
         }
 
         _httpClient = httpClient;
@@ -41,36 +52,32 @@ internal sealed class Pipeline : IDisposable
         _endpointBase = EndpointPolicy.Normalize(endpoint);
         _userAgent = UserAgentPolicy.Resolve();
 
-        // The environment fallback is read exactly once, here; requests reuse the resolved header.
-        var resolvedPassword = string.IsNullOrEmpty(password) ? environment.GetEnvironmentVariable(PasswordVariable) : password;
-        _authorization = string.IsNullOrEmpty(resolvedPassword)
+        // The options are read exactly once, here: the pipeline holds an immutable snapshot,
+        // so mutating the options object after construction never changes a built client.
+        _authorization = password is null
             ? null
             : new AuthenticationHeaderValue(
                 "Basic",
-                Convert.ToBase64String(Encoding.UTF8.GetBytes($"{BasicUser}:{resolvedPassword}")));
+                Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{password}")));
     }
 
-    public static Pipeline Create(Uri endpoint, OpenCodeClientOptions? options, IEnvironmentProvider environment)
+    public static Pipeline Create(OpenCodeClientOptions options)
     {
-        ArgumentNullException.ThrowIfNull(endpoint);
-        ArgumentNullException.ThrowIfNull(environment);
-        if (options?.Endpoint is not null)
+        ArgumentNullException.ThrowIfNull(options);
+        if (options.Endpoint is null)
         {
-            throw new ArgumentException(
-                "The endpoint constructor owns endpoint authority; leave OpenCodeClientOptions.Endpoint unset.",
-                nameof(options));
+            throw new ArgumentException("OpenCodeClientOptions.Endpoint is required.", nameof(options));
         }
 
         // Validate before constructing the owned client so a refused endpoint leaks nothing.
-        _ = EndpointPolicy.Normalize(endpoint);
-        return new Pipeline(new HttpClient(), ownsHttpClient: true, endpoint, options?.Password, environment);
+        _ = EndpointPolicy.Normalize(options.Endpoint);
+        return new Pipeline(CreateOwnedHttpClient(), ownsHttpClient: true, options);
     }
 
-    public static Pipeline Create(HttpClient httpClient, OpenCodeClientOptions options, IEnvironmentProvider environment)
+    public static Pipeline Create(HttpClient httpClient, OpenCodeClientOptions options)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(environment);
         if (options.Endpoint is null)
         {
             throw new ArgumentException(
@@ -78,7 +85,32 @@ internal sealed class Pipeline : IDisposable
                 nameof(options));
         }
 
-        return new Pipeline(httpClient, ownsHttpClient: false, options.Endpoint, options.Password, environment);
+        return new Pipeline(httpClient, ownsHttpClient: false, options);
+    }
+
+    /// <summary>The owned transport: pooled connection lifetime keeps DNS rotation alive on modern TFMs.</summary>
+    private static HttpClient CreateOwnedHttpClient()
+    {
+#if NET
+        SocketsHttpHandler? handler = null;
+        try
+        {
+            handler = new SocketsHttpHandler
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+            };
+            var httpClient = new HttpClient(handler, disposeHandler: true);
+            handler = null;
+            return httpClient;
+        }
+        finally
+        {
+            handler?.Dispose();
+        }
+#else
+        // net472/netstandard2.0 stay on the default handler; ServicePointManager hardening is an M3 item.
+        return new HttpClient();
+#endif
     }
 
     public Task<TResponse> ExecuteAsync<TResponse>(HttpMethod method, string route, ResponseAdapter<TResponse> adapter,

@@ -19,6 +19,7 @@ internal sealed class OperationPlanBinder
     private static readonly string[] ReservedSpineTypeNames =
     [
         "ErrorBehavior",
+        "IOpenCodeClientOptions",
         "ListCursor",
         "ListOrder",
         "ListRequest",

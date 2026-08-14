@@ -11,6 +11,12 @@
         public required OpenCode.Sdk.Models.ServiceHealth Health { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
+    public interface IOpenCodeClientOptions
+    {
+        System.Uri? Endpoint { get; }
+        string? Password { get; }
+        string Username { get; }
+    }
     public sealed class ListCursor : System.IEquatable<OpenCode.Sdk.ListCursor>
     {
         public ListCursor() { }
@@ -55,19 +61,19 @@
     public class OpenCodeClient : System.IDisposable
     {
         protected OpenCodeClient() { }
-        public OpenCodeClient(System.Uri endpoint) { }
+        public OpenCodeClient(OpenCode.Sdk.OpenCodeClientOptions options) { }
         public OpenCodeClient(System.Net.Http.HttpClient httpClient, OpenCode.Sdk.OpenCodeClientOptions options) { }
-        public OpenCodeClient(System.Uri endpoint, OpenCode.Sdk.OpenCodeClientOptions? options) { }
         public virtual OpenCode.Sdk.SessionsClient Sessions { get; }
         public void Dispose() { }
         protected virtual void Dispose(bool disposing) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.HealthResponse> GetHealthAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
-    public sealed class OpenCodeClientOptions
+    public sealed class OpenCodeClientOptions : OpenCode.Sdk.IOpenCodeClientOptions
     {
         public OpenCodeClientOptions() { }
         public System.Uri? Endpoint { get; set; }
         public string? Password { get; set; }
+        public string Username { get; set; }
     }
     public class OpenCodeException : System.Exception
     {
