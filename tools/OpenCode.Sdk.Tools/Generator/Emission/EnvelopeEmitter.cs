@@ -59,7 +59,7 @@ internal static class EnvelopeEmitter
             "OpenCode.Sdk",
             ["System", "System.Diagnostics.CodeAnalysis", "System.Text", "OpenCode.Sdk.Models"],
             [declaration]);
-        return EmissionSyntax.CreateSource($"{envelope.ResponseTypeName}.cs", unit);
+        return EmissionSyntax.CreateSource($"{operation.RouteContainerName}/{envelope.ResponseTypeName}.cs", unit);
     }
 
     private static TypeSyntax PayloadType(EnvelopePlan envelope) => envelope.Kind is EnvelopeKind.CursorList

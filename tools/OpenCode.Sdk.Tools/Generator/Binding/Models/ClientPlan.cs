@@ -8,6 +8,9 @@ internal sealed record ClientPlan
 
     public required ClientRole Role { get; init; }
 
+    /// <summary>Gets the feature folder the family's files live in; <see langword="null"/> keeps the root client at the project root.</summary>
+    public string? ContainerName { get; init; }
+
     /// <summary>Gets the group client properties exposed by the root client.</summary>
     public required IReadOnlyList<ClientReferencePlan> SubClients
     {

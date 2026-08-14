@@ -73,7 +73,9 @@ internal static class ClientEmitter
                 "OpenCode.Sdk.Models",
             ],
             [declaration]);
-        return EmissionSyntax.CreateSource($"{client.Name}.cs", unit);
+        return EmissionSyntax.CreateSource(
+            client.ContainerName is null ? $"{client.Name}.cs" : $"{client.ContainerName}/{client.Name}.cs",
+            unit);
     }
 
     private static string Summary(ClientPlan client) => client.Role switch

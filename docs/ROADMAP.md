@@ -40,7 +40,7 @@ duplicate collapses through the new `schemaAliases` curation. Demonstrated live 
 against `opencode2 serve` v0.0.0-next-17403 (create → list → get → messages, wire cursor
 round-tripped). The #20 decision landed (blank explicit passwords refuse; `null` keeps the
 environment fallback) and #25 closed keep. The alignment batch is underway: the uniform
-`*Request` rename (Q83) has landed; next are the feature-slice layout migration (Q84) and
+`*Request` rename (Q83) and the feature-slice layout migration (Q84) have landed; next is
 the Extensions bring-up (Q85) (`agents/handover-prompts/HANDOFF-2026-08-14-2.md`); further
 breadth batches follow.
 

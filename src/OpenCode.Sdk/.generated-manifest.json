@@ -1,6 +1,6 @@
 {
   "files": [
-    "HealthResponse.cs",
+    "Health/HealthResponse.cs",
     "Internal/ResponseAdapters/HealthResponseAdapter.cs",
     "Internal/ResponseAdapters/MessageListResponseAdapter.cs",
     "Internal/ResponseAdapters/SessionCreateResponseAdapter.cs",
@@ -30,8 +30,6 @@
     "Internal/Serialization/UnknownSessionMessageInfoJsonConverter.cs",
     "Internal/Serialization/UnknownSessionMessageToolStateJsonConverter.cs",
     "Internal/Serialization/UnknownToolContentJsonConverter.cs",
-    "MessageListRequest.cs",
-    "MessageListResponse.cs",
     "Models/FileDiffInfo.cs",
     "Models/FileDiffInfoStatus.cs",
     "Models/InvalidCursorError.cs",
@@ -121,12 +119,14 @@
     "Models/UnknownToolContent.cs",
     "OpenCodeClient.cs",
     "OpenCodeRoutes.cs",
-    "SessionClient.cs",
-    "SessionCreateResponse.cs",
-    "SessionListRequest.cs",
-    "SessionListResponse.cs",
-    "SessionMessageResponse.cs",
-    "SessionResponse.cs",
-    "SessionsClient.cs"
+    "Sessions/MessageListRequest.cs",
+    "Sessions/MessageListResponse.cs",
+    "Sessions/SessionClient.cs",
+    "Sessions/SessionCreateResponse.cs",
+    "Sessions/SessionListRequest.cs",
+    "Sessions/SessionListResponse.cs",
+    "Sessions/SessionMessageResponse.cs",
+    "Sessions/SessionResponse.cs",
+    "Sessions/SessionsClient.cs"
   ]
 }

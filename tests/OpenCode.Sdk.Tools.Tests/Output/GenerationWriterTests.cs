@@ -16,11 +16,7 @@ public sealed class GenerationWriterTests
         var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
 
         var exception = await Assert.That(async () => await writer.WriteAsync(
-                GenerationTestData.OutputRoot,
-                GenerationTestData.ProjectPath,
-                [GenerationTestData.Source("../escape.cs", "unsafe")],
-                partialMarkerContent: null,
-                verify: false,
+                Request([GenerationTestData.Source("../escape.cs", "unsafe")]),
                 CancellationToken.None))
             .Throws<InvalidOperationException>();
 
@@ -37,11 +33,7 @@ public sealed class GenerationWriterTests
         var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
 
         var exception = await Assert.That(async () => await writer.WriteAsync(
-                GenerationTestData.OutputRoot,
-                GenerationTestData.ProjectPath,
-                [],
-                partialMarkerContent: null,
-                verify: false,
+                Request([]),
                 CancellationToken.None))
             .Throws<InvalidOperationException>();
 
@@ -60,11 +52,7 @@ public sealed class GenerationWriterTests
         var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
 
         var exception = await Assert.That(async () => await writer.WriteAsync(
-                GenerationTestData.OutputRoot,
-                GenerationTestData.ProjectPath,
-                [GenerationTestData.Source("Models/Escape.cs", "unsafe")],
-                partialMarkerContent: null,
-                verify: false,
+                Request([GenerationTestData.Source("Models/Escape.cs", "unsafe")]),
                 CancellationToken.None))
             .Throws<InvalidOperationException>();
 
@@ -83,11 +71,7 @@ public sealed class GenerationWriterTests
         var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
 
         var exception = await Assert.That(async () => await writer.WriteAsync(
-                GenerationTestData.OutputRoot,
-                GenerationTestData.ProjectPath,
-                [GenerationTestData.Source("Models/widget.cs", "new")],
-                partialMarkerContent: null,
-                verify: false,
+                Request([GenerationTestData.Source("Models/widget.cs", "new")]),
                 CancellationToken.None))
             .Throws<InvalidOperationException>();
 
@@ -108,11 +92,7 @@ public sealed class GenerationWriterTests
         var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
 
         var result = await writer.WriteAsync(
-            GenerationTestData.OutputRoot,
-            GenerationTestData.ProjectPath,
-            [GenerationTestData.Source("Models/Fresh.cs", "fresh")],
-            partialMarkerContent: null,
-            verify: false,
+            Request([GenerationTestData.Source("Models/Fresh.cs", "fresh")]),
             CancellationToken.None);
 
         await Assert.That(fileSystem.File.Exists(stalePath)).IsFalse();
@@ -138,20 +118,8 @@ public sealed class GenerationWriterTests
         var writer = new GenerationWriter(fileSystem, formatter);
         var sources = new[] { GenerationTestData.Source(relativePath, "public record Example;\n"), };
 
-        _ = await writer.WriteAsync(
-            GenerationTestData.OutputRoot,
-            GenerationTestData.ProjectPath,
-            sources,
-            partialMarkerContent: null,
-            verify: false,
-            CancellationToken.None);
-        var verify = await writer.WriteAsync(
-            GenerationTestData.OutputRoot,
-            GenerationTestData.ProjectPath,
-            sources,
-            partialMarkerContent: null,
-            verify: true,
-            CancellationToken.None);
+        _ = await writer.WriteAsync(Request(sources), CancellationToken.None);
+        var verify = await writer.WriteAsync(Request(sources, verify: true), CancellationToken.None);
 
         await Assert.That(formatter.CallCount).IsEqualTo(2);
         await Assert.That(formatter.SourcePaths).Contains(relativePath);
@@ -165,23 +133,11 @@ public sealed class GenerationWriterTests
         var fileSystem = GenerationTestData.CreateFileSystem();
         var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
         var sources = new[] { GenerationTestData.Source(relativePath, "expected\n"), };
-        _ = await writer.WriteAsync(
-            GenerationTestData.OutputRoot,
-            GenerationTestData.ProjectPath,
-            sources,
-            partialMarkerContent: null,
-            verify: false,
-            CancellationToken.None);
+        _ = await writer.WriteAsync(Request(sources), CancellationToken.None);
         var outputPath = fileSystem.Path.Combine(GenerationTestData.OutputRoot, relativePath);
         await fileSystem.File.WriteAllTextAsync(outputPath, GenerationTestData.OwnedContent("drift\n"), CancellationToken.None);
 
-        var result = await writer.WriteAsync(
-            GenerationTestData.OutputRoot,
-            GenerationTestData.ProjectPath,
-            sources,
-            partialMarkerContent: null,
-            verify: true,
-            CancellationToken.None);
+        var result = await writer.WriteAsync(Request(sources, verify: true), CancellationToken.None);
 
         await Assert.That(result.HasChanges).IsTrue();
         await Assert.That(result.ChangedPaths).Contains(relativePath);
@@ -196,18 +152,95 @@ public sealed class GenerationWriterTests
         var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
 
         var result = await writer.WriteAsync(
-            GenerationTestData.OutputRoot,
-            GenerationTestData.ProjectPath,
+            Request(
             [
                 GenerationTestData.Source("ExampleClient.cs", "client"),
                 GenerationTestData.Source("Internal/ResponseAdapters/ExampleAdapter.cs", "adapter"),
-            ],
-            partialMarkerContent: null,
-            verify: false,
+            ]),
             CancellationToken.None);
 
         await Assert.That(result.CreatedPaths).Contains("ExampleClient.cs");
         await Assert.That(result.CreatedPaths).Contains("Internal/ResponseAdapters/ExampleAdapter.cs");
+    }
+
+    [Test]
+    public async Task WriteAsync_Should_Admit_Family_Folder_Sources()
+    {
+        var fileSystem = GenerationTestData.CreateFileSystem();
+        var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
+
+        var result = await writer.WriteAsync(
+            Request(
+                [GenerationTestData.Source("Sessions/SessionsClient.cs", "client")],
+                familyFolders: ["Sessions"]),
+            CancellationToken.None);
+
+        await Assert.That(result.CreatedPaths).Contains("Sessions/SessionsClient.cs");
+    }
+
+    [Test]
+    public async Task WriteAsync_Should_Refuse_A_Source_Outside_The_Admitted_Family_Folders()
+    {
+        var fileSystem = GenerationTestData.CreateFileSystem();
+        var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
+
+        var exception = await Assert.That(async () => await writer.WriteAsync(
+                Request(
+                    [GenerationTestData.Source("Widgets/WidgetsClient.cs", "client")],
+                    familyFolders: ["Sessions"]),
+                CancellationToken.None))
+            .Throws<InvalidOperationException>();
+
+        await Assert.That(exception!.Message).Contains("outside the owned source directories");
+    }
+
+    [Test]
+    public async Task WriteAsync_Should_Refuse_A_Nested_Family_Folder_Source()
+    {
+        var fileSystem = GenerationTestData.CreateFileSystem();
+        var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
+
+        var exception = await Assert.That(async () => await writer.WriteAsync(
+                Request(
+                    [GenerationTestData.Source("Sessions/Deep/File.cs", "nested")],
+                    familyFolders: ["Sessions"]),
+                CancellationToken.None))
+            .Throws<InvalidOperationException>();
+
+        await Assert.That(exception!.Message).Contains("outside the owned source directories");
+    }
+
+    [Test]
+    public async Task WriteAsync_Should_Delete_Stale_Sources_Of_A_Retired_Family_Folder()
+    {
+        const string stalePath = "src/OpenCode.Sdk/Widgets/Old.cs";
+        var fileSystem = GenerationTestData.CreateFileSystem();
+        var manifest = JsonSerializer.Serialize(new GenerationManifest { Files = ["Widgets/Old.cs"], });
+        fileSystem.Initialize().With(
+            new FileDescription(GenerationTestData.ManifestPath, manifest),
+            new FileDescription(stalePath, GenerationTestData.OwnedContent("stale")));
+        var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
+
+        var result = await writer.WriteAsync(
+            Request([], familyFolders: ["Sessions"]),
+            CancellationToken.None);
+
+        await Assert.That(fileSystem.File.Exists(stalePath)).IsFalse();
+        await Assert.That(result.DeletedPaths).Contains("Widgets/Old.cs");
+    }
+
+    [Test]
+    public async Task WriteAsync_Should_Refuse_A_Family_Folder_Shadowing_A_Static_Owned_Directory()
+    {
+        var fileSystem = GenerationTestData.CreateFileSystem();
+        var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
+
+        var exception = await Assert.That(async () => await writer.WriteAsync(
+                Request([], familyFolders: ["Models"]),
+                CancellationToken.None))
+            .Throws<InvalidOperationException>();
+
+        await Assert.That(exception!.Message).Contains("Models");
     }
 
     [Test]
@@ -219,11 +252,7 @@ public sealed class GenerationWriterTests
 
         var exception = await Assert
             .That(async () => _ = await writer.WriteAsync(
-                GenerationTestData.OutputRoot,
-                GenerationTestData.ProjectPath,
-                [GenerationTestData.Source("ExampleClient.cs", "generated")],
-                partialMarkerContent: null,
-                verify: false,
+                Request([GenerationTestData.Source("ExampleClient.cs", "generated")]),
                 CancellationToken.None))
             .Throws<InvalidOperationException>();
 
@@ -244,11 +273,7 @@ public sealed class GenerationWriterTests
 
         var exception = await Assert
             .That(async () => _ = await writer.WriteAsync(
-                GenerationTestData.OutputRoot,
-                GenerationTestData.ProjectPath,
-                [GenerationTestData.Source("Models/Example.cs", "generated")],
-                partialMarkerContent: null,
-                verify: false,
+                Request([GenerationTestData.Source("Models/Example.cs", "generated")]),
                 CancellationToken.None))
             .Throws<InvalidOperationException>();
 
@@ -267,11 +292,7 @@ public sealed class GenerationWriterTests
 
         var exception = await Assert
             .That(async () => _ = await writer.WriteAsync(
-                GenerationTestData.OutputRoot,
-                GenerationTestData.ProjectPath,
-                [GenerationTestData.Source("Models/Fresh.cs", "generated")],
-                partialMarkerContent: null,
-                verify: false,
+                Request([GenerationTestData.Source("Models/Fresh.cs", "generated")]),
                 CancellationToken.None))
             .Throws<InvalidOperationException>();
 
@@ -292,11 +313,7 @@ public sealed class GenerationWriterTests
 
         var exception = await Assert
             .That(async () => _ = await writer.WriteAsync(
-                GenerationTestData.OutputRoot,
-                GenerationTestData.ProjectPath,
-                [headerless],
-                partialMarkerContent: null,
-                verify: false,
+                Request([headerless]),
                 CancellationToken.None))
             .Throws<InvalidOperationException>();
 
@@ -310,21 +327,24 @@ public sealed class GenerationWriterTests
         var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
 
         _ = await writer.WriteAsync(
-            GenerationTestData.OutputRoot,
-            GenerationTestData.ProjectPath,
-            [],
-            "Pending operations: 3.\n",
-            verify: false,
+            Request([], partialMarkerContent: "Pending operations: 3.\n"),
             CancellationToken.None);
-        var removal = await writer.WriteAsync(
-            GenerationTestData.OutputRoot,
-            GenerationTestData.ProjectPath,
-            [],
-            partialMarkerContent: null,
-            verify: false,
-            CancellationToken.None);
+        var removal = await writer.WriteAsync(Request([]), CancellationToken.None);
 
         await Assert.That(fileSystem.File.Exists(GenerationTestData.MarkerPath)).IsFalse();
         await Assert.That(removal.DeletedPaths).Contains(".generation-incomplete");
     }
+
+    /// <summary>Assembles one write request over the shared test roots; flags default off.</summary>
+    private static GenerationWriteRequest Request(IReadOnlyList<GeneratedSource> sources,
+        IReadOnlyList<string>? familyFolders = null, string? partialMarkerContent = null, bool verify = false) =>
+        new()
+        {
+            OutputRoot = GenerationTestData.OutputRoot,
+            ProjectPath = GenerationTestData.ProjectPath,
+            Sources = sources,
+            FamilyFolders = familyFolders ?? [],
+            PartialMarkerContent = partialMarkerContent,
+            Verify = verify,
+        };
 }

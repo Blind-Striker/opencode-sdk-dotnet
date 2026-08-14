@@ -43,8 +43,11 @@ public sealed class OperationPlanBinderTests
         await Assert.That(health.ErrorMap.Statuses[0].Tags.Single().TypeName).IsEqualTo("InvalidRequestError");
         await Assert.That(health.ErrorMap.Statuses[1].Tags.Single().Tag).IsEqualTo("UnauthorizedError");
 
+        await Assert.That(root.ContainerName).IsNull();
+
         var sessions = plan.Clients.Single(static client => client.Role == ClientRole.Collection);
         await Assert.That(sessions.Name).IsEqualTo("SessionsClient");
+        await Assert.That(sessions.ContainerName).IsEqualTo("Sessions");
         await Assert.That(sessions.Operations.Select(static operation => operation.MethodName)
             .SequenceEqual(["CreateSessionAsync", "ListSessionsAsync"], StringComparer.Ordinal)).IsTrue();
         await Assert.That(sessions.HandleFactory!.MethodName).IsEqualTo("GetSessionClient");
@@ -81,6 +84,7 @@ public sealed class OperationPlanBinderTests
 
         var session = plan.Clients.Single(static client => client.Role == ClientRole.Handle);
         await Assert.That(session.Name).IsEqualTo("SessionClient");
+        await Assert.That(session.ContainerName).IsEqualTo("Sessions");
         await Assert.That(session.HandleParameter!.WireName).IsEqualTo("sessionID");
         await Assert.That(session.HandleParameter.IsHandleParameter).IsTrue();
         await Assert.That(session.Operations.Select(static operation => operation.MethodName)

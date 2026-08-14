@@ -74,6 +74,7 @@ internal static class EmitterPlanFixture
             Name = "WidgetClient",
             Namespace = "OpenCode.Sdk",
             Role = ClientRole.Handle,
+            ContainerName = "Widgets",
             SubClients = [],
             HandleParameter = CreateWidgetParameter(),
             Operations = [CreateItemOperation(), CreateItemListOperation()],
@@ -83,6 +84,7 @@ internal static class EmitterPlanFixture
             Name = "WidgetsClient",
             Namespace = "OpenCode.Sdk",
             Role = ClientRole.Collection,
+            ContainerName = "Widgets",
             SubClients = [],
             HandleFactory = new HandleFactoryPlan
             {

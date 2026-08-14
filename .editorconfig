@@ -798,3 +798,14 @@ dotnet_diagnostic.S1694.severity = none
 # file.
 [src/OpenCode.Sdk/OpenCodeRoutes.cs]
 dotnet_diagnostic.CA1034.severity = none
+
+# The shipped SDK slices by client family with flat public namespaces (maintainer,
+# 2026-08-14): client-family folders are placement, a namespace is API surface, and the
+# test project mirrors the layout with equally flat test namespaces. Winner: the
+# flat-namespace contract; IDE0130 remains error for every other folder, tools included.
+# A new family folder extends these globs deliberately - curation changes are API reviews.
+[src/OpenCode.Sdk/{Sessions,Health,Pagination}/**.cs]
+dotnet_diagnostic.IDE0130.severity = none
+
+[tests/OpenCode.Sdk.Tests/{Sessions,Health,Pagination}/**.cs]
+dotnet_diagnostic.IDE0130.severity = none

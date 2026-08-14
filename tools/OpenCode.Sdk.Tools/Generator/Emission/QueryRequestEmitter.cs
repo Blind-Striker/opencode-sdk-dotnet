@@ -49,7 +49,7 @@ internal static class QueryRequestEmitter
         }
 
         var unit = EmissionSyntax.CompilationUnit("OpenCode.Sdk", [], [declaration]);
-        return EmissionSyntax.CreateSource($"{queryRequest.TypeName}.cs", unit);
+        return EmissionSyntax.CreateSource($"{operation.RouteContainerName}/{queryRequest.TypeName}.cs", unit);
     }
 
     private static PropertyDeclarationSyntax EmitProperty(QueryPropertyPlan property)

@@ -152,6 +152,7 @@ internal sealed class OperationPlanBinder
             Name = collectionName,
             Namespace = ClientNamespace,
             Role = ClientRole.Collection,
+            ContainerName = row.ClientName,
             SubClients = [],
             HandleFactory = handleParameter is null ? null : new HandleFactoryPlan
             {
@@ -169,6 +170,7 @@ internal sealed class OperationPlanBinder
                 Name = row.HandleName!,
                 Namespace = ClientNamespace,
                 Role = ClientRole.Handle,
+                ContainerName = row.ClientName,
                 SubClients = [],
                 HandleParameter = handleParameter,
                 Operations =
