@@ -73,6 +73,20 @@ public sealed class PipelineTests
     }
 
     [Test]
+    [Arguments("")]
+    [Arguments(" ")]
+    [Arguments("\t")]
+    public async Task Pipeline_Should_Refuse_A_Blank_Explicit_Password(string password)
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+
+        var exception = Assert.Throws<ArgumentException>(() => _ = CreatePipeline(httpClient, password: password));
+
+        await Assert.That(exception.Message).Contains("OPENCODE_SERVER_PASSWORD");
+    }
+
+    [Test]
     public async Task ExecuteAsync_Should_Send_Anonymously_When_No_Password_Resolves()
     {
         using var handler = new RecordingHttpHandler();

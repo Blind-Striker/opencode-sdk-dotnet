@@ -22,6 +22,8 @@
     <Project Path="tests/OpenCode.Sdk.Tools.Tests/OpenCode.Sdk.Tools.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
+    <File Path="tools\curation.json" />
+    <File Path="tools\generation-profile.txt" />
     <Project Path="tools/OpenCode.Sdk.Tools/OpenCode.Sdk.Tools.csproj" />
     <File Path="tools/opencode-tool.cs" />
   </Folder>

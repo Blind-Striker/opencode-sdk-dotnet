@@ -26,6 +26,16 @@ internal sealed class Pipeline : IDisposable
         ArgumentNullException.ThrowIfNull(endpoint);
         ArgumentNullException.ThrowIfNull(environment);
 
+        // An explicitly blank password has no upstream meaning (the server always generates
+        // one), so it fails loudly instead of inventing an empty-credential mode; null stays
+        // the unset spelling that reaches the environment fallback below.
+        if (password is not null && string.IsNullOrWhiteSpace(password))
+        {
+            throw new ArgumentException(
+                "An explicit password cannot be empty or whitespace; leave it unset to use the OPENCODE_SERVER_PASSWORD fallback.",
+                nameof(password));
+        }
+
         _httpClient = httpClient;
         _ownsHttpClient = ownsHttpClient;
         _endpointBase = EndpointPolicy.Normalize(endpoint);

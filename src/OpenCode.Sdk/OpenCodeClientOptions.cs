@@ -12,8 +12,10 @@ public sealed class OpenCodeClientOptions
 
     /// <summary>
     /// Gets or sets the HTTP basic-authentication password for the <c>opencode</c> user.
-    /// When unset, the <c>OPENCODE_SERVER_PASSWORD</c> environment variable is read once at
-    /// client construction.
+    /// When unset (<see langword="null"/>), the <c>OPENCODE_SERVER_PASSWORD</c> environment
+    /// variable is read once at client construction; an empty or whitespace value is refused
+    /// with <see cref="ArgumentException"/> — the server always generates a password, so an
+    /// explicitly blank one has no meaning.
     /// </summary>
     public string? Password { get; set; }
 }
