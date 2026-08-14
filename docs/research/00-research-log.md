@@ -1708,3 +1708,62 @@ record; the binder recognizes the wire shape mechanically, never the parameter n
 a generated `SessionCreateRequest`; the operation parameter is optional —
 `CreateSessionAsync()` sends an empty JSON body. The `{Subject}{Verb}Request` pattern is
 the mechanical rule for future bodies.
+
+# Session 20 — 2026-08-14: M2 first breadth batch execution
+
+The batch executed per the sealed plan: binder walls opened red-test-first (query options
+with the profile-detection wall, request bodies, cursor-list envelopes, merged client
+families), the pipeline grew its JSON body path, the naming and fail-closed walls batches
+(#22, #21) and the F07 carrier converters (#19) landed, and the four operations were
+demonstrated live against `opencode2 serve` v0.0.0-next-17403 (create → list → get →
+messages, all typed 200s, wire cursor round-tripped). This entry records the decisions
+sealed during execution.
+
+## Q80: What are the concrete names of the query surface's supporting types?
+
+**How researched:** batched to the maintainer with previews once the binder was about to
+encode names; Stripe (`SessionListOptions`) and the sealed `{Subject}{Verb}Request` rule as
+anchors.
+
+**Decision (maintainer, sealed):** options records follow `{Group}{Verb}Options`
+(`SessionListOptions`, `MessageListOptions`), mirroring the request-model rule so one
+mechanical family covers both; the shared order enum is the hand-written spine
+`ListOrder { Ascending, Descending }` (request-only closed enum — ADR-0009 tolerance does
+not apply); the wire cursor surfaces through one hand-written `ListCursor` record on every
+list envelope, giving the M3 paginator a single cursor seam. The binder validates the wire
+shapes (`asc`/`desc` exactly; `{previous?, next?}` exactly) and fails closed otherwise.
+
+## Q81: How is upstream's InvalidRequestError1 duplicate resolved?
+
+**Found:** the plan's recon framed it as a naming dup; execution showed it byte-identical to
+`InvalidRequestError` *including the `_tag`*, which trips the per-status duplicate-tag wall
+and would poison `OpenCodeError` tag dispatch. Two candidate mechanisms were priced: a
+mechanical structural dedup (which needed a novel recorded-output channel to satisfy the
+maintainer's drift-visibility requirement) and a curated alias.
+
+**Decision (maintainer, sealed):** a `schemaAliases` curation section — one row declaring
+the duplicate a spelling of its target, validated fail-closed for deep structural identity
+and applied as a pure document transform before binding. Drift stays loud through existing
+machinery: a deleted source or target orphans the row, a dereferenced source goes dormant
+against the profile, and any structural divergence (the tag included) breaks the identity
+wall. The binder's own duplicate-tag refusals stay intact for anomalies without an alias.
+
+## Q82: How do the two options-like parameters coexist on generated methods?
+
+**Decision (maintainer):** the query record binds to `options` and `OpenCodeRequestOptions`
+binds to `requestOptions` on every generated method — the type's own name decides, matching
+Stripe's idiom; the pre-release rename of the existing surface rode the PublicApi baseline
+review.
+
+## Execution notes
+
+- The verb rules (sealed decision 5) concretized as: only the final identifier segment can
+  be a verb (`create`/`get`/`list` — the C18 structural fix); empty subjects fall back to
+  the group, pluralized for list operations under a naive fail-closed rule; response type
+  names fold non-Get verbs; client-placed route members mirror their method names while
+  root members keep the bare-verb shape (`Health.Get`).
+- The P2 single-pass envelope DTOs cut `GetMessageAsync` from 67.4 μs to 56.2 μs with flat
+  allocations; `ListMessagesAsync` baselines at 58.1 μs / 28.24 KB.
+- The contract matrix caught a real defect before any consumer could: the error-path
+  constructor pushed its forgiven null through the list payload's defensive-copy init
+  accessor; the copy now passes the forgiven null through uncopied behind the guard.

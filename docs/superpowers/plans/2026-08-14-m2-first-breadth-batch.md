@@ -74,28 +74,28 @@ serialized through the source-generated context.
 
 - [x] **0. Decision batch** — the five decisions above, sealed with the maintainer
   2026-08-14 (research log Session 19).
-- [ ] **1. Curation + binding** — curation rows for the four operations; binder support
+- [x] **1. Curation + binding** — curation rows for the four operations; binder support
   for optional nullable query parameters (fail-closed on any other query shape) and for
   inline JSON request bodies bound into a generated request model; multi-tag 400 and the
   500 arm enter the status-map machinery.
-- [ ] **2. Model closure** — regenerate with the `Session.Info` graph, the new error
+- [x] **2. Model closure** — regenerate with the `Session.Info` graph, the new error
   types, and the list envelopes; resolve `InvalidRequestError1` naming mechanically or
   fail closed into a curated override; API baseline review.
-- [ ] **3. Pipeline body path** — `ExecuteAsync` overload (or body-carrying request
+- [x] **3. Pipeline body path** — `ExecuteAsync` overload (or body-carrying request
   shape) serializing through `OpenCodeJsonContext`; `Content-Type: application/json`;
   covered by pipeline tests (body bytes, header, GET stays body-less).
-- [ ] **4. Emitters** — operation methods carrying options records and body models; route
+- [x] **4. Emitters** — operation methods carrying options records and body models; route
   builders composing escaped query strings; list-envelope response adapters; the
   generator fail-closed walls batch (#21) lands here, where breadth first stresses those
   walls, with P2's single-pass `{data}` DTO folded into the envelope design.
-- [ ] **5. Naming batch (#22)** — `List*`/`Create*` rules + C18 fix; verify C17/C19/C20
+- [x] **5. Naming batch (#22)** — `List*`/`Create*` rules + C18 fix; verify C17/C19/C20
   against the wall and fix what holds.
-- [ ] **6. Hardening riders** — F07 concrete `Unknown*` converter (#19); decisions #20
+- [x] **6. Hardening riders** — F07 concrete `Unknown*` converter (#19); decisions #20
   (password semantics) and #25 (IVT) to the maintainer alongside task 0.
-- [ ] **7. Contract matrix + perf** — contract tests over the four operations (success,
+- [x] **7. Contract matrix + perf** — contract tests over the four operations (success,
   every declared error status, cursor round-trip, undeclared-2xx, empty-marker); extend
   `ClientOperationBenchmarks` with a `ListMessagesAsync` benchmark once the surface
   exists.
-- [ ] **8. Close-out** — live sandbox demo (create → list → get → messages) against
+- [x] **8. Close-out** — live sandbox demo (create → list → get → messages) against
   `opencode2 serve`; ROADMAP status update; research-log entries for decisions sealed
   during execution.

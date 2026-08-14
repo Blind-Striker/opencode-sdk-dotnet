@@ -27,9 +27,19 @@ the blocker set (typed-spine leaks, silent route rewriting) lands on the PR bran
 issues #19–#25 pinned to the milestone that resolves it — nothing on that list outlives the
 M series.
 
-M2 is open: the first breadth batch (`session.list` + `session.get` + `session.create` +
-`message.list`) executes per `superpowers/plans/2026-08-14-m2-first-breadth-batch.md`,
-with its API decisions sealed (research log Session 19).
+**M2's first breadth batch is complete** (plan:
+`superpowers/plans/2026-08-14-m2-first-breadth-batch.md`; decisions: research log Sessions
+19–20). `session.list`, `session.get`, `session.create`, and `message.list` are callable
+through their final generated surface — options records over the `ListOptions` seam,
+`SessionCreateRequest` bodies through the pipeline's JSON path, cursor-list envelopes with
+the shared `ListCursor`, query-composing routes, the `Session.Info` model closure, and the
+first 5xx arm. Riders #19 (carrier converters), #21 (fail-closed walls + P2 single-pass
+envelopes: `GetMessageAsync` 67.4→56.2 μs, `ListMessagesAsync` baseline 58.1 μs/28.24 KB),
+and #22 (List/Create verb rules + C17–C20) landed with it; upstream's `InvalidRequestError1`
+duplicate collapses through the new `schemaAliases` curation. Demonstrated live 2026-08-14
+against `opencode2 serve` v0.0.0-next-17403 (create → list → get → messages, wire cursor
+round-tripped). Maintainer decisions #20 (password semantics) and #25 (IVT) remain open;
+further breadth batches continue M2.
 
 ## Milestones
 
@@ -47,10 +57,9 @@ is revisited at each milestone boundary.
    `superpowers/specs/2026-08-11-production-walking-skeleton-design.md`.
 2. **M2 — Breadth batches.** The generation profile grows in vertical operation batches;
    each batch lands its curation rows, reachable models, operation methods, and contract
-   tests together. Opens with the review hardening batch (#19 `Unknown*` serialization,
-   #20 password-semantics decision, #25 IVT decision); the generator fail-closed walls
-   batch (#21, includes the P2 envelope fold) and the naming/curation wall batch (#22)
-   land at this boundary.
+   tests together. The first batch (list/get/create/message-list) is complete, carrying
+   the #19/#21/#22 hardening riders; decisions #20 (password semantics) and #25 (IVT)
+   stay before the maintainer.
 3. **M3 — Streams.** SSE engine over the v2 stream surface (`v2.event.subscribe`,
    `v2.session.log` with `after`/`follow`, cursor-paged `v2.message.list`); the v1
    durable-stream design does not carry over and is re-derived here. Demo: watching a
