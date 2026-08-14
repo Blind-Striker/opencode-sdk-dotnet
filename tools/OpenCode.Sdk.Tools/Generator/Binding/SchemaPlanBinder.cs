@@ -323,6 +323,24 @@ internal sealed class SchemaPlanBinder
             });
         }
 
+        // A tag owned by two closure types would poison the converter's dispatch map at its
+        // first use; structurally identical duplicates have the schema-alias escape.
+        var duplicateTags = variants
+            .GroupBy(static variant => variant.Tag, StringComparer.Ordinal)
+            .Where(static group => group.Skip(1).Any())
+            .Select(static group => group.Key)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        if (duplicateTags.Length > 0)
+        {
+            foreach (var tag in duplicateTags)
+            {
+                errors.Add(BindingErrorCategory.Schema, "OpenCodeError", $"multiple error schemas declare tag '{tag}'");
+            }
+
+            return null;
+        }
+
         return new UnionPlan
         {
             Name = "OpenCodeError",
@@ -477,7 +495,9 @@ internal sealed class SchemaPlanBinder
         {
             RefNode reference => BindReference(reference, subject, aliases),
             PrimitiveNode primitive => BindPrimitive(primitive),
-            LiteralNode literal => Named(literal.Kind is LiteralKind.Boolean ? "bool" : "string"),
+            LiteralNode { Kind: LiteralKind.Boolean } => Named("bool"),
+            LiteralNode { Kind: LiteralKind.String } => Named("string"),
+            LiteralNode => Refuse(subject, "numeric literal schemas are not supported by the emitter"),
             ArrayNode array => BindArray(array, subject, aliases),
             DictionaryNode dictionary => BindDictionary(dictionary, subject, aliases),
             FreeFormObjectNode => DictionaryOf(Named("JsonElement")),

@@ -78,6 +78,14 @@ internal sealed class CurationValidator
             case GroupPlacement.Client when string.IsNullOrWhiteSpace(group.ClientName):
                 errors.Add(BindingErrorCategory.Curation, wireName, "client group must declare clientName");
                 break;
+            case not (GroupPlacement.Root or GroupPlacement.Client):
+                // System.Text.Json admits numeric enum spellings even under the string
+                // converter, so an out-of-range placement must fail here, not drop silently.
+                errors.Add(
+                    BindingErrorCategory.Curation,
+                    wireName,
+                    $"placement value '{((int)group.Placement).ToString(System.Globalization.CultureInfo.InvariantCulture)}' is not a recognized group placement");
+                break;
         }
 
         if (group.ClientName is not null && !CSharpNamePolicy.IsValidIdentifier(group.ClientName))

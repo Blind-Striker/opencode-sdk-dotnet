@@ -352,6 +352,113 @@ public sealed class SpecBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Refuse_A_Numeric_Literal_In_The_Selected_Closure()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("VersionedItem", schema => schema.Type("object")
+                .Property("version", property => property.Type("number").Raw("enum", "[3]"), required: true))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("VersionedItem")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), })));
+
+        await Assert.That(exception.Errors.Any(static error =>
+            error.Problem.Contains("numeric literal", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Bind_A_Nested_Marked_OneOf_Union()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("Alpha", schema => schema.Type("object")
+                .Property("type", property => property.Type("string").Enum("alpha"), required: true))
+            .WithSchema("WrapOne", schema => schema.Type("object")
+                .Property("type", property => property.Type("string").Enum("wrap"), required: true)
+                .Property("status", property => property.Type("string").Enum("one"), required: true))
+            .WithSchema("WrapTwo", schema => schema.Type("object")
+                .Property("type", property => property.Type("string").Enum("wrap"), required: true)
+                .Property("status", property => property.Type("string").Enum("two"), required: true))
+            .WithSchema("Wrap", schema => schema.OneOf(one => one.Ref("WrapOne"), two => two.Ref("WrapTwo")))
+            .WithSchema("Outer", schema => schema.AnyOf(alpha => alpha.Ref("Alpha"), wrap => wrap.Ref("Wrap")))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("Outer")))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), }));
+
+        var wrap = plan.Unions.Single(static union => union.Name == "Wrap");
+        await Assert.That(wrap.MarkerWireName).IsEqualTo("status");
+        await Assert.That(wrap.BaseTypeName).IsEqualTo("Outer");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Tag_Owned_By_Two_Closure_Schemas()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("GoneError", schema => schema.Type("object")
+                .Property("_tag", property => property.Type("string").Enum("SharedError"), required: true)
+                .Property("message", property => property.Type("string"), required: true))
+            .WithSchema("LostError", schema => schema.Type("object")
+                .Property("_tag", property => property.Type("string").Enum("SharedError"), required: true)
+                .Property("detail", property => property.Type("string"), required: true))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("ItemInfo"))
+                .Response(404, "application/json", schema => schema.Ref("GoneError"))
+                .Response(410, "application/json", schema => schema.Ref("LostError")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), })));
+
+        await Assert.That(exception.Errors.Any(static error =>
+            error.Problem.Contains("multiple error schemas declare tag 'SharedError'", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_An_Unrecognized_Group_Placement()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Type("object")
+                    .Property("data", property => property.Type("string"), required: true)))));
+        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+        {
+            ["health"] = new GroupCuration { Placement = (GroupPlacement)7 },
+        };
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(groups)));
+
+        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+            && error.Problem.Contains("not a recognized group placement", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task Ingest_Should_Refuse_A_Repeated_Path_Token()
+    {
+        var scenario = SpecScenario.Define(spec => spec
+            .WithOperation("v2.health.get", path: "/api/{id}/echo/{id}", configure: operation => operation
+                .Parameter("id", "path", schema => schema.Type("string"), required: true)));
+
+        var exception = await Assert
+            .That(async () => _ = await IngestAsync(scenario))
+            .Throws<IngestionException>();
+
+        await Assert.That(exception!.Errors.Any(static error =>
+            error.Problem.Contains("must appear exactly once", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
     public async Task Bind_Should_Collapse_A_Structurally_Identical_Schema_Alias()
     {
         var document = await IngestAsync(DuplicateTagScenario());

@@ -15,6 +15,32 @@ internal sealed class OperationPlanBinder
     /// from <see cref="object"/>/record synthesis; a payload landing on one of them needs a
     /// curated override.
     /// </summary>
+    /// <summary>Hand-written public spine types in the client namespace; a generated twin would not compile.</summary>
+    private static readonly string[] ReservedSpineTypeNames =
+    [
+        "ErrorBehavior",
+        "ListCursor",
+        "ListOptions",
+        "ListOrder",
+        "OpenCodeApiException",
+        "OpenCodeClientOptions",
+        "OpenCodeException",
+        "OpenCodeRequestOptions",
+        "OpenCodeResponse",
+        "OpenCodeTransportException",
+        "SessionParentFilter",
+    ];
+
+    /// <summary>Parameter names the emitted method and route-builder signatures append themselves.</summary>
+    private static readonly string[] ReservedParameterNames =
+    [
+        "cancellationToken",
+        "options",
+        "pipeline",
+        "request",
+        "requestOptions",
+    ];
+
     private static readonly string[] ReservedPayloadNames =
     [
         "Cursor",
@@ -61,7 +87,7 @@ internal sealed class OperationPlanBinder
 
         var clients = AssembleClients(bound);
         CheckMemberCollisions(clients, errors);
-        CheckTypeNameCollisions(clients, bound, errors);
+        CheckTypeNameCollisions(clients, bound, typeNames, errors);
         return clients;
     }
 
@@ -176,9 +202,14 @@ internal sealed class OperationPlanBinder
         }
     }
 
-    private void CheckTypeNameCollisions(List<ClientPlan> clients, List<BoundOperation> bound, BindingErrorCollector errors)
+    private void CheckTypeNameCollisions(List<ClientPlan> clients, List<BoundOperation> bound,
+        IReadOnlyDictionary<string, string> typeNames, BindingErrorCollector errors)
     {
+        // Model names shadow across namespaces (consumer CS0104) and hand-written spine
+        // names collide outright (CS0101), so both seed the owner set.
         var owners = new HashSet<string>(_comparer);
+        owners.UnionWith(typeNames.Values);
+        owners.UnionWith(ReservedSpineTypeNames);
         foreach (var name in clients.Select(static client => client.Name).Where(name => !owners.Add(name)))
         {
             errors.Add(BindingErrorCategory.Naming, name, $"client type name '{name}' collides with another generated type");
@@ -631,6 +662,26 @@ internal sealed class OperationPlanBinder
                     BindingErrorCategory.Naming,
                     _operation.OperationId,
                     $"multiple parameters map to C# name '{duplicate.Key}'");
+                return null;
+            }
+
+            // Emitted signatures append these names after bind-time checks; a wire parameter
+            // landing on one must fail here, never as an emitted compile error.
+            var reserved = plans
+                .Select(static plan => plan.Name)
+                .Where(static name => ReservedParameterNames.Contains(name, StringComparer.Ordinal))
+                .Order(StringComparer.Ordinal)
+                .ToArray();
+            if (reserved.Length > 0)
+            {
+                foreach (var name in reserved)
+                {
+                    _errors.Add(
+                        BindingErrorCategory.Naming,
+                        _operation.OperationId,
+                        $"parameter name '{name}' is reserved by the emitted method signature");
+                }
+
                 return null;
             }
 
