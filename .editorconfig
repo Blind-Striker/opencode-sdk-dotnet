@@ -809,3 +809,10 @@ dotnet_diagnostic.IDE0130.severity = none
 
 [tests/OpenCode.Sdk.Tests/{Sessions,Health,Pagination}/**.cs]
 dotnet_diagnostic.IDE0130.severity = none
+
+# DI extension methods live in the Microsoft.Extensions.DependencyInjection namespace so
+# consumers get AddOpenCode without an extra using - the ecosystem convention every
+# companion DI package follows (recorded decision, 2026-08-08). Winner: the ecosystem
+# namespace contract; IDE0130 remains error for every other Extensions file.
+[src/OpenCode.Sdk.Extensions/OpenCodeServiceCollectionExtensions.cs]
+dotnet_diagnostic.IDE0130.severity = none

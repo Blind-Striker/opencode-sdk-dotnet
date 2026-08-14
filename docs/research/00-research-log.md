@@ -1817,3 +1817,17 @@ own batch; the ROADMAP moves "Extensions DI breadth" out of M6 accordingly.
   NSubstitute mechanism over internal seams and a recorded solved-once decision; internals
   are not a security boundary. The recorded alternative (hand-written fake replacing the
   grant) applies only if encapsulation purity is ever preferred.
+
+# Session 21 — 2026-08-14: Alignment batch execution
+
+The three sealed alignment decisions (Q83–Q85) executed on the PR #26 branch: the uniform
+`*Request` rename with its body-plus-query double-derivation refusal pin, the feature-slice
+layout migration with the writer's fail-closed family-folder allowlist, and the Extensions
+bring-up. No sealed decision was reopened; one forward-looking note is recorded.
+
+## Note: generator-emitted DI registrations
+
+`AddOpenCode`'s sub-client registrations are hand-written — one factory line per client
+family. Emitting these registrations from the generator becomes worthwhile when client
+families multiply across breadth batches: the registration list is the same mechanical
+projection the client emitters already own. This is a trigger, not a commitment.

@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net8.0;net9.0;$(DefaultTargetFramework)</TargetFrameworks>
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+    <!-- net472 tests run on Windows only; adding the TFM conditionally keeps Linux/macOS legs green. -->
+    <TargetFrameworks Condition="'$(OS)' == 'Windows_NT'">net472;$(TargetFrameworks)</TargetFrameworks>
+    <!-- .NET Framework reads feature switches from App.config rather than runtimeconfig.json. -->
+    <AppConfig Condition="'$(TargetFramework)' == 'net472'">App.net472.config</AppConfig>
+    <!-- slopwatch-ignore: SW005 test-harness arbitration: Sonar's test-project probe misses TUnit-only projects, and the canned localhost endpoint IS the fixture, not a real address (S1075) -->
+    <NoWarn>$(NoWarn);S1075</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit"/>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OpenCode.Sdk.Extensions/OpenCode.Sdk.Extensions.csproj"/>
+  </ItemGroup>
+
+  <!-- .NET Framework ships HttpClient in this framework assembly; no NuGet HTTP stack is added. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
+  <!-- Implicit usings apply only on net6.0+; the net472 leg needs these globally too. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <Using Include="System.Linq" />
+    <Using Include="System.Net.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Fixtures/**/*.json" />
+  </ItemGroup>
+
+</Project>

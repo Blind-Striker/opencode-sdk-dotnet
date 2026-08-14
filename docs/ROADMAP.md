@@ -39,10 +39,11 @@ and #22 (List/Create verb rules + C17–C20) landed with it; upstream's `Invalid
 duplicate collapses through the new `schemaAliases` curation. Demonstrated live 2026-08-14
 against `opencode2 serve` v0.0.0-next-17403 (create → list → get → messages, wire cursor
 round-tripped). The #20 decision landed (blank explicit passwords refuse; `null` keeps the
-environment fallback) and #25 closed keep. The alignment batch is underway: the uniform
-`*Request` rename (Q83) and the feature-slice layout migration (Q84) have landed; next is
-the Extensions bring-up (Q85) (`agents/handover-prompts/HANDOFF-2026-08-14-2.md`); further
-breadth batches follow.
+environment fallback) and #25 closed keep. The alignment batch is complete: the uniform
+`*Request` rename (Q83), the feature-slice layout migration (Q84), and the Extensions
+bring-up (Q85 — `AddOpenCode` overloads registering the root client and directly
+resolvable sub-clients) have all landed; further breadth batches follow the PR #26
+review cycle.
 
 ## Milestones
 
@@ -61,9 +62,9 @@ is revisited at each milestone boundary.
 2. **M2 — Breadth batches.** The generation profile grows in vertical operation batches;
    each batch lands its curation rows, reachable models, operation methods, and contract
    tests together. The first batch (list/get/create/message-list) is complete with every
-   review rider resolved (#19–#22, #20, #25); the alignment batch (uniform `*Request`,
-   feature-slice layout, Extensions bring-up — research log Q83–Q85) precedes further
-   breadth. The Extensions package rises in parallel with these batches from here on.
+   review rider resolved (#19–#22, #20, #25), and so is the alignment batch (uniform
+   `*Request`, feature-slice layout, Extensions bring-up — research log Q83–Q85). The
+   Extensions package grows in parallel with the remaining batches.
 3. **M3 — Streams.** SSE engine over the v2 stream surface (`v2.event.subscribe`,
    `v2.session.log` with `after`/`follow`, cursor-paged `v2.message.list`); the v1
    durable-stream design does not carry over and is re-derived here. Demo: watching a
