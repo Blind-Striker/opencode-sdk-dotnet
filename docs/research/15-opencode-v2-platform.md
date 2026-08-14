@@ -1,17 +1,19 @@
 # The opencode v2 platform: branch, surface, architecture, distribution
 
-Date: 2026-08-13
+Date: 2026-08-14
 
 > Retarget-decision research (docs 09/10 follow-up). Question: what is the opencode v2 platform
 > today — which branch carries it, what API surface it serves, how its server/client architecture
-> and its distribution work, and what retargeting this SDK onto it changes. Sources, all retrieved
+> and its distribution work, and what retargeting this SDK onto it changes. Sources, retrieved
 > 2026-08-13: `anomalyco/opencode` branch `v2` at head `1288161` ("chore: generate"), inspected
 > via shallow clone; the GitHub REST API (branch head, commit list, releases, default branch); the
 > npm registry (`@opencode-ai/cli` and `opencode-ai` dist-tags); live probes of
 > `update.opencode.ai`; and a live install and run of `@opencode-ai/cli@next` (0.0.0-next-17403)
-> on this machine. This document is the canonical current-state picture of the v2 platform; docs
-> 09 and 10 remain the dated v1-line genealogy it extends, and research log session 12 (Q58)
-> recorded the branch's first sighting.
+> on this machine. §5a and the auth detail in §6 were re-derived 2026-08-14 against the pinned
+> spec commit `a6a712a` directly (submodule checkout, `git grep`/`git show` at the pin). This
+> document is the canonical current-state picture of the v2 platform; docs 09 and 10 remain the
+> dated v1-line genealogy it extends, and research log session 12 (Q58) recorded the branch's
+> first sighting.
 
 ## 1. The active branch is `v2`, and the investment is visibly there
 
@@ -115,6 +117,27 @@ mangling rule covers them. Two-day drift against session 12's census of the same
 (2026-08-11: 322 schemas, 422 `allOf`, 359 single-value enums) measures the churn rate directly
 — the branch moves daily, which is exactly what snapshot pinning is for.
 
+### 5a. Parameter-placement census at the pin (`a6a712a`, 2026-08-14)
+
+120 operations: 59 GET, 44 POST, 12 DELETE, 3 PUT, 2 PATCH. Placement facts that bound the
+SDK's request-marshalling design:
+
+- **Header parameters: zero.** No operation declares an `in: header` parameter; the
+  ambient location headers (§6) are middleware-level and spec-invisible.
+- **`location` deepObject: 61 operations** carry an optional `location` query parameter
+  (`style: deepObject`, `explode: true` — wire shape `location[directory]=…&location[workspace]=…`,
+  schema `anyOf[{directory?, workspace?}, null]`).
+- **Body + query mixing: 15 operations** (POST/PUT/PATCH/DELETE) — and in every one of them
+  the *only* query parameter is `location`. The merged-Request marshalling question and the
+  location question are the same design.
+- **Flat location fields: exactly one operation** — `v2.session.list` carries
+  `directory`/`workspace`/`project`/`subpath` as plain query parameters instead of the
+  deepObject; the platform-wide mechanism is the deepObject.
+
+Side observation validating the Q83 rename: the v2 first-party generated client emits one
+uniform `{Op}Input` type per operation (`SessionListInput`, `SessionPromptInput`, …) —
+upstream's own rendering of the uniform-request idea.
+
 **Streaming reshape.** `text/event-stream` lives on `v2.event.subscribe` and `v2.session.log`;
 `v2.pty.connect` carries `x-websocket`; `x-effect-stream` rides both SSE operations
 (2026-08-13 ingestion-level correction of this session's earlier jq census). The v1 durable
@@ -162,10 +185,27 @@ dies, server exits. It scrubs `OPENCODE_PASSWORD`/`OPENCODE_SERVER_PASSWORD` fro
 environment and generates a random password. Made for embedding hosts (the desktop uses the
 bundled CLI this way).
 
-**Auth is unchanged from v1**: HTTP Basic, username `opencode`, optional password; service mode
-generates `randomBytes(32).toString("base64url")` when unconfigured; foreground `serve` prints
-the password when it generated one. The SDK's decoration decisions carry over verbatim; the
-`location[…]`-vs-`x-opencode-directory` addressing question is a retarget-time decision.
+**Auth (re-derived at the pin, 2026-08-14)**: HTTP Basic, and **optional** — the server's
+`ServerAuth.required` is true only when a password is configured and non-empty; otherwise the
+authorization middleware is a pass-through (`packages/server/src/middleware/authorization.ts`).
+The username is **configurable**: default `opencode`, overridden by `--username`/`-u` on
+`serve`/`web` or `OPENCODE_SERVER_USERNAME` (upstream CLI/server docs; the desktop WSL sidecar
+exports it). Client-side password resolution lives in the *consumer*, not the client library:
+`packages/cli/src/env.ts` resolves `OPENCODE_PASSWORD` falling back to the legacy
+`OPENCODE_SERVER_PASSWORD` and hands the value to the client — the generated client itself
+reads no environment. Service mode generates `randomBytes(32).toString("base64url")` when
+unconfigured; foreground `serve` prints the password when it generated one.
+
+**Location addressing is dual-channel (re-derived at the pin, 2026-08-14)**: the server's
+location middleware (`packages/server/src/location.ts`) resolves per request as
+`location[workspace]` query **or** `x-opencode-workspace` header, and `location[directory]`
+query **or** `x-opencode-directory` header **or** the server's cwd — precedence query >
+header. The per-operation `location` deepObject query parameter (61 operations, §5a) is the
+spec-visible channel the first-party generated client uses exclusively; the headers are the
+spec-invisible ambient channel other consumers (drive driver, CLI) ride. The SDK-side
+rendering — per-op request property vs ambient client/request-option default, plus the
+deepObject marshalling and the `session.list` flat-field exception — is the location +
+merged-Request design session that opens M3 planning (research log Session 22).
 
 ## 7. MCP is client-side only; the exposure protocol they chose is ACP
 
@@ -245,8 +285,10 @@ lifecycle-leash bonus; connect-or-launch fits the discovery-file model).
 
 **Changes at retarget:** the ingestion wall needs one new admit rule (single-element,
 validation-only `allOf` unwrap); `HealthResponse` maps `ServiceHealth`; the
-`location[…]`-query vs `x-opencode-directory`-header decoration policy must be decided; the M3
-durable-stream design is re-derived against `session.log` (`after` + `follow`).
+`location[…]`-query vs ambient-header decoration policy is settled as a design input (§6:
+dual-channel, query > header) and its SDK rendering is designed in the location +
+merged-Request session at M3 planning; the M3 durable-stream design is re-derived against
+`session.log` (`after` + `follow`).
 
 ## UNVERIFIED / open
 

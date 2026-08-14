@@ -65,7 +65,11 @@ is revisited at each milestone boundary.
    review rider resolved (#19–#22, #20, #25), and so is the alignment batch (uniform
    `*Request`, feature-slice layout, Extensions bring-up — research log Q83–Q85). The
    Extensions package grows in parallel with the remaining batches.
-3. **M3 — Streams.** SSE engine over the v2 stream surface (`v2.event.subscribe`,
+3. **M3 — Streams.** Planning opens with the **location + merged-Request input design
+   session** (sealed 2026-08-14, research log Session 22): the dual-channel location
+   mechanism, deepObject marshalling, the one-`*Request`-carrying-body-and-query shape,
+   and the `session.list` flat-field exception — census and mechanisms in research doc 15
+   §5a/§6. Then the SSE engine over the v2 stream surface (`v2.event.subscribe`,
    `v2.session.log` with `after`/`follow`, cursor-paged `v2.message.list`); the v1
    durable-stream design does not carry over and is re-derived here. Demo: watching a
    real session's event stream. The net472 `ServicePointManager` item lands here. The

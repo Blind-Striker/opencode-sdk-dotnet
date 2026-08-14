@@ -1831,3 +1831,40 @@ bring-up. No sealed decision was reopened; one forward-looking note is recorded.
 family. Emitting these registrations from the generator becomes worthwhile when client
 families multiply across breadth batches: the registration list is the same mechanical
 projection the client emitters already own. This is a trigger, not a commitment.
+
+# Session 22 — 2026-08-14: Extensions grill, upstream re-research, location census
+
+The maintainer grilled the Q85 first cut (constructor-mirror DI shape, BYO-HttpClient
+overload, missing IHttpClientFactory, options mutability, env-fallback double-headedness)
+and demanded upstream verification instead of vision-doc relay. Findings re-derived at the
+pinned commit `a6a712a` directly; canonical detail in research doc 15 (§5a, §6). The
+`external/opencode` submodule pointer was found stranded on the 1.x line and moved to the
+spec pin with a lockstep rule in `spec/SNAPSHOT.md`.
+
+## Q87: Is `x-opencode-directory` dead on v2?
+
+**Found:** no — evolved. The server's location middleware resolves dual-channel:
+`location[…]` deepObject query (61 ops, spec-visible, used exclusively by the first-party
+generated client) OR ambient `x-opencode-directory`/`x-opencode-workspace` headers
+(spec-invisible, middleware-level), precedence query > header. The vision spec's
+header-only `Directory` story is obsolete; its §6 was corrected in place.
+
+## Q88: Can the merged-Request need be foreseen instead of wall-triggered?
+
+**Found:** yes — censusable today: 15 ops mix body + query, and in all 15 the only query
+parameter is `location`; `v2.session.list` is the single flat-field exception. The merged
+marshalling question and the location question are one design.
+
+**Decision (maintainer, sealed):** the location + merged-Request input design is done
+proactively in a short design session that opens M3 planning — not deferred until the
+collision wall fires. Census and mechanism notes live in doc 15 §5a/§6.
+
+## Q89: Where do v2 endpoint and credentials actually come from?
+
+**Found:** no URL environment variable exists; the first-party discovery contract is the
+registration file (doc 15 §6). Auth is optional (`ServerAuth.required` = configured,
+non-empty password). The username is configurable (`--username`/`OPENCODE_SERVER_USERNAME`,
+default `opencode`) — our pipeline's hardcoded `opencode` user is incomplete. Client-side
+password-from-environment resolution lives in the CLI consumer
+(`OPENCODE_PASSWORD` → legacy `OPENCODE_SERVER_PASSWORD`), not in the client library.
+Feeds the pending Q86 batch (options shape, env-fallback ownership, `Username` option).
