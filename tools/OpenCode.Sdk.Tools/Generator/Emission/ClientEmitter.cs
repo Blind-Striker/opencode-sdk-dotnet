@@ -69,6 +69,8 @@ internal static class ClientEmitter
                 "System.Threading.Tasks",
                 "OpenCode.Sdk.Internal",
                 "OpenCode.Sdk.Internal.ResponseAdapters",
+                "OpenCode.Sdk.Internal.Serialization",
+                "OpenCode.Sdk.Models",
             ],
             [declaration]);
         return EmissionSyntax.CreateSource($"{client.Name}.cs", unit);

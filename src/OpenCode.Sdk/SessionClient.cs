@@ -33,14 +33,14 @@ public class SessionClient
     /// Get session message
     /// </summary>
     /// <param name = "messageId">The &apos;messageID&apos; route value.</param>
-    /// <param name = "options">The per-call options.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
     /// <returns>The &apos;SessionMessageResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<SessionMessageResponse> GetMessageAsync(string messageId, OpenCodeRequestOptions? options = null, CancellationToken cancellationToken = default)
+    public virtual Task<SessionMessageResponse> GetMessageAsync(string messageId, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(messageId);
-        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Sessions.GetMessage(SessionId, messageId), SessionMessageResponseAdapter.Instance, options, cancellationToken);
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Sessions.GetMessage(SessionId, messageId), SessionMessageResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }

@@ -383,10 +383,11 @@ public sealed class OperationPlanBinderTests
         var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(list.Envelope.Kind).IsEqualTo(EnvelopeKind.CursorList);
         await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("WidgetInfo");
+        await Assert.That(list.Envelope.EnvelopeDtoTypeName).IsEqualTo("WidgetListResponseEnvelope");
         await Assert.That(plan.Models.Select(static model => model.Name)
             .SequenceEqual(["WidgetInfo"], StringComparer.Ordinal)).IsTrue();
         await Assert.That(plan.Registry.TypeNames
-            .SequenceEqual(["WidgetInfo"], StringComparer.Ordinal)).IsTrue();
+            .SequenceEqual(["WidgetInfo", "WidgetListResponseEnvelope"], StringComparer.Ordinal)).IsTrue();
     }
 
     [Test]

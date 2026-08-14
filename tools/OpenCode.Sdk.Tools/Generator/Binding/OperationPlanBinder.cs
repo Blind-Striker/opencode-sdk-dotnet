@@ -17,6 +17,7 @@ internal sealed class OperationPlanBinder
     /// </summary>
     private static readonly string[] ReservedPayloadNames =
     [
+        "Cursor",
         "Deconstruct",
         "EqualityContract",
         "Equals",
@@ -419,19 +420,21 @@ internal sealed class OperationPlanBinder
                 return null;
             }
 
+            var kind = success.EnvelopeShape switch
+            {
+                SpecEnvelopeShape.Data => EnvelopeKind.Data,
+                SpecEnvelopeShape.CursorData => EnvelopeKind.CursorList,
+                SpecEnvelopeShape.Bare or SpecEnvelopeShape.None or SpecEnvelopeShape.DataLocation
+                    or SpecEnvelopeShape.DataHasMore or _ => EnvelopeKind.Bare,
+            };
             return new EnvelopePlan
             {
                 ResponseTypeName = responseTypeName,
                 AdapterTypeName = $"{responseTypeName}Adapter",
                 PayloadName = payloadName,
                 PayloadTypeName = payload,
-                Kind = success.EnvelopeShape switch
-                {
-                    SpecEnvelopeShape.Data => EnvelopeKind.Data,
-                    SpecEnvelopeShape.CursorData => EnvelopeKind.CursorList,
-                    SpecEnvelopeShape.Bare or SpecEnvelopeShape.None or SpecEnvelopeShape.DataLocation
-                        or SpecEnvelopeShape.DataHasMore or _ => EnvelopeKind.Bare,
-                },
+                Kind = kind,
+                EnvelopeDtoTypeName = kind is EnvelopeKind.Bare ? null : $"{responseTypeName}Envelope",
             };
         }
 

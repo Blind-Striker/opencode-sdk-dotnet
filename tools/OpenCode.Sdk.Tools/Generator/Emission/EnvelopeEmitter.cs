@@ -25,6 +25,25 @@ internal static class EnvelopeEmitter
     {
         var envelope = operation.Envelope;
         var fieldName = $"_{CSharpNamePolicy.ToCamelCase(envelope.PayloadName)}";
+        var payloadType = PayloadType(envelope);
+        var members = new List<MemberDeclarationSyntax>
+        {
+            EmitBackingField(fieldName, payloadType),
+        };
+        if (envelope.Kind is EnvelopeKind.CursorList)
+        {
+            members.Add(EmitBackingField("_cursor", TypeSyntaxEmitter.EmitNamed("ListCursor")));
+        }
+
+        members.Add(EmitSuccessConstructor(envelope.ResponseTypeName));
+        members.Add(EmitErrorConstructor(envelope));
+        members.Add(EmitPayloadProperty(envelope, payloadType, fieldName));
+        if (envelope.Kind is EnvelopeKind.CursorList)
+        {
+            members.Add(EmitCursorProperty());
+        }
+
+        members.Add(EmitPrintMembers(envelope.PayloadName, fieldName));
         var declaration = SyntaxFactory.RecordDeclaration(SyntaxFactory.Token(SyntaxKind.RecordKeyword), envelope.ResponseTypeName)
             .WithModifiers(SyntaxFactory.TokenList(
                 SyntaxFactory.Token(SyntaxKind.PublicKeyword),
@@ -33,14 +52,7 @@ internal static class EnvelopeEmitter
                 SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.EmitNamed("OpenCodeResponse")))))
             .WithOpenBraceToken(SyntaxFactory.Token(SyntaxKind.OpenBraceToken))
             .WithCloseBraceToken(SyntaxFactory.Token(SyntaxKind.CloseBraceToken))
-            .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>(
-            [
-                EmitBackingField(fieldName, envelope.PayloadTypeName),
-                EmitSuccessConstructor(envelope.ResponseTypeName),
-                EmitErrorConstructor(envelope),
-                EmitPayloadProperty(envelope, fieldName),
-                EmitPrintMembers(envelope.PayloadName, fieldName),
-            ]))
+            .WithMembers(SyntaxFactory.List(members))
             .WithLeadingTrivia(EmissionSyntax.Documentation(
                 $"Represents the response of the '{operation.HttpMethod.ToUpperInvariant()} {operation.RouteTemplate}' operation."));
         var unit = EmissionSyntax.CompilationUnit(
@@ -50,9 +62,13 @@ internal static class EnvelopeEmitter
         return EmissionSyntax.CreateSource($"{envelope.ResponseTypeName}.cs", unit);
     }
 
-    private static FieldDeclarationSyntax EmitBackingField(string fieldName, string payloadTypeName) =>
+    private static TypeSyntax PayloadType(EnvelopePlan envelope) => envelope.Kind is EnvelopeKind.CursorList
+        ? TypeSyntaxEmitter.Generic("IReadOnlyList", TypeSyntaxEmitter.EmitNamed(envelope.PayloadTypeName))
+        : TypeSyntaxEmitter.EmitNamed(envelope.PayloadTypeName);
+
+    private static FieldDeclarationSyntax EmitBackingField(string fieldName, TypeSyntax payloadType) =>
         SyntaxFactory.FieldDeclaration(SyntaxFactory.VariableDeclaration(
-                SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(payloadTypeName)),
+                SyntaxFactory.NullableType(payloadType),
                 SyntaxFactory.SingletonSeparatedList(SyntaxFactory.VariableDeclarator(fieldName))))
             .WithModifiers(SyntaxFactory.TokenList(
                 SyntaxFactory.Token(SyntaxKind.PrivateKeyword),
@@ -71,7 +87,7 @@ internal static class EnvelopeEmitter
 
         // The payload assignment is the SDK's single null-forgiveness: the guarded getter
         // makes the null unobservable.
-        var assignments = new StatementSyntax[]
+        var assignments = new List<StatementSyntax>
         {
             Assign("Status", SyntaxFactory.IdentifierName("status")),
             Assign("IsError", SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression)),
@@ -81,6 +97,12 @@ internal static class EnvelopeEmitter
                 SyntaxKind.SuppressNullableWarningExpression,
                 SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
         };
+        if (envelope.Kind is EnvelopeKind.CursorList)
+        {
+            assignments.Add(Assign("Cursor", SyntaxFactory.PostfixUnaryExpression(
+                SyntaxKind.SuppressNullableWarningExpression,
+                SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))));
+        }
         return SyntaxFactory.ConstructorDeclaration(responseTypeName)
             .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.InternalKeyword)))
             .AddAttributeLists(EmissionSyntax.Attribute("SetsRequiredMembers"))
@@ -98,9 +120,39 @@ internal static class EnvelopeEmitter
                 "Initializes an error-path instance; the payload stays unset behind its guard."));
     }
 
-    private static PropertyDeclarationSyntax EmitPayloadProperty(EnvelopePlan envelope, string fieldName)
+    private static PropertyDeclarationSyntax EmitPayloadProperty(EnvelopePlan envelope, TypeSyntax payloadType, string fieldName)
     {
-        var guardMessage = $"The response is an error; check IsError before accessing {envelope.PayloadName}.";
+        ExpressionSyntax initValue = envelope.Kind is EnvelopeKind.CursorList
+            ? DefensiveListCopy()
+            : SyntaxFactory.IdentifierName("value");
+        return EmitGuardedProperty(
+            payloadType,
+            envelope.PayloadName,
+            fieldName,
+            initValue,
+            $"Gets the {envelope.PayloadName} payload; guarded on the error path.");
+    }
+
+    private static PropertyDeclarationSyntax EmitCursorProperty() =>
+        EmitGuardedProperty(
+            TypeSyntaxEmitter.EmitNamed("ListCursor"),
+            "Cursor",
+            "_cursor",
+            SyntaxFactory.IdentifierName("value"),
+            "Gets the page cursor; guarded on the error path.");
+
+    /// <summary>List payloads defensively copy on init so the envelope stays immutable.</summary>
+    private static InvocationExpressionSyntax DefensiveListCopy() =>
+        EmissionSyntax.Invocation(
+            EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("Array"), "AsReadOnly"),
+            SyntaxFactory.Argument(SyntaxFactory.CollectionExpression(
+                SyntaxFactory.SingletonSeparatedList<CollectionElementSyntax>(
+                    SyntaxFactory.SpreadElement(SyntaxFactory.IdentifierName("value"))))));
+
+    private static PropertyDeclarationSyntax EmitGuardedProperty(TypeSyntax propertyType, string propertyName,
+        string fieldName, ExpressionSyntax initValue, string documentation)
+    {
+        var guardMessage = $"The response is an error; check IsError before accessing {propertyName}.";
         var getter = SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
             .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(SyntaxFactory.BinaryExpression(
                 SyntaxKind.CoalesceExpression,
@@ -116,15 +168,14 @@ internal static class EnvelopeEmitter
             .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(SyntaxFactory.AssignmentExpression(
                 SyntaxKind.SimpleAssignmentExpression,
                 SyntaxFactory.IdentifierName(fieldName),
-                SyntaxFactory.IdentifierName("value"))))
+                initValue)))
             .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
-        return SyntaxFactory.PropertyDeclaration(TypeSyntaxEmitter.EmitNamed(envelope.PayloadTypeName), envelope.PayloadName)
+        return SyntaxFactory.PropertyDeclaration(propertyType, propertyName)
             .WithModifiers(SyntaxFactory.TokenList(
                 SyntaxFactory.Token(SyntaxKind.PublicKeyword),
                 SyntaxFactory.Token(SyntaxKind.RequiredKeyword)))
             .WithAccessorList(SyntaxFactory.AccessorList(SyntaxFactory.List([getter, setter])))
-            .WithLeadingTrivia(EmissionSyntax.Documentation(
-                $"Gets the {envelope.PayloadName} payload; guarded on the error path."));
+            .WithLeadingTrivia(EmissionSyntax.Documentation(documentation));
     }
 
     private static MethodDeclarationSyntax EmitPrintMembers(string payloadName, string fieldName)

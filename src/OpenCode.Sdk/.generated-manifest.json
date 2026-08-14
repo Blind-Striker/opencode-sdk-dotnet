@@ -10,6 +10,7 @@
     "Internal/Serialization/SessionMessageAssistantContentJsonConverter.cs",
     "Internal/Serialization/SessionMessageCompactionJsonConverter.cs",
     "Internal/Serialization/SessionMessageInfoJsonConverter.cs",
+    "Internal/Serialization/SessionMessageResponseEnvelope.cs",
     "Internal/Serialization/SessionMessageToolStateJsonConverter.cs",
     "Internal/Serialization/ToolContentJsonConverter.cs",
     "Models/InvalidRequestError.cs",

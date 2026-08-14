@@ -78,13 +78,13 @@ public class OpenCodeClient : IDisposable
     /// <summary>
     /// Check server health
     /// </summary>
-    /// <param name = "options">The per-call options.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
     /// <returns>The &apos;HealthResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<HealthResponse> GetHealthAsync(OpenCodeRequestOptions? options = null, CancellationToken cancellationToken = default)
+    public virtual Task<HealthResponse> GetHealthAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
-        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Health.Get, HealthResponseAdapter.Instance, options, cancellationToken);
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Health.Get, HealthResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }

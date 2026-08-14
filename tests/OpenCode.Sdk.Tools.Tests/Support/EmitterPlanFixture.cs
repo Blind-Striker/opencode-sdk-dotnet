@@ -14,6 +14,7 @@ internal static class EmitterPlanFixture
             CreateVariant("CreatedEvent", "created", "item", "Item", Named("ExampleItem")),
             CreateVariant("DeletedEvent", "deleted", "id", "ID", Named("string")),
             CreateError(),
+            CreateWidgetCreateRequest(),
         };
         var unions = new[]
         {
@@ -40,6 +41,11 @@ internal static class EmitterPlanFixture
                     "OpenCodeError",
                     "UnknownExampleEvent",
                     "UnknownOpenCodeError",
+                    "WidgetCreateRequest",
+                    "WidgetCreateResponseEnvelope",
+                    "WidgetItemListResponseEnvelope",
+                    "WidgetItemResponseEnvelope",
+                    "WidgetListResponseEnvelope",
                 ],
             },
             PendingOperations = [],
@@ -70,7 +76,7 @@ internal static class EmitterPlanFixture
             Role = ClientRole.Handle,
             SubClients = [],
             HandleParameter = CreateWidgetParameter(),
-            Operations = [CreateItemOperation()],
+            Operations = [CreateItemOperation(), CreateItemListOperation()],
         },
         new ClientPlan
         {
@@ -84,7 +90,7 @@ internal static class EmitterPlanFixture
                 HandleTypeName = "WidgetClient",
                 Parameter = CreateWidgetParameter(),
             },
-            Operations = [CreateOverviewOperation()],
+            Operations = [CreateOverviewOperation(), CreateWidgetListOperation(), CreateWidgetCreateOperation()],
         },
     ];
 
@@ -171,6 +177,7 @@ internal static class EmitterPlanFixture
                 PayloadName = "Item",
                 PayloadTypeName = "ExampleItem",
                 Kind = EnvelopeKind.Data,
+                EnvelopeDtoTypeName = "WidgetItemResponseEnvelope",
             },
             ErrorMap = new ErrorMapPlan
             {
@@ -203,6 +210,164 @@ internal static class EmitterPlanFixture
             Name = "widgetId",
             TypeName = "string",
             IsHandleParameter = true,
+        };
+
+    /// <summary>A flat options list operation covering every query value kind, a cursor envelope, and a 5xx arm.</summary>
+    private static OperationPlan CreateWidgetListOperation() =>
+        new()
+        {
+            MethodName = "ListWidgetsAsync",
+            HttpMethod = "get",
+            RouteTemplate = "/api/widget",
+            RouteContainerName = "Widgets",
+            RouteMemberName = "ListWidgets",
+            Parameters = [],
+            Options = new OperationOptionsPlan
+            {
+                TypeName = "WidgetListOptions",
+                DerivesFromListOptions = false,
+                Properties =
+                [
+                    OptionsProperty("limit", "Limit", QueryValueKind.PositiveCount),
+                    OptionsProperty("order", "Order", QueryValueKind.ListOrder),
+                    OptionsProperty("cursor", "Cursor", QueryValueKind.Text),
+                    OptionsProperty("parentID", "ParentId", QueryValueKind.SessionParentFilter),
+                ],
+            },
+            Envelope = new EnvelopePlan
+            {
+                ResponseTypeName = "WidgetListResponse",
+                AdapterTypeName = "WidgetListResponseAdapter",
+                PayloadName = "Widgets",
+                PayloadTypeName = "ExampleItem",
+                Kind = EnvelopeKind.CursorList,
+                EnvelopeDtoTypeName = "WidgetListResponseEnvelope",
+            },
+            ErrorMap = new ErrorMapPlan
+            {
+                Statuses =
+                [
+                    new ErrorStatusPlan
+                    {
+                        StatusCode = 400,
+                        Tags = [new ErrorTagPlan { Tag = "BadRequestError", TypeName = "BadRequestError", }],
+                    },
+                    new ErrorStatusPlan
+                    {
+                        StatusCode = 500,
+                        Tags = [new ErrorTagPlan { Tag = "BadRequestError", TypeName = "BadRequestError", }],
+                    },
+                ],
+            },
+            Summary = "List the widgets",
+            Description = null,
+        };
+
+    /// <summary>A handle-scoped list whose options derive from the ListOptions base.</summary>
+    private static OperationPlan CreateItemListOperation() =>
+        new()
+        {
+            MethodName = "ListItemsAsync",
+            HttpMethod = "get",
+            RouteTemplate = "/api/widget/{widgetID}/item",
+            RouteContainerName = "Widgets",
+            RouteMemberName = "ListItems",
+            Parameters = [CreateWidgetParameter()],
+            Options = new OperationOptionsPlan
+            {
+                TypeName = "ItemListOptions",
+                DerivesFromListOptions = true,
+                Properties =
+                [
+                    OptionsProperty("limit", "Limit", QueryValueKind.PositiveCount, isInherited: true),
+                    OptionsProperty("order", "Order", QueryValueKind.ListOrder, isInherited: true),
+                    OptionsProperty("cursor", "Cursor", QueryValueKind.Text, isInherited: true),
+                ],
+            },
+            Envelope = new EnvelopePlan
+            {
+                ResponseTypeName = "WidgetItemListResponse",
+                AdapterTypeName = "WidgetItemListResponseAdapter",
+                PayloadName = "Items",
+                PayloadTypeName = "ExampleItem",
+                Kind = EnvelopeKind.CursorList,
+                EnvelopeDtoTypeName = "WidgetItemListResponseEnvelope",
+            },
+            ErrorMap = new ErrorMapPlan
+            {
+                Statuses =
+                [
+                    new ErrorStatusPlan
+                    {
+                        StatusCode = 404,
+                        Tags = [new ErrorTagPlan { Tag = "MissingError", TypeName = "MissingError", }],
+                    },
+                ],
+            },
+            Summary = "List the widget items",
+            Description = null,
+        };
+
+    /// <summary>A create operation with an optional all-optional request body.</summary>
+    private static OperationPlan CreateWidgetCreateOperation() =>
+        new()
+        {
+            MethodName = "CreateWidgetAsync",
+            HttpMethod = "post",
+            RouteTemplate = "/api/widget",
+            RouteContainerName = "Widgets",
+            RouteMemberName = "CreateWidget",
+            Parameters = [],
+            RequestBody = new RequestBodyPlan
+            {
+                TypeName = "WidgetCreateRequest",
+                ParameterName = "request",
+                IsOptional = true,
+            },
+            Envelope = new EnvelopePlan
+            {
+                ResponseTypeName = "WidgetCreateResponse",
+                AdapterTypeName = "WidgetCreateResponseAdapter",
+                PayloadName = "Widget",
+                PayloadTypeName = "ExampleItem",
+                Kind = EnvelopeKind.Data,
+                EnvelopeDtoTypeName = "WidgetCreateResponseEnvelope",
+            },
+            ErrorMap = new ErrorMapPlan
+            {
+                Statuses =
+                [
+                    new ErrorStatusPlan
+                    {
+                        StatusCode = 400,
+                        Tags = [new ErrorTagPlan { Tag = "BadRequestError", TypeName = "BadRequestError", }],
+                    },
+                ],
+            },
+            Summary = "Create one widget",
+            Description = null,
+        };
+
+    private static OptionsPropertyPlan OptionsProperty(string wireName, string propertyName, QueryValueKind kind,
+        bool isInherited = false) =>
+        new()
+        {
+            WireName = wireName,
+            PropertyName = propertyName,
+            Kind = kind,
+            IsInherited = isInherited,
+        };
+
+    private static ObjectModelPlan CreateWidgetCreateRequest() =>
+        new()
+        {
+            Name = "WidgetCreateRequest",
+            Namespace = "OpenCode.Sdk.Models",
+            Description = "Shapes the widget-create request body.",
+            Properties =
+            [
+                Property("title", "Title", Named("string", isNullable: true), isRequired: false, "Gets the widget title."),
+            ],
         };
 
     public static EmitPlan CreateModelSnapshot()

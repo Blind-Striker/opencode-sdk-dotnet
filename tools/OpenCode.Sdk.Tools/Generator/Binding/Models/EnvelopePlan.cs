@@ -12,4 +12,10 @@ internal sealed record EnvelopePlan
     public required string PayloadTypeName { get; init; }
 
     public required EnvelopeKind Kind { get; init; }
+
+    /// <summary>
+    /// Gets the internal single-pass deserialization DTO type name for wrapped envelopes,
+    /// or <see langword="null"/> when the body is the payload itself.
+    /// </summary>
+    public string? EnvelopeDtoTypeName { get; init; }
 }

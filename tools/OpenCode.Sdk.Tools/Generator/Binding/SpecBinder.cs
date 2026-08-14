@@ -64,9 +64,22 @@ internal sealed class SpecBinder(
             SelectedOperationIds = selection.OperationIds,
             Models = schemaResult.Models,
             Unions = schemaResult.Unions,
-            Registry = schemaResult.Registry,
+            Registry = ComposeRegistry(schemaResult.Registry, clients),
             Clients = clients,
             PendingOperations = pending,
+        };
+    }
+
+    /// <summary>Wrapped envelopes deserialize through internal DTOs, which join the serializer registry.</summary>
+    private static RegistryPlan ComposeRegistry(RegistryPlan schemaRegistry, IReadOnlyList<ClientPlan> clients)
+    {
+        var dtoNames = clients
+            .SelectMany(static client => client.Operations)
+            .Select(static operation => operation.Envelope.EnvelopeDtoTypeName)
+            .OfType<string>();
+        return new RegistryPlan
+        {
+            TypeNames = [.. schemaRegistry.TypeNames.Concat(dtoNames).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)],
         };
     }
 

@@ -23,9 +23,17 @@ internal static class RoutesEmitter
                 SyntaxFactory.Token(SyntaxKind.StaticKeyword)))
             .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>(containers))
             .WithLeadingTrivia(EmissionSyntax.Documentation("Defines the wire route of every generated operation."));
-        var usings = operations.Any(static operation => operation.Parameters.Count > 0)
-            ? new[] { "System" }
-            : [];
+        var usings = new List<string>();
+        if (operations.Any(static operation => operation.Parameters.Count > 0))
+        {
+            usings.Add("System");
+        }
+
+        if (operations.Any(static operation => operation.Options is not null))
+        {
+            usings.Add("OpenCode.Sdk.Internal");
+        }
+
         var unit = EmissionSyntax.CompilationUnit("OpenCode.Sdk", usings, [declaration]);
         return EmissionSyntax.CreateSource("OpenCodeRoutes.cs", unit);
     }
@@ -35,7 +43,7 @@ internal static class RoutesEmitter
         var members = new List<MemberDeclarationSyntax>();
         foreach (var operation in container.OrderBy(static operation => operation.RouteMemberName, StringComparer.Ordinal))
         {
-            if (operation.Parameters.Count is 0)
+            if (operation.Parameters.Count is 0 && operation.Options is null)
             {
                 members.Add(EmitConst(
                     operation.RouteMemberName,
@@ -79,11 +87,26 @@ internal static class RoutesEmitter
             statements.AddRange(EmitRouteValueGuard(parameter.Name));
         }
 
-        statements.Add(SyntaxFactory.ReturnStatement(EmitConcatenation(operation)));
+        if (operation.Options is null)
+        {
+            statements.Add(SyntaxFactory.ReturnStatement(EmitConcatenation(operation)));
+        }
+        else
+        {
+            statements.AddRange(EmitQueryComposition(operation));
+        }
+
+        var parameters = new List<DocumentedParameter>();
+        parameters.AddRange(operation.Parameters.Select(static parameter =>
+            new DocumentedParameter(parameter.Name, $"The '{parameter.WireName}' route value.")));
+        if (operation.Options is not null)
+        {
+            parameters.Add(new DocumentedParameter("options", "The query options."));
+        }
+
         var documentation = EmissionSyntax.MemberDocumentation(
             $"Builds the '{operation.RouteTemplate}' route.",
-            [.. operation.Parameters.Select(static parameter =>
-                new DocumentedParameter(parameter.Name, $"The '{parameter.WireName}' route value."))],
+            parameters,
             "The escaped route.");
         return SyntaxFactory.MethodDeclaration(
                 SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword)),
@@ -91,12 +114,69 @@ internal static class RoutesEmitter
             .WithModifiers(SyntaxFactory.TokenList(
                 SyntaxFactory.Token(SyntaxKind.PublicKeyword),
                 SyntaxFactory.Token(SyntaxKind.StaticKeyword)))
-            .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(operation.Parameters.Select(
-                static parameter => SyntaxFactory.Parameter(SyntaxFactory.Identifier(parameter.Name))
-                    .WithType(TypeSyntaxEmitter.EmitNamed(parameter.TypeName))))))
+            .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(EmitBuilderParameters(operation))))
             .WithBody(SyntaxFactory.Block(statements))
             .WithLeadingTrivia(documentation);
     }
+
+    private static IEnumerable<ParameterSyntax> EmitBuilderParameters(OperationPlan operation)
+    {
+        foreach (var parameter in operation.Parameters)
+        {
+            yield return SyntaxFactory.Parameter(SyntaxFactory.Identifier(parameter.Name))
+                .WithType(TypeSyntaxEmitter.EmitNamed(parameter.TypeName));
+        }
+
+        if (operation.Options is not null)
+        {
+            yield return SyntaxFactory.Parameter(SyntaxFactory.Identifier("options"))
+                .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(operation.Options.TypeName)))
+                .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)));
+        }
+    }
+
+    /// <summary>Unset options short-circuit to the bare path; set ones append the composed query suffix.</summary>
+    private static IEnumerable<StatementSyntax> EmitQueryComposition(OperationPlan operation)
+    {
+        yield return SyntaxFactory.LocalDeclarationStatement(SyntaxFactory.VariableDeclaration(
+            SyntaxFactory.IdentifierName("var"),
+            SyntaxFactory.SingletonSeparatedList(SyntaxFactory.VariableDeclarator("path")
+                .WithInitializer(SyntaxFactory.EqualsValueClause(EmitConcatenation(operation))))));
+        yield return SyntaxFactory.IfStatement(
+            SyntaxFactory.IsPatternExpression(
+                SyntaxFactory.IdentifierName("options"),
+                SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
+            SyntaxFactory.Block(SyntaxFactory.ReturnStatement(SyntaxFactory.IdentifierName("path"))));
+        yield return SyntaxFactory.LocalDeclarationStatement(SyntaxFactory.VariableDeclaration(
+            SyntaxFactory.IdentifierName("var"),
+            SyntaxFactory.SingletonSeparatedList(SyntaxFactory.VariableDeclarator("query")
+                .WithInitializer(SyntaxFactory.EqualsValueClause(SyntaxFactory.ObjectCreationExpression(
+                        TypeSyntaxEmitter.EmitNamed("QueryStringBuilder"))
+                    .WithArgumentList(SyntaxFactory.ArgumentList()))))));
+        foreach (var property in operation.Options!.Properties)
+        {
+            yield return SyntaxFactory.ExpressionStatement(EmissionSyntax.Invocation(
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("query"), QueryAddMethod(property.Kind)),
+                SyntaxFactory.Argument(StringLiteral(property.WireName)),
+                SyntaxFactory.Argument(EmissionSyntax.MemberAccess(
+                    SyntaxFactory.IdentifierName("options"),
+                    property.PropertyName))));
+        }
+
+        yield return SyntaxFactory.ReturnStatement(SyntaxFactory.BinaryExpression(
+            SyntaxKind.AddExpression,
+            SyntaxFactory.IdentifierName("path"),
+            EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("query"), "Value")));
+    }
+
+    private static string QueryAddMethod(QueryValueKind kind) => kind switch
+    {
+        QueryValueKind.Text => "AddText",
+        QueryValueKind.PositiveCount => "AddCount",
+        QueryValueKind.ListOrder => "AddOrder",
+        QueryValueKind.SessionParentFilter => "AddParentFilter",
+        _ => throw new InvalidOperationException($"Query value kind '{kind}' has no query-builder method."),
+    };
 
     /// <summary>
     /// Guards one route value: null/empty/whitespace is refused, and so are the dot segments

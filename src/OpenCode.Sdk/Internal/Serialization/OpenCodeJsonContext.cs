@@ -48,6 +48,7 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(SessionMessageLocationSwitchedTime))]
 [JsonSerializable(typeof(SessionMessageModelSelected))]
 [JsonSerializable(typeof(SessionMessageModelSelectedTime))]
+[JsonSerializable(typeof(SessionMessageResponseEnvelope))]
 [JsonSerializable(typeof(SessionMessageShell))]
 [JsonSerializable(typeof(SessionMessageShellOutput))]
 [JsonSerializable(typeof(SessionMessageShellStatus))]
