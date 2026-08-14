@@ -417,7 +417,6 @@ internal-docs/
 !.claude/skills/
 !.claude/skills/**
 
-external/
 tmp/
 
 .fake
