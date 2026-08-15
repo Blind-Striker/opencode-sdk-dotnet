@@ -110,7 +110,12 @@ public class WidgetClient
     internal WidgetClient(Pipeline pipeline, string widgetId)
     {
         ArgumentNullException.ThrowIfNull(pipeline);
-        ArgumentException.ThrowIfNullOrEmpty(widgetId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(widgetId);
+        if (widgetId is "." or "..")
+        {
+            throw new ArgumentException("Route values must not be dot segments.", nameof(widgetId));
+        }
+
         _pipeline = pipeline;
         _widgetId = widgetId;
     }
@@ -194,7 +199,12 @@ public class WidgetsClient
     /// <returns>The bound &apos;WidgetClient&apos;.</returns>
     public virtual WidgetClient GetWidgetClient(string widgetId)
     {
-        ArgumentException.ThrowIfNullOrEmpty(widgetId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(widgetId);
+        if (widgetId is "." or "..")
+        {
+            throw new ArgumentException("Route values must not be dot segments.", nameof(widgetId));
+        }
+
         return new WidgetClient(Pipeline, widgetId);
     }
 

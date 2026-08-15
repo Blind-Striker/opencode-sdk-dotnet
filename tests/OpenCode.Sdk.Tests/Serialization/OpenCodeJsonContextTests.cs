@@ -35,6 +35,14 @@ public sealed class OpenCodeJsonContextTests
     }
 
     [Test]
+    public async Task Carrier_Constructor_Should_Refuse_An_Unparsed_Payload()
+    {
+        var exception = Assert.Throws<ArgumentException>(() => _ = new UnknownOpenCodeError("future", default));
+
+        await Assert.That(exception.ParamName).IsEqualTo("payload");
+    }
+
+    [Test]
     public async Task Deserialize_Should_Reject_Null_For_A_Concrete_Unknown_Carrier()
     {
         var typeInfo = (JsonTypeInfo<UnknownOpenCodeError>)_serializer.GetTypeInfo(typeof(UnknownOpenCodeError));

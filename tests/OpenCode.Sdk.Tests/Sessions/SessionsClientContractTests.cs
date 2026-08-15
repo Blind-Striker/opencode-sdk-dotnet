@@ -51,6 +51,21 @@ public sealed class SessionsClientContractTests
     }
 
     [Test]
+    [Arguments(" ")]
+    [Arguments(".")]
+    [Arguments("..")]
+    public async Task GetSessionClient_Should_Refuse_An_Id_The_Route_Would_Refuse(string sessionId)
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        using var client = CreateClient(httpClient);
+
+        var exception = Assert.Throws<ArgumentException>(() => _ = client.Sessions.GetSessionClient(sessionId));
+
+        await Assert.That(exception.ParamName).IsEqualTo("sessionId");
+    }
+
+    [Test]
     public async Task ListSessionsAsync_Should_Treat_A_Null_Page_Element_As_A_Protocol_Failure()
     {
         using var handler = new RecordingHttpHandler(static _ => JsonResponse(
@@ -85,9 +100,10 @@ public sealed class SessionsClientContractTests
         using var httpClient = new HttpClient(handler);
         using var client = CreateClient(httpClient);
 
-        _ = await Assert
+        var exception = await Assert
             .That(async () => _ = await client.Sessions.ListSessionsAsync(new SessionListRequest { Limit = 0 }))
-            .Throws<ArgumentException>();
+            .Throws<ArgumentOutOfRangeException>();
+        await Assert.That(exception!.ParamName).IsEqualTo("request");
         await Assert.That(handler.Requests).IsEmpty();
     }
 

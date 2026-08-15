@@ -196,7 +196,7 @@ internal static class ClientEmitter
                         ?? throw new InvalidOperationException($"Handle client '{client.Name}' carries no handle parameter.");
         var statements = new List<StatementSyntax>();
         statements.AddRange(EmissionSyntax.ArgumentNullGuard("pipeline"));
-        statements.AddRange(EmissionSyntax.ArgumentNullOrEmptyGuard(parameter.Name));
+        statements.AddRange(EmissionSyntax.RouteValueGuard(parameter.Name));
         statements.Add(SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
             SyntaxKind.SimpleAssignmentExpression,
             SyntaxFactory.IdentifierName("_pipeline"),
@@ -270,7 +270,7 @@ internal static class ClientEmitter
     private static MethodDeclarationSyntax EmitHandleFactory(ClientPlan client, HandleFactoryPlan factory)
     {
         var statements = new List<StatementSyntax>();
-        statements.AddRange(EmissionSyntax.ArgumentNullOrEmptyGuard(factory.Parameter.Name));
+        statements.AddRange(EmissionSyntax.RouteValueGuard(factory.Parameter.Name));
         statements.Add(SyntaxFactory.ReturnStatement(SyntaxFactory.ObjectCreationExpression(
                 TypeSyntaxEmitter.EmitNamed(factory.HandleTypeName))
             .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(

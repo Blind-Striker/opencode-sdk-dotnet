@@ -19,6 +19,11 @@ public sealed record UnknownSessionMessageCompaction : SessionMessageCompaction
     public UnknownSessionMessageCompaction(string status, JsonElement payload)
     {
         ArgumentException.ThrowIfNullOrEmpty(status);
+        if (payload.ValueKind is JsonValueKind.Undefined)
+        {
+            throw new ArgumentException("The payload must be a parsed JSON element.", nameof(payload));
+        }
+
         _marker = status;
         Payload = payload.Clone();
     }

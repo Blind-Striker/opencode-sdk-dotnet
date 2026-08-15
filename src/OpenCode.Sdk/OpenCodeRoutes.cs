@@ -100,7 +100,7 @@ public static class OpenCodeRoutes
             }
 
             var query = new QueryStringBuilder();
-            query.AddCount("limit", request.Limit);
+            query.AddCount("limit", request.Limit, nameof(request));
             query.AddOrder("order", request.Order);
             query.AddText("cursor", request.Cursor);
             return path + query.Value;
@@ -125,7 +125,7 @@ public static class OpenCodeRoutes
 
             var query = new QueryStringBuilder();
             query.AddText("workspace", request.Workspace);
-            query.AddCount("limit", request.Limit);
+            query.AddCount("limit", request.Limit, nameof(request));
             query.AddOrder("order", request.Order);
             query.AddText("search", request.Search);
             query.AddParentFilter("parentID", request.ParentId);

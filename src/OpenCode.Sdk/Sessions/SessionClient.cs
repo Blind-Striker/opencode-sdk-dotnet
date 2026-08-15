@@ -14,7 +14,12 @@ public class SessionClient
     internal SessionClient(Pipeline pipeline, string sessionId)
     {
         ArgumentNullException.ThrowIfNull(pipeline);
-        ArgumentException.ThrowIfNullOrEmpty(sessionId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        if (sessionId is "." or "..")
+        {
+            throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+        }
+
         _pipeline = pipeline;
         _sessionId = sessionId;
     }

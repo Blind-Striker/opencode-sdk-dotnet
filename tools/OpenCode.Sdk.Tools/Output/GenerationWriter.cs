@@ -12,6 +12,9 @@ internal sealed class GenerationWriter(IFileSystem fileSystem, IProjectFormatter
     private const string ManifestRelativePath = ".generated-manifest.json";
     private const string MarkerRelativePath = ".generation-incomplete";
     private static readonly StringComparer OwnedPathComparer = StringComparer.OrdinalIgnoreCase;
+
+    /// <summary>Admitted family folders are single plain segments that never shadow a statically owned directory.</summary>
+    private static readonly string[] StaticallyOwnedFolders = ["Models", "Internal", "Pagination", "Properties"];
     private readonly IFileSystem _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
     private readonly IProjectFormatter _formatter = formatter ?? throw new ArgumentNullException(nameof(formatter));
 
@@ -46,9 +49,6 @@ internal sealed class GenerationWriter(IFileSystem fileSystem, IProjectFormatter
         var after = await SnapshotAsync(outputRoot, trackedPaths, cancellationToken).ConfigureAwait(false);
         return Compare(before, after, request.Verify);
     }
-
-    /// <summary>Admitted family folders are single plain segments that never shadow a statically owned directory.</summary>
-    private static readonly string[] StaticallyOwnedFolders = ["Models", "Internal", "Properties"];
 
     private static HashSet<string> ValidateFamilyFolders(IReadOnlyList<string> familyFolders)
     {

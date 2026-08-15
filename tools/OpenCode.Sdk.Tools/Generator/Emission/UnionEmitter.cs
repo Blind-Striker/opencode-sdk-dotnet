@@ -201,6 +201,26 @@ internal static class UnionEmitter
             statements.AddRange(EmissionSyntax.ArgumentNullOrEmptyGuard(markerParameterName));
         }
 
+        // default(JsonElement) has no backing document; Clone would surface a bare
+        // InvalidOperationException instead of an argument refusal.
+        statements.Add(SyntaxFactory.IfStatement(
+            SyntaxFactory.IsPatternExpression(
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("payload"), "ValueKind"),
+                SyntaxFactory.ConstantPattern(EmissionSyntax.MemberAccess(
+                    SyntaxFactory.IdentifierName("JsonValueKind"),
+                    "Undefined"))),
+            SyntaxFactory.Block(SyntaxFactory.ThrowStatement(SyntaxFactory.ObjectCreationExpression(
+                    SyntaxFactory.IdentifierName("ArgumentException"))
+                .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(
+                [
+                    SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
+                        SyntaxKind.StringLiteralExpression,
+                        SyntaxFactory.Literal("The payload must be a parsed JSON element."))),
+                    SyntaxFactory.Argument(EmissionSyntax.Invocation(
+                        SyntaxFactory.IdentifierName("nameof"),
+                        SyntaxFactory.Argument(SyntaxFactory.IdentifierName("payload")))),
+                ])))))));
+
         statements.Add(SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
             SyntaxKind.SimpleAssignmentExpression,
             SyntaxFactory.IdentifierName("_marker"),

@@ -84,7 +84,7 @@ internal static class RoutesEmitter
         var statements = new List<StatementSyntax>();
         foreach (var parameter in operation.Parameters)
         {
-            statements.AddRange(EmitRouteValueGuard(parameter.Name));
+            statements.AddRange(EmissionSyntax.RouteValueGuard(parameter.Name));
         }
 
         if (operation.QueryRequest is null)
@@ -155,12 +155,24 @@ internal static class RoutesEmitter
                     .WithArgumentList(SyntaxFactory.ArgumentList()))))));
         foreach (var property in operation.QueryRequest!.Properties)
         {
-            yield return SyntaxFactory.ExpressionStatement(EmissionSyntax.Invocation(
-                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("query"), QueryAddMethod(property.Kind)),
+            var arguments = new List<ArgumentSyntax>
+            {
                 SyntaxFactory.Argument(StringLiteral(property.WireName)),
                 SyntaxFactory.Argument(EmissionSyntax.MemberAccess(
                     SyntaxFactory.IdentifierName("request"),
-                    property.PropertyName))));
+                    property.PropertyName)),
+            };
+            if (property.Kind is QueryValueKind.PositiveCount)
+            {
+                // The count guard reports the builder's own parameter, not the helper's.
+                arguments.Add(SyntaxFactory.Argument(EmissionSyntax.Invocation(
+                    SyntaxFactory.IdentifierName("nameof"),
+                    SyntaxFactory.Argument(SyntaxFactory.IdentifierName("request")))));
+            }
+
+            yield return SyntaxFactory.ExpressionStatement(EmissionSyntax.Invocation(
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("query"), QueryAddMethod(property.Kind)),
+                [.. arguments]));
         }
 
         yield return SyntaxFactory.ReturnStatement(SyntaxFactory.BinaryExpression(
@@ -182,31 +194,6 @@ internal static class RoutesEmitter
     /// Guards one route value: null/empty/whitespace is refused, and so are the dot segments
     /// <c>Uri</c> canonicalization would silently rewrite into a different request path.
     /// </summary>
-    private static StatementSyntax[] EmitRouteValueGuard(string parameterName)
-    {
-        var parameter = SyntaxFactory.IdentifierName(parameterName);
-        var whitespaceGuard = SyntaxFactory.ExpressionStatement(EmissionSyntax.Invocation(
-            EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("ArgumentException"), "ThrowIfNullOrWhiteSpace"),
-            SyntaxFactory.Argument(parameter)));
-        var dotSegmentGuard = SyntaxFactory.IfStatement(
-            SyntaxFactory.IsPatternExpression(
-                parameter,
-                SyntaxFactory.BinaryPattern(
-                    SyntaxKind.OrPattern,
-                    SyntaxFactory.ConstantPattern(StringLiteral(".")),
-                    SyntaxFactory.ConstantPattern(StringLiteral("..")))),
-            SyntaxFactory.Block(SyntaxFactory.ThrowStatement(SyntaxFactory.ObjectCreationExpression(
-                    SyntaxFactory.IdentifierName("ArgumentException"))
-                .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(
-                [
-                    SyntaxFactory.Argument(StringLiteral("Route values must not be dot segments.")),
-                    SyntaxFactory.Argument(EmissionSyntax.Invocation(
-                        SyntaxFactory.IdentifierName("nameof"),
-                        SyntaxFactory.Argument(parameter))),
-                ]))))));
-        return [whitespaceGuard, dotSegmentGuard];
-    }
-
     /// <summary>Folds the template into literal + escaped-parameter concatenation, in template order.</summary>
     private static ExpressionSyntax EmitConcatenation(OperationPlan operation)
     {

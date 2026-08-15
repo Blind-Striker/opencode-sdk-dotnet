@@ -177,6 +177,19 @@ public sealed class GenerationWriterTests
     }
 
     [Test]
+    public async Task WriteAsync_Should_Refuse_A_Family_Folder_Shadowing_The_Pagination_Spine()
+    {
+        var fileSystem = GenerationTestData.CreateFileSystem();
+        var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
+
+        var exception = await Assert
+            .That(async () => await writer.WriteAsync(Request([], familyFolders: ["Pagination"]), CancellationToken.None))
+            .Throws<InvalidOperationException>();
+
+        await Assert.That(exception!.Message).Contains("shadows");
+    }
+
+    [Test]
     public async Task WriteAsync_Should_Refuse_Family_Folders_Duplicated_By_Case()
     {
         var fileSystem = GenerationTestData.CreateFileSystem();

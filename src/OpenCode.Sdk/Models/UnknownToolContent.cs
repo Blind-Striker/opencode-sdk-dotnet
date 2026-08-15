@@ -19,6 +19,11 @@ public sealed record UnknownToolContent : ToolContent
     public UnknownToolContent(string type, JsonElement payload)
     {
         ArgumentException.ThrowIfNullOrEmpty(type);
+        if (payload.ValueKind is JsonValueKind.Undefined)
+        {
+            throw new ArgumentException("The payload must be a parsed JSON element.", nameof(payload));
+        }
+
         _marker = type;
         Payload = payload.Clone();
     }

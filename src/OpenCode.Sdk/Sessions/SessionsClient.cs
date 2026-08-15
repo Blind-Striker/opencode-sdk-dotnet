@@ -32,7 +32,12 @@ public class SessionsClient
     /// <returns>The bound &apos;SessionClient&apos;.</returns>
     public virtual SessionClient GetSessionClient(string sessionId)
     {
-        ArgumentException.ThrowIfNullOrEmpty(sessionId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        if (sessionId is "." or "..")
+        {
+            throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+        }
+
         return new SessionClient(Pipeline, sessionId);
     }
 
