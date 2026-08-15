@@ -24,6 +24,16 @@ public sealed class SessionClientContractTests
     }
 
     [Test]
+    public async Task GetSessionAsync_Should_Treat_A_Null_Datum_As_A_Protocol_Failure()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope("null"));
+
+        _ = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").GetSessionAsync())
+            .Throws<OpenCodeTransportException>();
+    }
+
+    [Test]
     public async Task GetSessionAsync_Should_Treat_An_Explicit_Null_Parent_As_A_Malformed_Success()
     {
         var payload = new FixtureLoader().LoadJson("Serialization.null-parent-session.json");
