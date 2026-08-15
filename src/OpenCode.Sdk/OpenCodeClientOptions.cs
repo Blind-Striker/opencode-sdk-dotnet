@@ -23,4 +23,13 @@ public sealed class OpenCodeClientOptions : IOpenCodeClientOptions
     /// construction; the SDK never reads credentials from the environment.
     /// </summary>
     public string? Password { get; set; }
+
+    /// <summary>
+    /// Gets or sets the ambient location every request carries as
+    /// <c>x-opencode-directory</c>/<c>x-opencode-workspace</c> headers;
+    /// <see langword="null"/> leaves the server's own resolution in place. An explicit
+    /// per-request location rides the query channel and wins — the server resolves query
+    /// before header.
+    /// </summary>
+    public LocationSelector? Location { get; set; }
 }

@@ -33,6 +33,10 @@ internal sealed class RecordingHttpHandler : HttpMessageHandler
         {
             RequestUri = request.RequestUri,
             Method = request.Method,
+            Headers = request.Headers.ToDictionary(
+                static header => header.Key,
+                static header => string.Join(',', header.Value),
+                StringComparer.OrdinalIgnoreCase),
             Authorization = request.Headers.Authorization?.ToString(),
             UserAgent = request.Headers.UserAgent.Count is 0 ? null : request.Headers.UserAgent.ToString(),
             ContentType = request.Content?.Headers.ContentType?.ToString(),

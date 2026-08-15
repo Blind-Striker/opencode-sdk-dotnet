@@ -14,6 +14,7 @@
     public interface IOpenCodeClientOptions
     {
         System.Uri? Endpoint { get; }
+        OpenCode.Sdk.LocationSelector? Location { get; }
         string? Password { get; }
         string Username { get; }
     }
@@ -77,6 +78,7 @@
     {
         public OpenCodeClientOptions() { }
         public System.Uri? Endpoint { get; set; }
+        public OpenCode.Sdk.LocationSelector? Location { get; set; }
         public string? Password { get; set; }
         public string Username { get; set; }
     }
