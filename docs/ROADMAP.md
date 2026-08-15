@@ -68,11 +68,24 @@ by the SDK test project; the Extensions tests are registration-topology only).
 Session 24). Q92's simplicity-first construction (ADR-0010) is landed — Arc 1 complete:
 the transport constructor is internal friend-assembly test surface, Extensions registers
 a factory-less singleton client family with a roster contract test, and the Q91 guard
-machinery is deleted — closing #31 by construction. #28, #32, and #33 are sealed with
-their execution homes recorded (Session 24), and the location + merged-Request design is
+machinery is deleted — closing #31 by construction. #32 and #33 stay sealed with their
+execution homes recorded (Session 24), and the location + merged-Request design is
 sealed (Session 25, Q93/Q94: the binder placement map and the dual-channel location
-rendering) — the body+query admission stop condition is lifted. Remaining M2 breadth
-batches interleave next against the sealed design.
+rendering).
+
+**The M2 second breadth batch is complete** (plan:
+`superpowers/plans/2026-08-15-m2-second-breadth-batch.md`) — the design-prover batch:
+`session.remove`/`session.rename` and the `Shells` family
+(`list`/`create`/`get`/`remove`/`timeout`) ride the 204 no-content and
+`{location, data}` envelope machinery, the deepObject `LocationSelector` query channel,
+the merged body+query request models, the ambient options location riding the
+middleware headers, and the first PATCH/DELETE verbs. #28 landed as the
+`mutuallyExclusiveQueries` curation section with the route-boundary refusal on
+`message.list`. Demonstrated live 2026-08-16 against `opencode2 serve`
+v0.0.0-next-17403 (shell create → get → timeout → remove and session rename → remove,
+204s typed, ambient location echoed). `v2.shell.output` deferred to a later batch —
+its inline data object and integer cursor query params each need a mechanism of their
+own. 13 operations selected, 107 pending.
 
 ## Milestones
 

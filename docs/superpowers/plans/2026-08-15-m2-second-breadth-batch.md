@@ -80,6 +80,8 @@ introduced gets exercised by a real operation. Sealed inputs: research log Sessi
       fail-closed validated), the binder pins each name to the bound query surface, the
       route builder refuses the pair before any request, and the no-send contract test
       observes it on `message.list`.
-- [ ] Live demo against `opencode2 serve`: shell create → list → get → output → remove,
-      plus session rename → remove.
-- [ ] ROADMAP + this plan updated in the same commits.
+- [x] Live demo against `opencode2 serve` v0.0.0-next-17403 (2026-08-16): shell
+      create → list → get → timeout → remove (204), session rename → remove (204), all
+      typed; the ambient options location rode the header channel and came back in the
+      location echo. (`output` deferred with its operation.)
+- [x] ROADMAP + this plan updated in the same commits.
