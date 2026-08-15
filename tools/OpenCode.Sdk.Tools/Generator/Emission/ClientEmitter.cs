@@ -120,7 +120,7 @@ internal static class ClientEmitter
                 "Initializes a client that owns its connection to the endpoint.",
                 [new DocumentedParameter("options", "The client options; the endpoint is required.")]));
         yield return SyntaxFactory.ConstructorDeclaration(client.Name)
-            .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
+            .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.InternalKeyword)))
             .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(
             [
                 SyntaxFactory.Parameter(SyntaxFactory.Identifier("httpClient")).WithType(TypeSyntaxEmitter.EmitNamed("HttpClient")),
@@ -128,11 +128,10 @@ internal static class ClientEmitter
             ])))
             .WithBody(SyntaxFactory.Block(EmitRootAssignments(client, httpClientArgument: "httpClient")))
             .WithLeadingTrivia(EmissionSyntax.MemberDocumentation(
-                "Initializes a client over a caller-owned HttpClient; the SDK never disposes it. " +
-                "With a password set, the SDK's per-request Authorization header overrides any client default; " +
-                "in anonymous mode a default Authorization header is refused at construction and before every send.",
+                "Initializes a client over an injected transport the client never disposes; " +
+                "friend-assembly test surface.",
                 [
-                    new DocumentedParameter("httpClient", "The caller-owned HTTP client."),
+                    new DocumentedParameter("httpClient", "The injected HTTP client."),
                     new DocumentedParameter("options", "The client options; the endpoint is required."),
                 ]));
     }

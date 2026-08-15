@@ -62,7 +62,6 @@
     {
         protected OpenCodeClient() { }
         public OpenCodeClient(OpenCode.Sdk.OpenCodeClientOptions options) { }
-        public OpenCodeClient(System.Net.Http.HttpClient httpClient, OpenCode.Sdk.OpenCodeClientOptions options) { }
         public virtual OpenCode.Sdk.SessionsClient Sessions { get; }
         public void Dispose() { }
         protected virtual void Dispose(bool disposing) { }

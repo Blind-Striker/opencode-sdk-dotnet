@@ -11,7 +11,6 @@ internal sealed class Pipeline : IDisposable
 {
     private readonly AuthenticationHeaderValue? _authorization;
     private readonly string _endpointBase;
-    private readonly bool _enforceAnonymousDefaults;
     private readonly HttpClient _httpClient;
     private readonly bool _ownsHttpClient;
     private readonly ProductInfoHeaderValue _userAgent;
@@ -47,29 +46,6 @@ internal sealed class Pipeline : IDisposable
                 nameof(options));
         }
 
-        // The pipeline builds every request URI absolute from Endpoint, so a BaseAddress on
-        // an injected client would never be consulted; refuse the conflict instead of
-        // silently ignoring half the caller's configuration.
-        if (!ownsHttpClient && httpClient.BaseAddress is not null)
-        {
-            throw new ArgumentException(
-                "The supplied HttpClient carries a BaseAddress, which this SDK never consults — requests are " +
-                "built absolute from OpenCodeClientOptions.Endpoint. Remove the BaseAddress or change the Endpoint.",
-                nameof(httpClient));
-        }
-
-        // Anonymous mode cannot be expressed by omission over an injected client: HttpClient
-        // copies its default headers onto every request that lacks the header, so a default
-        // Authorization would ride requests this SDK promises are anonymous. Refuse the
-        // conflict instead of silently sending a foreign credential.
-        if (!ownsHttpClient && password is null && CarriesDefaultAuthorization(httpClient))
-        {
-            throw new ArgumentException(
-                "The options request anonymous requests (Password is null), but the supplied HttpClient's " +
-                "default headers carry an Authorization header. Remove the default header or set a password.",
-                nameof(httpClient));
-        }
-
         _httpClient = httpClient;
         _ownsHttpClient = ownsHttpClient;
         _endpointBase = EndpointPolicy.Normalize(endpoint);
@@ -80,11 +56,6 @@ internal sealed class Pipeline : IDisposable
         _authorization = password is null
             ? null
             : new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{password}")));
-
-        // Default headers stay legally mutable after construction, so the anonymous-mode
-        // refusal must also run per send; owned transports never expose their client and
-        // authenticated sends override the default, so only anonymous injected clients pay.
-        _enforceAnonymousDefaults = !ownsHttpClient && _authorization is null;
     }
 
     public static Pipeline Create(OpenCodeClientOptions options)
@@ -155,9 +126,6 @@ internal sealed class Pipeline : IDisposable
         }
     }
 
-    /// <summary>Presence beats parseability: a raw unparseable default value still rides the wire.</summary>
-    private static bool CarriesDefaultAuthorization(HttpClient httpClient) => httpClient.DefaultRequestHeaders.TryGetValues("Authorization", out _);
-
     /// <summary>The owned transport: pooled connection lifetime keeps DNS rotation alive on modern TFMs.</summary>
     private static HttpClient CreateOwnedHttpClient()
     {
@@ -204,20 +172,6 @@ internal sealed class Pipeline : IDisposable
         if (errorBehavior is not (ErrorBehavior.Default or ErrorBehavior.NoThrow))
         {
             throw new ArgumentOutOfRangeException(nameof(options), errorBehavior, "Unknown ErrorBehavior value.");
-        }
-
-        if (_enforceAnonymousDefaults && CarriesDefaultAuthorization(_httpClient))
-        {
-            throw new OpenCodeTransportException(
-                "The anonymous opencode client's HttpClient carries a default Authorization header; the request " +
-                "was refused before sending. Remove the default header or set a password.");
-        }
-
-        if (!_ownsHttpClient && _httpClient.BaseAddress is not null)
-        {
-            throw new OpenCodeTransportException(
-                "The injected HttpClient's BaseAddress is set, and this SDK never consults it — requests are " +
-                "built absolute from the configured Endpoint. The request was refused before sending.");
         }
 
         int status;

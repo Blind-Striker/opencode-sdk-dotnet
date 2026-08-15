@@ -3,7 +3,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OpenCode.Sdk;
 using OpenCode.Sdk.Models;
-using OpenCode.Sdk.Sandbox;
 
 var endpoint = Environment.GetEnvironmentVariable("OPENCODE_SANDBOX_ENDPOINT");
 if (string.IsNullOrWhiteSpace(endpoint))
@@ -20,17 +19,15 @@ if (string.IsNullOrWhiteSpace(endpoint))
 var password = Environment.GetEnvironmentVariable("OPENCODE_PASSWORD")
                ?? Environment.GetEnvironmentVariable("OPENCODE_SERVER_PASSWORD");
 
-// The DI composition the Extensions package exists for: AddOpenCode registers the typed
-// client over IHttpClientFactory and returns the IHttpClientBuilder, so consumer-owned
-// delegating handlers (and resilience/telemetry packages) chain on without SDK middleware.
+// The DI composition the Extensions package exists for: AddOpenCode registers one
+// singleton client owning its transport, and every sub-client resolves from that same
+// instance.
 var builder = Host.CreateApplicationBuilder(args);
-builder.Services.AddTransient<ConsoleTimingHandler>();
 _ = builder.Services.AddOpenCode(options =>
-    {
-        options.Endpoint = new Uri(endpoint);
-        options.Password = string.IsNullOrWhiteSpace(password) ? null : password;
-    })
-    .AddHttpMessageHandler<ConsoleTimingHandler>();
+{
+    options.Endpoint = new Uri(endpoint);
+    options.Password = string.IsNullOrWhiteSpace(password) ? null : password;
+});
 using var host = builder.Build();
 
 var client = host.Services.GetRequiredService<OpenCodeClient>();

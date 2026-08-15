@@ -24,9 +24,7 @@ OPENCODE_SERVER_PASSWORD=123456 opencode2 serve --hostname 127.0.0.1 --port 4096
 ```
 
 Then F5 with the `sandbox` profile. The program composes through the Extensions package —
-a Generic Host whose `AddOpenCode` registers the typed client over `IHttpClientFactory`,
-with the consumer-owned `ConsoleTimingHandler` chained onto the returned
-`IHttpClientBuilder` (the third extensibility rung: the SDK ships no middleware) and
-`SessionsClient` resolved straight from the container — then drives the breadth surface
-end to end: health, `CreateSessionAsync`, `ListSessionsAsync` (typed page + wire cursor),
-`GetSessionAsync` on the created handle, and `ListMessagesAsync`.
+a Generic Host whose `AddOpenCode` registers one singleton client owning its transport,
+with `SessionsClient` resolved straight from the container — then drives the breadth
+surface end to end: health, `CreateSessionAsync`, `ListSessionsAsync` (typed page + wire
+cursor), `GetSessionAsync` on the created handle, and `ListMessagesAsync`.
