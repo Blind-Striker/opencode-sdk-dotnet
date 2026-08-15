@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-14
+Date: 2026-08-15
 
 Operational state: what is done, what is next, what is open. This file shrinks as work lands.
 Evergreen rules and locked decisions live in `../AGENTS.md`; decision records in `adr/`.
@@ -38,8 +38,8 @@ envelopes: `GetMessageAsync` 67.4→56.2 μs, `ListMessagesAsync` baseline 58.1 
 and #22 (List/Create verb rules + C17–C20) landed with it; upstream's `InvalidRequestError1`
 duplicate collapses through the new `schemaAliases` curation. Demonstrated live 2026-08-14
 against `opencode2 serve` v0.0.0-next-17403 (create → list → get → messages, wire cursor
-round-tripped). The #20 decision landed (blank explicit passwords refuse; `null` keeps the
-environment fallback) and #25 closed keep. The alignment batch is complete — the uniform
+round-tripped). The #20 decision landed (blank explicit passwords refuse; the environment
+fallback was later removed by Q90 — `null` sends anonymous requests) and #25 closed keep. The alignment batch is complete — the uniform
 `*Request` rename (Q83), the feature-slice layout migration (Q84), and the Extensions
 bring-up (Q85) — and the follow-on construction/options/DI reshape (research log Q90)
 landed on the same PR: options-only construction with the read-only
@@ -48,9 +48,10 @@ landed on the same PR: options-only construction with the read-only
 connection lifetime on the owned transport, and the sandbox as the Generic Host DI
 showcase. The PR #26 external review ran through adversarial verification (36 findings:
 30 confirmed / 4 plausible / 2 refuted): the ten merge blockers plus small fold-ins are
-queued as the fix batch in `agents/handover-prompts/HANDOFF-2026-08-14-3.md` — gated on
-the open Q91 decision — and every surviving non-blocker lives in issues #27–#30 and the
-#24 hygiene comment. Merge follows the fix batch; further breadth batches follow merge.
+queued as the fix batch in `agents/handover-prompts/HANDOFF-2026-08-14-3.md` — Q91 sealed
+2026-08-15 (research log Session 23, doc 16), unblocking blocker #1 — and every surviving
+non-blocker lives in issues #27–#30 and the #24 hygiene comment. Merge follows the fix
+batch; further breadth batches follow merge.
 
 ## Milestones
 
@@ -97,14 +98,6 @@ is revisited at each milestone boundary.
 
 ## Open Questions
 
-- **Q91 — the BYO-HttpClient surface** — review blocker #1 exposed the public
-  `(HttpClient, options)` constructor's default-header ambiguity. Recorded leaning:
-  internalize it (IVT to the Extensions package; one public constructor; the
-  `IHttpClientBuilder` as the sanctioned transport seam; no-DI needs met additively via
-  concrete options knobs). Not sealed: an industry survey runs first, and keeping BYO
-  public is acceptable with a first-class-but-pragmatic default-header resolution — the
-  proxy/TLS advantage is real. Owned by the fix-batch session
-  (`agents/handover-prompts/HANDOFF-2026-08-14-3.md` item A); blocker #1 waits on it.
 - **v2 GA watch** — the v2 line ships as `opencode2` (npm `@opencode-ai/cli@next`, desktop
   beta via `update.opencode.ai`) with no GA date; the spec pin stays a deliberate snapshot,
   refreshed at milestone boundaries. Platform detail: research doc 15.

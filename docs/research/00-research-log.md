@@ -1903,3 +1903,33 @@ buggy edge — dotnet/runtime #95006/#101984/#90974 — so `required` stays out)
   net472 `ServicePointManager` half stays an M3 item.
 - The sandbox is the standing DI showcase (Generic Host, builder-chained consumer
   handler, direct sub-client resolution).
+
+# Session 23 — 2026-08-15: Q91 BYO-transport seal
+
+## Q91: Does the caller-owned `(HttpClient, options)` constructor stay public?
+
+**How researched:** seven-agent primary-source survey (2026-08-14, versions pinned at
+release tags) across Azure.Core/System.ClientModel, OpenAI, AWS v4, Stripe.net, Octokit,
+the typed-client ecosystem (Refit, Kiota, Grpc, Elastic, MCP), and the
+BCL/IHttpClientFactory layer — census, findings, and sources in research doc 16; upstream
+v2 JS client read at the pin (`packages/client`: public `fetch` option, SDK-wins header
+precedence encoded in the generated client).
+
+**Found:** no surveyed SDK gates transport injection behind a DI companion (AWS v4
+removed the knob from its DI options type); every SDK resolves header conflicts by the
+BCL's silent request-wins merge with zero guards, and every surveyed anonymous mode leaks
+a caller default `Authorization`; the BCL cannot express "anonymous by omission" over a
+caller client, and the same leak exists on the factory path via `ConfigureHttpClient` —
+so the pipeline guard is required regardless of the constructor's visibility; the stock
+typed-client pattern hard-requires a public `(HttpClient, …)` constructor. The
+internalize+IVT leaning and a handler-seam-on-options alternative were both weighed and
+rejected (doc 16 §4) — the latter on the Q90 bindable/snapshot options contract.
+
+**Decision (maintainer, sealed):** the constructor stays public. Anonymous mode fails
+closed — `Password == null` while the injected client's `DefaultRequestHeaders` carry
+`Authorization` refuses at construction and before every send (construction-only would
+miss legal post-construction mutation). With `Password` set, the SDK's per-request
+`Authorization` deterministically wins (BCL request-wins merge); the precedence contract
+is documented on the constructor and options. Standalone handler/proxy/TLS composition
+rides the BYO client; concrete convenience knobs remain an additive future. Executes as
+review blocker #1's fix in this batch.
