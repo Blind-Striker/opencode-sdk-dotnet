@@ -215,6 +215,24 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Refuse_A_Model_Colliding_With_A_Spine_Type_Name()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ListCursor", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.item", path: "/api/widget/item", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("ListCursor")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.item"),
+            Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)))));
+
+        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
+            && error.Problem.Contains("spine", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
     public async Task Bind_Should_Refuse_An_Unsupported_Http_Method()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec

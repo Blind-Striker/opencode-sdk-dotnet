@@ -208,10 +208,20 @@ internal sealed class OperationPlanBinder
         IReadOnlyDictionary<string, string> typeNames, BindingErrorCollector errors)
     {
         // Model names shadow across namespaces (consumer CS0104) and hand-written spine
-        // names collide outright (CS0101), so both seed the owner set.
+        // names collide outright (CS0101), so both seed the owner set — reserved names
+        // first, each model name individually, because a bulk union would swallow a
+        // model/spine duplicate instead of refusing it.
         var owners = new HashSet<string>(_comparer);
-        owners.UnionWith(typeNames.Values);
         owners.UnionWith(ReservedSpineTypeNames);
+        foreach (var entry in typeNames
+                     .Where(entry => !owners.Add(entry.Value) && ReservedSpineTypeNames.Contains(entry.Value, _comparer))
+                     .OrderBy(static entry => entry.Key, StringComparer.Ordinal))
+        {
+            errors.Add(
+                BindingErrorCategory.Naming,
+                entry.Key,
+                $"model type name '{entry.Value}' collides with the hand-written spine type '{entry.Value}'");
+        }
         foreach (var name in clients.Select(static client => client.Name).Where(name => !owners.Add(name)))
         {
             errors.Add(BindingErrorCategory.Naming, name, $"client type name '{name}' collides with another generated type");
