@@ -8,14 +8,16 @@ internal sealed class SchemaNameResolver
 {
     private readonly StringComparer _comparer = StringComparer.Ordinal;
 
-    public IReadOnlyDictionary<string, string> Resolve(SpecDocument document, ReachableSchemaSet reachable, BindingErrorCollector errors)
+    public IReadOnlyDictionary<string, string> Resolve(SpecDocument document, ReachableSchemaSet reachable,
+        IReadOnlyList<SpecOperation> selected, BindingErrorCollector errors)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(reachable);
+        ArgumentNullException.ThrowIfNull(selected);
         ArgumentNullException.ThrowIfNull(errors);
 
         var responseRoots = reachable.ResponseRootKeys.ToHashSet(_comparer);
-        var requestRoots = ResolveRequestBodyRootNames(document);
+        var requestRoots = ResolveRequestBodyRootNames(selected, errors);
         var result = new Dictionary<string, string>(_comparer);
         var owners = new Dictionary<string, string>(_comparer);
         foreach (var key in reachable.GraphKeys)
@@ -50,20 +52,36 @@ internal sealed class SchemaNameResolver
     private static bool IsNominal(SchemaNode schema) => schema is ObjectNode or EnumNode or UnionNode;
 
     /// <summary>
-    /// Inline request bodies are named from their operation identity — the mechanical
-    /// <c>{Subject}{Verb}Request</c> rule — because their graph keys carry the raw
-    /// operation id, which public names never surface (ADR-0005 strips the protocol prefix).
+    /// Every selected operation's nominal body root — inline or component-referenced — is
+    /// named from its operation identity, the mechanical <c>{Subject}{Verb}Request</c> rule
+    /// (public names never surface raw operation ids or dotted component spellings).
+    /// Ownership is scoped to the selection so a pending operation can never rename a
+    /// component the selected closure shares; two selected operations claiming one root
+    /// under different names refuse until a per-operation copy design exists. Nested
+    /// component dependencies stay shared: only the root reference is claimed.
     /// </summary>
-    private Dictionary<string, string> ResolveRequestBodyRootNames(SpecDocument document)
+    private Dictionary<string, string> ResolveRequestBodyRootNames(IReadOnlyList<SpecOperation> selected,
+        BindingErrorCollector errors)
     {
         var names = new Dictionary<string, string>(_comparer);
-        foreach (var operation in document.Operations)
+        foreach (var operation in selected)
         {
-            if (operation.RequestBody?.Schema is RefNode reference
-                && reference.Target.StartsWith($"op:{operation.OperationId}#", StringComparison.Ordinal))
+            if (operation.RequestBody?.Schema is not RefNode reference)
             {
-                names[reference.Target] = OperationNamePolicy.RequestTypeName(operation);
+                continue;
             }
+
+            var requestName = OperationNamePolicy.RequestTypeName(operation);
+            if (names.TryGetValue(reference.Target, out var existing) && !_comparer.Equals(existing, requestName))
+            {
+                errors.Add(
+                    BindingErrorCategory.Naming,
+                    reference.Target,
+                    $"request body root is claimed as both '{existing}' and '{requestName}' by selected operations");
+                continue;
+            }
+
+            names[reference.Target] = requestName;
         }
 
         return names;

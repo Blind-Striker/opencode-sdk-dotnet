@@ -479,6 +479,66 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Name_A_Component_Request_Body_From_The_Operation()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("Widget.CreatePayload", schema => schema.Type("object")
+                .Property("title", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.create", method: "post", path: "/api/widget", configure: operation => operation
+                .RequestBody("application/json", body => body.Ref("Widget.CreatePayload"), required: true)
+                .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
+
+        var plan = BindWidgets(document, "v2.widget.create");
+
+        var create = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(create.RequestBody!.TypeName).IsEqualTo("WidgetCreateRequest");
+        await Assert.That(plan.Models.Any(static model => model.Name == "WidgetCreateRequest")).IsTrue();
+        await Assert.That(plan.Models.Any(static model => model.Name == "WidgetCreatePayload")).IsFalse();
+        await Assert.That(plan.Registry.TypeNames.Contains("WidgetCreateRequest", StringComparer.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Not_Let_A_Pending_Operation_Rename_A_Shared_Component()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetShared", schema => schema.Type("object")
+                .Property("note", property => property.Type("string"), required: true))
+            .WithSchema("WidgetInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true)
+                .Property("shared", property => property.Ref("WidgetShared"), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))
+            .WithOperation("v2.widget.create", method: "post", path: "/api/widget-create", configure: operation => operation
+                .RequestBody("application/json", body => body.Ref("WidgetShared"), required: true)
+                .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
+
+        var plan = BindWidgets(document);
+
+        await Assert.That(plan.Models.Any(static model => model.Name == "WidgetShared")).IsTrue();
+        await Assert.That(plan.Models.Any(static model => model.Name == "WidgetCreateRequest")).IsFalse();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_An_Operation_Mixing_A_Body_And_Query_Parameters()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("Widget.CreatePayload", schema => schema.Type("object")
+                .Property("title", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.create", method: "post", path: "/api/widget", configure: operation => operation
+                .Parameter("search", "query", static schema => schema.AnyOf(
+                    static branch => branch.Type("string"),
+                    static branch => branch.Type("null")), required: false)
+                .RequestBody("application/json", body => body.Ref("Widget.CreatePayload"), required: true)
+                .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
+
+        await AssertWidgetRefusalAsync(document, "request body and query", "v2.widget.create");
+    }
+
+    [Test]
     public async Task Bind_Should_Bind_A_Component_Data_Envelope_Without_Modeling_The_Wrapper()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
@@ -817,11 +877,7 @@ public sealed class OperationPlanBinderTests
                         static branch => branch.Type("null"))), required: true)
                 .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
 
-        var exception = Assert.Throws<BindingException>(() => _ = BindWidgets(document, "v2.widget.create"));
-
-        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
-            && error.Problem.Contains("WidgetCreateRequest", StringComparison.Ordinal)
-            && error.Problem.Contains("collides", StringComparison.Ordinal))).IsTrue();
+        await AssertWidgetRefusalAsync(document, "request body and query", "v2.widget.create");
     }
 
     [Test]

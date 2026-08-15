@@ -49,7 +49,7 @@ internal sealed class SpecBinder(
 
         // Type names are resolved exactly once per bind; schema and operation binding
         // consume the same map so neither can reinterpret a schema under another name.
-        var typeNames = _schemaNames.Resolve(document, reachable, errors);
+        var typeNames = _schemaNames.Resolve(document, reachable, selected, errors);
         var schemaResult = _schemaPlans.Bind(document, reachable, curation, typeNames, errors);
         var clients = _operationPlans.Bind(document, selected, curation, typeNames, errors);
         var selectedIds = selected.Select(static operation => operation.OperationId).ToHashSet(StringComparer.Ordinal);

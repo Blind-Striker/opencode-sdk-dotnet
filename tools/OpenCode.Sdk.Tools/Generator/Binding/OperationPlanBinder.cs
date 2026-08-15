@@ -371,6 +371,15 @@ internal sealed class OperationPlanBinder
                 Refuse("POST operations must carry a request body");
             }
 
+            // Refused independently of any name collision: one uniform *Request input cannot
+            // carry both a body and query yet — admission waits for the sealed merged-Request
+            // design (M3 opens with it).
+            if (_operation.RequestBody is not null
+                && _operation.Parameters.Any(static parameter => parameter.Location is SpecParameterLocation.Query))
+            {
+                Refuse("operations mixing a request body and query parameters await the merged-Request design");
+            }
+
             CheckParameterShapes();
             CheckStatusShape();
             return _errors.Count == before;
@@ -807,6 +816,18 @@ internal sealed class OperationPlanBinder
             if (!_typeNames.TryGetValue(reference.Target, out var typeName))
             {
                 _errors.Add(BindingErrorCategory.Naming, reference.Target, "request body schema has no unique C# type name");
+                return null;
+            }
+
+            // The name resolver claims every selected body root with the operation-derived
+            // request name; a mismatch means the ownership map and this binding disagree.
+            var expected = OperationNamePolicy.RequestTypeName(_operation);
+            if (!string.Equals(typeName, expected, StringComparison.Ordinal))
+            {
+                _errors.Add(
+                    BindingErrorCategory.Naming,
+                    reference.Target,
+                    $"request body resolved to '{typeName}' instead of the operation-derived '{expected}'");
                 return null;
             }
 
