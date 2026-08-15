@@ -62,6 +62,10 @@ public static class OpenCodeRoutes
         /// </summary>
         public const string GetOverview = "/api/widget-overview";
         /// <summary>
+        /// The &apos;GET /api/widget-spot&apos; route.
+        /// </summary>
+        public const string GetWidgetSpot = "/api/widget-spot";
+        /// <summary>
         /// The &apos;GET /api/widget/{widgetID}/item&apos; route template.
         /// </summary>
         public const string ListItemsTemplate = "/api/widget/{widgetID}/item";
@@ -92,6 +96,10 @@ public static class OpenCodeRoutes
             return path + query.Value;
         }
 
+        /// <summary>
+        /// The &apos;GET /api/widget-spot-list&apos; route.
+        /// </summary>
+        public const string ListWidgetSpots = "/api/widget-spot-list";
         /// <summary>
         /// The &apos;GET /api/widget&apos; route template.
         /// </summary>

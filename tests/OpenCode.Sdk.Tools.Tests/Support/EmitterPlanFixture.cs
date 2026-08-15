@@ -10,6 +10,7 @@ internal static class EmitterPlanFixture
         var models = new ModelPlan[]
         {
             CreateExampleItem(),
+            CreateExamplePlace(),
             CreateExampleMode(),
             CreateVariant("CreatedEvent", "created", "item", "Item", Named("ExampleItem")),
             CreateVariant("DeletedEvent", "deleted", "id", "ID", Named("string")),
@@ -38,6 +39,7 @@ internal static class EmitterPlanFixture
                     "ExampleEvent",
                     "ExampleItem",
                     "ExampleMode",
+                    "ExamplePlace",
                     "OpenCodeError",
                     "UnknownExampleEvent",
                     "UnknownOpenCodeError",
@@ -46,6 +48,8 @@ internal static class EmitterPlanFixture
                     "WidgetItemListResponseEnvelope",
                     "WidgetItemResponseEnvelope",
                     "WidgetListResponseEnvelope",
+                    "WidgetSpotListResponseEnvelope",
+                    "WidgetSpotResponseEnvelope",
                 ],
             },
             PendingOperations = [],
@@ -92,7 +96,15 @@ internal static class EmitterPlanFixture
                 HandleTypeName = "WidgetClient",
                 Parameter = CreateWidgetParameter(),
             },
-            Operations = [CreateOverviewOperation(), CreateWidgetListOperation(), CreateWidgetCreateOperation(), CreateWidgetRemoveOperation()],
+            Operations =
+            [
+                CreateOverviewOperation(),
+                CreateWidgetListOperation(),
+                CreateWidgetCreateOperation(),
+                CreateWidgetRemoveOperation(),
+                CreateWidgetSpotOperation(),
+                CreateWidgetSpotListOperation(),
+            ],
         },
     ];
 
@@ -396,6 +408,68 @@ internal static class EmitterPlanFixture
             },
             Summary = "Remove one widget",
             Description = null,
+        };
+
+    private static OperationPlan CreateWidgetSpotOperation() =>
+        new()
+        {
+            MethodName = "GetWidgetSpotAsync",
+            HttpMethod = "get",
+            RouteTemplate = "/api/widget-spot",
+            RouteContainerName = "Widgets",
+            RouteMemberName = "GetWidgetSpot",
+            Parameters = [],
+            Envelope = new EnvelopePlan
+            {
+                ResponseTypeName = "WidgetSpotResponse",
+                AdapterTypeName = "WidgetSpotResponseAdapter",
+                PayloadName = "Spot",
+                PayloadTypeName = "ExampleItem",
+                Kind = EnvelopeKind.DataLocation,
+                SuccessStatusCode = 200,
+                EnvelopeDtoTypeName = "WidgetSpotResponseEnvelope",
+                LocationTypeName = "ExamplePlace",
+            },
+            ErrorMap = new ErrorMapPlan { Statuses = [], },
+            Summary = "Get one widget spot",
+            Description = null,
+        };
+
+    private static OperationPlan CreateWidgetSpotListOperation() =>
+        new()
+        {
+            MethodName = "ListWidgetSpotsAsync",
+            HttpMethod = "get",
+            RouteTemplate = "/api/widget-spot-list",
+            RouteContainerName = "Widgets",
+            RouteMemberName = "ListWidgetSpots",
+            Parameters = [],
+            Envelope = new EnvelopePlan
+            {
+                ResponseTypeName = "WidgetSpotListResponse",
+                AdapterTypeName = "WidgetSpotListResponseAdapter",
+                PayloadName = "Spots",
+                PayloadTypeName = "ExampleItem",
+                Kind = EnvelopeKind.DataLocationList,
+                SuccessStatusCode = 200,
+                EnvelopeDtoTypeName = "WidgetSpotListResponseEnvelope",
+                LocationTypeName = "ExamplePlace",
+            },
+            ErrorMap = new ErrorMapPlan { Statuses = [], },
+            Summary = "List widget spots",
+            Description = null,
+        };
+
+    private static ObjectModelPlan CreateExamplePlace() =>
+        new()
+        {
+            Name = "ExamplePlace",
+            Namespace = "OpenCode.Sdk.Models",
+            Description = "Represents the resolved example place.",
+            Properties =
+            [
+                Property("directory", "Directory", Named("string"), isRequired: true, "Gets the resolved directory."),
+            ],
         };
 
     private static QueryPropertyPlan QueryProperty(string wireName, string propertyName, QueryValueKind kind,

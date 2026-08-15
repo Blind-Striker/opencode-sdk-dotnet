@@ -33,7 +33,12 @@ internal static class ResponseAdapterEmitter
         members.Add(EmitAdapt(operation));
         if (envelope.Kind is EnvelopeKind.CursorList)
         {
-            members.Add(EmitCursorSuccessHelper(envelope));
+            members.Add(EmitProjectingSuccessHelper(envelope, "Cursor"));
+        }
+
+        if (envelope.Kind is EnvelopeKind.DataLocation or EnvelopeKind.DataLocationList)
+        {
+            members.Add(EmitProjectingSuccessHelper(envelope, "Location"));
         }
         var declaration = SyntaxFactory.ClassDeclaration(envelope.AdapterTypeName)
             .WithModifiers(SyntaxFactory.TokenList(
@@ -156,10 +161,11 @@ internal static class ResponseAdapterEmitter
             EnvelopeKind.Bare => EmitSuccessInitializer(envelope, Read()),
             EnvelopeKind.Data => EmitSuccessInitializer(envelope, EmissionSyntax.MemberAccess(Read(), "Data")),
             EnvelopeKind.NoContent => EmitNoContentSuccess(envelope),
-            EnvelopeKind.CursorList or _ => EmissionSyntax.Invocation(
-                SyntaxFactory.IdentifierName("CreateSuccess"),
-                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("status")),
-                SyntaxFactory.Argument(Read())),
+            EnvelopeKind.CursorList or EnvelopeKind.DataLocation or EnvelopeKind.DataLocationList or _ =>
+                EmissionSyntax.Invocation(
+                    SyntaxFactory.IdentifierName("CreateSuccess"),
+                    SyntaxFactory.Argument(SyntaxFactory.IdentifierName("status")),
+                    SyntaxFactory.Argument(Read())),
         };
     }
 
@@ -203,9 +209,12 @@ internal static class ResponseAdapterEmitter
         envelope.PayloadName
         ?? throw new InvalidOperationException($"Envelope '{envelope.ResponseTypeName}' has no payload.");
 
-    /// <summary>Cursor lists project the DTO twice, so a private helper keeps the switch arm single-read.</summary>
-    private static MethodDeclarationSyntax EmitCursorSuccessHelper(EnvelopePlan envelope) =>
-        SyntaxFactory.MethodDeclaration(TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName), "CreateSuccess")
+    /// <summary>Sibling-carrying envelopes project the DTO twice, so a private helper keeps the switch arm single-read.</summary>
+    private static MethodDeclarationSyntax EmitProjectingSuccessHelper(EnvelopePlan envelope, string siblingName)
+    {
+        var dtoTypeName = envelope.EnvelopeDtoTypeName
+                          ?? throw new InvalidOperationException($"Envelope '{envelope.ResponseTypeName}' has no DTO.");
+        return SyntaxFactory.MethodDeclaration(TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName), "CreateSuccess")
             .WithModifiers(SyntaxFactory.TokenList(
                 SyntaxFactory.Token(SyntaxKind.PrivateKeyword),
                 SyntaxFactory.Token(SyntaxKind.StaticKeyword)))
@@ -214,7 +223,7 @@ internal static class ResponseAdapterEmitter
                 SyntaxFactory.Parameter(SyntaxFactory.Identifier("status"))
                     .WithType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.IntKeyword))),
                 SyntaxFactory.Parameter(SyntaxFactory.Identifier("envelope"))
-                    .WithType(TypeSyntaxEmitter.EmitNamed(envelope.EnvelopeDtoTypeName!)),
+                    .WithType(TypeSyntaxEmitter.EmitNamed(dtoTypeName)),
             ])))
             .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(
                 SyntaxFactory.ObjectCreationExpression(TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName))
@@ -232,10 +241,11 @@ internal static class ResponseAdapterEmitter
                                 EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("envelope"), "Data")),
                             SyntaxFactory.AssignmentExpression(
                                 SyntaxKind.SimpleAssignmentExpression,
-                                SyntaxFactory.IdentifierName("Cursor"),
-                                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("envelope"), "Cursor")),
+                                SyntaxFactory.IdentifierName(siblingName),
+                                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("envelope"), siblingName)),
                         ])))))
             .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+    }
 
     private static ObjectCreationExpressionSyntax EmitErrorCreation(EnvelopePlan envelope, ExpressionSyntax allowedTags) =>
         SyntaxFactory.ObjectCreationExpression(TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName))

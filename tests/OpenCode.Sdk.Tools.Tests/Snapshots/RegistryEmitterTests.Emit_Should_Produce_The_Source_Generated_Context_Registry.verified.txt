@@ -12,6 +12,7 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(ExampleEvent))]
 [JsonSerializable(typeof(ExampleItem))]
 [JsonSerializable(typeof(ExampleMode))]
+[JsonSerializable(typeof(ExamplePlace))]
 [JsonSerializable(typeof(OpenCodeError))]
 [JsonSerializable(typeof(UnknownExampleEvent))]
 [JsonSerializable(typeof(UnknownOpenCodeError))]
@@ -20,6 +21,8 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(WidgetItemListResponseEnvelope))]
 [JsonSerializable(typeof(WidgetItemResponseEnvelope))]
 [JsonSerializable(typeof(WidgetListResponseEnvelope))]
+[JsonSerializable(typeof(WidgetSpotListResponseEnvelope))]
+[JsonSerializable(typeof(WidgetSpotResponseEnvelope))]
 internal sealed partial class OpenCodeJsonContext : JsonSerializerContext
 {
 }

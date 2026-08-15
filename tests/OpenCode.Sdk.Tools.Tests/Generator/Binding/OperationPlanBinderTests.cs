@@ -449,6 +449,65 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Bind_A_Data_Location_Envelope()
+    {
+        var document = await BindingTestHost.IngestAsync(DataLocationScenario());
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.Envelope.Kind).IsEqualTo(EnvelopeKind.DataLocation);
+        await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("WidgetInfo");
+        await Assert.That(list.Envelope.LocationTypeName).IsEqualTo("PlaceInfo");
+        await Assert.That(list.Envelope.EnvelopeDtoTypeName).IsEqualTo("WidgetListResponseEnvelope");
+        await Assert.That(plan.Models.Select(static model => model.Name)
+            .SequenceEqual(["PlaceInfo", "WidgetInfo"], StringComparer.Ordinal)).IsTrue();
+        await Assert.That(plan.Registry.TypeNames.Contains("WidgetListResponseEnvelope", StringComparer.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Bind_A_Data_Location_List_Envelope()
+    {
+        var document = await BindingTestHost.IngestAsync(DataLocationScenario(
+            data: static property => property.Type("array").Items(static item => item.Ref("WidgetInfo"))));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.Envelope.Kind).IsEqualTo(EnvelopeKind.DataLocationList);
+        await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("WidgetInfo");
+        await Assert.That(list.Envelope.LocationTypeName).IsEqualTo("PlaceInfo");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Data_Location_Envelope_With_An_Optional_Location()
+    {
+        var document = await BindingTestHost.IngestAsync(DataLocationScenario(locationRequired: false));
+
+        await AssertWidgetRefusalAsync(document, "require exactly");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Data_Location_Sibling_Without_A_Named_Schema()
+    {
+        var document = await BindingTestHost.IngestAsync(DataLocationScenario(
+            location: static property => property.Type("object")
+                .Property("directory", static inner => inner.Type("string"), required: true)));
+
+        await AssertWidgetRefusalAsync(document, "location sibling");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Data_Location_List_Of_Promoted_Inline_Items()
+    {
+        var document = await BindingTestHost.IngestAsync(DataLocationScenario(
+            data: static property => property.Type("array").Items(static item => item.Type("object")
+                .Property("id", static inner => inner.Type("string"), required: true))));
+
+        await AssertWidgetRefusalAsync(document, "named component schema");
+    }
+
+    [Test]
     public async Task Bind_Should_Refuse_An_Envelope_Dto_Name_Colliding_With_A_Model()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
@@ -809,7 +868,7 @@ public sealed class OperationPlanBinderTests
             .WithOperation("v2.health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Type("object")
                     .Property("data", property => property.Ref("ItemInfo"), required: true)
-                    .Property("location", property => property.Type("string"), required: true)))));
+                    .Property("hasMore", property => property.Type("boolean"), required: true)))));
 
         await AssertOperationRefusalAsync(document, "v2.health.get", "envelope shape");
     }
@@ -1156,6 +1215,20 @@ public sealed class OperationPlanBinderTests
             .WithOperation("v2.widget.create", method: "post", path: "/api/widget", configure: operation => operation
                 .RequestBody(mediaType, configureBody, required)
                 .Response(200, "application/json", schema => schema.Ref("WidgetInfo"))));
+
+    private static SpecScenario DataLocationScenario(Action<SchemaBuilder>? data = null,
+        Action<SchemaBuilder>? location = null, bool locationRequired = true) =>
+        SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("PlaceInfo", schema => schema.Type("object")
+                .Property("directory", property => property.Type("string"), required: true))
+            .WithSchema("WidgetEnvelope", schema => schema.Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("location", location ?? (static property => property.Ref("PlaceInfo")), required: locationRequired)
+                .Property("data", data ?? (static property => property.Ref("WidgetInfo")), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetEnvelope"))));
 
     private static SpecScenario NoContentScenario(Action<OperationBuilder>? configure = null) =>
         SpecScenario.Define(spec => spec

@@ -41,9 +41,9 @@ internal static class EnvelopeEmitter
         IReadOnlyList<string> usings = envelope.Kind switch
         {
             EnvelopeKind.NoContent => ["System.Diagnostics.CodeAnalysis", "OpenCode.Sdk.Models"],
-            EnvelopeKind.CursorList =>
+            EnvelopeKind.CursorList or EnvelopeKind.DataLocationList =>
                 ["System", "System.Diagnostics.CodeAnalysis", "System.Text", "OpenCode.Sdk.Internal.Serialization", "OpenCode.Sdk.Models"],
-            EnvelopeKind.Bare or EnvelopeKind.Data or _ =>
+            EnvelopeKind.Bare or EnvelopeKind.Data or EnvelopeKind.DataLocation or _ =>
                 ["System", "System.Diagnostics.CodeAnalysis", "System.Text", "OpenCode.Sdk.Models"],
         };
         var unit = EmissionSyntax.CompilationUnit("OpenCode.Sdk", usings, [declaration]);
@@ -70,12 +70,22 @@ internal static class EnvelopeEmitter
             members.Add(EmitBackingField("_cursor", TypeSyntaxEmitter.EmitNamed("ListCursor")));
         }
 
+        if (envelope.LocationTypeName is not null)
+        {
+            members.Add(EmitBackingField("_location", TypeSyntaxEmitter.EmitNamed(envelope.LocationTypeName)));
+        }
+
         members.Add(EmitSuccessConstructor(envelope.ResponseTypeName));
         members.Add(EmitErrorConstructor(envelope));
         members.Add(EmitPayloadProperty(envelope, payloadType, fieldName));
         if (envelope.Kind is EnvelopeKind.CursorList)
         {
             members.Add(EmitCursorProperty());
+        }
+
+        if (envelope.LocationTypeName is not null)
+        {
+            members.Add(EmitLocationProperty(envelope.LocationTypeName));
         }
 
         members.Add(EmitPrintMembers(payloadName, fieldName));
@@ -90,7 +100,7 @@ internal static class EnvelopeEmitter
     {
         var payloadTypeName = envelope.PayloadTypeName
                               ?? throw new InvalidOperationException($"Envelope '{envelope.ResponseTypeName}' has no payload.");
-        return envelope.Kind is EnvelopeKind.CursorList
+        return envelope.Kind is EnvelopeKind.CursorList or EnvelopeKind.DataLocationList
             ? TypeSyntaxEmitter.Generic("IReadOnlyList", TypeSyntaxEmitter.EmitNamed(payloadTypeName))
             : TypeSyntaxEmitter.EmitNamed(payloadTypeName);
     }
@@ -137,6 +147,13 @@ internal static class EnvelopeEmitter
                 SyntaxKind.SuppressNullableWarningExpression,
                 SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))));
         }
+
+        if (envelope.LocationTypeName is not null)
+        {
+            assignments.Add(Assign("Location", SyntaxFactory.PostfixUnaryExpression(
+                SyntaxKind.SuppressNullableWarningExpression,
+                SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))));
+        }
         return SyntaxFactory.ConstructorDeclaration(responseTypeName)
             .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.InternalKeyword)))
             .AddAttributeLists(EmissionSyntax.Attribute("SetsRequiredMembers"))
@@ -158,7 +175,7 @@ internal static class EnvelopeEmitter
     {
         var payloadName = RequirePayloadName(envelope);
         ExpressionSyntax initValue = SyntaxFactory.IdentifierName("value");
-        if (envelope.Kind is EnvelopeKind.CursorList)
+        if (envelope.Kind is EnvelopeKind.CursorList or EnvelopeKind.DataLocationList)
         {
             initValue = DefensiveListCopy();
         }
@@ -177,6 +194,14 @@ internal static class EnvelopeEmitter
             "_cursor",
             SyntaxFactory.IdentifierName("value"),
             "Gets the page cursor; guarded on the error path.");
+
+    private static PropertyDeclarationSyntax EmitLocationProperty(string locationTypeName) =>
+        EmitGuardedProperty(
+            TypeSyntaxEmitter.EmitNamed(locationTypeName),
+            "Location",
+            "_location",
+            SyntaxFactory.IdentifierName("value"),
+            "Gets the location the server resolved for the request; guarded on the error path.");
 
     /// <summary>
     /// List payloads defensively copy on init so the envelope stays immutable; the copy

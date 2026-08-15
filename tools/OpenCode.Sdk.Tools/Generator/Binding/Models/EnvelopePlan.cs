@@ -25,4 +25,10 @@ internal sealed record EnvelopePlan
     /// or <see langword="null"/> when the body is the payload itself or absent.
     /// </summary>
     public string? EnvelopeDtoTypeName { get; init; }
+
+    /// <summary>
+    /// Gets the type name of the required <c>location</c> envelope sibling, or
+    /// <see langword="null"/> when the envelope carries none.
+    /// </summary>
+    public string? LocationTypeName { get; init; }
 }

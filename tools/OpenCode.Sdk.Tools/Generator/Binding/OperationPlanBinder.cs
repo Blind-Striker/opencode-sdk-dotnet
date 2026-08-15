@@ -51,6 +51,7 @@ internal sealed class OperationPlanBinder
         "GetHashCode",
         "GetType",
         "IsError",
+        "Location",
         "MemberwiseClone",
         "PrintMembers",
         "RawBody",
@@ -438,15 +439,53 @@ internal sealed class OperationPlanBinder
                 SpecEnvelopeShape.Bare => BindBarePayload(success.Schema),
                 SpecEnvelopeShape.Data => BindDataPayload(success.Schema),
                 SpecEnvelopeShape.CursorData => BindCursorListPayload(success.Schema),
-                SpecEnvelopeShape.None or SpecEnvelopeShape.DataLocation or SpecEnvelopeShape.DataHasMore or _ =>
+                SpecEnvelopeShape.DataLocation => BindDataLocationPayload(success.Schema),
+                SpecEnvelopeShape.None or SpecEnvelopeShape.DataHasMore or _ =>
                     RefuseNull($"envelope shape '{success.EnvelopeShape}' is not supported"),
             };
+            var locationTypeName = success.EnvelopeShape is SpecEnvelopeShape.DataLocation
+                ? BindLocationSibling(success.Schema)
+                : null;
+            if (success.EnvelopeShape is SpecEnvelopeShape.DataLocation && locationTypeName is null)
+            {
+                return null;
+            }
+
             if (payload is null)
             {
                 return null;
             }
 
             var responseTypeName = OperationNamePolicy.ResponseTypeName(_operation);
+            var payloadName = DerivePayloadName(responseTypeName);
+            if (payloadName is null)
+            {
+                return null;
+            }
+
+            var kind = success.EnvelopeShape switch
+            {
+                SpecEnvelopeShape.Data => EnvelopeKind.Data,
+                SpecEnvelopeShape.CursorData => EnvelopeKind.CursorList,
+                SpecEnvelopeShape.DataLocation => DataLocationKind(success.Schema),
+                SpecEnvelopeShape.Bare or SpecEnvelopeShape.None
+                    or SpecEnvelopeShape.DataHasMore or _ => EnvelopeKind.Bare,
+            };
+            return new EnvelopePlan
+            {
+                ResponseTypeName = responseTypeName,
+                AdapterTypeName = $"{responseTypeName}Adapter",
+                PayloadName = payloadName,
+                PayloadTypeName = payload,
+                Kind = kind,
+                SuccessStatusCode = 200,
+                EnvelopeDtoTypeName = kind is EnvelopeKind.Bare ? null : $"{responseTypeName}Envelope",
+                LocationTypeName = locationTypeName,
+            };
+        }
+
+        private string? DerivePayloadName(string responseTypeName)
+        {
             var payloadName = _curation.EnvelopePayloadNames.TryGetValue(_operation.OperationId, out var curated)
                 ? curated
                 : OperationNamePolicy.PayloadName(_operation);
@@ -476,23 +515,7 @@ internal sealed class OperationPlanBinder
                 return null;
             }
 
-            var kind = success.EnvelopeShape switch
-            {
-                SpecEnvelopeShape.Data => EnvelopeKind.Data,
-                SpecEnvelopeShape.CursorData => EnvelopeKind.CursorList,
-                SpecEnvelopeShape.Bare or SpecEnvelopeShape.None or SpecEnvelopeShape.DataLocation
-                    or SpecEnvelopeShape.DataHasMore or _ => EnvelopeKind.Bare,
-            };
-            return new EnvelopePlan
-            {
-                ResponseTypeName = responseTypeName,
-                AdapterTypeName = $"{responseTypeName}Adapter",
-                PayloadName = payloadName,
-                PayloadTypeName = payload,
-                Kind = kind,
-                SuccessStatusCode = 200,
-                EnvelopeDtoTypeName = kind is EnvelopeKind.Bare ? null : $"{responseTypeName}Envelope",
-            };
+            return payloadName;
         }
 
         private EnvelopePlan? BindNoContentEnvelope(SpecResponse success)
@@ -569,6 +592,84 @@ internal sealed class OperationPlanBinder
 
             return itemName;
         }
+
+        private string? BindDataLocationPayload(SchemaNode schema)
+        {
+            var wrapper = ResolveDataLocationWrapper(schema);
+            if (wrapper is null)
+            {
+                return null;
+            }
+
+            var data = wrapper.Properties.Single(static property => property.Name is "data");
+            if (data.Schema is RefNode datum
+                && !datum.Target.Contains('#', StringComparison.Ordinal)
+                && _typeNames.TryGetValue(datum.Target, out var datumName))
+            {
+                return datumName;
+            }
+
+            // Items must reference top-level components: a promoted inline item would take its
+            // name from the excluded response root, so the dialect keeps list items nominal.
+            if (data.Schema is ArrayNode { Item: RefNode item }
+                && !item.Target.Contains('#', StringComparison.Ordinal)
+                && _typeNames.TryGetValue(item.Target, out var itemName))
+            {
+                return itemName;
+            }
+
+            return RefuseNull("location envelope 'data' must reference a named component schema, or be an array of one");
+        }
+
+        /// <summary>
+        /// The payload binder owns the wrapper walls; the sibling and kind readers resolve
+        /// leniently because a malformed wrapper is already refused once.
+        /// </summary>
+        private ObjectNode? ResolveDataLocationWrapper(SchemaNode schema)
+        {
+            if (schema is not RefNode reference
+                || !_document.Schemas.TryGetValue(reference.Target, out var target)
+                || target is not ObjectNode wrapper)
+            {
+                return RefuseNull<ObjectNode>("location envelope must reference an object schema");
+            }
+
+            var data = wrapper.Properties.FirstOrDefault(static property => property.Name is "data");
+            var location = wrapper.Properties.FirstOrDefault(static property => property.Name is "location");
+            if (wrapper.Properties.Count is not 2 || data is not { IsRequired: true } || location is not { IsRequired: true })
+            {
+                return RefuseNull<ObjectNode>("location envelope must require exactly 'data' and 'location'");
+            }
+
+            return wrapper;
+        }
+
+        private string? BindLocationSibling(SchemaNode schema)
+        {
+            if (schema is not RefNode reference
+                || !_document.Schemas.TryGetValue(reference.Target, out var target)
+                || target is not ObjectNode wrapper
+                || wrapper.Properties.FirstOrDefault(static property => property.Name is "location") is not { IsRequired: true } location)
+            {
+                return null;
+            }
+
+            // A promoted inline sibling would take its name from the excluded response root,
+            // so the dialect keeps the location echo nominal.
+            return location.Schema is RefNode sibling
+                   && !sibling.Target.Contains('#', StringComparison.Ordinal)
+                   && _typeNames.TryGetValue(sibling.Target, out var name)
+                ? name
+                : RefuseNull("the location sibling must reference a named component schema");
+        }
+
+        private EnvelopeKind DataLocationKind(SchemaNode schema) =>
+            schema is RefNode reference
+            && _document.Schemas.TryGetValue(reference.Target, out var target)
+            && target is ObjectNode wrapper
+            && wrapper.Properties.FirstOrDefault(static property => property.Name is "data")?.Schema is ArrayNode
+                ? EnvelopeKind.DataLocationList
+                : EnvelopeKind.DataLocation;
 
         /// <summary>Recognizes the wire cursor contract: exactly optional-nullable string <c>previous</c> and <c>next</c>.</summary>
         private bool IsListCursorShape(SchemaNode schema)
@@ -907,6 +1008,13 @@ internal sealed class OperationPlanBinder
         private void Refuse(string problem) => _errors.Add(BindingErrorCategory.Operation, _operation.OperationId, problem);
 
         private string? RefuseNull(string problem)
+        {
+            Refuse(problem);
+            return null;
+        }
+
+        private T? RefuseNull<T>(string problem)
+            where T : class
         {
             Refuse(problem);
             return null;

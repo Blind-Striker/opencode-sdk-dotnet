@@ -57,7 +57,8 @@ internal sealed class ReachableSchemaCollector
                 // Data-carrying wrappers are envelope structure, never models — component-named
                 // wrappers join the op-inline roots in the excluded set.
                 var isInlineRoot = reference.Target.StartsWith($"op:{operationId}#", StringComparison.Ordinal);
-                var isWrapperShape = response.EnvelopeShape is SpecEnvelopeShape.Data or SpecEnvelopeShape.CursorData;
+                var isWrapperShape = response.EnvelopeShape
+                    is SpecEnvelopeShape.Data or SpecEnvelopeShape.CursorData or SpecEnvelopeShape.DataLocation;
                 if (isInlineRoot || isWrapperShape)
                 {
                     _ = _responseRoots.Add(reference.Target);
