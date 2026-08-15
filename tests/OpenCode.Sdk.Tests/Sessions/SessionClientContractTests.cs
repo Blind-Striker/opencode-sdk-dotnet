@@ -138,6 +138,23 @@ public sealed class SessionClientContractTests
     }
 
     [Test]
+    public async Task ListMessagesAsync_Should_Refuse_Order_Combined_With_Cursor_Before_Sending()
+    {
+        using var scenario = ContractScenario.Responding();
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").ListMessagesAsync(new MessageListRequest
+            {
+                Order = ListOrder.Ascending,
+                Cursor = "cur_1",
+            }))
+            .Throws<ArgumentException>();
+
+        await Assert.That(exception!.ParamName).IsEqualTo("request");
+        await Assert.That(scenario.Requests).IsEmpty();
+    }
+
+    [Test]
     public async Task RemoveSessionAsync_Should_Treat_The_204_As_A_Bodiless_Success()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);

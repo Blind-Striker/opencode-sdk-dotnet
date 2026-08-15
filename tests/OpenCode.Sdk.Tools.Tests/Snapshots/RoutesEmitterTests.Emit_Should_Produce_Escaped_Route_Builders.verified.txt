@@ -136,6 +136,11 @@ public static class OpenCodeRoutes
                 return path;
             }
 
+            if (request.Order is not null && request.Cursor is not null)
+            {
+                throw new ArgumentException("The 'order' and 'cursor' query values cannot combine.", nameof(request));
+            }
+
             var query = new QueryStringBuilder();
             query.AddCount("limit", request.Limit, nameof(request));
             query.AddOrder("order", request.Order);

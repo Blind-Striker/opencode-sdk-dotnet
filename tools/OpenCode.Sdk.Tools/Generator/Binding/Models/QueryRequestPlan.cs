@@ -13,6 +13,17 @@ internal sealed record QueryRequestPlan
     /// </summary>
     public bool RidesRequestBody { get; init; }
 
+    /// <summary>Gets the curated query pairs the route builder refuses to combine.</summary>
+    public IReadOnlyList<ExclusiveQueryPairPlan> MutuallyExclusivePairs
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<ExclusiveQueryPairPlan>());
+
     /// <summary>Gets every bound query parameter in wire order, including base-inherited ones.</summary>
     public required IReadOnlyList<QueryPropertyPlan> Properties
     {

@@ -251,6 +251,10 @@ internal static class EmitterPlanFixture
                     QueryProperty("parentID", "ParentId", QueryValueKind.SessionParentFilter),
                     QueryProperty("location", "Location", QueryValueKind.Location),
                 ],
+                MutuallyExclusivePairs =
+                [
+                    new ExclusiveQueryPairPlan { FirstWireName = "order", SecondWireName = "cursor", },
+                ],
             },
             Envelope = new EnvelopePlan
             {

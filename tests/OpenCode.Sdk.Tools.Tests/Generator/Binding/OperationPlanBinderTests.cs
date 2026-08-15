@@ -814,6 +814,43 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Record_A_Curated_Mutually_Exclusive_Query_Pair()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("order", "query", QueryScenarioData.NullableOrderEnum)
+            .Parameter("cursor", "query", QueryScenarioData.NullableString)));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.list"),
+            Curation(
+                Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)),
+                mutuallyExclusiveQueries: [ExclusiveQuery("v2.widget.list", "order", "cursor")]));
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        var pair = list.QueryRequest!.MutuallyExclusivePairs.Single();
+        await Assert.That(pair.FirstWireName).IsEqualTo("order");
+        await Assert.That(pair.SecondWireName).IsEqualTo("cursor");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Mutually_Exclusive_Row_Naming_An_Absent_Parameter()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("order", "query", QueryScenarioData.NullableOrderEnum)));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.list"),
+            Curation(
+                Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)),
+                mutuallyExclusiveQueries: [ExclusiveQuery("v2.widget.list", "order", "cursor")])));
+
+        await Assert.That(exception.Errors.Any(static error =>
+            error.Problem.Contains("does not carry query parameter", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
     public async Task Bind_Should_Merge_A_Location_Query_Into_The_Request_Body_Model()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec

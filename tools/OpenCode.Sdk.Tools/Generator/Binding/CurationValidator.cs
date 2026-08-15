@@ -24,6 +24,7 @@ internal sealed class CurationValidator
         ValidateEnvelopeNames(selectedIds, documentIds, curation, errors);
         ValidatePropertyOverrides(document, reachable, curation, errors);
         ValidateSchemaAliases(document, reachable, curation, errors);
+        ValidateMutuallyExclusiveQueries(selectedIds, documentIds, curation, errors);
     }
 
     private static void ValidateGroups(IReadOnlyList<SpecOperation> selected, HashSet<string> selectedGroups,
@@ -220,6 +221,40 @@ internal sealed class CurationValidator
     /// a dereferenced source goes dormant, and any structural divergence — the tag included —
     /// breaks the identity check. Every upstream move on the duplicate is loud.
     /// </summary>
+    /// <summary>
+    /// The mutual-exclusion relation lives only in spec prose, so a curated row carries it;
+    /// pairs only — larger groups wait for an operation that needs one.
+    /// </summary>
+    private static void ValidateMutuallyExclusiveQueries(HashSet<string> selectedIds,
+        HashSet<string> documentIds, GenerationCuration curation, BindingErrorCollector errors)
+    {
+        foreach (var row in curation.MutuallyExclusiveQueries)
+        {
+            if (string.IsNullOrWhiteSpace(row.Reason))
+            {
+                errors.Add(BindingErrorCategory.Curation, row.Operation, "mutually-exclusive query rows must state a reason");
+            }
+
+            if (!documentIds.Contains(row.Operation))
+            {
+                errors.Add(BindingErrorCategory.Curation, row.Operation, "mutually-exclusive query row names an operation absent from the spec");
+                continue;
+            }
+
+            if (!selectedIds.Contains(row.Operation))
+            {
+                errors.Add(BindingErrorCategory.Curation, row.Operation, "mutually-exclusive query row names an operation outside the selected profile");
+            }
+
+            if (row.Parameters.Count is not 2
+                || row.Parameters.Distinct(StringComparer.Ordinal).Count() is not 2
+                || row.Parameters.Any(string.IsNullOrWhiteSpace))
+            {
+                errors.Add(BindingErrorCategory.Curation, row.Operation, "mutually-exclusive query rows must name exactly two distinct parameters");
+            }
+        }
+    }
+
     private static void ValidateSchemaAliases(SpecDocument document, ReachableSchemaSet reachable,
         GenerationCuration curation, BindingErrorCollector errors)
     {

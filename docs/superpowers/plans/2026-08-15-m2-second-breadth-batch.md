@@ -76,7 +76,10 @@ introduced gets exercised by a real operation. Sealed inputs: research log Sessi
       **`v2.shell.output` deferred:** its inline data object and integer cursor/limit
       query params each need a mechanism no other admitted operation needs; it returns
       with a later batch.
-- [ ] #28 rider end to end.
+- [x] #28 rider end to end: the `mutuallyExclusiveQueries` curation section (pairs only,
+      fail-closed validated), the binder pins each name to the bound query surface, the
+      route builder refuses the pair before any request, and the no-send contract test
+      observes it on `message.list`.
 - [ ] Live demo against `opencode2 serve`: shell create → list → get → output → remove,
       plus session rename → remove.
 - [ ] ROADMAP + this plan updated in the same commits.

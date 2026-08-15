@@ -14,13 +14,23 @@ internal static class BindingScenarioData
         IReadOnlyDictionary<string, GroupCuration> groups,
         IReadOnlyDictionary<string, string>? envelopePayloadNames = null,
         IReadOnlyList<PropertyOverride>? propertyOverrides = null,
-        IReadOnlyList<SchemaAlias>? schemaAliases = null) =>
+        IReadOnlyList<SchemaAlias>? schemaAliases = null,
+        IReadOnlyList<MutuallyExclusiveQuery>? mutuallyExclusiveQueries = null) =>
         new()
         {
             Groups = groups,
             EnvelopePayloadNames = envelopePayloadNames ?? new Dictionary<string, string>(StringComparer.Ordinal),
             PropertyOverrides = propertyOverrides ?? [],
             SchemaAliases = schemaAliases ?? [],
+            MutuallyExclusiveQueries = mutuallyExclusiveQueries ?? [],
+        };
+
+    public static MutuallyExclusiveQuery ExclusiveQuery(string operation, string first, string second) =>
+        new()
+        {
+            Operation = operation,
+            Parameters = [first, second],
+            Reason = "The pinned server refuses the pair.",
         };
 
     public static SchemaAlias Alias(string schema, string aliasOf, string reason = "The upstream spec emits a duplicate component.") =>

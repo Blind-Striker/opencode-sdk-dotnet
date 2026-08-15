@@ -48,4 +48,15 @@ internal sealed record GenerationCuration
             field = Array.AsReadOnly([.. value]);
         }
     } = Array.AsReadOnly(Array.Empty<SchemaAlias>());
+
+    [JsonPropertyName("mutuallyExclusiveQueries")]
+    public required IReadOnlyList<MutuallyExclusiveQuery> MutuallyExclusiveQueries
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<MutuallyExclusiveQuery>());
 }

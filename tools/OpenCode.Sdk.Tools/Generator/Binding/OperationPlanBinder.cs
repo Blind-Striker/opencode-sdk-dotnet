@@ -943,7 +943,37 @@ internal sealed class OperationPlanBinder
                 TypeName = OperationNamePolicy.RequestTypeName(_operation),
                 DerivesFromListRequest = properties.Count > 0 && properties[0].IsInherited,
                 Properties = properties,
+                MutuallyExclusivePairs = BindExclusivePairs(properties),
             };
+        }
+
+        /// <summary>The validator owns the row shape; this wall pins each name to the bound query surface.</summary>
+        private List<ExclusiveQueryPairPlan> BindExclusivePairs(List<QueryPropertyPlan> properties)
+        {
+            var pairs = new List<ExclusiveQueryPairPlan>();
+            foreach (var parameters in _curation.MutuallyExclusiveQueries
+                         .Where(row => string.Equals(row.Operation, _operation.OperationId, StringComparison.Ordinal))
+                         .Select(static row => row.Parameters))
+            {
+                var missing = parameters.FirstOrDefault(parameter =>
+                    !properties.Any(property => string.Equals(property.WireName, parameter, StringComparison.Ordinal)));
+                if (missing is not null)
+                {
+                    Refuse($"the operation does not carry query parameter '{missing}' named by its mutually-exclusive row");
+                    continue;
+                }
+
+                if (parameters.Count is 2)
+                {
+                    pairs.Add(new ExclusiveQueryPairPlan
+                    {
+                        FirstWireName = parameters[0],
+                        SecondWireName = parameters[1],
+                    });
+                }
+            }
+
+            return pairs;
         }
 
         /// <summary>The one admitted deep-object encoding is the optional nullable location selector.</summary>
