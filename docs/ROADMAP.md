@@ -56,9 +56,12 @@ route onto the transport spine, conflicting BaseAddress refuses, handle guards m
 route guards, carrier payload guards, count-guard identity, the Pagination shadow wall)
 for 932 green tests, and every surviving finding lives milestone-anchored with an explicit
 trigger — #31 (M2, DI lifetime shape, decision-first), #32 (M3, EscapeDataString TFM
-policy), #33 (M3, carrier hand-construction semantics, rides #23), #34 (M2, contract-test
-consolidation), plus the #27 and #23 enrichments. Merge is awaiting the maintainer's word;
-further breadth batches follow merge.
+policy), #33 (M3, carrier hand-construction semantics, rides #23), plus the #27 and #23
+enrichments. PR #26 is merged. The #34 contract-test consolidation landed as its own
+follow-up PR: one shared contract scaffold (`ContractScenario`, `WireBodyData`), a single
+`FixtureLoader`/`RecordingHttpHandler` pair compiled from `tests/Shared` into both the SDK
+and Extensions test projects, and the previously unobserved object-envelope
+`{"data":null}` refusal pinned by test. Further breadth batches follow.
 
 ## Milestones
 
