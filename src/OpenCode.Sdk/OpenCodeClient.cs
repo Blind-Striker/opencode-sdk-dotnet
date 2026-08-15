@@ -14,30 +14,21 @@ public class OpenCodeClient : IDisposable
     /// <summary>
     /// Initializes a client that owns its connection to the endpoint.
     /// </summary>
-    /// <param name = "endpoint">The absolute HTTP or HTTPS server endpoint.</param>
-    public OpenCodeClient(Uri endpoint) : this(endpoint, options: null)
+    /// <param name = "options">The client options; the endpoint is required.</param>
+    public OpenCodeClient(OpenCodeClientOptions options)
     {
-    }
-
-    /// <summary>
-    /// Initializes a client that owns its connection to the endpoint.
-    /// </summary>
-    /// <param name = "endpoint">The absolute HTTP or HTTPS server endpoint.</param>
-    /// <param name = "options">The client options; its endpoint must stay unset on this path.</param>
-    public OpenCodeClient(Uri endpoint, OpenCodeClientOptions? options)
-    {
-        _pipeline = Pipeline.Create(endpoint, options, new SystemEnvironmentProvider());
+        _pipeline = Pipeline.Create(options);
         _sessions = new SessionsClient(_pipeline);
     }
 
     /// <summary>
-    /// Initializes a client over a caller-owned HttpClient; the SDK never disposes it.
+    /// Initializes a client over a caller-owned HttpClient; the SDK never disposes it. With a password set, the SDK&apos;s per-request Authorization header overrides any client default; in anonymous mode a default Authorization header is refused at construction and before every send.
     /// </summary>
     /// <param name = "httpClient">The caller-owned HTTP client.</param>
-    /// <param name = "options">The client options; the endpoint is required on this path.</param>
+    /// <param name = "options">The client options; the endpoint is required.</param>
     public OpenCodeClient(HttpClient httpClient, OpenCodeClientOptions options)
     {
-        _pipeline = Pipeline.Create(httpClient, options, new SystemEnvironmentProvider());
+        _pipeline = Pipeline.Create(httpClient, options);
         _sessions = new SessionsClient(_pipeline);
     }
 
@@ -78,13 +69,13 @@ public class OpenCodeClient : IDisposable
     /// <summary>
     /// Check server health
     /// </summary>
-    /// <param name = "options">The per-call options.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
     /// <returns>The &apos;HealthResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<HealthResponse> GetHealthAsync(OpenCodeRequestOptions? options = null, CancellationToken cancellationToken = default)
+    public virtual Task<HealthResponse> GetHealthAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
-        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Health.Get, HealthResponseAdapter.Instance, options, cancellationToken);
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Health.Get, HealthResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }

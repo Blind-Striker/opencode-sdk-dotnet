@@ -2,11 +2,13 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Preserves an unknown tool content payload.
 /// </summary>
+[JsonConverter(typeof(UnknownToolContentJsonConverter))]
 public sealed record UnknownToolContent : ToolContent
 {
     private readonly string _marker;
@@ -17,6 +19,11 @@ public sealed record UnknownToolContent : ToolContent
     public UnknownToolContent(string type, JsonElement payload)
     {
         ArgumentException.ThrowIfNullOrEmpty(type);
+        if (payload.ValueKind is JsonValueKind.Undefined)
+        {
+            throw new ArgumentException("The payload must be a parsed JSON element.", nameof(payload));
+        }
+
         _marker = type;
         Payload = payload.Clone();
     }

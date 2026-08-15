@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-13
+Date: 2026-08-15
 
 Operational state: what is done, what is next, what is open. This file shrinks as work lands.
 Evergreen rules and locked decisions live in `../AGENTS.md`; decision records in `adr/`.
@@ -27,7 +27,38 @@ the blocker set (typed-spine leaks, silent route rewriting) lands on the PR bran
 issues #19–#25 pinned to the milestone that resolves it — nothing on that list outlives the
 M series.
 
-The next work is M2 — the first breadth batch, planned when it starts.
+**M2's first breadth batch is complete** (plan:
+`superpowers/plans/2026-08-14-m2-first-breadth-batch.md`; decisions: research log Sessions
+19–20). `session.list`, `session.get`, `session.create`, and `message.list` are callable
+through their final generated surface — uniform `*Request` operation inputs (Q83) with the
+query records riding the `ListRequest` seam, `SessionCreateRequest` bodies through the
+pipeline's JSON path, cursor-list envelopes with the shared `ListCursor`, query-composing
+routes, the `Session.Info` model closure, and the first 5xx arm. Riders #19 (carrier converters), #21 (fail-closed walls + P2 single-pass
+envelopes: `GetMessageAsync` 67.4→56.2 μs, `ListMessagesAsync` baseline 58.1 μs/28.24 KB),
+and #22 (List/Create verb rules + C17–C20) landed with it; upstream's `InvalidRequestError1`
+duplicate collapses through the new `schemaAliases` curation. Demonstrated live 2026-08-14
+against `opencode2 serve` v0.0.0-next-17403 (create → list → get → messages, wire cursor
+round-tripped). The #20 decision landed (blank explicit passwords refuse; the environment
+fallback was later removed by Q90 — `null` sends anonymous requests) and #25 closed keep. The alignment batch is complete — the uniform
+`*Request` rename (Q83), the feature-slice layout migration (Q84), and the Extensions
+bring-up (Q85) — and the follow-on construction/options/DI reshape (research log Q90)
+landed on the same PR: options-only construction with the read-only
+`IOpenCodeClientOptions` view and configurable `Username`, no SDK environment reads,
+`IHttpClientFactory`-based `AddOpenCode` returning the `IHttpClientBuilder`, pooled
+connection lifetime on the owned transport, and the sandbox as the Generic Host DI
+showcase. The PR #26 external review ran through adversarial verification (36 findings:
+30 confirmed / 4 plausible / 2 refuted), and the verified fix batch landed 2026-08-15
+red-test-first — all ten merge blockers plus the small confirmed fold-ins, with Q91 sealed
+(research log Session 23, doc 16: the caller-owned HttpClient constructor stays public
+behind a fail-closed anonymous-mode guard). A second full-diff review (15 verified
+findings) closed the same day: six runtime/emitter fixes landed on the branch (timeouts
+route onto the transport spine, conflicting BaseAddress refuses, handle guards match the
+route guards, carrier payload guards, count-guard identity, the Pagination shadow wall)
+for 932 green tests, and every surviving finding lives milestone-anchored with an explicit
+trigger — #31 (M2, DI lifetime shape, decision-first), #32 (M3, EscapeDataString TFM
+policy), #33 (M3, carrier hand-construction semantics, rides #23), #34 (M2, contract-test
+consolidation), plus the #27 and #23 enrichments. Merge is awaiting the maintainer's word;
+further breadth batches follow merge.
 
 ## Milestones
 
@@ -45,16 +76,22 @@ is revisited at each milestone boundary.
    `superpowers/specs/2026-08-11-production-walking-skeleton-design.md`.
 2. **M2 — Breadth batches.** The generation profile grows in vertical operation batches;
    each batch lands its curation rows, reachable models, operation methods, and contract
-   tests together. Opens with the review hardening batch (#19 `Unknown*` serialization,
-   #20 password-semantics decision, #25 IVT decision); the generator fail-closed walls
-   batch (#21, includes the P2 envelope fold) and the naming/curation wall batch (#22)
-   land at this boundary.
-3. **M3 — Streams.** SSE engine over the v2 stream surface (`v2.event.subscribe`,
+   tests together. The first batch (list/get/create/message-list) is complete with every
+   review rider resolved (#19–#22, #20, #25), and so is the alignment batch (uniform
+   `*Request`, feature-slice layout, Extensions bring-up — research log Q83–Q85). The
+   Extensions package grows in parallel with the remaining batches.
+3. **M3 — Streams.** Planning opens with the **location + merged-Request input design
+   session** (sealed 2026-08-14, research log Session 22): the dual-channel location
+   mechanism, deepObject marshalling, the one-`*Request`-carrying-body-and-query shape,
+   and the `session.list` flat-field exception — census and mechanisms in research doc 15
+   §5a/§6. Then the SSE engine over the v2 stream surface (`v2.event.subscribe`,
    `v2.session.log` with `after`/`follow`, cursor-paged `v2.message.list`); the v1
    durable-stream design does not carry over and is re-derived here. Demo: watching a
    real session's event stream. The net472 `ServicePointManager` item lands here. The
    union single-pass deserialization and streaming adapter-boundary redesign (#23) land
-   on the M3 runway, gated on the performance baselines (#18).
+   on the M3 runway, gated on the performance baselines (#18), together with the
+   second-review perf mechanisms and #29; #32 (EscapeDataString TFM policy) rides the
+   net472 cluster and #33 (carrier hand-construction semantics) rides #23.
 4. **M4 — Launcher.** `OpenCodeServer.StartAsync` with three-OS acceptance (ADR-0001)
    over `opencode2 serve`; demo: the SDK starts the server itself and calls health. The
    net472 stdout/tree-kill items land here. (`serve --stdio`'s stdin leash and the
@@ -62,9 +99,9 @@ is revisited at each milestone boundary.
    platform detail: research doc 15.)
 5. **M5 — Full surface.** Complete generation profile over the protocol surface,
    exclusion fingerprints (ADR-0008), packaging unblocked.
-6. **M6 — Operational closure.** `refresh-spec`, Extensions DI breadth,
-   retry/telemetry/hooks, quarantine lane, nightly canary (the performance suite joins
-   it); durable decisions distill into ADRs and the `superpowers/` documents retire. Any
+6. **M6 — Operational closure.** `refresh-spec`, retry/telemetry/hooks, quarantine
+   lane, nightly canary (the performance suite joins it); durable decisions distill
+   into ADRs and the `superpowers/` documents retire. Any
    hygiene-sweep leftovers (#24) are resolved here — nothing from the review queue
    survives the M series.
 

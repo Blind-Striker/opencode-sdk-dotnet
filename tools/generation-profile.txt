@@ -1,2 +1,6 @@
 v2.health.get
+v2.message.list
+v2.session.create
+v2.session.get
+v2.session.list
 v2.session.message

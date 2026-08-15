@@ -14,6 +14,7 @@ public sealed record SessionMessageAssistantSnapshot
     /// </summary>
     [JsonPropertyName("start")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingJsonConverter<string>))]
     public string? Start { get; init; }
 
     /// <summary>
@@ -21,6 +22,7 @@ public sealed record SessionMessageAssistantSnapshot
     /// </summary>
     [JsonPropertyName("end")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingJsonConverter<string>))]
     public string? End { get; init; }
 
     /// <summary>

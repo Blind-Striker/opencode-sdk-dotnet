@@ -31,7 +31,7 @@ internal sealed class SessionMessageResponseAdapter : ResponseAdapter<SessionMes
             200 => new SessionMessageResponse
             {
                 Status = status,
-                Message = ReadDataPayload(rawBody, OpenCodeJsonContext.Default.SessionMessageInfo)
+                Message = ReadBarePayload(rawBody, OpenCodeJsonContext.Default.SessionMessageResponseEnvelope).Data
             },
             >= 200 and < 300 => throw UndeclaredSuccessFailure(status),
             400 => new SessionMessageResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),

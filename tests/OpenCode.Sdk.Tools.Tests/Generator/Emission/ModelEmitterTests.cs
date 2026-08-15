@@ -21,4 +21,15 @@ public sealed class ModelEmitterTests
         await Assert.That(source).Contains("OptionalCollectionInput.Normalize");
         await Assert.That(source).DoesNotContain("value is null");
     }
+
+    [Test]
+    public async Task Emit_Should_Reject_Wire_Null_Only_Where_The_Schema_Forbids_It()
+    {
+        var source = EmitterSnapshot.Create(ModelEmitter.Emit(EmitterPlanFixture.CreateModelSnapshot()));
+
+        await Assert.That(source).Contains("[JsonConverter(typeof(WireNullRejectingJsonConverter<string>))]");
+        await Assert.That(source).Contains("[JsonConverter(typeof(WireNullRejectingValueJsonConverter<double>))]");
+        var occurrences = source.Split("WireNullRejecting").Length - 1;
+        await Assert.That(occurrences).IsEqualTo(2);
+    }
 }

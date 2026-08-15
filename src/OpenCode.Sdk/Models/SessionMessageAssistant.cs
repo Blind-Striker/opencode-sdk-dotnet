@@ -66,6 +66,7 @@ public sealed record SessionMessageAssistant : SessionMessageInfo
     /// </summary>
     [JsonPropertyName("snapshot")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingJsonConverter<SessionMessageAssistantSnapshot>))]
     public SessionMessageAssistantSnapshot? Snapshot { get; init; }
 
     /// <summary>
@@ -73,6 +74,7 @@ public sealed record SessionMessageAssistant : SessionMessageInfo
     /// </summary>
     [JsonPropertyName("finish")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingValueJsonConverter<SessionMessageAssistantFinish>))]
     public SessionMessageAssistantFinish? Finish { get; init; }
 
     /// <summary>
@@ -80,6 +82,7 @@ public sealed record SessionMessageAssistant : SessionMessageInfo
     /// </summary>
     [JsonPropertyName("cost")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingValueJsonConverter<double>))]
     public double? Cost { get; init; }
 
     /// <summary>
@@ -87,6 +90,7 @@ public sealed record SessionMessageAssistant : SessionMessageInfo
     /// </summary>
     [JsonPropertyName("tokens")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingJsonConverter<TokenUsageInfo>))]
     public TokenUsageInfo? Tokens { get; init; }
 
     /// <summary>
@@ -94,6 +98,7 @@ public sealed record SessionMessageAssistant : SessionMessageInfo
     /// </summary>
     [JsonPropertyName("error")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingJsonConverter<SessionStructuredError>))]
     public SessionStructuredError? Error { get; init; }
 
     /// <summary>
@@ -101,5 +106,6 @@ public sealed record SessionMessageAssistant : SessionMessageInfo
     /// </summary>
     [JsonPropertyName("retry")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingJsonConverter<SessionMessageAssistantRetry>))]
     public SessionMessageAssistantRetry? Retry { get; init; }
 }

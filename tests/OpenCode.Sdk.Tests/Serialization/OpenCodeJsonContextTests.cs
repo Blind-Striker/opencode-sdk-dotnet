@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using OpenCode.Sdk.Models;
 using OpenCode.Sdk.Tests.Support;
 
@@ -23,6 +24,75 @@ public sealed class OpenCodeJsonContextTests
         var serialized = _serializer.Serialize<SessionMessageInfo>(user);
         using var document = JsonDocument.Parse(serialized);
         await Assert.That(document.RootElement.GetProperty("type").GetString()).IsEqualTo("user");
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Reject_Explicit_Null_On_An_Optional_Nonnull_Property()
+    {
+        var json = _fixtures.LoadJson("Serialization.null-parent-session.json");
+
+        _ = await Assert.That(() => _serializer.Deserialize<SessionInfo>(json)).Throws<JsonException>();
+    }
+
+    [Test]
+    public async Task Carrier_Constructor_Should_Refuse_An_Unparsed_Payload()
+    {
+        var exception = Assert.Throws<ArgumentException>(() => _ = new UnknownOpenCodeError("future", default));
+
+        await Assert.That(exception.ParamName).IsEqualTo("payload");
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Reject_Null_For_A_Concrete_Unknown_Carrier()
+    {
+        var typeInfo = (JsonTypeInfo<UnknownOpenCodeError>)_serializer.GetTypeInfo(typeof(UnknownOpenCodeError));
+
+        _ = await Assert.That(() => JsonSerializer.Deserialize("null", typeInfo)).Throws<JsonException>();
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Reject_A_Contradicted_Fixed_Marker_On_The_Concrete_Carrier()
+    {
+        var json = _fixtures.LoadJson("Serialization.mismatched-compaction-marker.json");
+        var typeInfo = (JsonTypeInfo<UnknownSessionMessageCompaction>)_serializer.GetTypeInfo(typeof(UnknownSessionMessageCompaction));
+
+        _ = await Assert.That(() => JsonSerializer.Deserialize(json, typeInfo)).Throws<JsonException>();
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Reject_A_Contradicted_Fixed_Marker_On_The_Union_Base()
+    {
+        var json = _fixtures.LoadJson("Serialization.mismatched-compaction-marker.json");
+
+        _ = await Assert.That(() => _serializer.Deserialize<SessionMessageCompaction>(json)).Throws<JsonException>();
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Reject_A_Numeric_String_Enum_Value()
+    {
+        var json = _fixtures.LoadJson("Serialization.numeric-diff-status.json");
+
+        _ = await Assert.That(() => _serializer.Deserialize<FileDiffInfo>(json)).Throws<JsonException>();
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Map_A_Known_String_Enum_Wire_Value()
+    {
+        var json = _fixtures.LoadJson("Serialization.known-diff-status.json");
+
+        var diff = _serializer.Deserialize<FileDiffInfo>(json);
+
+        await Assert.That(diff.Status).IsEqualTo(FileDiffInfoStatus.Modified);
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Keep_Treating_An_Absent_Optional_Property_As_Absent()
+    {
+        var json = _fixtures.LoadJson("Serialization.known-session.json");
+
+        var session = _serializer.Deserialize<SessionInfo>(json);
+
+        await Assert.That(session.ParentId).IsNull();
     }
 
     [Test]
@@ -51,6 +121,39 @@ public sealed class OpenCodeJsonContextTests
         var unknown = (UnknownSessionMessageInfo)result;
         await Assert.That(unknown.Type).IsEqualTo("future-message");
         var roundTrip = _serializer.Serialize<SessionMessageInfo>(unknown);
+        await Assert.That(roundTrip).IsEqualTo(json);
+    }
+
+    [Test]
+    public async Task Serialize_Should_Reproduce_The_Raw_Document_Through_The_Concrete_Carrier_Type()
+    {
+        var json = _fixtures.LoadJson("Serialization.unknown-session-message.json");
+        var unknown = (UnknownSessionMessageInfo)_serializer.Deserialize<SessionMessageInfo>(json);
+
+        var roundTrip = _serializer.Serialize(unknown);
+
+        await Assert.That(roundTrip).IsEqualTo(json);
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Preserve_The_Payload_Through_The_Concrete_Carrier_Type()
+    {
+        var json = _fixtures.LoadJson("Serialization.unknown-session-message.json");
+
+        var unknown = _serializer.Deserialize<UnknownSessionMessageInfo>(json);
+
+        await Assert.That(unknown.Type).IsEqualTo("future-message");
+        await Assert.That(_serializer.Serialize(unknown)).IsEqualTo(json);
+    }
+
+    [Test]
+    public async Task Serialize_Should_Reproduce_The_Raw_Error_Through_The_Concrete_Carrier_Type()
+    {
+        const string json = "{\"_tag\":\"BrandNewError\",\"detail\":{\"code\":7}}";
+        var unknown = (UnknownOpenCodeError)_serializer.Deserialize<OpenCodeError>(json);
+
+        var roundTrip = _serializer.Serialize(unknown);
+
         await Assert.That(roundTrip).IsEqualTo(json);
     }
 

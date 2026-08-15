@@ -16,7 +16,10 @@ internal sealed class ReachableSchemaCollector
         var traversal = new ReachabilityTraversal(document.Schemas, errors, _comparer);
         foreach (var operation in operations)
         {
-            foreach (var parameter in operation.Parameters)
+            // Query parameter schemas never generate models: the options binder consumes
+            // them shape-wise and fails closed on anything it does not recognize.
+            foreach (var parameter in operation.Parameters
+                         .Where(static parameter => parameter.Location is SpecParameterLocation.Path))
             {
                 traversal.Visit(parameter.Schema);
             }
@@ -28,7 +31,7 @@ internal sealed class ReachableSchemaCollector
 
             foreach (var response in operation.Responses)
             {
-                traversal.VisitResponse(operation.OperationId, response.Schema);
+                traversal.VisitResponse(operation.OperationId, response);
             }
         }
 
@@ -43,17 +46,49 @@ internal sealed class ReachableSchemaCollector
         private readonly HashSet<string> _keys = new(comparer);
         private readonly HashSet<string> _responseRoots = new(comparer);
 
-        public void VisitResponse(string operationId, SchemaNode? schema)
+        public void VisitResponse(string operationId, SpecResponse response)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
-            if (schema is RefNode reference && reference.Target.StartsWith($"op:{operationId}#", StringComparison.Ordinal))
+            ArgumentNullException.ThrowIfNull(response);
+
+            var schema = response.Schema;
+            if (schema is RefNode reference)
             {
-                _ = _responseRoots.Add(reference.Target);
+                // Data-carrying wrappers are envelope structure, never models — component-named
+                // wrappers join the op-inline roots in the excluded set.
+                var isInlineRoot = reference.Target.StartsWith($"op:{operationId}#", StringComparison.Ordinal);
+                var isWrapperShape = response.EnvelopeShape is SpecEnvelopeShape.Data or SpecEnvelopeShape.CursorData;
+                if (isInlineRoot || isWrapperShape)
+                {
+                    _ = _responseRoots.Add(reference.Target);
+                }
+
+                if (response.EnvelopeShape is SpecEnvelopeShape.CursorData)
+                {
+                    ExcludeCursorObject(reference.Target);
+                }
             }
 
             if (schema is not null)
             {
                 Visit(schema);
+            }
+        }
+
+        /// <summary>The cursor object rides the envelope contract (hand-written spine), never the model closure.</summary>
+        private void ExcludeCursorObject(string wrapperKey)
+        {
+            if (!_graph.TryGetValue(wrapperKey, out var wrapperSchema) || wrapperSchema is not ObjectNode wrapper)
+            {
+                return;
+            }
+
+            foreach (var property in wrapper.Properties)
+            {
+                if (property is { Name: "cursor", Schema: RefNode cursorReference })
+                {
+                    _ = _responseRoots.Add(cursorReference.Target);
+                }
             }
         }
 

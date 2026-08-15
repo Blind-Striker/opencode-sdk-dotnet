@@ -38,34 +38,6 @@ internal abstract class ResponseAdapter<TResponse>
         }
     }
 
-    /// <summary>Reads a <c>{"data": ...}</c> success payload; a malformed envelope is a protocol failure.</summary>
-    /// <typeparam name="TPayload">The payload type.</typeparam>
-    /// <param name="rawBody">The buffered success body.</param>
-    /// <param name="typeInfo">The source-generated payload metadata.</param>
-    /// <returns>The payload.</returns>
-    protected static TPayload ReadDataPayload<TPayload>(string rawBody, JsonTypeInfo<TPayload> typeInfo)
-    {
-        ArgumentNullException.ThrowIfNull(rawBody);
-        ArgumentNullException.ThrowIfNull(typeInfo);
-
-        try
-        {
-            using var document = JsonDocument.Parse(rawBody);
-            if (document.RootElement.ValueKind is not JsonValueKind.Object
-                || !document.RootElement.TryGetProperty("data", out var data))
-            {
-                throw new OpenCodeTransportException("The opencode API returned a success body without its 'data' envelope.");
-            }
-
-            return JsonSerializer.Deserialize(data, typeInfo)
-                   ?? throw new OpenCodeTransportException("The opencode API returned a null success payload.");
-        }
-        catch (JsonException exception)
-        {
-            throw new OpenCodeTransportException("The opencode API returned a malformed success body.", exception);
-        }
-    }
-
     /// <summary>Builds the protocol failure for a success status the operation does not declare.</summary>
     /// <param name="status">The undeclared 2xx status code.</param>
     /// <returns>The transport failure the adapter throws.</returns>

@@ -156,6 +156,43 @@ internal static class EmissionSyntax
         return Array.AsReadOnly<StatementSyntax>([guard]);
     }
 
+    /// <summary>
+    /// The guard pair every route value passes — non-whitespace and never a dot segment —
+    /// emitted identically wherever a route value enters, so acceptance at one boundary
+    /// can never outrun refusal at another.
+    /// </summary>
+    public static IReadOnlyList<StatementSyntax> RouteValueGuard(string parameterName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(parameterName);
+        var parameter = SyntaxFactory.IdentifierName(parameterName);
+        var whitespaceGuard = SyntaxFactory.ExpressionStatement(Invocation(
+            MemberAccess(SyntaxFactory.IdentifierName("ArgumentException"), "ThrowIfNullOrWhiteSpace"),
+            SyntaxFactory.Argument(parameter)));
+        var dotSegmentGuard = SyntaxFactory.IfStatement(
+            SyntaxFactory.IsPatternExpression(
+                parameter,
+                SyntaxFactory.BinaryPattern(
+                    SyntaxKind.OrPattern,
+                    SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(
+                        SyntaxKind.StringLiteralExpression,
+                        SyntaxFactory.Literal("."))),
+                    SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(
+                        SyntaxKind.StringLiteralExpression,
+                        SyntaxFactory.Literal(".."))))),
+            SyntaxFactory.Block(SyntaxFactory.ThrowStatement(SyntaxFactory.ObjectCreationExpression(
+                    SyntaxFactory.IdentifierName("ArgumentException"))
+                .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(
+                [
+                    SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
+                        SyntaxKind.StringLiteralExpression,
+                        SyntaxFactory.Literal("Route values must not be dot segments."))),
+                    SyntaxFactory.Argument(Invocation(
+                        SyntaxFactory.IdentifierName("nameof"),
+                        SyntaxFactory.Argument(parameter))),
+                ]))))));
+        return Array.AsReadOnly<StatementSyntax>([whitespaceGuard, dotSegmentGuard]);
+    }
+
     private static string NormalizeDocumentation(string value)
     {
         var result = new StringBuilder(value.Length);

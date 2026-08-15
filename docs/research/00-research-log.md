@@ -1657,3 +1657,281 @@ is arbitrated for the one generated file. Route member names ride the plan
 **Documentation pass (this session):** ROADMAP moved to M1-complete/M2-next; the Arc B plan's
 checkboxes closed in the same commits as their code; the consumed handover was deleted and a
 fresh one (`HANDOFF-2026-08-13-3.md`) records the ship/M2/horizon queue.
+
+# Session 19 — 2026-08-14: M1 ship, review triage, M2 opening decisions
+
+PR #16 merged after a verified multi-agent review cycle (blocker set fixed red-test-first
+on the branch; every surviving finding milestone-anchored in issues #17–#25) and the
+BenchmarkDotNet performance suite landed with baselines. This entry records the decisions
+sealed while opening M2; execution detail lives in git and the M2 plan.
+
+## Q76: What shape does the generated query surface take?
+
+**How researched:** the four M2 operations extracted from the pinned spec (session.list
+carries 9 optional `anyOf [T, null]` query parameters; both list operations share the
+`limit`/`order`/`cursor` trio and the `{data, cursor:{previous,next}}` envelope); Azure SDK
+.NET design guidelines fetched live ("DO use the options parameter pattern for complex
+service methods"; `Pageable<T>`/`AsyncPageable<T>` for lists); Stripe.net
+(`SessionListOptions : ListOptions` shared base) and OpenAI .NET (`*CollectionOptions`)
+as ecosystem precedent.
+
+**Decision (maintainer, sealed):** per-operation generated options records deriving from a
+shared `ListOptions` base that carries only the cursor-pagination trio; a fail-closed
+generator profile-detection wall derives an operation from the base only on an exact wire
+match (otherwise flat options); the base is the typed seam the M3 paginator will consume.
+`*Options` = call shaping, `*Request` = wire body.
+
+## Q77: How is the string-typed `limit` exposed?
+
+**Found:** the wire types `limit` as a string; `uint` was weighed and rejected — FDG bans
+unsigned types in public APIs (CLS compliance), the ecosystem has zero precedent
+(`Take(int)`, Stripe `long?`, OpenAI `int`), and it does not even buy the invariant
+(zero stays representable, so a guard is needed either way).
+
+**Decision (maintainer, sealed):** public `int?`, invariant-culture conversion at the
+route boundary, non-positive values refused with `ArgumentException`.
+
+## Q78: How does the API express parentID's root-only sentinel?
+
+**Found:** the wire has three states — omitted (all sessions), `parentID=<id>` (children),
+and the literal string `"null"` (root sessions only). The schema shape is
+self-identifying: `anyOf` of a `^ses`-patterned string and a single-value `"null"` enum.
+
+**Decision (maintainer, sealed):** a hand-written public spine type
+`SessionParentFilter` (`RootOnly` singleton, `Of(id)` factory) carried by the options
+record; the binder recognizes the wire shape mechanically, never the parameter name
+(ADR-0008 stays intact); invalid combinations are unrepresentable at compile time.
+
+## Q79: What shape does the first request body take?
+
+**Decision (maintainer, sealed):** `session.create`'s inline all-optional body binds into
+a generated `SessionCreateRequest`; the operation parameter is optional —
+`CreateSessionAsync()` sends an empty JSON body. The `{Subject}{Verb}Request` pattern is
+the mechanical rule for future bodies.
+
+# Session 20 — 2026-08-14: M2 first breadth batch execution
+
+The batch executed per the sealed plan: binder walls opened red-test-first (query options
+with the profile-detection wall, request bodies, cursor-list envelopes, merged client
+families), the pipeline grew its JSON body path, the naming and fail-closed walls batches
+(#22, #21) and the F07 carrier converters (#19) landed, and the four operations were
+demonstrated live against `opencode2 serve` v0.0.0-next-17403 (create → list → get →
+messages, all typed 200s, wire cursor round-tripped). This entry records the decisions
+sealed during execution.
+
+## Q80: What are the concrete names of the query surface's supporting types?
+
+**How researched:** batched to the maintainer with previews once the binder was about to
+encode names; Stripe (`SessionListOptions`) and the sealed `{Subject}{Verb}Request` rule as
+anchors.
+
+**Decision (maintainer, sealed):** options records follow `{Group}{Verb}Options`
+(`SessionListOptions`, `MessageListOptions`), mirroring the request-model rule so one
+mechanical family covers both; the shared order enum is the hand-written spine
+`ListOrder { Ascending, Descending }` (request-only closed enum — ADR-0009 tolerance does
+not apply); the wire cursor surfaces through one hand-written `ListCursor` record on every
+list envelope, giving the M3 paginator a single cursor seam. The binder validates the wire
+shapes (`asc`/`desc` exactly; `{previous?, next?}` exactly) and fails closed otherwise.
+
+## Q81: How is upstream's InvalidRequestError1 duplicate resolved?
+
+**Found:** the plan's recon framed it as a naming dup; execution showed it byte-identical to
+`InvalidRequestError` *including the `_tag`*, which trips the per-status duplicate-tag wall
+and would poison `OpenCodeError` tag dispatch. Two candidate mechanisms were priced: a
+mechanical structural dedup (which needed a novel recorded-output channel to satisfy the
+maintainer's drift-visibility requirement) and a curated alias.
+
+**Decision (maintainer, sealed):** a `schemaAliases` curation section — one row declaring
+the duplicate a spelling of its target, validated fail-closed for deep structural identity
+and applied as a pure document transform before binding. Drift stays loud through existing
+machinery: a deleted source or target orphans the row, a dereferenced source goes dormant
+against the profile, and any structural divergence (the tag included) breaks the identity
+wall. The binder's own duplicate-tag refusals stay intact for anomalies without an alias.
+
+## Q82: How do the two options-like parameters coexist on generated methods?
+
+**Decision (maintainer):** the query record binds to `options` and `OpenCodeRequestOptions`
+binds to `requestOptions` on every generated method — the type's own name decides, matching
+Stripe's idiom; the pre-release rename of the existing surface rode the PublicApi baseline
+review.
+
+## Execution notes
+
+- The verb rules (sealed decision 5) concretized as: only the final identifier segment can
+  be a verb (`create`/`get`/`list` — the C18 structural fix); empty subjects fall back to
+  the group, pluralized for list operations under a naive fail-closed rule; response type
+  names fold non-Get verbs; client-placed route members mirror their method names while
+  root members keep the bare-verb shape (`Health.Get`).
+- The P2 single-pass envelope DTOs cut `GetMessageAsync` from 67.4 μs to 56.2 μs with flat
+  allocations; `ListMessagesAsync` baselines at 58.1 μs / 28.24 KB.
+- The contract matrix caught a real defect before any consumer could: the error-path
+  constructor pushed its forgiven null through the list payload's defensive-copy init
+  accessor; the copy now passes the forgiven null through uncopied behind the guard.
+
+## Q83: Do operation inputs stay split across *Request and *Options?
+
+**How researched:** maintainer review question (AWS-style Request/Response symmetry);
+ecosystem survey — AWS and Google Cloud use a uniform `{Operation}Request` for every
+operation regardless of wire placement (query vs body is a marshalling detail), Stripe and
+OpenAI use a uniform `*Options` (POST bodies included), Azure's options bag carries only
+optional inputs; **no surveyed SDK splits the suffix by verb** as Q76's dichotomy did.
+
+**Found:** the sealed dichotomy had married halves of two different families, and the
+verb→suffix mapping is unstable — a future query-carrying POST would demand two input bags
+per call where the uniform-Request shape carries one.
+
+**Decision (maintainer, sealed):** uniform `*Request`, revising Q76's naming half. Query
+records rename (`SessionListRequest`, `MessageListRequest`, base `ListRequest`); the body
+models already carry the name; the method and route-builder parameter becomes `request`.
+The profile-detection wall and the M3 paginator seam carry over under the new name. An
+operation declaring both a body and query parameters would mechanically derive one type
+name twice and fail the existing collision wall — deliberate, until a merged-Request
+design (AWS marshalling style) is sealed. Execution: next session
+(`agents/handover-prompts/HANDOFF-2026-08-14-2.md`).
+
+## Q84: How does the shipped SDK lay out?
+
+**Decision (maintainer, sealed):** vertical feature slices with flat public namespaces —
+client families as folders (`Sessions/`, `Health/`), the pagination spine under
+`Pagination/`, `Models/` and `Internal/` unchanged, the root client and response/exception
+spine at the project root. Public namespaces stay `OpenCode.Sdk` and `OpenCode.Sdk.Models`:
+a namespace is API surface, folders are placement (Stripe/Azure precedent). Test projects
+mirror the layout of the project under test. IDE0130's folder-matches-namespace rule is
+arbitrated for the SDK's public folders per the standing per-rule pattern. Canonical
+wording: `engineering/coding-style.md` §4. Execution: next session.
+
+## Q85: When does the Extensions package rise?
+
+**Decision (maintainer, sealed):** in parallel with M2 breadth instead of waiting for M6 —
+an `AddOpenCode` bring-up (overloads mirroring the three client constructors, root plus
+sub-client registrations so a consumer can resolve `SessionsClient` directly) lands as its
+own batch; the ROADMAP moves "Extensions DI breadth" out of M6 accordingly.
+
+## Review decisions closed with the batch
+
+- **#20 (password semantics)** sealed as recommended and landed (`2be2d0f`): `null` = unset
+  with the environment fallback; empty or whitespace refused with `ArgumentException` — an
+  explicitly blank credential has no upstream meaning; `""` = explicit no-auth stays an
+  additive door if upstream ever ships passwordless serve.
+- **#25 (DynamicProxyGenAssembly2 IVT)** closed keep: the friend grant is the standard
+  NSubstitute mechanism over internal seams and a recorded solved-once decision; internals
+  are not a security boundary. The recorded alternative (hand-written fake replacing the
+  grant) applies only if encapsulation purity is ever preferred.
+
+# Session 21 — 2026-08-14: Alignment batch execution
+
+The three sealed alignment decisions (Q83–Q85) executed on the PR #26 branch: the uniform
+`*Request` rename with its body-plus-query double-derivation refusal pin, the feature-slice
+layout migration with the writer's fail-closed family-folder allowlist, and the Extensions
+bring-up. No sealed decision was reopened; one forward-looking note is recorded.
+
+## Note: generator-emitted DI registrations
+
+`AddOpenCode`'s sub-client registrations are hand-written — one factory line per client
+family. Emitting these registrations from the generator becomes worthwhile when client
+families multiply across breadth batches: the registration list is the same mechanical
+projection the client emitters already own. This is a trigger, not a commitment.
+
+# Session 22 — 2026-08-14: Extensions grill, upstream re-research, location census
+
+The maintainer grilled the Q85 first cut (constructor-mirror DI shape, BYO-HttpClient
+overload, missing IHttpClientFactory, options mutability, env-fallback double-headedness)
+and demanded upstream verification instead of vision-doc relay. Findings re-derived at the
+pinned commit `a6a712a` directly; canonical detail in research doc 15 (§5a, §6). The
+`external/opencode` submodule pointer was found stranded on the 1.x line and moved to the
+spec pin with a lockstep rule in `spec/SNAPSHOT.md`.
+
+## Q87: Is `x-opencode-directory` dead on v2?
+
+**Found:** no — evolved. The server's location middleware resolves dual-channel:
+`location[…]` deepObject query (61 ops, spec-visible, used exclusively by the first-party
+generated client) OR ambient `x-opencode-directory`/`x-opencode-workspace` headers
+(spec-invisible, middleware-level), precedence query > header. The vision spec's
+header-only `Directory` story is obsolete; its §6 was corrected in place.
+
+## Q88: Can the merged-Request need be foreseen instead of wall-triggered?
+
+**Found:** yes — censusable today: 15 ops mix body + query, and in all 15 the only query
+parameter is `location`; `v2.session.list` is the single flat-field exception. The merged
+marshalling question and the location question are one design.
+
+**Decision (maintainer, sealed):** the location + merged-Request input design is done
+proactively in a short design session that opens M3 planning — not deferred until the
+collision wall fires. Census and mechanism notes live in doc 15 §5a/§6.
+
+## Q89: Where do v2 endpoint and credentials actually come from?
+
+**Found:** no URL environment variable exists; the first-party discovery contract is the
+registration file (doc 15 §6). Auth is optional (`ServerAuth.required` = configured,
+non-empty password). The username is `opencode` at the pin (the pinned server hardcodes
+it); `--username`/`OPENCODE_SERVER_USERNAME` is upstream direction — docs and the desktop
+sidecar — not pinned-server behavior, so the `Username` option is the gateway and
+forward-compatibility seam. Client-side
+password-from-environment resolution lives in the CLI consumer
+(`OPENCODE_PASSWORD` → legacy `OPENCODE_SERVER_PASSWORD`), not in the client library.
+Feeds the pending Q86 batch (options shape, env-fallback ownership, `Username` option).
+
+## Q90: How do client construction, options, and DI align with .NET conventions? (the in-session "Q86" batch)
+
+**How researched:** the maintainer's grill of the Q85 first cut plus the Q87–Q89 upstream
+findings; ecosystem verification of options immutability (init-only binds via the
+reflection binder; the .NET 8+ config source generator's required/init support is the
+buggy edge — dotnet/runtime #95006/#101984/#90974 — so `required` stays out).
+
+**Decisions (maintainer, sealed):**
+
+- **Construction:** `OpenCodeClient(OpenCodeClientOptions)` + the caller-owned-HttpClient
+  overload; the Uri constructors retire — the endpoint has one home and the
+  endpoint-must-stay-unset guard disappears. One way to build a client.
+- **Options:** the .NET convention holds — a settable class with the `Action<>` configure
+  pattern — and immutability is expressed at consumption: the public read-only
+  `IOpenCodeClientOptions` view, snapshotted by the pipeline at construction (pinned by
+  test: post-construction mutation never reaches a built client).
+- **Credentials:** `Username` joins the options (upstream's `--username` /
+  `OPENCODE_SERVER_USERNAME`, default `opencode`; the pipeline's hardcode retired);
+  `Password` stays optional — null sends anonymous requests, matching v2's optional auth;
+  blank refusal stays. The environment fallback left the SDK (upstream layering: the
+  consumer resolves env; the CLI's own chain is `OPENCODE_PASSWORD` →
+  `OPENCODE_SERVER_PASSWORD`) — this revises the env half of the #20 decision on Q89
+  evidence; the blank-refusal half stands.
+- **Extensions:** rebuilt on `IHttpClientFactory` — `AddOpenCode(Action<...>)` +
+  AOT-annotated `AddOpenCode(IConfiguration)` bind options, register a transient typed
+  client over a named factory client, register sub-clients explicitly, and return the
+  `IHttpClientBuilder` so consumer handlers/resilience/telemetry chain on without SDK
+  middleware. The BYO-HttpClient registration overload is gone (a captured instance
+  defeats factory rotation; no surveyed companion package ships one).
+- **Transport:** the self-created path uses `SocketsHttpHandler` with
+  `PooledConnectionLifetime` on modern TFMs (vision §7.5's promise, implemented); the
+  net472 `ServicePointManager` half stays an M3 item.
+- The sandbox is the standing DI showcase (Generic Host, builder-chained consumer
+  handler, direct sub-client resolution).
+
+# Session 23 — 2026-08-15: Q91 BYO-transport seal
+
+## Q91: Does the caller-owned `(HttpClient, options)` constructor stay public?
+
+**How researched:** seven-agent primary-source survey (2026-08-14, versions pinned at
+release tags) across Azure.Core/System.ClientModel, OpenAI, AWS v4, Stripe.net, Octokit,
+the typed-client ecosystem (Refit, Kiota, Grpc, Elastic, MCP), and the
+BCL/IHttpClientFactory layer — census, findings, and sources in research doc 16; upstream
+v2 JS client read at the pin (`packages/client`: public `fetch` option, SDK-wins header
+precedence encoded in the generated client).
+
+**Found:** no surveyed SDK gates transport injection behind a DI companion (AWS v4
+removed the knob from its DI options type); every SDK resolves header conflicts by the
+BCL's silent request-wins merge with zero guards, and every surveyed anonymous mode leaks
+a caller default `Authorization`; the BCL cannot express "anonymous by omission" over a
+caller client, and the same leak exists on the factory path via `ConfigureHttpClient` —
+so the pipeline guard is required regardless of the constructor's visibility; the stock
+typed-client pattern hard-requires a public `(HttpClient, …)` constructor. The
+internalize+IVT leaning and a handler-seam-on-options alternative were both weighed and
+rejected (doc 16 §4) — the latter on the Q90 bindable/snapshot options contract.
+
+**Decision (maintainer, sealed):** the constructor stays public. Anonymous mode fails
+closed — `Password == null` while the injected client's `DefaultRequestHeaders` carry
+`Authorization` refuses at construction and before every send (construction-only would
+miss legal post-construction mutation). With `Password` set, the SDK's per-request
+`Authorization` deterministically wins (BCL request-wins merge); the precedence contract
+is documented on the constructor and options. Standalone handler/proxy/TLS composition
+rides the BYO client; concrete convenience knobs remain an additive future. Executes as
+review blocker #1's fix in this batch.

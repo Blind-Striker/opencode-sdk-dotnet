@@ -15,6 +15,6 @@ public enum BindingErrorCategory
     /// <summary>A selected wire name cannot be mapped to a unique C# identifier.</summary>
     Naming = 3,
 
-    /// <summary>A selected operation's wire contract cannot be bound by the M1 operation binder.</summary>
+    /// <summary>A selected operation's wire contract cannot be bound by the operation binder.</summary>
     Operation = 4,
 }

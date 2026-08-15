@@ -23,6 +23,7 @@ internal sealed class CurationValidator
         ValidateGroups(selected, selectedGroups, documentGroups, curation, errors);
         ValidateEnvelopeNames(selectedIds, documentIds, curation, errors);
         ValidatePropertyOverrides(document, reachable, curation, errors);
+        ValidateSchemaAliases(document, reachable, curation, errors);
     }
 
     private static void ValidateGroups(IReadOnlyList<SpecOperation> selected, HashSet<string> selectedGroups,
@@ -46,6 +47,25 @@ internal sealed class CurationValidator
 
             ValidateGroupShape(wireName, group, selected, errors);
         }
+
+        // Groups sharing a client name merge into one client family, so their handle
+        // declarations must agree exactly — a divergent row would fork the family.
+        foreach (var clientName in curation.Groups
+                     .Where(static pair => pair.Value is { Placement: GroupPlacement.Client, ClientName: not null })
+                     .GroupBy(static pair => pair.Value.ClientName!, StringComparer.Ordinal)
+                     .Where(static family => family
+                         .Select(static pair => (pair.Value.HandleName, pair.Value.HandleParameter))
+                         .Distinct()
+                         .Skip(1)
+                         .Any())
+                     .Select(static family => family.Key)
+                     .Order(StringComparer.Ordinal))
+        {
+            errors.Add(
+                BindingErrorCategory.Curation,
+                clientName,
+                $"groups sharing client '{clientName}' must declare identical handle configuration");
+        }
     }
 
     private static void ValidateGroupShape(string wireName, GroupCuration group, IReadOnlyList<SpecOperation> selected, BindingErrorCollector errors)
@@ -57,6 +77,14 @@ internal sealed class CurationValidator
                 break;
             case GroupPlacement.Client when string.IsNullOrWhiteSpace(group.ClientName):
                 errors.Add(BindingErrorCategory.Curation, wireName, "client group must declare clientName");
+                break;
+            case not (GroupPlacement.Root or GroupPlacement.Client):
+                // System.Text.Json admits numeric enum spellings even under the string
+                // converter, so an out-of-range placement must fail here, not drop silently.
+                errors.Add(
+                    BindingErrorCategory.Curation,
+                    wireName,
+                    $"placement value '{((int)group.Placement).ToString(System.Globalization.CultureInfo.InvariantCulture)}' is not a recognized group placement");
                 break;
         }
 
@@ -127,7 +155,7 @@ internal sealed class CurationValidator
 
     /// <summary>
     /// Payload names derive mechanically from the operation subject; curated entries are
-    /// overrides only (maintainer, 2026-08-13), so validation covers orphans and identifier
+    /// overrides only, so validation covers orphans and identifier
     /// legality, never presence.
     /// </summary>
     private static void ValidateEnvelopeNames(HashSet<string> selectedIds, HashSet<string> documentIds,
@@ -184,6 +212,66 @@ internal sealed class CurationValidator
             {
                 errors.Add(BindingErrorCategory.Curation, subject, "curated property does not exist on the schema");
             }
+        }
+    }
+
+    /// <summary>
+    /// The alias walls carry the drift contract: a deleted source or target orphans the row,
+    /// a dereferenced source goes dormant, and any structural divergence — the tag included —
+    /// breaks the identity check. Every upstream move on the duplicate is loud.
+    /// </summary>
+    private static void ValidateSchemaAliases(SpecDocument document, ReachableSchemaSet reachable,
+        GenerationCuration curation, BindingErrorCollector errors)
+    {
+        var reachableKeys = reachable.GraphKeys.ToHashSet(StringComparer.Ordinal);
+        var sources = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var alias in curation.SchemaAliases)
+        {
+            if (!sources.Add(alias.Schema))
+            {
+                errors.Add(BindingErrorCategory.Curation, alias.Schema, "schema alias is duplicated");
+            }
+
+            if (string.IsNullOrWhiteSpace(alias.Reason))
+            {
+                errors.Add(BindingErrorCategory.Curation, alias.Schema, "schema alias must declare a reason");
+            }
+
+            if (string.Equals(alias.Schema, alias.AliasOf, StringComparison.Ordinal))
+            {
+                errors.Add(BindingErrorCategory.Curation, alias.Schema, "schema alias cannot target itself");
+                continue;
+            }
+
+            if (!document.Schemas.TryGetValue(alias.Schema, out var source))
+            {
+                errors.Add(BindingErrorCategory.Curation, alias.Schema, "aliased schema does not exist in the spec");
+                continue;
+            }
+
+            if (!document.Schemas.TryGetValue(alias.AliasOf, out var target))
+            {
+                errors.Add(BindingErrorCategory.Curation, alias.Schema, $"alias target '{alias.AliasOf}' does not exist in the spec");
+                continue;
+            }
+
+            if (!reachableKeys.Contains(alias.Schema))
+            {
+                errors.Add(BindingErrorCategory.Curation, alias.Schema, "aliased schema is not referenced by the selected profile");
+            }
+
+            if (!SchemaNodeComparer.DeepEquals(source, target))
+            {
+                errors.Add(BindingErrorCategory.Curation, alias.Schema, "aliased schemas must be structurally identical");
+            }
+        }
+
+        foreach (var alias in curation.SchemaAliases
+                     .Where(alias => !string.Equals(alias.Schema, alias.AliasOf, StringComparison.Ordinal)
+                                     && sources.Contains(alias.AliasOf))
+                     .OrderBy(static alias => alias.Schema, StringComparer.Ordinal))
+        {
+            errors.Add(BindingErrorCategory.Curation, alias.Schema, "schema aliases cannot chain");
         }
     }
 

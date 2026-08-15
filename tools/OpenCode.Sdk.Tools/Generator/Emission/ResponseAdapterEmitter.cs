@@ -31,6 +31,10 @@ internal static class ResponseAdapterEmitter
             .WithBody(SyntaxFactory.Block()));
         members.Add(EmitInstance(envelope.AdapterTypeName));
         members.Add(EmitAdapt(operation));
+        if (envelope.Kind is EnvelopeKind.CursorList)
+        {
+            members.Add(EmitCursorSuccessHelper(envelope));
+        }
         var declaration = SyntaxFactory.ClassDeclaration(envelope.AdapterTypeName)
             .WithModifiers(SyntaxFactory.TokenList(
                 SyntaxFactory.Token(SyntaxKind.InternalKeyword),
@@ -127,16 +131,31 @@ internal static class ResponseAdapterEmitter
             .WithLeadingTrivia(EmissionSyntax.Documentation("Maps one buffered response onto the typed envelope."));
     }
 
-    private static ObjectCreationExpressionSyntax EmitSuccessCreation(EnvelopePlan envelope)
+    /// <summary>
+    /// Every success path is one deserialization pass: bare bodies read the payload type,
+    /// wrapped bodies read their internal envelope DTO and project its members.
+    /// </summary>
+    private static ExpressionSyntax EmitSuccessCreation(EnvelopePlan envelope)
     {
-        var reader = envelope.HasDataEnvelope ? "ReadDataPayload" : "ReadBarePayload";
-        var payload = EmissionSyntax.Invocation(
-            SyntaxFactory.IdentifierName(reader),
+        var read = EmissionSyntax.Invocation(
+            SyntaxFactory.IdentifierName("ReadBarePayload"),
             SyntaxFactory.Argument(SyntaxFactory.IdentifierName("rawBody")),
             SyntaxFactory.Argument(EmissionSyntax.MemberAccess(
                 EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("OpenCodeJsonContext"), "Default"),
-                envelope.PayloadTypeName)));
-        return SyntaxFactory.ObjectCreationExpression(TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName))
+                envelope.EnvelopeDtoTypeName ?? envelope.PayloadTypeName)));
+        return envelope.Kind switch
+        {
+            EnvelopeKind.Bare => EmitSuccessInitializer(envelope, read),
+            EnvelopeKind.Data => EmitSuccessInitializer(envelope, EmissionSyntax.MemberAccess(read, "Data")),
+            EnvelopeKind.CursorList or _ => EmissionSyntax.Invocation(
+                SyntaxFactory.IdentifierName("CreateSuccess"),
+                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("status")),
+                SyntaxFactory.Argument(read)),
+        };
+    }
+
+    private static ObjectCreationExpressionSyntax EmitSuccessInitializer(EnvelopePlan envelope, ExpressionSyntax payload) =>
+        SyntaxFactory.ObjectCreationExpression(TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName))
             .WithInitializer(SyntaxFactory.InitializerExpression(
                 SyntaxKind.ObjectInitializerExpression,
                 SyntaxFactory.SeparatedList<ExpressionSyntax>(
@@ -150,7 +169,40 @@ internal static class ResponseAdapterEmitter
                         SyntaxFactory.IdentifierName(envelope.PayloadName),
                         payload),
                 ])));
-    }
+
+    /// <summary>Cursor lists project the DTO twice, so a private helper keeps the switch arm single-read.</summary>
+    private static MethodDeclarationSyntax EmitCursorSuccessHelper(EnvelopePlan envelope) =>
+        SyntaxFactory.MethodDeclaration(TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName), "CreateSuccess")
+            .WithModifiers(SyntaxFactory.TokenList(
+                SyntaxFactory.Token(SyntaxKind.PrivateKeyword),
+                SyntaxFactory.Token(SyntaxKind.StaticKeyword)))
+            .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(
+            [
+                SyntaxFactory.Parameter(SyntaxFactory.Identifier("status"))
+                    .WithType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.IntKeyword))),
+                SyntaxFactory.Parameter(SyntaxFactory.Identifier("envelope"))
+                    .WithType(TypeSyntaxEmitter.EmitNamed(envelope.EnvelopeDtoTypeName!)),
+            ])))
+            .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(
+                SyntaxFactory.ObjectCreationExpression(TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName))
+                    .WithInitializer(SyntaxFactory.InitializerExpression(
+                        SyntaxKind.ObjectInitializerExpression,
+                        SyntaxFactory.SeparatedList<ExpressionSyntax>(
+                        [
+                            SyntaxFactory.AssignmentExpression(
+                                SyntaxKind.SimpleAssignmentExpression,
+                                SyntaxFactory.IdentifierName("Status"),
+                                SyntaxFactory.IdentifierName("status")),
+                            SyntaxFactory.AssignmentExpression(
+                                SyntaxKind.SimpleAssignmentExpression,
+                                SyntaxFactory.IdentifierName(envelope.PayloadName),
+                                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("envelope"), "Data")),
+                            SyntaxFactory.AssignmentExpression(
+                                SyntaxKind.SimpleAssignmentExpression,
+                                SyntaxFactory.IdentifierName("Cursor"),
+                                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("envelope"), "Cursor")),
+                        ])))))
+            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
 
     private static ObjectCreationExpressionSyntax EmitErrorCreation(EnvelopePlan envelope, ExpressionSyntax allowedTags) =>
         SyntaxFactory.ObjectCreationExpression(TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName))

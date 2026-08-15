@@ -34,5 +34,6 @@ public sealed record SessionMessageAssistantReasoning : SessionMessageAssistantC
     /// </summary>
     [JsonPropertyName("time")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingJsonConverter<SessionMessageAssistantReasoningTime>))]
     public SessionMessageAssistantReasoningTime? Time { get; init; }
 }

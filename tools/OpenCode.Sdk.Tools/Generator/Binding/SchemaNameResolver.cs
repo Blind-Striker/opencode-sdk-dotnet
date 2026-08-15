@@ -8,13 +8,16 @@ internal sealed class SchemaNameResolver
 {
     private readonly StringComparer _comparer = StringComparer.Ordinal;
 
-    public IReadOnlyDictionary<string, string> Resolve(SpecDocument document, ReachableSchemaSet reachable, BindingErrorCollector errors)
+    public IReadOnlyDictionary<string, string> Resolve(SpecDocument document, ReachableSchemaSet reachable,
+        IReadOnlyList<SpecOperation> selected, BindingErrorCollector errors)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(reachable);
+        ArgumentNullException.ThrowIfNull(selected);
         ArgumentNullException.ThrowIfNull(errors);
 
         var responseRoots = reachable.ResponseRootKeys.ToHashSet(_comparer);
+        var requestRoots = ResolveRequestBodyRootNames(selected, errors);
         var result = new Dictionary<string, string>(_comparer);
         var owners = new Dictionary<string, string>(_comparer);
         foreach (var key in reachable.GraphKeys)
@@ -24,7 +27,15 @@ internal sealed class SchemaNameResolver
                 continue;
             }
 
-            var name = schema is UnionNode union ? ResolveUnionName(key, union, document.Schemas) : ResolveDefault(key);
+            string name;
+            if (requestRoots.TryGetValue(key, out var requestName))
+            {
+                name = requestName;
+            }
+            else
+            {
+                name = schema is UnionNode union ? ResolveUnionName(key, union, document.Schemas) : ResolveDefault(key);
+            }
             if (owners.TryGetValue(name, out var existing))
             {
                 errors.Add(BindingErrorCategory.Naming, key, $"C# type name '{name}' collides with schema '{existing}'");
@@ -39,6 +50,42 @@ internal sealed class SchemaNameResolver
     }
 
     private static bool IsNominal(SchemaNode schema) => schema is ObjectNode or EnumNode or UnionNode;
+
+    /// <summary>
+    /// Every selected operation's nominal body root — inline or component-referenced — is
+    /// named from its operation identity, the mechanical <c>{Subject}{Verb}Request</c> rule
+    /// (public names never surface raw operation ids or dotted component spellings).
+    /// Ownership is scoped to the selection so a pending operation can never rename a
+    /// component the selected closure shares; two selected operations claiming one root
+    /// under different names refuse. Nested component dependencies stay shared: only the
+    /// root reference is claimed.
+    /// </summary>
+    private Dictionary<string, string> ResolveRequestBodyRootNames(IReadOnlyList<SpecOperation> selected,
+        BindingErrorCollector errors)
+    {
+        var names = new Dictionary<string, string>(_comparer);
+        foreach (var operation in selected)
+        {
+            if (operation.RequestBody?.Schema is not RefNode reference)
+            {
+                continue;
+            }
+
+            var requestName = OperationNamePolicy.RequestTypeName(operation);
+            if (names.TryGetValue(reference.Target, out var existing) && !_comparer.Equals(existing, requestName))
+            {
+                errors.Add(
+                    BindingErrorCategory.Naming,
+                    reference.Target,
+                    $"request body root is claimed as both '{existing}' and '{requestName}' by selected operations");
+                continue;
+            }
+
+            names[reference.Target] = requestName;
+        }
+
+        return names;
+    }
 
     private string ResolveUnionName(string key, UnionNode union, IReadOnlyDictionary<string, SchemaNode> graph)
     {

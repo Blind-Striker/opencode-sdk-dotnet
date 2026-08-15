@@ -46,5 +46,6 @@ public sealed record SessionMessageSystem : SessionMessageInfo
     /// </summary>
     [JsonPropertyName("description")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingJsonConverter<string>))]
     public string? Description { get; init; }
 }

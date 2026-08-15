@@ -21,8 +21,12 @@ Platform evidence for the v2 line: `docs/research/15-opencode-v2-platform.md`.
    that commit (read-only `git fetch` in the `external/opencode` submodule, or
    `raw.githubusercontent.com` pinned to the full commit SHA — never a branch ref).
 2. Copy it over `spec/openapi.json`.
-3. Update the table above (commit, channel) and the `Date:` line.
-4. Run `generate`; resolve what it reports (wall admits, curation rows) and review the
+3. Move the `external/opencode` submodule pointer to the same commit in the same change
+   (`git -C external/opencode fetch origin v2 && git -C external/opencode checkout
+   <commit>`, then stage the gitlink) — the submodule checkout and this snapshot never
+   diverge, so a fresh `git submodule update --init` always lands on the pinned commit.
+4. Update the table above (commit, channel) and the `Date:` line.
+5. Run `generate`; resolve what it reports (wall admits, curation rows) and review the
    regenerated diff.
 
 A dedicated spec-refresh tool is planned — see repo tooling in `docs/ROADMAP.md`.

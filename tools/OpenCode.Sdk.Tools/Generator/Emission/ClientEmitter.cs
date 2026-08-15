@@ -69,9 +69,13 @@ internal static class ClientEmitter
                 "System.Threading.Tasks",
                 "OpenCode.Sdk.Internal",
                 "OpenCode.Sdk.Internal.ResponseAdapters",
+                "OpenCode.Sdk.Internal.Serialization",
+                "OpenCode.Sdk.Models",
             ],
             [declaration]);
-        return EmissionSyntax.CreateSource($"{client.Name}.cs", unit);
+        return EmissionSyntax.CreateSource(
+            client.ContainerName is null ? $"{client.Name}.cs" : $"{client.ContainerName}/{client.Name}.cs",
+            unit);
     }
 
     private static string Summary(ClientPlan client) => client.Role switch
@@ -109,34 +113,12 @@ internal static class ClientEmitter
         yield return SyntaxFactory.ConstructorDeclaration(client.Name)
             .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
             .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SingletonSeparatedList(
-                SyntaxFactory.Parameter(SyntaxFactory.Identifier("endpoint")).WithType(TypeSyntaxEmitter.EmitNamed("Uri")))))
-            .WithInitializer(SyntaxFactory.ConstructorInitializer(
-                SyntaxKind.ThisConstructorInitializer,
-                SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(
-                [
-                    SyntaxFactory.Argument(SyntaxFactory.IdentifierName("endpoint")),
-                    SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))
-                        .WithNameColon(SyntaxFactory.NameColon("options")),
-                ]))))
-            .WithBody(SyntaxFactory.Block())
-            .WithLeadingTrivia(EmissionSyntax.MemberDocumentation(
-                "Initializes a client that owns its connection to the endpoint.",
-                [new DocumentedParameter("endpoint", "The absolute HTTP or HTTPS server endpoint.")]));
-        yield return SyntaxFactory.ConstructorDeclaration(client.Name)
-            .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
-            .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(
-            [
-                SyntaxFactory.Parameter(SyntaxFactory.Identifier("endpoint")).WithType(TypeSyntaxEmitter.EmitNamed("Uri")),
                 SyntaxFactory.Parameter(SyntaxFactory.Identifier("options"))
-                    .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed("OpenCodeClientOptions"))),
-            ])))
-            .WithBody(SyntaxFactory.Block(EmitRootAssignments(client, "endpoint")))
+                    .WithType(TypeSyntaxEmitter.EmitNamed("OpenCodeClientOptions")))))
+            .WithBody(SyntaxFactory.Block(EmitRootAssignments(client, httpClientArgument: null)))
             .WithLeadingTrivia(EmissionSyntax.MemberDocumentation(
                 "Initializes a client that owns its connection to the endpoint.",
-                [
-                    new DocumentedParameter("endpoint", "The absolute HTTP or HTTPS server endpoint."),
-                    new DocumentedParameter("options", "The client options; its endpoint must stay unset on this path."),
-                ]));
+                [new DocumentedParameter("options", "The client options; the endpoint is required.")]));
         yield return SyntaxFactory.ConstructorDeclaration(client.Name)
             .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
             .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(
@@ -144,17 +126,26 @@ internal static class ClientEmitter
                 SyntaxFactory.Parameter(SyntaxFactory.Identifier("httpClient")).WithType(TypeSyntaxEmitter.EmitNamed("HttpClient")),
                 SyntaxFactory.Parameter(SyntaxFactory.Identifier("options")).WithType(TypeSyntaxEmitter.EmitNamed("OpenCodeClientOptions")),
             ])))
-            .WithBody(SyntaxFactory.Block(EmitRootAssignments(client, "httpClient")))
+            .WithBody(SyntaxFactory.Block(EmitRootAssignments(client, httpClientArgument: "httpClient")))
             .WithLeadingTrivia(EmissionSyntax.MemberDocumentation(
-                "Initializes a client over a caller-owned HttpClient; the SDK never disposes it.",
+                "Initializes a client over a caller-owned HttpClient; the SDK never disposes it. " +
+                "With a password set, the SDK's per-request Authorization header overrides any client default; " +
+                "in anonymous mode a default Authorization header is refused at construction and before every send.",
                 [
                     new DocumentedParameter("httpClient", "The caller-owned HTTP client."),
-                    new DocumentedParameter("options", "The client options; the endpoint is required on this path."),
+                    new DocumentedParameter("options", "The client options; the endpoint is required."),
                 ]));
     }
 
-    private static List<StatementSyntax> EmitRootAssignments(ClientPlan client, string firstArgument)
+    private static List<StatementSyntax> EmitRootAssignments(ClientPlan client, string? httpClientArgument)
     {
+        var createArguments = new List<ArgumentSyntax>();
+        if (httpClientArgument is not null)
+        {
+            createArguments.Add(SyntaxFactory.Argument(SyntaxFactory.IdentifierName(httpClientArgument)));
+        }
+
+        createArguments.Add(SyntaxFactory.Argument(SyntaxFactory.IdentifierName("options")));
         var statements = new List<StatementSyntax>
         {
             SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
@@ -162,11 +153,7 @@ internal static class ClientEmitter
                 SyntaxFactory.IdentifierName("_pipeline"),
                 EmissionSyntax.Invocation(
                     EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("Pipeline"), "Create"),
-                    SyntaxFactory.Argument(SyntaxFactory.IdentifierName(firstArgument)),
-                    SyntaxFactory.Argument(SyntaxFactory.IdentifierName("options")),
-                    SyntaxFactory.Argument(SyntaxFactory.ObjectCreationExpression(
-                            TypeSyntaxEmitter.EmitNamed("SystemEnvironmentProvider"))
-                        .WithArgumentList(SyntaxFactory.ArgumentList()))))),
+                    [.. createArguments]))),
         };
         statements.AddRange(client.SubClients.Select(static reference => (StatementSyntax)SyntaxFactory.ExpressionStatement(
             SyntaxFactory.AssignmentExpression(
@@ -209,7 +196,7 @@ internal static class ClientEmitter
                         ?? throw new InvalidOperationException($"Handle client '{client.Name}' carries no handle parameter.");
         var statements = new List<StatementSyntax>();
         statements.AddRange(EmissionSyntax.ArgumentNullGuard("pipeline"));
-        statements.AddRange(EmissionSyntax.ArgumentNullOrEmptyGuard(parameter.Name));
+        statements.AddRange(EmissionSyntax.RouteValueGuard(parameter.Name));
         statements.Add(SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
             SyntaxKind.SimpleAssignmentExpression,
             SyntaxFactory.IdentifierName("_pipeline"),
@@ -283,7 +270,7 @@ internal static class ClientEmitter
     private static MethodDeclarationSyntax EmitHandleFactory(ClientPlan client, HandleFactoryPlan factory)
     {
         var statements = new List<StatementSyntax>();
-        statements.AddRange(EmissionSyntax.ArgumentNullOrEmptyGuard(factory.Parameter.Name));
+        statements.AddRange(EmissionSyntax.RouteValueGuard(factory.Parameter.Name));
         statements.Add(SyntaxFactory.ReturnStatement(SyntaxFactory.ObjectCreationExpression(
                 TypeSyntaxEmitter.EmitNamed(factory.HandleTypeName))
             .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(

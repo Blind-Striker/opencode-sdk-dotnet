@@ -41,6 +41,12 @@ internal static class CSharpNamePolicy
             return false;
         }
 
+        // Reserved keywords would emit broken source; contextual keywords are legal identifiers.
+        if (Microsoft.CodeAnalysis.CSharp.SyntaxFacts.GetKeywordKind(candidate) is not Microsoft.CodeAnalysis.CSharp.SyntaxKind.None)
+        {
+            return false;
+        }
+
         return candidate.Skip(1).All(static character => char.IsLetterOrDigit(character) || character is '_');
     }
 

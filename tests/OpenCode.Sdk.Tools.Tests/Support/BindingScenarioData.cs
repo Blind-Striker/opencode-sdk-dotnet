@@ -13,12 +13,22 @@ internal static class BindingScenarioData
     public static GenerationCuration Curation(
         IReadOnlyDictionary<string, GroupCuration> groups,
         IReadOnlyDictionary<string, string>? envelopePayloadNames = null,
-        IReadOnlyList<PropertyOverride>? propertyOverrides = null) =>
+        IReadOnlyList<PropertyOverride>? propertyOverrides = null,
+        IReadOnlyList<SchemaAlias>? schemaAliases = null) =>
         new()
         {
             Groups = groups,
             EnvelopePayloadNames = envelopePayloadNames ?? new Dictionary<string, string>(StringComparer.Ordinal),
             PropertyOverrides = propertyOverrides ?? [],
+            SchemaAliases = schemaAliases ?? [],
+        };
+
+    public static SchemaAlias Alias(string schema, string aliasOf, string reason = "The upstream spec emits a duplicate component.") =>
+        new()
+        {
+            Schema = schema,
+            AliasOf = aliasOf,
+            Reason = reason,
         };
 
     public static Dictionary<string, GroupCuration> Groups(string wireName, GroupCuration group) =>

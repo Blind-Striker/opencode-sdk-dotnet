@@ -14,6 +14,7 @@ internal static class EmitterPlanFixture
             CreateVariant("CreatedEvent", "created", "item", "Item", Named("ExampleItem")),
             CreateVariant("DeletedEvent", "deleted", "id", "ID", Named("string")),
             CreateError(),
+            CreateWidgetCreateRequest(),
         };
         var unions = new[]
         {
@@ -40,6 +41,11 @@ internal static class EmitterPlanFixture
                     "OpenCodeError",
                     "UnknownExampleEvent",
                     "UnknownOpenCodeError",
+                    "WidgetCreateRequest",
+                    "WidgetCreateResponseEnvelope",
+                    "WidgetItemListResponseEnvelope",
+                    "WidgetItemResponseEnvelope",
+                    "WidgetListResponseEnvelope",
                 ],
             },
             PendingOperations = [],
@@ -68,15 +74,17 @@ internal static class EmitterPlanFixture
             Name = "WidgetClient",
             Namespace = "OpenCode.Sdk",
             Role = ClientRole.Handle,
+            ContainerName = "Widgets",
             SubClients = [],
             HandleParameter = CreateWidgetParameter(),
-            Operations = [CreateItemOperation()],
+            Operations = [CreateItemOperation(), CreateItemListOperation()],
         },
         new ClientPlan
         {
             Name = "WidgetsClient",
             Namespace = "OpenCode.Sdk",
             Role = ClientRole.Collection,
+            ContainerName = "Widgets",
             SubClients = [],
             HandleFactory = new HandleFactoryPlan
             {
@@ -84,7 +92,7 @@ internal static class EmitterPlanFixture
                 HandleTypeName = "WidgetClient",
                 Parameter = CreateWidgetParameter(),
             },
-            Operations = [CreateOverviewOperation()],
+            Operations = [CreateOverviewOperation(), CreateWidgetListOperation(), CreateWidgetCreateOperation()],
         },
     ];
 
@@ -103,7 +111,7 @@ internal static class EmitterPlanFixture
                 AdapterTypeName = "PingResponseAdapter",
                 PayloadName = "Ping",
                 PayloadTypeName = "ExampleItem",
-                HasDataEnvelope = false,
+                Kind = EnvelopeKind.Bare,
             },
             ErrorMap = new ErrorMapPlan
             {
@@ -135,7 +143,7 @@ internal static class EmitterPlanFixture
                 AdapterTypeName = "WidgetOverviewResponseAdapter",
                 PayloadName = "Overview",
                 PayloadTypeName = "ExampleItem",
-                HasDataEnvelope = false,
+                Kind = EnvelopeKind.Bare,
             },
             ErrorMap = new ErrorMapPlan
             {
@@ -170,7 +178,8 @@ internal static class EmitterPlanFixture
                 AdapterTypeName = "WidgetItemResponseAdapter",
                 PayloadName = "Item",
                 PayloadTypeName = "ExampleItem",
-                HasDataEnvelope = true,
+                Kind = EnvelopeKind.Data,
+                EnvelopeDtoTypeName = "WidgetItemResponseEnvelope",
             },
             ErrorMap = new ErrorMapPlan
             {
@@ -205,6 +214,164 @@ internal static class EmitterPlanFixture
             IsHandleParameter = true,
         };
 
+    /// <summary>A flat query-request list operation covering every query value kind, a cursor envelope, and a 5xx arm.</summary>
+    private static OperationPlan CreateWidgetListOperation() =>
+        new()
+        {
+            MethodName = "ListWidgetsAsync",
+            HttpMethod = "get",
+            RouteTemplate = "/api/widget",
+            RouteContainerName = "Widgets",
+            RouteMemberName = "ListWidgets",
+            Parameters = [],
+            QueryRequest = new QueryRequestPlan
+            {
+                TypeName = "WidgetListRequest",
+                DerivesFromListRequest = false,
+                Properties =
+                [
+                    QueryProperty("limit", "Limit", QueryValueKind.PositiveCount),
+                    QueryProperty("order", "Order", QueryValueKind.ListOrder),
+                    QueryProperty("cursor", "Cursor", QueryValueKind.Text),
+                    QueryProperty("parentID", "ParentId", QueryValueKind.SessionParentFilter),
+                ],
+            },
+            Envelope = new EnvelopePlan
+            {
+                ResponseTypeName = "WidgetListResponse",
+                AdapterTypeName = "WidgetListResponseAdapter",
+                PayloadName = "Widgets",
+                PayloadTypeName = "ExampleItem",
+                Kind = EnvelopeKind.CursorList,
+                EnvelopeDtoTypeName = "WidgetListResponseEnvelope",
+            },
+            ErrorMap = new ErrorMapPlan
+            {
+                Statuses =
+                [
+                    new ErrorStatusPlan
+                    {
+                        StatusCode = 400,
+                        Tags = [new ErrorTagPlan { Tag = "BadRequestError", TypeName = "BadRequestError", }],
+                    },
+                    new ErrorStatusPlan
+                    {
+                        StatusCode = 500,
+                        Tags = [new ErrorTagPlan { Tag = "BadRequestError", TypeName = "BadRequestError", }],
+                    },
+                ],
+            },
+            Summary = "List the widgets",
+            Description = null,
+        };
+
+    /// <summary>A handle-scoped list whose query request derives from the ListRequest base.</summary>
+    private static OperationPlan CreateItemListOperation() =>
+        new()
+        {
+            MethodName = "ListItemsAsync",
+            HttpMethod = "get",
+            RouteTemplate = "/api/widget/{widgetID}/item",
+            RouteContainerName = "Widgets",
+            RouteMemberName = "ListItems",
+            Parameters = [CreateWidgetParameter()],
+            QueryRequest = new QueryRequestPlan
+            {
+                TypeName = "ItemListRequest",
+                DerivesFromListRequest = true,
+                Properties =
+                [
+                    QueryProperty("limit", "Limit", QueryValueKind.PositiveCount, isInherited: true),
+                    QueryProperty("order", "Order", QueryValueKind.ListOrder, isInherited: true),
+                    QueryProperty("cursor", "Cursor", QueryValueKind.Text, isInherited: true),
+                ],
+            },
+            Envelope = new EnvelopePlan
+            {
+                ResponseTypeName = "WidgetItemListResponse",
+                AdapterTypeName = "WidgetItemListResponseAdapter",
+                PayloadName = "Items",
+                PayloadTypeName = "ExampleItem",
+                Kind = EnvelopeKind.CursorList,
+                EnvelopeDtoTypeName = "WidgetItemListResponseEnvelope",
+            },
+            ErrorMap = new ErrorMapPlan
+            {
+                Statuses =
+                [
+                    new ErrorStatusPlan
+                    {
+                        StatusCode = 404,
+                        Tags = [new ErrorTagPlan { Tag = "MissingError", TypeName = "MissingError", }],
+                    },
+                ],
+            },
+            Summary = "List the widget items",
+            Description = null,
+        };
+
+    /// <summary>A create operation with an optional all-optional request body.</summary>
+    private static OperationPlan CreateWidgetCreateOperation() =>
+        new()
+        {
+            MethodName = "CreateWidgetAsync",
+            HttpMethod = "post",
+            RouteTemplate = "/api/widget",
+            RouteContainerName = "Widgets",
+            RouteMemberName = "CreateWidget",
+            Parameters = [],
+            RequestBody = new RequestBodyPlan
+            {
+                TypeName = "WidgetCreateRequest",
+                ParameterName = "request",
+                IsOptional = true,
+            },
+            Envelope = new EnvelopePlan
+            {
+                ResponseTypeName = "WidgetCreateResponse",
+                AdapterTypeName = "WidgetCreateResponseAdapter",
+                PayloadName = "Widget",
+                PayloadTypeName = "ExampleItem",
+                Kind = EnvelopeKind.Data,
+                EnvelopeDtoTypeName = "WidgetCreateResponseEnvelope",
+            },
+            ErrorMap = new ErrorMapPlan
+            {
+                Statuses =
+                [
+                    new ErrorStatusPlan
+                    {
+                        StatusCode = 400,
+                        Tags = [new ErrorTagPlan { Tag = "BadRequestError", TypeName = "BadRequestError", }],
+                    },
+                ],
+            },
+            Summary = "Create one widget",
+            Description = null,
+        };
+
+    private static QueryPropertyPlan QueryProperty(string wireName, string propertyName, QueryValueKind kind,
+        bool isInherited = false) =>
+        new()
+        {
+            WireName = wireName,
+            PropertyName = propertyName,
+            Kind = kind,
+            IsInherited = isInherited,
+        };
+
+    private static ObjectModelPlan CreateWidgetCreateRequest() =>
+        new()
+        {
+            Name = "WidgetCreateRequest",
+            Namespace = "OpenCode.Sdk.Models",
+            Description = "Shapes the widget-create request body.",
+            Properties =
+            [
+                Property("title", "Title", Named("string", isNullable: true), isRequired: false, "Gets the widget title."),
+            ],
+        };
+
     public static EmitPlan CreateModelSnapshot()
     {
         var plan = Create();
@@ -220,7 +387,29 @@ internal static class EmitterPlanFixture
         };
     }
 
-    public static IReadOnlyList<UnionPlan> CreateUnionSnapshot() => [CreateExampleEvent()];
+    public static IReadOnlyList<UnionPlan> CreateUnionSnapshot() => [CreateExampleEvent(), CreateExamplePhase()];
+
+    /// <summary>A nested union whose outer tag is fixed; both converters must enforce it.</summary>
+    private static UnionPlan CreateExamplePhase() =>
+        new()
+        {
+            Name = "ExamplePhase",
+            Namespace = "OpenCode.Sdk.Models",
+            UnknownTypeName = "UnknownExamplePhase",
+            MarkerWireName = "status",
+            MarkerName = "Status",
+            MarkerKind = LiteralKind.String,
+            BaseTypeName = "ExampleEvent",
+            FixedMarker = new UnionFixedMarkerPlan
+            {
+                WireName = "type",
+                Name = "Type",
+                Kind = LiteralKind.String,
+                Value = "phase",
+            },
+            Variants = [new UnionVariantPlan { TypeName = "PhaseStartedEvent", Tag = "started", }],
+            Description = "Represents an example nested phase union.",
+        };
 
     public static RegistryPlan CreateRegistry() => Create().Registry;
 
@@ -234,6 +423,9 @@ internal static class EmitterPlanFixture
             [
                 Property("id", "ID", Named("string"), isRequired: true, "Gets the item identifier."),
                 Property("note", "Note", Named("string", isNullable: true), isRequired: false, description: null),
+                Property("count", "Count", Named("double", isNullable: true), isRequired: false, "Gets the item count."),
+                Property("flushedAt", "FlushedAt", Named("double", isNullable: true), isRequired: false,
+                    "Gets the flush timestamp, or null when never flushed.", allowsWireNull: true),
                 Property("tags", "Tags", ListOf(Named("string")), isRequired: false, "Gets the item tags."),
                 Property("links", "Links", DictionaryOf(Named("Uri")), isRequired: false, "Gets links by relation."),
             ],
@@ -312,13 +504,14 @@ internal static class EmitterPlanFixture
         };
 
     private static ModelPropertyPlan Property(string wireName, string name, TypeReferencePlan type, bool isRequired,
-        string? description) =>
+        string? description, bool allowsWireNull = false) =>
         new()
         {
             WireName = wireName,
             Name = name,
             Type = type,
             IsRequired = isRequired,
+            AllowsWireNull = allowsWireNull,
             IsLiteral = false,
             Description = description,
         };
@@ -330,6 +523,7 @@ internal static class EmitterPlanFixture
             Name = name,
             Type = Named("string"),
             IsRequired = true,
+            AllowsWireNull = false,
             IsLiteral = true,
             LiteralKind = LiteralKind.String,
             LiteralValue = value,

@@ -8,8 +8,14 @@ internal sealed record EnvelopePlan
 
     public required string PayloadName { get; init; }
 
+    /// <summary>Gets the payload type name; for cursor lists, the element type of the <c>data</c> array.</summary>
     public required string PayloadTypeName { get; init; }
 
-    /// <summary>Gets a value indicating whether the wire success body wraps the payload in a <c>data</c> property.</summary>
-    public required bool HasDataEnvelope { get; init; }
+    public required EnvelopeKind Kind { get; init; }
+
+    /// <summary>
+    /// Gets the internal single-pass deserialization DTO type name for wrapped envelopes,
+    /// or <see langword="null"/> when the body is the payload itself.
+    /// </summary>
+    public string? EnvelopeDtoTypeName { get; init; }
 }

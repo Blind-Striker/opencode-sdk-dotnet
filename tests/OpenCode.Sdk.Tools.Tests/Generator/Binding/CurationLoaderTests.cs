@@ -20,6 +20,20 @@ public sealed class CurationLoaderTests
         await Assert.That(curation.Groups["health"].Placement).IsEqualTo(GroupPlacement.Root);
         await Assert.That(curation.EnvelopePayloadNames).IsEmpty();
         await Assert.That(curation.PropertyOverrides).IsEmpty();
+        await Assert.That(curation.SchemaAliases).IsEmpty();
+    }
+
+    [Test]
+    public async Task LoadAsync_Should_Read_Schema_Alias_Rows()
+    {
+        var fileSystem = CreateFileSystem("Binding.alias-curation.json");
+
+        var curation = await new CurationLoader(fileSystem).LoadAsync(CurationPath, CancellationToken.None);
+
+        var alias = curation.SchemaAliases.Single();
+        await Assert.That(alias.Schema).IsEqualTo("InvalidRequestError1");
+        await Assert.That(alias.AliasOf).IsEqualTo("InvalidRequestError");
+        await Assert.That(alias.Reason).Contains("duplicate");
     }
 
     [Test]

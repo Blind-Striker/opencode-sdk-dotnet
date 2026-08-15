@@ -34,24 +34,6 @@ public sealed class ResponseAdapterTests
     }
 
     [Test]
-    public async Task ReadDataPayload_Should_Unwrap_The_Data_Envelope()
-    {
-        var payload = ProbeAdapter.Data(
-            "{\"data\":{\"healthy\":false,\"version\":\"2\",\"pid\":9}}",
-            OpenCodeJsonContext.Default.ServiceHealth);
-
-        await Assert.That(payload.Healthy).IsFalse();
-        await Assert.That(payload.Version).IsEqualTo("2");
-    }
-
-    [Test]
-    public async Task ReadDataPayload_Should_Refuse_A_Missing_Data_Property()
-    {
-        _ = Assert.Throws<OpenCodeTransportException>(() =>
-            _ = ProbeAdapter.Data("{\"other\":1}", OpenCodeJsonContext.Default.ServiceHealth));
-    }
-
-    [Test]
     public async Task ReadTolerantError_Should_Keep_A_Known_Tag_At_Its_Declared_Status()
     {
         var error = ProbeAdapter.Error("{\"_tag\":\"UnauthorizedError\",\"message\":\"no\"}", UnauthorizedTags);
@@ -98,9 +80,6 @@ public sealed class ResponseAdapterTests
     {
         public static TPayload Bare<TPayload>(string rawBody, JsonTypeInfo<TPayload> typeInfo) =>
             ReadBarePayload(rawBody, typeInfo);
-
-        public static TPayload Data<TPayload>(string rawBody, JsonTypeInfo<TPayload> typeInfo) =>
-            ReadDataPayload(rawBody, typeInfo);
 
         public static OpenCodeError? Error(string rawBody, IReadOnlyCollection<string>? allowedTags) =>
             ReadTolerantError(rawBody, allowedTags);

@@ -62,9 +62,11 @@ internal sealed class PathTemplateValidator
             {
                 errors.Add(location, $"path '{path}' contains a malformed template token");
             }
-            else
+            else if (!tokens.Add(token))
             {
-                tokens.Add(token);
+                // Route builders substitute each token exactly once; a repeated placeholder
+                // would leave raw braces in the built route.
+                errors.Add(location, $"path token '{token}' must appear exactly once in the template");
             }
 
             index = close + 1;

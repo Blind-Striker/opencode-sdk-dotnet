@@ -1,8 +1,12 @@
 Generation is incomplete; packages must not be published.
-Selected operations: 2
-Pending operations: 118
+Selected operations: 6
+Pending operations: 114
 Selected:
 - v2.health.get
+- v2.message.list
+- v2.session.create
+- v2.session.get
+- v2.session.list
 - v2.session.message
 Pending:
 - v2.agent.get
@@ -39,7 +43,6 @@ Pending:
 - v2.mcp.list
 - v2.mcp.remove
 - v2.mcp.resource.catalog
-- v2.message.list
 - v2.model.default
 - v2.model.list
 - v2.permission.request.list
@@ -69,7 +72,6 @@ Pending:
 - v2.session.command
 - v2.session.compact
 - v2.session.context
-- v2.session.create
 - v2.session.export
 - v2.session.fork
 - v2.session.form.cancel
@@ -79,7 +81,6 @@ Pending:
 - v2.session.form.reply
 - v2.session.form.state
 - v2.session.generate
-- v2.session.get
 - v2.session.import
 - v2.session.inbox.cancel
 - v2.session.inbox.list
@@ -89,7 +90,6 @@ Pending:
 - v2.session.instructions.entry.put
 - v2.session.instructions.entry.remove
 - v2.session.interrupt
-- v2.session.list
 - v2.session.log
 - v2.session.move
 - v2.session.permission.create

@@ -4,6 +4,7 @@ using OpenCode.Sdk.Tools.Generator.Binding;
 using OpenCode.Sdk.Tools.Generator.Binding.Abstractions;
 using OpenCode.Sdk.Tools.Generator.Emission;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Abstractions;
+using OpenCode.Sdk.Tools.Output;
 using OpenCode.Sdk.Tools.Output.Abstractions;
 
 namespace OpenCode.Sdk.Tools.Generator;
@@ -39,13 +40,25 @@ internal sealed class GenerationCoordinator(
 
         var marker = pending.Length > 0 ? CreatePartialMarker(plan.SelectedOperationIds, pending) : null;
 
+        // The admitted family folders are the plan's own container names — never an open glob.
+        var familyFolders = plan.Clients
+            .SelectMany(static client => client.Operations)
+            .Select(static operation => operation.RouteContainerName)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
         var writeResult = await _writer
             .WriteAsync(
-                request.OutputRoot,
-                request.ProjectPath,
-                SourceEmitter.Emit(plan),
-                marker,
-                request.Verify,
+                new GenerationWriteRequest
+                {
+                    OutputRoot = request.OutputRoot,
+                    ProjectPath = request.ProjectPath,
+                    Sources = SourceEmitter.Emit(plan),
+                    FamilyFolders = familyFolders,
+                    PartialMarkerContent = marker,
+                    Verify = request.Verify,
+                },
                 cancellationToken)
             .ConfigureAwait(false);
 

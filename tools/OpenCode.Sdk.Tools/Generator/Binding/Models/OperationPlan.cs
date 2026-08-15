@@ -26,6 +26,12 @@ internal sealed record OperationPlan
         }
     } = Array.AsReadOnly(Array.Empty<OperationParameterPlan>());
 
+    /// <summary>Gets the query-request record plan, or <see langword="null"/> when the operation has no query parameters.</summary>
+    public QueryRequestPlan? QueryRequest { get; init; }
+
+    /// <summary>Gets the request-body plan, or <see langword="null"/> when the operation sends no body.</summary>
+    public RequestBodyPlan? RequestBody { get; init; }
+
     public required EnvelopePlan Envelope { get; init; }
 
     public required ErrorMapPlan ErrorMap { get; init; }

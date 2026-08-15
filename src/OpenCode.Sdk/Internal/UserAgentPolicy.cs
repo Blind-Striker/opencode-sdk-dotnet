@@ -8,16 +8,18 @@ internal static class UserAgentPolicy
 {
     private const string ProductName = "OpenCode.Sdk";
 
+    /// <summary>The informational version is process-invariant, so the reflection runs once;
+    /// the token value object is immutable and safe to share across header collections.</summary>
+    private static readonly ProductInfoHeaderValue Resolved = Compose(typeof(UserAgentPolicy).Assembly
+        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
+
     /// <summary>Reads the SDK assembly's informational version into the product token.</summary>
-    public static ProductInfoHeaderValue Resolve() =>
-        Compose(typeof(UserAgentPolicy).Assembly
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
+    public static ProductInfoHeaderValue Resolve() => Resolved;
 
     /// <summary>
     /// Composes the product token from an informational version. Build metadata after
     /// <c>+</c> is stripped; a missing or unparsable version omits the version token
-    /// entirely — never a silent substitute, never a construction failure
-    /// (maintainer, 2026-08-13).
+    /// entirely — never a silent substitute, never a construction failure.
     /// </summary>
     /// <param name="informationalVersion">The assembly's informational version, when present.</param>
     /// <returns>The product token for User-Agent decoration.</returns>

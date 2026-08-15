@@ -12,27 +12,19 @@ internal sealed class GenerationWriter(IFileSystem fileSystem, IProjectFormatter
     private const string ManifestRelativePath = ".generated-manifest.json";
     private const string MarkerRelativePath = ".generation-incomplete";
     private static readonly StringComparer OwnedPathComparer = StringComparer.OrdinalIgnoreCase;
+
+    /// <summary>Admitted family folders are single plain segments that never shadow a statically owned directory.</summary>
+    private static readonly string[] StaticallyOwnedFolders = ["Models", "Internal", "Pagination", "Properties"];
     private readonly IFileSystem _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
     private readonly IProjectFormatter _formatter = formatter ?? throw new ArgumentNullException(nameof(formatter));
 
-    public async Task<WriteResult> WriteAsync(
-        string outputRoot,
-        string projectPath,
-        IReadOnlyList<GeneratedSource> sources,
-        string? partialMarkerContent,
-        bool verify,
-        CancellationToken cancellationToken)
+    public async Task<WriteResult> WriteAsync(GenerationWriteRequest request, CancellationToken cancellationToken)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(outputRoot);
-        ArgumentException.ThrowIfNullOrWhiteSpace(projectPath);
-        ArgumentNullException.ThrowIfNull(sources);
-        if (partialMarkerContent is not null)
-        {
-            ArgumentException.ThrowIfNullOrWhiteSpace(partialMarkerContent);
-        }
-
+        ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
-        var newSources = ValidateSources(outputRoot, sources);
+        var outputRoot = request.OutputRoot;
+        var familyFolders = ValidateFamilyFolders(request.FamilyFolders);
+        var newSources = ValidateSources(outputRoot, request.Sources, familyFolders);
         var oldManifest = await LoadManifestAsync(outputRoot, cancellationToken).ConfigureAwait(false);
         var oldPaths = ValidateManifest(outputRoot, oldManifest);
         RefuseCaseOnlyPathChanges(oldPaths, newSources.Keys);
@@ -50,15 +42,43 @@ internal sealed class GenerationWriter(IFileSystem fileSystem, IProjectFormatter
         await WriteSourcesAsync(outputRoot, newSources, cancellationToken).ConfigureAwait(false);
         DeleteStaleSources(outputRoot, oldPaths, newSources.Keys);
         await WriteManifestAsync(outputRoot, newSources.Keys, cancellationToken).ConfigureAwait(false);
-        await WriteMarkerAsync(outputRoot, partialMarkerContent, cancellationToken).ConfigureAwait(false);
+        await WriteMarkerAsync(outputRoot, request.PartialMarkerContent, cancellationToken).ConfigureAwait(false);
         var sourcePaths = newSources.Keys.Order(StringComparer.Ordinal).ToArray();
-        await _formatter.FormatAsync(projectPath, sourcePaths, cancellationToken).ConfigureAwait(false);
+        await _formatter.FormatAsync(request.ProjectPath, sourcePaths, cancellationToken).ConfigureAwait(false);
 
         var after = await SnapshotAsync(outputRoot, trackedPaths, cancellationToken).ConfigureAwait(false);
-        return Compare(before, after, verify);
+        return Compare(before, after, request.Verify);
     }
 
-    private Dictionary<string, GeneratedSource> ValidateSources(string outputRoot, IReadOnlyList<GeneratedSource> sources)
+    private static HashSet<string> ValidateFamilyFolders(IReadOnlyList<string> familyFolders)
+    {
+        // Owned paths compare case-insensitively (Windows/macOS filesystems), so the
+        // shadow and duplicate checks must too — 'models' collides with 'Models/' on disk.
+        var result = new HashSet<string>(OwnedPathComparer);
+        foreach (var folder in familyFolders)
+        {
+            if (string.IsNullOrWhiteSpace(folder) || folder is "." or ".."
+                || folder.Contains('/', StringComparison.Ordinal) || folder.Contains('\\', StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException($"Family folder '{folder}' is unsafe.");
+            }
+
+            if (StaticallyOwnedFolders.Contains(folder, OwnedPathComparer))
+            {
+                throw new InvalidOperationException($"Family folder '{folder}' shadows a statically owned directory.");
+            }
+
+            if (!result.Add(folder))
+            {
+                throw new InvalidOperationException($"Family folder '{folder}' is duplicated.");
+            }
+        }
+
+        return result;
+    }
+
+    private Dictionary<string, GeneratedSource> ValidateSources(string outputRoot, IReadOnlyList<GeneratedSource> sources,
+        HashSet<string> familyFolders)
     {
         var result = new Dictionary<string, GeneratedSource>(OwnedPathComparer);
         foreach (var source in sources)
@@ -69,7 +89,7 @@ internal sealed class GenerationWriter(IFileSystem fileSystem, IProjectFormatter
             }
 
             ValidateRelativePath(outputRoot, source.RelativePath);
-            ValidateGeneratedSourcePath(source.RelativePath);
+            ValidateGeneratedSourcePath(source.RelativePath, familyFolders);
 
             // A headerless source would deadlock the next run's provenance requirement.
             if (!GenerationProvenance.HasHeader(Encoding.UTF8.GetString(source.Utf8Source.Span)))
@@ -112,7 +132,7 @@ internal sealed class GenerationWriter(IFileSystem fileSystem, IProjectFormatter
         foreach (var relativePath in manifest.Files)
         {
             ValidateRelativePath(outputRoot, relativePath);
-            ValidateGeneratedSourcePath(relativePath);
+            ValidateManifestSourcePath(relativePath);
             if (!result.Add(relativePath))
             {
                 throw new InvalidOperationException($"Generation manifest path '{relativePath}' is duplicated.");
@@ -210,17 +230,40 @@ internal sealed class GenerationWriter(IFileSystem fileSystem, IProjectFormatter
         _ = ResolveOwnedPath(outputRoot, relativePath);
     }
 
-    private static void ValidateGeneratedSourcePath(string relativePath)
+    /// <summary>New sources land in the root, a statically owned directory, or an admitted family folder — one level deep.</summary>
+    private static void ValidateGeneratedSourcePath(string relativePath, HashSet<string> familyFolders)
     {
         if (!relativePath.EndsWith(".cs", StringComparison.Ordinal)
             || !(!relativePath.Contains('/', StringComparison.Ordinal)
-                 || relativePath.StartsWith("Models/", StringComparison.Ordinal)
-                 || relativePath.StartsWith("Internal/Serialization/", StringComparison.Ordinal)
-                 || relativePath.StartsWith("Internal/ResponseAdapters/", StringComparison.Ordinal)))
+                 || IsStaticallyOwnedPath(relativePath)
+                 || IsAdmittedFamilyPath(relativePath, familyFolders)))
         {
             throw new InvalidOperationException($"Generated source path '{relativePath}' is outside the owned source directories.");
         }
     }
+
+    /// <summary>
+    /// Manifest entries validate shape, not family membership: a retired family's files must
+    /// stay deletable, and the provenance requirement still guards every overwrite and delete.
+    /// </summary>
+    private static void ValidateManifestSourcePath(string relativePath)
+    {
+        if (!relativePath.EndsWith(".cs", StringComparison.Ordinal)
+            || !(!relativePath.Contains('/', StringComparison.Ordinal)
+                 || IsStaticallyOwnedPath(relativePath)
+                 || relativePath.Split('/').Length is 2))
+        {
+            throw new InvalidOperationException($"Generation manifest path '{relativePath}' is outside the owned source directories.");
+        }
+    }
+
+    private static bool IsStaticallyOwnedPath(string relativePath) =>
+        relativePath.StartsWith("Models/", StringComparison.Ordinal)
+        || relativePath.StartsWith("Internal/Serialization/", StringComparison.Ordinal)
+        || relativePath.StartsWith("Internal/ResponseAdapters/", StringComparison.Ordinal);
+
+    private static bool IsAdmittedFamilyPath(string relativePath, HashSet<string> familyFolders) =>
+        relativePath.Split('/') is [var folder, _] && familyFolders.Contains(folder);
 
     /// <summary>A new path that already exists on disk belongs to somebody else until the manifest owns it.</summary>
     private void RefuseUnmanifestedOverwrites(string outputRoot, HashSet<string> oldPaths, IEnumerable<string> newPaths)

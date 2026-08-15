@@ -188,9 +188,19 @@ internal sealed class UnionNormalizer
     /// </summary>
     private bool IsMarkedUnionReference(IOpenApiSchema source) =>
         source is OpenApiSchemaReference { Target: OpenApiSchema target }
-        && IsPureAnyOfBranch(target)
-        && target.AnyOf is { Count: > 1 } nested
+        && (IsPureAnyOfBranch(target) || IsPureOneOfBranch(target))
+        && (target.AnyOf is { Count: > 1 } ? target.AnyOf : target.OneOf) is { Count: > 1 } nested
         && nested.All(branch => _literalClassifier.FindFirstMarker(branch) is not null);
+
+    /// <summary>The oneOf twin of <see cref="IsPureAnyOfBranch"/>; a nested marked union may use either keyword exclusively.</summary>
+    private static bool IsPureOneOfBranch(OpenApiSchema schema) =>
+        schema is { OneOf.Count: > 0, Type: null, Enum: null, Const: null, Items: null, Properties: null, AdditionalProperties: null }
+        && schema.AnyOf is not { Count: > 0 }
+        && schema.AllOf is not { Count: > 0 }
+        && schema.Required is not { Count: > 0 }
+        && schema.PatternProperties is not { Count: > 0 }
+        && schema.AdditionalPropertiesAllowed
+        && schema is { ContentEncoding: null, ContentMediaType: null, ContentSchema: null };
 
     private static ProjectedBranch[] DeduplicateReferences(IReadOnlyList<ProjectedBranch> branches)
     {

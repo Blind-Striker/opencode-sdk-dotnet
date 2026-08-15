@@ -2,11 +2,13 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Preserves an unknown open code error payload.
 /// </summary>
+[JsonConverter(typeof(UnknownOpenCodeErrorJsonConverter))]
 public sealed record UnknownOpenCodeError : OpenCodeError
 {
     private readonly string _marker;
@@ -17,6 +19,11 @@ public sealed record UnknownOpenCodeError : OpenCodeError
     public UnknownOpenCodeError(string tag, JsonElement payload)
     {
         ArgumentException.ThrowIfNullOrEmpty(tag);
+        if (payload.ValueKind is JsonValueKind.Undefined)
+        {
+            throw new ArgumentException("The payload must be a parsed JSON element.", nameof(payload));
+        }
+
         _marker = tag;
         Payload = payload.Clone();
     }

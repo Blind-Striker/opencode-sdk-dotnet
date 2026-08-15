@@ -296,12 +296,13 @@ public sealed class OpenCodeRequestOptions
   demonstrates the need.
 - `CancellationToken` stays a **separate last parameter** (TAP convention — deliberately
   unlike Azure's RequestContext, which folds it in).
-- `Directory` resolves the ROADMAP question: client-level default (§10) + per-call
-  override, the .NET rendering of upstream's `createOpencodeClient({directory})` +
-  per-request header. Carried as the `x-opencode-directory` header on every request,
-  SSE included (header-only; upstream's GET/HEAD query rewrite is a browser/EventSource
-  constraint we don't share). Server precedence is query > header, so explicit per-op
-  `location[…]` parameters override the ambient value — documented behavior.
+- `Directory` as a concept — client-level ambient default (§10) + per-call override —
+  survives, but the v1 header-only transport described here is obsolete: v2 resolves
+  location dual-channel (`location[…]` deepObject query parameters, used exclusively by
+  the first-party client, OR ambient `x-opencode-directory`/`x-opencode-workspace`
+  headers; precedence query > header — research doc 15 §6). The concrete SDK rendering
+  is designed in the location + merged-Request session at M3 planning (research log
+  Session 22).
 - The options class grows extend-only (adding properties is non-breaking).
 
 ## 7. Client composition
