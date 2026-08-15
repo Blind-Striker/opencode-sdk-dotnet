@@ -103,6 +103,39 @@ internal sealed class Pipeline : IDisposable
         return new Pipeline(httpClient, ownsHttpClient: false, options);
     }
 
+    public Task<TResponse> ExecuteAsync<TResponse>(HttpMethod method, string route, ResponseAdapter<TResponse> adapter,
+        OpenCodeRequestOptions? options, CancellationToken cancellationToken)
+        where TResponse : OpenCodeResponse =>
+        ExecuteCoreAsync<object, TResponse>(method, route, body: null, bodyTypeInfo: null, adapter, options, cancellationToken);
+
+    public Task<TResponse> ExecuteAsync<TBody, TResponse>(HttpMethod method, string route, TBody body,
+        JsonTypeInfo<TBody> bodyTypeInfo, ResponseAdapter<TResponse> adapter, OpenCodeRequestOptions? options,
+        CancellationToken cancellationToken)
+        where TBody : class
+        where TResponse : OpenCodeResponse
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        ArgumentNullException.ThrowIfNull(bodyTypeInfo);
+        return ExecuteCoreAsync(method, route, body, bodyTypeInfo, adapter, options, cancellationToken);
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        if (_ownsHttpClient)
+        {
+            _httpClient.Dispose();
+        }
+    }
+
+    /// <summary>Presence beats parseability: a raw unparseable default value still rides the wire.</summary>
+    private static bool CarriesDefaultAuthorization(HttpClient httpClient) => httpClient.DefaultRequestHeaders.TryGetValues("Authorization", out _);
+
     /// <summary>The owned transport: pooled connection lifetime keeps DNS rotation alive on modern TFMs.</summary>
     private static HttpClient CreateOwnedHttpClient()
     {
@@ -126,22 +159,6 @@ internal sealed class Pipeline : IDisposable
         // net472/netstandard2.0 stay on the default handler; ServicePointManager hardening is an M3 item.
         return new HttpClient();
 #endif
-    }
-
-    public Task<TResponse> ExecuteAsync<TResponse>(HttpMethod method, string route, ResponseAdapter<TResponse> adapter,
-        OpenCodeRequestOptions? options, CancellationToken cancellationToken)
-        where TResponse : OpenCodeResponse =>
-        ExecuteCoreAsync<object, TResponse>(method, route, body: null, bodyTypeInfo: null, adapter, options, cancellationToken);
-
-    public Task<TResponse> ExecuteAsync<TBody, TResponse>(HttpMethod method, string route, TBody body,
-        JsonTypeInfo<TBody> bodyTypeInfo, ResponseAdapter<TResponse> adapter, OpenCodeRequestOptions? options,
-        CancellationToken cancellationToken)
-        where TBody : class
-        where TResponse : OpenCodeResponse
-    {
-        ArgumentNullException.ThrowIfNull(body);
-        ArgumentNullException.ThrowIfNull(bodyTypeInfo);
-        return ExecuteCoreAsync(method, route, body, bodyTypeInfo, adapter, options, cancellationToken);
     }
 
     private async Task<TResponse> ExecuteCoreAsync<TBody, TResponse>(HttpMethod method, string route, TBody? body,
@@ -201,23 +218,6 @@ internal sealed class Pipeline : IDisposable
         content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
         return content;
     }
-
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-        if (_ownsHttpClient)
-        {
-            _httpClient.Dispose();
-        }
-    }
-
-    /// <summary>Presence beats parseability: a raw unparseable default value still rides the wire.</summary>
-    private static bool CarriesDefaultAuthorization(HttpClient httpClient) => httpClient.DefaultRequestHeaders.TryGetValues("Authorization", out _);
 
     private void Decorate(HttpRequestMessage request)
     {
