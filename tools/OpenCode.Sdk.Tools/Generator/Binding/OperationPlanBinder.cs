@@ -357,7 +357,9 @@ internal sealed class OperationPlanBinder
             var before = _errors.Count;
             var isGet = string.Equals(_operation.Method, "get", StringComparison.Ordinal);
             var isPost = string.Equals(_operation.Method, "post", StringComparison.Ordinal);
-            if (!isGet && !isPost)
+            var isDelete = string.Equals(_operation.Method, "delete", StringComparison.Ordinal);
+            var isPatch = string.Equals(_operation.Method, "patch", StringComparison.Ordinal);
+            if (!isGet && !isPost && !isDelete && !isPatch)
             {
                 Refuse($"HTTP method '{_operation.Method}' is not supported");
             }
@@ -377,14 +379,14 @@ internal sealed class OperationPlanBinder
                 Refuse("event-stream responses are not supported in M1");
             }
 
-            if (isGet && _operation.RequestBody is not null)
+            if ((isGet || isDelete) && _operation.RequestBody is not null)
             {
-                Refuse("GET operations must not carry a request body");
+                Refuse($"{_operation.Method.ToUpperInvariant()} operations must not carry a request body");
             }
 
-            if (isPost && _operation.RequestBody is null)
+            if ((isPost || isPatch) && _operation.RequestBody is null)
             {
-                Refuse("POST operations must carry a request body");
+                Refuse($"{_operation.Method.ToUpperInvariant()} operations must carry a request body");
             }
 
             CheckParameterShapes();

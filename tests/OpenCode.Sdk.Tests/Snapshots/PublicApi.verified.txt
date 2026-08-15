@@ -70,6 +70,7 @@
         protected OpenCodeClient() { }
         public OpenCodeClient(OpenCode.Sdk.OpenCodeClientOptions options) { }
         public virtual OpenCode.Sdk.SessionsClient Sessions { get; }
+        public virtual OpenCode.Sdk.ShellsClient Shells { get; }
         public void Dispose() { }
         protected virtual void Dispose(bool disposing) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.HealthResponse> GetHealthAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
@@ -115,10 +116,27 @@
             public const string GetSessionTemplate = "/api/session/{sessionID}";
             public const string ListMessagesTemplate = "/api/session/{sessionID}/message";
             public const string ListSessionsTemplate = "/api/session";
+            public const string RemoveSessionTemplate = "/api/session/{sessionID}";
+            public const string RenameSessionTemplate = "/api/session/{sessionID}/rename";
             public static string GetMessage(string sessionId, string messageId) { }
             public static string GetSession(string sessionId) { }
             public static string ListMessages(string sessionId, OpenCode.Sdk.MessageListRequest? request = null) { }
             public static string ListSessions(OpenCode.Sdk.SessionListRequest? request = null) { }
+            public static string RemoveSession(string sessionId) { }
+            public static string RenameSession(string sessionId) { }
+        }
+        public static class Shells
+        {
+            public const string CreateShellTemplate = "/api/shell";
+            public const string GetShellTemplate = "/api/shell/{id}";
+            public const string ListShellsTemplate = "/api/shell";
+            public const string RemoveShellTemplate = "/api/shell/{id}";
+            public const string TimeoutShellTemplate = "/api/shell/{id}/timeout";
+            public static string CreateShell(OpenCode.Sdk.Models.ShellCreateRequest? request = null) { }
+            public static string GetShell(string id, OpenCode.Sdk.ShellRequest? request = null) { }
+            public static string ListShells(OpenCode.Sdk.ShellListRequest? request = null) { }
+            public static string RemoveShell(string id, OpenCode.Sdk.ShellRemoveRequest? request = null) { }
+            public static string TimeoutShell(string id, OpenCode.Sdk.Models.ShellTimeoutRequest? request = null) { }
         }
     }
     public class OpenCodeTransportException : OpenCode.Sdk.OpenCodeException
@@ -133,6 +151,8 @@
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionMessageResponse> GetMessageAsync(string messageId, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionResponse> GetSessionAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.MessageListResponse> ListMessagesAsync(OpenCode.Sdk.MessageListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionRemoveResponse> RemoveSessionAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionRenameResponse> RenameSessionAsync(OpenCode.Sdk.Models.SessionRenameRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class SessionCreateResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionCreateResponse>
     {
@@ -171,6 +191,14 @@
         public static OpenCode.Sdk.SessionParentFilter RootOnly { get; }
         public static OpenCode.Sdk.SessionParentFilter Of(string sessionId) { }
     }
+    public sealed class SessionRemoveResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionRemoveResponse>
+    {
+        public SessionRemoveResponse() { }
+    }
+    public sealed class SessionRenameResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionRenameResponse>
+    {
+        public SessionRenameResponse() { }
+    }
     public sealed class SessionResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionResponse>
     {
         public SessionResponse() { }
@@ -183,6 +211,67 @@
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionCreateResponse> CreateSessionAsync(OpenCode.Sdk.Models.SessionCreateRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual OpenCode.Sdk.SessionClient GetSessionClient(string sessionId) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionListResponse> ListSessionsAsync(OpenCode.Sdk.SessionListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public class ShellClient
+    {
+        protected ShellClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ShellResponse> GetShellAsync(OpenCode.Sdk.ShellRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ShellRemoveResponse> RemoveShellAsync(OpenCode.Sdk.ShellRemoveRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ShellTimeoutResponse> TimeoutShellAsync(OpenCode.Sdk.Models.ShellTimeoutRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class ShellCreateResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ShellCreateResponse>
+    {
+        public ShellCreateResponse() { }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        public required OpenCode.Sdk.Models.ShellInfo Shell { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class ShellListRequest : System.IEquatable<OpenCode.Sdk.ShellListRequest>
+    {
+        public ShellListRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class ShellListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ShellListResponse>
+    {
+        public ShellListResponse() { }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.ShellInfo> Shells { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class ShellRemoveRequest : System.IEquatable<OpenCode.Sdk.ShellRemoveRequest>
+    {
+        public ShellRemoveRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class ShellRemoveResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ShellRemoveResponse>
+    {
+        public ShellRemoveResponse() { }
+    }
+    public sealed class ShellRequest : System.IEquatable<OpenCode.Sdk.ShellRequest>
+    {
+        public ShellRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class ShellResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ShellResponse>
+    {
+        public ShellResponse() { }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        public required OpenCode.Sdk.Models.ShellInfo Shell { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class ShellTimeoutResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ShellTimeoutResponse>
+    {
+        public ShellTimeoutResponse() { }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        public required OpenCode.Sdk.Models.ShellInfo Shell { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public class ShellsClient
+    {
+        protected ShellsClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ShellCreateResponse> CreateShellAsync(OpenCode.Sdk.Models.ShellCreateRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual OpenCode.Sdk.ShellClient GetShellClient(string id) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ShellListResponse> ListShellsAsync(OpenCode.Sdk.ShellListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
 }
 namespace OpenCode.Sdk.Models
@@ -232,6 +321,28 @@ namespace OpenCode.Sdk.Models
         public required string Message { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("_tag")]
         public override string Tag { get; }
+    }
+    public sealed class LocationInfo : System.IEquatable<OpenCode.Sdk.Models.LocationInfo>
+    {
+        public LocationInfo() { }
+        [System.Text.Json.Serialization.JsonPropertyName("directory")]
+        public required string Directory { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("project")]
+        public required OpenCode.Sdk.Models.LocationInfoProject Project { get; init; }
+        [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.WireNullRejectingJsonConverter<string>))]
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("workspaceID")]
+        public string? WorkspaceId { get; init; }
+    }
+    public sealed class LocationInfoProject : System.IEquatable<OpenCode.Sdk.Models.LocationInfoProject>
+    {
+        public LocationInfoProject() { }
+        [System.Text.Json.Serialization.JsonPropertyName("canonical")]
+        public required string Canonical { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("directory")]
+        public required string Directory { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
     }
     public sealed class LocationRef : System.IEquatable<OpenCode.Sdk.Models.LocationRef>
     {
@@ -1063,6 +1174,12 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("_tag")]
         public override string Tag { get; }
     }
+    public sealed class SessionRenameRequest : System.IEquatable<OpenCode.Sdk.Models.SessionRenameRequest>
+    {
+        public SessionRenameRequest() { }
+        [System.Text.Json.Serialization.JsonPropertyName("title")]
+        public required string Title { get; init; }
+    }
     public sealed class SessionRevert : System.IEquatable<OpenCode.Sdk.Models.SessionRevert>
     {
         public SessionRevert() { }
@@ -1090,6 +1207,90 @@ namespace OpenCode.Sdk.Models
         public long? Status { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public required string Type { get; init; }
+    }
+    public sealed class ShellCreateRequest : System.IEquatable<OpenCode.Sdk.Models.ShellCreateRequest>
+    {
+        public ShellCreateRequest() { }
+        [System.Text.Json.Serialization.JsonPropertyName("command")]
+        public required string Command { get; init; }
+        [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.WireNullRejectingJsonConverter<string>))]
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("cwd")]
+        public string? Cwd { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("timeout")]
+        public required long Timeout { get; init; }
+    }
+    public sealed class ShellInfo : System.IEquatable<OpenCode.Sdk.Models.ShellInfo>
+    {
+        public ShellInfo() { }
+        [System.Text.Json.Serialization.JsonPropertyName("command")]
+        public required string Command { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("cwd")]
+        public required string Cwd { get; init; }
+        [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.WireNullRejectingValueJsonConverter<double>))]
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("exit")]
+        public double? Exit { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("file")]
+        public required string File { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public required System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.WireNullRejectingValueJsonConverter<long>))]
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("pid")]
+        public long? Pid { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("shell")]
+        public required string Shell { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public required OpenCode.Sdk.Models.ShellInfoStatus Status { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("time")]
+        public required OpenCode.Sdk.Models.ShellInfoTime Time { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.ShellInfoStatus>))]
+    public enum ShellInfoStatus
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("running")]
+        Running = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("exited")]
+        Exited = 1,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("timeout")]
+        Timeout = 2,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("killed")]
+        Killed = 3,
+    }
+    public sealed class ShellInfoTime : System.IEquatable<OpenCode.Sdk.Models.ShellInfoTime>
+    {
+        public ShellInfoTime() { }
+        [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.WireNullRejectingValueJsonConverter<double>))]
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("completed")]
+        public double? Completed { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("started")]
+        public required double Started { get; init; }
+    }
+    public sealed class ShellNotFoundError : OpenCode.Sdk.Models.OpenCodeError, System.IEquatable<OpenCode.Sdk.Models.ShellNotFoundError>
+    {
+        public ShellNotFoundError() { }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public required string Message { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("_tag")]
+        public override string Tag { get; }
+    }
+    public sealed class ShellTimeoutRequest : System.IEquatable<OpenCode.Sdk.Models.ShellTimeoutRequest>
+    {
+        public ShellTimeoutRequest() { }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("timeout")]
+        public required long Timeout { get; init; }
     }
     public sealed class TokenUsageInfo : System.IEquatable<OpenCode.Sdk.Models.TokenUsageInfo>
     {

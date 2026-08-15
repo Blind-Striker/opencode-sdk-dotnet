@@ -13,7 +13,7 @@ namespace OpenCode.Sdk.Tools.Generator.Binding;
 internal static class OperationNamePolicy
 {
     /// <summary>Identifier segments recognized as operation verbs when they close the identifier.</summary>
-    private static readonly string[] KnownVerbSegments = ["create", "get", "list"];
+    private static readonly string[] KnownVerbSegments = ["create", "get", "list", "remove", "rename", "timeout"];
 
     /// <summary>Gets the operation verb: a recognized final identifier segment, or the HTTP method.</summary>
     public static string Verb(SpecOperation operation)
@@ -67,11 +67,14 @@ internal static class OperationNamePolicy
         return subject.Length is 0 ? GroupFallback(operation) : subject;
     }
 
+    /// <summary>Folds the Get verb exactly like the response name, so the pair stays uniform.</summary>
     public static string RequestTypeName(SpecOperation operation)
     {
         ArgumentNullException.ThrowIfNull(operation);
 
-        return $"{CSharpNamePolicy.ToPascalCase(operation.Segments[0])}{Subject(operation)}{Verb(operation)}Request";
+        var verb = Verb(operation);
+        var verbSuffix = string.Equals(verb, "Get", StringComparison.Ordinal) ? string.Empty : verb;
+        return $"{CSharpNamePolicy.ToPascalCase(operation.Segments[0])}{Subject(operation)}{verbSuffix}Request";
     }
 
     /// <summary>

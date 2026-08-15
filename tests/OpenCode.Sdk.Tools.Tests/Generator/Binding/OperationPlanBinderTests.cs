@@ -13,13 +13,17 @@ public sealed class OperationPlanBinderTests
         var plan = await new BindingTestHost().BindPinnedAsync();
 
         await Assert.That(plan.Clients.Select(static client => client.Name)
-            .SequenceEqual(["OpenCodeClient", "SessionClient", "SessionsClient"], StringComparer.Ordinal)).IsTrue();
+            .SequenceEqual(
+                ["OpenCodeClient", "SessionClient", "SessionsClient", "ShellClient", "ShellsClient"],
+                StringComparer.Ordinal)).IsTrue();
         await Assert.That(plan.Clients.All(static client => client.Namespace == "OpenCode.Sdk")).IsTrue();
 
         var root = plan.Clients.Single(static client => client.Role == ClientRole.Root);
         await Assert.That(root.Name).IsEqualTo("OpenCodeClient");
-        await Assert.That(root.SubClients.Single().PropertyName).IsEqualTo("Sessions");
-        await Assert.That(root.SubClients.Single().TypeName).IsEqualTo("SessionsClient");
+        await Assert.That(root.SubClients.Select(static subClient => subClient.PropertyName)
+            .SequenceEqual(["Sessions", "Shells"], StringComparer.Ordinal)).IsTrue();
+        await Assert.That(root.SubClients.Select(static subClient => subClient.TypeName)
+            .SequenceEqual(["SessionsClient", "ShellsClient"], StringComparer.Ordinal)).IsTrue();
         await Assert.That(root.HandleFactory).IsNull();
         await Assert.That(root.HandleParameter).IsNull();
 
@@ -45,8 +49,7 @@ public sealed class OperationPlanBinderTests
 
         await Assert.That(root.ContainerName).IsNull();
 
-        var sessions = plan.Clients.Single(static client => client.Role == ClientRole.Collection);
-        await Assert.That(sessions.Name).IsEqualTo("SessionsClient");
+        var sessions = plan.Clients.Single(static client => client.Name == "SessionsClient");
         await Assert.That(sessions.ContainerName).IsEqualTo("Sessions");
         await Assert.That(sessions.Operations.Select(static operation => operation.MethodName)
             .SequenceEqual(["CreateSessionAsync", "ListSessionsAsync"], StringComparer.Ordinal)).IsTrue();
@@ -78,17 +81,65 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Create_The_Selected_Pinned_Shell_Plans()
+    {
+        var plan = await new BindingTestHost().BindPinnedAsync();
+
+        var shells = plan.Clients.Single(static client => client.Name == "ShellsClient");
+        await Assert.That(shells.ContainerName).IsEqualTo("Shells");
+        await Assert.That(shells.Operations.Select(static operation => operation.MethodName)
+            .SequenceEqual(["CreateShellAsync", "ListShellsAsync"], StringComparer.Ordinal)).IsTrue();
+        await Assert.That(shells.HandleFactory!.MethodName).IsEqualTo("GetShellClient");
+        await Assert.That(shells.HandleFactory.Parameter.WireName).IsEqualTo("id");
+
+        var createShell = shells.Operations.Single(static operation => operation.MethodName == "CreateShellAsync");
+        await Assert.That(createShell.RequestBody!.TypeName).IsEqualTo("ShellCreateRequest");
+        await Assert.That(createShell.QueryRequest!.RidesRequestBody).IsTrue();
+        await Assert.That(createShell.QueryRequest.TypeName).IsEqualTo("ShellCreateRequest");
+        await Assert.That(createShell.Envelope.Kind).IsEqualTo(EnvelopeKind.DataLocation);
+        await Assert.That(createShell.Envelope.PayloadTypeName).IsEqualTo("ShellInfo");
+        await Assert.That(createShell.Envelope.LocationTypeName).IsEqualTo("LocationInfo");
+
+        var listShells = shells.Operations.Single(static operation => operation.MethodName == "ListShellsAsync");
+        await Assert.That(listShells.QueryRequest!.TypeName).IsEqualTo("ShellListRequest");
+        await Assert.That(listShells.QueryRequest.RidesRequestBody).IsFalse();
+        await Assert.That(listShells.QueryRequest.Properties.Single().Kind).IsEqualTo(QueryValueKind.Location);
+        await Assert.That(listShells.Envelope.Kind).IsEqualTo(EnvelopeKind.DataLocationList);
+    }
+
+    [Test]
     public async Task Bind_Should_Create_The_Selected_Pinned_Handle_Plans()
     {
         var plan = await new BindingTestHost().BindPinnedAsync();
 
-        var session = plan.Clients.Single(static client => client.Role == ClientRole.Handle);
-        await Assert.That(session.Name).IsEqualTo("SessionClient");
+        var session = plan.Clients.Single(static client => client.Name == "SessionClient");
         await Assert.That(session.ContainerName).IsEqualTo("Sessions");
         await Assert.That(session.HandleParameter!.WireName).IsEqualTo("sessionID");
         await Assert.That(session.HandleParameter.IsHandleParameter).IsTrue();
         await Assert.That(session.Operations.Select(static operation => operation.MethodName)
-            .SequenceEqual(["GetMessageAsync", "GetSessionAsync", "ListMessagesAsync"], StringComparer.Ordinal)).IsTrue();
+            .SequenceEqual(
+                ["GetMessageAsync", "GetSessionAsync", "ListMessagesAsync", "RemoveSessionAsync", "RenameSessionAsync"],
+                StringComparer.Ordinal)).IsTrue();
+
+        var remove = session.Operations.Single(static operation => operation.MethodName == "RemoveSessionAsync");
+        await Assert.That(remove.HttpMethod).IsEqualTo("delete");
+        await Assert.That(remove.Envelope.Kind).IsEqualTo(EnvelopeKind.NoContent);
+        await Assert.That(remove.Envelope.SuccessStatusCode).IsEqualTo(204);
+        await Assert.That(remove.Envelope.ResponseTypeName).IsEqualTo("SessionRemoveResponse");
+
+        var shell = plan.Clients.Single(static client => client.Name == "ShellClient");
+        await Assert.That(shell.HandleParameter!.WireName).IsEqualTo("id");
+        await Assert.That(shell.Operations.Select(static operation => operation.MethodName)
+            .SequenceEqual(["GetShellAsync", "RemoveShellAsync", "TimeoutShellAsync"], StringComparer.Ordinal)).IsTrue();
+
+        var timeout = shell.Operations.Single(static operation => operation.MethodName == "TimeoutShellAsync");
+        await Assert.That(timeout.HttpMethod).IsEqualTo("patch");
+        await Assert.That(timeout.RequestBody!.TypeName).IsEqualTo("ShellTimeoutRequest");
+        await Assert.That(timeout.QueryRequest!.RidesRequestBody).IsTrue();
+
+        var getShell = shell.Operations.Single(static operation => operation.MethodName == "GetShellAsync");
+        await Assert.That(getShell.QueryRequest!.TypeName).IsEqualTo("ShellRequest");
+        await Assert.That(getShell.Envelope.Kind).IsEqualTo(EnvelopeKind.DataLocation);
 
         var messages = session.Operations.Single(static operation => operation.MethodName == "ListMessagesAsync");
         await Assert.That(messages.QueryRequest!.TypeName).IsEqualTo("MessageListRequest");
@@ -826,6 +877,50 @@ public sealed class OperationPlanBinderTests
             .Parameter("location", "query", QueryScenarioData.NullableLocationSelector, required: true, deepObject: true)));
 
         await AssertWidgetRefusalAsync(document, "location selector");
+    }
+
+    [Test]
+    public async Task Bind_Should_Bind_A_Delete_Operation_With_A_No_Content_Success()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.widget.remove", method: "delete", path: "/api/widget/{id}", configure: operation =>
+            {
+                _ = operation.Parameter("id", "path", schema => schema.Type("string"), required: true)
+                    .WithoutResponse(200)
+                    .Response(204);
+            })));
+
+        var plan = BindWidgets(document, "v2.widget.remove");
+
+        var remove = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(remove.MethodName).IsEqualTo("RemoveWidgetAsync");
+        await Assert.That(remove.HttpMethod).IsEqualTo("delete");
+        await Assert.That(remove.Envelope.Kind).IsEqualTo(EnvelopeKind.NoContent);
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Request_Body_On_A_Delete_Operation()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.widget.remove", method: "delete", path: "/api/widget", configure: operation => operation
+                .RequestBody("application/json", schema => schema.Type("object")
+                    .Property("id", property => property.Type("string"), required: true))
+                .WithoutResponse(200)
+                .Response(204))));
+
+        await AssertWidgetRefusalAsync(document, "must not carry a request body", "v2.widget.remove");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Patch_Operation_Without_A_Request_Body()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.timeout", method: "patch", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
+
+        await AssertWidgetRefusalAsync(document, "must carry a request body", "v2.widget.timeout");
     }
 
     [Test]

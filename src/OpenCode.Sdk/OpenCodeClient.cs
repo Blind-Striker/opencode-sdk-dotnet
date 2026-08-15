@@ -11,6 +11,7 @@ public class OpenCodeClient : IDisposable
 {
     private readonly Pipeline? _pipeline;
     private readonly SessionsClient? _sessions;
+    private readonly ShellsClient? _shells;
     /// <summary>
     /// Initializes a client that owns its connection to the endpoint.
     /// </summary>
@@ -19,6 +20,7 @@ public class OpenCodeClient : IDisposable
     {
         _pipeline = Pipeline.Create(options);
         _sessions = new SessionsClient(_pipeline);
+        _shells = new ShellsClient(_pipeline);
     }
 
     /// <summary>
@@ -30,6 +32,7 @@ public class OpenCodeClient : IDisposable
     {
         _pipeline = Pipeline.Create(httpClient, options);
         _sessions = new SessionsClient(_pipeline);
+        _shells = new ShellsClient(_pipeline);
     }
 
     /// <summary>
@@ -64,6 +67,10 @@ public class OpenCodeClient : IDisposable
     /// Gets the &apos;Sessions&apos; collection client.
     /// </summary>
     public virtual SessionsClient Sessions => _sessions ?? throw MockSeam.CreateError("OpenCodeClient", "Sessions");
+    /// <summary>
+    /// Gets the &apos;Shells&apos; collection client.
+    /// </summary>
+    public virtual ShellsClient Shells => _shells ?? throw MockSeam.CreateError("OpenCodeClient", "Shells");
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("OpenCodeClient", "Pipeline");
 
     /// <summary>

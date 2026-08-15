@@ -4,3 +4,10 @@ v2.session.create
 v2.session.get
 v2.session.list
 v2.session.message
+v2.session.remove
+v2.session.rename
+v2.shell.create
+v2.shell.get
+v2.shell.list
+v2.shell.remove
+v2.shell.timeout

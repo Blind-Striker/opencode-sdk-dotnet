@@ -14,6 +14,12 @@
       "clientName": "Sessions",
       "handleName": "SessionClient",
       "handleParameter": "sessionID"
+    },
+    "shell": {
+      "placement": "client",
+      "clientName": "Shells",
+      "handleName": "ShellClient",
+      "handleParameter": "id"
     }
   },
   "envelopePayloadNames": {},
@@ -36,6 +42,11 @@
       "schema": "InvalidRequestError1",
       "aliasOf": "InvalidRequestError",
       "reason": "Upstream spec-gen emits a structurally identical duplicate carrying the same _tag."
+    },
+    {
+      "schema": "Shell.Info1",
+      "aliasOf": "Shell.Info",
+      "reason": "Upstream spec-gen emits a structurally identical duplicate of the shell info schema."
     }
   ]
 }

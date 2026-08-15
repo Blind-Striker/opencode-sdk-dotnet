@@ -1,6 +1,6 @@
 Generation is incomplete; packages must not be published.
-Selected operations: 6
-Pending operations: 114
+Selected operations: 13
+Pending operations: 107
 Selected:
 - v2.health.get
 - v2.message.list
@@ -8,6 +8,13 @@ Selected:
 - v2.session.get
 - v2.session.list
 - v2.session.message
+- v2.session.remove
+- v2.session.rename
+- v2.shell.create
+- v2.shell.get
+- v2.shell.list
+- v2.shell.remove
+- v2.shell.timeout
 Pending:
 - v2.agent.get
 - v2.agent.list
@@ -100,8 +107,6 @@ Pending:
 - v2.session.question.list
 - v2.session.question.reject
 - v2.session.question.reply
-- v2.session.remove
-- v2.session.rename
 - v2.session.revert.clear
 - v2.session.revert.commit
 - v2.session.revert.stage
@@ -111,12 +116,7 @@ Pending:
 - v2.session.switchModel
 - v2.session.synthetic
 - v2.session.wait
-- v2.shell.create
-- v2.shell.get
-- v2.shell.list
 - v2.shell.output
-- v2.shell.remove
-- v2.shell.timeout
 - v2.skill.list
 - v2.vcs.diff
 - v2.vcs.get

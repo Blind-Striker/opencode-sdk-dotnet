@@ -33,14 +33,16 @@ internal sealed class SpecBinder(
         _curationValidator.Validate(document, selected, reachable, curation, errors);
 
         // Aliases are validated against the raw document above; the collapse happens before
-        // names resolve so the rest of the pipeline never sees the duplicates.
+        // names resolve so the rest of the pipeline never sees the duplicates. Reachability
+        // recollects on the transformed document because an alias target's promoted inline
+        // children only become reachable through the rewritten references.
         var aliased = _schemaAliases.Apply(document, curation.SchemaAliases);
         if (!ReferenceEquals(aliased, document))
         {
             document = aliased;
             var aliasedById = document.Operations.ToDictionary(static operation => operation.OperationId, StringComparer.Ordinal);
             selected = Array.AsReadOnly([.. selected.Select(operation => aliasedById[operation.OperationId])]);
-            reachable = MapReachableKeys(reachable, curation.SchemaAliases);
+            reachable = _reachableSchemas.Collect(document, selected, errors);
             curation = curation with
             {
                 PropertyOverrides = MapOverrideKeys(curation.PropertyOverrides, curation.SchemaAliases, errors),
@@ -176,7 +178,8 @@ internal sealed class SpecBinder(
     private static ReadOnlyCollection<PropertyOverride> MapOverrideKeys(IReadOnlyList<PropertyOverride> overrides,
         IReadOnlyList<SchemaAlias> aliases, BindingErrorCollector errors)
     {
-        // Tolerant of duplicated sources for the same reason as MapReachableKeys.
+        // Tolerant of duplicated sources: the validator has already recorded them and the
+        // batched failure throws before any plan leaves this bind.
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var alias in aliases)
         {
@@ -202,33 +205,6 @@ internal sealed class SpecBinder(
         }
 
         return Array.AsReadOnly([.. canonical]);
-    }
-
-    /// <summary>
-    /// The post-collapse reachable set follows from the raw one mechanically: aliased keys
-    /// vanish and their targets take their place, so no second traversal (and no duplicated
-    /// traversal diagnostics) is needed.
-    /// </summary>
-    private static ReachableSchemaSet MapReachableKeys(ReachableSchemaSet reachable, IReadOnlyList<SchemaAlias> aliases)
-    {
-        // Tolerant of duplicated sources: the validator has already recorded them and the
-        // batched failure throws before any plan leaves this bind.
-        var map = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var alias in aliases)
-        {
-            map[alias.Schema] = alias.AliasOf;
-        }
-        return new ReachableSchemaSet
-        {
-            GraphKeys = [.. reachable.GraphKeys
-                .Select(key => map.GetValueOrDefault(key, key))
-                .Distinct(StringComparer.Ordinal)
-                .Order(StringComparer.Ordinal)],
-            ResponseRootKeys = [.. reachable.ResponseRootKeys
-                .Select(key => map.GetValueOrDefault(key, key))
-                .Distinct(StringComparer.Ordinal)
-                .Order(StringComparer.Ordinal)],
-        };
     }
 
     private static ReadOnlyCollection<SpecOperation> SelectOperations(OperationSelection selection,

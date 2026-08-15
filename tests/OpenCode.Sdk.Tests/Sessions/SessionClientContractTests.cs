@@ -138,6 +138,38 @@ public sealed class SessionClientContractTests
     }
 
     [Test]
+    public async Task RemoveSessionAsync_Should_Treat_The_204_As_A_Bodiless_Success()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").RemoveSessionAsync();
+
+        await Assert.That(response.Status).IsEqualTo(204);
+        await Assert.That(response.IsError).IsFalse();
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo(HttpMethod.Delete);
+        await Assert.That(request.RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100"));
+    }
+
+    [Test]
+    public async Task RenameSessionAsync_Should_Send_The_Typed_Body()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").RenameSessionAsync(new SessionRenameRequest
+        {
+            Title = "Renamed session",
+        });
+
+        await Assert.That(response.Status).IsEqualTo(204);
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo(HttpMethod.Post);
+        await Assert.That(request.RequestUri!.AbsoluteUri)
+            .IsEqualTo("http://localhost:4096/api/session/ses_100/rename");
+        await Assert.That(request.Body).IsEqualTo("{\"title\":\"Renamed session\"}");
+    }
+
+    [Test]
     public async Task ListMessagesAsync_Should_Throw_The_Declared_404_Error()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.SessionNotFoundError);

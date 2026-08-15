@@ -76,10 +76,14 @@ internal static class OperationMethodEmitter
 
     private static InvocationExpressionSyntax EmitDelegation(OperationPlan operation)
     {
+        // HttpMethod.Patch is absent from the downlevel BCL, so it rides the internal spine.
+        var verbContainer = string.Equals(operation.HttpMethod, "patch", StringComparison.Ordinal)
+            ? "OpenCodeHttpMethod"
+            : "HttpMethod";
         var arguments = new List<ArgumentSyntax>
         {
             SyntaxFactory.Argument(EmissionSyntax.MemberAccess(
-                SyntaxFactory.IdentifierName("HttpMethod"),
+                SyntaxFactory.IdentifierName(verbContainer),
                 CSharpNamePolicy.ToPascalCase(operation.HttpMethod))),
             SyntaxFactory.Argument(EmitRoute(operation)),
         };

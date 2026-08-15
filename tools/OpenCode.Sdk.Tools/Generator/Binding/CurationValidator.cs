@@ -260,7 +260,7 @@ internal sealed class CurationValidator
                 errors.Add(BindingErrorCategory.Curation, alias.Schema, "aliased schema is not referenced by the selected profile");
             }
 
-            if (!SchemaNodeComparer.DeepEquals(source, target))
+            if (!SchemaNodeComparer.DeepEquals(source, target, document.Schemas))
             {
                 errors.Add(BindingErrorCategory.Curation, alias.Schema, "aliased schemas must be structurally identical");
             }

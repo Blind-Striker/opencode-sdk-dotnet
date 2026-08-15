@@ -67,8 +67,15 @@ introduced gets exercised by a real operation. Sealed inputs: research log Sessi
       server precedence — no client merge logic).
 - [x] Envelope profiles: `{location, data}` (object and list variants) and 204-bodyless,
       with binder walls and emitter snapshots; contract tests land with admission.
-- [ ] Curation rows + `Shell.Info1` alias; regen; model closure; PATCH/DELETE;
-      operation methods + contract tests per op.
+- [x] Curation rows + `Shell.Info1` alias; regen; model closure; PATCH/DELETE (PATCH
+      rides the internal `OpenCodeHttpMethod` spine — `HttpMethod.Patch` is absent
+      downlevel); operation methods + contract tests per op. The verb vocabulary gained
+      `remove`/`rename`/`timeout`, `RequestTypeName` folds Get like the response name,
+      and reachability recollects post-alias so an alias target's promoted inline
+      children stay bound; the alias comparer resolves promoted references structurally.
+      **`v2.shell.output` deferred:** its inline data object and integer cursor/limit
+      query params each need a mechanism no other admitted operation needs; it returns
+      with a later batch.
 - [ ] #28 rider end to end.
 - [ ] Live demo against `opencode2 serve`: shell create → list → get → output → remove,
       plus session rename → remove.
