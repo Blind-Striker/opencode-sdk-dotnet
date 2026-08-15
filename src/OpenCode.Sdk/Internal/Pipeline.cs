@@ -21,8 +21,7 @@ internal sealed class Pipeline : IDisposable
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(options);
-        var endpoint = options.Endpoint
-                       ?? throw new ArgumentException("OpenCodeClientOptions.Endpoint is required.", nameof(options));
+        var endpoint = options.Endpoint ?? throw new ArgumentException("OpenCodeClientOptions.Endpoint is required.", nameof(options));
 
         // Basic credentials ride the wire as "username:password", so a blank name or a colon
         // inside it would corrupt the header instead of failing a login.
@@ -69,9 +68,7 @@ internal sealed class Pipeline : IDisposable
         // so mutating the options object after construction never changes a built client.
         _authorization = password is null
             ? null
-            : new AuthenticationHeaderValue(
-                "Basic",
-                Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{password}")));
+            : new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{password}")));
 
         // Default headers stay legally mutable after construction, so the anonymous-mode
         // refusal must also run per send; owned transports never expose their client and
@@ -82,6 +79,7 @@ internal sealed class Pipeline : IDisposable
     public static Pipeline Create(OpenCodeClientOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
+
         if (options.Endpoint is null)
         {
             throw new ArgumentException("OpenCodeClientOptions.Endpoint is required.", nameof(options));
@@ -96,11 +94,10 @@ internal sealed class Pipeline : IDisposable
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(options);
+
         if (options.Endpoint is null)
         {
-            throw new ArgumentException(
-                "A caller-supplied HttpClient requires OpenCodeClientOptions.Endpoint.",
-                nameof(options));
+            throw new ArgumentException("A caller-supplied HttpClient requires OpenCodeClientOptions.Endpoint.", nameof(options));
         }
 
         return new Pipeline(httpClient, ownsHttpClient: false, options);
@@ -220,8 +217,7 @@ internal sealed class Pipeline : IDisposable
     }
 
     /// <summary>Presence beats parseability: a raw unparseable default value still rides the wire.</summary>
-    private static bool CarriesDefaultAuthorization(HttpClient httpClient) =>
-        httpClient.DefaultRequestHeaders.TryGetValues("Authorization", out _);
+    private static bool CarriesDefaultAuthorization(HttpClient httpClient) => httpClient.DefaultRequestHeaders.TryGetValues("Authorization", out _);
 
     private void Decorate(HttpRequestMessage request)
     {
@@ -257,8 +253,8 @@ internal sealed class Pipeline : IDisposable
                 ? string.Empty
                 : await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is HttpRequestException or IOException or ObjectDisposedException
-                                              or InvalidOperationException)
+        catch (Exception exception)
+            when (exception is HttpRequestException or IOException or ObjectDisposedException or InvalidOperationException)
         {
             // InvalidOperationException covers an unusable response charset surfaced by
             // ReadAsStringAsync. OperationCanceledException deliberately passes through untouched.
@@ -272,6 +268,7 @@ internal sealed class Pipeline : IDisposable
         var message = response.Error is null
             ? $"The opencode API returned status {status}."
             : $"The opencode API returned status {status} ('{response.Error.Tag}').";
+
         return new OpenCodeApiException(message, response.Status, response.Error, response.RawBody);
     }
 }

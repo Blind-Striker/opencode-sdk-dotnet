@@ -46,5 +46,6 @@ public sealed record SessionMessageAgentSelected : SessionMessageInfo
     /// </summary>
     [JsonPropertyName("previous")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingJsonConverter<string>))]
     public string? Previous { get; init; }
 }

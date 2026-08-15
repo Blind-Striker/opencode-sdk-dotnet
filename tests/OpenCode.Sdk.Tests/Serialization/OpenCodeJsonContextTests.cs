@@ -26,6 +26,24 @@ public sealed class OpenCodeJsonContextTests
     }
 
     [Test]
+    public async Task Deserialize_Should_Reject_Explicit_Null_On_An_Optional_Nonnull_Property()
+    {
+        var json = _fixtures.LoadJson("Serialization.null-parent-session.json");
+
+        _ = await Assert.That(() => _serializer.Deserialize<SessionInfo>(json)).Throws<JsonException>();
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Keep_Treating_An_Absent_Optional_Property_As_Absent()
+    {
+        var json = _fixtures.LoadJson("Serialization.known-session.json");
+
+        var session = _serializer.Deserialize<SessionInfo>(json);
+
+        await Assert.That(session.ParentId).IsNull();
+    }
+
+    [Test]
     public async Task Deserialize_Should_Normalize_Absent_Optional_Nonnull_Collections_To_Empty()
     {
         var json = _fixtures.LoadJson("Serialization.known-session-message.json");

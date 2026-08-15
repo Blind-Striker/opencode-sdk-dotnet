@@ -46,6 +46,7 @@ public sealed record SessionMessageLocationSwitched : SessionMessageInfo
     /// </summary>
     [JsonPropertyName("projectID")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingJsonConverter<string>))]
     public string? ProjectId { get; init; }
 
     /// <summary>
@@ -53,6 +54,7 @@ public sealed record SessionMessageLocationSwitched : SessionMessageInfo
     /// </summary>
     [JsonPropertyName("subpath")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingJsonConverter<string>))]
     public string? Subpath { get; init; }
 
     /// <summary>
@@ -60,5 +62,6 @@ public sealed record SessionMessageLocationSwitched : SessionMessageInfo
     /// </summary>
     [JsonPropertyName("previous")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingJsonConverter<SessionMessageLocationSwitchedPrevious>))]
     public SessionMessageLocationSwitchedPrevious? Previous { get; init; }
 }

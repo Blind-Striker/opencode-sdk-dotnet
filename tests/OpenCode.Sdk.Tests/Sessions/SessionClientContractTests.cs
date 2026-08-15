@@ -27,6 +27,19 @@ public sealed class SessionClientContractTests
     }
 
     [Test]
+    public async Task GetSessionAsync_Should_Treat_An_Explicit_Null_Parent_As_A_Malformed_Success()
+    {
+        var payload = new FixtureLoader().LoadJson("Serialization.null-parent-session.json");
+        using var handler = new RecordingHttpHandler(_ => JsonResponse(HttpStatusCode.OK, $"{{\"data\":{payload}}}"));
+        using var httpClient = new HttpClient(handler);
+        using var client = CreateClient(httpClient);
+
+        _ = await Assert
+            .That(async () => _ = await client.Sessions.GetSessionClient("ses_100").GetSessionAsync())
+            .Throws<OpenCodeTransportException>();
+    }
+
+    [Test]
     public async Task GetSessionAsync_Should_Throw_The_Declared_404_Error()
     {
         using var handler = new RecordingHttpHandler(static _ => JsonResponse(

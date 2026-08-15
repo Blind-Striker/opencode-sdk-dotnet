@@ -20,6 +20,7 @@ public sealed record SessionRevert
     /// </summary>
     [JsonPropertyName("partID")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingJsonConverter<string>))]
     public string? PartId { get; init; }
 
     /// <summary>
@@ -27,6 +28,7 @@ public sealed record SessionRevert
     /// </summary>
     [JsonPropertyName("snapshot")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingJsonConverter<string>))]
     public string? Snapshot { get; init; }
 
     /// <summary>

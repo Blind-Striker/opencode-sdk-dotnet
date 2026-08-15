@@ -401,6 +401,9 @@ internal static class EmitterPlanFixture
             [
                 Property("id", "ID", Named("string"), isRequired: true, "Gets the item identifier."),
                 Property("note", "Note", Named("string", isNullable: true), isRequired: false, description: null),
+                Property("count", "Count", Named("double", isNullable: true), isRequired: false, "Gets the item count."),
+                Property("flushedAt", "FlushedAt", Named("double", isNullable: true), isRequired: false,
+                    "Gets the flush timestamp, or null when never flushed.", allowsWireNull: true),
                 Property("tags", "Tags", ListOf(Named("string")), isRequired: false, "Gets the item tags."),
                 Property("links", "Links", DictionaryOf(Named("Uri")), isRequired: false, "Gets links by relation."),
             ],
@@ -479,13 +482,14 @@ internal static class EmitterPlanFixture
         };
 
     private static ModelPropertyPlan Property(string wireName, string name, TypeReferencePlan type, bool isRequired,
-        string? description) =>
+        string? description, bool allowsWireNull = false) =>
         new()
         {
             WireName = wireName,
             Name = name,
             Type = type,
             IsRequired = isRequired,
+            AllowsWireNull = allowsWireNull,
             IsLiteral = false,
             Description = description,
         };
@@ -497,6 +501,7 @@ internal static class EmitterPlanFixture
             Name = name,
             Type = Named("string"),
             IsRequired = true,
+            AllowsWireNull = false,
             IsLiteral = true,
             LiteralKind = LiteralKind.String,
             LiteralValue = value,

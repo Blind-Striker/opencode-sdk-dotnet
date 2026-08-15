@@ -9,16 +9,25 @@ namespace OpenCode.Sdk.Tools.Generator.Emission;
 
 internal static class ModelEmitter
 {
+    private static readonly IReadOnlySet<string> PrimitiveValueTypeNames =
+        new HashSet<string>(StringComparer.Ordinal) { "bool", "long", "double", };
+
     public static IReadOnlyList<GeneratedSource> Emit(EmitPlan plan)
     {
         ArgumentNullException.ThrowIfNull(plan);
         var unions = plan.Unions.ToDictionary(static union => union.Name, StringComparer.Ordinal);
+
+        // The wire-null-rejecting converter splits by class-versus-struct; generated enums are
+        // the only value types beyond the primitive map.
+        var valueTypeNames = new HashSet<string>(PrimitiveValueTypeNames, StringComparer.Ordinal);
+        valueTypeNames.UnionWith(plan.Models.OfType<EnumModelPlan>().Select(static model => model.Name));
+
         var result = new List<GeneratedSource>(plan.Models.Count);
         foreach (var model in plan.Models.OrderBy(static model => model.Name, StringComparer.Ordinal))
         {
             result.Add(model switch
             {
-                ObjectModelPlan objectModel => EmitObject(objectModel, ResolveBaseUnion(objectModel, unions), unions),
+                ObjectModelPlan objectModel => EmitObject(objectModel, ResolveBaseUnion(objectModel, unions), unions, valueTypeNames),
                 EnumModelPlan enumModel => EmitEnum(enumModel),
                 _ => throw new InvalidOperationException($"Unknown model plan '{model.GetType().Name}'."),
             });
@@ -27,7 +36,8 @@ internal static class ModelEmitter
         return Array.AsReadOnly([.. result]);
     }
 
-    private static GeneratedSource EmitObject(ObjectModelPlan model, UnionPlan? baseUnion, IReadOnlyDictionary<string, UnionPlan> unions)
+    private static GeneratedSource EmitObject(ObjectModelPlan model, UnionPlan? baseUnion, IReadOnlyDictionary<string, UnionPlan> unions,
+        IReadOnlySet<string> valueTypeNames)
     {
         // A variant overrides one abstract marker per level of its union chain: a nested
         // union's variant carries both its own tag and the fixed outer tag.
@@ -46,7 +56,7 @@ internal static class ModelEmitter
             .WithOpenBraceToken(SyntaxFactory.Token(SyntaxKind.OpenBraceToken))
             .WithCloseBraceToken(SyntaxFactory.Token(SyntaxKind.CloseBraceToken))
             .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>(model.Properties.Select(property =>
-                EmitProperty(property, chainMarkers.Any(wireName => IsDiscriminator(property, wireName))))))
+                EmitProperty(property, chainMarkers.Any(wireName => IsDiscriminator(property, wireName)), valueTypeNames))))
             .WithLeadingTrivia(EmissionSyntax.Documentation(model.Description ?? $"Represents a {DisplayName(model.Name)} value."));
         if (model.BaseTypeName is not null)
         {
@@ -74,7 +84,8 @@ internal static class ModelEmitter
         return EmissionSyntax.CreateSource($"Models/{model.Name}.cs", unit);
     }
 
-    private static PropertyDeclarationSyntax EmitProperty(ModelPropertyPlan property, bool isDiscriminator)
+    private static PropertyDeclarationSyntax EmitProperty(ModelPropertyPlan property, bool isDiscriminator,
+        IReadOnlySet<string> valueTypeNames)
     {
         var declaration = SyntaxFactory.PropertyDeclaration(TypeSyntaxEmitter.Emit(property.Type), property.Name)
             .AddAttributeLists(EmissionSyntax.Attribute("JsonPropertyName", EmissionSyntax.StringArgument(property.WireName)))
@@ -87,6 +98,19 @@ internal static class ModelEmitter
                         SyntaxFactory.IdentifierName("JsonIgnoreCondition"),
                         "WhenWritingNull"))
                     .WithNameEquals(SyntaxFactory.NameEquals("Condition"))));
+        }
+
+        if (RejectsWireNull(property) && property.Type is NamedTypeReferencePlan named)
+        {
+            // The C# type stays nullable for absence; an explicit wire null is a contract
+            // violation the converter turns into a JsonException.
+            var inner = TypeSyntaxEmitter.Emit(named with { IsNullable = false });
+            var converter = TypeSyntaxEmitter.Generic(
+                valueTypeNames.Contains(named.Name) ? "WireNullRejectingValueJsonConverter" : "WireNullRejectingJsonConverter",
+                inner);
+            declaration = declaration.AddAttributeLists(EmissionSyntax.Attribute(
+                "JsonConverter",
+                SyntaxFactory.AttributeArgument(SyntaxFactory.TypeOfExpression(converter))));
         }
 
         if (isDiscriminator)
@@ -306,11 +330,21 @@ internal static class ModelEmitter
                 _ = result.Add("OpenCode.Sdk.Internal.Serialization");
             }
 
+            if (RejectsWireNull(property))
+            {
+                _ = result.Add("OpenCode.Sdk.Internal.Serialization");
+            }
+
             CollectTypeUsings(property.Type, result);
         }
 
         return [.. result.Order(StringComparer.Ordinal)];
     }
+
+    /// <summary>An optional non-collection property whose schema does not admit null rejects an
+    /// explicit wire null; required properties never reach the serializer as null-for-absence.</summary>
+    private static bool RejectsWireNull(ModelPropertyPlan property) =>
+        !property.IsRequired && !property.Type.IsCollection && !property.AllowsWireNull;
 
     private static void CollectTypeUsings(TypeReferencePlan type, ISet<string> usings)
     {

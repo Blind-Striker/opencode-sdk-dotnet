@@ -49,7 +49,23 @@ public sealed record ExampleItem
     /// </summary>
     [JsonPropertyName("note")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingJsonConverter<string>))]
     public string? Note { get; init; }
+
+    /// <summary>
+    /// Gets the item count.
+    /// </summary>
+    [JsonPropertyName("count")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingValueJsonConverter<double>))]
+    public double? Count { get; init; }
+
+    /// <summary>
+    /// Gets the flush timestamp, or null when never flushed.
+    /// </summary>
+    [JsonPropertyName("flushedAt")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? FlushedAt { get; init; }
 
     /// <summary>
     /// Gets the item tags.

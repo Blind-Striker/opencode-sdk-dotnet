@@ -34,6 +34,7 @@ public sealed record SessionMessageAssistantTool : SessionMessageAssistantConten
     /// </summary>
     [JsonPropertyName("executed")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingValueJsonConverter<bool>))]
     public bool? Executed { get; init; }
 
     /// <summary>

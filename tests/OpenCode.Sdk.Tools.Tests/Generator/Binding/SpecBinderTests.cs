@@ -64,6 +64,52 @@ public sealed class SpecBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Distinguish_Wire_Null_From_Optional_Absence()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true)
+                .Property("note", property => property.Type("string"))
+                .Property("flushedAt", property => property.AnyOf(
+                    branch => branch.Type("number"),
+                    branch => branch.Type("null")), required: true)
+                .Property("extra", property => property.Unrestricted()))
+            .WithOperation("v2.widget.item", path: "/api/widget/item", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.item"),
+            Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null))));
+
+        var item = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "ItemInfo");
+        var id = item.Properties.Single(static property => property.WireName == "id");
+        await Assert.That(id.AllowsWireNull).IsFalse();
+        await Assert.That(id.Type.IsNullable).IsFalse();
+        var note = item.Properties.Single(static property => property.WireName == "note");
+        await Assert.That(note.AllowsWireNull).IsFalse();
+        await Assert.That(note.Type.IsNullable).IsTrue();
+        var flushedAt = item.Properties.Single(static property => property.WireName == "flushedAt");
+        await Assert.That(flushedAt.AllowsWireNull).IsTrue();
+        await Assert.That(flushedAt.Type.IsNullable).IsTrue();
+        var extra = item.Properties.Single(static property => property.WireName == "extra");
+        await Assert.That(extra.AllowsWireNull).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Keep_The_Pinned_Session_Parent_Wire_Null_Strict()
+    {
+        var (document, selection, curation) = await LoadPinnedInputsAsync();
+
+        var plan = new BindingTestHost().Bind(document, selection, curation);
+
+        var session = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "SessionInfo");
+        var parent = session.Properties.Single(static property => property.WireName == "parentID");
+        await Assert.That(parent.AllowsWireNull).IsFalse();
+        await Assert.That(parent.Type.IsNullable).IsTrue();
+    }
+
+    [Test]
     public async Task Bind_Should_Be_Deterministic_For_The_Selected_Pin()
     {
         var (document, selection, curation) = await LoadPinnedInputsAsync();

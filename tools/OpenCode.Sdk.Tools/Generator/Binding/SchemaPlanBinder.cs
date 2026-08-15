@@ -366,6 +366,10 @@ internal sealed class SchemaPlanBinder
                 continue;
             }
 
+            // Captured before optional-absence widening: schema-admitted null is what the type
+            // binder reported, plus JsonElement, whose unrestricted schema admits every JSON
+            // value including null.
+            var allowsWireNull = type.IsNullable || type is NamedTypeReferencePlan { Name: "JsonElement" };
             if (!property.IsRequired && !type.IsCollection)
             {
                 type = type with { IsNullable = true };
@@ -378,6 +382,7 @@ internal sealed class SchemaPlanBinder
                 Name = CSharpNamePolicy.ToPascalCase(property.Name),
                 Type = type,
                 IsRequired = property.IsRequired,
+                AllowsWireNull = allowsWireNull,
                 IsLiteral = literal is not null,
                 LiteralKind = literal?.Kind,
                 LiteralValue = literal?.Value,

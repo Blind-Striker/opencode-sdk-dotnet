@@ -58,6 +58,7 @@ public sealed record SessionMessageShell : SessionMessageInfo
     /// </summary>
     [JsonPropertyName("exit")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingValueJsonConverter<double>))]
     public double? Exit { get; init; }
 
     /// <summary>
@@ -65,5 +66,6 @@ public sealed record SessionMessageShell : SessionMessageInfo
     /// </summary>
     [JsonPropertyName("output")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingJsonConverter<SessionMessageShellOutput>))]
     public SessionMessageShellOutput? Output { get; init; }
 }

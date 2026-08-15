@@ -1,0 +1,24 @@
+{
+  "id": "ses_100",
+  "parentID": null,
+  "projectID": "prj_1",
+  "title": "Fix the build",
+  "cost": 0.42,
+  "tokens": {
+    "input": 10,
+    "output": 20,
+    "reasoning": 0,
+    "cache": {
+      "read": 1,
+      "write": 2
+    }
+  },
+  "time": {
+    "created": 1755100000,
+    "updated": 1755100050
+  },
+  "location": {
+    "directory": "/repo",
+    "workspaceID": "wrk_1"
+  }
+}
