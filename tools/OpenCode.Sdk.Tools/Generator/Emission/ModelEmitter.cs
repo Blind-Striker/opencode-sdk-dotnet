@@ -71,7 +71,9 @@ internal static class ModelEmitter
 
     private static GeneratedSource EmitEnum(EnumModelPlan model)
     {
-        var converterType = TypeSyntaxEmitter.Generic("JsonStringEnumConverter", TypeSyntaxEmitter.EmitNamed(model.Name));
+        // Strict by contract: the schema types enum values as strings, so the permissive
+        // default's integer tolerance would admit malformed bodies as undefined members.
+        var converterType = TypeSyntaxEmitter.Generic("StrictJsonStringEnumConverter", TypeSyntaxEmitter.EmitNamed(model.Name));
         var declaration = SyntaxFactory.EnumDeclaration(model.Name)
             .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
             .AddAttributeLists(EmissionSyntax.Attribute("JsonConverter", SyntaxFactory.AttributeArgument(
@@ -80,7 +82,10 @@ internal static class ModelEmitter
                 .AddAttributeLists(EmissionSyntax.Attribute("JsonStringEnumMemberName", EmissionSyntax.StringArgument(value.WireValue)))
                 .WithLeadingTrivia(EmissionSyntax.Documentation($"Represents the '{value.WireValue}' wire value.")))))
             .WithLeadingTrivia(EmissionSyntax.Documentation(model.Description ?? $"Defines the supported {DisplayName(model.Name)} values."));
-        var unit = EmissionSyntax.CompilationUnit(model.Namespace, ["System.Text.Json.Serialization"], [declaration]);
+        var unit = EmissionSyntax.CompilationUnit(
+            model.Namespace,
+            ["System.Text.Json.Serialization", "OpenCode.Sdk.Internal.Serialization"],
+            [declaration]);
         return EmissionSyntax.CreateSource($"Models/{model.Name}.cs", unit);
     }
 

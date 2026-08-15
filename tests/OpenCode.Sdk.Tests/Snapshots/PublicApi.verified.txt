@@ -194,7 +194,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("status")]
         public required OpenCode.Sdk.Models.FileDiffInfoStatus Status { get; init; }
     }
-    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<OpenCode.Sdk.Models.FileDiffInfoStatus>))]
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.FileDiffInfoStatus>))]
     public enum FileDiffInfoStatus
     {
         [System.Text.Json.Serialization.JsonStringEnumMemberName("added")]
@@ -533,7 +533,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public abstract string Type { get; }
     }
-    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<OpenCode.Sdk.Models.SessionMessageAssistantFinish>))]
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.SessionMessageAssistantFinish>))]
     public enum SessionMessageAssistantFinish
     {
         [System.Text.Json.Serialization.JsonStringEnumMemberName("stop")]
@@ -680,7 +680,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public override string Type { get; }
     }
-    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<OpenCode.Sdk.Models.SessionMessageCompactionCompletedReason>))]
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.SessionMessageCompactionCompletedReason>))]
     public enum SessionMessageCompactionCompletedReason
     {
         [System.Text.Json.Serialization.JsonStringEnumMemberName("auto")]
@@ -712,7 +712,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public override string Type { get; }
     }
-    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<OpenCode.Sdk.Models.SessionMessageCompactionFailedReason>))]
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.SessionMessageCompactionFailedReason>))]
     public enum SessionMessageCompactionFailedReason
     {
         [System.Text.Json.Serialization.JsonStringEnumMemberName("auto")]
@@ -746,7 +746,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public override string Type { get; }
     }
-    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<OpenCode.Sdk.Models.SessionMessageCompactionRunningReason>))]
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.SessionMessageCompactionRunningReason>))]
     public enum SessionMessageCompactionRunningReason
     {
         [System.Text.Json.Serialization.JsonStringEnumMemberName("auto")]
@@ -875,7 +875,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("truncated")]
         public required bool Truncated { get; init; }
     }
-    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<OpenCode.Sdk.Models.SessionMessageShellStatus>))]
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.SessionMessageShellStatus>))]
     public enum SessionMessageShellStatus
     {
         [System.Text.Json.Serialization.JsonStringEnumMemberName("running")]
