@@ -69,9 +69,10 @@ Session 24). Q92's simplicity-first construction (ADR-0010) is landed — Arc 1 
 the transport constructor is internal friend-assembly test surface, Extensions registers
 a factory-less singleton client family with a roster contract test, and the Q91 guard
 machinery is deleted — closing #31 by construction. #28, #32, and #33 are sealed with
-their execution homes recorded (Session 24); the location + merged-Request design
-session's marshalling seals (Arc 2) are still pending. Remaining M2 breadth batches
-interleave next, each against the marshalling design once it seals.
+their execution homes recorded (Session 24), and the location + merged-Request design is
+sealed (Session 25, Q93/Q94: the binder placement map and the dual-channel location
+rendering) — the body+query admission stop condition is lifted. Remaining M2 breadth
+batches interleave next against the sealed design.
 
 ## Milestones
 

@@ -1996,3 +1996,30 @@ PR opening the M3 runway.
   verbatim replay (ADR-0009 intact). Executes inside #23's converter rewrite.
 - **#31 (DI lifetime shape)** superseded by Q92 — closes with the reshape PR; the roster
   contract test carries over into it.
+
+# Session 25 — 2026-08-15: M3 Arc 2 — location + merged-Request design seals
+
+The short design session sealed Q88's two questions on the recommendations; the
+body+query admission stop condition lifts. Census inputs: doc 15 §5a/§6.
+
+## Q93: How does one uniform `*Request` carry body-bound and query-bound properties?
+
+**Decision (maintainer, sealed):** a binder-owned per-property placement map (AWS
+marshalling style). The operation plan records each request property's wire placement
+(body, query, path); emitters stay name-blind and route composition reads placements
+mechanically; the deliberate body+query double-derivation refusal retires per-operation
+as the map admits it. Upstream parity: the v2 first-party generated client emits one
+uniform `{Op}Input` per operation.
+
+## Q94: How does the SDK render the dual-channel location mechanism?
+
+**Decision (maintainer, sealed):** both channels, layered by the server's own
+precedence. The location-carrying operations get a generated `Location` property on
+their request records (the spec-visible deepObject channel the first-party client uses
+exclusively; `location[directory]=…&location[workspace]=…` marshalling implemented once
+in route composition), and `OpenCodeClientOptions` gains an ambient default riding the
+spec-invisible `x-opencode-directory`/`x-opencode-workspace` header channel. An explicit
+per-request `Location` wins over the ambient default because the server resolves query
+before header — the SDK performs no client-side merge. `v2.session.list`'s flat location
+fields bind as ordinary query properties with no special case; the fail-closed walls
+stay.
