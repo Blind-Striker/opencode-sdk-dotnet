@@ -47,11 +47,12 @@ landed on the same PR: options-only construction with the read-only
 `IHttpClientFactory`-based `AddOpenCode` returning the `IHttpClientBuilder`, pooled
 connection lifetime on the owned transport, and the sandbox as the Generic Host DI
 showcase. The PR #26 external review ran through adversarial verification (36 findings:
-30 confirmed / 4 plausible / 2 refuted): the ten merge blockers plus small fold-ins are
-queued as the fix batch in `agents/handover-prompts/HANDOFF-2026-08-14-3.md` — Q91 sealed
-2026-08-15 (research log Session 23, doc 16), unblocking blocker #1 — and every surviving
-non-blocker lives in issues #27–#30 and the #24 hygiene comment. Merge follows the fix
-batch; further breadth batches follow merge.
+30 confirmed / 4 plausible / 2 refuted), and the verified fix batch landed 2026-08-15
+red-test-first — all ten merge blockers plus the small confirmed fold-ins, with Q91 sealed
+(research log Session 23, doc 16: the caller-owned HttpClient constructor stays public
+behind a fail-closed anonymous-mode guard) and 904 tests green. Every surviving
+non-blocker lives in issues #27–#30 and the #24 hygiene comment. Merge is awaiting the
+maintainer's word; further breadth batches follow merge.
 
 ## Milestones
 
