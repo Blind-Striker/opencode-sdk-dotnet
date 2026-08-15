@@ -13,6 +13,13 @@ internal static class SchemaNodeComparer
         ArgumentNullException.ThrowIfNull(left);
         ArgumentNullException.ThrowIfNull(right);
 
+        // Format is type-affecting ('format: uri' emits Uri, not string), so it joins
+        // identity ahead of the kind switch and rides every recursive comparison.
+        if (!string.Equals(left.Format, right.Format, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
         return (left, right) switch
         {
             (PrimitiveNode a, PrimitiveNode b) => a.Kind == b.Kind,

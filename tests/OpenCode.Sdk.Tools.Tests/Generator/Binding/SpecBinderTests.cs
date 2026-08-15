@@ -550,6 +550,16 @@ public sealed class SpecBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Refuse_An_Alias_Whose_Formats_Differ()
+    {
+        var document = await IngestAsync(DuplicateTagScenario(static duplicate => duplicate.Type("object")
+            .Property("_tag", property => property.Type("string").Enum("GadgetError"), required: true)
+            .Property("message", property => property.Type("string").Format("uri"), required: true)));
+
+        await AssertAliasRefusalAsync(document, Alias("GadgetError1", "GadgetError"), "structurally identical");
+    }
+
+    [Test]
     public async Task Bind_Should_Refuse_An_Alias_Whose_Schema_Is_Missing()
     {
         var document = await IngestAsync(DuplicateTagScenario());
