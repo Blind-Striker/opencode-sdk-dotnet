@@ -1,0 +1,70 @@
+# M2 Second Breadth Batch Execution Plan
+
+Date: 2026-08-15
+
+**Goal:** make `v2.session.remove`, `v2.session.rename`, and the `v2.shell.*` family
+(`list`, `create`, `get`, `remove`, `timeout`, `output`) callable through the sealed
+Q93/Q94 marshalling — the design-prover batch: every new mechanism the M3 Arc 2 seals
+introduced gets exercised by a real operation. Sealed inputs: research log Session 25
+(Q93 placement map, Q94 dual-channel location), #28 (rides this batch), ADR-0008/0009.
+
+## What the pinned spec says (recon, 2026-08-15)
+
+- `shell.list` GET `location`; `shell.create` POST body (`command`+`timeout` required,
+  `cwd`, free-form `metadata` object) + `location`; `shell.get`/`shell.remove` path `id`
+  + `location`; `shell.timeout` PATCH body + `location`; `shell.output` GET `id` +
+  `location` + integer `cursor`/`limit` — its response data is a flat
+  `{output, cursor, running, …}` object, **not** the `ListCursor` shape, so it binds as
+  a plain operation (no `ListRequest` derivation; the profile wall keeps it flat).
+- **New envelope profile:** every shell success wraps as `{location: Location.Info,
+  data: …}` (both required) — the location-echo envelope. The sibling surfaces on the
+  response like the cursor precedent (`response.Location`).
+- **204 No Content** on `session.remove`, `session.rename`, `shell.remove` — the first
+  bodyless success shape. Fail-closed rendering: a 204 with a non-empty body is a
+  protocol failure (RFC 9110: 204 carries no content), and the response envelope has no
+  payload property.
+- `Shell.Info1` is byte-identical to `Shell.Info` including every constraint — the
+  second `schemaAliases` row (Q81 mechanism).
+- `shell.create.metadata` is `{"type":"object"}` free-form — treatment decided at the
+  binder wall when admission reaches it (existing dialect rules first; a new mechanism
+  only if the walls refuse).
+
+## Machinery this batch lands
+
+1. Binder **placement map** (Q93): per-property wire placement on the operation plan;
+   the body+query double-derivation refusal retires exactly for admitted ops.
+2. **Location rendering** (Q94): generated `Location` property on location-carrying
+   request records; deepObject marshalling (`location[directory]=…`) once in route
+   composition; `OpenCodeClientOptions` ambient default riding the
+   `x-opencode-directory`/`x-opencode-workspace` headers in pipeline decoration.
+3. The `{location, data}` **envelope profile** and the **204 bodyless** envelope.
+4. **PATCH and DELETE** verbs through routes/emitters/pipeline.
+5. The **`Shells` client family** — the roster contract test must force its DI
+   registration.
+6. **#28 rider:** the mutually-exclusive-query curation row for `message.list`
+   (`order`+`cursor`), binder-validated fail-closed, route-boundary refusal, no-send
+   contract test.
+
+## Boundaries
+
+- Standing walls and stop conditions carry; spec pin stays `a6a712a`.
+- Curation rows are API surface: names follow the mechanical rules
+  (`ShellsClient`, `ShellCreateRequest`, …); anything the rules cannot produce stops for
+  the maintainer.
+- Performance guardrails: no hot-path work; baselines must not regress.
+
+## Work plan
+
+- [ ] Placement map in the binder, red-test-first; body+query admission for
+      `shell.create`/`shell.timeout` only through it.
+- [ ] Location: request-record property + deepObject route composition; ambient header
+      default in options/pipeline (explicit query wins by server precedence — no client
+      merge logic).
+- [ ] Envelope profiles: `{location, data}` and 204-bodyless, with binder walls and
+      contract tests.
+- [ ] Curation rows + `Shell.Info1` alias; regen; model closure; PATCH/DELETE;
+      operation methods + contract tests per op.
+- [ ] #28 rider end to end.
+- [ ] Live demo against `opencode2 serve`: shell create → list → get → output → remove,
+      plus session rename → remove.
+- [ ] ROADMAP + this plan updated in the same commits.
