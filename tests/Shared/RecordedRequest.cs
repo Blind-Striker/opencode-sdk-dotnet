@@ -1,4 +1,4 @@
-namespace OpenCode.Sdk.Tests.Support;
+namespace OpenCode.Sdk.TestSupport;
 
 internal sealed record RecordedRequest
 {

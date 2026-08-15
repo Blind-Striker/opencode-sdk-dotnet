@@ -1,6 +1,6 @@
 using System.Net;
 using OpenCode.Sdk.Models;
-using OpenCode.Sdk.Tests.Support;
+using OpenCode.Sdk.TestSupport;
 
 namespace OpenCode.Sdk.Tests;
 

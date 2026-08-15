@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using OpenCode.Sdk.Models;
 using OpenCode.Sdk.Tests.Support;
+using OpenCode.Sdk.TestSupport;
 
 namespace OpenCode.Sdk.Tests.Serialization;
 

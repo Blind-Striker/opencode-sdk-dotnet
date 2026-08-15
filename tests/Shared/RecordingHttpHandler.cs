@@ -1,7 +1,8 @@
 using System.Net;
 
-namespace OpenCode.Sdk.Tests.Support;
+namespace OpenCode.Sdk.TestSupport;
 
+/// <summary>Records every request flowing through the handler, answering from the supplied responder.</summary>
 internal sealed class RecordingHttpHandler : HttpMessageHandler
 {
     private readonly Func<HttpRequestMessage, HttpResponseMessage> _responder;
@@ -25,6 +26,12 @@ internal sealed class RecordingHttpHandler : HttpMessageHandler
     public IReadOnlyList<RecordedRequest> Requests => _requests;
 
     public bool IsDisposed { get; private set; }
+
+    public static RecordingHttpHandler RespondingJson(string body) =>
+        new(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(body),
+        });
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {

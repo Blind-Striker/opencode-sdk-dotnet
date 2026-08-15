@@ -1,17 +1,17 @@
 using System.Reflection;
 using System.Text;
 
-namespace OpenCode.Sdk.Extensions.Tests.Support;
+namespace OpenCode.Sdk.TestSupport;
 
+/// <summary>Loads embedded JSON fixtures from the compiling test assembly's Fixtures folder.</summary>
 internal sealed class FixtureLoader
 {
-    private const string ResourcePrefix = "OpenCode.Sdk.Extensions.Tests.Fixtures.";
     private readonly Assembly _assembly = typeof(FixtureLoader).Assembly;
 
     public string LoadJson(string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        var resourceName = string.Concat(ResourcePrefix, name);
+        var resourceName = string.Concat(_assembly.GetName().Name, ".Fixtures.", name);
         var stream = _assembly.GetManifestResourceStream(resourceName)
                      ?? throw new ArgumentException($"Embedded JSON fixture '{name}' was not found.", nameof(name));
 

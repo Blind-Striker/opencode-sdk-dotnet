@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenCode.Sdk.Extensions.Tests.Support;
+using OpenCode.Sdk.TestSupport;
 
 namespace OpenCode.Sdk.Extensions.Tests;
 
@@ -23,7 +24,7 @@ public sealed class OpenCodeServiceCollectionExtensionsTests
         var response = await provider.GetRequiredService<OpenCodeClient>().GetHealthAsync();
 
         await Assert.That(response.Health.Healthy).IsTrue();
-        await Assert.That(handler.RequestUris.Single()).IsEqualTo(new Uri("http://localhost:4096/api/health"));
+        await Assert.That(handler.Requests.Single().RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/health"));
     }
 
     [Test]
@@ -86,7 +87,7 @@ public sealed class OpenCodeServiceCollectionExtensionsTests
         _ = await provider.GetRequiredService<OpenCodeClient>().GetHealthAsync();
 
         var expected = $"Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret"))}";
-        await Assert.That(handler.AuthorizationHeaders.Single()).IsEqualTo(expected);
+        await Assert.That(handler.Requests.Single().Authorization).IsEqualTo(expected);
     }
 
     [Test]
