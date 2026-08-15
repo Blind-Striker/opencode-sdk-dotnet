@@ -525,6 +525,46 @@ public sealed class SpecBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Apply_A_Property_Override_Keyed_To_An_Alias_Source()
+    {
+        var document = await IngestAsync(DuplicateTagScenario());
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.gadget.get"),
+            Curation(
+                Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: null, handleParameter: null)),
+                propertyOverrides: [new PropertyOverride { Schema = "GadgetError1", Property = "message", Type = PropertyOverrideType.Uri, Reason = "The wire value is URL-semantic." }],
+                schemaAliases: [Alias("GadgetError1", "GadgetError")]));
+
+        var error = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "GadgetError");
+        var message = error.Properties.Single(static property => property.WireName == "message");
+        await Assert.That(message.Type).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(((NamedTypeReferencePlan)message.Type).Name).IsEqualTo("Uri");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_Overrides_Collapsing_Onto_The_Same_Property()
+    {
+        var document = await IngestAsync(DuplicateTagScenario());
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.gadget.get"),
+            Curation(
+                Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: null, handleParameter: null)),
+                propertyOverrides:
+                [
+                    new PropertyOverride { Schema = "GadgetError1", Property = "message", Type = PropertyOverrideType.Uri, Reason = "The wire value is URL-semantic." },
+                    new PropertyOverride { Schema = "GadgetError", Property = "message", Type = PropertyOverrideType.Uri, Reason = "The wire value is URL-semantic." },
+                ],
+                schemaAliases: [Alias("GadgetError1", "GadgetError")])));
+
+        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+            && error.Problem.Contains("collapse", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
     public async Task Bind_Should_Refuse_A_Duplicate_Error_Tag_Without_An_Alias()
     {
         var document = await IngestAsync(DuplicateTagScenario());
