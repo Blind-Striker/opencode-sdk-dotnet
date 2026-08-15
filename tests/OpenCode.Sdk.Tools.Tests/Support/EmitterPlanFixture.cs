@@ -249,6 +249,7 @@ internal static class EmitterPlanFixture
                     QueryProperty("order", "Order", QueryValueKind.ListOrder),
                     QueryProperty("cursor", "Cursor", QueryValueKind.Text),
                     QueryProperty("parentID", "ParentId", QueryValueKind.SessionParentFilter),
+                    QueryProperty("location", "Location", QueryValueKind.Location),
                 ],
             },
             Envelope = new EnvelopePlan

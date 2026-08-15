@@ -74,6 +74,7 @@ internal static class QueryRequestEmitter
         QueryValueKind.PositiveCount => SyntaxFactory.NullableType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.IntKeyword))),
         QueryValueKind.ListOrder => SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed("ListOrder")),
         QueryValueKind.SessionParentFilter => SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed("SessionParentFilter")),
+        QueryValueKind.Location => SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed("LocationSelector")),
         _ => throw new InvalidOperationException($"Query value kind '{kind}' has no property type."),
     };
 }

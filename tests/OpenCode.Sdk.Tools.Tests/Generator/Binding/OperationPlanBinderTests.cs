@@ -772,6 +772,40 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Bind_The_Location_Selector_Deep_Object()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("location", "query", QueryScenarioData.NullableLocationSelector, deepObject: true)));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        var property = list.QueryRequest!.Properties.Single();
+        await Assert.That(property.Kind).IsEqualTo(QueryValueKind.Location);
+        await Assert.That(property.PropertyName).IsEqualTo("Location");
+        await Assert.That(plan.Models.Select(static model => model.Name)
+            .SequenceEqual(["WidgetInfo"], StringComparer.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Deep_Object_Outside_The_Location_Selector_Shape()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("location", "query", QueryScenarioData.NullableSelectorWithExtraMember, deepObject: true)));
+
+        await AssertWidgetRefusalAsync(document, "location selector");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Required_Location_Selector()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("location", "query", QueryScenarioData.NullableLocationSelector, required: true, deepObject: true)));
+
+        await AssertWidgetRefusalAsync(document, "location selector");
+    }
+
+    [Test]
     public async Task Bind_Should_Refuse_A_Request_Body_On_A_Get_Operation()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
@@ -1272,6 +1306,31 @@ public sealed class OperationPlanBinderTests
             static branch => branch.AnyOf(
                 static inner => inner.Type("string").AllOf(static constraint => constraint.Raw("pattern", "\"^wid\"")),
                 static inner => inner.Type("string").Enum("null")),
+            static branch => branch.Type("null"));
+
+        public static void NullableLocationSelector(SchemaBuilder schema) => schema.AnyOf(
+            static branch => branch.Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("directory", static property => property.AnyOf(
+                    static inner => inner.Type("string"),
+                    static inner => inner.Type("null")))
+                .Property("workspace", static property => property.AnyOf(
+                    static inner => inner.Type("string"),
+                    static inner => inner.Type("null"))),
+            static branch => branch.Type("null"));
+
+        public static void NullableSelectorWithExtraMember(SchemaBuilder schema) => schema.AnyOf(
+            static branch => branch.Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("directory", static property => property.AnyOf(
+                    static inner => inner.Type("string"),
+                    static inner => inner.Type("null")))
+                .Property("workspace", static property => property.AnyOf(
+                    static inner => inner.Type("string"),
+                    static inner => inner.Type("null")))
+                .Property("project", static property => property.AnyOf(
+                    static inner => inner.Type("string"),
+                    static inner => inner.Type("null"))),
             static branch => branch.Type("null"));
     }
 

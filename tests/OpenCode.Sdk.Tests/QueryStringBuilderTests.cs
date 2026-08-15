@@ -116,7 +116,48 @@ public sealed class QueryStringBuilderTests
         query.AddCount("limit", null, "request");
         query.AddOrder("order", null);
         query.AddParentFilter("parentID", null);
+        query.AddLocation("location", null);
 
         await Assert.That(query.Value).IsEqualTo(string.Empty);
+    }
+
+    [Test]
+    public async Task AddLocation_Should_Write_Both_Members_With_Literal_Brackets()
+    {
+        var query = new QueryStringBuilder();
+
+        query.AddLocation("location", new LocationSelector { Directory = "/repo", Workspace = "wrk_1" });
+
+        await Assert.That(query.Value).IsEqualTo("?location[directory]=%2Frepo&location[workspace]=wrk_1");
+    }
+
+    [Test]
+    public async Task AddLocation_Should_Skip_Unset_Members()
+    {
+        var query = new QueryStringBuilder();
+
+        query.AddLocation("location", new LocationSelector { Workspace = "wrk_1" });
+
+        await Assert.That(query.Value).IsEqualTo("?location[workspace]=wrk_1");
+    }
+
+    [Test]
+    public async Task AddLocation_Should_Write_Nothing_For_An_Empty_Selector()
+    {
+        var query = new QueryStringBuilder();
+
+        query.AddLocation("location", new LocationSelector());
+
+        await Assert.That(query.Value).IsEqualTo(string.Empty);
+    }
+
+    [Test]
+    public async Task AddLocation_Should_Escape_The_Member_Values()
+    {
+        var query = new QueryStringBuilder();
+
+        query.AddLocation("location", new LocationSelector { Directory = "a b&c=d" });
+
+        await Assert.That(query.Value).IsEqualTo("?location[directory]=a%20b%26c%3Dd");
     }
 }

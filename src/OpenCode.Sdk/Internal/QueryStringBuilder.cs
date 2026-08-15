@@ -63,6 +63,40 @@ internal sealed class QueryStringBuilder
         }
     }
 
+    public void AddLocation(string name, LocationSelector? value)
+    {
+        if (value is null)
+        {
+            return;
+        }
+
+        if (value.Directory is not null)
+        {
+            AppendBracketed(name, "directory", value.Directory);
+        }
+
+        if (value.Workspace is not null)
+        {
+            AppendBracketed(name, "workspace", value.Workspace);
+        }
+    }
+
+    /// <summary>
+    /// DeepObject keys ride the wire with literal brackets, matching the first-party
+    /// client's serialization; the member names are SDK literals, never caller input.
+    /// </summary>
+    private void AppendBracketed(string name, string member, string value)
+    {
+        _builder ??= new StringBuilder();
+        _ = _builder.Append(_builder.Length is 0 ? '?' : '&')
+            .Append(Uri.EscapeDataString(name))
+            .Append('[')
+            .Append(member)
+            .Append(']')
+            .Append('=')
+            .Append(Uri.EscapeDataString(value));
+    }
+
     private void Append(string name, string value)
     {
         _builder ??= new StringBuilder();

@@ -18,6 +18,7 @@ internal sealed class OperationPlanBinder
         "ListCursor",
         "ListOrder",
         "ListRequest",
+        "LocationSelector",
         "OpenCodeApiException",
         "OpenCodeClientOptions",
         "OpenCodeException",
@@ -671,6 +672,24 @@ internal sealed class OperationPlanBinder
                 ? EnvelopeKind.DataLocationList
                 : EnvelopeKind.DataLocation;
 
+        /// <summary>
+        /// Recognizes the dual-channel location selector structurally — exactly the
+        /// optional-nullable string <c>directory</c> and <c>workspace</c> members — so the
+        /// route serializer's fixed member set stays safe.
+        /// </summary>
+        private bool IsLocationSelectorShape(SchemaNode schema)
+        {
+            if (Resolve(schema) is not ObjectNode selector
+                || selector.Properties.Count is not 2
+                || selector.Properties.Select(static property => property.Name).Distinct(StringComparer.Ordinal).Count() is not 2)
+            {
+                return false;
+            }
+
+            return selector.Properties.All(property => property is { IsRequired: false, Name: "directory" or "workspace" }
+                && Resolve(property.Schema) is NullableNode { Inner: PrimitiveNode { Kind: PrimitiveKind.String } });
+        }
+
         /// <summary>Recognizes the wire cursor contract: exactly optional-nullable string <c>previous</c> and <c>next</c>.</summary>
         private bool IsListCursorShape(SchemaNode schema)
         {
@@ -858,7 +877,12 @@ internal sealed class OperationPlanBinder
             {
                 if (parameter.IsDeepObject)
                 {
-                    Refuse($"query parameter '{parameter.Name}' must not use deep-object encoding");
+                    var location = BindLocationSelector(parameter);
+                    if (location is not null)
+                    {
+                        properties.Add(location);
+                    }
+
                     continue;
                 }
 
@@ -911,6 +935,26 @@ internal sealed class OperationPlanBinder
                 TypeName = OperationNamePolicy.RequestTypeName(_operation),
                 DerivesFromListRequest = properties.Count > 0 && properties[0].IsInherited,
                 Properties = properties,
+            };
+        }
+
+        /// <summary>The one admitted deep-object encoding is the optional nullable location selector.</summary>
+        private QueryPropertyPlan? BindLocationSelector(SpecParameter parameter)
+        {
+            if (parameter.IsRequired
+                || Resolve(parameter.Schema) is not NullableNode nullable
+                || !IsLocationSelectorShape(nullable.Inner))
+            {
+                Refuse($"query parameter '{parameter.Name}' uses deep-object encoding outside the optional location selector shape");
+                return null;
+            }
+
+            return new QueryPropertyPlan
+            {
+                WireName = parameter.Name,
+                PropertyName = CSharpNamePolicy.ToPascalCase(parameter.Name),
+                Kind = QueryValueKind.Location,
+                IsInherited = false,
             };
         }
 

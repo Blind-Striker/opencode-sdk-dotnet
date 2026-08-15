@@ -37,6 +37,12 @@
         public int? Limit { get; init; }
         public OpenCode.Sdk.ListOrder? Order { get; init; }
     }
+    public sealed class LocationSelector : System.IEquatable<OpenCode.Sdk.LocationSelector>
+    {
+        public LocationSelector() { }
+        public string? Directory { get; init; }
+        public string? Workspace { get; init; }
+    }
     public sealed class MessageListRequest : OpenCode.Sdk.ListRequest, System.IEquatable<OpenCode.Sdk.MessageListRequest>
     {
         public MessageListRequest() { }

@@ -187,6 +187,7 @@ internal static class RoutesEmitter
         QueryValueKind.PositiveCount => "AddCount",
         QueryValueKind.ListOrder => "AddOrder",
         QueryValueKind.SessionParentFilter => "AddParentFilter",
+        QueryValueKind.Location => "AddLocation",
         _ => throw new InvalidOperationException($"Query value kind '{kind}' has no query-builder method."),
     };
 

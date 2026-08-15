@@ -122,6 +122,7 @@ public static class OpenCodeRoutes
             query.AddOrder("order", request.Order);
             query.AddText("cursor", request.Cursor);
             query.AddParentFilter("parentID", request.ParentId);
+            query.AddLocation("location", request.Location);
             return path + query.Value;
         }
 

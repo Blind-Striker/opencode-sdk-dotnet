@@ -34,4 +34,8 @@ public sealed record WidgetListRequest
     /// Gets the &apos;parentID&apos; query value; the server default applies when unset.
     /// </summary>
     public SessionParentFilter? ParentId { get; init; }
+    /// <summary>
+    /// Gets the &apos;location&apos; query value; the server default applies when unset.
+    /// </summary>
+    public LocationSelector? Location { get; init; }
 }
