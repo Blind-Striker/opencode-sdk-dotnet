@@ -92,7 +92,7 @@ internal static class EmitterPlanFixture
                 HandleTypeName = "WidgetClient",
                 Parameter = CreateWidgetParameter(),
             },
-            Operations = [CreateOverviewOperation(), CreateWidgetListOperation(), CreateWidgetCreateOperation()],
+            Operations = [CreateOverviewOperation(), CreateWidgetListOperation(), CreateWidgetCreateOperation(), CreateWidgetRemoveOperation()],
         },
     ];
 
@@ -112,6 +112,7 @@ internal static class EmitterPlanFixture
                 PayloadName = "Ping",
                 PayloadTypeName = "ExampleItem",
                 Kind = EnvelopeKind.Bare,
+                SuccessStatusCode = 200,
             },
             ErrorMap = new ErrorMapPlan
             {
@@ -144,6 +145,7 @@ internal static class EmitterPlanFixture
                 PayloadName = "Overview",
                 PayloadTypeName = "ExampleItem",
                 Kind = EnvelopeKind.Bare,
+                SuccessStatusCode = 200,
             },
             ErrorMap = new ErrorMapPlan
             {
@@ -179,6 +181,7 @@ internal static class EmitterPlanFixture
                 PayloadName = "Item",
                 PayloadTypeName = "ExampleItem",
                 Kind = EnvelopeKind.Data,
+                SuccessStatusCode = 200,
                 EnvelopeDtoTypeName = "WidgetItemResponseEnvelope",
             },
             ErrorMap = new ErrorMapPlan
@@ -243,6 +246,7 @@ internal static class EmitterPlanFixture
                 PayloadName = "Widgets",
                 PayloadTypeName = "ExampleItem",
                 Kind = EnvelopeKind.CursorList,
+                SuccessStatusCode = 200,
                 EnvelopeDtoTypeName = "WidgetListResponseEnvelope",
             },
             ErrorMap = new ErrorMapPlan
@@ -293,6 +297,7 @@ internal static class EmitterPlanFixture
                 PayloadName = "Items",
                 PayloadTypeName = "ExampleItem",
                 Kind = EnvelopeKind.CursorList,
+                SuccessStatusCode = 200,
                 EnvelopeDtoTypeName = "WidgetItemListResponseEnvelope",
             },
             ErrorMap = new ErrorMapPlan
@@ -333,6 +338,7 @@ internal static class EmitterPlanFixture
                 PayloadName = "Widget",
                 PayloadTypeName = "ExampleItem",
                 Kind = EnvelopeKind.Data,
+                SuccessStatusCode = 200,
                 EnvelopeDtoTypeName = "WidgetCreateResponseEnvelope",
             },
             ErrorMap = new ErrorMapPlan
@@ -347,6 +353,48 @@ internal static class EmitterPlanFixture
                 ],
             },
             Summary = "Create one widget",
+            Description = null,
+        };
+
+    private static OperationPlan CreateWidgetRemoveOperation() =>
+        new()
+        {
+            MethodName = "RemoveWidgetAsync",
+            HttpMethod = "delete",
+            RouteTemplate = "/api/widget/{widgetID}",
+            RouteContainerName = "Widgets",
+            RouteMemberName = "RemoveWidget",
+            Parameters =
+            [
+                new OperationParameterPlan
+                {
+                    WireName = "widgetID",
+                    Name = "widgetId",
+                    TypeName = "string",
+                    IsHandleParameter = false,
+                },
+            ],
+            Envelope = new EnvelopePlan
+            {
+                ResponseTypeName = "WidgetRemoveResponse",
+                AdapterTypeName = "WidgetRemoveResponseAdapter",
+                PayloadName = null,
+                PayloadTypeName = null,
+                Kind = EnvelopeKind.NoContent,
+                SuccessStatusCode = 204,
+            },
+            ErrorMap = new ErrorMapPlan
+            {
+                Statuses =
+                [
+                    new ErrorStatusPlan
+                    {
+                        StatusCode = 400,
+                        Tags = [new ErrorTagPlan { Tag = "BadRequestError", TypeName = "BadRequestError", }],
+                    },
+                ],
+            },
+            Summary = "Remove one widget",
             Description = null,
         };
 

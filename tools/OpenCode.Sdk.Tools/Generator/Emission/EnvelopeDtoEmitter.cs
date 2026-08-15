@@ -28,7 +28,9 @@ internal static class EnvelopeDtoEmitter
 
     private static GeneratedSource EmitDto(EnvelopePlan envelope)
     {
-        var data = EmitProperty("data", "Data", EmitDataType(envelope));
+        var payloadTypeName = envelope.PayloadTypeName
+                              ?? throw new InvalidOperationException($"Envelope '{envelope.ResponseTypeName}' has no payload.");
+        var data = EmitProperty("data", "Data", EmitDataType(envelope.Kind, payloadTypeName));
         if (envelope.Kind is EnvelopeKind.CursorList)
         {
             // The page's element schema admits no null; the converter turns a null array or a
@@ -37,7 +39,7 @@ internal static class EnvelopeDtoEmitter
                 "JsonConverter",
                 SyntaxFactory.AttributeArgument(SyntaxFactory.TypeOfExpression(TypeSyntaxEmitter.Generic(
                     "NullElementRejectingListJsonConverter",
-                    TypeSyntaxEmitter.EmitNamed(envelope.PayloadTypeName))))));
+                    TypeSyntaxEmitter.EmitNamed(payloadTypeName))))));
         }
 
         var members = new List<MemberDeclarationSyntax> { data, };
@@ -64,11 +66,11 @@ internal static class EnvelopeDtoEmitter
         return EmissionSyntax.CreateSource($"Internal/Serialization/{envelope.EnvelopeDtoTypeName}.cs", unit);
     }
 
-    private static TypeSyntax EmitDataType(EnvelopePlan envelope) => envelope.Kind switch
+    private static TypeSyntax EmitDataType(EnvelopeKind kind, string payloadTypeName) => kind switch
     {
-        EnvelopeKind.Data => TypeSyntaxEmitter.EmitNamed(envelope.PayloadTypeName),
-        EnvelopeKind.CursorList => TypeSyntaxEmitter.Generic("IReadOnlyList", TypeSyntaxEmitter.EmitNamed(envelope.PayloadTypeName)),
-        EnvelopeKind.Bare or _ => throw new InvalidOperationException($"Envelope kind '{envelope.Kind}' has no DTO."),
+        EnvelopeKind.Data => TypeSyntaxEmitter.EmitNamed(payloadTypeName),
+        EnvelopeKind.CursorList => TypeSyntaxEmitter.Generic("IReadOnlyList", TypeSyntaxEmitter.EmitNamed(payloadTypeName)),
+        EnvelopeKind.Bare or EnvelopeKind.NoContent or _ => throw new InvalidOperationException($"Envelope kind '{kind}' has no DTO."),
     };
 
     private static PropertyDeclarationSyntax EmitProperty(string wireName, string name, TypeSyntax type) =>

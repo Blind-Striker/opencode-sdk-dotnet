@@ -292,7 +292,7 @@ internal sealed class OperationPlanBinder
                 return null;
             }
 
-            var success = _operation.Responses.Single(static response => response.StatusCode is 200);
+            var success = _operation.Responses.Single(static response => response.StatusCode is 200 or 204);
             var envelope = BindEnvelope(success);
             var errorMap = BindErrorMap();
             var parameters = BindParameters(row);
@@ -408,9 +408,9 @@ internal sealed class OperationPlanBinder
             {
                 Refuse("operation must declare exactly one success response");
             }
-            else if (successes[0].StatusCode is not 200)
+            else if (successes[0].StatusCode is not (200 or 204))
             {
-                Refuse("the success response must use status 200");
+                Refuse("the success response must use status 200 or a content-free 204");
             }
 
             foreach (var response in _operation.Responses
@@ -422,6 +422,11 @@ internal sealed class OperationPlanBinder
 
         private EnvelopePlan? BindEnvelope(SpecResponse success)
         {
+            if (success.StatusCode is 204)
+            {
+                return BindNoContentEnvelope(success);
+            }
+
             if (success.ContentType is not { IsJson: true } || success.Schema is null)
             {
                 Refuse("the success response must carry a JSON schema");
@@ -485,7 +490,29 @@ internal sealed class OperationPlanBinder
                 PayloadName = payloadName,
                 PayloadTypeName = payload,
                 Kind = kind,
+                SuccessStatusCode = 200,
                 EnvelopeDtoTypeName = kind is EnvelopeKind.Bare ? null : $"{responseTypeName}Envelope",
+            };
+        }
+
+        private EnvelopePlan? BindNoContentEnvelope(SpecResponse success)
+        {
+            if (success.ContentType is not null || success.Schema is not null)
+            {
+                Refuse("a 204 success must not carry content");
+                return null;
+            }
+
+            var responseTypeName = OperationNamePolicy.ResponseTypeName(_operation);
+            return new EnvelopePlan
+            {
+                ResponseTypeName = responseTypeName,
+                AdapterTypeName = $"{responseTypeName}Adapter",
+                PayloadName = null,
+                PayloadTypeName = null,
+                Kind = EnvelopeKind.NoContent,
+                SuccessStatusCode = 204,
+                EnvelopeDtoTypeName = null,
             };
         }
 

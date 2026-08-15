@@ -116,5 +116,25 @@ public static class OpenCodeRoutes
             query.AddParentFilter("parentID", request.ParentId);
             return path + query.Value;
         }
+
+        /// <summary>
+        /// The &apos;DELETE /api/widget/{widgetID}&apos; route template.
+        /// </summary>
+        public const string RemoveWidgetTemplate = "/api/widget/{widgetID}";
+        /// <summary>
+        /// Builds the &apos;/api/widget/{widgetID}&apos; route.
+        /// </summary>
+        /// <param name = "widgetId">The &apos;widgetID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string RemoveWidget(string widgetId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(widgetId);
+            if (widgetId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(widgetId));
+            }
+
+            return "/api/widget/" + Uri.EscapeDataString(widgetId);
+        }
     }
 }

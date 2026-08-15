@@ -24,7 +24,42 @@ internal static class EnvelopeEmitter
     private static GeneratedSource EmitEnvelope(OperationPlan operation)
     {
         var envelope = operation.Envelope;
-        var fieldName = $"_{CSharpNamePolicy.ToCamelCase(envelope.PayloadName)}";
+        var members = envelope.Kind is EnvelopeKind.NoContent
+            ? EmitNoContentMembers(envelope)
+            : EmitPayloadMembers(envelope);
+        var declaration = SyntaxFactory.RecordDeclaration(SyntaxFactory.Token(SyntaxKind.RecordKeyword), envelope.ResponseTypeName)
+            .WithModifiers(SyntaxFactory.TokenList(
+                SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                SyntaxFactory.Token(SyntaxKind.SealedKeyword)))
+            .WithBaseList(SyntaxFactory.BaseList(SyntaxFactory.SingletonSeparatedList<BaseTypeSyntax>(
+                SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.EmitNamed("OpenCodeResponse")))))
+            .WithOpenBraceToken(SyntaxFactory.Token(SyntaxKind.OpenBraceToken))
+            .WithCloseBraceToken(SyntaxFactory.Token(SyntaxKind.CloseBraceToken))
+            .WithMembers(SyntaxFactory.List(members))
+            .WithLeadingTrivia(EmissionSyntax.Documentation(
+                $"Represents the response of the '{operation.HttpMethod.ToUpperInvariant()} {operation.RouteTemplate}' operation."));
+        IReadOnlyList<string> usings = envelope.Kind switch
+        {
+            EnvelopeKind.NoContent => ["System.Diagnostics.CodeAnalysis", "OpenCode.Sdk.Models"],
+            EnvelopeKind.CursorList =>
+                ["System", "System.Diagnostics.CodeAnalysis", "System.Text", "OpenCode.Sdk.Internal.Serialization", "OpenCode.Sdk.Models"],
+            EnvelopeKind.Bare or EnvelopeKind.Data or _ =>
+                ["System", "System.Diagnostics.CodeAnalysis", "System.Text", "OpenCode.Sdk.Models"],
+        };
+        var unit = EmissionSyntax.CompilationUnit("OpenCode.Sdk", usings, [declaration]);
+        return EmissionSyntax.CreateSource($"{operation.RouteContainerName}/{envelope.ResponseTypeName}.cs", unit);
+    }
+
+    private static List<MemberDeclarationSyntax> EmitNoContentMembers(EnvelopePlan envelope) =>
+    [
+        EmitSuccessConstructor(envelope.ResponseTypeName),
+        EmitErrorConstructor(envelope),
+    ];
+
+    private static List<MemberDeclarationSyntax> EmitPayloadMembers(EnvelopePlan envelope)
+    {
+        var payloadName = RequirePayloadName(envelope);
+        var fieldName = $"_{CSharpNamePolicy.ToCamelCase(payloadName)}";
         var payloadType = PayloadType(envelope);
         var members = new List<MemberDeclarationSyntax>
         {
@@ -43,28 +78,22 @@ internal static class EnvelopeEmitter
             members.Add(EmitCursorProperty());
         }
 
-        members.Add(EmitPrintMembers(envelope.PayloadName, fieldName));
-        var declaration = SyntaxFactory.RecordDeclaration(SyntaxFactory.Token(SyntaxKind.RecordKeyword), envelope.ResponseTypeName)
-            .WithModifiers(SyntaxFactory.TokenList(
-                SyntaxFactory.Token(SyntaxKind.PublicKeyword),
-                SyntaxFactory.Token(SyntaxKind.SealedKeyword)))
-            .WithBaseList(SyntaxFactory.BaseList(SyntaxFactory.SingletonSeparatedList<BaseTypeSyntax>(
-                SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.EmitNamed("OpenCodeResponse")))))
-            .WithOpenBraceToken(SyntaxFactory.Token(SyntaxKind.OpenBraceToken))
-            .WithCloseBraceToken(SyntaxFactory.Token(SyntaxKind.CloseBraceToken))
-            .WithMembers(SyntaxFactory.List(members))
-            .WithLeadingTrivia(EmissionSyntax.Documentation(
-                $"Represents the response of the '{operation.HttpMethod.ToUpperInvariant()} {operation.RouteTemplate}' operation."));
-        IReadOnlyList<string> usings = envelope.Kind is EnvelopeKind.CursorList
-            ? ["System", "System.Diagnostics.CodeAnalysis", "System.Text", "OpenCode.Sdk.Internal.Serialization", "OpenCode.Sdk.Models"]
-            : ["System", "System.Diagnostics.CodeAnalysis", "System.Text", "OpenCode.Sdk.Models"];
-        var unit = EmissionSyntax.CompilationUnit("OpenCode.Sdk", usings, [declaration]);
-        return EmissionSyntax.CreateSource($"{operation.RouteContainerName}/{envelope.ResponseTypeName}.cs", unit);
+        members.Add(EmitPrintMembers(payloadName, fieldName));
+        return members;
     }
 
-    private static TypeSyntax PayloadType(EnvelopePlan envelope) => envelope.Kind is EnvelopeKind.CursorList
-        ? TypeSyntaxEmitter.Generic("IReadOnlyList", TypeSyntaxEmitter.EmitNamed(envelope.PayloadTypeName))
-        : TypeSyntaxEmitter.EmitNamed(envelope.PayloadTypeName);
+    private static string RequirePayloadName(EnvelopePlan envelope) =>
+        envelope.PayloadName
+        ?? throw new InvalidOperationException($"Envelope '{envelope.ResponseTypeName}' has no payload.");
+
+    private static TypeSyntax PayloadType(EnvelopePlan envelope)
+    {
+        var payloadTypeName = envelope.PayloadTypeName
+                              ?? throw new InvalidOperationException($"Envelope '{envelope.ResponseTypeName}' has no payload.");
+        return envelope.Kind is EnvelopeKind.CursorList
+            ? TypeSyntaxEmitter.Generic("IReadOnlyList", TypeSyntaxEmitter.EmitNamed(payloadTypeName))
+            : TypeSyntaxEmitter.EmitNamed(payloadTypeName);
+    }
 
     private static FieldDeclarationSyntax EmitBackingField(string fieldName, TypeSyntax payloadType) =>
         SyntaxFactory.FieldDeclaration(SyntaxFactory.VariableDeclaration(
@@ -85,18 +114,23 @@ internal static class EnvelopeEmitter
     {
         var responseTypeName = envelope.ResponseTypeName;
 
-        // The payload assignment is the SDK's single null-forgiveness: the guarded getter
-        // makes the null unobservable.
         var assignments = new List<StatementSyntax>
         {
             Assign("Status", SyntaxFactory.IdentifierName("status")),
             Assign("IsError", SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression)),
             Assign("Error", SyntaxFactory.IdentifierName("error")),
             Assign("RawBody", SyntaxFactory.IdentifierName("rawBody")),
-            Assign(envelope.PayloadName, SyntaxFactory.PostfixUnaryExpression(
-                SyntaxKind.SuppressNullableWarningExpression,
-                SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
         };
+
+        // The payload assignment is the SDK's single null-forgiveness: the guarded getter
+        // makes the null unobservable. A no-content envelope has no payload to forgive.
+        if (envelope.PayloadName is not null)
+        {
+            assignments.Add(Assign(envelope.PayloadName, SyntaxFactory.PostfixUnaryExpression(
+                SyntaxKind.SuppressNullableWarningExpression,
+                SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))));
+        }
+
         if (envelope.Kind is EnvelopeKind.CursorList)
         {
             assignments.Add(Assign("Cursor", SyntaxFactory.PostfixUnaryExpression(
@@ -122,6 +156,7 @@ internal static class EnvelopeEmitter
 
     private static PropertyDeclarationSyntax EmitPayloadProperty(EnvelopePlan envelope, TypeSyntax payloadType, string fieldName)
     {
+        var payloadName = RequirePayloadName(envelope);
         ExpressionSyntax initValue = SyntaxFactory.IdentifierName("value");
         if (envelope.Kind is EnvelopeKind.CursorList)
         {
@@ -129,10 +164,10 @@ internal static class EnvelopeEmitter
         }
         return EmitGuardedProperty(
             payloadType,
-            envelope.PayloadName,
+            payloadName,
             fieldName,
             initValue,
-            $"Gets the {envelope.PayloadName} payload; guarded on the error path.");
+            $"Gets the {payloadName} payload; guarded on the error path.");
     }
 
     private static PropertyDeclarationSyntax EmitCursorProperty() =>

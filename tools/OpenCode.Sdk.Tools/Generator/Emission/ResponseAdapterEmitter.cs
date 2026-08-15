@@ -93,7 +93,7 @@ internal static class ResponseAdapterEmitter
         var arms = new List<SwitchExpressionArmSyntax>
         {
             SyntaxFactory.SwitchExpressionArm(
-                SyntaxFactory.ConstantPattern(Number(200)),
+                SyntaxFactory.ConstantPattern(Number(envelope.SuccessStatusCode)),
                 EmitSuccessCreation(envelope)),
             // Any other 2xx is outside the declared contract: a protocol failure, never an API error.
             SyntaxFactory.SwitchExpressionArm(
@@ -133,26 +133,55 @@ internal static class ResponseAdapterEmitter
 
     /// <summary>
     /// Every success path is one deserialization pass: bare bodies read the payload type,
-    /// wrapped bodies read their internal envelope DTO and project its members.
+    /// wrapped bodies read their internal envelope DTO and project its members, and a
+    /// no-content success refuses any body outright.
     /// </summary>
     private static ExpressionSyntax EmitSuccessCreation(EnvelopePlan envelope)
     {
-        var read = EmissionSyntax.Invocation(
-            SyntaxFactory.IdentifierName("ReadBarePayload"),
-            SyntaxFactory.Argument(SyntaxFactory.IdentifierName("rawBody")),
-            SyntaxFactory.Argument(EmissionSyntax.MemberAccess(
-                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("OpenCodeJsonContext"), "Default"),
-                envelope.EnvelopeDtoTypeName ?? envelope.PayloadTypeName)));
+        ExpressionSyntax Read()
+        {
+            var readTypeName = envelope.EnvelopeDtoTypeName
+                               ?? envelope.PayloadTypeName
+                               ?? throw new InvalidOperationException($"Envelope '{envelope.ResponseTypeName}' has no payload.");
+            return EmissionSyntax.Invocation(
+                SyntaxFactory.IdentifierName("ReadBarePayload"),
+                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("rawBody")),
+                SyntaxFactory.Argument(EmissionSyntax.MemberAccess(
+                    EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("OpenCodeJsonContext"), "Default"),
+                    readTypeName)));
+        }
+
         return envelope.Kind switch
         {
-            EnvelopeKind.Bare => EmitSuccessInitializer(envelope, read),
-            EnvelopeKind.Data => EmitSuccessInitializer(envelope, EmissionSyntax.MemberAccess(read, "Data")),
+            EnvelopeKind.Bare => EmitSuccessInitializer(envelope, Read()),
+            EnvelopeKind.Data => EmitSuccessInitializer(envelope, EmissionSyntax.MemberAccess(Read(), "Data")),
+            EnvelopeKind.NoContent => EmitNoContentSuccess(envelope),
             EnvelopeKind.CursorList or _ => EmissionSyntax.Invocation(
                 SyntaxFactory.IdentifierName("CreateSuccess"),
                 SyntaxFactory.Argument(SyntaxFactory.IdentifierName("status")),
-                SyntaxFactory.Argument(read)),
+                SyntaxFactory.Argument(Read())),
         };
     }
+
+    /// <summary>A declared no-content success must arrive bodiless; anything else is a protocol failure.</summary>
+    private static ConditionalExpressionSyntax EmitNoContentSuccess(EnvelopePlan envelope) =>
+        SyntaxFactory.ConditionalExpression(
+            SyntaxFactory.IsPatternExpression(
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("rawBody"), "Length"),
+                SyntaxFactory.ConstantPattern(Number(0))),
+            SyntaxFactory.ObjectCreationExpression(TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName))
+                .WithInitializer(SyntaxFactory.InitializerExpression(
+                    SyntaxKind.ObjectInitializerExpression,
+                    SyntaxFactory.SeparatedList<ExpressionSyntax>(
+                    [
+                        SyntaxFactory.AssignmentExpression(
+                            SyntaxKind.SimpleAssignmentExpression,
+                            SyntaxFactory.IdentifierName("Status"),
+                            SyntaxFactory.IdentifierName("status")),
+                    ]))),
+            SyntaxFactory.ThrowExpression(EmissionSyntax.Invocation(
+                SyntaxFactory.IdentifierName("NonEmptyNoContentFailure"),
+                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("status")))));
 
     private static ObjectCreationExpressionSyntax EmitSuccessInitializer(EnvelopePlan envelope, ExpressionSyntax payload) =>
         SyntaxFactory.ObjectCreationExpression(TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName))
@@ -166,9 +195,13 @@ internal static class ResponseAdapterEmitter
                         SyntaxFactory.IdentifierName("status")),
                     SyntaxFactory.AssignmentExpression(
                         SyntaxKind.SimpleAssignmentExpression,
-                        SyntaxFactory.IdentifierName(envelope.PayloadName),
+                        SyntaxFactory.IdentifierName(RequirePayloadName(envelope)),
                         payload),
                 ])));
+
+    private static string RequirePayloadName(EnvelopePlan envelope) =>
+        envelope.PayloadName
+        ?? throw new InvalidOperationException($"Envelope '{envelope.ResponseTypeName}' has no payload.");
 
     /// <summary>Cursor lists project the DTO twice, so a private helper keeps the switch arm single-read.</summary>
     private static MethodDeclarationSyntax EmitCursorSuccessHelper(EnvelopePlan envelope) =>
@@ -195,7 +228,7 @@ internal static class ResponseAdapterEmitter
                                 SyntaxFactory.IdentifierName("status")),
                             SyntaxFactory.AssignmentExpression(
                                 SyntaxKind.SimpleAssignmentExpression,
-                                SyntaxFactory.IdentifierName(envelope.PayloadName),
+                                SyntaxFactory.IdentifierName(RequirePayloadName(envelope)),
                                 EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("envelope"), "Data")),
                             SyntaxFactory.AssignmentExpression(
                                 SyntaxKind.SimpleAssignmentExpression,

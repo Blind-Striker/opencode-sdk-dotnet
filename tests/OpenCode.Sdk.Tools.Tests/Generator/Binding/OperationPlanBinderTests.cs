@@ -753,6 +753,45 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Bind_A_No_Content_Success_Into_A_Payload_Free_Envelope()
+    {
+        var document = await BindingTestHost.IngestAsync(NoContentScenario());
+
+        var plan = BindWidgets(document, "v2.widget.create");
+
+        var create = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(create.Envelope.Kind).IsEqualTo(EnvelopeKind.NoContent);
+        await Assert.That(create.Envelope.SuccessStatusCode).IsEqualTo(204);
+        await Assert.That(create.Envelope.ResponseTypeName).IsEqualTo("WidgetCreateResponse");
+        await Assert.That(create.Envelope.PayloadName).IsNull();
+        await Assert.That(create.Envelope.PayloadTypeName).IsNull();
+        await Assert.That(create.Envelope.EnvelopeDtoTypeName).IsNull();
+        await Assert.That(plan.Registry.TypeNames.Contains("WidgetCreateResponseEnvelope", StringComparer.Ordinal)).IsFalse();
+    }
+
+    [Test]
+    public async Task Bind_Should_Record_The_200_Success_Status_On_The_Envelope()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(static _ => { }));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.Envelope.SuccessStatusCode).IsEqualTo(200);
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_No_Content_Success_Carrying_Content()
+    {
+        var document = await BindingTestHost.IngestAsync(NoContentScenario(static operation => _ = operation
+            .WithoutResponse(204)
+            .Response(204, "application/json", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))));
+
+        await AssertWidgetRefusalAsync(document, "must not carry content", "v2.widget.create");
+    }
+
+    [Test]
     public async Task Bind_Should_Refuse_A_Success_Without_Json_Content()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
@@ -1117,6 +1156,18 @@ public sealed class OperationPlanBinderTests
             .WithOperation("v2.widget.create", method: "post", path: "/api/widget", configure: operation => operation
                 .RequestBody(mediaType, configureBody, required)
                 .Response(200, "application/json", schema => schema.Ref("WidgetInfo"))));
+
+    private static SpecScenario NoContentScenario(Action<OperationBuilder>? configure = null) =>
+        SpecScenario.Define(spec => spec
+            .WithOperation("v2.widget.create", method: "post", path: "/api/widget", configure: operation =>
+            {
+                _ = operation
+                    .RequestBody("application/json", schema => schema.Type("object")
+                        .Property("title", property => property.Type("string"), required: true), required: true)
+                    .WithoutResponse(200)
+                    .Response(204);
+                configure?.Invoke(operation);
+            }));
 
     private static EmitPlan BindWidgets(SpecDocument document, string operationId = "v2.widget.list") =>
         new BindingTestHost().Bind(
