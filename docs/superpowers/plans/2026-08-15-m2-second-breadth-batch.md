@@ -60,8 +60,8 @@ introduced gets exercised by a real operation. Sealed inputs: research log Sessi
 - [ ] Location: request-record property + deepObject route composition; ambient header
       default in options/pipeline (explicit query wins by server precedence — no client
       merge logic).
-- [ ] Envelope profiles: `{location, data}` and 204-bodyless, with binder walls and
-      contract tests.
+- [x] Envelope profiles: `{location, data}` (object and list variants) and 204-bodyless,
+      with binder walls and emitter snapshots; contract tests land with admission.
 - [ ] Curation rows + `Shell.Info1` alias; regen; model closure; PATCH/DELETE;
       operation methods + contract tests per op.
 - [ ] #28 rider end to end.
