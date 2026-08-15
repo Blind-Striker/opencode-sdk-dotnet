@@ -88,7 +88,7 @@ public sealed class OpenCodeServiceCollectionExtensionsTests
     {
         var services = new ServiceCollection();
 
-        var returned = services.AddOpenCode(static options => options.Endpoint = new Uri("http://localhost:4096"));
+        var returned = services.AddOpenCode(static options => options.Endpoint = Endpoint);
 
         await Assert.That(returned).IsSameReferenceAs(services);
     }

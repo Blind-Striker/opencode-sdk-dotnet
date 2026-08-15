@@ -43,9 +43,9 @@ public static class OpenCodeServiceCollectionExtensions
     private static IServiceCollection AddOpenCodeCore(IServiceCollection services)
     {
         // One singleton client owns the transport for the container's lifetime (pooled
-        // connection lifetime keeps it healthy); sub-clients resolve from that same
-        // instance, so every injection shares one pipeline and the container disposes one
-        // client at shutdown.
+        // connection lifetime keeps it healthy on modern TFMs); sub-clients resolve from
+        // that same instance, so every injection shares one pipeline and the container
+        // disposes one client at shutdown.
         _ = services.AddSingleton(static provider => new OpenCodeClient(
             provider.GetRequiredService<IOptions<OpenCodeClientOptions>>().Value));
         _ = services.AddSingleton(static SessionsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Sessions);
