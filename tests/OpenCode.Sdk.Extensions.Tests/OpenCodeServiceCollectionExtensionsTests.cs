@@ -121,6 +121,19 @@ public sealed class OpenCodeServiceCollectionExtensionsTests
     }
 
     [Test]
+    public async Task AddOpenCode_Should_Refuse_A_Factory_Client_Carrying_A_BaseAddress()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddOpenCode(options => options.Endpoint = Endpoint)
+            .ConfigureHttpClient(static client => client.BaseAddress = new Uri("http://localhost:9"));
+        using var provider = services.BuildServiceProvider();
+
+        var exception = Assert.Throws<ArgumentException>(() => _ = provider.GetRequiredService<OpenCodeClient>());
+
+        await Assert.That(exception.Message).Contains("BaseAddress");
+    }
+
+    [Test]
     public async Task AddOpenCode_Should_Refuse_A_Null_Service_Collection()
     {
         _ = await Assert.That(() => ((IServiceCollection)null!).AddOpenCode(static _ => { }))

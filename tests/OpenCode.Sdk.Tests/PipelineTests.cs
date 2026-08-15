@@ -437,14 +437,78 @@ public sealed class PipelineTests
     [Test]
     public async Task ExecuteAsync_Should_Pass_Cancellation_Through()
     {
-        using var handler = new RecordingHttpHandler(static _ => throw new OperationCanceledException());
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+        using var handler = new RecordingHttpHandler(_ => throw new OperationCanceledException(cancellation.Token));
         using var httpClient = new HttpClient(handler);
         using var pipeline = CreatePipeline(httpClient);
 
         _ = await Assert
             .That(async () => _ = await pipeline.ExecuteAsync(
-                HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None))
+                HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, cancellation.Token))
             .Throws<OperationCanceledException>();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Wrap_A_Timeout_Cancellation_As_A_Transport_Failure()
+    {
+        using var handler = new RecordingHttpHandler(static _ => throw new TaskCanceledException());
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+
+        var exception = await Assert
+            .That(async () => _ = await pipeline.ExecuteAsync(
+                HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception!.InnerException).IsTypeOf<TaskCanceledException>();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Wrap_A_Timeout_During_The_Body_Read_As_A_Transport_Failure()
+    {
+        using var handler = new RecordingHttpHandler(static _ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new TimeoutContent(),
+        });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+
+        var exception = await Assert
+            .That(async () => _ = await pipeline.ExecuteAsync(
+                HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception!.InnerException).IsTypeOf<TaskCanceledException>();
+    }
+
+    [Test]
+    public async Task Pipeline_Should_Refuse_An_Injected_Client_Carrying_A_BaseAddress()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("http://other:1");
+
+        var exception = Assert.Throws<ArgumentException>(() => _ = CreatePipeline(httpClient));
+
+        await Assert.That(exception.Message).Contains("BaseAddress");
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Refuse_A_BaseAddress_Set_After_Construction()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+        httpClient.BaseAddress = new Uri("http://other:1");
+
+        var exception = await Assert
+            .That(async () => _ = await pipeline.ExecuteAsync(
+                HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception!.Message).Contains("BaseAddress");
+        await Assert.That(handler.Requests).IsEmpty();
     }
 
     [Test]

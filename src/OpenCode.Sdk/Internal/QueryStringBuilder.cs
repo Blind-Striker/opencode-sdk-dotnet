@@ -22,7 +22,7 @@ internal sealed class QueryStringBuilder
         }
     }
 
-    public void AddCount(string name, int? value)
+    public void AddCount(string name, int? value, string parameterName)
     {
         if (value is null)
         {
@@ -31,7 +31,9 @@ internal sealed class QueryStringBuilder
 
         if (value <= 0)
         {
-            throw new ArgumentException($"The '{name}' query value must be positive.", nameof(value));
+            // The refusal surfaces from a generated route builder, so the builder passes
+            // the parameter name its own caller can actually see.
+            throw new ArgumentOutOfRangeException(parameterName, value, $"The '{name}' query value must be positive.");
         }
 
         Append(name, value.Value.ToString(CultureInfo.InvariantCulture));

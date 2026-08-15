@@ -47,6 +47,17 @@ internal sealed class Pipeline : IDisposable
                 nameof(options));
         }
 
+        // The pipeline builds every request URI absolute from Endpoint, so a BaseAddress on
+        // an injected client would never be consulted; refuse the conflict instead of
+        // silently ignoring half the caller's configuration.
+        if (!ownsHttpClient && httpClient.BaseAddress is not null)
+        {
+            throw new ArgumentException(
+                "The supplied HttpClient carries a BaseAddress, which this SDK never consults — requests are " +
+                "built absolute from OpenCodeClientOptions.Endpoint. Remove the BaseAddress or change the Endpoint.",
+                nameof(httpClient));
+        }
+
         // Anonymous mode cannot be expressed by omission over an injected client: HttpClient
         // copies its default headers onto every request that lacks the header, so a default
         // Authorization would ride requests this SDK promises are anonymous. Refuse the
@@ -202,6 +213,13 @@ internal sealed class Pipeline : IDisposable
                 "was refused before sending. Remove the default header or set a password.");
         }
 
+        if (!_ownsHttpClient && _httpClient.BaseAddress is not null)
+        {
+            throw new OpenCodeTransportException(
+                "The injected HttpClient's BaseAddress is set, and this SDK never consults it — requests are " +
+                "built absolute from the configured Endpoint. The request was refused before sending.");
+        }
+
         int status;
         string rawBody;
         using (var request = new HttpRequestMessage(method, new Uri(_endpointBase + route, UriKind.Absolute)))
@@ -252,8 +270,14 @@ internal sealed class Pipeline : IDisposable
         catch (Exception exception) when (exception is HttpRequestException or ObjectDisposedException)
         {
             // ObjectDisposedException covers a dispose-during-send race; the pre-send disposed
-            // guard stays outside this catch. OperationCanceledException passes through untouched.
+            // guard stays outside this catch.
             throw new OpenCodeTransportException("The opencode server could not be reached.", exception);
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            // The caller's token is untouched, so this cancellation is the transport timing
+            // out; genuine caller cancellation passes through in the token-canceled case.
+            throw new OpenCodeTransportException("The opencode server did not respond within the transport timeout.", exception);
         }
     }
 
@@ -269,7 +293,13 @@ internal sealed class Pipeline : IDisposable
             when (exception is HttpRequestException or IOException or ObjectDisposedException or InvalidOperationException)
         {
             // InvalidOperationException covers an unusable response charset surfaced by
-            // ReadAsStringAsync. OperationCanceledException deliberately passes through untouched.
+            // ReadAsStringAsync.
+            throw new OpenCodeTransportException("The opencode response body could not be read.", exception);
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            // The caller's token is untouched, so this cancellation is the transport timing
+            // out mid-body; genuine caller cancellation passes through untouched.
             throw new OpenCodeTransportException("The opencode response body could not be read.", exception);
         }
     }

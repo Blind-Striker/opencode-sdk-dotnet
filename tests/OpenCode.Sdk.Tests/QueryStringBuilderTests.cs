@@ -58,7 +58,7 @@ public sealed class QueryStringBuilderTests
     {
         var query = new QueryStringBuilder();
 
-        query.AddCount("limit", 50);
+        query.AddCount("limit", 50, "request");
 
         await Assert.That(query.Value).IsEqualTo("?limit=50");
     }
@@ -70,8 +70,9 @@ public sealed class QueryStringBuilderTests
     {
         var query = new QueryStringBuilder();
 
-        var exception = Assert.Throws<ArgumentException>(() => query.AddCount("limit", limit));
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => query.AddCount("limit", limit, "request"));
 
+        await Assert.That(exception.ParamName).IsEqualTo("request");
         await Assert.That(exception.Message).Contains("positive");
     }
 
@@ -112,7 +113,7 @@ public sealed class QueryStringBuilderTests
     {
         var query = new QueryStringBuilder();
 
-        query.AddCount("limit", null);
+        query.AddCount("limit", null, "request");
         query.AddOrder("order", null);
         query.AddParentFilter("parentID", null);
 
