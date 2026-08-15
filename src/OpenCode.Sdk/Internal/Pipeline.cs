@@ -171,6 +171,7 @@ internal sealed class Pipeline : IDisposable
         ArgumentNullException.ThrowIfNull(method);
         ArgumentException.ThrowIfNullOrWhiteSpace(route);
         ArgumentNullException.ThrowIfNull(adapter);
+
         if (route[0] is not '/')
         {
             throw new ArgumentException("Routes must start with '/'.", nameof(route));

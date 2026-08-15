@@ -27,6 +27,7 @@ namespace OpenCode.Sdk.Internal.Serialization;
 internal sealed record WidgetItemListResponseEnvelope
 {
     [JsonPropertyName("data")]
+    [JsonConverter(typeof(NullElementRejectingListJsonConverter<ExampleItem>))]
     public required IReadOnlyList<ExampleItem> Data { get; init; }
 
     [JsonPropertyName("cursor")]
@@ -62,6 +63,7 @@ namespace OpenCode.Sdk.Internal.Serialization;
 internal sealed record WidgetListResponseEnvelope
 {
     [JsonPropertyName("data")]
+    [JsonConverter(typeof(NullElementRejectingListJsonConverter<ExampleItem>))]
     public required IReadOnlyList<ExampleItem> Data { get; init; }
 
     [JsonPropertyName("cursor")]

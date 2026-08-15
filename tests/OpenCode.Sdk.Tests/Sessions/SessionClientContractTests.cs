@@ -96,6 +96,20 @@ public sealed class SessionClientContractTests
     }
 
     [Test]
+    public async Task ListMessagesAsync_Should_Treat_A_Null_Page_Element_As_A_Protocol_Failure()
+    {
+        using var handler = new RecordingHttpHandler(static _ => JsonResponse(
+            HttpStatusCode.OK,
+            "{\"data\":[null],\"cursor\":{}}"));
+        using var httpClient = new HttpClient(handler);
+        using var client = CreateClient(httpClient);
+
+        _ = await Assert
+            .That(async () => _ = await client.Sessions.GetSessionClient("ses_100").ListMessagesAsync())
+            .Throws<OpenCodeTransportException>();
+    }
+
+    [Test]
     public async Task ListMessagesAsync_Should_Throw_The_Declared_500_Error()
     {
         using var handler = new RecordingHttpHandler(static _ => JsonResponse(

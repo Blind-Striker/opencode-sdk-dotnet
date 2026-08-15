@@ -28,10 +28,19 @@ internal static class EnvelopeDtoEmitter
 
     private static GeneratedSource EmitDto(EnvelopePlan envelope)
     {
-        var members = new List<MemberDeclarationSyntax>
+        var data = EmitProperty("data", "Data", EmitDataType(envelope));
+        if (envelope.Kind is EnvelopeKind.CursorList)
         {
-            EmitProperty("data", "Data", EmitDataType(envelope)),
-        };
+            // The page's element schema admits no null; the converter turns a null array or a
+            // null element into a JsonException the adapters map to the transport wall.
+            data = data.AddAttributeLists(EmissionSyntax.Attribute(
+                "JsonConverter",
+                SyntaxFactory.AttributeArgument(SyntaxFactory.TypeOfExpression(TypeSyntaxEmitter.Generic(
+                    "NullElementRejectingListJsonConverter",
+                    TypeSyntaxEmitter.EmitNamed(envelope.PayloadTypeName))))));
+        }
+
+        var members = new List<MemberDeclarationSyntax> { data, };
         if (envelope.Kind is EnvelopeKind.CursorList)
         {
             members.Add(EmitProperty("cursor", "Cursor", TypeSyntaxEmitter.EmitNamed("ListCursor")));

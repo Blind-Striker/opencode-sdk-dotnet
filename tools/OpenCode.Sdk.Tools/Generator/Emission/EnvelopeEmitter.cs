@@ -55,10 +55,10 @@ internal static class EnvelopeEmitter
             .WithMembers(SyntaxFactory.List(members))
             .WithLeadingTrivia(EmissionSyntax.Documentation(
                 $"Represents the response of the '{operation.HttpMethod.ToUpperInvariant()} {operation.RouteTemplate}' operation."));
-        var unit = EmissionSyntax.CompilationUnit(
-            "OpenCode.Sdk",
-            ["System", "System.Diagnostics.CodeAnalysis", "System.Text", "OpenCode.Sdk.Models"],
-            [declaration]);
+        IReadOnlyList<string> usings = envelope.Kind is EnvelopeKind.CursorList
+            ? ["System", "System.Diagnostics.CodeAnalysis", "System.Text", "OpenCode.Sdk.Internal.Serialization", "OpenCode.Sdk.Models"]
+            : ["System", "System.Diagnostics.CodeAnalysis", "System.Text", "OpenCode.Sdk.Models"];
+        var unit = EmissionSyntax.CompilationUnit("OpenCode.Sdk", usings, [declaration]);
         return EmissionSyntax.CreateSource($"{operation.RouteContainerName}/{envelope.ResponseTypeName}.cs", unit);
     }
 
@@ -144,8 +144,9 @@ internal static class EnvelopeEmitter
             "Gets the page cursor; guarded on the error path.");
 
     /// <summary>
-    /// List payloads defensively copy on init so the envelope stays immutable; the error
-    /// path's forgiven null passes through uncopied and stays behind the getter guard.
+    /// List payloads defensively copy on init so the envelope stays immutable; the copy
+    /// refuses null elements the wire contract forbids, while the error path's forgiven
+    /// null passes through uncopied and stays behind the getter guard.
     /// </summary>
     private static ConditionalExpressionSyntax DefensiveListCopy() =>
         SyntaxFactory.ConditionalExpression(
@@ -154,10 +155,8 @@ internal static class EnvelopeEmitter
                 SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
             SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression),
             EmissionSyntax.Invocation(
-                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("Array"), "AsReadOnly"),
-                SyntaxFactory.Argument(SyntaxFactory.CollectionExpression(
-                    SyntaxFactory.SingletonSeparatedList<CollectionElementSyntax>(
-                        SyntaxFactory.SpreadElement(SyntaxFactory.IdentifierName("value")))))));
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("ListPayloadInput"), "CopyRejectingNullElements"),
+                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("value"))));
 
     private static PropertyDeclarationSyntax EmitGuardedProperty(TypeSyntax propertyType, string propertyName,
         string fieldName, ExpressionSyntax initValue, string documentation)

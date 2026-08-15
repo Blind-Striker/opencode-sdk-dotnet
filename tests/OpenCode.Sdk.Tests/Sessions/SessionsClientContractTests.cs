@@ -51,6 +51,34 @@ public sealed class SessionsClientContractTests
     }
 
     [Test]
+    public async Task ListSessionsAsync_Should_Treat_A_Null_Page_Element_As_A_Protocol_Failure()
+    {
+        using var handler = new RecordingHttpHandler(static _ => JsonResponse(
+            HttpStatusCode.OK,
+            "{\"data\":[null],\"cursor\":{}}"));
+        using var httpClient = new HttpClient(handler);
+        using var client = CreateClient(httpClient);
+
+        _ = await Assert
+            .That(async () => _ = await client.Sessions.ListSessionsAsync())
+            .Throws<OpenCodeTransportException>();
+    }
+
+    [Test]
+    public async Task ListSessionsAsync_Should_Treat_A_Null_Page_As_A_Protocol_Failure()
+    {
+        using var handler = new RecordingHttpHandler(static _ => JsonResponse(
+            HttpStatusCode.OK,
+            "{\"data\":null,\"cursor\":{}}"));
+        using var httpClient = new HttpClient(handler);
+        using var client = CreateClient(httpClient);
+
+        _ = await Assert
+            .That(async () => _ = await client.Sessions.ListSessionsAsync())
+            .Throws<OpenCodeTransportException>();
+    }
+
+    [Test]
     public async Task ListSessionsAsync_Should_Refuse_A_Non_Positive_Limit_Before_Sending()
     {
         using var handler = new RecordingHttpHandler();
