@@ -41,6 +41,11 @@ direction and rationale, not law; only this list and the ADRs bind.
   ns2.0 tested by proxy via the net472 legs (ADR-0002).
 - **Packages:** `OpenCode.Sdk` (core; server launcher included, hand-rolled — ADR-0001) +
   `OpenCode.Sdk.Extensions` (DI); dependency policy: research doc 06.
+- **Construction & transport:** options-only public construction; the SDK owns a
+  singleton-friendly transport (pooled connection lifetime; net472 connection-lease
+  hardening is a GA gate); no public transport injection — the `(HttpClient, options)`
+  constructor is internal IVT test surface; Extensions registers singletons without
+  `IHttpClientFactory`; no consumer composition seam before M6's hooks (ADR-0010).
 - **Monorepo, independent versioning:** per-merge GitHub Packages CD, manual NuGet.org
   releases (ADR-0006).
 - **Licensing:** MIT (`PackageLicenseFile`).

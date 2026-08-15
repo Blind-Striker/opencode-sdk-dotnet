@@ -1935,3 +1935,64 @@ miss legal post-construction mutation). With `Password` set, the SDK's per-reque
 is documented on the constructor and options. Standalone handler/proxy/TLS composition
 rides the BYO client; concrete convenience knobs remain an additive future. Executes as
 review blocker #1's fix in this batch.
+
+# Session 24 — 2026-08-15: Q92 construction simplification seal, M3 plan agreed
+
+PR #35 (the #34 contract-test consolidation) merged after a three-dimension adversarially
+verified branch review (semantics and multi-TFM clean; three style misses fixed on the
+branch). The M3 plan was agreed and canonicalized (`superpowers/plans/2026-08-15-m3-plan.md`);
+the 2026-08-15 handover deleted per its own condition.
+
+## Q92: Does the SDK keep the ecosystem-shaped transport surface into production?
+
+**How researched:** maintainer-driven premise change on the Q90/Q91 surface — go to
+production as simple as possible; do not invest in transport/pipelining extensibility
+before a concrete need — assessed against doc 16's census, the BCL's HttpClient guidance
+(long-lived singleton client + `PooledConnectionLifetime` is the documented alternative to
+`IHttpClientFactory`), and the consumer reality: a local-first daemon discovered by
+registration file, pre-1.0, zero consumers, packing still blocked.
+
+**Found:** the factory/rotation apparatus solves cloud-endpoint stale-DNS; the owned
+transport's `PooledConnectionLifetime` (Q90) already covers the remote case on modern
+TFMs, while net472 (no `SocketsHttpHandler`) needs the `ServicePointManager`
+connection-lease hardening to make a long-lived client correct. Doc 16 §4's two grounds
+for rejecting internalize+IVT dissolve under the new premise: stock
+`AddHttpClient<OpenCodeClient>()` support is withdrawn, and the factory path whose guard
+justified the public constructor no longer exists. Removal is the reversible position —
+re-adding a public transport constructor is additive; removing one post-GA is a breaking
+major. Our own contract tests and benchmarks are the remaining transport-injection
+consumers.
+
+**Decision (maintainer, sealed):** simplicity-first construction into production.
+`OpenCodeClient(OpenCodeClientOptions)` is the only public construction path; the
+`(HttpClient, options)` constructor internalizes as IVT test-only surface. Q91's
+public-constructor half is reversed on the changed premise (doc 16's evidence stands as
+record); its guard machinery — the anonymous-mode `Authorization` refusal and the injected
+`BaseAddress` refusal — deletes with the doors it defended. The Q90 password semantics
+(`null` = anonymous, blank refused) stand. `OpenCode.Sdk.Extensions` drops
+`IHttpClientFactory` and the `Microsoft.Extensions.Http` dependency: `AddOpenCode`
+registers one singleton root client over the owned transport plus sub-clients resolved
+from that same instance, returning `IServiceCollection`. #31 resolves by construction
+(singletons end-to-end: no transient-disposable tracking, no scope poisoning, no split
+pipelines); its roster contract test survives as the one live remainder. Accepted and
+recorded: no consumer composition seam (proxy/mTLS/resilience/telemetry handlers) before
+M6's hook design — the common proxy case rides the ambient `HttpClient.DefaultProxy`; the
+net472 connection-lease item promotes to a GA gate; the mocking constructor is the
+consumer substitution point for testing. Canonical record: ADR-0010. Executes as its own
+PR opening the M3 runway.
+
+## Review decisions sealed with this session
+
+- **#28 (curation mutual-exclusion)** sealed as recommended: an operation-level
+  mutually-exclusive-query curation row, fail-closed binder validation, route-boundary
+  `ArgumentException` before any request, with a contract test proving no send;
+  session-list's legitimate order+cursor composition untouched.
+- **#32 (EscapeDataString TFM divergence)** sealed as uniform route-boundary refusal:
+  lone surrogates and oversize inputs refuse with a typed `ArgumentException` on every
+  TFM before escaping.
+- **#33 (carrier hand-construction)** sealed as constructor refusal: the payload must
+  carry the union's marker property agreeing with the tag — never fires on the wire read
+  path, refuses the silent marker-drop hand-construction; `Write` stays payload-only
+  verbatim replay (ADR-0009 intact). Executes inside #23's converter rewrite.
+- **#31 (DI lifetime shape)** superseded by Q92 — closes with the reshape PR; the roster
+  contract test carries over into it.

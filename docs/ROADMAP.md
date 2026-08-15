@@ -61,7 +61,15 @@ enrichments. PR #26 is merged. The #34 contract-test consolidation landed as its
 follow-up PR: one shared contract scaffold (`ContractScenario`, `WireBodyData`), a single
 `FixtureLoader`/`RecordingHttpHandler` pair compiled from `tests/Shared` into both the SDK
 and Extensions test projects, and the previously unobserved object-envelope
-`{"data":null}` refusal pinned by test. Further breadth batches follow.
+`{"data":null}` refusal pinned by test.
+
+**M3 is open** (plan: `superpowers/plans/2026-08-15-m3-plan.md`; decisions: research log
+Session 24). Q92 sealed simplicity-first construction (ADR-0010): the transport
+constructor internalizes, Extensions goes factory-less singleton, and the Q91 guard
+machinery deletes — executing as the reshape PR that opens the M3 runway and closes #31
+by construction. #28, #32, and #33 are sealed with their execution homes recorded
+(Session 24); the location + merged-Request design session's marshalling seals are still
+pending. Remaining M2 breadth batches interleave after the reshape lands.
 
 ## Milestones
 
@@ -83,18 +91,18 @@ is revisited at each milestone boundary.
    review rider resolved (#19–#22, #20, #25), and so is the alignment batch (uniform
    `*Request`, feature-slice layout, Extensions bring-up — research log Q83–Q85). The
    Extensions package grows in parallel with the remaining batches.
-3. **M3 — Streams.** Planning opens with the **location + merged-Request input design
-   session** (sealed 2026-08-14, research log Session 22): the dual-channel location
-   mechanism, deepObject marshalling, the one-`*Request`-carrying-body-and-query shape,
-   and the `session.list` flat-field exception — census and mechanisms in research doc 15
-   §5a/§6. Then the SSE engine over the v2 stream surface (`v2.event.subscribe`,
-   `v2.session.log` with `after`/`follow`, cursor-paged `v2.message.list`); the v1
-   durable-stream design does not carry over and is re-derived here. Demo: watching a
-   real session's event stream. The net472 `ServicePointManager` item lands here. The
+3. **M3 — Streams.** Plan: `superpowers/plans/2026-08-15-m3-plan.md`. The Q92
+   construction reshape (ADR-0010) opens the runway as its own PR. The **location +
+   merged-Request design session** (sealed proactive 2026-08-14, research log Session 22;
+   census in research doc 15 §5a/§6) seals the marshalling surface. Then the SSE engine
+   over the v2 stream surface (`v2.event.subscribe`, `v2.session.log` with
+   `after`/`follow`, cursor-paged `v2.message.list`); the v1 durable-stream design does
+   not carry over and is re-derived here. Demo: watching a real session's event stream.
+   The net472 `ServicePointManager` connection-lease item lands here as a GA gate. The
    union single-pass deserialization and streaming adapter-boundary redesign (#23) land
    on the M3 runway, gated on the performance baselines (#18), together with the
-   second-review perf mechanisms and #29; #32 (EscapeDataString TFM policy) rides the
-   net472 cluster and #33 (carrier hand-construction semantics) rides #23.
+   second-review perf mechanisms and #29; #32 (uniform route-boundary refusal) rides the
+   net472 cluster and #33 (carrier construction refusal) rides #23.
 4. **M4 — Launcher.** `OpenCodeServer.StartAsync` with three-OS acceptance (ADR-0001)
    over `opencode2 serve`; demo: the SDK starts the server itself and calls health. The
    net472 stdout/tree-kill items land here. (`serve --stdio`'s stdin leash and the
