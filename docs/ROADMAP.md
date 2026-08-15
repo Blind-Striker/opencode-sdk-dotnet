@@ -50,9 +50,15 @@ showcase. The PR #26 external review ran through adversarial verification (36 fi
 30 confirmed / 4 plausible / 2 refuted), and the verified fix batch landed 2026-08-15
 red-test-first — all ten merge blockers plus the small confirmed fold-ins, with Q91 sealed
 (research log Session 23, doc 16: the caller-owned HttpClient constructor stays public
-behind a fail-closed anonymous-mode guard) and 904 tests green. Every surviving
-non-blocker lives in issues #27–#30 and the #24 hygiene comment. Merge is awaiting the
-maintainer's word; further breadth batches follow merge.
+behind a fail-closed anonymous-mode guard). A second full-diff review (15 verified
+findings) closed the same day: six runtime/emitter fixes landed on the branch (timeouts
+route onto the transport spine, conflicting BaseAddress refuses, handle guards match the
+route guards, carrier payload guards, count-guard identity, the Pagination shadow wall)
+for 932 green tests, and every surviving finding lives milestone-anchored with an explicit
+trigger — #31 (M2, DI lifetime shape, decision-first), #32 (M3, EscapeDataString TFM
+policy), #33 (M3, carrier hand-construction semantics, rides #23), #34 (M2, contract-test
+consolidation), plus the #27 and #23 enrichments. Merge is awaiting the maintainer's word;
+further breadth batches follow merge.
 
 ## Milestones
 
