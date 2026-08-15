@@ -58,6 +58,7 @@ internal sealed class SpecBinder(
             })
             .ToArray();
 
+        CheckDtoNameCollisions(schemaResult.Registry, clients, errors);
         errors.ThrowIfAny();
         return new EmitPlan
         {
@@ -70,6 +71,40 @@ internal sealed class SpecBinder(
         };
     }
 
+    /// <summary>
+    /// A DTO sharing a model's name would make the emitted DTO recursively typed through
+    /// same-namespace resolution and collapse two registry identities into one; both
+    /// directions refuse before composition instead of hiding behind a Distinct.
+    /// </summary>
+    private static void CheckDtoNameCollisions(RegistryPlan schemaRegistry, IReadOnlyList<ClientPlan> clients,
+        BindingErrorCollector errors)
+    {
+        var modelNames = schemaRegistry.TypeNames.ToHashSet(StringComparer.Ordinal);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var dtoName in clients
+                     .SelectMany(static client => client.Operations)
+                     .Select(static operation => operation.Envelope.EnvelopeDtoTypeName)
+                     .OfType<string>()
+                     .OrderBy(static name => name, StringComparer.Ordinal))
+        {
+            if (modelNames.Contains(dtoName))
+            {
+                errors.Add(
+                    BindingErrorCategory.Naming,
+                    dtoName,
+                    $"envelope DTO name '{dtoName}' collides with a generated model name");
+            }
+
+            if (!seen.Add(dtoName))
+            {
+                errors.Add(
+                    BindingErrorCategory.Naming,
+                    dtoName,
+                    $"envelope DTO name '{dtoName}' is derived by multiple operations");
+            }
+        }
+    }
+
     /// <summary>Wrapped envelopes deserialize through internal DTOs, which join the serializer registry.</summary>
     private static RegistryPlan ComposeRegistry(RegistryPlan schemaRegistry, IReadOnlyList<ClientPlan> clients)
     {
@@ -79,7 +114,8 @@ internal sealed class SpecBinder(
             .OfType<string>();
         return new RegistryPlan
         {
-            TypeNames = [.. schemaRegistry.TypeNames.Concat(dtoNames).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)],
+            // Uniqueness is guaranteed by CheckDtoNameCollisions before composition.
+            TypeNames = [.. schemaRegistry.TypeNames.Concat(dtoNames).Order(StringComparer.Ordinal)],
         };
     }
 

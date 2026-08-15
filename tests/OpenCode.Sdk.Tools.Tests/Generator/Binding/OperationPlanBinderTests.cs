@@ -449,6 +449,36 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Refuse_An_Envelope_Dto_Name_Colliding_With_A_Model()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true)
+                .Property("extra", property => property.Ref("WidgetListResponseEnvelope"), required: true))
+            .WithSchema("WidgetListResponseEnvelope", schema => schema.Type("object")
+                .Property("note", property => property.Type("string"), required: true))
+            .WithSchema("WidgetsResponse", schema => schema.Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("data", property => property.Type("array")
+                    .Items(static item => item.Ref("WidgetInfo")), required: true)
+                .Property("cursor", cursor => cursor.Type("object")
+                    .AdditionalPropertiesFalse()
+                    .Property("previous", static property => property.AnyOf(
+                        static branch => branch.Type("string"),
+                        static branch => branch.Type("null")))
+                    .Property("next", static property => property.AnyOf(
+                        static branch => branch.Type("string"),
+                        static branch => branch.Type("null"))), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetsResponse")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = BindWidgets(document));
+
+        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
+            && error.Problem.Contains("envelope DTO", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
     public async Task Bind_Should_Bind_A_Component_Data_Envelope_Without_Modeling_The_Wrapper()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
