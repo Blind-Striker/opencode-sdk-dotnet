@@ -237,8 +237,10 @@ internal sealed class OperationPlanBinder
                 $"multiple operations map to response type '{operation.Plan.Envelope.ResponseTypeName}'");
         }
 
+        // A merged request's type IS the body model, so only standalone query records
+        // claim a name of their own.
         foreach (var operation in bound.Where(operation =>
-                     operation.Plan.QueryRequest is not null && !owners.Add(operation.Plan.QueryRequest.TypeName)))
+                     operation.Plan.QueryRequest is { RidesRequestBody: false } query && !owners.Add(query.TypeName)))
         {
             errors.Add(
                 BindingErrorCategory.Naming,
@@ -301,6 +303,18 @@ internal sealed class OperationPlanBinder
             var optionalPlanErrorsBefore = _errors.Count;
             var queryRequest = BindQueryRequest();
             var requestBody = BindRequestBody();
+            if (queryRequest is not null && requestBody is not null)
+            {
+                // A body and query merge into one uniform request model only for the
+                // location channel; every other mix keeps the deliberate wall.
+                if (queryRequest.Properties.Any(static property => property.Kind is not QueryValueKind.Location))
+                {
+                    Refuse("operations mixing a request body and query parameters are supported only for the location selector");
+                    return null;
+                }
+
+                queryRequest = queryRequest with { RidesRequestBody = true };
+            }
             var methodName = OperationNamePolicy.MethodName(_operation);
             var routeMemberName = OperationNamePolicy.RouteMemberName(_operation, row.Placement);
             if (methodName is null || routeMemberName is null)
@@ -371,14 +385,6 @@ internal sealed class OperationPlanBinder
             if (isPost && _operation.RequestBody is null)
             {
                 Refuse("POST operations must carry a request body");
-            }
-
-            // Refused independently of any name collision: no admitted operation shape
-            // carries both a request body and query parameters.
-            if (_operation.RequestBody is not null
-                && _operation.Parameters.Any(static parameter => parameter.Location is SpecParameterLocation.Query))
-            {
-                Refuse("operations mixing a request body and query parameters are not supported");
             }
 
             CheckParameterShapes();

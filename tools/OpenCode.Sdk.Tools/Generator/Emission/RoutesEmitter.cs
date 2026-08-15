@@ -34,6 +34,12 @@ internal static class RoutesEmitter
             usings.Add("OpenCode.Sdk.Internal");
         }
 
+        // A merged request types its route builder with the body model.
+        if (operations.Any(static operation => operation.QueryRequest is { RidesRequestBody: true }))
+        {
+            usings.Add("OpenCode.Sdk.Models");
+        }
+
         var unit = EmissionSyntax.CompilationUnit("OpenCode.Sdk", usings, [declaration]);
         return EmissionSyntax.CreateSource("OpenCodeRoutes.cs", unit);
     }

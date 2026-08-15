@@ -763,6 +763,29 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Merge_A_Location_Query_Into_The_Request_Body_Model()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.create", method: "post", path: "/api/widget", configure: operation => operation
+                .Parameter("location", "query", QueryScenarioData.NullableLocationSelector, deepObject: true)
+                .RequestBody("application/json", body => body.Type("object")
+                    .Property("title", property => property.Type("string"), required: true), required: true)
+                .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
+
+        var plan = BindWidgets(document, "v2.widget.create");
+
+        var create = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(create.RequestBody!.TypeName).IsEqualTo("WidgetCreateRequest");
+        await Assert.That(create.QueryRequest!.RidesRequestBody).IsTrue();
+        await Assert.That(create.QueryRequest.TypeName).IsEqualTo("WidgetCreateRequest");
+        await Assert.That(create.QueryRequest.Properties.Single().Kind).IsEqualTo(QueryValueKind.Location);
+        var model = (ObjectModelPlan)plan.Models.Single(static model => model.Name is "WidgetCreateRequest");
+        await Assert.That(model.RequestQueryProperties.Single().PropertyName).IsEqualTo("Location");
+    }
+
+    [Test]
     public async Task Bind_Should_Refuse_A_Deep_Object_Query_Parameter()
     {
         var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation

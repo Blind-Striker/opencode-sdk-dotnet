@@ -62,17 +62,61 @@ internal sealed class SpecBinder(
             })
             .ToArray();
 
+        var models = AttachRequestQueryProperties(schemaResult.Models, clients, errors);
         CheckDtoNameCollisions(schemaResult.Registry, clients, errors);
         errors.ThrowIfAny();
         return new EmitPlan
         {
             SelectedOperationIds = selection.OperationIds,
-            Models = schemaResult.Models,
+            Models = models,
             Unions = schemaResult.Unions,
             Registry = ComposeRegistry(schemaResult.Registry, clients),
             Clients = clients,
             PendingOperations = pending,
         };
+    }
+
+    /// <summary>
+    /// A merged operation's query properties ride its body model; the model plan gains
+    /// them here because schema binding cannot see operation placement.
+    /// </summary>
+    private static IReadOnlyList<ModelPlan> AttachRequestQueryProperties(IReadOnlyList<ModelPlan> models,
+        IReadOnlyList<ClientPlan> clients, BindingErrorCollector errors)
+    {
+        var merged = clients
+            .SelectMany(static client => client.Operations)
+            .Where(static operation => operation.QueryRequest is { RidesRequestBody: true })
+            .ToDictionary(static operation => operation.QueryRequest!.TypeName, StringComparer.Ordinal);
+        if (merged.Count is 0)
+        {
+            return models;
+        }
+
+        var result = new List<ModelPlan>(models.Count);
+        foreach (var model in models)
+        {
+            if (!merged.TryGetValue(model.Name, out var operation))
+            {
+                result.Add(model);
+                continue;
+            }
+
+            _ = merged.Remove(model.Name);
+            if (model is not ObjectModelPlan objectModel)
+            {
+                errors.Add(BindingErrorCategory.Operation, model.Name, "a merged request body must bind to an object model");
+                continue;
+            }
+
+            result.Add(objectModel with { RequestQueryProperties = operation.QueryRequest!.Properties });
+        }
+
+        foreach (var missing in merged.Keys.Order(StringComparer.Ordinal))
+        {
+            errors.Add(BindingErrorCategory.Operation, missing, "a merged request body model is absent from the model closure");
+        }
+
+        return result;
     }
 
     /// <summary>

@@ -338,6 +338,13 @@ internal static class EmitterPlanFixture
             RouteContainerName = "Widgets",
             RouteMemberName = "CreateWidget",
             Parameters = [],
+            QueryRequest = new QueryRequestPlan
+            {
+                TypeName = "WidgetCreateRequest",
+                DerivesFromListRequest = false,
+                RidesRequestBody = true,
+                Properties = [QueryProperty("location", "Location", QueryValueKind.Location)],
+            },
             RequestBody = new RequestBodyPlan
             {
                 TypeName = "WidgetCreateRequest",
@@ -493,6 +500,7 @@ internal static class EmitterPlanFixture
             [
                 Property("title", "Title", Named("string", isNullable: true), isRequired: false, "Gets the widget title."),
             ],
+            RequestQueryProperties = [QueryProperty("location", "Location", QueryValueKind.Location)],
         };
 
     public static EmitPlan CreateModelSnapshot()
@@ -505,6 +513,7 @@ internal static class EmitterPlanFixture
                 plan.Models.Single(static model => model.Name == "BadRequestError"),
                 plan.Models.Single(static model => model.Name == "ExampleItem"),
                 plan.Models.Single(static model => model.Name == "ExampleMode"),
+                plan.Models.Single(static model => model.Name == "WidgetCreateRequest"),
             ],
             Unions = [plan.Unions.Single(static union => union.Name == "OpenCodeError")],
         };

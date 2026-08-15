@@ -3,6 +3,7 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 using System;
 using OpenCode.Sdk.Internal;
+using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk;
 /// <summary>
@@ -27,9 +28,27 @@ public static class OpenCodeRoutes
     public static class Widgets
     {
         /// <summary>
-        /// The &apos;POST /api/widget&apos; route.
+        /// The &apos;POST /api/widget&apos; route template.
         /// </summary>
-        public const string CreateWidget = "/api/widget";
+        public const string CreateWidgetTemplate = "/api/widget";
+        /// <summary>
+        /// Builds the &apos;/api/widget&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string CreateWidget(WidgetCreateRequest? request = null)
+        {
+            var path = "/api/widget";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
         /// <summary>
         /// The &apos;GET /api/widget/{widgetID}/item/{itemID}&apos; route template.
         /// </summary>

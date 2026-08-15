@@ -55,8 +55,11 @@ introduced gets exercised by a real operation. Sealed inputs: research log Sessi
 
 ## Work plan
 
-- [ ] Placement map in the binder, red-test-first; body+query admission for
-      `shell.create`/`shell.timeout` only through it.
+- [x] Placement map in the binder, red-test-first: a body+query mix merges into one
+      uniform request model exactly when every query property is the location selector
+      (`QueryRequestPlan.RidesRequestBody`); the model gains `[JsonIgnore]` query-side
+      properties, the route builder types itself with the body model, and every other
+      mix keeps the deliberate wall.
 - [x] Location: the hand-written `LocationSelector` spine (the wire's query selector is
       an inline `{directory?, workspace?}` object, not `Location.Info`, so it follows the
       `SessionParentFilter` precedent) with request-record property + deepObject route

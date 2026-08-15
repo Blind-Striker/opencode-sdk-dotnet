@@ -19,7 +19,7 @@ internal static class QueryRequestEmitter
         [
             .. clients
                 .SelectMany(static client => client.Operations)
-                .Where(static operation => operation.QueryRequest is not null)
+                .Where(static operation => operation.QueryRequest is { RidesRequestBody: false })
                 .OrderBy(static operation => operation.QueryRequest!.TypeName, StringComparer.Ordinal)
                 .Select(static operation => EmitQueryRequest(operation)),
         ]);
@@ -52,7 +52,7 @@ internal static class QueryRequestEmitter
         return EmissionSyntax.CreateSource($"{operation.RouteContainerName}/{queryRequest.TypeName}.cs", unit);
     }
 
-    private static PropertyDeclarationSyntax EmitProperty(QueryPropertyPlan property)
+    internal static PropertyDeclarationSyntax EmitProperty(QueryPropertyPlan property)
     {
         var accessors = SyntaxFactory.AccessorList(SyntaxFactory.List(
         [

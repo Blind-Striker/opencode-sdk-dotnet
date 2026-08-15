@@ -58,7 +58,8 @@ internal static class OperationMethodEmitter
                 : body.WithType(TypeSyntaxEmitter.EmitNamed(operation.RequestBody.TypeName));
         }
 
-        if (operation.QueryRequest is not null)
+        // A merged request already surfaced as the body parameter above.
+        if (operation.QueryRequest is { RidesRequestBody: false })
         {
             yield return SyntaxFactory.Parameter(SyntaxFactory.Identifier("request"))
                 .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(operation.QueryRequest.TypeName)))
@@ -155,7 +156,7 @@ internal static class OperationMethodEmitter
                     : "The request body."));
         }
 
-        if (operation.QueryRequest is not null)
+        if (operation.QueryRequest is { RidesRequestBody: false })
         {
             parameters.Add(new DocumentedParameter("request", "The request shaping the query."));
         }
