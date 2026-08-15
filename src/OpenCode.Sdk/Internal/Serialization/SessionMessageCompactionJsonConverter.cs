@@ -32,6 +32,16 @@ internal sealed class SessionMessageCompactionJsonConverter : JsonConverter<Sess
             throw new JsonException("The SessionMessageCompaction payload must be a JSON object.");
         }
 
+        if (!payload.TryGetProperty("type", out var fixedElement))
+        {
+            throw new JsonException("The SessionMessageCompaction payload must contain 'type'.");
+        }
+
+        if (fixedElement.ValueKind != JsonValueKind.String || !fixedElement.ValueEquals("compaction"))
+        {
+            throw new JsonException("The 'type' marker must be 'compaction'.");
+        }
+
         if (!payload.TryGetProperty("status", out var markerElement))
         {
             throw new JsonException("The SessionMessageCompaction payload must contain 'status'.");

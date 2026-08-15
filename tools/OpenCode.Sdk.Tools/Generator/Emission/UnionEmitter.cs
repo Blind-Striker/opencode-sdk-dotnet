@@ -112,11 +112,13 @@ internal static class UnionEmitter
         readStatements.AddRange(EmissionSyntax.ArgumentNullGuard("options"));
         readStatements.AddRange(
         [
+            EmitNullTokenCheck(union),
             EmitPayloadDocument(),
             Local("payload", EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("document"), "RootElement")),
             EmitObjectPayloadCheck(union),
-            EmitMarkerPresenceCheck(union),
         ]);
+        readStatements.AddRange(EmitFixedMarkerCheck(union));
+        readStatements.Add(EmitMarkerPresenceCheck(union));
         readStatements.AddRange(EmitMarkerRead(union));
         readStatements.Add(SyntaxFactory.ReturnStatement(SyntaxFactory.ObjectCreationExpression(
                 SyntaxFactory.IdentifierName(union.UnknownTypeName))
@@ -170,7 +172,7 @@ internal static class UnionEmitter
                 SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.Generic(
                     "JsonConverter",
                     TypeSyntaxEmitter.EmitNamed(union.UnknownTypeName))))))
-            .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>([read, write]));
+            .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>([EmitHandleNull(), read, write]));
         var unit = EmissionSyntax.CompilationUnit(
             "OpenCode.Sdk.Internal.Serialization",
             [
@@ -323,17 +325,13 @@ internal static class UnionEmitter
         statements.AddRange(EmissionSyntax.ArgumentNullGuard("options"));
         statements.AddRange(
         [
-            SyntaxFactory.IfStatement(
-                SyntaxFactory.BinaryExpression(
-                    SyntaxKind.EqualsExpression,
-                    EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("reader"), "TokenType"),
-                    EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("JsonTokenType"), "Null")),
-                ThrowJson($"The {union.Name} payload cannot be null.")),
+            EmitNullTokenCheck(union),
             EmitPayloadDocument(),
             Local("payload", EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("document"), "RootElement")),
             EmitObjectPayloadCheck(union),
-            EmitMarkerPresenceCheck(union),
         ]);
+        statements.AddRange(EmitFixedMarkerCheck(union));
+        statements.Add(EmitMarkerPresenceCheck(union));
         statements.AddRange(EmitMarkerRead(union));
         statements.Add(EmitKnownDispatch(union));
         statements.Add(SyntaxFactory.ReturnStatement(SyntaxFactory.ObjectCreationExpression(
@@ -358,6 +356,66 @@ internal static class UnionEmitter
             ])))
             .WithBody(SyntaxFactory.Block(statements));
     }
+
+    private static IfStatementSyntax EmitNullTokenCheck(UnionPlan union) =>
+        SyntaxFactory.IfStatement(
+            SyntaxFactory.BinaryExpression(
+                SyntaxKind.EqualsExpression,
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("reader"), "TokenType"),
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("JsonTokenType"), "Null")),
+            ThrowJson($"The {union.Name} payload cannot be null."));
+
+    /// <summary>
+    /// A nested union's fixed outer tag is structural identity, not dispatch input: a
+    /// foreign value is a malformed payload, while the inner marker keeps its
+    /// unknown-variant tolerance.
+    /// </summary>
+    private static IReadOnlyList<StatementSyntax> EmitFixedMarkerCheck(UnionPlan union)
+    {
+        if (union.FixedMarker is not { } marker)
+        {
+            return [];
+        }
+
+        var presence = SyntaxFactory.IfStatement(
+            SyntaxFactory.PrefixUnaryExpression(SyntaxKind.LogicalNotExpression, EmissionSyntax.Invocation(
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("payload"), "TryGetProperty"),
+                SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
+                    SyntaxKind.StringLiteralExpression,
+                    SyntaxFactory.Literal(marker.WireName))),
+                SyntaxFactory.Argument(SyntaxFactory.DeclarationExpression(
+                        SyntaxFactory.IdentifierName("var"),
+                        SyntaxFactory.SingleVariableDesignation(SyntaxFactory.Identifier("fixedElement"))))
+                    .WithRefKindKeyword(SyntaxFactory.Token(SyntaxKind.OutKeyword)))),
+            ThrowJson($"The {union.Name} payload must contain '{marker.WireName}'."));
+        var value = SyntaxFactory.IfStatement(
+            EmitFixedMarkerMismatch(union, marker),
+            ThrowJson($"The '{marker.WireName}' marker must be '{marker.Value}'."));
+        return [presence, value];
+    }
+
+    private static BinaryExpressionSyntax EmitFixedMarkerMismatch(UnionPlan union, UnionFixedMarkerPlan marker) => marker.Kind switch
+    {
+        LiteralKind.String => SyntaxFactory.BinaryExpression(
+            SyntaxKind.LogicalOrExpression,
+            SyntaxFactory.BinaryExpression(
+                SyntaxKind.NotEqualsExpression,
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("fixedElement"), "ValueKind"),
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("JsonValueKind"), "String")),
+            SyntaxFactory.PrefixUnaryExpression(SyntaxKind.LogicalNotExpression, EmissionSyntax.Invocation(
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("fixedElement"), "ValueEquals"),
+                SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
+                    SyntaxKind.StringLiteralExpression,
+                    SyntaxFactory.Literal(marker.Value)))))),
+        LiteralKind.Boolean when bool.TryParse(marker.Value, out var flag) => SyntaxFactory.BinaryExpression(
+            SyntaxKind.NotEqualsExpression,
+            EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("fixedElement"), "ValueKind"),
+            EmissionSyntax.MemberAccess(
+                SyntaxFactory.IdentifierName("JsonValueKind"),
+                flag ? "True" : "False")),
+        LiteralKind.Number or _ => throw new InvalidOperationException(
+            $"Union '{union.Name}' fixes marker '{marker.WireName}' with kind '{marker.Kind}', which has no emission consumer."),
+    };
 
     private static LocalDeclarationStatementSyntax EmitPayloadDocument()
     {

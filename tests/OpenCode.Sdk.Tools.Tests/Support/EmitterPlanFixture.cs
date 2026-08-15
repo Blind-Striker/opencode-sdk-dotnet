@@ -387,7 +387,29 @@ internal static class EmitterPlanFixture
         };
     }
 
-    public static IReadOnlyList<UnionPlan> CreateUnionSnapshot() => [CreateExampleEvent()];
+    public static IReadOnlyList<UnionPlan> CreateUnionSnapshot() => [CreateExampleEvent(), CreateExamplePhase()];
+
+    /// <summary>A nested union whose outer tag is fixed; both converters must enforce it.</summary>
+    private static UnionPlan CreateExamplePhase() =>
+        new()
+        {
+            Name = "ExamplePhase",
+            Namespace = "OpenCode.Sdk.Models",
+            UnknownTypeName = "UnknownExamplePhase",
+            MarkerWireName = "status",
+            MarkerName = "Status",
+            MarkerKind = LiteralKind.String,
+            BaseTypeName = "ExampleEvent",
+            FixedMarker = new UnionFixedMarkerPlan
+            {
+                WireName = "type",
+                Name = "Type",
+                Kind = LiteralKind.String,
+                Value = "phase",
+            },
+            Variants = [new UnionVariantPlan { TypeName = "PhaseStartedEvent", Tag = "started", }],
+            Description = "Represents an example nested phase union.",
+        };
 
     public static RegistryPlan CreateRegistry() => Create().Registry;
 

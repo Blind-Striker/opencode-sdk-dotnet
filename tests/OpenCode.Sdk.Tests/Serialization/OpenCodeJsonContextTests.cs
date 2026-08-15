@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using OpenCode.Sdk.Models;
 using OpenCode.Sdk.Tests.Support;
 
@@ -31,6 +32,31 @@ public sealed class OpenCodeJsonContextTests
         var json = _fixtures.LoadJson("Serialization.null-parent-session.json");
 
         _ = await Assert.That(() => _serializer.Deserialize<SessionInfo>(json)).Throws<JsonException>();
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Reject_Null_For_A_Concrete_Unknown_Carrier()
+    {
+        var typeInfo = (JsonTypeInfo<UnknownOpenCodeError>)_serializer.GetTypeInfo(typeof(UnknownOpenCodeError));
+
+        _ = await Assert.That(() => JsonSerializer.Deserialize("null", typeInfo)).Throws<JsonException>();
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Reject_A_Contradicted_Fixed_Marker_On_The_Concrete_Carrier()
+    {
+        var json = _fixtures.LoadJson("Serialization.mismatched-compaction-marker.json");
+        var typeInfo = (JsonTypeInfo<UnknownSessionMessageCompaction>)_serializer.GetTypeInfo(typeof(UnknownSessionMessageCompaction));
+
+        _ = await Assert.That(() => JsonSerializer.Deserialize(json, typeInfo)).Throws<JsonException>();
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Reject_A_Contradicted_Fixed_Marker_On_The_Union_Base()
+    {
+        var json = _fixtures.LoadJson("Serialization.mismatched-compaction-marker.json");
+
+        _ = await Assert.That(() => _serializer.Deserialize<SessionMessageCompaction>(json)).Throws<JsonException>();
     }
 
     [Test]

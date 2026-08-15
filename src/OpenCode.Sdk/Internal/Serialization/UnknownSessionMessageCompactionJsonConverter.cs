@@ -8,15 +8,32 @@ namespace OpenCode.Sdk.Internal.Serialization;
 
 internal sealed class UnknownSessionMessageCompactionJsonConverter : JsonConverter<UnknownSessionMessageCompaction>
 {
+    public override bool HandleNull => true;
+
     public override UnknownSessionMessageCompaction Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
+        if (reader.TokenType == JsonTokenType.Null)
+        {
+            throw new JsonException("The SessionMessageCompaction payload cannot be null.");
+        }
+
         using var document = JsonDocument.ParseValue(ref reader);
         var payload = document.RootElement;
         if (payload.ValueKind != JsonValueKind.Object)
         {
             throw new JsonException("The SessionMessageCompaction payload must be a JSON object.");
+        }
+
+        if (!payload.TryGetProperty("type", out var fixedElement))
+        {
+            throw new JsonException("The SessionMessageCompaction payload must contain 'type'.");
+        }
+
+        if (fixedElement.ValueKind != JsonValueKind.String || !fixedElement.ValueEquals("compaction"))
+        {
+            throw new JsonException("The 'type' marker must be 'compaction'.");
         }
 
         if (!payload.TryGetProperty("status", out var markerElement))
