@@ -89,7 +89,9 @@ is revisited at each milestone boundary.
    durable-stream design does not carry over and is re-derived here. Demo: watching a
    real session's event stream. The net472 `ServicePointManager` item lands here. The
    union single-pass deserialization and streaming adapter-boundary redesign (#23) land
-   on the M3 runway, gated on the performance baselines (#18).
+   on the M3 runway, gated on the performance baselines (#18), together with the
+   second-review perf mechanisms and #29; #32 (EscapeDataString TFM policy) rides the
+   net472 cluster and #33 (carrier hand-construction semantics) rides #23.
 4. **M4 — Launcher.** `OpenCodeServer.StartAsync` with three-OS acceptance (ADR-0001)
    over `opencode2 serve`; demo: the SDK starts the server itself and calls health. The
    net472 stdout/tree-kill items land here. (`serve --stdio`'s stdin leash and the
