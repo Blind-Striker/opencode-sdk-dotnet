@@ -44,6 +44,16 @@ public sealed class QueryStringBuilderTests
     }
 
     [Test]
+    public async Task AddText_Should_Escape_The_Name()
+    {
+        var query = new QueryStringBuilder();
+
+        query.AddText("odd name&x", "v");
+
+        await Assert.That(query.Value).IsEqualTo("?odd%20name%26x=v");
+    }
+
+    [Test]
     public async Task AddCount_Should_Write_The_Invariant_Wire_String()
     {
         var query = new QueryStringBuilder();

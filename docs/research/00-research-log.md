@@ -1863,8 +1863,10 @@ collision wall fires. Census and mechanism notes live in doc 15 §5a/§6.
 
 **Found:** no URL environment variable exists; the first-party discovery contract is the
 registration file (doc 15 §6). Auth is optional (`ServerAuth.required` = configured,
-non-empty password). The username is configurable (`--username`/`OPENCODE_SERVER_USERNAME`,
-default `opencode`) — our pipeline's hardcoded `opencode` user is incomplete. Client-side
+non-empty password). The username is `opencode` at the pin (the pinned server hardcodes
+it); `--username`/`OPENCODE_SERVER_USERNAME` is upstream direction — docs and the desktop
+sidecar — not pinned-server behavior, so the `Username` option is the gateway and
+forward-compatibility seam. Client-side
 password-from-environment resolution lives in the CLI consumer
 (`OPENCODE_PASSWORD` → legacy `OPENCODE_SERVER_PASSWORD`), not in the client library.
 Feeds the pending Q86 batch (options shape, env-fallback ownership, `Username` option).

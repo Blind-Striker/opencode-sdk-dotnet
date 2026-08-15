@@ -10,7 +10,7 @@ public interface IOpenCodeClientOptions
     /// <summary>Gets the absolute HTTP or HTTPS server endpoint; required to build a client.</summary>
     public Uri? Endpoint { get; }
 
-    /// <summary>Gets the HTTP basic-authentication username; the upstream default is <c>opencode</c>.</summary>
+    /// <summary>Gets the HTTP basic-authentication username; the pinned server accepts only the default <c>opencode</c>.</summary>
     public string Username { get; }
 
     /// <summary>Gets the HTTP basic-authentication password; <see langword="null"/> sends anonymous requests.</summary>

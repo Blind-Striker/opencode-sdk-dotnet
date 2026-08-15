@@ -30,6 +30,12 @@ public sealed class UserAgentPolicyTests
     }
 
     [Test]
+    public async Task Resolve_Should_Cache_The_Product_Token()
+    {
+        await Assert.That(UserAgentPolicy.Resolve()).IsSameReferenceAs(UserAgentPolicy.Resolve());
+    }
+
+    [Test]
     public async Task Resolve_Should_Read_The_Assembly_Informational_Version()
     {
         var product = UserAgentPolicy.Resolve();

@@ -48,9 +48,13 @@ internal sealed class GenerationWriter(IFileSystem fileSystem, IProjectFormatter
     }
 
     /// <summary>Admitted family folders are single plain segments that never shadow a statically owned directory.</summary>
+    private static readonly string[] StaticallyOwnedFolders = ["Models", "Internal", "Properties"];
+
     private static HashSet<string> ValidateFamilyFolders(IReadOnlyList<string> familyFolders)
     {
-        var result = new HashSet<string>(StringComparer.Ordinal);
+        // Owned paths compare case-insensitively (Windows/macOS filesystems), so the
+        // shadow and duplicate checks must too — 'models' collides with 'Models/' on disk.
+        var result = new HashSet<string>(OwnedPathComparer);
         foreach (var folder in familyFolders)
         {
             if (string.IsNullOrWhiteSpace(folder) || folder is "." or ".."
@@ -59,7 +63,7 @@ internal sealed class GenerationWriter(IFileSystem fileSystem, IProjectFormatter
                 throw new InvalidOperationException($"Family folder '{folder}' is unsafe.");
             }
 
-            if (folder is "Models" or "Internal" or "Properties")
+            if (StaticallyOwnedFolders.Contains(folder, OwnedPathComparer))
             {
                 throw new InvalidOperationException($"Family folder '{folder}' shadows a statically owned directory.");
             }

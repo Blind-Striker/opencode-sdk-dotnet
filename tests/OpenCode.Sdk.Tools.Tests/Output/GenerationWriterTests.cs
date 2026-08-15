@@ -164,6 +164,34 @@ public sealed class GenerationWriterTests
     }
 
     [Test]
+    public async Task WriteAsync_Should_Refuse_A_Family_Folder_Shadowing_By_Case()
+    {
+        var fileSystem = GenerationTestData.CreateFileSystem();
+        var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
+
+        var exception = await Assert
+            .That(async () => await writer.WriteAsync(Request([], familyFolders: ["models"]), CancellationToken.None))
+            .Throws<InvalidOperationException>();
+
+        await Assert.That(exception!.Message).Contains("shadows");
+    }
+
+    [Test]
+    public async Task WriteAsync_Should_Refuse_Family_Folders_Duplicated_By_Case()
+    {
+        var fileSystem = GenerationTestData.CreateFileSystem();
+        var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
+
+        var exception = await Assert
+            .That(async () => await writer.WriteAsync(
+                Request([], familyFolders: ["Sessions", "sessions"]),
+                CancellationToken.None))
+            .Throws<InvalidOperationException>();
+
+        await Assert.That(exception!.Message).Contains("duplicated");
+    }
+
+    [Test]
     public async Task WriteAsync_Should_Admit_Family_Folder_Sources()
     {
         var fileSystem = GenerationTestData.CreateFileSystem();

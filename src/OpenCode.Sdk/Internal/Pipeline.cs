@@ -87,7 +87,18 @@ internal sealed class Pipeline : IDisposable
 
         // Validate before constructing the owned client so a refused endpoint leaks nothing.
         _ = EndpointPolicy.Normalize(options.Endpoint);
-        return new Pipeline(CreateOwnedHttpClient(), ownsHttpClient: true, options);
+        var httpClient = CreateOwnedHttpClient();
+        try
+        {
+            return new Pipeline(httpClient, ownsHttpClient: true, options);
+        }
+        catch
+        {
+            // Credential validation still throws inside the constructor; the owned
+            // transport must not outlive a refused construction.
+            httpClient.Dispose();
+            throw;
+        }
     }
 
     public static Pipeline Create(HttpClient httpClient, OpenCodeClientOptions options)

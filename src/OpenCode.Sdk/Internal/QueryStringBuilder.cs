@@ -65,7 +65,7 @@ internal sealed class QueryStringBuilder
     {
         _builder ??= new StringBuilder();
         _ = _builder.Append(_builder.Length is 0 ? '?' : '&')
-            .Append(name)
+            .Append(Uri.EscapeDataString(name))
             .Append('=')
             .Append(Uri.EscapeDataString(value));
     }

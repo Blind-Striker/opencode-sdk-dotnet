@@ -188,9 +188,10 @@ bundled CLI this way).
 **Auth (re-derived at the pin, 2026-08-14)**: HTTP Basic, and **optional** — the server's
 `ServerAuth.required` is true only when a password is configured and non-empty; otherwise the
 authorization middleware is a pass-through (`packages/server/src/middleware/authorization.ts`).
-The username is **configurable**: default `opencode`, overridden by `--username`/`-u` on
-`serve`/`web` or `OPENCODE_SERVER_USERNAME` (upstream CLI/server docs; the desktop WSL sidecar
-exports it). Client-side password resolution lives in the *consumer*, not the client library:
+The username is `opencode` at the pin: the pinned server layer hardcodes it, while the
+`--username`/`-u` and `OPENCODE_SERVER_USERNAME` controls exist only as upstream direction
+(CLI/server docs; the desktop WSL sidecar exports the variable) that has not reached the
+pinned server implementation. Client-side password resolution lives in the *consumer*, not the client library:
 `packages/cli/src/env.ts` resolves `OPENCODE_PASSWORD` falling back to the legacy
 `OPENCODE_SERVER_PASSWORD` and hands the value to the client — the generated client itself
 reads no environment. Service mode generates `randomBytes(32).toString("base64url")` when

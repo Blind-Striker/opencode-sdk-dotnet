@@ -11,9 +11,11 @@ public sealed class OpenCodeClientOptions : IOpenCodeClientOptions
     public Uri? Endpoint { get; set; }
 
     /// <summary>
-    /// Gets or sets the HTTP basic-authentication username. The upstream default is
-    /// <c>opencode</c>; servers started with <c>--username</c> or
-    /// <c>OPENCODE_SERVER_USERNAME</c> expect the matching value here.
+    /// Gets or sets the HTTP basic-authentication username. The pinned server accepts
+    /// only <c>opencode</c> today; upstream documents a <c>--username</c> /
+    /// <c>OPENCODE_SERVER_USERNAME</c> direction that has not reached the pinned server,
+    /// so this knob exists for gateways and that upcoming surface — not as a
+    /// pinned-server control.
     /// </summary>
     public string Username { get; set; } = "opencode";
 
