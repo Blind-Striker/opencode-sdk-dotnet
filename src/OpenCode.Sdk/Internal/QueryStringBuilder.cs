@@ -6,7 +6,7 @@ namespace OpenCode.Sdk.Internal;
 /// <summary>
 /// Composes the query-string suffix of a generated route; unset optionals are omitted and
 /// every value is escaped. Route builders own the wire conversion rules, so refusals here
-/// are the sealed route-boundary contract.
+/// are the route-boundary contract.
 /// </summary>
 internal sealed class QueryStringBuilder
 {

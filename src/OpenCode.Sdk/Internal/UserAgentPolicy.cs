@@ -19,8 +19,7 @@ internal static class UserAgentPolicy
     /// <summary>
     /// Composes the product token from an informational version. Build metadata after
     /// <c>+</c> is stripped; a missing or unparsable version omits the version token
-    /// entirely — never a silent substitute, never a construction failure
-    /// (maintainer, 2026-08-13).
+    /// entirely — never a silent substitute, never a construction failure.
     /// </summary>
     /// <param name="informationalVersion">The assembly's informational version, when present.</param>
     /// <returns>The product token for User-Agent decoration.</returns>

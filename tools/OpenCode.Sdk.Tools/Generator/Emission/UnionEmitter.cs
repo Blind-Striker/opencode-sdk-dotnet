@@ -472,7 +472,7 @@ internal static class UnionEmitter
         Local("marker", EmissionSyntax.Invocation(
             EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("markerElement"), "GetString"))),
         // An empty or whitespace marker is malformed input, classified before any dispatch so the
-        // unknown-variant carrier's own guard can never surface as a BCL escape (ADR-0009). The
+        // unknown-variant carrier's own guard can never surface as a BCL escape. The
         // explicit null disjunct carries the non-null flow fact on TFMs whose BCL lacks the
         // IsNullOrWhiteSpace annotation.
         SyntaxFactory.IfStatement(

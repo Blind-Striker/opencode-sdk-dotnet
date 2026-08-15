@@ -57,8 +57,8 @@ internal sealed class SchemaNameResolver
     /// (public names never surface raw operation ids or dotted component spellings).
     /// Ownership is scoped to the selection so a pending operation can never rename a
     /// component the selected closure shares; two selected operations claiming one root
-    /// under different names refuse until a per-operation copy design exists. Nested
-    /// component dependencies stay shared: only the root reference is claimed.
+    /// under different names refuse. Nested component dependencies stay shared: only the
+    /// root reference is claimed.
     /// </summary>
     private Dictionary<string, string> ResolveRequestBodyRootNames(IReadOnlyList<SpecOperation> selected,
         BindingErrorCollector errors)

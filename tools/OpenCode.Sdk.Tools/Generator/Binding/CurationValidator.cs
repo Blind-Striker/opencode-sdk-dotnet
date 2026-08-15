@@ -155,7 +155,7 @@ internal sealed class CurationValidator
 
     /// <summary>
     /// Payload names derive mechanically from the operation subject; curated entries are
-    /// overrides only (maintainer, 2026-08-13), so validation covers orphans and identifier
+    /// overrides only, so validation covers orphans and identifier
     /// legality, never presence.
     /// </summary>
     private static void ValidateEnvelopeNames(HashSet<string> selectedIds, HashSet<string> documentIds,

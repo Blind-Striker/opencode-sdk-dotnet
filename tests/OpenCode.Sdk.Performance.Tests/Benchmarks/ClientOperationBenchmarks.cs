@@ -6,8 +6,8 @@ namespace OpenCode.Sdk.Performance.Tests.Benchmarks;
 /// <summary>
 /// End-to-end operation cost through the real pipeline over a canned in-memory response:
 /// request build, auth decoration, buffering, adapter, and the full deserialization chain.
-/// Baselines for the envelope single-pass (P2), success-path buffering (P3), and the
-/// converter walk they feed (P1); issues #18 and #23.
+/// Baselines envelope deserialization, success-path buffering, and the converter walk
+/// they feed.
 /// </summary>
 [MemoryDiagnoser]
 public class ClientOperationBenchmarks : IDisposable

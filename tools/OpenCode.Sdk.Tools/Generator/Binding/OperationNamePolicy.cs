@@ -8,7 +8,7 @@ namespace OpenCode.Sdk.Tools.Generator.Binding;
 /// Verb detection is structural — only the final segment can be a verb — so mid-position
 /// segments that spell a verb stay in the subject. Derivations that need the pluralized
 /// group return <see langword="null"/> when the naive rule is unsafe; the binder refuses
-/// such operations until the rule set grows.
+/// such operations.
 /// </summary>
 internal static class OperationNamePolicy
 {
@@ -106,7 +106,7 @@ internal static class OperationNamePolicy
 
     /// <summary>
     /// Naive pluralization only: words needing -es or -ies return <see langword="null"/>
-    /// and the operation refuses until the rule set grows deliberately.
+    /// and the operation refuses.
     /// </summary>
     private static string? Pluralize(string word)
     {

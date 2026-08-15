@@ -167,7 +167,7 @@ internal sealed class Pipeline : IDisposable
             handler?.Dispose();
         }
 #else
-        // net472/netstandard2.0 stay on the default handler; ServicePointManager hardening is an M3 item.
+        // net472/netstandard2.0 stay on the default handler.
         return new HttpClient();
 #endif
     }

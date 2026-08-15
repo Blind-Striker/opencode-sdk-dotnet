@@ -6,8 +6,8 @@ namespace OpenCode.Sdk.Tools.Tests.Generator.Ingestion;
 
 /// <summary>
 /// The structural gate every future spec refresh runs through: representative landmarks at
-/// the known lossy seams, no count assertions. A red landmark is evidence about the wire —
-/// stop and classify per the deviation protocol, never patch the assertion.
+/// the known lossy seams, no count assertions. A red landmark is evidence about the wire,
+/// never a reason to patch the assertion.
 /// </summary>
 public sealed class PinnedSpecSmokeTests
 {

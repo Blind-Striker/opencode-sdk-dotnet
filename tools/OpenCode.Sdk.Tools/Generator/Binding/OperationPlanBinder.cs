@@ -10,11 +10,6 @@ internal sealed class OperationPlanBinder
     private const string ClientNamespace = "OpenCode.Sdk";
     private const string RootClientName = "OpenCodeClient";
 
-    /// <summary>
-    /// Member names every generated response envelope inherits from the response spine or
-    /// from <see cref="object"/>/record synthesis; a payload landing on one of them needs a
-    /// curated override.
-    /// </summary>
     /// <summary>Hand-written public spine types in the client namespace; a generated twin would not compile.</summary>
     private static readonly string[] ReservedSpineTypeNames =
     [
@@ -41,6 +36,11 @@ internal sealed class OperationPlanBinder
         "requestOptions",
     ];
 
+    /// <summary>
+    /// Member names every generated response envelope inherits from the response spine or
+    /// from <see cref="object"/>/record synthesis; a payload landing on one of them needs a
+    /// curated override.
+    /// </summary>
     private static readonly string[] ReservedPayloadNames =
     [
         "Cursor",
@@ -371,13 +371,12 @@ internal sealed class OperationPlanBinder
                 Refuse("POST operations must carry a request body");
             }
 
-            // Refused independently of any name collision: one uniform *Request input cannot
-            // carry both a body and query yet — admission waits for the sealed merged-Request
-            // design (M3 opens with it).
+            // Refused independently of any name collision: no admitted operation shape
+            // carries both a request body and query parameters.
             if (_operation.RequestBody is not null
                 && _operation.Parameters.Any(static parameter => parameter.Location is SpecParameterLocation.Query))
             {
-                Refuse("operations mixing a request body and query parameters await the merged-Request design");
+                Refuse("operations mixing a request body and query parameters are not supported");
             }
 
             CheckParameterShapes();
