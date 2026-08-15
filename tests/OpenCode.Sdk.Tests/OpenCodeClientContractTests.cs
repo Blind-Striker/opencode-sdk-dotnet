@@ -101,7 +101,7 @@ public sealed class OpenCodeClientContractTests
     [Test]
     public async Task GetMessageAsync_Should_Downgrade_An_Undeclared_Status_To_The_Carrier()
     {
-        using var scenario = ContractScenario.Responding((HttpStatusCode)418, "{\"_tag\":\"UnauthorizedError\",\"message\":\"weird\"}");
+        using var scenario = ContractScenario.Responding((HttpStatusCode)418, WireBodyData.UnauthorizedError);
 
         var exception = await Assert
             .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("s").GetMessageAsync("m"))

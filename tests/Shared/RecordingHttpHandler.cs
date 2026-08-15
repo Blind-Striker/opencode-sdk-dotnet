@@ -27,11 +27,15 @@ internal sealed class RecordingHttpHandler : HttpMessageHandler
 
     public bool IsDisposed { get; private set; }
 
-    public static RecordingHttpHandler RespondingJson(string body) =>
-        new(_ => new HttpResponseMessage(HttpStatusCode.OK)
+    public static RecordingHttpHandler RespondingJson(string body)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+
+        return new(_ => new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent(body),
         });
+    }
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {

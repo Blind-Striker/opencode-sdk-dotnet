@@ -87,8 +87,8 @@ public sealed class SessionsClientContractTests
     }
 
     [Test]
-    [Arguments("{\"_tag\":\"InvalidCursorError\",\"message\":\"stale\"}", typeof(InvalidCursorError))]
-    [Arguments("{\"_tag\":\"InvalidRequestError\",\"message\":\"bad\"}", typeof(InvalidRequestError))]
+    [Arguments(WireBodyData.InvalidCursorError, typeof(InvalidCursorError))]
+    [Arguments(WireBodyData.InvalidRequestError, typeof(InvalidRequestError))]
     public async Task ListSessionsAsync_Should_Type_Both_Declared_400_Errors(string body, Type expected)
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, body);
@@ -152,9 +152,7 @@ public sealed class SessionsClientContractTests
     [Test]
     public async Task CreateSessionAsync_Should_Throw_The_Declared_400_Error()
     {
-        using var scenario = ContractScenario.Responding(
-            HttpStatusCode.BadRequest,
-            "{\"_tag\":\"InvalidRequestError\",\"message\":\"bad id\"}");
+        using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.InvalidRequestError);
 
         var exception = await Assert
             .That(async () => _ = await scenario.Client.Sessions.CreateSessionAsync())

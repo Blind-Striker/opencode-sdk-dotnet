@@ -13,6 +13,10 @@ internal static class WireBodyData
 
     public const string UnknownError = "{\"_tag\":\"UnknownError\",\"message\":\"boom\"}";
 
+    public const string InvalidCursorError = "{\"_tag\":\"InvalidCursorError\",\"message\":\"stale\"}";
+
+    public const string InvalidRequestError = "{\"_tag\":\"InvalidRequestError\",\"message\":\"bad\"}";
+
     public static string Envelope(string datum)
     {
         ArgumentNullException.ThrowIfNull(datum);
