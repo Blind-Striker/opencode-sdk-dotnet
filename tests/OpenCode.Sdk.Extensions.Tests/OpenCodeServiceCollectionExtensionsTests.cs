@@ -1,9 +1,7 @@
-using System.Net.Http.Headers;
-using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using OpenCode.Sdk.Extensions.Tests.Support;
-using OpenCode.Sdk.TestSupport;
 
 namespace OpenCode.Sdk.Extensions.Tests;
 
@@ -12,47 +10,43 @@ public sealed class OpenCodeServiceCollectionExtensionsTests
     private static readonly Uri Endpoint = new("http://localhost:4096");
 
     [Test]
-    public async Task AddOpenCode_Should_Resolve_The_Client_Through_The_Factory_Pipeline()
+    public async Task AddOpenCode_Should_Resolve_One_Singleton_Client()
     {
-        var payload = new FixtureLoader().LoadJson("known-health.json");
-        using var handler = RecordingHttpHandler.RespondingJson(payload);
-        var services = new ServiceCollection();
-        _ = services.AddOpenCode(options => options.Endpoint = Endpoint)
-            .ConfigurePrimaryHttpMessageHandler(() => handler);
-        using var provider = services.BuildServiceProvider();
-
-        var response = await provider.GetRequiredService<OpenCodeClient>().GetHealthAsync();
-
-        await Assert.That(response.Health.Healthy).IsTrue();
-        await Assert.That(handler.Requests.Single().RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/health"));
-    }
-
-    [Test]
-    public async Task AddOpenCode_Should_Register_The_Client_As_Transient_For_Handler_Rotation()
-    {
-        var services = new ServiceCollection();
-        _ = services.AddOpenCode(options => options.Endpoint = Endpoint);
-        using var provider = services.BuildServiceProvider();
+        using var provider = BuildProvider();
 
         var first = provider.GetRequiredService<OpenCodeClient>();
         var second = provider.GetRequiredService<OpenCodeClient>();
 
-        await Assert.That(first).IsNotSameReferenceAs(second);
+        await Assert.That(first).IsSameReferenceAs(second);
     }
 
     [Test]
-    public async Task AddOpenCode_Should_Resolve_The_Sessions_Client_Directly()
+    public async Task AddOpenCode_Should_Resolve_The_Sessions_Client_From_The_Same_Root_Instance()
     {
-        var payload = new FixtureLoader().LoadJson("known-health.json");
-        using var handler = RecordingHttpHandler.RespondingJson(payload);
-        var services = new ServiceCollection();
-        _ = services.AddOpenCode(options => options.Endpoint = Endpoint)
-            .ConfigurePrimaryHttpMessageHandler(() => handler);
-        using var provider = services.BuildServiceProvider();
+        using var provider = BuildProvider();
 
+        var root = provider.GetRequiredService<OpenCodeClient>();
         var sessions = provider.GetRequiredService<SessionsClient>();
 
-        await Assert.That(sessions).IsNotNull();
+        await Assert.That(sessions).IsSameReferenceAs(root.Sessions);
+    }
+
+    [Test]
+    public async Task AddOpenCode_Should_Register_Every_Root_Client_Family()
+    {
+        using var provider = BuildProvider();
+        var root = provider.GetRequiredService<OpenCodeClient>();
+        var families = typeof(OpenCodeClient).GetProperties()
+            .Where(property => property.PropertyType.Name.EndsWith("Client", StringComparison.Ordinal))
+            .ToList();
+
+        await Assert.That(families).IsNotEmpty();
+        foreach (var family in families)
+        {
+            var resolved = provider.GetService(family.PropertyType);
+            await Assert.That(resolved).IsNotNull();
+            await Assert.That(resolved).IsSameReferenceAs(family.GetValue(root));
+        }
     }
 
     [Test]
@@ -78,60 +72,25 @@ public sealed class OpenCodeServiceCollectionExtensionsTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(OpenCodeConfigurationData.ProtectedServer)
             .Build();
-        using var handler = RecordingHttpHandler.RespondingJson(new FixtureLoader().LoadJson("known-health.json"));
         var services = new ServiceCollection();
-        _ = services.AddOpenCode(configuration.GetSection("OpenCode"))
-            .ConfigurePrimaryHttpMessageHandler(() => handler);
+        _ = services.AddOpenCode(configuration.GetSection("OpenCode"));
         using var provider = services.BuildServiceProvider();
 
-        _ = await provider.GetRequiredService<OpenCodeClient>().GetHealthAsync();
+        var options = provider.GetRequiredService<IOptions<OpenCodeClientOptions>>().Value;
 
-        var expected = $"Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret"))}";
-        await Assert.That(handler.Requests.Single().Authorization).IsEqualTo(expected);
+        await Assert.That(options.Endpoint).IsEqualTo(Endpoint);
+        await Assert.That(options.Username).IsEqualTo("admin");
+        await Assert.That(options.Password).IsEqualTo("secret");
     }
 
     [Test]
-    public async Task AddOpenCode_Should_Compose_Delegating_Handlers_Through_The_Returned_Builder()
-    {
-        var payload = new FixtureLoader().LoadJson("known-health.json");
-        using var handler = RecordingHttpHandler.RespondingJson(payload);
-        using var witness = new WitnessHandler();
-        var services = new ServiceCollection();
-        _ = services.AddOpenCode(options => options.Endpoint = Endpoint)
-            .AddHttpMessageHandler(() => witness)
-            .ConfigurePrimaryHttpMessageHandler(() => handler);
-        using var provider = services.BuildServiceProvider();
-
-        _ = await provider.GetRequiredService<OpenCodeClient>().GetHealthAsync();
-
-        await Assert.That(witness.CallCount).IsEqualTo(1);
-    }
-
-    [Test]
-    public async Task AddOpenCode_Should_Refuse_An_Anonymous_Factory_Client_Carrying_A_Default_Authorization()
+    public async Task AddOpenCode_Should_Return_The_Service_Collection_For_Chaining()
     {
         var services = new ServiceCollection();
-        _ = services.AddOpenCode(options => options.Endpoint = Endpoint)
-            .ConfigureHttpClient(static client =>
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "foreign-token"));
-        using var provider = services.BuildServiceProvider();
 
-        var exception = Assert.Throws<ArgumentException>(() => _ = provider.GetRequiredService<OpenCodeClient>());
+        var returned = services.AddOpenCode(static options => options.Endpoint = Endpoint);
 
-        await Assert.That(exception.Message).Contains("Authorization");
-    }
-
-    [Test]
-    public async Task AddOpenCode_Should_Refuse_A_Factory_Client_Carrying_A_BaseAddress()
-    {
-        var services = new ServiceCollection();
-        _ = services.AddOpenCode(options => options.Endpoint = Endpoint)
-            .ConfigureHttpClient(static client => client.BaseAddress = new Uri("http://localhost:9"));
-        using var provider = services.BuildServiceProvider();
-
-        var exception = Assert.Throws<ArgumentException>(() => _ = provider.GetRequiredService<OpenCodeClient>());
-
-        await Assert.That(exception.Message).Contains("BaseAddress");
+        await Assert.That(returned).IsSameReferenceAs(services);
     }
 
     [Test]
@@ -153,5 +112,12 @@ public sealed class OpenCodeServiceCollectionExtensionsTests
     {
         _ = await Assert.That(() => new ServiceCollection().AddOpenCode(configuration: null!))
             .Throws<ArgumentNullException>();
+    }
+
+    private static ServiceProvider BuildProvider()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddOpenCode(static options => options.Endpoint = Endpoint);
+        return services.BuildServiceProvider();
     }
 }

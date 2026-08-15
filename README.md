@@ -16,7 +16,7 @@ roadmap, and [`docs/research/`](docs/research/) for the research notes behind th
 | Package | Description |
 | --- | --- |
 | `OpenCode.Sdk` | Core: typed HTTP client, SSE event streaming, `opencode serve` launcher |
-| `OpenCode.Sdk.Extensions` | DI integration: `AddOpenCodeClient()`, `IHttpClientFactory` wiring, options binding |
+| `OpenCode.Sdk.Extensions` | DI integration: `AddOpenCode()`, singleton client family, options binding |
 
 ## License
 

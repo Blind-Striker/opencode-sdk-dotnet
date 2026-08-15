@@ -22,11 +22,11 @@ public class OpenCodeClient : IDisposable
     }
 
     /// <summary>
-    /// Initializes a client over a caller-owned HttpClient; the SDK never disposes it. With a password set, the SDK&apos;s per-request Authorization header overrides any client default; in anonymous mode a default Authorization header is refused at construction and before every send.
+    /// Initializes a client over an injected transport the client never disposes; friend-assembly test surface.
     /// </summary>
-    /// <param name = "httpClient">The caller-owned HTTP client.</param>
+    /// <param name = "httpClient">The injected HTTP client.</param>
     /// <param name = "options">The client options; the endpoint is required.</param>
-    public OpenCodeClient(HttpClient httpClient, OpenCodeClientOptions options)
+    internal OpenCodeClient(HttpClient httpClient, OpenCodeClientOptions options)
     {
         _pipeline = Pipeline.Create(httpClient, options);
         _sessions = new SessionsClient(_pipeline);
