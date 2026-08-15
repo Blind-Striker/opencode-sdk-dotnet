@@ -25,6 +25,11 @@
     <ProjectReference Include="../../src/OpenCode.Sdk/OpenCode.Sdk.csproj"/>
   </ItemGroup>
 
+  <!-- Cross-project test support compiles into each consuming test project as shared source. -->
+  <ItemGroup>
+    <Compile Include="../Shared/**/*.cs" LinkBase="Shared" />
+  </ItemGroup>
+
   <!-- .NET Framework ships HttpClient in this framework assembly; no NuGet HTTP stack is added. -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
     <Reference Include="System.Net.Http" />
