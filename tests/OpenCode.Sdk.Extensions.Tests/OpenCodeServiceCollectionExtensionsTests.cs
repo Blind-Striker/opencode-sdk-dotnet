@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -103,6 +104,20 @@ public sealed class OpenCodeServiceCollectionExtensionsTests
         _ = await provider.GetRequiredService<OpenCodeClient>().GetHealthAsync();
 
         await Assert.That(witness.CallCount).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task AddOpenCode_Should_Refuse_An_Anonymous_Factory_Client_Carrying_A_Default_Authorization()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddOpenCode(options => options.Endpoint = Endpoint)
+            .ConfigureHttpClient(static client =>
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "foreign-token"));
+        using var provider = services.BuildServiceProvider();
+
+        var exception = Assert.Throws<ArgumentException>(() => _ = provider.GetRequiredService<OpenCodeClient>());
+
+        await Assert.That(exception.Message).Contains("Authorization");
     }
 
     [Test]

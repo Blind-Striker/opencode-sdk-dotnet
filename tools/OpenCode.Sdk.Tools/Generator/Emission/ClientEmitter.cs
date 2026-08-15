@@ -128,7 +128,9 @@ internal static class ClientEmitter
             ])))
             .WithBody(SyntaxFactory.Block(EmitRootAssignments(client, httpClientArgument: "httpClient")))
             .WithLeadingTrivia(EmissionSyntax.MemberDocumentation(
-                "Initializes a client over a caller-owned HttpClient; the SDK never disposes it.",
+                "Initializes a client over a caller-owned HttpClient; the SDK never disposes it. " +
+                "With a password set, the SDK's per-request Authorization header overrides any client default; " +
+                "in anonymous mode a default Authorization header is refused at construction and before every send.",
                 [
                     new DocumentedParameter("httpClient", "The caller-owned HTTP client."),
                     new DocumentedParameter("options", "The client options; the endpoint is required."),

@@ -137,6 +137,61 @@ public sealed class PipelineTests
     }
 
     [Test]
+    public async Task Pipeline_Should_Refuse_An_Anonymous_Client_Whose_Defaults_Carry_Authorization()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "foreign-token");
+
+        var exception = Assert.Throws<ArgumentException>(() => _ = CreatePipeline(httpClient));
+
+        await Assert.That(exception.Message).Contains("Authorization");
+    }
+
+    [Test]
+    public async Task Pipeline_Should_Refuse_A_Raw_Unparseable_Default_Authorization()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        _ = httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", "???");
+
+        var exception = Assert.Throws<ArgumentException>(() => _ = CreatePipeline(httpClient));
+
+        await Assert.That(exception.Message).Contains("Authorization");
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Refuse_A_Default_Authorization_Added_After_Construction()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "foreign-token");
+
+        var exception = await Assert
+            .That(async () => _ = await pipeline.ExecuteAsync(
+                HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception!.Message).Contains("Authorization");
+        await Assert.That(handler.Requests).IsEmpty();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Let_The_Explicit_Password_Win_Over_A_Default_Authorization()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "foreign-token");
+        using var pipeline = CreatePipeline(httpClient, password: "secret");
+
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None);
+
+        var expected = $"Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes("opencode:secret"))}";
+        await Assert.That(handler.Requests.Single().Authorization).IsEqualTo(expected);
+    }
+
+    [Test]
     public async Task ExecuteAsync_Should_Decorate_The_User_Agent_Per_Request()
     {
         using var handler = new RecordingHttpHandler();
