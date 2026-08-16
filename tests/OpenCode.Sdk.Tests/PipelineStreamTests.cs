@@ -74,6 +74,23 @@ public sealed class PipelineStreamTests
     }
 
     [Test]
+    public async Task ExecuteStreamAsync_Should_Treat_An_Undeclared_2xx_As_A_Protocol_Failure()
+    {
+        using var handler = new RecordingHttpHandler(static _ =>
+        {
+            var content = new StringContent("data: {\"value\":\"first\"}\n\n");
+            content.Headers.ContentType = new MediaTypeHeaderValue("text/event-stream");
+            return new HttpResponseMessage(HttpStatusCode.Created) { Content = content, };
+        });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(httpClient);
+
+        _ = await Assert
+            .That(async () => _ = await CollectAsync(pipeline))
+            .Throws<OpenCodeTransportException>();
+    }
+
+    [Test]
     public async Task ExecuteStreamAsync_Should_Refuse_NoThrow_Instead_Of_Ignoring_It()
     {
         using var handler = new RecordingHttpHandler(static _ => EventStream("data: {\"value\":\"first\"}\n\n"));

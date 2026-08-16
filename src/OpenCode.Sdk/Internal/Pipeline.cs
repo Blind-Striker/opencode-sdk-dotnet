@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -237,6 +238,15 @@ internal sealed class Pipeline : IDisposable
         Decorate(request);
         using var response = await SendCoreAsync(request, cancellationToken).ConfigureAwait(false);
         var status = (int)response.StatusCode;
+
+        // Any other 2xx is outside the declared contract: a protocol failure, never an API
+        // error — the same reading the one-shot adapters give it.
+        if (status is > 200 and < 300)
+        {
+            throw new OpenCodeTransportException(
+                $"The opencode API returned undeclared success status {status.ToString(CultureInfo.InvariantCulture)}.");
+        }
+
         if (status is not 200)
         {
             var rawBody = await ReadBodyAsync(response, cancellationToken).ConfigureAwait(false);
