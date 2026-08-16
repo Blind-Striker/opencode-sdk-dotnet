@@ -8,17 +8,27 @@ mapping, `NoThrow`, telemetry) never lives in method bodies. Hand-written op met
 sit outside CI regen-verify and go silently stale as upstream moves — generated methods
 turn every spec drift into a loud diff or a broken build (research doc 06 §1's earlier
 hand-written-surface position was overturned by the maintainer on this argument).
-Hand-written remains the identity core: transport pipeline, SSE engine and
-stream-endpoint wiring, launcher, exception hierarchy, envelope base, options types,
-DI extensions.
+Hand-written remains the identity core: transport pipeline, SSE engine, launcher,
+exception hierarchy, envelope base, options types, DI extensions.
+
+**Streaming operations are generated on the same rule.** An SSE endpoint is an ordinary
+HTTP response the client reads incrementally, and the pinned contract declares it in
+full — `text/event-stream` content, the `{id, event, data}` frame, and `data`'s payload
+through `contentSchema`/`contentMediaType`. So the drift argument applies unchanged: the
+stream *engine* is behavior and stays in the core, while stream *endpoints* emit as
+one-line delegations into it, exactly like the one-shot surface. Streams yield
+`IAsyncEnumerable<T>` rather than a response envelope, so `NoThrow` has no channel to
+answer on and a per-call request for it is refused rather than ignored. Upstream's own
+generator emits its SSE operations the same way, over the same contract.
 
 The radar covers both sides of the boundary: generated output is CI regen-verified
-(ADR-0003); every **excluded or hand-wired** operation (SSE endpoints, `pty.connect`,
-future exclusions) is **fingerprint-pinned** — the generator hashes each such operation
-into a committed manifest (excluded ops: the full subtree — method, path, parameters,
-content types, transitive schemas; hand-wired ops: the transport shape only, their item
-schemas being generated and regen-verified already), and a spec refresh that moves a
-pinned construct breaks the build for explicit review. Non-JSON response bodies stay generated via a fail-closed
+(ADR-0003); every **excluded** operation (`pty.connect`, future exclusions) is
+**fingerprint-pinned** — the generator hashes the operation's full subtree (method, path,
+parameters, content types, transitive schemas) into a committed manifest, and a spec
+refresh that moves a pinned construct breaks the build for explicit review. Exclusion is
+reserved for transports the HTTP pipeline cannot carry: `pty.connect` upgrades to
+WebSocket, which leaves HTTP after the handshake and needs a different client stack
+entirely. Non-JSON response bodies stay generated via a fail-closed
 content-type→payload map (`application/octet-stream` → `Stream` payload on a disposable
 envelope; `text/*` → `string`); an unknown content type breaks generation.
 

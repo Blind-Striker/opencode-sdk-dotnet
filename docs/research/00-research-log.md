@@ -2090,3 +2090,67 @@ server. Whether to drop the ambient channel entirely (option B — "convenience 
 justify supporting a channel outside the public contract"; the MCP server will set location
 explicitly anyway) or fold it into the query channel (option C) is anchored at **M5 as
 issue #37**, decision-first because packaging unblocking freezes the public surface.
+
+# Session 27 — 2026-08-16: Q96 streaming endpoints generate
+
+Arc 3 opened with a recon pass whose numbers contradicted an ADR clause. The maintainer
+raised the challenge — "ADRs are not scripture, and the hand-wired rule was written while
+we were pinned to 1.18.15, where the contract expressed SSE weakly or not at all; more
+hand-wired code means more fail-open, because we would be tracking changes outside the
+schema without knowing" — and the slice stopped per the deviation protocol's Level 3.
+
+## Q96: Are the streaming endpoints hand-wired or generated?
+
+**How researched:** the pinned spec's two `text/event-stream` operations read directly;
+the upstream code generator (`packages/httpapi-codegen`) and the client it produces read
+at the pin; model-closure sizes computed over the component graph; ADR-0008's own
+reasoning re-read against its subject.
+
+**Found — the contract expresses SSE in full.** Both operations declare
+`text/event-stream` with a frame schema `{id, event, data}`, `data` typed through
+`contentSchema` + `contentMediaType: application/json`, and an `x-effect-stream`
+annotation carrying the encoding and a failure-cause schema. Nothing about this is thin:
+it is the same schema-driven material every other operation binds from.
+
+**Found — upstream generates its own streaming operations.** `httpapi-codegen/src/index.ts:895`
+emits `(args): AsyncIterable<XOutput> => sse<XOutput>(descriptor, requestOptions)`, while
+the `sse<A>()` reader — status wall, content-type wall, CRLF normalization, `\n\n` frame
+boundaries, `data:` collection, a maximum-frame guard, `JSON.parse` — is emitted once as
+runtime scaffolding. That is precisely the split ADR-0008 prescribes for the one-shot
+surface: behavior in the core, endpoints as one-line delegations.
+
+**Found — ADR-0008's own thesis argued against its own clause.** Its central reasoning is
+that hand-written op methods "sit outside CI regen-verify and go silently stale as upstream
+moves," while generated ones "turn every spec drift into a loud diff or a broken build."
+That argument is indifferent to whether a response is one-shot or streamed. The clause
+naming stream-endpoint wiring as hand-written was written the same day as the v2 retarget
+(ADR-0005), whose own text schedules the retarget as a later task — so the clause predates
+sight of the contract it now governs.
+
+**Found — the economics favor generation.** The payload models are generated either way:
+`SessionLogItem` closes over 58 schemas new to us, `V2Event` over 125 (87 union branches,
+43% of the spec's component graph). What remains in question is only the short method that
+names a route, a payload type, and a declared-status map — the very piece most likely to
+drift, and nearly free to emit once everything around it is emitted.
+
+**Decision (maintainer, sealed):** streaming endpoints generate. ADR-0008 is corrected in
+place: the SSE **engine** stays hand-written identity core (transport send, status and
+content-type walls, the frame reader, cancellation, disposal), while stream **endpoints**
+emit as one-line delegations into it. Streams yield `IAsyncEnumerable<T>` instead of a
+response envelope, so `NoThrow` has no channel to answer on and is refused rather than
+ignored. Exclusion narrows to transports HTTP cannot carry: `pty.connect` upgrades to
+WebSocket, leaving HTTP after the handshake, and stays excluded and fingerprint-pinned.
+
+## The two stream endpoints, and why there are two
+
+`v2.event.subscribe` (`/api/event`) is the **live global bus**: 87 branches spanning the
+whole daemon — catalog and agent refreshes, integration and session lifecycle, execution
+start/success/failure, inbox delivery. It declares no parameters at all, not even location:
+one subscription sees everything, and consumers fan out client-side. Nothing is replayable,
+which is why it carries no resume parameter.
+
+`v2.session.log` (`/api/experimental/session/{sessionID}/log`) is the **durable per-session
+log**: two branches, `Session.Event.Durable` and `EventLog.Synced`, with `after` to resume
+from a position and `follow` to keep streaming. This is the replacement for the v1 durable
+pair, and its `after` — not the SSE `id:` line, which the first-party reader discards — is
+the resume mechanism.
