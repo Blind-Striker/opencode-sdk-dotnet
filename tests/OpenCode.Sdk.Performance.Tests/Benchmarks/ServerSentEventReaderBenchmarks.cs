@@ -28,7 +28,7 @@ public class ServerSentEventReaderBenchmarks
         var characters = 0;
         await foreach (var frame in new ServerSentEventReader().ReadAsync(body, CancellationToken.None).ConfigureAwait(false))
         {
-            characters += frame.Length;
+            characters += frame.Data.Length;
         }
 
         return characters;

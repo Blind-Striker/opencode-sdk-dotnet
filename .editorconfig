@@ -816,3 +816,11 @@ dotnet_diagnostic.IDE0130.severity = none
 # namespace contract; IDE0130 remains error for every other Extensions file.
 [src/OpenCode.Sdk.Extensions/OpenCodeServiceCollectionExtensions.cs]
 dotnet_diagnostic.IDE0130.severity = none
+
+# BlockingStream is a test double that stands still until cancellation, so read throughput
+# is not a property it has. The memory-based ReadAsync is not virtual on the net472 leg of
+# the test matrix, leaving the array-based override the only shape that compiles on every
+# target the tests run on; the base memory-based read routes into it. Winner: the
+# cross-target test double; CA1844 remains enabled for every other file.
+[tests/OpenCode.Sdk.Tests/Support/BlockingStream.cs]
+dotnet_diagnostic.CA1844.severity = none

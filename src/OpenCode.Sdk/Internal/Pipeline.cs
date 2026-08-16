@@ -258,7 +258,7 @@ internal sealed class Pipeline : IDisposable
         var reader = new ServerSentEventReader();
         await foreach (var frame in reader.ReadAsync(body, cancellationToken).ConfigureAwait(false))
         {
-            yield return ReadFramePayload(frame, adapter.PayloadTypeInfo);
+            yield return ReadFramePayload(frame.Data, adapter.PayloadTypeInfo);
         }
     }
 

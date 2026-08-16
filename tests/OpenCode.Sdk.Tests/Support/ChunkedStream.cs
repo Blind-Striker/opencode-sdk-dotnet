@@ -6,10 +6,13 @@ namespace OpenCode.Sdk.Tests.Support;
 internal sealed class ChunkedStream : Stream
 {
     private readonly Queue<byte[]> _chunks;
+    private byte[]? _current;
+    private int _offset;
 
     private ChunkedStream(IEnumerable<byte[]> chunks)
     {
-        _chunks = new Queue<byte[]>(chunks);
+        // An empty chunk would read as end-of-stream, cutting the body short.
+        _chunks = new Queue<byte[]>(chunks.Where(static chunk => chunk.Length > 0));
     }
 
     public override bool CanRead => true;
@@ -52,17 +55,21 @@ internal sealed class ChunkedStream : Stream
     public override int Read(byte[] buffer, int offset, int count)
     {
         ArgumentNullException.ThrowIfNull(buffer);
-        if (_chunks.Count is 0)
+        if (_current is null && _chunks.Count is 0)
         {
             return 0;
         }
 
-        var chunk = _chunks.Dequeue();
-        var length = Math.Min(chunk.Length, count);
-        Array.Copy(chunk, 0, buffer, offset, length);
-        if (length < chunk.Length)
+        // A chunk the caller could not take in one read stays at the head, so its remainder
+        // is served next rather than jumping the queue behind later chunks.
+        _current ??= _chunks.Dequeue();
+        var length = Math.Min(_current.Length - _offset, count);
+        Array.Copy(_current, _offset, buffer, offset, length);
+        _offset += length;
+        if (_offset == _current.Length)
         {
-            _chunks.Enqueue([.. chunk.Skip(length)]);
+            _current = null;
+            _offset = 0;
         }
 
         return length;
