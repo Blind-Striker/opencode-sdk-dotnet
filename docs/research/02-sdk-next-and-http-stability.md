@@ -1,7 +1,13 @@
 # sdk-next, the embedded model, and why the HTTP surface is safe to build on
 
-> Research snapshot, 2026-08-08. Sources: `external/opencode/packages/sdk-next/README.md`,
+Date: 2026-08-16
+
+> Sources, retrieved 2026-08-08: `external/opencode/packages/sdk-next/README.md`,
 > `external/opencode/CONTEXT.md` ("Client contract architecture" and related decisions).
+> The streaming section below is re-derived against the v2 wire, retrieved 2026-08-16:
+> `effect/unstable/encoding/Sse.ts`, `packages/server/src/handlers/event.ts`,
+> `packages/server/src/event-feed.ts`, `packages/server/src/handlers/session.ts`,
+> `packages/httpapi-codegen/src/index.ts`.
 
 ## The next-generation pipeline (private, in progress)
 
@@ -75,12 +81,13 @@ Also from `CONTEXT.md` — these shape our .NET API design:
 
 - **No auto-reconnect in generated streaming clients.** Streams fail explicitly on
   transport loss; live consumers refresh authoritative state and resubscribe. Durable
-  resume is explicit composition above the client (`sessions.events({ after })` cursor).
-- **Two distinct event streams with different guarantees:**
-  `events.subscribe()` = instance-wide, live-only, no replay;
-  `sessions.events({ sessionID, after })` = per-session, durable, replayable via
-  aggregate sequence cursor. A session ID is *not* a filter on the live stream — they
-  have different schemas and failure behavior.
+  resume is explicit composition above the client — the caller passes `v2.session.log`'s
+  `after` cursor; the SSE `id:` line is not a resume token.
+- **Two distinct event streams with different guarantees:** `v2.event.subscribe`
+  (`/api/event`) = instance-wide, live-only, no replay, no parameters at all;
+  `v2.session.log` (`/api/experimental/session/{sessionID}/log`, `after` + `follow`) =
+  per-session, durable, replayable via aggregate sequence cursor. A session ID is *not* a
+  filter on the live stream — they have different schemas and failure behavior.
 - **No server-global event aggregation** in the common client — the API is bound to
   one instance. Fleet dashboards ("opencode HQ") must aggregate above the SDK.
 - **Streaming methods return the stream directly** (lazy `AsyncIterable`; connection
@@ -92,3 +99,45 @@ Also from `CONTEXT.md` — these shape our .NET API design:
   (structural, with type guards — not exception-subclass identity) or a single
   infrastructure `ClientError` with a structured reason. A clean model to mirror with
   .NET exception design or result types.
+
+## How the v2 SSE wire actually behaves
+
+The spec declares both stream responses with `id`, `event` and `data` all `required`, which
+describes the **decoded** envelope rather than the bytes. Effect's parser fills a missing
+`event:` line with `"message"` before any value is read, so the decoded shape always has a
+name; its encoder is the other half of the same coin and writes `event:` **only when the name
+is not `"message"`**, and `id:` only when one is defined. An ordinary payload frame therefore
+carries neither line.
+
+That makes `event` a pure signal channel: its presence means the frame is not a payload. The
+one signal this API declares is `x-effect-stream.failureEvent:
+effect/httpapi/stream/failure`, sitting beside `causeSchema` and `errorSchema`. The reason is
+structural — once a 200 and its headers are on the wire, HTTP has no way left to say the
+operation failed, so the failed cause is encoded as an in-band frame under a reserved name.
+It is the SSE analogue of a trailer.
+
+**The two endpoints do not behave alike despite identical declarations.** `v2.session.log`
+is a `.handle(...)` returning a `Stream`, so it runs through the real `HttpApiSchema.StreamSse`
+encoder and can emit the failure frame. `v2.event.subscribe` is `handleRaw`: it writes
+`data: ${json}\n\n` by hand and keeps the connection alive with `: heartbeat\n\n` comment
+lines every 15 seconds, so it never emits `event:` at all and its failures simply close the
+connection.
+
+Behaviors of upstream's own generated reader (`httpapi-codegen`), which are worth mirroring
+or deliberately not:
+
+| Upstream behavior | Our position |
+|---|---|
+| Wraps a mid-stream read failure into its infrastructure error type | mirrored — a transport failure stays a transport failure (ADR-0007) |
+| Caps a pending event at 16 MiB | mirrored — the same ceiling, counted per pending frame |
+| Discards `event:` and `id:`, keeping only `data:` | **not** mirrored; Effect's own parser keeps the name, and discarding it hands a failure frame to the consumer as an ordinary event |
+| Strips one leading UTF-8 BOM (Effect's parser; the codegen client does not) | mirrored, following the parser |
+| Trims all leading whitespace after `data:` | **not** mirrored; the SSE grammar strips exactly one space |
+| Appends `\n\n` at EOF, dispatching a partial trailing line | **not** mirrored; without auto-reconnect a truncated frame is lost data, so it is reported |
+
+**Consumer census (2026-08-16).** `v2.session.log` has exactly one consumer upstream — the
+TUI devtools bar, which collects the log with `follow: false` to dump a debug JSON file and
+discriminates on `event.type`, skipping the `log.synced` watermark. The web UI, desktop, app,
+session-ui and console packages do not call it at all. `v2.event.subscribe` is the one every
+front-end uses: 36 call sites in `packages/web`, 2 in the TUI, 2 in the CLI, 1 in the app.
+The durable log is a diagnostic channel; the live bus is the product surface.

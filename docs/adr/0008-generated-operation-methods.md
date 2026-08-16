@@ -13,8 +13,9 @@ exception hierarchy, envelope base, options types, DI extensions.
 
 **Streaming operations are generated on the same rule.** An SSE endpoint is an ordinary
 HTTP response the client reads incrementally, and the pinned contract declares it in
-full — `text/event-stream` content, the `{id, event, data}` frame, and `data`'s payload
-through `contentSchema`/`contentMediaType`. So the drift argument applies unchanged: the
+full — `text/event-stream` content, the `{id, event, data}` frame as the *decoded* envelope
+(the wire omits `event:` and `id:` for an ordinary payload), and `data`'s payload through
+`contentSchema`/`contentMediaType`. So the drift argument applies unchanged: the
 stream *engine* is behavior and stays in the core, while stream *endpoints* emit as
 one-line delegations into it, exactly like the one-shot surface. A stream yields
 `IAsyncEnumerable<T>` rather than a response envelope, which is why its signature carries

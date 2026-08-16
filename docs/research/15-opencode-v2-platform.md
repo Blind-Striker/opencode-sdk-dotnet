@@ -1,6 +1,6 @@
 # The opencode v2 platform: branch, surface, architecture, distribution
 
-Date: 2026-08-14
+Date: 2026-08-16
 
 > Retarget-decision research (docs 09/10 follow-up). Question: what is the opencode v2 platform
 > today — which branch carries it, what API surface it serves, how its server/client architecture
@@ -112,6 +112,32 @@ not migrated, removed.
 | `patternProperties` | 2 | |
 | empty schemas `{}` | 9 | |
 
+Four shapes inside those counts only surface when an operation's closure is actually admitted;
+the stream operations are what first reached them (2026-08-16, by admitting `v2.session.log`
+and `v2.event.subscribe` to the profile and reading the walls):
+
+- **Single-value `enum` is not always a string.** `durable.version` is
+  `{"type":"number","enum":[1]}` — a numeric literal marker, 40 schemas across the durable
+  event family. The 370 count above does not split by type; the string-literal reading of the
+  dialect was incomplete.
+- **An empty struct renders as a two-branch union.** `Session.Inbox.CompactionPayload` is
+  `anyOf[{"type":"object"},{"type":"array"}]`, which is how Effect emits
+  `Schema.Struct({})` — upstream's own generated client types it as `{}`. It is a declaration
+  that there is no payload, not an undiscriminated union of two real shapes.
+- **Some `anyOf`s are refinements over one primitive.** `session.instructions.updated`'s
+  `data.delta` is a map whose values are `anyOf[string(pattern ^[a-f0-9]{64}$),
+  string(enum ["removed"])]` — both branches are strings, so the construct is a
+  string-to-string dictionary rather than a union.
+- **The structural-duplicate family extends to union parents.** `Tool.FileContent1` is
+  byte-identical to `Tool.FileContent`, which makes the inline union `Tool.Content1`
+  identical to `Tool.Content`; because `Tool.TextContent` is a branch of both, the duplicate
+  surfaces as one branch needing two parents. Same upstream spec-gen behavior already seen on
+  `InvalidRequestError1` and `Shell.Info1`, and the same `schemaAliases` collapse resolves it.
+
+Closure cost differs sharply between the two stream operations: admitting `v2.session.log`
+reaches 2 of the empty-struct/refinement sites, `v2.event.subscribe` reaches 16. Both reach
+the same numeric-literal, duplicate-parent and nested-union walls.
+
 Component names are widely dotted (`Session.Message.Info`, `Location.Info`) — the existing
 mangling rule covers them. Two-day drift against session 12's census of the same branch
 (2026-08-11: 322 schemas, 422 `allOf`, 359 single-value enums) measures the churn rate directly
@@ -146,7 +172,8 @@ stream pair (`v2.session.events` + `v2.session.history`, `after`-cursor resume) 
 cursor pagination on `v2.message.list`. The global `/api/event` stream has **no resume
 parameters**. Cursor/after parameters exist on exactly: `session.list`, `session.log`,
 `message.list`, `pty.connect`, `shell.output`. The locked SSE-resume design premise must be
-re-derived against `session.log` at M3.
+re-derived against `session.log` at M3. How the two streams differ on the wire — and why
+their identical spec declarations do not mean identical bytes — is in research doc 02.
 
 ## 6. Server-client architecture: one shared daemon, discovered by file
 
