@@ -165,7 +165,7 @@ public sealed class PipelineTests
         _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None);
 
         var request = handler.Requests.Single();
-        await Assert.That(request.Headers["x-opencode-directory"]).IsEqualTo("/repo");
+        await Assert.That(request.Headers["x-opencode-directory"]).IsEqualTo("%2Frepo");
         await Assert.That(request.Headers["x-opencode-workspace"]).IsEqualTo("wrk_1");
     }
 
@@ -179,8 +179,44 @@ public sealed class PipelineTests
         _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None);
 
         var request = handler.Requests.Single();
-        await Assert.That(request.Headers["x-opencode-directory"]).IsEqualTo("/repo");
+        await Assert.That(request.Headers["x-opencode-directory"]).IsEqualTo("%2Frepo");
         await Assert.That(request.Headers.ContainsKey("x-opencode-workspace")).IsFalse();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Escape_A_Directory_Whose_Name_Contains_A_Percent_Sequence()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient, location: new LocationSelector
+        {
+            Directory = "/data/reports%20q3",
+        });
+
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None);
+
+        // The server decodes this header, so an unescaped '%20' would arrive as a space and
+        // silently address a different directory.
+        await Assert.That(handler.Requests.Single().Headers["x-opencode-directory"])
+            .IsEqualTo("%2Fdata%2Freports%2520q3");
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Send_A_Non_Ascii_Directory_As_Ascii()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient, location: new LocationSelector
+        {
+            Directory = "/home/deniz/işler",
+        });
+
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None);
+
+        // Header values above Latin-1 are unsendable, so the escape is what keeps a
+        // non-ASCII path on the wire at all.
+        await Assert.That(handler.Requests.Single().Headers["x-opencode-directory"])
+            .IsEqualTo("%2Fhome%2Fdeniz%2Fi%C5%9Fler");
     }
 
     [Test]
@@ -212,7 +248,7 @@ public sealed class PipelineTests
 
         _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None);
 
-        await Assert.That(handler.Requests.Single().Headers["x-opencode-directory"]).IsEqualTo("/before");
+        await Assert.That(handler.Requests.Single().Headers["x-opencode-directory"]).IsEqualTo("%2Fbefore");
     }
 
     [Test]

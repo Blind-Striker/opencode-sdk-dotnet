@@ -212,12 +212,15 @@ internal sealed class Pipeline : IDisposable
             request.Headers.Authorization = _authorization;
         }
 
-        // The ambient location rides the middleware's header channel; the values are user
-        // paths, so they go on the wire verbatim. The server resolves any explicit
-        // per-request location query first, so no client-side merge exists.
+        // The ambient location rides the middleware's header channel, and the two members
+        // travel differently: the server percent-decodes the directory header but reads the
+        // workspace one verbatim, so the escaping mirrors that asymmetry exactly. Escaping
+        // also keeps a non-ASCII path sendable, since header values cannot carry it raw. The
+        // server resolves any explicit per-request location query first, so no client-side
+        // merge exists.
         if (_location?.Directory is { } directory)
         {
-            _ = request.Headers.TryAddWithoutValidation("x-opencode-directory", directory);
+            _ = request.Headers.TryAddWithoutValidation("x-opencode-directory", Uri.EscapeDataString(directory));
         }
 
         if (_location?.Workspace is { } workspace)
