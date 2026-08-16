@@ -3,11 +3,12 @@ namespace OpenCode.Sdk.Performance.Tests.Support;
 /// <summary>Loads the canned wire payloads the benchmarks replay.</summary>
 internal static class BenchmarkFixtures
 {
-    /// <summary>A deep assistant message: reasoning + text + two tool parts across four union levels.</summary>
+    /// <summary>
+    /// A deep assistant message — reasoning + text + two tool parts across four union
+    /// levels — in the compact single-line form the wire carries. Indentation would put
+    /// bytes through every measurement that no server ever sends.
+    /// </summary>
     public static Task<byte[]> DeepAssistantMessageAsync() => ReadAsync("deep-assistant-message.json");
-
-    /// <summary>The same message compacted onto one line, as a wire event carries it.</summary>
-    public static Task<byte[]> DeepAssistantEventAsync() => ReadAsync("deep-assistant-event.json");
 
     /// <summary>The bare health payload the live server returns.</summary>
     public static byte[] HealthBody() => "{\"healthy\":true,\"version\":\"0.0.0-bench\",\"pid\":42}"u8.ToArray();

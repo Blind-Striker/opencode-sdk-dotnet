@@ -34,7 +34,8 @@ through their final generated surface — uniform `*Request` operation inputs (Q
 query records riding the `ListRequest` seam, `SessionCreateRequest` bodies through the
 pipeline's JSON path, cursor-list envelopes with the shared `ListCursor`, query-composing
 routes, the `Session.Info` model closure, and the first 5xx arm. Riders #19 (carrier converters), #21 (fail-closed walls + P2 single-pass
-envelopes: `GetMessageAsync` 67.4→56.2 μs, `ListMessagesAsync` baseline 58.1 μs/28.24 KB),
+envelopes; the standing baselines live in the M3 plan and are measured against
+wire-shaped payloads),
 and #22 (List/Create verb rules + C17–C20) landed with it; upstream's `InvalidRequestError1`
 duplicate collapses through the new `schemaAliases` curation. Demonstrated live 2026-08-14
 against `opencode2 serve` v0.0.0-next-17403 (create → list → get → messages, wire cursor

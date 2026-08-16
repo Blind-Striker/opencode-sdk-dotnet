@@ -17,7 +17,7 @@ public class ServerSentEventReaderBenchmarks
     [GlobalSetup]
     public async Task SetupAsync()
     {
-        var payload = await BenchmarkFixtures.DeepAssistantEventAsync().ConfigureAwait(false);
+        var payload = await BenchmarkFixtures.DeepAssistantMessageAsync().ConfigureAwait(false);
         _eventStream = BenchmarkFixtures.EventStream(payload, frames: 64);
     }
 
