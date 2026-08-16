@@ -20,9 +20,7 @@ public sealed record LocationSelector
         {
             if (value is not null && string.IsNullOrWhiteSpace(value))
             {
-                throw new ArgumentException(
-                    "The location directory cannot be empty or whitespace; leave it null when unset.",
-                    nameof(value));
+                throw new ArgumentException("The location directory cannot be empty or whitespace; leave it null when unset.", nameof(value));
             }
 
             _directory = value;
@@ -37,9 +35,7 @@ public sealed record LocationSelector
         {
             if (value is not null && string.IsNullOrWhiteSpace(value))
             {
-                throw new ArgumentException(
-                    "The location workspace cannot be empty or whitespace; leave it null when unset.",
-                    nameof(value));
+                throw new ArgumentException("The location workspace cannot be empty or whitespace; leave it null when unset.", nameof(value));
             }
 
             _workspace = value;

@@ -7,10 +7,14 @@ using OpenCode.Sdk.Models;
 var endpoint = Environment.GetEnvironmentVariable("OPENCODE_SANDBOX_ENDPOINT");
 if (string.IsNullOrWhiteSpace(endpoint))
 {
-    await Console.Error.WriteLineAsync(
-        "Set OPENCODE_SANDBOX_ENDPOINT to an absolute server endpoint; the launchSettings.json profile prefills it.").ConfigureAwait(false);
-    await Console.Error.WriteLineAsync(
-        "Optional: OPENCODE_PASSWORD or OPENCODE_SERVER_PASSWORD (resolved here; the SDK reads no environment).").ConfigureAwait(false);
+    await Console
+        .Error.WriteLineAsync(
+            "Set OPENCODE_SANDBOX_ENDPOINT to an absolute server endpoint; the launchSettings.json profile prefills it.")
+        .ConfigureAwait(false);
+    await Console
+        .Error.WriteLineAsync(
+            "Optional: OPENCODE_PASSWORD or OPENCODE_SERVER_PASSWORD (resolved here; the SDK reads no environment).")
+        .ConfigureAwait(false);
     return 1;
 }
 
@@ -40,19 +44,23 @@ Console.WriteLine(string.Create(
 // Sub-clients resolve directly from the container as well.
 var sessionsClient = host.Services.GetRequiredService<SessionsClient>();
 
-var created = await sessionsClient.CreateSessionAsync(new SessionCreateRequest
-{
-    Title = "sdk breadth demo",
-}).ConfigureAwait(false);
+var created = await sessionsClient
+    .CreateSessionAsync(new SessionCreateRequest
+    {
+        Title = "sdk breadth demo",
+    })
+    .ConfigureAwait(false);
 Console.WriteLine(string.Create(
     CultureInfo.InvariantCulture,
     $"create:  status={created.Status} id={created.Session.Id} title={created.Session.Title}"));
 
-var page = await sessionsClient.ListSessionsAsync(new SessionListRequest
-{
-    Limit = 3,
-    Order = ListOrder.Descending,
-}).ConfigureAwait(false);
+var page = await sessionsClient
+    .ListSessionsAsync(new SessionListRequest
+    {
+        Limit = 3,
+        Order = ListOrder.Descending,
+    })
+    .ConfigureAwait(false);
 Console.WriteLine(string.Create(
     CultureInfo.InvariantCulture,
     $"list:    status={page.Status} sessions={page.Sessions.Count} cursor.next={page.Cursor.Next ?? "<none>"}"));
@@ -67,10 +75,12 @@ Console.WriteLine(string.Create(
     CultureInfo.InvariantCulture,
     $"get:     status={fetched.Status} id={fetched.Session.Id} directory={fetched.Session.Location.Directory}"));
 
-var messages = await handle.ListMessagesAsync(new MessageListRequest
-{
-    Limit = 5,
-}).ConfigureAwait(false);
+var messages = await handle
+    .ListMessagesAsync(new MessageListRequest
+    {
+        Limit = 5,
+    })
+    .ConfigureAwait(false);
 Console.WriteLine(string.Create(
     CultureInfo.InvariantCulture,
     $"messages: status={messages.Status} count={messages.Messages.Count} cursor.next={messages.Cursor.Next ?? "<none>"}"));
