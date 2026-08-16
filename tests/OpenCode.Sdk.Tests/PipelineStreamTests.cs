@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Text;
 using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Models;
 using OpenCode.Sdk.Tests.Support;
@@ -9,6 +10,8 @@ namespace OpenCode.Sdk.Tests;
 
 public sealed class PipelineStreamTests
 {
+    private const string EventStreamMediaType = "text/event-stream";
+
     [Test]
     public async Task ExecuteStreamAsync_Should_Yield_Every_Frame_Payload()
     {
@@ -34,7 +37,8 @@ public sealed class PipelineStreamTests
         _ = await CollectAsync(pipeline);
 
         var request = handler.Requests.Single();
-        await Assert.That(request.Authorization).IsNotNull();
+        var expected = $"Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes("opencode:secret"))}";
+        await Assert.That(request.Authorization).IsEqualTo(expected);
         await Assert.That(request.UserAgent).IsEqualTo(UserAgentPolicy.Resolve().ToString());
         await Assert.That(request.Headers["x-opencode-directory"]).IsEqualTo("%2Frepo");
     }
@@ -50,7 +54,7 @@ public sealed class PipelineStreamTests
         using var pipeline = PipelineFactory.Create(httpClient);
 
         var exception = await Assert
-            .That(async () => _ = await CollectAsync(pipeline, new RecordingStreamAdapter("SessionNotFoundError")))
+            .That(async () => _ = await CollectAsync(pipeline, new TestStreamAdapter("SessionNotFoundError")))
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(404);
@@ -117,6 +121,114 @@ public sealed class PipelineStreamTests
     }
 
     [Test]
+    public async Task ExecuteStreamAsync_Should_Read_A_Mid_Stream_Connection_Failure_As_A_Transport_Failure()
+    {
+        using var handler = new RecordingHttpHandler(static _ =>
+            EventStreamOf(new FaultingStream(Encoding.UTF8.GetBytes("data: {\"value\":\"first\"}\n\n"))));
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(httpClient);
+
+        var exception = await Assert
+            .That(async () => _ = await CollectAsync(pipeline))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception!.InnerException).IsTypeOf<IOException>();
+    }
+
+    [Test]
+    public async Task ExecuteStreamAsync_Should_Refuse_A_Stream_Failure_Frame_Instead_Of_Yielding_It()
+    {
+        using var handler = new RecordingHttpHandler(static _ => EventStream(
+            $"data: {{\"value\":\"first\"}}\n\nevent: {TestStreamAdapter.StreamFailureEventName}\ndata: [{{\"_tag\":\"Fail\"}}]\n\n"));
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(httpClient);
+
+        var exception = await Assert
+            .That(async () => _ = await CollectAsync(pipeline))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception!.Message).Contains("failed");
+    }
+
+    [Test]
+    public async Task ExecuteStreamAsync_Should_Refuse_A_Frame_Named_Outside_The_Contract()
+    {
+        using var handler = new RecordingHttpHandler(static _ =>
+            EventStream("event: surprise\ndata: {\"value\":\"first\"}\n\n"));
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(httpClient);
+
+        var exception = await Assert
+            .That(async () => _ = await CollectAsync(pipeline))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception!.Message).Contains("surprise");
+    }
+
+    [Test]
+    public async Task ExecuteStreamAsync_Should_Accept_An_Event_Stream_Content_Type_In_Any_Case()
+    {
+        using var handler = new RecordingHttpHandler(static _ =>
+        {
+            var content = new StringContent("data: {\"value\":\"first\"}\n\n");
+            content.Headers.ContentType = new MediaTypeHeaderValue("Text/Event-Stream");
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = content, };
+        });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(httpClient);
+
+        var payloads = await CollectAsync(pipeline);
+
+        await Assert.That(payloads.Single().Value).IsEqualTo("first");
+    }
+
+    [Test]
+    public async Task ExecuteStreamAsync_Should_Refuse_A_Null_Frame_Payload()
+    {
+        using var handler = new RecordingHttpHandler(static _ => EventStream("data: null\n\n"));
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(httpClient);
+
+        var exception = await Assert
+            .That(async () => _ = await CollectAsync(pipeline))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception!.Message).Contains("null");
+    }
+
+    [Test]
+    public async Task ExecuteStreamAsync_Should_Dispose_The_Body_When_The_Consumer_Stops_Early()
+    {
+        using var body = ChunkedStream.Of("data: {\"value\":\"first\"}\n\ndata: {\"value\":\"second\"}\n\n");
+        using var handler = new RecordingHttpHandler(_ => EventStreamOf(body));
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(httpClient);
+
+        var frames = pipeline.ExecuteStreamAsync(
+            HttpMethod.Get, "/api/event", new TestStreamAdapter(), CancellationToken.None);
+        await using (var enumerator = frames.GetAsyncEnumerator(CancellationToken.None))
+        {
+            _ = await enumerator.MoveNextAsync();
+        }
+
+        await Assert.That(body.Disposed).IsTrue();
+    }
+
+    [Test]
+    public async Task ExecuteStreamAsync_Should_Refuse_After_Dispose()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        var pipeline = PipelineFactory.Create(httpClient);
+        pipeline.Dispose();
+
+        _ = Assert.Throws<ObjectDisposedException>(() => _ = pipeline.ExecuteStreamAsync(
+            HttpMethod.Get, "/api/event", new TestStreamAdapter(), CancellationToken.None));
+
+        await Assert.That(handler.Requests).IsEmpty();
+    }
+
+    [Test]
     public async Task ExecuteStreamAsync_Should_Refuse_A_Route_Without_A_Leading_Slash()
     {
         using var handler = new RecordingHttpHandler();
@@ -124,9 +236,16 @@ public sealed class PipelineStreamTests
         using var pipeline = PipelineFactory.Create(httpClient);
 
         var exception = Assert.Throws<ArgumentException>(() => _ = pipeline.ExecuteStreamAsync(
-            HttpMethod.Get, "api/event", new RecordingStreamAdapter(), CancellationToken.None));
+            HttpMethod.Get, "api/event", new TestStreamAdapter(), CancellationToken.None));
 
         await Assert.That(exception.ParamName).IsEqualTo("route");
+    }
+
+    private static HttpResponseMessage EventStreamOf(Stream body)
+    {
+        var content = new StreamContent(body);
+        content.Headers.ContentType = new MediaTypeHeaderValue(EventStreamMediaType);
+        return new HttpResponseMessage(HttpStatusCode.OK) { Content = content, };
     }
 
     private static HttpResponseMessage EventStream(string body)
@@ -137,12 +256,12 @@ public sealed class PipelineStreamTests
     }
 
     private static async Task<List<TestBody>> CollectAsync(Pipeline pipeline,
-        RecordingStreamAdapter? adapter = null,
+        TestStreamAdapter? adapter = null,
         CancellationToken cancellationToken = default)
     {
         var payloads = new List<TestBody>();
         var stream = pipeline.ExecuteStreamAsync(
-            HttpMethod.Get, "/api/event", adapter ?? new RecordingStreamAdapter(), cancellationToken);
+            HttpMethod.Get, "/api/event", adapter ?? new TestStreamAdapter(), cancellationToken);
         await foreach (var payload in stream)
         {
             payloads.Add(payload);

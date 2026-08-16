@@ -245,8 +245,10 @@ internal sealed class Pipeline : IDisposable
         }
 
         // A success that is not an event stream cannot be framed, so it fails as a
-        // protocol error rather than being read as one frame of garbage.
-        if (response.Content?.Headers.ContentType?.MediaType is not EventStreamMediaType)
+        // protocol error rather than being read as one frame of garbage. Media types are
+        // case-insensitive, so a proxy that rewrites the casing still matches.
+        if (!string.Equals(response.Content?.Headers.ContentType?.MediaType, EventStreamMediaType,
+                StringComparison.OrdinalIgnoreCase))
         {
             throw new OpenCodeTransportException(
                 "The opencode API answered a streaming operation without an event-stream body.");
@@ -254,12 +256,69 @@ internal sealed class Pipeline : IDisposable
 
         // The response owns the body stream, so disposing it here would only duplicate the
         // disposal the enclosing using already performs when enumeration ends.
-        var body = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        var reader = new ServerSentEventReader();
-        await foreach (var frame in reader.ReadAsync(body, cancellationToken).ConfigureAwait(false))
+        var body = await ReadBodyStreamAsync(response, cancellationToken).ConfigureAwait(false);
+        var frames = new ServerSentEventReader().ReadAsync(body, cancellationToken)
+            .GetAsyncEnumerator(cancellationToken);
+        await using var enumeration = frames.ConfigureAwait(false);
+        while (true)
         {
-            yield return ReadFramePayload(frame.Data, adapter.PayloadTypeInfo);
+            bool moved;
+
+            // A yield cannot sit inside a try with a catch, so the read is guarded on its
+            // own: a connection dying mid-stream is a transport failure here exactly as it
+            // is on the one-shot path.
+            try
+            {
+                moved = await frames.MoveNextAsync().ConfigureAwait(false);
+            }
+            catch (Exception exception)
+                when (exception is HttpRequestException or IOException or ObjectDisposedException)
+            {
+                throw new OpenCodeTransportException("The opencode event stream could not be read.", exception);
+            }
+
+            if (!moved)
+            {
+                break;
+            }
+
+            yield return ReadStreamPayload(frames.Current, adapter);
         }
+    }
+
+    private static async Task<Stream> ReadBodyStreamAsync(HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+            when (exception is HttpRequestException or IOException or ObjectDisposedException)
+        {
+            throw new OpenCodeTransportException("The opencode event stream could not be read.", exception);
+        }
+    }
+
+    /// <summary>
+    /// Reads one dispatched frame: the contract names a failure frame and leaves every other
+    /// name undeclared, so only an unnamed frame carries a payload.
+    /// </summary>
+    private static TPayload ReadStreamPayload<TPayload>(ServerSentEvent frame, IStreamAdapter<TPayload> adapter)
+    {
+        if (string.Equals(frame.Name, adapter.FailureEventName, StringComparison.Ordinal))
+        {
+            throw new OpenCodeTransportException(
+                $"The opencode event stream failed after it opened: {frame.Data}");
+        }
+
+        if (!string.Equals(frame.Name, ServerSentEvent.DefaultName, StringComparison.Ordinal))
+        {
+            throw new OpenCodeTransportException(
+                $"The opencode event stream produced an undeclared frame named '{frame.Name}'.");
+        }
+
+        return ReadFramePayload(frame.Data, adapter.PayloadTypeInfo);
     }
 
     /// <summary>A frame the operation's contract cannot decode is a protocol failure, never an event.</summary>

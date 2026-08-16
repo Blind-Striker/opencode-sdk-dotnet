@@ -15,6 +15,9 @@ internal sealed class ChunkedStream : Stream
         _chunks = new Queue<byte[]>(chunks.Where(static chunk => chunk.Length > 0));
     }
 
+    /// <summary>Gets whether the stream was disposed, which is how a test observes cleanup.</summary>
+    public bool Disposed { get; private set; }
+
     public override bool CanRead => true;
 
     public override bool CanSeek => false;
@@ -77,6 +80,12 @@ internal sealed class ChunkedStream : Stream
 
     public override void Flush()
     {
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        Disposed = true;
+        base.Dispose(disposing);
     }
 
     public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();

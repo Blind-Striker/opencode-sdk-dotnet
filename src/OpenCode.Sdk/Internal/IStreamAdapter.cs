@@ -11,6 +11,13 @@ namespace OpenCode.Sdk.Internal;
 /// <typeparam name="TPayload">The type each event frame carries.</typeparam>
 internal interface IStreamAdapter<TPayload>
 {
+    /// <summary>
+    /// Gets the event name a mid-stream failure frame carries, from the operation's declared
+    /// <c>x-effect-stream.failureEvent</c>. A frame answering to this name reports the
+    /// stream's failure instead of carrying a payload.
+    /// </summary>
+    public string FailureEventName { get; }
+
     /// <summary>Gets the source-generated metadata each frame's payload is read through.</summary>
     public JsonTypeInfo<TPayload> PayloadTypeInfo { get; }
 

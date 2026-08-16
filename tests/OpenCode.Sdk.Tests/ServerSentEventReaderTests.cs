@@ -6,8 +6,6 @@ namespace OpenCode.Sdk.Tests;
 
 public sealed class ServerSentEventReaderTests
 {
-    private const string StreamFailureEventName = "effect/httpapi/stream/failure";
-
     [Test]
     public async Task ReadAsync_Should_Yield_One_Payload_Per_Frame()
     {
@@ -51,22 +49,22 @@ public sealed class ServerSentEventReaderTests
     [Test]
     public async Task ReadAsync_Should_Carry_The_Name_Of_A_Named_Frame()
     {
-        using var stream = ChunkedStream.Of($"event: {StreamFailureEventName}\ndata: cause\n\n");
+        using var stream = ChunkedStream.Of($"event: {TestStreamAdapter.StreamFailureEventName}\ndata: cause\n\n");
 
         var frames = await ReadEventsAsync(stream);
 
-        await Assert.That(frames.Single().Name).IsEqualTo(StreamFailureEventName);
+        await Assert.That(frames.Single().Name).IsEqualTo(TestStreamAdapter.StreamFailureEventName);
         await Assert.That(frames.Single().Data).IsEqualTo("cause");
     }
 
     [Test]
     public async Task ReadAsync_Should_Not_Carry_An_Event_Name_Across_Frames()
     {
-        using var stream = ChunkedStream.Of($"event: {StreamFailureEventName}\ndata: first\n\ndata: second\n\n");
+        using var stream = ChunkedStream.Of($"event: {TestStreamAdapter.StreamFailureEventName}\ndata: first\n\ndata: second\n\n");
 
         var frames = await ReadEventsAsync(stream);
 
-        await Assert.That(frames[0].Name).IsEqualTo(StreamFailureEventName);
+        await Assert.That(frames[0].Name).IsEqualTo(TestStreamAdapter.StreamFailureEventName);
         await Assert.That(frames[1].Name).IsEqualTo(ServerSentEvent.DefaultName);
     }
 
