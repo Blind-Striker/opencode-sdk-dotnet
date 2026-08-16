@@ -640,19 +640,6 @@ public sealed class PipelineTests
         Uri? endpoint = null,
         string? password = null,
         string? username = null,
-        LocationSelector? location = null)
-    {
-        var options = new OpenCodeClientOptions
-        {
-            Endpoint = endpoint ?? Endpoint,
-            Password = password,
-            Location = location,
-        };
-        if (username is not null)
-        {
-            options.Username = username;
-        }
-
-        return new Pipeline(httpClient, ownsHttpClient, options);
-    }
+        LocationSelector? location = null) =>
+        PipelineFactory.Create(httpClient, ownsHttpClient, endpoint, password, username, location);
 }

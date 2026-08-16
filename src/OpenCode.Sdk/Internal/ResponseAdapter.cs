@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
-using OpenCode.Sdk.Internal.Serialization;
 using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk.Internal;
@@ -60,30 +59,6 @@ internal abstract class ResponseAdapter<TResponse>
     /// <param name="rawBody">The buffered error body.</param>
     /// <param name="allowedTags">The tags the status map declares for this status, or <see langword="null"/> for an undeclared status.</param>
     /// <returns>The typed error, or <see langword="null"/> when the body could not be parsed.</returns>
-    protected static OpenCodeError? ReadTolerantError(string rawBody, IReadOnlyCollection<string>? allowedTags)
-    {
-        ArgumentNullException.ThrowIfNull(rawBody);
-
-        try
-        {
-            var error = JsonSerializer.Deserialize(rawBody, OpenCodeJsonContext.Default.OpenCodeError);
-            return error switch
-            {
-                null => null,
-                UnknownOpenCodeError unknown => unknown,
-                _ when allowedTags is not null && allowedTags.Contains(error.Tag, StringComparer.Ordinal) => error,
-                _ => Downgrade(error.Tag, rawBody),
-            };
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
-
-    private static UnknownOpenCodeError Downgrade(string tag, string rawBody)
-    {
-        using var document = JsonDocument.Parse(rawBody);
-        return new UnknownOpenCodeError(tag, document.RootElement);
-    }
+    protected static OpenCodeError? ReadTolerantError(string rawBody, IReadOnlyCollection<string>? allowedTags) =>
+        OpenCodeErrorReader.Read(rawBody, allowedTags);
 }

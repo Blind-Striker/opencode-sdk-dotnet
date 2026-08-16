@@ -1,5 +1,5 @@
-using System.Globalization;
 using System.Net.Http.Headers;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
@@ -9,6 +9,8 @@ namespace OpenCode.Sdk.Internal;
 /// <summary>Owns request decoration, sending, buffering, and error-channel policy for every operation.</summary>
 internal sealed class Pipeline : IDisposable
 {
+    private const string EventStreamMediaType = "text/event-stream";
+
     private readonly AuthenticationHeaderValue? _authorization;
     private readonly string _endpointBase;
     private readonly HttpClient _httpClient;
@@ -114,6 +116,37 @@ internal sealed class Pipeline : IDisposable
         return ExecuteCoreAsync(method, route, body, bodyTypeInfo, adapter, options, cancellationToken);
     }
 
+    /// <summary>
+    /// Opens a streaming operation: the status and content-type walls answer before the
+    /// body is read, then each event frame's payload is yielded as it arrives. The
+    /// one-shot buffer is never involved.
+    /// </summary>
+    public IAsyncEnumerable<TPayload> ExecuteStreamAsync<TPayload>(HttpMethod method, string route,
+        IStreamAdapter<TPayload> adapter, OpenCodeRequestOptions? options, CancellationToken cancellationToken)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(method);
+        ArgumentException.ThrowIfNullOrWhiteSpace(route);
+        ArgumentNullException.ThrowIfNull(adapter);
+
+        if (route[0] is not '/')
+        {
+            throw new ArgumentException("Routes must start with '/'.", nameof(route));
+        }
+
+        // A stream has no envelope to carry an error, so NoThrow cannot be honored here;
+        // ignoring it would silently drop the caller's choice.
+        var errorBehavior = options?.ErrorBehavior ?? ErrorBehavior.Default;
+        if (errorBehavior is not ErrorBehavior.Default)
+        {
+            throw new ArgumentException(
+                "Streaming operations always throw on an error status; NoThrow has no response to answer on.",
+                nameof(options));
+        }
+
+        return ExecuteStreamCoreAsync(method, route, adapter, cancellationToken);
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -197,6 +230,51 @@ internal sealed class Pipeline : IDisposable
             : adapted;
     }
 
+    private async IAsyncEnumerable<TPayload> ExecuteStreamCoreAsync<TPayload>(HttpMethod method, string route,
+        IStreamAdapter<TPayload> adapter, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(method, new Uri(_endpointBase + route, UriKind.Absolute));
+        Decorate(request);
+        using var response = await SendCoreAsync(request, cancellationToken).ConfigureAwait(false);
+        var status = (int)response.StatusCode;
+        if (status is not 200)
+        {
+            var rawBody = await ReadBodyAsync(response, cancellationToken).ConfigureAwait(false);
+            throw OpenCodeErrorReader.CreateApiException(status, adapter.ReadError(status, rawBody), rawBody);
+        }
+
+        // A success that is not an event stream cannot be framed, so it fails as a
+        // protocol error rather than being read as one frame of garbage.
+        if (response.Content?.Headers.ContentType?.MediaType is not EventStreamMediaType)
+        {
+            throw new OpenCodeTransportException(
+                "The opencode API answered a streaming operation without an event-stream body.");
+        }
+
+        // The response owns the body stream, so disposing it here would only duplicate the
+        // disposal the enclosing using already performs when enumeration ends.
+        var body = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        var reader = new ServerSentEventReader();
+        await foreach (var frame in reader.ReadAsync(body, cancellationToken).ConfigureAwait(false))
+        {
+            yield return ReadFramePayload(frame, adapter.PayloadTypeInfo);
+        }
+    }
+
+    /// <summary>A frame the operation's contract cannot decode is a protocol failure, never an event.</summary>
+    private static TPayload ReadFramePayload<TPayload>(string frame, JsonTypeInfo<TPayload> typeInfo)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize(frame, typeInfo)
+                   ?? throw new OpenCodeTransportException("The opencode event stream produced a null frame payload.");
+        }
+        catch (JsonException exception)
+        {
+            throw new OpenCodeTransportException("The opencode event stream produced a malformed frame payload.", exception);
+        }
+    }
+
     /// <summary>JSON is UTF-8 by definition (RFC 8259); the content type carries no charset.</summary>
     private static ByteArrayContent CreateJsonContent<TBody>(TBody body, JsonTypeInfo<TBody> bodyTypeInfo)
     {
@@ -276,13 +354,6 @@ internal sealed class Pipeline : IDisposable
         }
     }
 
-    private static OpenCodeApiException CreateApiException(OpenCodeResponse response)
-    {
-        var status = response.Status.ToString(CultureInfo.InvariantCulture);
-        var message = response.Error is null
-            ? $"The opencode API returned status {status}."
-            : $"The opencode API returned status {status} ('{response.Error.Tag}').";
-
-        return new OpenCodeApiException(message, response.Status, response.Error, response.RawBody);
-    }
+    private static OpenCodeApiException CreateApiException(OpenCodeResponse response) =>
+        OpenCodeErrorReader.CreateApiException(response.Status, response.Error, response.RawBody);
 }
