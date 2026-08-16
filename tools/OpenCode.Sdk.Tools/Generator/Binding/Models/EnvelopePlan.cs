@@ -6,16 +6,29 @@ internal sealed record EnvelopePlan
 
     public required string AdapterTypeName { get; init; }
 
-    public required string PayloadName { get; init; }
+    /// <summary>Gets the payload property name, or <see langword="null"/> for a no-content success.</summary>
+    public required string? PayloadName { get; init; }
 
-    /// <summary>Gets the payload type name; for cursor lists, the element type of the <c>data</c> array.</summary>
-    public required string PayloadTypeName { get; init; }
+    /// <summary>
+    /// Gets the payload type name — for cursor lists, the element type of the <c>data</c>
+    /// array — or <see langword="null"/> for a no-content success.
+    /// </summary>
+    public required string? PayloadTypeName { get; init; }
 
     public required EnvelopeKind Kind { get; init; }
 
+    /// <summary>Gets the single declared success status the adapter accepts.</summary>
+    public required int SuccessStatusCode { get; init; }
+
     /// <summary>
     /// Gets the internal single-pass deserialization DTO type name for wrapped envelopes,
-    /// or <see langword="null"/> when the body is the payload itself.
+    /// or <see langword="null"/> when the body is the payload itself or absent.
     /// </summary>
     public string? EnvelopeDtoTypeName { get; init; }
+
+    /// <summary>
+    /// Gets the type name of the required <c>location</c> envelope sibling, or
+    /// <see langword="null"/> when the envelope carries none.
+    /// </summary>
+    public string? LocationTypeName { get; init; }
 }

@@ -13,13 +13,17 @@ public sealed class OperationPlanBinderTests
         var plan = await new BindingTestHost().BindPinnedAsync();
 
         await Assert.That(plan.Clients.Select(static client => client.Name)
-            .SequenceEqual(["OpenCodeClient", "SessionClient", "SessionsClient"], StringComparer.Ordinal)).IsTrue();
+            .SequenceEqual(
+                ["OpenCodeClient", "SessionClient", "SessionsClient", "ShellClient", "ShellsClient"],
+                StringComparer.Ordinal)).IsTrue();
         await Assert.That(plan.Clients.All(static client => client.Namespace == "OpenCode.Sdk")).IsTrue();
 
         var root = plan.Clients.Single(static client => client.Role == ClientRole.Root);
         await Assert.That(root.Name).IsEqualTo("OpenCodeClient");
-        await Assert.That(root.SubClients.Single().PropertyName).IsEqualTo("Sessions");
-        await Assert.That(root.SubClients.Single().TypeName).IsEqualTo("SessionsClient");
+        await Assert.That(root.SubClients.Select(static subClient => subClient.PropertyName)
+            .SequenceEqual(["Sessions", "Shells"], StringComparer.Ordinal)).IsTrue();
+        await Assert.That(root.SubClients.Select(static subClient => subClient.TypeName)
+            .SequenceEqual(["SessionsClient", "ShellsClient"], StringComparer.Ordinal)).IsTrue();
         await Assert.That(root.HandleFactory).IsNull();
         await Assert.That(root.HandleParameter).IsNull();
 
@@ -45,8 +49,7 @@ public sealed class OperationPlanBinderTests
 
         await Assert.That(root.ContainerName).IsNull();
 
-        var sessions = plan.Clients.Single(static client => client.Role == ClientRole.Collection);
-        await Assert.That(sessions.Name).IsEqualTo("SessionsClient");
+        var sessions = plan.Clients.Single(static client => client.Name == "SessionsClient");
         await Assert.That(sessions.ContainerName).IsEqualTo("Sessions");
         await Assert.That(sessions.Operations.Select(static operation => operation.MethodName)
             .SequenceEqual(["CreateSessionAsync", "ListSessionsAsync"], StringComparer.Ordinal)).IsTrue();
@@ -78,17 +81,65 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Create_The_Selected_Pinned_Shell_Plans()
+    {
+        var plan = await new BindingTestHost().BindPinnedAsync();
+
+        var shells = plan.Clients.Single(static client => client.Name == "ShellsClient");
+        await Assert.That(shells.ContainerName).IsEqualTo("Shells");
+        await Assert.That(shells.Operations.Select(static operation => operation.MethodName)
+            .SequenceEqual(["CreateShellAsync", "ListShellsAsync"], StringComparer.Ordinal)).IsTrue();
+        await Assert.That(shells.HandleFactory!.MethodName).IsEqualTo("GetShellClient");
+        await Assert.That(shells.HandleFactory.Parameter.WireName).IsEqualTo("id");
+
+        var createShell = shells.Operations.Single(static operation => operation.MethodName == "CreateShellAsync");
+        await Assert.That(createShell.RequestBody!.TypeName).IsEqualTo("ShellCreateRequest");
+        await Assert.That(createShell.QueryRequest!.RidesRequestBody).IsTrue();
+        await Assert.That(createShell.QueryRequest.TypeName).IsEqualTo("ShellCreateRequest");
+        await Assert.That(createShell.Envelope.Kind).IsEqualTo(EnvelopeKind.DataLocation);
+        await Assert.That(createShell.Envelope.PayloadTypeName).IsEqualTo("ShellInfo");
+        await Assert.That(createShell.Envelope.LocationTypeName).IsEqualTo("LocationInfo");
+
+        var listShells = shells.Operations.Single(static operation => operation.MethodName == "ListShellsAsync");
+        await Assert.That(listShells.QueryRequest!.TypeName).IsEqualTo("ShellListRequest");
+        await Assert.That(listShells.QueryRequest.RidesRequestBody).IsFalse();
+        await Assert.That(listShells.QueryRequest.Properties.Single().Kind).IsEqualTo(QueryValueKind.Location);
+        await Assert.That(listShells.Envelope.Kind).IsEqualTo(EnvelopeKind.DataLocationList);
+    }
+
+    [Test]
     public async Task Bind_Should_Create_The_Selected_Pinned_Handle_Plans()
     {
         var plan = await new BindingTestHost().BindPinnedAsync();
 
-        var session = plan.Clients.Single(static client => client.Role == ClientRole.Handle);
-        await Assert.That(session.Name).IsEqualTo("SessionClient");
+        var session = plan.Clients.Single(static client => client.Name == "SessionClient");
         await Assert.That(session.ContainerName).IsEqualTo("Sessions");
         await Assert.That(session.HandleParameter!.WireName).IsEqualTo("sessionID");
         await Assert.That(session.HandleParameter.IsHandleParameter).IsTrue();
         await Assert.That(session.Operations.Select(static operation => operation.MethodName)
-            .SequenceEqual(["GetMessageAsync", "GetSessionAsync", "ListMessagesAsync"], StringComparer.Ordinal)).IsTrue();
+            .SequenceEqual(
+                ["GetMessageAsync", "GetSessionAsync", "ListMessagesAsync", "RemoveSessionAsync", "RenameSessionAsync"],
+                StringComparer.Ordinal)).IsTrue();
+
+        var remove = session.Operations.Single(static operation => operation.MethodName == "RemoveSessionAsync");
+        await Assert.That(remove.HttpMethod).IsEqualTo("delete");
+        await Assert.That(remove.Envelope.Kind).IsEqualTo(EnvelopeKind.NoContent);
+        await Assert.That(remove.Envelope.SuccessStatusCode).IsEqualTo(204);
+        await Assert.That(remove.Envelope.ResponseTypeName).IsEqualTo("SessionRemoveResponse");
+
+        var shell = plan.Clients.Single(static client => client.Name == "ShellClient");
+        await Assert.That(shell.HandleParameter!.WireName).IsEqualTo("id");
+        await Assert.That(shell.Operations.Select(static operation => operation.MethodName)
+            .SequenceEqual(["GetShellAsync", "RemoveShellAsync", "TimeoutShellAsync"], StringComparer.Ordinal)).IsTrue();
+
+        var timeout = shell.Operations.Single(static operation => operation.MethodName == "TimeoutShellAsync");
+        await Assert.That(timeout.HttpMethod).IsEqualTo("patch");
+        await Assert.That(timeout.RequestBody!.TypeName).IsEqualTo("ShellTimeoutRequest");
+        await Assert.That(timeout.QueryRequest!.RidesRequestBody).IsTrue();
+
+        var getShell = shell.Operations.Single(static operation => operation.MethodName == "GetShellAsync");
+        await Assert.That(getShell.QueryRequest!.TypeName).IsEqualTo("ShellRequest");
+        await Assert.That(getShell.Envelope.Kind).IsEqualTo(EnvelopeKind.DataLocation);
 
         var messages = session.Operations.Single(static operation => operation.MethodName == "ListMessagesAsync");
         await Assert.That(messages.QueryRequest!.TypeName).IsEqualTo("MessageListRequest");
@@ -449,6 +500,65 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Bind_A_Data_Location_Envelope()
+    {
+        var document = await BindingTestHost.IngestAsync(DataLocationScenario());
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.Envelope.Kind).IsEqualTo(EnvelopeKind.DataLocation);
+        await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("WidgetInfo");
+        await Assert.That(list.Envelope.LocationTypeName).IsEqualTo("PlaceInfo");
+        await Assert.That(list.Envelope.EnvelopeDtoTypeName).IsEqualTo("WidgetListResponseEnvelope");
+        await Assert.That(plan.Models.Select(static model => model.Name)
+            .SequenceEqual(["PlaceInfo", "WidgetInfo"], StringComparer.Ordinal)).IsTrue();
+        await Assert.That(plan.Registry.TypeNames.Contains("WidgetListResponseEnvelope", StringComparer.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Bind_A_Data_Location_List_Envelope()
+    {
+        var document = await BindingTestHost.IngestAsync(DataLocationScenario(
+            data: static property => property.Type("array").Items(static item => item.Ref("WidgetInfo"))));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.Envelope.Kind).IsEqualTo(EnvelopeKind.DataLocationList);
+        await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("WidgetInfo");
+        await Assert.That(list.Envelope.LocationTypeName).IsEqualTo("PlaceInfo");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Data_Location_Envelope_With_An_Optional_Location()
+    {
+        var document = await BindingTestHost.IngestAsync(DataLocationScenario(locationRequired: false));
+
+        await AssertWidgetRefusalAsync(document, "require exactly");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Data_Location_Sibling_Without_A_Named_Schema()
+    {
+        var document = await BindingTestHost.IngestAsync(DataLocationScenario(
+            location: static property => property.Type("object")
+                .Property("directory", static inner => inner.Type("string"), required: true)));
+
+        await AssertWidgetRefusalAsync(document, "location sibling");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Data_Location_List_Of_Promoted_Inline_Items()
+    {
+        var document = await BindingTestHost.IngestAsync(DataLocationScenario(
+            data: static property => property.Type("array").Items(static item => item.Type("object")
+                .Property("id", static inner => inner.Type("string"), required: true))));
+
+        await AssertWidgetRefusalAsync(document, "named component schema");
+    }
+
+    [Test]
     public async Task Bind_Should_Refuse_An_Envelope_Dto_Name_Colliding_With_A_Model()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
@@ -704,12 +814,166 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Record_A_Curated_Mutually_Exclusive_Query_Pair()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("order", "query", QueryScenarioData.NullableOrderEnum)
+            .Parameter("cursor", "query", QueryScenarioData.NullableString)));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.list"),
+            Curation(
+                Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)),
+                mutuallyExclusiveQueries: [ExclusiveQuery("v2.widget.list", "order", "cursor")]));
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        var pair = list.QueryRequest!.MutuallyExclusivePairs.Single();
+        await Assert.That(pair.FirstWireName).IsEqualTo("order");
+        await Assert.That(pair.SecondWireName).IsEqualTo("cursor");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Mutually_Exclusive_Row_When_The_Operation_Binds_No_Query_Surface()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(static _ => { }));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.list"),
+            Curation(
+                Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)),
+                mutuallyExclusiveQueries: [ExclusiveQuery("v2.widget.list", "order", "cursor")])));
+
+        await Assert.That(exception.Errors.Any(static error =>
+            error.Problem.Contains("does not carry query parameter", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Mutually_Exclusive_Row_Naming_An_Absent_Parameter()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("order", "query", QueryScenarioData.NullableOrderEnum)));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.list"),
+            Curation(
+                Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)),
+                mutuallyExclusiveQueries: [ExclusiveQuery("v2.widget.list", "order", "cursor")])));
+
+        await Assert.That(exception.Errors.Any(static error =>
+            error.Problem.Contains("does not carry query parameter", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Merge_A_Location_Query_Into_The_Request_Body_Model()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.create", method: "post", path: "/api/widget", configure: operation => operation
+                .Parameter("location", "query", QueryScenarioData.NullableLocationSelector, deepObject: true)
+                .RequestBody("application/json", body => body.Type("object")
+                    .Property("title", property => property.Type("string"), required: true), required: true)
+                .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
+
+        var plan = BindWidgets(document, "v2.widget.create");
+
+        var create = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(create.RequestBody!.TypeName).IsEqualTo("WidgetCreateRequest");
+        await Assert.That(create.QueryRequest!.RidesRequestBody).IsTrue();
+        await Assert.That(create.QueryRequest.TypeName).IsEqualTo("WidgetCreateRequest");
+        await Assert.That(create.QueryRequest.Properties.Single().Kind).IsEqualTo(QueryValueKind.Location);
+        var model = (ObjectModelPlan)plan.Models.Single(static model => model.Name is "WidgetCreateRequest");
+        await Assert.That(model.RequestQueryProperties.Single().PropertyName).IsEqualTo("Location");
+    }
+
+    [Test]
     public async Task Bind_Should_Refuse_A_Deep_Object_Query_Parameter()
     {
         var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
             .Parameter("location", "query", QueryScenarioData.NullableString, deepObject: true)));
 
         await AssertWidgetRefusalAsync(document, "deep-object");
+    }
+
+    [Test]
+    public async Task Bind_Should_Bind_The_Location_Selector_Deep_Object()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("location", "query", QueryScenarioData.NullableLocationSelector, deepObject: true)));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        var property = list.QueryRequest!.Properties.Single();
+        await Assert.That(property.Kind).IsEqualTo(QueryValueKind.Location);
+        await Assert.That(property.PropertyName).IsEqualTo("Location");
+        await Assert.That(plan.Models.Select(static model => model.Name)
+            .SequenceEqual(["WidgetInfo"], StringComparer.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Deep_Object_Outside_The_Location_Selector_Shape()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("location", "query", QueryScenarioData.NullableSelectorWithExtraMember, deepObject: true)));
+
+        await AssertWidgetRefusalAsync(document, "location selector");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Required_Location_Selector()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("location", "query", QueryScenarioData.NullableLocationSelector, required: true, deepObject: true)));
+
+        await AssertWidgetRefusalAsync(document, "location selector");
+    }
+
+    [Test]
+    public async Task Bind_Should_Bind_A_Delete_Operation_With_A_No_Content_Success()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.widget.remove", method: "delete", path: "/api/widget/{id}", configure: operation =>
+            {
+                _ = operation.Parameter("id", "path", schema => schema.Type("string"), required: true)
+                    .WithoutResponse(200)
+                    .Response(204);
+            })));
+
+        var plan = BindWidgets(document, "v2.widget.remove");
+
+        var remove = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(remove.MethodName).IsEqualTo("RemoveWidgetAsync");
+        await Assert.That(remove.HttpMethod).IsEqualTo("delete");
+        await Assert.That(remove.Envelope.Kind).IsEqualTo(EnvelopeKind.NoContent);
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Request_Body_On_A_Delete_Operation()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.widget.remove", method: "delete", path: "/api/widget", configure: operation => operation
+                .RequestBody("application/json", schema => schema.Type("object")
+                    .Property("id", property => property.Type("string"), required: true))
+                .WithoutResponse(200)
+                .Response(204))));
+
+        await AssertWidgetRefusalAsync(document, "must not carry a request body", "v2.widget.remove");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Patch_Operation_Without_A_Request_Body()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.timeout", method: "patch", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
+
+        await AssertWidgetRefusalAsync(document, "must carry a request body", "v2.widget.timeout");
     }
 
     [Test]
@@ -753,6 +1017,45 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Bind_A_No_Content_Success_Into_A_Payload_Free_Envelope()
+    {
+        var document = await BindingTestHost.IngestAsync(NoContentScenario());
+
+        var plan = BindWidgets(document, "v2.widget.create");
+
+        var create = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(create.Envelope.Kind).IsEqualTo(EnvelopeKind.NoContent);
+        await Assert.That(create.Envelope.SuccessStatusCode).IsEqualTo(204);
+        await Assert.That(create.Envelope.ResponseTypeName).IsEqualTo("WidgetCreateResponse");
+        await Assert.That(create.Envelope.PayloadName).IsNull();
+        await Assert.That(create.Envelope.PayloadTypeName).IsNull();
+        await Assert.That(create.Envelope.EnvelopeDtoTypeName).IsNull();
+        await Assert.That(plan.Registry.TypeNames.Contains("WidgetCreateResponseEnvelope", StringComparer.Ordinal)).IsFalse();
+    }
+
+    [Test]
+    public async Task Bind_Should_Record_The_200_Success_Status_On_The_Envelope()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(static _ => { }));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.Envelope.SuccessStatusCode).IsEqualTo(200);
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_No_Content_Success_Carrying_Content()
+    {
+        var document = await BindingTestHost.IngestAsync(NoContentScenario(static operation => _ = operation
+            .WithoutResponse(204)
+            .Response(204, "application/json", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))));
+
+        await AssertWidgetRefusalAsync(document, "must not carry content", "v2.widget.create");
+    }
+
+    [Test]
     public async Task Bind_Should_Refuse_A_Success_Without_Json_Content()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
@@ -770,7 +1073,7 @@ public sealed class OperationPlanBinderTests
             .WithOperation("v2.health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Type("object")
                     .Property("data", property => property.Ref("ItemInfo"), required: true)
-                    .Property("location", property => property.Type("string"), required: true)))));
+                    .Property("hasMore", property => property.Type("boolean"), required: true)))));
 
         await AssertOperationRefusalAsync(document, "v2.health.get", "envelope shape");
     }
@@ -1118,6 +1421,32 @@ public sealed class OperationPlanBinderTests
                 .RequestBody(mediaType, configureBody, required)
                 .Response(200, "application/json", schema => schema.Ref("WidgetInfo"))));
 
+    private static SpecScenario DataLocationScenario(Action<SchemaBuilder>? data = null,
+        Action<SchemaBuilder>? location = null, bool locationRequired = true) =>
+        SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("PlaceInfo", schema => schema.Type("object")
+                .Property("directory", property => property.Type("string"), required: true))
+            .WithSchema("WidgetEnvelope", schema => schema.Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("location", location ?? (static property => property.Ref("PlaceInfo")), required: locationRequired)
+                .Property("data", data ?? (static property => property.Ref("WidgetInfo")), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetEnvelope"))));
+
+    private static SpecScenario NoContentScenario(Action<OperationBuilder>? configure = null) =>
+        SpecScenario.Define(spec => spec
+            .WithOperation("v2.widget.create", method: "post", path: "/api/widget", configure: operation =>
+            {
+                _ = operation
+                    .RequestBody("application/json", schema => schema.Type("object")
+                        .Property("title", property => property.Type("string"), required: true), required: true)
+                    .WithoutResponse(200)
+                    .Response(204);
+                configure?.Invoke(operation);
+            }));
+
     private static EmitPlan BindWidgets(SpecDocument document, string operationId = "v2.widget.list") =>
         new BindingTestHost().Bind(
             document,
@@ -1148,6 +1477,31 @@ public sealed class OperationPlanBinderTests
             static branch => branch.AnyOf(
                 static inner => inner.Type("string").AllOf(static constraint => constraint.Raw("pattern", "\"^wid\"")),
                 static inner => inner.Type("string").Enum("null")),
+            static branch => branch.Type("null"));
+
+        public static void NullableLocationSelector(SchemaBuilder schema) => schema.AnyOf(
+            static branch => branch.Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("directory", static property => property.AnyOf(
+                    static inner => inner.Type("string"),
+                    static inner => inner.Type("null")))
+                .Property("workspace", static property => property.AnyOf(
+                    static inner => inner.Type("string"),
+                    static inner => inner.Type("null"))),
+            static branch => branch.Type("null"));
+
+        public static void NullableSelectorWithExtraMember(SchemaBuilder schema) => schema.AnyOf(
+            static branch => branch.Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("directory", static property => property.AnyOf(
+                    static inner => inner.Type("string"),
+                    static inner => inner.Type("null")))
+                .Property("workspace", static property => property.AnyOf(
+                    static inner => inner.Type("string"),
+                    static inner => inner.Type("null")))
+                .Property("project", static property => property.AnyOf(
+                    static inner => inner.Type("string"),
+                    static inner => inner.Type("null"))),
             static branch => branch.Type("null"));
     }
 

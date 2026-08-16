@@ -33,14 +33,16 @@ internal sealed class SpecBinder(
         _curationValidator.Validate(document, selected, reachable, curation, errors);
 
         // Aliases are validated against the raw document above; the collapse happens before
-        // names resolve so the rest of the pipeline never sees the duplicates.
+        // names resolve so the rest of the pipeline never sees the duplicates. Reachability
+        // recollects on the transformed document because an alias target's promoted inline
+        // children only become reachable through the rewritten references.
         var aliased = _schemaAliases.Apply(document, curation.SchemaAliases);
         if (!ReferenceEquals(aliased, document))
         {
             document = aliased;
             var aliasedById = document.Operations.ToDictionary(static operation => operation.OperationId, StringComparer.Ordinal);
             selected = Array.AsReadOnly([.. selected.Select(operation => aliasedById[operation.OperationId])]);
-            reachable = MapReachableKeys(reachable, curation.SchemaAliases);
+            reachable = _reachableSchemas.Collect(document, selected, errors);
             curation = curation with
             {
                 PropertyOverrides = MapOverrideKeys(curation.PropertyOverrides, curation.SchemaAliases, errors),
@@ -62,17 +64,61 @@ internal sealed class SpecBinder(
             })
             .ToArray();
 
+        var models = AttachRequestQueryProperties(schemaResult.Models, clients, errors);
         CheckDtoNameCollisions(schemaResult.Registry, clients, errors);
         errors.ThrowIfAny();
         return new EmitPlan
         {
             SelectedOperationIds = selection.OperationIds,
-            Models = schemaResult.Models,
+            Models = models,
             Unions = schemaResult.Unions,
             Registry = ComposeRegistry(schemaResult.Registry, clients),
             Clients = clients,
             PendingOperations = pending,
         };
+    }
+
+    /// <summary>
+    /// A merged operation's query properties ride its body model; the model plan gains
+    /// them here because schema binding cannot see operation placement.
+    /// </summary>
+    private static IReadOnlyList<ModelPlan> AttachRequestQueryProperties(IReadOnlyList<ModelPlan> models,
+        IReadOnlyList<ClientPlan> clients, BindingErrorCollector errors)
+    {
+        var merged = clients
+            .SelectMany(static client => client.Operations)
+            .Where(static operation => operation.QueryRequest is { RidesRequestBody: true })
+            .ToDictionary(static operation => operation.QueryRequest!.TypeName, StringComparer.Ordinal);
+        if (merged.Count is 0)
+        {
+            return models;
+        }
+
+        var result = new List<ModelPlan>(models.Count);
+        foreach (var model in models)
+        {
+            if (!merged.TryGetValue(model.Name, out var operation))
+            {
+                result.Add(model);
+                continue;
+            }
+
+            _ = merged.Remove(model.Name);
+            if (model is not ObjectModelPlan objectModel)
+            {
+                errors.Add(BindingErrorCategory.Operation, model.Name, "a merged request body must bind to an object model");
+                continue;
+            }
+
+            result.Add(objectModel with { RequestQueryProperties = operation.QueryRequest!.Properties });
+        }
+
+        foreach (var missing in merged.Keys.Order(StringComparer.Ordinal))
+        {
+            errors.Add(BindingErrorCategory.Operation, missing, "a merged request body model is absent from the model closure");
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -132,7 +178,8 @@ internal sealed class SpecBinder(
     private static ReadOnlyCollection<PropertyOverride> MapOverrideKeys(IReadOnlyList<PropertyOverride> overrides,
         IReadOnlyList<SchemaAlias> aliases, BindingErrorCollector errors)
     {
-        // Tolerant of duplicated sources for the same reason as MapReachableKeys.
+        // Tolerant of duplicated sources: the validator has already recorded them and the
+        // batched failure throws before any plan leaves this bind.
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var alias in aliases)
         {
@@ -158,33 +205,6 @@ internal sealed class SpecBinder(
         }
 
         return Array.AsReadOnly([.. canonical]);
-    }
-
-    /// <summary>
-    /// The post-collapse reachable set follows from the raw one mechanically: aliased keys
-    /// vanish and their targets take their place, so no second traversal (and no duplicated
-    /// traversal diagnostics) is needed.
-    /// </summary>
-    private static ReachableSchemaSet MapReachableKeys(ReachableSchemaSet reachable, IReadOnlyList<SchemaAlias> aliases)
-    {
-        // Tolerant of duplicated sources: the validator has already recorded them and the
-        // batched failure throws before any plan leaves this bind.
-        var map = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var alias in aliases)
-        {
-            map[alias.Schema] = alias.AliasOf;
-        }
-        return new ReachableSchemaSet
-        {
-            GraphKeys = [.. reachable.GraphKeys
-                .Select(key => map.GetValueOrDefault(key, key))
-                .Distinct(StringComparer.Ordinal)
-                .Order(StringComparer.Ordinal)],
-            ResponseRootKeys = [.. reachable.ResponseRootKeys
-                .Select(key => map.GetValueOrDefault(key, key))
-                .Distinct(StringComparer.Ordinal)
-                .Order(StringComparer.Ordinal)],
-        };
     }
 
     private static ReadOnlyCollection<SpecOperation> SelectOperations(OperationSelection selection,

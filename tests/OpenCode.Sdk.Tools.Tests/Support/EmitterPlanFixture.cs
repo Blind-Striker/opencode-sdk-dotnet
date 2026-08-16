@@ -10,6 +10,7 @@ internal static class EmitterPlanFixture
         var models = new ModelPlan[]
         {
             CreateExampleItem(),
+            CreateExamplePlace(),
             CreateExampleMode(),
             CreateVariant("CreatedEvent", "created", "item", "Item", Named("ExampleItem")),
             CreateVariant("DeletedEvent", "deleted", "id", "ID", Named("string")),
@@ -38,6 +39,7 @@ internal static class EmitterPlanFixture
                     "ExampleEvent",
                     "ExampleItem",
                     "ExampleMode",
+                    "ExamplePlace",
                     "OpenCodeError",
                     "UnknownExampleEvent",
                     "UnknownOpenCodeError",
@@ -46,6 +48,8 @@ internal static class EmitterPlanFixture
                     "WidgetItemListResponseEnvelope",
                     "WidgetItemResponseEnvelope",
                     "WidgetListResponseEnvelope",
+                    "WidgetSpotListResponseEnvelope",
+                    "WidgetSpotResponseEnvelope",
                 ],
             },
             PendingOperations = [],
@@ -92,7 +96,15 @@ internal static class EmitterPlanFixture
                 HandleTypeName = "WidgetClient",
                 Parameter = CreateWidgetParameter(),
             },
-            Operations = [CreateOverviewOperation(), CreateWidgetListOperation(), CreateWidgetCreateOperation()],
+            Operations =
+            [
+                CreateOverviewOperation(),
+                CreateWidgetListOperation(),
+                CreateWidgetCreateOperation(),
+                CreateWidgetRemoveOperation(),
+                CreateWidgetSpotOperation(),
+                CreateWidgetSpotListOperation(),
+            ],
         },
     ];
 
@@ -112,6 +124,7 @@ internal static class EmitterPlanFixture
                 PayloadName = "Ping",
                 PayloadTypeName = "ExampleItem",
                 Kind = EnvelopeKind.Bare,
+                SuccessStatusCode = 200,
             },
             ErrorMap = new ErrorMapPlan
             {
@@ -144,6 +157,7 @@ internal static class EmitterPlanFixture
                 PayloadName = "Overview",
                 PayloadTypeName = "ExampleItem",
                 Kind = EnvelopeKind.Bare,
+                SuccessStatusCode = 200,
             },
             ErrorMap = new ErrorMapPlan
             {
@@ -179,6 +193,7 @@ internal static class EmitterPlanFixture
                 PayloadName = "Item",
                 PayloadTypeName = "ExampleItem",
                 Kind = EnvelopeKind.Data,
+                SuccessStatusCode = 200,
                 EnvelopeDtoTypeName = "WidgetItemResponseEnvelope",
             },
             ErrorMap = new ErrorMapPlan
@@ -234,6 +249,11 @@ internal static class EmitterPlanFixture
                     QueryProperty("order", "Order", QueryValueKind.ListOrder),
                     QueryProperty("cursor", "Cursor", QueryValueKind.Text),
                     QueryProperty("parentID", "ParentId", QueryValueKind.SessionParentFilter),
+                    QueryProperty("location", "Location", QueryValueKind.Location),
+                ],
+                MutuallyExclusivePairs =
+                [
+                    new ExclusiveQueryPairPlan { FirstWireName = "order", SecondWireName = "cursor", },
                 ],
             },
             Envelope = new EnvelopePlan
@@ -243,6 +263,7 @@ internal static class EmitterPlanFixture
                 PayloadName = "Widgets",
                 PayloadTypeName = "ExampleItem",
                 Kind = EnvelopeKind.CursorList,
+                SuccessStatusCode = 200,
                 EnvelopeDtoTypeName = "WidgetListResponseEnvelope",
             },
             ErrorMap = new ErrorMapPlan
@@ -293,6 +314,7 @@ internal static class EmitterPlanFixture
                 PayloadName = "Items",
                 PayloadTypeName = "ExampleItem",
                 Kind = EnvelopeKind.CursorList,
+                SuccessStatusCode = 200,
                 EnvelopeDtoTypeName = "WidgetItemListResponseEnvelope",
             },
             ErrorMap = new ErrorMapPlan
@@ -320,6 +342,13 @@ internal static class EmitterPlanFixture
             RouteContainerName = "Widgets",
             RouteMemberName = "CreateWidget",
             Parameters = [],
+            QueryRequest = new QueryRequestPlan
+            {
+                TypeName = "WidgetCreateRequest",
+                DerivesFromListRequest = false,
+                RidesRequestBody = true,
+                Properties = [QueryProperty("location", "Location", QueryValueKind.Location)],
+            },
             RequestBody = new RequestBodyPlan
             {
                 TypeName = "WidgetCreateRequest",
@@ -333,6 +362,7 @@ internal static class EmitterPlanFixture
                 PayloadName = "Widget",
                 PayloadTypeName = "ExampleItem",
                 Kind = EnvelopeKind.Data,
+                SuccessStatusCode = 200,
                 EnvelopeDtoTypeName = "WidgetCreateResponseEnvelope",
             },
             ErrorMap = new ErrorMapPlan
@@ -348,6 +378,110 @@ internal static class EmitterPlanFixture
             },
             Summary = "Create one widget",
             Description = null,
+        };
+
+    private static OperationPlan CreateWidgetRemoveOperation() =>
+        new()
+        {
+            MethodName = "RemoveWidgetAsync",
+            HttpMethod = "delete",
+            RouteTemplate = "/api/widget/{widgetID}",
+            RouteContainerName = "Widgets",
+            RouteMemberName = "RemoveWidget",
+            Parameters =
+            [
+                new OperationParameterPlan
+                {
+                    WireName = "widgetID",
+                    Name = "widgetId",
+                    TypeName = "string",
+                    IsHandleParameter = false,
+                },
+            ],
+            Envelope = new EnvelopePlan
+            {
+                ResponseTypeName = "WidgetRemoveResponse",
+                AdapterTypeName = "WidgetRemoveResponseAdapter",
+                PayloadName = null,
+                PayloadTypeName = null,
+                Kind = EnvelopeKind.NoContent,
+                SuccessStatusCode = 204,
+            },
+            ErrorMap = new ErrorMapPlan
+            {
+                Statuses =
+                [
+                    new ErrorStatusPlan
+                    {
+                        StatusCode = 400,
+                        Tags = [new ErrorTagPlan { Tag = "BadRequestError", TypeName = "BadRequestError", }],
+                    },
+                ],
+            },
+            Summary = "Remove one widget",
+            Description = null,
+        };
+
+    private static OperationPlan CreateWidgetSpotOperation() =>
+        new()
+        {
+            MethodName = "GetWidgetSpotAsync",
+            HttpMethod = "get",
+            RouteTemplate = "/api/widget-spot",
+            RouteContainerName = "Widgets",
+            RouteMemberName = "GetWidgetSpot",
+            Parameters = [],
+            Envelope = new EnvelopePlan
+            {
+                ResponseTypeName = "WidgetSpotResponse",
+                AdapterTypeName = "WidgetSpotResponseAdapter",
+                PayloadName = "Spot",
+                PayloadTypeName = "ExampleItem",
+                Kind = EnvelopeKind.DataLocation,
+                SuccessStatusCode = 200,
+                EnvelopeDtoTypeName = "WidgetSpotResponseEnvelope",
+                LocationTypeName = "ExamplePlace",
+            },
+            ErrorMap = new ErrorMapPlan { Statuses = [], },
+            Summary = "Get one widget spot",
+            Description = null,
+        };
+
+    private static OperationPlan CreateWidgetSpotListOperation() =>
+        new()
+        {
+            MethodName = "ListWidgetSpotsAsync",
+            HttpMethod = "get",
+            RouteTemplate = "/api/widget-spot-list",
+            RouteContainerName = "Widgets",
+            RouteMemberName = "ListWidgetSpots",
+            Parameters = [],
+            Envelope = new EnvelopePlan
+            {
+                ResponseTypeName = "WidgetSpotListResponse",
+                AdapterTypeName = "WidgetSpotListResponseAdapter",
+                PayloadName = "Spots",
+                PayloadTypeName = "ExampleItem",
+                Kind = EnvelopeKind.DataLocationList,
+                SuccessStatusCode = 200,
+                EnvelopeDtoTypeName = "WidgetSpotListResponseEnvelope",
+                LocationTypeName = "ExamplePlace",
+            },
+            ErrorMap = new ErrorMapPlan { Statuses = [], },
+            Summary = "List widget spots",
+            Description = null,
+        };
+
+    private static ObjectModelPlan CreateExamplePlace() =>
+        new()
+        {
+            Name = "ExamplePlace",
+            Namespace = "OpenCode.Sdk.Models",
+            Description = "Represents the resolved example place.",
+            Properties =
+            [
+                Property("directory", "Directory", Named("string"), isRequired: true, "Gets the resolved directory."),
+            ],
         };
 
     private static QueryPropertyPlan QueryProperty(string wireName, string propertyName, QueryValueKind kind,
@@ -370,6 +504,7 @@ internal static class EmitterPlanFixture
             [
                 Property("title", "Title", Named("string", isNullable: true), isRequired: false, "Gets the widget title."),
             ],
+            RequestQueryProperties = [QueryProperty("location", "Location", QueryValueKind.Location)],
         };
 
     public static EmitPlan CreateModelSnapshot()
@@ -382,6 +517,7 @@ internal static class EmitterPlanFixture
                 plan.Models.Single(static model => model.Name == "BadRequestError"),
                 plan.Models.Single(static model => model.Name == "ExampleItem"),
                 plan.Models.Single(static model => model.Name == "ExampleMode"),
+                plan.Models.Single(static model => model.Name == "WidgetCreateRequest"),
             ],
             Unions = [plan.Unions.Single(static union => union.Name == "OpenCodeError")],
         };

@@ -55,8 +55,12 @@ internal static class ModelEmitter
                 SyntaxFactory.Token(SyntaxKind.SealedKeyword)))
             .WithOpenBraceToken(SyntaxFactory.Token(SyntaxKind.OpenBraceToken))
             .WithCloseBraceToken(SyntaxFactory.Token(SyntaxKind.CloseBraceToken))
-            .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>(model.Properties.Select(property =>
-                EmitProperty(property, chainMarkers.Any(wireName => IsDiscriminator(property, wireName)), valueTypeNames))))
+            .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>(
+            [
+                .. model.Properties.Select(property =>
+                    EmitProperty(property, chainMarkers.Any(wireName => IsDiscriminator(property, wireName)), valueTypeNames)),
+                .. model.RequestQueryProperties.Select(static property => EmitRequestQueryProperty(property)),
+            ]))
             .WithLeadingTrivia(EmissionSyntax.Documentation(model.Description ?? $"Represents a {DisplayName(model.Name)} value."));
         if (model.BaseTypeName is not null)
         {
@@ -87,6 +91,18 @@ internal static class ModelEmitter
             ["System.Text.Json.Serialization", "OpenCode.Sdk.Internal.Serialization"],
             [declaration]);
         return EmissionSyntax.CreateSource($"Models/{model.Name}.cs", unit);
+    }
+
+    /// <summary>A merged request's query-side property never serializes; the route builder reads it.</summary>
+    private static PropertyDeclarationSyntax EmitRequestQueryProperty(QueryPropertyPlan property)
+    {
+        // The documentation trivia must stay ahead of the added attribute list.
+        var declaration = QueryRequestEmitter.EmitProperty(property);
+        var documentation = declaration.GetLeadingTrivia();
+        return declaration
+            .WithoutLeadingTrivia()
+            .AddAttributeLists(EmissionSyntax.Attribute("JsonIgnore"))
+            .WithLeadingTrivia(documentation);
     }
 
     private static PropertyDeclarationSyntax EmitProperty(ModelPropertyPlan property, bool isDiscriminator,

@@ -11,4 +11,13 @@ internal enum EnvelopeKind
 
     /// <summary>The body carries a <c>data</c> array beside a <c>previous</c>/<c>next</c> cursor object.</summary>
     CursorList = 2,
+
+    /// <summary>The success carries no body at all; the response has no payload property.</summary>
+    NoContent = 3,
+
+    /// <summary>The body wraps a <c>data</c> object beside a required <c>location</c> echo.</summary>
+    DataLocation = 4,
+
+    /// <summary>The body carries a <c>data</c> array beside a required <c>location</c> echo.</summary>
+    DataLocationList = 5,
 }

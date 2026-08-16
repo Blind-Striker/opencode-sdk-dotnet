@@ -28,8 +28,10 @@ internal static class EnvelopeDtoEmitter
 
     private static GeneratedSource EmitDto(EnvelopePlan envelope)
     {
-        var data = EmitProperty("data", "Data", EmitDataType(envelope));
-        if (envelope.Kind is EnvelopeKind.CursorList)
+        var payloadTypeName = envelope.PayloadTypeName
+                              ?? throw new InvalidOperationException($"Envelope '{envelope.ResponseTypeName}' has no payload.");
+        var data = EmitProperty("data", "Data", EmitDataType(envelope.Kind, payloadTypeName));
+        if (envelope.Kind is EnvelopeKind.CursorList or EnvelopeKind.DataLocationList)
         {
             // The page's element schema admits no null; the converter turns a null array or a
             // null element into a JsonException the adapters map to the transport wall.
@@ -37,13 +39,20 @@ internal static class EnvelopeDtoEmitter
                 "JsonConverter",
                 SyntaxFactory.AttributeArgument(SyntaxFactory.TypeOfExpression(TypeSyntaxEmitter.Generic(
                     "NullElementRejectingListJsonConverter",
-                    TypeSyntaxEmitter.EmitNamed(envelope.PayloadTypeName))))));
+                    TypeSyntaxEmitter.EmitNamed(payloadTypeName))))));
         }
 
         var members = new List<MemberDeclarationSyntax> { data, };
         if (envelope.Kind is EnvelopeKind.CursorList)
         {
             members.Add(EmitProperty("cursor", "Cursor", TypeSyntaxEmitter.EmitNamed("ListCursor")));
+        }
+
+        if (envelope.Kind is EnvelopeKind.DataLocation or EnvelopeKind.DataLocationList)
+        {
+            var locationTypeName = envelope.LocationTypeName
+                                   ?? throw new InvalidOperationException($"Envelope '{envelope.ResponseTypeName}' has no location sibling.");
+            members.Add(EmitProperty("location", "Location", TypeSyntaxEmitter.EmitNamed(locationTypeName)));
         }
 
         var declaration = SyntaxFactory.RecordDeclaration(
@@ -64,11 +73,12 @@ internal static class EnvelopeDtoEmitter
         return EmissionSyntax.CreateSource($"Internal/Serialization/{envelope.EnvelopeDtoTypeName}.cs", unit);
     }
 
-    private static TypeSyntax EmitDataType(EnvelopePlan envelope) => envelope.Kind switch
+    private static TypeSyntax EmitDataType(EnvelopeKind kind, string payloadTypeName) => kind switch
     {
-        EnvelopeKind.Data => TypeSyntaxEmitter.EmitNamed(envelope.PayloadTypeName),
-        EnvelopeKind.CursorList => TypeSyntaxEmitter.Generic("IReadOnlyList", TypeSyntaxEmitter.EmitNamed(envelope.PayloadTypeName)),
-        EnvelopeKind.Bare or _ => throw new InvalidOperationException($"Envelope kind '{envelope.Kind}' has no DTO."),
+        EnvelopeKind.Data or EnvelopeKind.DataLocation => TypeSyntaxEmitter.EmitNamed(payloadTypeName),
+        EnvelopeKind.CursorList or EnvelopeKind.DataLocationList =>
+            TypeSyntaxEmitter.Generic("IReadOnlyList", TypeSyntaxEmitter.EmitNamed(payloadTypeName)),
+        EnvelopeKind.Bare or EnvelopeKind.NoContent or _ => throw new InvalidOperationException($"Envelope kind '{kind}' has no DTO."),
     };
 
     private static PropertyDeclarationSyntax EmitProperty(string wireName, string name, TypeSyntax type) =>

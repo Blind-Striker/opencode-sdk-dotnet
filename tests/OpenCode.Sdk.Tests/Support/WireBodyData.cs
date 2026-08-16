@@ -17,11 +17,24 @@ internal static class WireBodyData
 
     public const string InvalidRequestError = "{\"_tag\":\"InvalidRequestError\",\"message\":\"bad\"}";
 
+    public const string ShellNotFoundError = "{\"_tag\":\"ShellNotFoundError\",\"id\":\"sh_9\",\"message\":\"gone\"}";
+
+    public const string ResolvedLocation =
+        "{\"directory\":\"/repo\",\"project\":{\"id\":\"prj_1\",\"directory\":\"/repo\",\"canonical\":\"/repo\"}}";
+
     public static string Envelope(string datum)
     {
         ArgumentNullException.ThrowIfNull(datum);
 
         return $"{{\"data\":{datum}}}";
+    }
+
+    public static string LocationEnvelope(string datum, string location = ResolvedLocation)
+    {
+        ArgumentNullException.ThrowIfNull(datum);
+        ArgumentNullException.ThrowIfNull(location);
+
+        return $"{{\"location\":{location},\"data\":{datum}}}";
     }
 
     public static string Page(string items, string? previous = null, string? next = null)

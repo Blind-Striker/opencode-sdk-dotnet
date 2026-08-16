@@ -24,7 +24,8 @@ internal static class GenerationTestData
           },
           "envelopePayloadNames": {},
           "propertyOverrides": [],
-          "schemaAliases": []
+          "schemaAliases": [],
+          "mutuallyExclusiveQueries": []
         }
         """;
 

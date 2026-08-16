@@ -14,4 +14,7 @@ internal enum QueryValueKind
 
     /// <summary>The parent-session filter whose wire admits an identifier or the literal <c>"null"</c>.</summary>
     SessionParentFilter = 3,
+
+    /// <summary>The deepObject location selector exposed as the shared <c>LocationSelector</c> spine type.</summary>
+    Location = 4,
 }

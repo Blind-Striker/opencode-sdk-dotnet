@@ -2023,3 +2023,70 @@ per-request `Location` wins over the ambient default because the server resolves
 before header — the SDK performs no client-side merge. `v2.session.list`'s flat location
 fields bind as ordinary query properties with no special case; the fail-closed walls
 stay.
+
+# Session 26 — 2026-08-16: Q95 location-channel tour, measured
+
+The maintainer challenged the ambient location header mid-batch ("deprecate olmuştu,
+şemada da yok artık"). The claim was investigated against upstream rather than argued,
+the batch's encoding defect was found and fixed as a result, and the ambient channel's
+future became an M5 decision (#37).
+
+## Q95: Is the `x-opencode-directory` header deprecated, and how does location actually resolve?
+
+**How researched:** three parallel primary-source sweeps over `external/opencode` at the
+spec pin (`a6a712a`) — the generated JS SDK, the server/core internals, and every
+consumer — plus live probes against `opencode2 serve` v0.0.0-next-17403 started in a
+directory distinct from every probe target.
+
+**Found — not deprecated, and never removed from the schema:**
+
+- The submodule sits exactly on the spec pin, and upstream `v2` is 164 commits ahead of
+  it; at that live HEAD `packages/server/src/location.ts:31,34` still reads both headers,
+  still `decodeURIComponent`s the directory one, and **no commit has touched the file
+  since the pin**. No deprecation marker exists anywhere in `packages/server` or
+  `packages/core`.
+- The header was never expressible in the document, so it was never scrubbed from it. The
+  spec is `OpenApi.fromApi(ClientApi)` (`packages/protocol/script/generate-openapi.ts`), a
+  16-line script with no filtering, and that pipeline derives parameters only from declared
+  endpoint schemas. Headers *are* expressible there, but no protocol endpoint declares
+  `headers:` at all; the location headers are read imperatively inside middleware, which
+  contributes nothing to the parameter surface. **Control case: `Authorization` is invisible
+  the same way** — the server genuinely requires Basic auth while the generated document
+  carries empty `securitySchemes`.
+- Git history rules out replacement: `location.ts` was created in `56a37c3640` with the
+  header *and* query branches already present, so the query channel was additive from day
+  one. `specs/v2/schema-changelog.md` frames it as preserving header routing for
+  compatibility.
+
+**Found — the channels are not interchangeable:**
+
+- `LocationMiddleware` is attached **per group** (`packages/protocol/src/api.ts:150-180`)
+  and applies to every endpoint in that group regardless of whether it declares the query
+  parameter. So the header reaches operations the query channel cannot (`project.list`,
+  `permission.saved.*`), and is inert on groups without it (health, server, message,
+  event, debug, migration) and on session-scoped endpoints, which resolve location from
+  the session DB row and ignore both channels.
+- **Precedence is per field, not per location object** (measured): query beats header beats
+  `process.cwd()`, but `directory` and `workspaceID` resolve independently and the code uses
+  `||`, so an empty query value falls through to the header. Consequently an ambient
+  `{directory, workspaceID}` plus a per-request query carrying only `directory` resolves to
+  the per-request directory **and the ambient workspace** — a per-request location does not
+  wholesale-replace the ambient one.
+- No first-party client *library* offers an ambient location: `ClientOptions` is
+  `{baseUrl, fetch, headers}` and every UI (app/web, TUI, CLI) threads location per call
+  through the query channel. Only `packages/drive`, a single-directory test harness, pins an
+  ambient header — the same shape this SDK ships.
+
+**Found — a defect in this batch:** the ambient directory header rode the wire raw. Measured
+against the live server, a directory literally named `loc%20test` returns **HTTP 500 with an
+empty body** when sent raw (the server decodes `%20` into a space and resolves a directory
+that does not exist) and **200 with the correct location** when percent-encoded. The
+workspace header is *not* decoded server-side, so the escaping is asymmetric by contract.
+
+**Decisions (maintainer, sealed):** the ambient channel stays for now (option A) with its
+documentation corrected to state per-field precedence and the coverage boundary; the
+directory header is percent-encoded and the workspace header stays verbatim, mirroring the
+server. Whether to drop the ambient channel entirely (option B — "convenience does not
+justify supporting a channel outside the public contract"; the MCP server will set location
+explicitly anyway) or fold it into the query channel (option C) is anchored at **M5 as
+issue #37**, decision-first because packaging unblocking freezes the public surface.

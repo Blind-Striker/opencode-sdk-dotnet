@@ -152,6 +152,106 @@ public sealed class PipelineTests
     }
 
     [Test]
+    public async Task ExecuteAsync_Should_Decorate_The_Ambient_Location_Headers()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient, location: new LocationSelector
+        {
+            Directory = "/repo",
+            Workspace = "wrk_1",
+        });
+
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None);
+
+        var request = handler.Requests.Single();
+        await Assert.That(request.Headers["x-opencode-directory"]).IsEqualTo("%2Frepo");
+        await Assert.That(request.Headers["x-opencode-workspace"]).IsEqualTo("wrk_1");
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Omit_An_Unset_Location_Member()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient, location: new LocationSelector { Directory = "/repo" });
+
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None);
+
+        var request = handler.Requests.Single();
+        await Assert.That(request.Headers["x-opencode-directory"]).IsEqualTo("%2Frepo");
+        await Assert.That(request.Headers.ContainsKey("x-opencode-workspace")).IsFalse();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Escape_A_Directory_Whose_Name_Contains_A_Percent_Sequence()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient, location: new LocationSelector
+        {
+            Directory = "/data/reports%20q3",
+        });
+
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None);
+
+        // The server decodes this header, so an unescaped '%20' would arrive as a space and
+        // silently address a different directory.
+        await Assert.That(handler.Requests.Single().Headers["x-opencode-directory"])
+            .IsEqualTo("%2Fdata%2Freports%2520q3");
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Send_A_Non_Ascii_Directory_As_Ascii()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient, location: new LocationSelector
+        {
+            Directory = "/home/deniz/işler",
+        });
+
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None);
+
+        // Header values above Latin-1 are unsendable, so the escape is what keeps a
+        // non-ASCII path on the wire at all.
+        await Assert.That(handler.Requests.Single().Headers["x-opencode-directory"])
+            .IsEqualTo("%2Fhome%2Fdeniz%2Fi%C5%9Fler");
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Omit_The_Location_Headers_Without_An_Ambient_Location()
+    {
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None);
+
+        var request = handler.Requests.Single();
+        await Assert.That(request.Headers.ContainsKey("x-opencode-directory")).IsFalse();
+        await Assert.That(request.Headers.ContainsKey("x-opencode-workspace")).IsFalse();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Snapshot_The_Ambient_Location_At_Construction()
+    {
+        var options = new OpenCodeClientOptions
+        {
+            Endpoint = Endpoint,
+            Location = new LocationSelector { Directory = "/before" },
+        };
+        using var handler = new RecordingHttpHandler();
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = Pipeline.Create(httpClient, options);
+        options.Location = new LocationSelector { Directory = "/after" };
+
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None);
+
+        await Assert.That(handler.Requests.Single().Headers["x-opencode-directory"]).IsEqualTo("%2Fbefore");
+    }
+
+    [Test]
     public async Task ExecuteAsync_Should_Decorate_The_User_Agent_Per_Request()
     {
         using var handler = new RecordingHttpHandler();
@@ -539,12 +639,14 @@ public sealed class PipelineTests
         bool ownsHttpClient = false,
         Uri? endpoint = null,
         string? password = null,
-        string? username = null)
+        string? username = null,
+        LocationSelector? location = null)
     {
         var options = new OpenCodeClientOptions
         {
             Endpoint = endpoint ?? Endpoint,
             Password = password,
+            Location = location,
         };
         if (username is not null)
         {

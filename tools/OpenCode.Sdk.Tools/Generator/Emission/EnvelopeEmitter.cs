@@ -24,26 +24,9 @@ internal static class EnvelopeEmitter
     private static GeneratedSource EmitEnvelope(OperationPlan operation)
     {
         var envelope = operation.Envelope;
-        var fieldName = $"_{CSharpNamePolicy.ToCamelCase(envelope.PayloadName)}";
-        var payloadType = PayloadType(envelope);
-        var members = new List<MemberDeclarationSyntax>
-        {
-            EmitBackingField(fieldName, payloadType),
-        };
-        if (envelope.Kind is EnvelopeKind.CursorList)
-        {
-            members.Add(EmitBackingField("_cursor", TypeSyntaxEmitter.EmitNamed("ListCursor")));
-        }
-
-        members.Add(EmitSuccessConstructor(envelope.ResponseTypeName));
-        members.Add(EmitErrorConstructor(envelope));
-        members.Add(EmitPayloadProperty(envelope, payloadType, fieldName));
-        if (envelope.Kind is EnvelopeKind.CursorList)
-        {
-            members.Add(EmitCursorProperty());
-        }
-
-        members.Add(EmitPrintMembers(envelope.PayloadName, fieldName));
+        var members = envelope.Kind is EnvelopeKind.NoContent
+            ? EmitNoContentMembers(envelope)
+            : EmitPayloadMembers(envelope);
         var declaration = SyntaxFactory.RecordDeclaration(SyntaxFactory.Token(SyntaxKind.RecordKeyword), envelope.ResponseTypeName)
             .WithModifiers(SyntaxFactory.TokenList(
                 SyntaxFactory.Token(SyntaxKind.PublicKeyword),
@@ -55,16 +38,72 @@ internal static class EnvelopeEmitter
             .WithMembers(SyntaxFactory.List(members))
             .WithLeadingTrivia(EmissionSyntax.Documentation(
                 $"Represents the response of the '{operation.HttpMethod.ToUpperInvariant()} {operation.RouteTemplate}' operation."));
-        IReadOnlyList<string> usings = envelope.Kind is EnvelopeKind.CursorList
-            ? ["System", "System.Diagnostics.CodeAnalysis", "System.Text", "OpenCode.Sdk.Internal.Serialization", "OpenCode.Sdk.Models"]
-            : ["System", "System.Diagnostics.CodeAnalysis", "System.Text", "OpenCode.Sdk.Models"];
+        IReadOnlyList<string> usings = envelope.Kind switch
+        {
+            EnvelopeKind.NoContent => ["System.Diagnostics.CodeAnalysis", "OpenCode.Sdk.Models"],
+            EnvelopeKind.CursorList or EnvelopeKind.DataLocationList =>
+                ["System", "System.Diagnostics.CodeAnalysis", "System.Text", "OpenCode.Sdk.Internal.Serialization", "OpenCode.Sdk.Models"],
+            EnvelopeKind.Bare or EnvelopeKind.Data or EnvelopeKind.DataLocation or _ =>
+                ["System", "System.Diagnostics.CodeAnalysis", "System.Text", "OpenCode.Sdk.Models"],
+        };
         var unit = EmissionSyntax.CompilationUnit("OpenCode.Sdk", usings, [declaration]);
         return EmissionSyntax.CreateSource($"{operation.RouteContainerName}/{envelope.ResponseTypeName}.cs", unit);
     }
 
-    private static TypeSyntax PayloadType(EnvelopePlan envelope) => envelope.Kind is EnvelopeKind.CursorList
-        ? TypeSyntaxEmitter.Generic("IReadOnlyList", TypeSyntaxEmitter.EmitNamed(envelope.PayloadTypeName))
-        : TypeSyntaxEmitter.EmitNamed(envelope.PayloadTypeName);
+    private static List<MemberDeclarationSyntax> EmitNoContentMembers(EnvelopePlan envelope) =>
+    [
+        EmitSuccessConstructor(envelope.ResponseTypeName),
+        EmitErrorConstructor(envelope),
+    ];
+
+    private static List<MemberDeclarationSyntax> EmitPayloadMembers(EnvelopePlan envelope)
+    {
+        var payloadName = RequirePayloadName(envelope);
+        var fieldName = $"_{CSharpNamePolicy.ToCamelCase(payloadName)}";
+        var payloadType = PayloadType(envelope);
+        var members = new List<MemberDeclarationSyntax>
+        {
+            EmitBackingField(fieldName, payloadType),
+        };
+        if (envelope.Kind is EnvelopeKind.CursorList)
+        {
+            members.Add(EmitBackingField("_cursor", TypeSyntaxEmitter.EmitNamed("ListCursor")));
+        }
+
+        if (envelope.LocationTypeName is not null)
+        {
+            members.Add(EmitBackingField("_location", TypeSyntaxEmitter.EmitNamed(envelope.LocationTypeName)));
+        }
+
+        members.Add(EmitSuccessConstructor(envelope.ResponseTypeName));
+        members.Add(EmitErrorConstructor(envelope));
+        members.Add(EmitPayloadProperty(envelope, payloadType, fieldName));
+        if (envelope.Kind is EnvelopeKind.CursorList)
+        {
+            members.Add(EmitCursorProperty());
+        }
+
+        if (envelope.LocationTypeName is not null)
+        {
+            members.Add(EmitLocationProperty(envelope.LocationTypeName));
+        }
+
+        members.Add(EmitPrintMembers(payloadName, fieldName));
+        return members;
+    }
+
+    private static string RequirePayloadName(EnvelopePlan envelope) =>
+        envelope.PayloadName
+        ?? throw new InvalidOperationException($"Envelope '{envelope.ResponseTypeName}' has no payload.");
+
+    private static TypeSyntax PayloadType(EnvelopePlan envelope)
+    {
+        var payloadTypeName = envelope.PayloadTypeName
+                              ?? throw new InvalidOperationException($"Envelope '{envelope.ResponseTypeName}' has no payload.");
+        return envelope.Kind is EnvelopeKind.CursorList or EnvelopeKind.DataLocationList
+            ? TypeSyntaxEmitter.Generic("IReadOnlyList", TypeSyntaxEmitter.EmitNamed(payloadTypeName))
+            : TypeSyntaxEmitter.EmitNamed(payloadTypeName);
+    }
 
     private static FieldDeclarationSyntax EmitBackingField(string fieldName, TypeSyntax payloadType) =>
         SyntaxFactory.FieldDeclaration(SyntaxFactory.VariableDeclaration(
@@ -85,21 +124,33 @@ internal static class EnvelopeEmitter
     {
         var responseTypeName = envelope.ResponseTypeName;
 
-        // The payload assignment is the SDK's single null-forgiveness: the guarded getter
-        // makes the null unobservable.
         var assignments = new List<StatementSyntax>
         {
             Assign("Status", SyntaxFactory.IdentifierName("status")),
             Assign("IsError", SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression)),
             Assign("Error", SyntaxFactory.IdentifierName("error")),
             Assign("RawBody", SyntaxFactory.IdentifierName("rawBody")),
-            Assign(envelope.PayloadName, SyntaxFactory.PostfixUnaryExpression(
-                SyntaxKind.SuppressNullableWarningExpression,
-                SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
         };
+
+        // The payload assignment is the SDK's single null-forgiveness: the guarded getter
+        // makes the null unobservable. A no-content envelope has no payload to forgive.
+        if (envelope.PayloadName is not null)
+        {
+            assignments.Add(Assign(envelope.PayloadName, SyntaxFactory.PostfixUnaryExpression(
+                SyntaxKind.SuppressNullableWarningExpression,
+                SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))));
+        }
+
         if (envelope.Kind is EnvelopeKind.CursorList)
         {
             assignments.Add(Assign("Cursor", SyntaxFactory.PostfixUnaryExpression(
+                SyntaxKind.SuppressNullableWarningExpression,
+                SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))));
+        }
+
+        if (envelope.LocationTypeName is not null)
+        {
+            assignments.Add(Assign("Location", SyntaxFactory.PostfixUnaryExpression(
                 SyntaxKind.SuppressNullableWarningExpression,
                 SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))));
         }
@@ -122,17 +173,18 @@ internal static class EnvelopeEmitter
 
     private static PropertyDeclarationSyntax EmitPayloadProperty(EnvelopePlan envelope, TypeSyntax payloadType, string fieldName)
     {
+        var payloadName = RequirePayloadName(envelope);
         ExpressionSyntax initValue = SyntaxFactory.IdentifierName("value");
-        if (envelope.Kind is EnvelopeKind.CursorList)
+        if (envelope.Kind is EnvelopeKind.CursorList or EnvelopeKind.DataLocationList)
         {
             initValue = DefensiveListCopy();
         }
         return EmitGuardedProperty(
             payloadType,
-            envelope.PayloadName,
+            payloadName,
             fieldName,
             initValue,
-            $"Gets the {envelope.PayloadName} payload; guarded on the error path.");
+            $"Gets the {payloadName} payload; guarded on the error path.");
     }
 
     private static PropertyDeclarationSyntax EmitCursorProperty() =>
@@ -142,6 +194,14 @@ internal static class EnvelopeEmitter
             "_cursor",
             SyntaxFactory.IdentifierName("value"),
             "Gets the page cursor; guarded on the error path.");
+
+    private static PropertyDeclarationSyntax EmitLocationProperty(string locationTypeName) =>
+        EmitGuardedProperty(
+            TypeSyntaxEmitter.EmitNamed(locationTypeName),
+            "Location",
+            "_location",
+            SyntaxFactory.IdentifierName("value"),
+            "Gets the location the server resolved for the request; guarded on the error path.");
 
     /// <summary>
     /// List payloads defensively copy on init so the envelope stays immutable; the copy

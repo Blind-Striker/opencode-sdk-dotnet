@@ -804,10 +804,10 @@ dotnet_diagnostic.CA1034.severity = none
 # test project mirrors the layout with equally flat test namespaces. Winner: the
 # flat-namespace contract; IDE0130 remains error for every other folder, tools included.
 # A new family folder extends these globs deliberately - curation changes are API reviews.
-[src/OpenCode.Sdk/{Sessions,Health,Pagination}/**.cs]
+[src/OpenCode.Sdk/{Sessions,Health,Pagination,Shells}/**.cs]
 dotnet_diagnostic.IDE0130.severity = none
 
-[tests/OpenCode.Sdk.Tests/{Sessions,Health,Pagination}/**.cs]
+[tests/OpenCode.Sdk.Tests/{Sessions,Health,Pagination,Shells}/**.cs]
 dotnet_diagnostic.IDE0130.severity = none
 
 # DI extension methods live in the Microsoft.Extensions.DependencyInjection namespace so

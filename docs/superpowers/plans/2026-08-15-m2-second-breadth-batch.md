@@ -55,16 +55,33 @@ introduced gets exercised by a real operation. Sealed inputs: research log Sessi
 
 ## Work plan
 
-- [ ] Placement map in the binder, red-test-first; body+query admission for
-      `shell.create`/`shell.timeout` only through it.
-- [ ] Location: request-record property + deepObject route composition; ambient header
-      default in options/pipeline (explicit query wins by server precedence — no client
-      merge logic).
-- [ ] Envelope profiles: `{location, data}` and 204-bodyless, with binder walls and
-      contract tests.
-- [ ] Curation rows + `Shell.Info1` alias; regen; model closure; PATCH/DELETE;
-      operation methods + contract tests per op.
-- [ ] #28 rider end to end.
-- [ ] Live demo against `opencode2 serve`: shell create → list → get → output → remove,
-      plus session rename → remove.
-- [ ] ROADMAP + this plan updated in the same commits.
+- [x] Placement map in the binder, red-test-first: a body+query mix merges into one
+      uniform request model exactly when every query property is the location selector
+      (`QueryRequestPlan.RidesRequestBody`); the model gains `[JsonIgnore]` query-side
+      properties, the route builder types itself with the body model, and every other
+      mix keeps the deliberate wall.
+- [x] Location: the hand-written `LocationSelector` spine (the wire's query selector is
+      an inline `{directory?, workspace?}` object, not `Location.Info`, so it follows the
+      `SessionParentFilter` precedent) with request-record property + deepObject route
+      composition; ambient header default in options/pipeline (explicit query wins by
+      server precedence — no client merge logic).
+- [x] Envelope profiles: `{location, data}` (object and list variants) and 204-bodyless,
+      with binder walls and emitter snapshots; contract tests land with admission.
+- [x] Curation rows + `Shell.Info1` alias; regen; model closure; PATCH/DELETE (PATCH
+      rides the internal `OpenCodeHttpMethod` spine — `HttpMethod.Patch` is absent
+      downlevel); operation methods + contract tests per op. The verb vocabulary gained
+      `remove`/`rename`/`timeout`, `RequestTypeName` folds Get like the response name,
+      and reachability recollects post-alias so an alias target's promoted inline
+      children stay bound; the alias comparer resolves promoted references structurally.
+      **`v2.shell.output` deferred:** its inline data object and integer cursor/limit
+      query params each need a mechanism no other admitted operation needs; it returns
+      with a later batch.
+- [x] #28 rider end to end: the `mutuallyExclusiveQueries` curation section (pairs only,
+      fail-closed validated), the binder pins each name to the bound query surface, the
+      route builder refuses the pair before any request, and the no-send contract test
+      observes it on `message.list`.
+- [x] Live demo against `opencode2 serve` v0.0.0-next-17403 (2026-08-16): shell
+      create → list → get → timeout → remove (204), session rename → remove (204), all
+      typed; the ambient options location rode the header channel and came back in the
+      location echo. (`output` deferred with its operation.)
+- [x] ROADMAP + this plan updated in the same commits.

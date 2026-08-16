@@ -58,7 +58,8 @@ internal static class OperationMethodEmitter
                 : body.WithType(TypeSyntaxEmitter.EmitNamed(operation.RequestBody.TypeName));
         }
 
-        if (operation.QueryRequest is not null)
+        // A merged request already surfaced as the body parameter above.
+        if (operation.QueryRequest is { RidesRequestBody: false })
         {
             yield return SyntaxFactory.Parameter(SyntaxFactory.Identifier("request"))
                 .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(operation.QueryRequest.TypeName)))
@@ -75,10 +76,14 @@ internal static class OperationMethodEmitter
 
     private static InvocationExpressionSyntax EmitDelegation(OperationPlan operation)
     {
+        // HttpMethod.Patch is absent from the downlevel BCL, so it rides the internal spine.
+        var verbContainer = string.Equals(operation.HttpMethod, "patch", StringComparison.Ordinal)
+            ? "OpenCodeHttpMethod"
+            : "HttpMethod";
         var arguments = new List<ArgumentSyntax>
         {
             SyntaxFactory.Argument(EmissionSyntax.MemberAccess(
-                SyntaxFactory.IdentifierName("HttpMethod"),
+                SyntaxFactory.IdentifierName(verbContainer),
                 CSharpNamePolicy.ToPascalCase(operation.HttpMethod))),
             SyntaxFactory.Argument(EmitRoute(operation)),
         };
@@ -155,7 +160,7 @@ internal static class OperationMethodEmitter
                     : "The request body."));
         }
 
-        if (operation.QueryRequest is not null)
+        if (operation.QueryRequest is { RidesRequestBody: false })
         {
             parameters.Add(new DocumentedParameter("request", "The request shaping the query."));
         }

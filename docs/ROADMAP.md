@@ -68,11 +68,24 @@ by the SDK test project; the Extensions tests are registration-topology only).
 Session 24). Q92's simplicity-first construction (ADR-0010) is landed — Arc 1 complete:
 the transport constructor is internal friend-assembly test surface, Extensions registers
 a factory-less singleton client family with a roster contract test, and the Q91 guard
-machinery is deleted — closing #31 by construction. #28, #32, and #33 are sealed with
-their execution homes recorded (Session 24), and the location + merged-Request design is
+machinery is deleted — closing #31 by construction. #32 and #33 stay sealed with their
+execution homes recorded (Session 24), and the location + merged-Request design is
 sealed (Session 25, Q93/Q94: the binder placement map and the dual-channel location
-rendering) — the body+query admission stop condition is lifted. Remaining M2 breadth
-batches interleave next against the sealed design.
+rendering).
+
+**The M2 second breadth batch is complete** (plan:
+`superpowers/plans/2026-08-15-m2-second-breadth-batch.md`) — the design-prover batch:
+`session.remove`/`session.rename` and the `Shells` family
+(`list`/`create`/`get`/`remove`/`timeout`) ride the 204 no-content and
+`{location, data}` envelope machinery, the deepObject `LocationSelector` query channel,
+the merged body+query request models, the ambient options location riding the
+middleware headers, and the first PATCH/DELETE verbs. #28 landed as the
+`mutuallyExclusiveQueries` curation section with the route-boundary refusal on
+`message.list`. Demonstrated live 2026-08-16 against `opencode2 serve`
+v0.0.0-next-17403 (shell create → get → timeout → remove and session rename → remove,
+204s typed, ambient location echoed). `v2.shell.output` deferred to a later batch —
+its inline data object and integer cursor query params each need a mechanism of their
+own. 13 operations selected, 107 pending.
 
 ## Milestones
 
@@ -112,7 +125,13 @@ is revisited at each milestone boundary.
    background service's discovery file are candidate mechanisms — decided in the M4 plan;
    platform detail: research doc 15.)
 5. **M5 — Full surface.** Complete generation profile over the protocol surface,
-   exclusion fingerprints (ADR-0008), packaging unblocked.
+   exclusion fingerprints (ADR-0008), packaging unblocked. The **ambient location
+   header decision (#37)** lands here and is decision-first: packaging unblocking
+   freezes the public surface, so this is the last free moment to drop
+   `OpenCodeClientOptions.Location` (option B) or fold it into the query channel
+   (option C). The batch admitting `project.list` / `permission.saved.*` /
+   `session.form.*` answers whether the header is those operations' only addressing
+   channel.
 6. **M6 — Operational closure.** `refresh-spec`, retry/telemetry/hooks, quarantine
    lane, nightly canary (the performance suite joins it); durable decisions distill
    into ADRs and the `superpowers/` documents retire. Any

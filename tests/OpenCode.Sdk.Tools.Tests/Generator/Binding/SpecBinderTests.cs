@@ -16,6 +16,7 @@ public sealed class SpecBinderTests
         "InvalidRequestError",
         "MessageNotFoundError",
         "SessionNotFoundError",
+        "ShellNotFoundError",
         "UnauthorizedError",
         "UnknownError",
     ];

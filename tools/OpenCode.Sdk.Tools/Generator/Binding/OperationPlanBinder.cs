@@ -18,6 +18,7 @@ internal sealed class OperationPlanBinder
         "ListCursor",
         "ListOrder",
         "ListRequest",
+        "LocationSelector",
         "OpenCodeApiException",
         "OpenCodeClientOptions",
         "OpenCodeException",
@@ -51,6 +52,7 @@ internal sealed class OperationPlanBinder
         "GetHashCode",
         "GetType",
         "IsError",
+        "Location",
         "MemberwiseClone",
         "PrintMembers",
         "RawBody",
@@ -235,8 +237,10 @@ internal sealed class OperationPlanBinder
                 $"multiple operations map to response type '{operation.Plan.Envelope.ResponseTypeName}'");
         }
 
+        // A merged request's type IS the body model, so only standalone query records
+        // claim a name of their own.
         foreach (var operation in bound.Where(operation =>
-                     operation.Plan.QueryRequest is not null && !owners.Add(operation.Plan.QueryRequest.TypeName)))
+                     operation.Plan.QueryRequest is { RidesRequestBody: false } query && !owners.Add(query.TypeName)))
         {
             errors.Add(
                 BindingErrorCategory.Naming,
@@ -292,13 +296,25 @@ internal sealed class OperationPlanBinder
                 return null;
             }
 
-            var success = _operation.Responses.Single(static response => response.StatusCode is 200);
+            var success = _operation.Responses.Single(static response => response.StatusCode is 200 or 204);
             var envelope = BindEnvelope(success);
             var errorMap = BindErrorMap();
             var parameters = BindParameters(row);
             var optionalPlanErrorsBefore = _errors.Count;
             var queryRequest = BindQueryRequest();
             var requestBody = BindRequestBody();
+            if (queryRequest is not null && requestBody is not null)
+            {
+                // A body and query merge into one uniform request model only for the
+                // location channel; every other mix keeps the deliberate wall.
+                if (queryRequest.Properties.Any(static property => property.Kind is not QueryValueKind.Location))
+                {
+                    Refuse("operations mixing a request body and query parameters are supported only for the location selector");
+                    return null;
+                }
+
+                queryRequest = queryRequest with { RidesRequestBody = true };
+            }
             var methodName = OperationNamePolicy.MethodName(_operation);
             var routeMemberName = OperationNamePolicy.RouteMemberName(_operation, row.Placement);
             if (methodName is null || routeMemberName is null)
@@ -341,7 +357,9 @@ internal sealed class OperationPlanBinder
             var before = _errors.Count;
             var isGet = string.Equals(_operation.Method, "get", StringComparison.Ordinal);
             var isPost = string.Equals(_operation.Method, "post", StringComparison.Ordinal);
-            if (!isGet && !isPost)
+            var isDelete = string.Equals(_operation.Method, "delete", StringComparison.Ordinal);
+            var isPatch = string.Equals(_operation.Method, "patch", StringComparison.Ordinal);
+            if (!isGet && !isPost && !isDelete && !isPatch)
             {
                 Refuse($"HTTP method '{_operation.Method}' is not supported");
             }
@@ -361,22 +379,14 @@ internal sealed class OperationPlanBinder
                 Refuse("event-stream responses are not supported in M1");
             }
 
-            if (isGet && _operation.RequestBody is not null)
+            if ((isGet || isDelete) && _operation.RequestBody is not null)
             {
-                Refuse("GET operations must not carry a request body");
+                Refuse($"{_operation.Method.ToUpperInvariant()} operations must not carry a request body");
             }
 
-            if (isPost && _operation.RequestBody is null)
+            if ((isPost || isPatch) && _operation.RequestBody is null)
             {
-                Refuse("POST operations must carry a request body");
-            }
-
-            // Refused independently of any name collision: no admitted operation shape
-            // carries both a request body and query parameters.
-            if (_operation.RequestBody is not null
-                && _operation.Parameters.Any(static parameter => parameter.Location is SpecParameterLocation.Query))
-            {
-                Refuse("operations mixing a request body and query parameters are not supported");
+                Refuse($"{_operation.Method.ToUpperInvariant()} operations must carry a request body");
             }
 
             CheckParameterShapes();
@@ -408,9 +418,9 @@ internal sealed class OperationPlanBinder
             {
                 Refuse("operation must declare exactly one success response");
             }
-            else if (successes[0].StatusCode is not 200)
+            else if (successes[0].StatusCode is not (200 or 204))
             {
-                Refuse("the success response must use status 200");
+                Refuse("the success response must use status 200 or a content-free 204");
             }
 
             foreach (var response in _operation.Responses
@@ -422,6 +432,11 @@ internal sealed class OperationPlanBinder
 
         private EnvelopePlan? BindEnvelope(SpecResponse success)
         {
+            if (success.StatusCode is 204)
+            {
+                return BindNoContentEnvelope(success);
+            }
+
             if (success.ContentType is not { IsJson: true } || success.Schema is null)
             {
                 Refuse("the success response must carry a JSON schema");
@@ -433,15 +448,53 @@ internal sealed class OperationPlanBinder
                 SpecEnvelopeShape.Bare => BindBarePayload(success.Schema),
                 SpecEnvelopeShape.Data => BindDataPayload(success.Schema),
                 SpecEnvelopeShape.CursorData => BindCursorListPayload(success.Schema),
-                SpecEnvelopeShape.None or SpecEnvelopeShape.DataLocation or SpecEnvelopeShape.DataHasMore or _ =>
+                SpecEnvelopeShape.DataLocation => BindDataLocationPayload(success.Schema),
+                SpecEnvelopeShape.None or SpecEnvelopeShape.DataHasMore or _ =>
                     RefuseNull($"envelope shape '{success.EnvelopeShape}' is not supported"),
             };
+            var locationTypeName = success.EnvelopeShape is SpecEnvelopeShape.DataLocation
+                ? BindLocationSibling(success.Schema)
+                : null;
+            if (success.EnvelopeShape is SpecEnvelopeShape.DataLocation && locationTypeName is null)
+            {
+                return null;
+            }
+
             if (payload is null)
             {
                 return null;
             }
 
             var responseTypeName = OperationNamePolicy.ResponseTypeName(_operation);
+            var payloadName = DerivePayloadName(responseTypeName);
+            if (payloadName is null)
+            {
+                return null;
+            }
+
+            var kind = success.EnvelopeShape switch
+            {
+                SpecEnvelopeShape.Data => EnvelopeKind.Data,
+                SpecEnvelopeShape.CursorData => EnvelopeKind.CursorList,
+                SpecEnvelopeShape.DataLocation => DataLocationKind(success.Schema),
+                SpecEnvelopeShape.Bare or SpecEnvelopeShape.None
+                    or SpecEnvelopeShape.DataHasMore or _ => EnvelopeKind.Bare,
+            };
+            return new EnvelopePlan
+            {
+                ResponseTypeName = responseTypeName,
+                AdapterTypeName = $"{responseTypeName}Adapter",
+                PayloadName = payloadName,
+                PayloadTypeName = payload,
+                Kind = kind,
+                SuccessStatusCode = 200,
+                EnvelopeDtoTypeName = kind is EnvelopeKind.Bare ? null : $"{responseTypeName}Envelope",
+                LocationTypeName = locationTypeName,
+            };
+        }
+
+        private string? DerivePayloadName(string responseTypeName)
+        {
             var payloadName = _curation.EnvelopePayloadNames.TryGetValue(_operation.OperationId, out var curated)
                 ? curated
                 : OperationNamePolicy.PayloadName(_operation);
@@ -471,21 +524,27 @@ internal sealed class OperationPlanBinder
                 return null;
             }
 
-            var kind = success.EnvelopeShape switch
+            return payloadName;
+        }
+
+        private EnvelopePlan? BindNoContentEnvelope(SpecResponse success)
+        {
+            if (success.ContentType is not null || success.Schema is not null)
             {
-                SpecEnvelopeShape.Data => EnvelopeKind.Data,
-                SpecEnvelopeShape.CursorData => EnvelopeKind.CursorList,
-                SpecEnvelopeShape.Bare or SpecEnvelopeShape.None or SpecEnvelopeShape.DataLocation
-                    or SpecEnvelopeShape.DataHasMore or _ => EnvelopeKind.Bare,
-            };
+                Refuse("a 204 success must not carry content");
+                return null;
+            }
+
+            var responseTypeName = OperationNamePolicy.ResponseTypeName(_operation);
             return new EnvelopePlan
             {
                 ResponseTypeName = responseTypeName,
                 AdapterTypeName = $"{responseTypeName}Adapter",
-                PayloadName = payloadName,
-                PayloadTypeName = payload,
-                Kind = kind,
-                EnvelopeDtoTypeName = kind is EnvelopeKind.Bare ? null : $"{responseTypeName}Envelope",
+                PayloadName = null,
+                PayloadTypeName = null,
+                Kind = EnvelopeKind.NoContent,
+                SuccessStatusCode = 204,
+                EnvelopeDtoTypeName = null,
             };
         }
 
@@ -541,6 +600,102 @@ internal sealed class OperationPlanBinder
             }
 
             return itemName;
+        }
+
+        private string? BindDataLocationPayload(SchemaNode schema)
+        {
+            var wrapper = ResolveDataLocationWrapper(schema);
+            if (wrapper is null)
+            {
+                return null;
+            }
+
+            var data = wrapper.Properties.Single(static property => property.Name is "data");
+            if (data.Schema is RefNode datum
+                && !datum.Target.Contains('#', StringComparison.Ordinal)
+                && _typeNames.TryGetValue(datum.Target, out var datumName))
+            {
+                return datumName;
+            }
+
+            // Items must reference top-level components: a promoted inline item would take its
+            // name from the excluded response root, so the dialect keeps list items nominal.
+            if (data.Schema is ArrayNode { Item: RefNode item }
+                && !item.Target.Contains('#', StringComparison.Ordinal)
+                && _typeNames.TryGetValue(item.Target, out var itemName))
+            {
+                return itemName;
+            }
+
+            return RefuseNull("location envelope 'data' must reference a named component schema, or be an array of one");
+        }
+
+        /// <summary>
+        /// The payload binder owns the wrapper walls; the sibling and kind readers resolve
+        /// leniently because a malformed wrapper is already refused once.
+        /// </summary>
+        private ObjectNode? ResolveDataLocationWrapper(SchemaNode schema)
+        {
+            if (schema is not RefNode reference
+                || !_document.Schemas.TryGetValue(reference.Target, out var target)
+                || target is not ObjectNode wrapper)
+            {
+                return RefuseNull<ObjectNode>("location envelope must reference an object schema");
+            }
+
+            var data = wrapper.Properties.FirstOrDefault(static property => property.Name is "data");
+            var location = wrapper.Properties.FirstOrDefault(static property => property.Name is "location");
+            if (wrapper.Properties.Count is not 2 || data is not { IsRequired: true } || location is not { IsRequired: true })
+            {
+                return RefuseNull<ObjectNode>("location envelope must require exactly 'data' and 'location'");
+            }
+
+            return wrapper;
+        }
+
+        private string? BindLocationSibling(SchemaNode schema)
+        {
+            if (schema is not RefNode reference
+                || !_document.Schemas.TryGetValue(reference.Target, out var target)
+                || target is not ObjectNode wrapper
+                || wrapper.Properties.FirstOrDefault(static property => property.Name is "location") is not { IsRequired: true } location)
+            {
+                return null;
+            }
+
+            // A promoted inline sibling would take its name from the excluded response root,
+            // so the dialect keeps the location echo nominal.
+            return location.Schema is RefNode sibling
+                   && !sibling.Target.Contains('#', StringComparison.Ordinal)
+                   && _typeNames.TryGetValue(sibling.Target, out var name)
+                ? name
+                : RefuseNull("the location sibling must reference a named component schema");
+        }
+
+        private EnvelopeKind DataLocationKind(SchemaNode schema) =>
+            schema is RefNode reference
+            && _document.Schemas.TryGetValue(reference.Target, out var target)
+            && target is ObjectNode wrapper
+            && wrapper.Properties.FirstOrDefault(static property => property.Name is "data")?.Schema is ArrayNode
+                ? EnvelopeKind.DataLocationList
+                : EnvelopeKind.DataLocation;
+
+        /// <summary>
+        /// Recognizes the dual-channel location selector structurally — exactly the
+        /// optional-nullable string <c>directory</c> and <c>workspace</c> members — so the
+        /// route serializer's fixed member set stays safe.
+        /// </summary>
+        private bool IsLocationSelectorShape(SchemaNode schema)
+        {
+            if (Resolve(schema) is not ObjectNode selector
+                || selector.Properties.Count is not 2
+                || selector.Properties.Select(static property => property.Name).Distinct(StringComparer.Ordinal).Count() is not 2)
+            {
+                return false;
+            }
+
+            return selector.Properties.All(property => property is { IsRequired: false, Name: "directory" or "workspace" }
+                && Resolve(property.Schema) is NullableNode { Inner: PrimitiveNode { Kind: PrimitiveKind.String } });
         }
 
         /// <summary>Recognizes the wire cursor contract: exactly optional-nullable string <c>previous</c> and <c>next</c>.</summary>
@@ -722,6 +877,9 @@ internal sealed class OperationPlanBinder
                 .ToArray();
             if (query.Length is 0)
             {
+                // An operation with no query surface still answers for its curated rows;
+                // otherwise a row naming it would go dormant instead of refusing.
+                _ = BindExclusivePairs([]);
                 return null;
             }
 
@@ -730,7 +888,12 @@ internal sealed class OperationPlanBinder
             {
                 if (parameter.IsDeepObject)
                 {
-                    Refuse($"query parameter '{parameter.Name}' must not use deep-object encoding");
+                    var location = BindLocationSelector(parameter);
+                    if (location is not null)
+                    {
+                        properties.Add(location);
+                    }
+
                     continue;
                 }
 
@@ -783,6 +946,56 @@ internal sealed class OperationPlanBinder
                 TypeName = OperationNamePolicy.RequestTypeName(_operation),
                 DerivesFromListRequest = properties.Count > 0 && properties[0].IsInherited,
                 Properties = properties,
+                MutuallyExclusivePairs = BindExclusivePairs(properties),
+            };
+        }
+
+        /// <summary>The validator owns the row shape; this wall pins each name to the bound query surface.</summary>
+        private List<ExclusiveQueryPairPlan> BindExclusivePairs(List<QueryPropertyPlan> properties)
+        {
+            var pairs = new List<ExclusiveQueryPairPlan>();
+            foreach (var parameters in _curation.MutuallyExclusiveQueries
+                         .Where(row => string.Equals(row.Operation, _operation.OperationId, StringComparison.Ordinal))
+                         .Select(static row => row.Parameters))
+            {
+                var missing = parameters.FirstOrDefault(parameter =>
+                    !properties.Any(property => string.Equals(property.WireName, parameter, StringComparison.Ordinal)));
+                if (missing is not null)
+                {
+                    Refuse($"the operation does not carry query parameter '{missing}' named by its mutually-exclusive row");
+                    continue;
+                }
+
+                if (parameters.Count is 2)
+                {
+                    pairs.Add(new ExclusiveQueryPairPlan
+                    {
+                        FirstWireName = parameters[0],
+                        SecondWireName = parameters[1],
+                    });
+                }
+            }
+
+            return pairs;
+        }
+
+        /// <summary>The one admitted deep-object encoding is the optional nullable location selector.</summary>
+        private QueryPropertyPlan? BindLocationSelector(SpecParameter parameter)
+        {
+            if (parameter.IsRequired
+                || Resolve(parameter.Schema) is not NullableNode nullable
+                || !IsLocationSelectorShape(nullable.Inner))
+            {
+                Refuse($"query parameter '{parameter.Name}' uses deep-object encoding outside the optional location selector shape");
+                return null;
+            }
+
+            return new QueryPropertyPlan
+            {
+                WireName = parameter.Name,
+                PropertyName = CSharpNamePolicy.ToPascalCase(parameter.Name),
+                Kind = QueryValueKind.Location,
+                IsInherited = false,
             };
         }
 
@@ -880,6 +1093,13 @@ internal sealed class OperationPlanBinder
         private void Refuse(string problem) => _errors.Add(BindingErrorCategory.Operation, _operation.OperationId, problem);
 
         private string? RefuseNull(string problem)
+        {
+            Refuse(problem);
+            return null;
+        }
+
+        private T? RefuseNull<T>(string problem)
+            where T : class
         {
             Refuse(problem);
             return null;

@@ -1,0 +1,13 @@
+{
+  "id": "sh_100",
+  "status": "running",
+  "command": "ls -la",
+  "cwd": "/repo",
+  "shell": "/bin/bash",
+  "file": "/tmp/sh_100.log",
+  "pid": 4242,
+  "metadata": {},
+  "time": {
+    "started": 1755200000
+  }
+}

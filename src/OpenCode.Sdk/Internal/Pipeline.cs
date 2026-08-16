@@ -12,6 +12,7 @@ internal sealed class Pipeline : IDisposable
     private readonly AuthenticationHeaderValue? _authorization;
     private readonly string _endpointBase;
     private readonly HttpClient _httpClient;
+    private readonly LocationSelector? _location;
     private readonly bool _ownsHttpClient;
     private readonly ProductInfoHeaderValue _userAgent;
     private bool _disposed;
@@ -49,6 +50,7 @@ internal sealed class Pipeline : IDisposable
         _httpClient = httpClient;
         _ownsHttpClient = ownsHttpClient;
         _endpointBase = EndpointPolicy.Normalize(endpoint);
+        _location = options.Location;
         _userAgent = UserAgentPolicy.Resolve();
 
         // The options are read exactly once, here: the pipeline holds an immutable snapshot,
@@ -208,6 +210,22 @@ internal sealed class Pipeline : IDisposable
         if (_authorization is not null)
         {
             request.Headers.Authorization = _authorization;
+        }
+
+        // The ambient location rides the middleware's header channel, and the two members
+        // travel differently: the server percent-decodes the directory header but reads the
+        // workspace one verbatim, so the escaping mirrors that asymmetry exactly. Escaping
+        // also keeps a non-ASCII path sendable, since header values cannot carry it raw. The
+        // server resolves any explicit per-request location query first, so no client-side
+        // merge exists.
+        if (_location?.Directory is { } directory)
+        {
+            _ = request.Headers.TryAddWithoutValidation("x-opencode-directory", Uri.EscapeDataString(directory));
+        }
+
+        if (_location?.Workspace is { } workspace)
+        {
+            _ = request.Headers.TryAddWithoutValidation("x-opencode-workspace", workspace);
         }
 
         request.Headers.UserAgent.Add(_userAgent);

@@ -13,6 +13,11 @@ public sealed class OperationNamePolicyTests
     [Arguments("v2.session.list", "get", "ListSessionsAsync")]
     [Arguments("v2.session.create", "post", "CreateSessionAsync")]
     [Arguments("v2.message.list", "get", "ListMessagesAsync")]
+    [Arguments("v2.session.remove", "delete", "RemoveSessionAsync")]
+    [Arguments("v2.session.rename", "post", "RenameSessionAsync")]
+    [Arguments("v2.shell.list", "get", "ListShellsAsync")]
+    [Arguments("v2.shell.timeout", "patch", "TimeoutShellAsync")]
+    [Arguments("v2.shell.output", "get", "GetOutputAsync")]
     public async Task MethodName_Should_Lead_With_The_Structural_Verb(string operationId, string method, string expected)
     {
         await Assert.That(OperationNamePolicy.MethodName(Operation(operationId, method))).IsEqualTo(expected);
@@ -38,6 +43,10 @@ public sealed class OperationNamePolicyTests
     [Arguments("v2.session.list", "get", "SessionListResponse")]
     [Arguments("v2.session.create", "post", "SessionCreateResponse")]
     [Arguments("v2.message.list", "get", "MessageListResponse")]
+    [Arguments("v2.session.remove", "delete", "SessionRemoveResponse")]
+    [Arguments("v2.shell.timeout", "patch", "ShellTimeoutResponse")]
+    [Arguments("v2.shell.output", "get", "ShellOutputResponse")]
+    [Arguments("v2.shell.get", "get", "ShellResponse")]
     public async Task ResponseTypeName_Should_Fold_Non_Get_Verbs(string operationId, string method, string expected)
     {
         await Assert.That(OperationNamePolicy.ResponseTypeName(Operation(operationId, method))).IsEqualTo(expected);
@@ -81,6 +90,10 @@ public sealed class OperationNamePolicyTests
     [Arguments("v2.session.list", "get", "SessionListRequest")]
     [Arguments("v2.message.list", "get", "MessageListRequest")]
     [Arguments("v2.session.create", "post", "SessionCreateRequest")]
+    [Arguments("v2.session.rename", "post", "SessionRenameRequest")]
+    [Arguments("v2.shell.timeout", "patch", "ShellTimeoutRequest")]
+    [Arguments("v2.shell.output", "get", "ShellOutputRequest")]
+    [Arguments("v2.shell.get", "get", "ShellRequest")]
     public async Task RequestTypeName_Should_Compose_Group_Subject_And_Verb(string operationId, string method,
         string expected)
     {

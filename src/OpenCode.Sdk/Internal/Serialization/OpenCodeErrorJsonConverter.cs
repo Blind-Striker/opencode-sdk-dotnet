@@ -14,6 +14,7 @@ internal sealed class OpenCodeErrorJsonConverter : JsonConverter<OpenCodeError>
         ["InvalidRequestError"] = typeof(InvalidRequestError),
         ["MessageNotFoundError"] = typeof(MessageNotFoundError),
         ["SessionNotFoundError"] = typeof(SessionNotFoundError),
+        ["ShellNotFoundError"] = typeof(ShellNotFoundError),
         ["UnauthorizedError"] = typeof(UnauthorizedError),
         ["UnknownError"] = typeof(UnknownError)
     };

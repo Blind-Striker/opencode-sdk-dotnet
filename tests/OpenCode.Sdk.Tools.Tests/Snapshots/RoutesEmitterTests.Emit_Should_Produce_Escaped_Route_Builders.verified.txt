@@ -3,6 +3,7 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 using System;
 using OpenCode.Sdk.Internal;
+using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk;
 /// <summary>
@@ -27,9 +28,27 @@ public static class OpenCodeRoutes
     public static class Widgets
     {
         /// <summary>
-        /// The &apos;POST /api/widget&apos; route.
+        /// The &apos;POST /api/widget&apos; route template.
         /// </summary>
-        public const string CreateWidget = "/api/widget";
+        public const string CreateWidgetTemplate = "/api/widget";
+        /// <summary>
+        /// Builds the &apos;/api/widget&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string CreateWidget(WidgetCreateRequest? request = null)
+        {
+            var path = "/api/widget";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
         /// <summary>
         /// The &apos;GET /api/widget/{widgetID}/item/{itemID}&apos; route template.
         /// </summary>
@@ -62,6 +81,10 @@ public static class OpenCodeRoutes
         /// </summary>
         public const string GetOverview = "/api/widget-overview";
         /// <summary>
+        /// The &apos;GET /api/widget-spot&apos; route.
+        /// </summary>
+        public const string GetWidgetSpot = "/api/widget-spot";
+        /// <summary>
         /// The &apos;GET /api/widget/{widgetID}/item&apos; route template.
         /// </summary>
         public const string ListItemsTemplate = "/api/widget/{widgetID}/item";
@@ -93,6 +116,10 @@ public static class OpenCodeRoutes
         }
 
         /// <summary>
+        /// The &apos;GET /api/widget-spot-list&apos; route.
+        /// </summary>
+        public const string ListWidgetSpots = "/api/widget-spot-list";
+        /// <summary>
         /// The &apos;GET /api/widget&apos; route template.
         /// </summary>
         public const string ListWidgetsTemplate = "/api/widget";
@@ -109,12 +136,38 @@ public static class OpenCodeRoutes
                 return path;
             }
 
+            if (request.Order is not null && request.Cursor is not null)
+            {
+                throw new ArgumentException("The 'order' and 'cursor' query values cannot combine.", nameof(request));
+            }
+
             var query = new QueryStringBuilder();
             query.AddCount("limit", request.Limit, nameof(request));
             query.AddOrder("order", request.Order);
             query.AddText("cursor", request.Cursor);
             query.AddParentFilter("parentID", request.ParentId);
+            query.AddLocation("location", request.Location);
             return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;DELETE /api/widget/{widgetID}&apos; route template.
+        /// </summary>
+        public const string RemoveWidgetTemplate = "/api/widget/{widgetID}";
+        /// <summary>
+        /// Builds the &apos;/api/widget/{widgetID}&apos; route.
+        /// </summary>
+        /// <param name = "widgetId">The &apos;widgetID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string RemoveWidget(string widgetId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(widgetId);
+            if (widgetId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(widgetId));
+            }
+
+            return "/api/widget/" + Uri.EscapeDataString(widgetId);
         }
     }
 }
