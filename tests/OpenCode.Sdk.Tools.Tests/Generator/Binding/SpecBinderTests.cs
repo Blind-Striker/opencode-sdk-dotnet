@@ -399,7 +399,7 @@ public sealed class SpecBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Refuse_A_Numeric_Literal_In_The_Selected_Closure()
+    public async Task Bind_Should_Bind_A_Numeric_Literal_Like_Its_Primitive()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
             .WithSchema("VersionedItem", schema => schema.Type("object")
@@ -407,13 +407,15 @@ public sealed class SpecBinderTests
             .WithOperation("v2.health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("VersionedItem")))));
 
-        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+        var plan = new BindingTestHost().Bind(
             document,
             Selection("v2.health.get"),
-            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), })));
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), }));
 
-        await Assert.That(exception.Errors.Any(static error =>
-            error.Problem.Contains("numeric literal", StringComparison.Ordinal))).IsTrue();
+        var item = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "VersionedItem");
+        var version = item.Properties.Single(static property => property.WireName == "version").Type;
+        await Assert.That(version).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(((NamedTypeReferencePlan)version).Name).IsEqualTo("double");
     }
 
     [Test]

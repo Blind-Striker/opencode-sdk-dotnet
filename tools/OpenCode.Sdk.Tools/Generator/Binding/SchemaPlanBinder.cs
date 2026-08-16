@@ -500,9 +500,12 @@ internal sealed class SchemaPlanBinder
         {
             RefNode reference => BindReference(reference, subject, aliases),
             PrimitiveNode primitive => BindPrimitive(primitive),
+            // A literal binds to the type that holds its value; the marker itself is carried
+            // by the union machinery, not by the property's type.
             LiteralNode { Kind: LiteralKind.Boolean } => Named("bool"),
             LiteralNode { Kind: LiteralKind.String } => Named("string"),
-            LiteralNode => Refuse(subject, "numeric literal schemas are not supported by the emitter"),
+            LiteralNode { Kind: LiteralKind.Number } => Named("double"),
+            LiteralNode literal => Refuse(subject, $"literal kind '{literal.Kind}' is not supported by the emitter"),
             ArrayNode array => BindArray(array, subject, aliases),
             DictionaryNode dictionary => BindDictionary(dictionary, subject, aliases),
             FreeFormObjectNode => DictionaryOf(Named("JsonElement")),
