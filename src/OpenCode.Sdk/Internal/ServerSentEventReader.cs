@@ -148,7 +148,8 @@ internal sealed class ServerSentEventReader
             _ = _data.Append('\n');
         }
 
-        _ = _data.Append(_line.ToString(start, _line.Length - start));
+        // Appending the builder segment directly keeps the line out of an intermediate string.
+        _ = _data.Append(_line, start, _line.Length - start);
     }
 
     private bool StartsWithDataField()

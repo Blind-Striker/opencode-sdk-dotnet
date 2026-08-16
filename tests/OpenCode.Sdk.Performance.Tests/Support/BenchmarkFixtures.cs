@@ -23,6 +23,23 @@ internal static class BenchmarkFixtures
         return [.. "{\"data\":["u8, .. payload, .. "],\"cursor\":{\"next\":\"cur_bench_next\"}}"u8];
     }
 
+    /// <summary>Frames one payload as a run of server-sent events, the shape a live stream delivers.</summary>
+    public static byte[] EventStream(byte[] payload, int frames)
+    {
+        ArgumentNullException.ThrowIfNull(payload);
+        ArgumentOutOfRangeException.ThrowIfLessThan(frames, 1);
+
+        using var buffer = new MemoryStream();
+        for (var index = 0; index < frames; index++)
+        {
+            buffer.Write("data: "u8);
+            buffer.Write(payload);
+            buffer.Write("\n\n"u8);
+        }
+
+        return buffer.ToArray();
+    }
+
     private static async Task<byte[]> ReadAsync(string name)
     {
         var stream = typeof(BenchmarkFixtures).Assembly
