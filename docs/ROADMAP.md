@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-15
+Date: 2026-08-16
 
 Operational state: what is done, what is next, what is open. This file shrinks as work lands.
 Evergreen rules and locked decisions live in `../AGENTS.md`; decision records in `adr/`.
@@ -72,7 +72,13 @@ a factory-less singleton client family with a roster contract test, and the Q91 
 machinery is deleted — closing #31 by construction. #32 and #33 stay sealed with their
 execution homes recorded (Session 24), and the location + merged-Request design is
 sealed (Session 25, Q93/Q94: the binder placement map and the dual-channel location
-rendering).
+rendering). **Arc 3a's SSE engine is landed** — `ServerSentEventReader` frames a live body
+into named events, and the pipeline opens a stream through the same decoration, walls and
+transport-failure mapping the one-shot path uses. Q98 sealed what the `event` field is for
+(the contract's only mid-stream failure channel; upstream's own generated client discards
+it and we do not), and Q99 sealed that a body cut mid-event is reported rather than
+dispatched. What remains in Arc 3a is the generator side: the fail-closed stream walls, the
+JsonString dialect, admitting `v2.session.log`, and the live demo.
 
 **The M2 second breadth batch is complete** (plan:
 `superpowers/plans/2026-08-15-m2-second-breadth-batch.md`) — the design-prover batch:

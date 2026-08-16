@@ -1,4 +1,4 @@
-# All operation methods are generated; hand-wired constructs are fingerprint-pinned
+# All operation methods are generated; excluded operations are fingerprint-pinned
 
 Date: 2026-08-13
 
@@ -16,10 +16,10 @@ HTTP response the client reads incrementally, and the pinned contract declares i
 full — `text/event-stream` content, the `{id, event, data}` frame, and `data`'s payload
 through `contentSchema`/`contentMediaType`. So the drift argument applies unchanged: the
 stream *engine* is behavior and stays in the core, while stream *endpoints* emit as
-one-line delegations into it, exactly like the one-shot surface. Streams yield
-`IAsyncEnumerable<T>` rather than a response envelope, so `NoThrow` has no channel to
-answer on and a per-call request for it is refused rather than ignored. Upstream's own
-generator emits its SSE operations the same way, over the same contract.
+one-line delegations into it, exactly like the one-shot surface. A stream yields
+`IAsyncEnumerable<T>` rather than a response envelope, which is why its signature carries
+no per-call options (ADR-0007). Upstream's own generator emits its SSE operations the same
+way, over the same contract.
 
 The radar covers both sides of the boundary: generated output is CI regen-verified
 (ADR-0003); every **excluded** operation (`pty.connect`, future exclusions) is

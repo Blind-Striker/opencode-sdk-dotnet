@@ -13,6 +13,10 @@ internal static class BenchmarkFixtures
     /// <summary>The bare health payload the live server returns.</summary>
     public static byte[] HealthBody() => "{\"healthy\":true,\"version\":\"0.0.0-bench\",\"pid\":42}"u8.ToArray();
 
+    /// <summary>A small event body, the size the live feed carries most of.</summary>
+    public static byte[] SessionIdleBody() =>
+        "{\"type\":\"session.idle\",\"properties\":{\"sessionID\":\"ses_bench\"}}"u8.ToArray();
+
     /// <summary>Wraps a payload in the <c>{"data": ...}</c> success envelope.</summary>
     public static byte[] DataEnvelope(byte[] payload)
     {
@@ -32,14 +36,6 @@ internal static class BenchmarkFixtures
     {
         ArgumentNullException.ThrowIfNull(payload);
         ArgumentOutOfRangeException.ThrowIfLessThan(frames, 1);
-
-        // A data line carries no newline: an indented payload would frame as one line of
-        // content with the rest silently discarded, and the benchmark would measure that
-        // instead of frame reading.
-        if (Array.IndexOf(payload, (byte)'\n') >= 0)
-        {
-            throw new ArgumentException("An event payload must occupy a single line.", nameof(payload));
-        }
 
         using var buffer = new MemoryStream();
         for (var index = 0; index < frames; index++)
@@ -61,7 +57,28 @@ internal static class BenchmarkFixtures
         {
             await using var buffer = new MemoryStream();
             await stream.CopyToAsync(buffer).ConfigureAwait(false);
-            return buffer.ToArray();
+            return WireShaped(buffer.ToArray(), name);
         }
+    }
+
+    /// <summary>
+    /// Holds every fixture to the shape a server actually sends. Indentation puts whitespace
+    /// bytes through each measurement and frames as one line of content in an event stream,
+    /// so the numbers would describe the fixture rather than the code under test. The file's
+    /// own trailing newline is framing, not payload, and comes off.
+    /// </summary>
+    private static byte[] WireShaped(byte[] payload, string name)
+    {
+        var end = payload.Length;
+        while (end > 0 && payload[end - 1] is (byte)'\n' or (byte)'\r')
+        {
+            end--;
+        }
+
+        var trimmed = payload.AsSpan(0, end).ToArray();
+        return Array.IndexOf(trimmed, (byte)'\n') < 0
+            ? trimmed
+            : throw new InvalidOperationException(
+                $"Fixture '{name}' is not wire-shaped: the payload a server sends occupies one line.");
     }
 }

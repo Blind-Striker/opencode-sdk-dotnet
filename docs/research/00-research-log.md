@@ -1,6 +1,6 @@
 # Research log — 2026-08-08
 
-Date: 2026-08-13
+Date: 2026-08-16
 
 > How this project's understanding was built: the questions asked, how each was
 > researched, what was found, and what decision or lesson came out of it.
@@ -2171,3 +2171,68 @@ gives a stream call something real to carry.
 **Accepted cost:** the streaming methods' signatures diverge from the one-shot surface,
 which is honest rather than hidden — a stream's contract genuinely differs in that it
 always throws.
+
+## Q98: Is the SSE `event` field information, and what does the contract use it for?
+
+**How researched:** raised in code review — the frame reader discarded every field except
+`data`, while the pinned spec declares `id`, `event` and `data` all `required` on both
+stream responses. Read Effect's SSE encoder and parser (`effect/unstable/encoding/Sse.ts`),
+both server handlers, and upstream's own generated client.
+
+**Found — `required` describes the decoded envelope, not the wire.** The parser fills a
+missing `event:` line with `"message"` before the value is ever seen, so the decoded shape
+always has one. The encoder is the other half of the same coin: it writes `event:` **only
+when the name is not `"message"`**, and `id:` only when one is defined. An ordinary payload
+frame therefore carries neither line.
+
+**Found — that makes `event` a pure signal channel.** Its presence means the frame is not a
+payload. The one signal this API declares is `x-effect-stream.failureEvent:
+effect/httpapi/stream/failure`, sitting beside `causeSchema` and `errorSchema`. The reason
+is structural: once a 200 and its headers are on the wire, HTTP has no way left to say the
+operation failed, so Effect encodes the failed cause as an in-band frame with a reserved
+name — the SSE analogue of a trailer.
+
+**Found — the two endpoints do not behave alike, despite identical declarations.**
+`v2.session.log` is a `.handle(...)` returning a `Stream`, so it runs through the real
+`HttpApiSchema.StreamSse` encoder and can emit the failure frame. `v2.event.subscribe` is
+`handleRaw`: it writes `data: ${json}\n\n` by hand and keeps the connection alive with
+`: heartbeat\n\n` comment lines every 15 seconds, so it never emits `event:` at all and its
+failures simply close the connection.
+
+**Found — upstream's generated client has the hole we had.** `httpapi-codegen`'s reader
+keeps only `data:` lines and discards the rest, so a failure frame reaches it as an
+ordinary payload. Effect's own parser keeps the name. We follow the parser, not the codegen
+client.
+
+**Decision (maintainer, sealed):** frames dispatch as `ServerSentEvent(Name, Data)`. The
+adapter carries the operation's declared `failureEvent`; an unnamed frame is the only shape
+that carries a payload, a failure-named frame throws, and any other name is refused rather
+than parsed. Without this a server-side stream failure could arrive as a benign event
+through ADR-0009's unknown-variant carriers — the silent fallback the engineering
+conventions ban.
+
+**Accepted cost:** refusing an undeclared event name is stricter than upstream, which would
+parse such a frame as a payload. Fail-closed is the house position, and a new name should
+surface loudly rather than be mis-read.
+
+## Q99: What should a body that ends in the middle of an event mean?
+
+**How researched:** raised in code review — a stream cut mid-line folded its partial line
+into the pending frame and dispatched it, so the truncated JSON then failed as a "malformed
+frame payload" and blamed the server for a dropped connection.
+
+**Found — both references dispatch it too.** WHATWG says an incomplete event is not
+dispatched, but upstream's client appends `\n\n` to whatever remains at EOF and dispatches
+it, reaching the same wrong answer we did.
+
+**Found — the browser rationale does not transfer.** `EventSource` discards silently
+because it reconnects and re-reads; this SDK deliberately does not auto-reconnect (research
+doc 02), so a discarded remainder is simply lost data the consumer never hears about.
+
+**Decision (maintainer, sealed):** a body ending mid-line throws
+`OpenCodeTransportException` naming the truncation. A body ending after a complete line
+still dispatches its pending frame — that is a whole event missing only its blank line.
+
+**Accepted cost:** a deliberate divergence from both WHATWG and upstream, taken because
+neither's reasoning survives the no-reconnect posture, and because reporting a cut
+connection as a malformed payload misdirects every consumer who reads the message.
