@@ -15,3 +15,9 @@ deserialization fallback (codegen spike: unknown discriminator throws, research 
 through the source-generated context so the AOT commitment holds. This resolves the
 forward-compatibility question the codegen spike parked; the tolerance is a recorded
 runtime exception to the fail-closed default (API design spec §2.1/§14).
+
+The tolerance covers **payload** discriminators, not framing. An event stream's frame name
+is the channel that says whether a frame is a payload at all, so an unrecognized name is
+refused rather than carried: tolerating it would route a frame of unknown meaning into a
+payload carrier and report a server-side stream failure as an ordinary event. The unknown
+this ADR protects is a new variant inside a frame whose kind is understood.
