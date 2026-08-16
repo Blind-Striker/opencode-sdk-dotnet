@@ -877,6 +877,9 @@ internal sealed class OperationPlanBinder
                 .ToArray();
             if (query.Length is 0)
             {
+                // An operation with no query surface still answers for its curated rows;
+                // otherwise a row naming it would go dormant instead of refusing.
+                _ = BindExclusivePairs([]);
                 return null;
             }
 

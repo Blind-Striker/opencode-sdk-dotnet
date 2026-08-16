@@ -834,6 +834,22 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Refuse_A_Mutually_Exclusive_Row_When_The_Operation_Binds_No_Query_Surface()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(static _ => { }));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.list"),
+            Curation(
+                Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)),
+                mutuallyExclusiveQueries: [ExclusiveQuery("v2.widget.list", "order", "cursor")])));
+
+        await Assert.That(exception.Errors.Any(static error =>
+            error.Problem.Contains("does not carry query parameter", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
     public async Task Bind_Should_Refuse_A_Mutually_Exclusive_Row_Naming_An_Absent_Parameter()
     {
         var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
