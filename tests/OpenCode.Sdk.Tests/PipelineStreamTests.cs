@@ -91,20 +91,6 @@ public sealed class PipelineStreamTests
     }
 
     [Test]
-    public async Task ExecuteStreamAsync_Should_Refuse_NoThrow_Instead_Of_Ignoring_It()
-    {
-        using var handler = new RecordingHttpHandler(static _ => EventStream("data: {\"value\":\"first\"}\n\n"));
-        using var httpClient = new HttpClient(handler);
-        using var pipeline = PipelineFactory.Create(httpClient);
-
-        var exception = Assert.Throws<ArgumentException>(() => _ = pipeline.ExecuteStreamAsync(
-            HttpMethod.Get, "/api/event", new RecordingStreamAdapter(), OpenCodeRequestOptions.NoThrow, CancellationToken.None));
-
-        await Assert.That(exception.ParamName).IsEqualTo("options");
-        await Assert.That(handler.Requests).IsEmpty();
-    }
-
-    [Test]
     public async Task ExecuteStreamAsync_Should_Treat_A_Malformed_Frame_As_A_Protocol_Failure()
     {
         using var handler = new RecordingHttpHandler(static _ => EventStream("data: not json\n\n"));
@@ -138,7 +124,7 @@ public sealed class PipelineStreamTests
         using var pipeline = PipelineFactory.Create(httpClient);
 
         var exception = Assert.Throws<ArgumentException>(() => _ = pipeline.ExecuteStreamAsync(
-            HttpMethod.Get, "api/event", new RecordingStreamAdapter(), options: null, CancellationToken.None));
+            HttpMethod.Get, "api/event", new RecordingStreamAdapter(), CancellationToken.None));
 
         await Assert.That(exception.ParamName).IsEqualTo("route");
     }
@@ -156,7 +142,7 @@ public sealed class PipelineStreamTests
     {
         var payloads = new List<TestBody>();
         var stream = pipeline.ExecuteStreamAsync(
-            HttpMethod.Get, "/api/event", adapter ?? new RecordingStreamAdapter(), options: null, cancellationToken);
+            HttpMethod.Get, "/api/event", adapter ?? new RecordingStreamAdapter(), cancellationToken);
         await foreach (var payload in stream)
         {
             payloads.Add(payload);

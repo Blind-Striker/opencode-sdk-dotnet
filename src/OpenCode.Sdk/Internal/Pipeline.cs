@@ -120,10 +120,11 @@ internal sealed class Pipeline : IDisposable
     /// <summary>
     /// Opens a streaming operation: the status and content-type walls answer before the
     /// body is read, then each event frame's payload is yielded as it arrives. The
-    /// one-shot buffer is never involved.
+    /// one-shot buffer is never involved, and a stream always throws on an error status —
+    /// it has no envelope for one to ride.
     /// </summary>
     public IAsyncEnumerable<TPayload> ExecuteStreamAsync<TPayload>(HttpMethod method, string route,
-        IStreamAdapter<TPayload> adapter, OpenCodeRequestOptions? options, CancellationToken cancellationToken)
+        IStreamAdapter<TPayload> adapter, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(method);
@@ -133,16 +134,6 @@ internal sealed class Pipeline : IDisposable
         if (route[0] is not '/')
         {
             throw new ArgumentException("Routes must start with '/'.", nameof(route));
-        }
-
-        // A stream has no envelope to carry an error, so NoThrow cannot be honored here;
-        // ignoring it would silently drop the caller's choice.
-        var errorBehavior = options?.ErrorBehavior ?? ErrorBehavior.Default;
-        if (errorBehavior is not ErrorBehavior.Default)
-        {
-            throw new ArgumentException(
-                "Streaming operations always throw on an error status; NoThrow has no response to answer on.",
-                nameof(options));
         }
 
         return ExecuteStreamCoreAsync(method, route, adapter, cancellationToken);

@@ -2154,3 +2154,20 @@ log**: two branches, `Session.Event.Durable` and `EventLog.Synced`, with `after`
 from a position and `follow` to keep streaming. This is the replacement for the v1 durable
 pair, and its `after` — not the SSE `id:` line, which the first-party reader discards — is
 the resume mechanism.
+
+## Q97: Do streaming operations carry per-call request options?
+
+**How researched:** raised while the streaming pipeline path refused `NoThrow` at run time.
+`OpenCodeRequestOptions` carries exactly one member, `ErrorBehavior`, and a stream has no
+envelope for an error to ride, so the type had nothing left to say on that surface.
+
+**Decision (maintainer, sealed):** streaming operations take no per-call options. The
+refusal was preventing at run time what the compiler can prevent outright, against the
+same instinct that made `SessionParentFilter` unrepresentable-when-invalid (Q78). An empty
+stream-options type was weighed and rejected as speculative — it would carry nothing today.
+Recorded on ADR-0007 with its reversal trigger: M6's retry/telemetry/hooks work, if it
+gives a stream call something real to carry.
+
+**Accepted cost:** the streaming methods' signatures diverge from the one-shot surface,
+which is honest rather than hidden — a stream's contract genuinely differs in that it
+always throws.

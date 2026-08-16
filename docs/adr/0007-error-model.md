@@ -4,6 +4,13 @@ Date: 2026-08-13
 
 API failures throw through a typed exception spine (`OpenCodeException` →
 `OpenCodeApiException`) by default; per-call `NoThrow` returns them on the response spine.
+**Streaming operations carry no per-call options at all**: a stream yields an
+`IAsyncEnumerable<T>` rather than a response envelope, so there is nothing for `NoThrow` to
+answer on, and the only member the per-call options type carries is that choice. Offering
+the parameter and refusing it at run time would leave the compiler unable to prevent a
+mistake it can see, so the parameter is absent from the streaming surface instead. Reversal
+trigger: M6's retry/telemetry/hooks work, if it gives a stream call something real to carry
+— adding the parameter then is additive, and cheap while the packages are pre-1.0.
 Transport and protocol failures always throw `OpenCodeTransportException`. The spec's tagged
 error payloads are generated as typed models under an `OpenCodeError` base and ride **as data**
 on either channel, pattern-matchable without string sniffing. There is no client-level switch. Throwing API errors
