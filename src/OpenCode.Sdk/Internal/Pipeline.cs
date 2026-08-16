@@ -222,6 +222,88 @@ internal sealed class Pipeline : IDisposable
             : adapted;
     }
 
+    /// <summary>JSON is UTF-8 by definition (RFC 8259); the content type carries no charset.</summary>
+    private static ByteArrayContent CreateJsonContent<TBody>(TBody body, JsonTypeInfo<TBody> bodyTypeInfo)
+    {
+        var content = new ByteArrayContent(JsonSerializer.SerializeToUtf8Bytes(body, bodyTypeInfo));
+        content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        return content;
+    }
+
+    private void Decorate(HttpRequestMessage request)
+    {
+        if (_authorization is not null)
+        {
+            request.Headers.Authorization = _authorization;
+        }
+
+        // The ambient location rides the middleware's header channel, and the two members
+        // travel differently: the server percent-decodes the directory header but reads the
+        // workspace one verbatim, so the escaping mirrors that asymmetry exactly. Escaping
+        // also keeps a non-ASCII path sendable, since header values cannot carry it raw. The
+        // server resolves any explicit per-request location query first, so no client-side
+        // merge exists.
+        if (_location?.Directory is { } directory)
+        {
+            _ = request.Headers.TryAddWithoutValidation("x-opencode-directory", Uri.EscapeDataString(directory));
+        }
+
+        if (_location?.Workspace is { } workspace)
+        {
+            _ = request.Headers.TryAddWithoutValidation("x-opencode-workspace", workspace);
+        }
+
+        request.Headers.UserAgent.Add(_userAgent);
+    }
+
+    private async Task<HttpResponseMessage> SendCoreAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _httpClient
+                .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or ObjectDisposedException)
+        {
+            // ObjectDisposedException covers a dispose-during-send race; the pre-send disposed
+            // guard stays outside this catch.
+            throw new OpenCodeTransportException("The opencode server could not be reached.", exception);
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            // The caller's token is untouched, so this cancellation is the transport timing
+            // out; genuine caller cancellation passes through in the token-canceled case.
+            throw new OpenCodeTransportException("The opencode server did not respond within the transport timeout.", exception);
+        }
+    }
+
+    private static async Task<string> ReadBodyAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return response.Content is null
+                ? string.Empty
+                : await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+            when (exception is HttpRequestException or IOException or ObjectDisposedException or InvalidOperationException)
+        {
+            // InvalidOperationException covers an unusable response charset surfaced by
+            // ReadAsStringAsync.
+            throw new OpenCodeTransportException("The opencode response body could not be read.", exception);
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            // The caller's token is untouched, so this cancellation is the transport timing
+            // out mid-body; genuine caller cancellation passes through untouched.
+            throw new OpenCodeTransportException("The opencode response body could not be read.", exception);
+        }
+    }
+
+    private static OpenCodeApiException CreateApiException(OpenCodeResponse response) =>
+        OpenCodeErrorReader.CreateApiException(response.Status, response.Error, response.RawBody);
+
     private async IAsyncEnumerable<TPayload> ExecuteStreamCoreAsync<TPayload>(HttpMethod method, string route,
         IStreamAdapter<TPayload> adapter, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -335,85 +417,4 @@ internal sealed class Pipeline : IDisposable
         }
     }
 
-    /// <summary>JSON is UTF-8 by definition (RFC 8259); the content type carries no charset.</summary>
-    private static ByteArrayContent CreateJsonContent<TBody>(TBody body, JsonTypeInfo<TBody> bodyTypeInfo)
-    {
-        var content = new ByteArrayContent(JsonSerializer.SerializeToUtf8Bytes(body, bodyTypeInfo));
-        content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-        return content;
-    }
-
-    private void Decorate(HttpRequestMessage request)
-    {
-        if (_authorization is not null)
-        {
-            request.Headers.Authorization = _authorization;
-        }
-
-        // The ambient location rides the middleware's header channel, and the two members
-        // travel differently: the server percent-decodes the directory header but reads the
-        // workspace one verbatim, so the escaping mirrors that asymmetry exactly. Escaping
-        // also keeps a non-ASCII path sendable, since header values cannot carry it raw. The
-        // server resolves any explicit per-request location query first, so no client-side
-        // merge exists.
-        if (_location?.Directory is { } directory)
-        {
-            _ = request.Headers.TryAddWithoutValidation("x-opencode-directory", Uri.EscapeDataString(directory));
-        }
-
-        if (_location?.Workspace is { } workspace)
-        {
-            _ = request.Headers.TryAddWithoutValidation("x-opencode-workspace", workspace);
-        }
-
-        request.Headers.UserAgent.Add(_userAgent);
-    }
-
-    private async Task<HttpResponseMessage> SendCoreAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await _httpClient
-                .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
-                .ConfigureAwait(false);
-        }
-        catch (Exception exception) when (exception is HttpRequestException or ObjectDisposedException)
-        {
-            // ObjectDisposedException covers a dispose-during-send race; the pre-send disposed
-            // guard stays outside this catch.
-            throw new OpenCodeTransportException("The opencode server could not be reached.", exception);
-        }
-        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
-        {
-            // The caller's token is untouched, so this cancellation is the transport timing
-            // out; genuine caller cancellation passes through in the token-canceled case.
-            throw new OpenCodeTransportException("The opencode server did not respond within the transport timeout.", exception);
-        }
-    }
-
-    private static async Task<string> ReadBodyAsync(HttpResponseMessage response, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return response.Content is null
-                ? string.Empty
-                : await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception exception)
-            when (exception is HttpRequestException or IOException or ObjectDisposedException or InvalidOperationException)
-        {
-            // InvalidOperationException covers an unusable response charset surfaced by
-            // ReadAsStringAsync.
-            throw new OpenCodeTransportException("The opencode response body could not be read.", exception);
-        }
-        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
-        {
-            // The caller's token is untouched, so this cancellation is the transport timing
-            // out mid-body; genuine caller cancellation passes through untouched.
-            throw new OpenCodeTransportException("The opencode response body could not be read.", exception);
-        }
-    }
-
-    private static OpenCodeApiException CreateApiException(OpenCodeResponse response) =>
-        OpenCodeErrorReader.CreateApiException(response.Status, response.Error, response.RawBody);
 }

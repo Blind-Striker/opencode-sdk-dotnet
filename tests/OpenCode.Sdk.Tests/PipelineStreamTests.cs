@@ -11,12 +11,13 @@ namespace OpenCode.Sdk.Tests;
 public sealed class PipelineStreamTests
 {
     private const string EventStreamMediaType = "text/event-stream";
+    private const string FirstFrame = "data: {\"value\":\"first\"}\n\n";
+    private const string FirstAndSecondFrames = FirstFrame + "data: {\"value\":\"second\"}\n\n";
 
     [Test]
     public async Task ExecuteStreamAsync_Should_Yield_Every_Frame_Payload()
     {
-        using var handler = new RecordingHttpHandler(static _ => EventStream(
-            "data: {\"value\":\"first\"}\n\ndata: {\"value\":\"second\"}\n\n"));
+        using var handler = new RecordingHttpHandler(static _ => EventStream(FirstAndSecondFrames));
         using var httpClient = new HttpClient(handler);
         using var pipeline = PipelineFactory.Create(httpClient);
 
@@ -29,7 +30,7 @@ public sealed class PipelineStreamTests
     [Test]
     public async Task ExecuteStreamAsync_Should_Decorate_The_Request_Like_Any_Other()
     {
-        using var handler = new RecordingHttpHandler(static _ => EventStream("data: {\"value\":\"first\"}\n\n"));
+        using var handler = new RecordingHttpHandler(static _ => EventStream(FirstFrame));
         using var httpClient = new HttpClient(handler);
         using var pipeline = PipelineFactory.Create(httpClient, password: "secret",
             location: new LocationSelector { Directory = "/repo" });
@@ -82,8 +83,8 @@ public sealed class PipelineStreamTests
     {
         using var handler = new RecordingHttpHandler(static _ =>
         {
-            var content = new StringContent("data: {\"value\":\"first\"}\n\n");
-            content.Headers.ContentType = new MediaTypeHeaderValue("text/event-stream");
+            var content = new StringContent(FirstFrame);
+            content.Headers.ContentType = new MediaTypeHeaderValue(EventStreamMediaType);
             return new HttpResponseMessage(HttpStatusCode.Created) { Content = content, };
         });
         using var httpClient = new HttpClient(handler);
@@ -109,7 +110,7 @@ public sealed class PipelineStreamTests
     [Test]
     public async Task ExecuteStreamAsync_Should_Honor_Cancellation()
     {
-        using var handler = new RecordingHttpHandler(static _ => EventStream("data: {\"value\":\"first\"}\n\n"));
+        using var handler = new RecordingHttpHandler(static _ => EventStream(FirstFrame));
         using var httpClient = new HttpClient(handler);
         using var pipeline = PipelineFactory.Create(httpClient);
         using var cancellation = new CancellationTokenSource();
@@ -124,7 +125,7 @@ public sealed class PipelineStreamTests
     public async Task ExecuteStreamAsync_Should_Read_A_Mid_Stream_Connection_Failure_As_A_Transport_Failure()
     {
         using var handler = new RecordingHttpHandler(static _ =>
-            EventStreamOf(new FaultingStream(Encoding.UTF8.GetBytes("data: {\"value\":\"first\"}\n\n"))));
+            EventStreamOf(new FaultingStream(Encoding.UTF8.GetBytes(FirstFrame))));
         using var httpClient = new HttpClient(handler);
         using var pipeline = PipelineFactory.Create(httpClient);
 
@@ -139,7 +140,7 @@ public sealed class PipelineStreamTests
     public async Task ExecuteStreamAsync_Should_Refuse_A_Stream_Failure_Frame_Instead_Of_Yielding_It()
     {
         using var handler = new RecordingHttpHandler(static _ => EventStream(
-            $"data: {{\"value\":\"first\"}}\n\nevent: {TestStreamAdapter.StreamFailureEventName}\ndata: [{{\"_tag\":\"Fail\"}}]\n\n"));
+            FirstFrame + $"event: {TestStreamAdapter.StreamFailureEventName}\ndata: [{{\"_tag\":\"Fail\"}}]\n\n"));
         using var httpClient = new HttpClient(handler);
         using var pipeline = PipelineFactory.Create(httpClient);
 
@@ -154,7 +155,7 @@ public sealed class PipelineStreamTests
     public async Task ExecuteStreamAsync_Should_Refuse_A_Frame_Named_Outside_The_Contract()
     {
         using var handler = new RecordingHttpHandler(static _ =>
-            EventStream("event: surprise\ndata: {\"value\":\"first\"}\n\n"));
+            EventStream("event: surprise\n" + FirstFrame));
         using var httpClient = new HttpClient(handler);
         using var pipeline = PipelineFactory.Create(httpClient);
 
@@ -170,7 +171,7 @@ public sealed class PipelineStreamTests
     {
         using var handler = new RecordingHttpHandler(static _ =>
         {
-            var content = new StringContent("data: {\"value\":\"first\"}\n\n");
+            var content = new StringContent(FirstFrame);
             content.Headers.ContentType = new MediaTypeHeaderValue("Text/Event-Stream");
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = content, };
         });
@@ -199,7 +200,7 @@ public sealed class PipelineStreamTests
     [Test]
     public async Task ExecuteStreamAsync_Should_Dispose_The_Body_When_The_Consumer_Stops_Early()
     {
-        using var body = ChunkedStream.Of("data: {\"value\":\"first\"}\n\ndata: {\"value\":\"second\"}\n\n");
+        using var body = ChunkedStream.Of(FirstAndSecondFrames);
         using var handler = new RecordingHttpHandler(_ => EventStreamOf(body));
         using var httpClient = new HttpClient(handler);
         using var pipeline = PipelineFactory.Create(httpClient);
