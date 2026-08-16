@@ -16,6 +16,6 @@ public interface IOpenCodeClientOptions
     /// <summary>Gets the HTTP basic-authentication password; <see langword="null"/> sends anonymous requests.</summary>
     public string? Password { get; }
 
-    /// <summary>Gets the ambient location every request carries as location headers, or <see langword="null"/> for none.</summary>
+    /// <summary>Gets the ambient location sent on every request as location headers, or <see langword="null"/> for none.</summary>
     public LocationSelector? Location { get; }
 }

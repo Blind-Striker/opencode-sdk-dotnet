@@ -197,13 +197,32 @@ pinned server implementation. Client-side password resolution lives in the *cons
 reads no environment. Service mode generates `randomBytes(32).toString("base64url")` when
 unconfigured; foreground `serve` prints the password when it generated one.
 
-**Location addressing is dual-channel (re-derived at the pin, 2026-08-14)**: the server's
-location middleware (`packages/server/src/location.ts`) resolves per request as
-`location[workspace]` query **or** `x-opencode-workspace` header, and `location[directory]`
-query **or** `x-opencode-directory` header **or** the server's cwd — precedence query >
-header. The per-operation `location` deepObject query parameter (61 operations, §5a) is the
-spec-visible channel the first-party generated client uses exclusively; the headers are the
-spec-invisible ambient channel other consumers (drive driver, CLI) ride. The SDK-side
+**Location addressing is dual-channel (re-derived at the pin, 2026-08-14; measured
+2026-08-16 — research log Q95)**: the server's location middleware
+(`packages/server/src/location.ts`) resolves per request as `location[workspace]` query
+**or** `x-opencode-workspace` header, and `location[directory]` query **or**
+`x-opencode-directory` header **or** the server's cwd — precedence query > header. Three
+mechanics matter and are easy to get wrong:
+
+- **Precedence is per field, not per location object**, and the code uses `||`, so an empty
+  query value falls through to the header. An ambient `{directory, workspaceID}` plus a
+  per-request query carrying only `directory` resolves to the per-request directory and the
+  **ambient** workspace.
+- **The middleware is attached per group** (`packages/protocol/src/api.ts:150-180`), not per
+  endpoint that declares the parameter. It therefore reaches operations with no location
+  query parameter at all (`project.list`, `permission.saved.*`) and is inert on the groups
+  without it (health, server, message, event, debug, migration) and on session-scoped
+  endpoints, which resolve location from the session DB row and ignore both channels.
+- **Only the directory header is percent-decoded** server-side; the workspace header is read
+  verbatim, so a client's escaping must be asymmetric to match.
+
+The headers are absent from the document because they were never expressible in it, not
+because they were removed: the spec is `OpenApi.fromApi(ClientApi)` over declared endpoint
+schemas, and middleware contributes nothing to the parameter surface — `Authorization` is
+invisible for exactly the same reason while remaining mandatory. The per-operation `location`
+deepObject query parameter (61 operations, §5a) is the spec-visible channel the first-party
+generated client uses exclusively; the headers are the spec-invisible ambient channel other
+consumers (drive driver, CLI) ride. The SDK-side
 rendering — per-op request property vs ambient client/request-option default, plus the
 deepObject marshalling and the `session.list` flat-field exception — is the location +
 merged-Request design session that opens M3 planning (research log Session 22).

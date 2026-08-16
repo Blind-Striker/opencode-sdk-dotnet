@@ -125,7 +125,13 @@ is revisited at each milestone boundary.
    background service's discovery file are candidate mechanisms — decided in the M4 plan;
    platform detail: research doc 15.)
 5. **M5 — Full surface.** Complete generation profile over the protocol surface,
-   exclusion fingerprints (ADR-0008), packaging unblocked.
+   exclusion fingerprints (ADR-0008), packaging unblocked. The **ambient location
+   header decision (#37)** lands here and is decision-first: packaging unblocking
+   freezes the public surface, so this is the last free moment to drop
+   `OpenCodeClientOptions.Location` (option B) or fold it into the query channel
+   (option C). The batch admitting `project.list` / `permission.saved.*` /
+   `session.form.*` answers whether the header is those operations' only addressing
+   channel.
 6. **M6 — Operational closure.** `refresh-spec`, retry/telemetry/hooks, quarantine
    lane, nightly canary (the performance suite joins it); durable decisions distill
    into ADRs and the `superpowers/` documents retire. Any
