@@ -6,6 +6,9 @@ internal static class BenchmarkFixtures
     /// <summary>A deep assistant message: reasoning + text + two tool parts across four union levels.</summary>
     public static Task<byte[]> DeepAssistantMessageAsync() => ReadAsync("deep-assistant-message.json");
 
+    /// <summary>The same message compacted onto one line, as a wire event carries it.</summary>
+    public static Task<byte[]> DeepAssistantEventAsync() => ReadAsync("deep-assistant-event.json");
+
     /// <summary>The bare health payload the live server returns.</summary>
     public static byte[] HealthBody() => "{\"healthy\":true,\"version\":\"0.0.0-bench\",\"pid\":42}"u8.ToArray();
 
@@ -28,6 +31,14 @@ internal static class BenchmarkFixtures
     {
         ArgumentNullException.ThrowIfNull(payload);
         ArgumentOutOfRangeException.ThrowIfLessThan(frames, 1);
+
+        // A data line carries no newline: an indented payload would frame as one line of
+        // content with the rest silently discarded, and the benchmark would measure that
+        // instead of frame reading.
+        if (Array.IndexOf(payload, (byte)'\n') >= 0)
+        {
+            throw new ArgumentException("An event payload must occupy a single line.", nameof(payload));
+        }
 
         using var buffer = new MemoryStream();
         for (var index = 0; index < frames; index++)
