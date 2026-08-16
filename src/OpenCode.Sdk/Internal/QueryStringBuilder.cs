@@ -81,6 +81,15 @@ internal sealed class QueryStringBuilder
         }
     }
 
+    private void Append(string name, string value)
+    {
+        _builder ??= new StringBuilder();
+        _ = _builder.Append(_builder.Length is 0 ? '?' : '&')
+            .Append(Uri.EscapeDataString(name))
+            .Append('=')
+            .Append(Uri.EscapeDataString(value));
+    }
+
     /// <summary>
     /// DeepObject keys ride the wire with literal brackets, matching the first-party
     /// client's serialization; the member names are SDK literals, never caller input.
@@ -93,15 +102,6 @@ internal sealed class QueryStringBuilder
             .Append('[')
             .Append(member)
             .Append(']')
-            .Append('=')
-            .Append(Uri.EscapeDataString(value));
-    }
-
-    private void Append(string name, string value)
-    {
-        _builder ??= new StringBuilder();
-        _ = _builder.Append(_builder.Length is 0 ? '?' : '&')
-            .Append(Uri.EscapeDataString(name))
             .Append('=')
             .Append(Uri.EscapeDataString(value));
     }
