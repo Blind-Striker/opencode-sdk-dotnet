@@ -113,8 +113,10 @@ direction and rationale, not law; only this list and the ADRs bind.
   project/build files, tool manifests or baselines, workflow files, or generated artifacts.
 - Research/decision sessions end with a documentation pass (research log in
   question→finding→decision format, topic docs, ROADMAP) and a single commit.
-- Commit messages follow Conventional Commits (`feat`, `fix`, `docs`, `test`, `refactor`,
-  `build`, `ci`, `chore`); no AI attribution trailers.
+- Commit messages follow Conventional Commits (`feat`, `fix`, `perf`, `docs`, `test`,
+  `refactor`, `build`, `ci`, `chore`); no AI attribution trailers. `perf` is its own type
+  because performance work here carries its own evidence rule — before/after benchmark
+  numbers in the commit — which `refactor` would hide.
 - Commit only with the maintainer's approval — except inside an explicitly agreed development
   loop, where committing is part of the flow.
 
