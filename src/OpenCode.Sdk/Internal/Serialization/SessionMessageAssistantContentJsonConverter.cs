@@ -14,17 +14,10 @@ internal sealed class SessionMessageAssistantContentJsonConverter : JsonConverte
         ["text"] = typeof(SessionMessageAssistantText),
         ["tool"] = typeof(SessionMessageAssistantTool)
     };
-    public override bool HandleNull => true;
-
     public override ISessionMessageAssistantContent Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        if (reader.TokenType == JsonTokenType.Null)
-        {
-            throw new JsonException("The SessionMessageAssistantContent payload cannot be null.");
-        }
-
         using var document = JsonDocument.ParseValue(ref reader);
         var payload = document.RootElement;
         if (payload.ValueKind != JsonValueKind.Object)

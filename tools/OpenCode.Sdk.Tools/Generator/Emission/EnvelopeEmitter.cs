@@ -43,7 +43,7 @@ internal static class EnvelopeEmitter
         {
             EnvelopeKind.NoContent => ["System.Diagnostics.CodeAnalysis", "OpenCode.Sdk.Models"],
             EnvelopeKind.CursorList or EnvelopeKind.DataLocationList =>
-                ["System", "System.Diagnostics.CodeAnalysis", "System.Text", "OpenCode.Sdk.Internal.Serialization", "OpenCode.Sdk.Models"],
+                ["System", "System.Diagnostics.CodeAnalysis", "System.Text", "OpenCode.Sdk.Models"],
             EnvelopeKind.Bare or EnvelopeKind.Data or EnvelopeKind.DataLocation or _ =>
                 ["System", "System.Diagnostics.CodeAnalysis", "System.Text", "OpenCode.Sdk.Models"],
         };
@@ -175,16 +175,11 @@ internal static class EnvelopeEmitter
     private static PropertyDeclarationSyntax EmitPayloadProperty(EnvelopePlan envelope, TypeSyntax payloadType, string fieldName)
     {
         var payloadName = RequirePayloadName(envelope);
-        ExpressionSyntax initValue = SyntaxFactory.IdentifierName("value");
-        if (envelope.Kind is EnvelopeKind.CursorList or EnvelopeKind.DataLocationList)
-        {
-            initValue = DefensiveListCopy();
-        }
         return EmitGuardedProperty(
             payloadType,
             payloadName,
             fieldName,
-            initValue,
+            SyntaxFactory.IdentifierName("value"),
             $"Gets the {payloadName} payload; guarded on the error path.");
     }
 
@@ -203,21 +198,6 @@ internal static class EnvelopeEmitter
             "_location",
             SyntaxFactory.IdentifierName("value"),
             "Gets the location the server resolved for the request; guarded on the error path.");
-
-    /// <summary>
-    /// List payloads defensively copy on init so the envelope stays immutable; the copy
-    /// refuses null elements the wire contract forbids, while the error path's forgiven
-    /// null passes through uncopied and stays behind the getter guard.
-    /// </summary>
-    private static ConditionalExpressionSyntax DefensiveListCopy() =>
-        SyntaxFactory.ConditionalExpression(
-            SyntaxFactory.IsPatternExpression(
-                SyntaxFactory.IdentifierName("value"),
-                SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
-            SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression),
-            EmissionSyntax.Invocation(
-                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("ListPayloadInput"), "CopyRejectingNullElements"),
-                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("value"))));
 
     private static PropertyDeclarationSyntax EmitGuardedProperty(TypeSyntax propertyType, string propertyName,
         string fieldName, ExpressionSyntax initValue, string documentation)

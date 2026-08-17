@@ -21,17 +21,10 @@ internal sealed class SessionMessageInfoJsonConverter : JsonConverter<ISessionMe
         ["system"] = typeof(SessionMessageSystem),
         ["user"] = typeof(SessionMessageUser)
     };
-    public override bool HandleNull => true;
-
     public override ISessionMessageInfo Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        if (reader.TokenType == JsonTokenType.Null)
-        {
-            throw new JsonException("The SessionMessageInfo payload cannot be null.");
-        }
-
         using var document = JsonDocument.ParseValue(ref reader);
         var payload = document.RootElement;
         if (payload.ValueKind != JsonValueKind.Object)

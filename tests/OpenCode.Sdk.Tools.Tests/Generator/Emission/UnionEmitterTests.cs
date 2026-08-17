@@ -24,13 +24,13 @@ public sealed class UnionEmitterTests
     }
 
     [Test]
-    public async Task Emit_Should_Guard_Carrier_Converters_Against_Null_And_Foreign_Fixed_Markers()
+    public async Task Emit_Should_Leave_Null_To_Outer_Metadata_And_Guard_Foreign_Fixed_Markers()
     {
         var source = EmitterSnapshot.Create(UnionEmitter.Emit(EmitterPlanFixture.CreateUnionSnapshot()));
 
         var carrier = source[source.IndexOf("class UnknownExamplePhaseJsonConverter", StringComparison.Ordinal)..];
-        await Assert.That(carrier).Contains("HandleNull => true");
-        await Assert.That(carrier).Contains("The ExamplePhase payload cannot be null.");
+        await Assert.That(carrier).DoesNotContain("HandleNull");
+        await Assert.That(carrier).DoesNotContain("payload cannot be null");
         await Assert.That(carrier).Contains("must be 'phase'");
     }
 }

@@ -8,17 +8,10 @@ namespace OpenCode.Sdk.Internal.Serialization;
 
 internal sealed class UnknownSessionEventDurableJsonConverter : JsonConverter<UnknownSessionEventDurable>
 {
-    public override bool HandleNull => true;
-
     public override UnknownSessionEventDurable Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        if (reader.TokenType == JsonTokenType.Null)
-        {
-            throw new JsonException("The SessionEventDurable payload cannot be null.");
-        }
-
         using var document = JsonDocument.ParseValue(ref reader);
         var payload = document.RootElement;
         if (payload.ValueKind != JsonValueKind.Object)

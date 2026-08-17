@@ -34,14 +34,14 @@ public sealed class SessionClientContractTests
     }
 
     [Test]
-    public async Task GetSessionAsync_Should_Treat_An_Explicit_Null_Parent_As_A_Malformed_Success()
+    public async Task GetSessionAsync_Should_Collapse_An_Explicit_Null_Parent()
     {
         var payload = new FixtureLoader().LoadJson("Serialization.null-parent-session.json");
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(payload));
 
-        _ = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").GetSessionAsync())
-            .Throws<OpenCodeTransportException>();
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetSessionAsync();
+
+        await Assert.That(response.Session.ParentId).IsNull();
     }
 
     [Test]
@@ -97,16 +97,6 @@ public sealed class SessionClientContractTests
         await Assert.That(response.Cursor.Next).IsNull();
         await Assert.That(scenario.Requests.Single().RequestUri!.AbsoluteUri)
             .IsEqualTo("http://localhost:4096/api/session/ses_100/message?limit=2&order=asc");
-    }
-
-    [Test]
-    public async Task ListMessagesAsync_Should_Treat_A_Null_Page_Element_As_A_Protocol_Failure()
-    {
-        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Page("null"));
-
-        _ = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").ListMessagesAsync())
-            .Throws<OpenCodeTransportException>();
     }
 
     [Test]

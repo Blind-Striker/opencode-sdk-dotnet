@@ -2,7 +2,6 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
-using OpenCode.Sdk.Internal.Serialization;
 using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk;
@@ -37,7 +36,7 @@ public sealed record ShellListResponse : OpenCodeResponse
     /// <summary>
     /// Gets the Shells payload; guarded on the error path.
     /// </summary>
-    public required IReadOnlyList<ShellInfo> Shells { get => _shells ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Shells."); init => _shells = value is null ? null : ListPayloadInput.CopyRejectingNullElements(value); }
+    public required IReadOnlyList<ShellInfo> Shells { get => _shells ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Shells."); init => _shells = value; }
     /// <summary>
     /// Gets the location the server resolved for the request; guarded on the error path.
     /// </summary>

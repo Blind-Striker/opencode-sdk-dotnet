@@ -132,7 +132,6 @@ internal static class UnionEmitter
         readStatements.AddRange(EmissionSyntax.ArgumentNullGuard("options"));
         readStatements.AddRange(
         [
-            EmitNullTokenCheck(union),
             EmitPayloadDocument(),
             Local("payload", EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("document"), "RootElement")),
             EmitObjectPayloadCheck(union),
@@ -192,7 +191,7 @@ internal static class UnionEmitter
                 SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.Generic(
                     "JsonConverter",
                     TypeSyntaxEmitter.EmitNamed(union.UnknownTypeName))))))
-            .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>([EmitHandleNull(), read, write]));
+            .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>([read, write]));
         var unit = EmissionSyntax.CompilationUnit(
             "OpenCode.Sdk.Internal.Serialization",
             [
@@ -299,7 +298,6 @@ internal static class UnionEmitter
             .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>(
             [
                 EmitDispatchMap(union),
-                EmitHandleNull(),
                 EmitRead(union),
                 EmitWrite(union),
             ]));
@@ -345,17 +343,6 @@ internal static class UnionEmitter
                 SyntaxFactory.Token(SyntaxKind.ReadOnlyKeyword)));
     }
 
-    private static PropertyDeclarationSyntax EmitHandleNull() =>
-        SyntaxFactory.PropertyDeclaration(
-                SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.BoolKeyword)),
-                "HandleNull")
-            .WithModifiers(SyntaxFactory.TokenList(
-                SyntaxFactory.Token(SyntaxKind.PublicKeyword),
-                SyntaxFactory.Token(SyntaxKind.OverrideKeyword)))
-            .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(
-                SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression)))
-            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
-
     private static MethodDeclarationSyntax EmitRead(UnionPlan union)
     {
         var statements = new List<StatementSyntax>();
@@ -363,7 +350,6 @@ internal static class UnionEmitter
         statements.AddRange(EmissionSyntax.ArgumentNullGuard("options"));
         statements.AddRange(
         [
-            EmitNullTokenCheck(union),
             EmitPayloadDocument(),
             Local("payload", EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("document"), "RootElement")),
             EmitObjectPayloadCheck(union),
@@ -394,14 +380,6 @@ internal static class UnionEmitter
             ])))
             .WithBody(SyntaxFactory.Block(statements));
     }
-
-    private static IfStatementSyntax EmitNullTokenCheck(UnionPlan union) =>
-        SyntaxFactory.IfStatement(
-            SyntaxFactory.BinaryExpression(
-                SyntaxKind.EqualsExpression,
-                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("reader"), "TokenType"),
-                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("JsonTokenType"), "Null")),
-            ThrowJson($"The {union.ConceptName} payload cannot be null."));
 
     /// <summary>
     /// A nested union's fixed outer tag is structural identity, not dispatch input: a

@@ -29,4 +29,18 @@ public sealed class SourceEmitterTests
 
         await Assert.That(diagnostics).IsEmpty();
     }
+
+    [Test]
+    public async Task Emit_Should_Not_Emit_Retired_Materialization_Helpers()
+    {
+        var sources = SourceEmitter.Emit(EmitterPlanFixture.Create());
+
+        await Assert.That(sources.Select(static source => source.RelativePath)).DoesNotContain(
+            "Internal/Serialization/OptionalCollectionInput.cs");
+        var content = EmitterSnapshot.Create(sources);
+        await Assert.That(content).DoesNotContain("WireNullRejecting");
+        await Assert.That(content).DoesNotContain("NullElementRejectingListJsonConverter");
+        await Assert.That(content).DoesNotContain("ListPayloadInput");
+        await Assert.That(content).DoesNotContain("NonEmptyNoContentFailure");
+    }
 }

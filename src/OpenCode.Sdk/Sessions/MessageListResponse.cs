@@ -2,7 +2,6 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
-using OpenCode.Sdk.Internal.Serialization;
 using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk;
@@ -37,7 +36,7 @@ public sealed record MessageListResponse : OpenCodeResponse
     /// <summary>
     /// Gets the Messages payload; guarded on the error path.
     /// </summary>
-    public required IReadOnlyList<ISessionMessageInfo> Messages { get => _messages ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Messages."); init => _messages = value is null ? null : ListPayloadInput.CopyRejectingNullElements(value); }
+    public required IReadOnlyList<ISessionMessageInfo> Messages { get => _messages ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Messages."); init => _messages = value; }
     /// <summary>
     /// Gets the page cursor; guarded on the error path.
     /// </summary>

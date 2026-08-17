@@ -29,11 +29,13 @@ public sealed class OpenCodeJsonContextTests
     }
 
     [Test]
-    public async Task Deserialize_Should_Reject_Explicit_Null_On_An_Optional_Nonnull_Property()
+    public async Task Deserialize_Should_Collapse_Explicit_Null_On_An_Optional_Property()
     {
         var json = _fixtures.LoadJson("Serialization.null-parent-session.json");
 
-        _ = await Assert.That(() => _serializer.Deserialize<SessionInfo>(json)).Throws<JsonException>();
+        var session = _serializer.Deserialize<SessionInfo>(json);
+
+        await Assert.That(session.ParentId).IsNull();
     }
 
     [Test]
@@ -45,11 +47,13 @@ public sealed class OpenCodeJsonContextTests
     }
 
     [Test]
-    public async Task Deserialize_Should_Reject_Null_For_A_Concrete_Unknown_Carrier()
+    public async Task Deserialize_Should_Return_Null_For_A_Concrete_Unknown_Carrier_Without_Outer_Metadata()
     {
         var typeInfo = (JsonTypeInfo<UnknownOpenCodeError>)_serializer.GetTypeInfo(typeof(UnknownOpenCodeError));
 
-        _ = await Assert.That(() => JsonSerializer.Deserialize("null", typeInfo)).Throws<JsonException>();
+        var result = JsonSerializer.Deserialize("null", typeInfo);
+
+        await Assert.That(result).IsNull();
     }
 
     [Test]
@@ -130,11 +134,16 @@ public sealed class OpenCodeJsonContextTests
     }
 
     [Test]
-    public async Task Deserialize_Should_Reject_Explicit_Null_For_An_Optional_Special_Number()
+    public async Task Deserialize_Should_Accept_And_Omit_Explicit_Null_For_An_Optional_Special_Number()
     {
         var json = CreateShellJson(exit: null);
 
-        _ = await Assert.That(() => _serializer.Deserialize<ISessionMessageInfo>(json)).Throws<JsonException>();
+        var shell = (SessionMessageShell)_serializer.Deserialize<ISessionMessageInfo>(json);
+        var serialized = _serializer.Serialize<ISessionMessageInfo>(shell);
+
+        await Assert.That(shell.Exit).IsNull();
+        using var document = JsonDocument.Parse(serialized);
+        await Assert.That(document.RootElement.TryGetProperty("exit", out _)).IsFalse();
     }
 
     [Test]
@@ -148,7 +157,7 @@ public sealed class OpenCodeJsonContextTests
     }
 
     [Test]
-    public async Task Deserialize_Should_Normalize_Absent_Optional_Nonnull_Collections_To_Empty()
+    public async Task Deserialize_Should_Keep_Absent_Optional_Collections_Null()
     {
         var json = _fixtures.LoadJson("Serialization.known-session-message.json");
 
@@ -156,10 +165,10 @@ public sealed class OpenCodeJsonContextTests
 
         await Assert.That(result).IsTypeOf<SessionMessageUser>();
         var user = (SessionMessageUser)result;
-        await Assert.That(user.Metadata).IsEmpty();
-        await Assert.That(user.Files).IsEmpty();
-        await Assert.That(user.Agents).IsEmpty();
-        await Assert.That(user.Skills).IsEmpty();
+        await Assert.That(user.Metadata).IsNull();
+        await Assert.That(user.Files).IsNull();
+        await Assert.That(user.Agents).IsNull();
+        await Assert.That(user.Skills).IsNull();
     }
 
     [Test]
@@ -281,7 +290,7 @@ public sealed class OpenCodeJsonContextTests
 
         await Assert.That(result).IsTypeOf<SessionMessageToolStateRunning>();
         var running = (SessionMessageToolStateRunning)result;
-        await Assert.That(running.Input["query"].GetString()).IsEqualTo("queued input");
+        await Assert.That(running.Input["query"]?.GetString()).IsEqualTo("queued input");
         var serialized = _serializer.Serialize<ISessionMessageToolState>(running);
         using var document = JsonDocument.Parse(serialized);
         await Assert.That(document.RootElement.GetProperty("status").GetString()).IsEqualTo("running");
@@ -329,12 +338,13 @@ public sealed class OpenCodeJsonContextTests
     }
 
     [Test]
-    public async Task Deserialize_Should_Reject_Explicit_Null_For_Optional_Nonnull_Collections()
+    public async Task Deserialize_Should_Accept_Explicit_Null_For_Optional_Collections()
     {
         var json = _fixtures.LoadJson("Serialization.null-optional-collection.json");
 
-        _ = await Assert.That(() => _serializer.Deserialize<ISessionMessageInfo>(json))
-            .Throws<JsonException>();
+        var user = (SessionMessageUser)_serializer.Deserialize<ISessionMessageInfo>(json);
+
+        await Assert.That(user.Metadata).IsNull();
     }
 
     [Test]
@@ -347,9 +357,9 @@ public sealed class OpenCodeJsonContextTests
     }
 
     [Test]
-    public async Task State_Should_Defensively_Copy_The_Input_Collection()
+    public async Task State_Should_Retain_The_Caller_Owned_Collection_Reference()
     {
-        var state = new Dictionary<string, JsonElement>(StringComparer.Ordinal)
+        var state = new Dictionary<string, JsonElement?>(StringComparer.Ordinal)
         {
             ["original"] = default,
         };
@@ -361,8 +371,26 @@ public sealed class OpenCodeJsonContextTests
 
         state.Add("mutation", default);
 
-        await Assert.That(model.State.ContainsKey("mutation")).IsFalse();
+        await Assert.That(model.State.ContainsKey("mutation")).IsTrue();
         await Assert.That(model.State.ContainsKey("original")).IsTrue();
+    }
+
+    [Test]
+    public async Task Delta_Should_Retain_The_Required_Caller_Owned_Collection_Reference()
+    {
+        var delta = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["original"] = "one",
+        };
+        var model = new SessionInstructionsUpdatedData
+        {
+            SessionId = "ses_1",
+            Delta = delta,
+        };
+
+        delta.Add("mutation", "two");
+
+        await Assert.That(model.Delta.ContainsKey("mutation")).IsTrue();
     }
 
     [Test]

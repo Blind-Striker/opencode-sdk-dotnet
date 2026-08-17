@@ -140,7 +140,7 @@ internal static class ResponseAdapterEmitter
     /// <summary>
     /// Every success path is one deserialization pass: bare bodies read the payload type,
     /// wrapped bodies read their internal envelope DTO and project its members, and a
-    /// no-content success refuses any body outright.
+    /// no-content success ignores any unexpected body.
     /// </summary>
     private static ExpressionSyntax EmitSuccessCreation(EnvelopePlan envelope)
     {
@@ -170,25 +170,18 @@ internal static class ResponseAdapterEmitter
         };
     }
 
-    /// <summary>A declared no-content success must arrive bodiless; anything else is a protocol failure.</summary>
-    private static ConditionalExpressionSyntax EmitNoContentSuccess(EnvelopePlan envelope) =>
-        SyntaxFactory.ConditionalExpression(
-            SyntaxFactory.IsPatternExpression(
-                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("rawBody"), "Length"),
-                SyntaxFactory.ConstantPattern(Number(0))),
-            SyntaxFactory.ObjectCreationExpression(TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName))
-                .WithInitializer(SyntaxFactory.InitializerExpression(
-                    SyntaxKind.ObjectInitializerExpression,
-                    SyntaxFactory.SeparatedList<ExpressionSyntax>(
-                    [
-                        SyntaxFactory.AssignmentExpression(
-                            SyntaxKind.SimpleAssignmentExpression,
-                            SyntaxFactory.IdentifierName("Status"),
-                            SyntaxFactory.IdentifierName("status")),
-                    ]))),
-            SyntaxFactory.ThrowExpression(EmissionSyntax.Invocation(
-                SyntaxFactory.IdentifierName("NonEmptyNoContentFailure"),
-                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("status")))));
+    /// <summary>A declared no-content status determines success regardless of an unexpected body.</summary>
+    private static ObjectCreationExpressionSyntax EmitNoContentSuccess(EnvelopePlan envelope) =>
+        SyntaxFactory.ObjectCreationExpression(TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName))
+            .WithInitializer(SyntaxFactory.InitializerExpression(
+                SyntaxKind.ObjectInitializerExpression,
+                SyntaxFactory.SeparatedList<ExpressionSyntax>(
+                [
+                    SyntaxFactory.AssignmentExpression(
+                        SyntaxKind.SimpleAssignmentExpression,
+                        SyntaxFactory.IdentifierName("Status"),
+                        SyntaxFactory.IdentifierName("status")),
+                ])));
 
     private static ObjectCreationExpressionSyntax EmitSuccessInitializer(EnvelopePlan envelope, ExpressionSyntax payload) =>
         SyntaxFactory.ObjectCreationExpression(TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName))

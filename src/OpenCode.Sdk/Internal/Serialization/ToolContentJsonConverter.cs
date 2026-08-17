@@ -13,17 +13,10 @@ internal sealed class ToolContentJsonConverter : JsonConverter<IToolContent>
         ["file"] = typeof(ToolFileContent),
         ["text"] = typeof(ToolTextContent)
     };
-    public override bool HandleNull => true;
-
     public override IToolContent Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        if (reader.TokenType == JsonTokenType.Null)
-        {
-            throw new JsonException("The ToolContent payload cannot be null.");
-        }
-
         using var document = JsonDocument.ParseValue(ref reader);
         var payload = document.RootElement;
         if (payload.ValueKind != JsonValueKind.Object)

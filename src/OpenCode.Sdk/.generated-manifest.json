@@ -17,7 +17,6 @@
     "Internal/Serialization/MessageListResponseEnvelope.cs",
     "Internal/Serialization/OpenCodeErrorJsonConverter.cs",
     "Internal/Serialization/OpenCodeJsonContext.cs",
-    "Internal/Serialization/OptionalCollectionInput.cs",
     "Internal/Serialization/PromptFileSourceJsonConverter.cs",
     "Internal/Serialization/SessionCreateResponseEnvelope.cs",
     "Internal/Serialization/SessionEventDurableJsonConverter.cs",

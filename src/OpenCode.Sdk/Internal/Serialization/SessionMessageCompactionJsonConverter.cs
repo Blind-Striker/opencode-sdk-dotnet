@@ -14,17 +14,10 @@ internal sealed class SessionMessageCompactionJsonConverter : JsonConverter<ISes
         ["failed"] = typeof(SessionMessageCompactionFailed),
         ["running"] = typeof(SessionMessageCompactionRunning)
     };
-    public override bool HandleNull => true;
-
     public override ISessionMessageCompaction Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        if (reader.TokenType == JsonTokenType.Null)
-        {
-            throw new JsonException("The SessionMessageCompaction payload cannot be null.");
-        }
-
         using var document = JsonDocument.ParseValue(ref reader);
         var payload = document.RootElement;
         if (payload.ValueKind != JsonValueKind.Object)

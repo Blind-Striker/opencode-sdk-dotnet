@@ -43,12 +43,6 @@ internal abstract class ResponseAdapter<TResponse>
     protected static OpenCodeTransportException UndeclaredSuccessFailure(int status) =>
         new($"The opencode API returned undeclared success status {status.ToString(CultureInfo.InvariantCulture)}.");
 
-    /// <summary>Builds the protocol failure for a declared no-content success arriving with a body.</summary>
-    /// <param name="status">The declared no-content success status code.</param>
-    /// <returns>The transport failure the adapter throws.</returns>
-    protected static OpenCodeTransportException NonEmptyNoContentFailure(int status) =>
-        new($"The opencode API returned no-content status {status.ToString(CultureInfo.InvariantCulture)} with an unexpected body.");
-
     /// <summary>
     /// Reads a typed error tolerantly: malformed JSON yields <see langword="null"/> so the raw
     /// body remains the only record; an unknown tag keeps its carrier; a known tag outside the

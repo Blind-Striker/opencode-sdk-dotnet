@@ -432,11 +432,7 @@ internal sealed class SchemaPlanBinder
                 continue;
             }
 
-            // Captured before optional-absence widening: schema-admitted null is what the type
-            // binder reported, plus JsonElement, whose unrestricted schema admits every JSON
-            // value including null.
-            var allowsWireNull = type.IsNullable || type is NamedTypeReferencePlan { Name: "JsonElement" };
-            if (!property.IsRequired && !type.IsCollection)
+            if (!property.IsRequired)
             {
                 type = type with { IsNullable = true };
             }
@@ -448,7 +444,6 @@ internal sealed class SchemaPlanBinder
                 Name = CSharpNamePolicy.ToPascalCase(property.Name),
                 Type = type,
                 IsRequired = property.IsRequired,
-                AllowsWireNull = allowsWireNull,
                 IsLiteral = literal is not null,
                 LiteralKind = literal?.Kind,
                 LiteralValue = literal?.Value,
@@ -559,8 +554,8 @@ internal sealed class SchemaPlanBinder
             LiteralNode literal => Refuse(subject, $"literal kind '{literal.Kind}' is not supported by the emitter"),
             ArrayNode array => BindArray(array, subject, aliases),
             DictionaryNode dictionary => BindDictionary(dictionary, subject, aliases),
-            FreeFormObjectNode => DictionaryOf(Named("JsonElement")),
-            UnrestrictedNode => Named("JsonElement"),
+            FreeFormObjectNode => DictionaryOf(NullableJsonElement()),
+            UnrestrictedNode => NullableJsonElement(),
             SpecialNumberNode => SpecialNumber(),
             NullableNode nullable => BindNullable(nullable, subject, aliases),
             JsonStringNode => Refuse(subject, "JSON-encoded strings are not supported by the M1 emitter"),
@@ -632,6 +627,13 @@ internal sealed class SchemaPlanBinder
             {
                 Name = name,
                 IsNullable = false,
+            };
+
+        private static NamedTypeReferencePlan NullableJsonElement() =>
+            new()
+            {
+                Name = "JsonElement",
+                IsNullable = true,
             };
 
         private static SpecialNumberTypeReferencePlan SpecialNumber() =>

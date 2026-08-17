@@ -38,13 +38,14 @@ public sealed class ShellClientContractTests
     }
 
     [Test]
-    public async Task RemoveShellAsync_Should_Treat_A_204_With_A_Body_As_A_Protocol_Failure()
+    public async Task RemoveShellAsync_Should_Ignore_A_Body_On_The_Declared_204()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, "{}");
 
-        _ = await Assert
-            .That(async () => _ = await scenario.Client.Shells.GetShellClient("sh_100").RemoveShellAsync())
-            .Throws<OpenCodeTransportException>();
+        var response = await scenario.Client.Shells.GetShellClient("sh_100").RemoveShellAsync();
+
+        await Assert.That(response.Status).IsEqualTo(204);
+        await Assert.That(response.IsError).IsFalse();
     }
 
     [Test]

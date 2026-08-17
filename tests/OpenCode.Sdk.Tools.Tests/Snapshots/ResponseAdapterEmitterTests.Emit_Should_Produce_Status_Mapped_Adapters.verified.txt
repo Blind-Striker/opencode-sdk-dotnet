@@ -282,12 +282,10 @@ internal sealed class WidgetRemoveResponseAdapter : ResponseAdapter<WidgetRemove
         ArgumentNullException.ThrowIfNull(rawBody);
         return status switch
         {
-            204 => rawBody.Length is 0 ? new WidgetRemoveResponse
+            204 => new WidgetRemoveResponse
             {
                 Status = status
-            }
-
-            : throw NonEmptyNoContentFailure(status),
+            },
             >= 200 and < 300 => throw UndeclaredSuccessFailure(status),
             400 => new WidgetRemoveResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),
             _ => new WidgetRemoveResponse(status, ReadTolerantError(rawBody, null), rawBody)};

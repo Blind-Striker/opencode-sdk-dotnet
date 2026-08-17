@@ -78,14 +78,10 @@ internal sealed class ExampleEventJsonConverter : JsonConverter<IExampleEvent>
         ["created"] = typeof(CreatedEvent),
         ["deleted"] = typeof(DeletedEvent)
     };
-    public override bool HandleNull => true;
-
     public override IExampleEvent Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        if (reader.TokenType == JsonTokenType.Null)
-            throw new JsonException("The ExampleEvent payload cannot be null.");
         using var document = JsonDocument.ParseValue(ref reader);
         var payload = document.RootElement;
         if (payload.ValueKind != JsonValueKind.Object)
@@ -133,14 +129,10 @@ using OpenCode.Sdk.Models;
 namespace OpenCode.Sdk.Internal.Serialization;
 internal sealed class UnknownExampleEventJsonConverter : JsonConverter<UnknownExampleEvent>
 {
-    public override bool HandleNull => true;
-
     public override UnknownExampleEvent Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        if (reader.TokenType == JsonTokenType.Null)
-            throw new JsonException("The ExampleEvent payload cannot be null.");
         using var document = JsonDocument.ParseValue(ref reader);
         var payload = document.RootElement;
         if (payload.ValueKind != JsonValueKind.Object)
@@ -249,14 +241,10 @@ internal sealed class ExamplePhaseJsonConverter : JsonConverter<IExamplePhase>
     {
         ["started"] = typeof(PhaseStartedEvent)
     };
-    public override bool HandleNull => true;
-
     public override IExamplePhase Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        if (reader.TokenType == JsonTokenType.Null)
-            throw new JsonException("The ExamplePhase payload cannot be null.");
         using var document = JsonDocument.ParseValue(ref reader);
         var payload = document.RootElement;
         if (payload.ValueKind != JsonValueKind.Object)
@@ -308,14 +296,10 @@ using OpenCode.Sdk.Models;
 namespace OpenCode.Sdk.Internal.Serialization;
 internal sealed class UnknownExamplePhaseJsonConverter : JsonConverter<UnknownExamplePhase>
 {
-    public override bool HandleNull => true;
-
     public override UnknownExamplePhase Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        if (reader.TokenType == JsonTokenType.Null)
-            throw new JsonException("The ExamplePhase payload cannot be null.");
         using var document = JsonDocument.ParseValue(ref reader);
         var payload = document.RootElement;
         if (payload.ValueKind != JsonValueKind.Object)

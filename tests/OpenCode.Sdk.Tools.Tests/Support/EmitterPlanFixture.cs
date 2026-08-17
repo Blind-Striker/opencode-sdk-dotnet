@@ -561,10 +561,13 @@ internal static class EmitterPlanFixture
                 Property("count", "Count", Named("double", isNullable: true), isRequired: false, "Gets the item count."),
                 Property("ratio", "Ratio", SpecialNumber(isNullable: true), isRequired: false, "Gets the item ratio."),
                 Property("peak", "Peak", SpecialNumber(), isRequired: true, "Gets the item peak."),
+                Property("requiredNullable", "RequiredNullable", Named("string", isNullable: true), isRequired: true,
+                    "Gets a required nullable value."),
                 Property("flushedAt", "FlushedAt", Named("double", isNullable: true), isRequired: false,
-                    "Gets the flush timestamp, or null when never flushed.", allowsWireNull: true),
-                Property("tags", "Tags", ListOf(Named("string")), isRequired: false, "Gets the item tags."),
-                Property("links", "Links", DictionaryOf(Named("Uri")), isRequired: false, "Gets links by relation."),
+                    "Gets the flush timestamp, or null when never flushed."),
+                Property("tags", "Tags", ListOf(Named("string"), isNullable: true), isRequired: false, "Gets the item tags."),
+                Property("links", "Links", DictionaryOf(Named("Uri"), isNullable: true), isRequired: false, "Gets links by relation."),
+                Property("requiredTags", "RequiredTags", ListOf(Named("string")), isRequired: true, "Gets required tags."),
             ],
         };
 
@@ -643,14 +646,13 @@ internal static class EmitterPlanFixture
         };
 
     private static ModelPropertyPlan Property(string wireName, string name, TypeReferencePlan type, bool isRequired,
-        string? description, bool allowsWireNull = false) =>
+        string? description) =>
         new()
         {
             WireName = wireName,
             Name = name,
             Type = type,
             IsRequired = isRequired,
-            AllowsWireNull = allowsWireNull,
             IsLiteral = false,
             Description = description,
         };
@@ -662,7 +664,6 @@ internal static class EmitterPlanFixture
             Name = name,
             Type = Named("string"),
             IsRequired = true,
-            AllowsWireNull = false,
             IsLiteral = true,
             LiteralKind = LiteralKind.String,
             LiteralValue = value,
@@ -682,17 +683,17 @@ internal static class EmitterPlanFixture
             IsNullable = isNullable,
         };
 
-    private static ListTypeReferencePlan ListOf(TypeReferencePlan elementType) =>
+    private static ListTypeReferencePlan ListOf(TypeReferencePlan elementType, bool isNullable = false) =>
         new()
         {
             ElementType = elementType,
-            IsNullable = false,
+            IsNullable = isNullable,
         };
 
-    private static DictionaryTypeReferencePlan DictionaryOf(TypeReferencePlan valueType) =>
+    private static DictionaryTypeReferencePlan DictionaryOf(TypeReferencePlan valueType, bool isNullable = false) =>
         new()
         {
             ValueType = valueType,
-            IsNullable = false,
+            IsNullable = isNullable,
         };
 }

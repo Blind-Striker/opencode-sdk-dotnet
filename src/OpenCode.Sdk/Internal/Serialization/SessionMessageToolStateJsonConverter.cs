@@ -15,17 +15,10 @@ internal sealed class SessionMessageToolStateJsonConverter : JsonConverter<ISess
         ["running"] = typeof(SessionMessageToolStateRunning),
         ["streaming"] = typeof(SessionMessageToolStateStreaming)
     };
-    public override bool HandleNull => true;
-
     public override ISessionMessageToolState Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        if (reader.TokenType == JsonTokenType.Null)
-        {
-            throw new JsonException("The SessionMessageToolState payload cannot be null.");
-        }
-
         using var document = JsonDocument.ParseValue(ref reader);
         var payload = document.RootElement;
         if (payload.ValueKind != JsonValueKind.Object)

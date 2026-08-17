@@ -21,19 +21,22 @@ public sealed class OpenCodeResponseTests
     }
 
     [Test]
-    public async Task SessionListResponse_Should_Refuse_A_Null_Page_Element()
+    public async Task SessionListResponse_Should_Retain_The_Caller_Owned_Page_Reference()
     {
         var session = new GeneratedJsonSerializer()
             .Deserialize<SessionInfo>(new FixtureLoader().LoadJson("Serialization.known-session.json"));
-
-        var exception = Assert.Throws<ArgumentException>(() => _ = new SessionListResponse
+        var sessions = new List<SessionInfo> { session, };
+        var response = new SessionListResponse
         {
             Status = 200,
-            Sessions = [session, null!],
+            Sessions = sessions,
             Cursor = new ListCursor(),
-        });
+        };
 
-        await Assert.That(exception.Message).Contains("null element");
+        sessions.Add(null!);
+
+        await Assert.That(response.Sessions).Count().IsEqualTo(2);
+        await Assert.That(response.Sessions[1]).IsNull();
     }
 
     private sealed record EmptyResponse : OpenCodeResponse;

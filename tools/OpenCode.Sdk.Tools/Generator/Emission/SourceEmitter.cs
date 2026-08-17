@@ -11,7 +11,6 @@ internal static class SourceEmitter
         sources.AddRange(ModelEmitter.Emit(plan));
         sources.AddRange(UnionEmitter.Emit(plan.Unions));
         sources.AddRange(RegistryEmitter.Emit(plan.Registry));
-        sources.Add(OptionalCollectionInputEmitter.Emit());
         if (plan.Clients.Count > 0)
         {
             sources.Add(RoutesEmitter.Emit(plan.Clients));

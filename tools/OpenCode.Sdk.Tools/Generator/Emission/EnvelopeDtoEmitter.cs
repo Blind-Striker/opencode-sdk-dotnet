@@ -33,17 +33,6 @@ internal static class EnvelopeDtoEmitter
         var payloadTypeName = envelope.PayloadTypeName
                               ?? throw new InvalidOperationException($"Envelope '{envelope.ResponseTypeName}' has no payload.");
         var data = EmitProperty("data", "Data", EmitDataType(envelope.Kind, payloadTypeName));
-        if (envelope.Kind is EnvelopeKind.CursorList or EnvelopeKind.DataLocationList)
-        {
-            // The page's element schema admits no null; the converter turns a null array or a
-            // null element into a JsonException the adapters map to the transport wall.
-            data = data.AddAttributeLists(EmissionSyntax.Attribute(
-                "JsonConverter",
-                SyntaxFactory.AttributeArgument(SyntaxFactory.TypeOfExpression(TypeSyntaxEmitter.Generic(
-                    "NullElementRejectingListJsonConverter",
-                    TypeSyntaxEmitter.EmitNamed(payloadTypeName))))));
-        }
-
         var members = new List<MemberDeclarationSyntax> { data, };
         if (envelope.Kind is EnvelopeKind.CursorList)
         {

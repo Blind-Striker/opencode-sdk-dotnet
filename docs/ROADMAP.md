@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-17
+Date: 2026-08-18
 
 Operational state: what is done, what is next, what is open. This file shrinks as work lands.
 Evergreen rules and locked decisions live in `../AGENTS.md`; decision records in `adr/`.
@@ -105,15 +105,23 @@ exact `asc`/`desc` order remains typed from its declared enum. Runtime now
 validates only transport/framing, .NET materialization, and union dispatch; it does not replay
 server schema validation, normalize optional collections to empty, or defensively own generated
 model collections (ADR-0014). This supersedes the old acceptance criteria behind #45/#48 and the
-source-derived parts of #28/#40 plus the explicit-null arm of #41. The queue remains serial: #54 is
-the completed protocol-authority increment; after its hosted CI is green, #55 simplifies generated
-model/runtime materialization and reviews the intentional nullable API diff.
-#46's
+source-derived parts of #28/#40 plus the explicit-null arm of #41. #54 is complete at `c0003d1`
+with three-OS hosted run `32069792901` green. #55 now emits the required/nullable axes directly,
+keeps optional collections nullable, exposes shallow init-only collection references, delegates
+collection-child nullability to static annotations, and ignores bodies on declared no-content
+statuses. The synthetic matrix binds, emits, source-generates, compiles, and round-trips scalar,
+list, dictionary, value-type, unrestricted, literal, and union shapes without reflection fallback.
+
+The #55 allocation-first comparison against untouched `050b4f8`, under .NET SDK `10.0.302`, .NET
+`10.0.10`, and concurrent workstation GC, measured `GetMessageAsync` at 26,548 → 22,606 B/op
+(`0.852x`), `ListMessagesAsync` at 27,316 → 23,316 B/op (`0.854x`), and deep-union deserialization
+at 17,786 → 13,842 B/op (`0.778x`); `GetHealthAsync` stayed 2,128 → 2,128 B/op. Corresponding mean
+ratios were `0.888x`, `0.837x`, `0.898x`, and `1.012x`. The queue pauses for the required checkpoint
+before #46. #46's
 unknown-field/hybrid wall, #27's validated exact aliases, #47's stream-plan completeness, and
 #49's mechanical breadth evidence remain valid. The runtime corpus still covers two of 40 durable
 branches; no invented 40/87-payload corpus is planned. The six interim allocation baselines remain
-the comparison guards. Hosted CI is green at `050b4f8` (run `32037611341`); master protection and
-direct-push policy remain open under #50.
+the comparison guards; master protection and direct-push policy remain open under #50.
 
 **The M2 second breadth batch is complete** (plan:
 `superpowers/plans/2026-08-15-m2-second-breadth-batch.md`) — the design-prover batch:

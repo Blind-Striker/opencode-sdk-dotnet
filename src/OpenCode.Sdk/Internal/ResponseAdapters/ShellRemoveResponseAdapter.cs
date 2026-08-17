@@ -26,12 +26,10 @@ internal sealed class ShellRemoveResponseAdapter : ResponseAdapter<ShellRemoveRe
         ArgumentNullException.ThrowIfNull(rawBody);
         return status switch
         {
-            204 => rawBody.Length is 0 ? new ShellRemoveResponse
+            204 => new ShellRemoveResponse
             {
                 Status = status
-            }
-
-            : throw NonEmptyNoContentFailure(status),
+            },
             >= 200 and < 300 => throw UndeclaredSuccessFailure(status),
             400 => new ShellRemoveResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),
             401 => new ShellRemoveResponse(status, ReadTolerantError(rawBody, Status401Tags), rawBody),

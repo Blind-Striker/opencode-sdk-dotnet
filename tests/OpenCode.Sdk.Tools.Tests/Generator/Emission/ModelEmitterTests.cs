@@ -14,24 +14,25 @@ public sealed class ModelEmitterTests
     }
 
     [Test]
-    public async Task Emit_Should_Route_Optional_Nonnull_Collections_Through_The_Nullable_Input_Helper()
+    public async Task Emit_Should_Use_Shallow_Init_Only_Collection_References()
     {
         var source = EmitterSnapshot.Create(ModelEmitter.Emit(EmitterPlanFixture.CreateModelSnapshot()));
 
-        await Assert.That(source).Contains("OptionalCollectionInput.Normalize");
-        await Assert.That(source).DoesNotContain("value is null");
+        await Assert.That(source).Contains("public IReadOnlyList<string>? Tags { get; init; }");
+        await Assert.That(source).Contains("public IReadOnlyDictionary<string, Uri>? Links { get; init; }");
+        await Assert.That(source).Contains("public required IReadOnlyList<string> RequiredTags { get; init; }");
+        await Assert.That(source).DoesNotContain("OptionalCollectionInput");
+        await Assert.That(source).DoesNotContain("new ReadOnlyDictionary");
+        await Assert.That(source).DoesNotContain("new List");
     }
 
     [Test]
-    public async Task Emit_Should_Reject_Wire_Null_Only_Where_The_Schema_Forbids_It()
+    public async Task Emit_Should_Write_Null_Only_For_Required_Nullable_Properties()
     {
         var source = EmitterSnapshot.Create(ModelEmitter.Emit(EmitterPlanFixture.CreateModelSnapshot()));
 
-        await Assert.That(source).Contains("[JsonConverter(typeof(WireNullRejectingJsonConverter<string>))]");
-        await Assert.That(source).Contains("[JsonConverter(typeof(WireNullRejectingValueJsonConverter<double>))]");
-        await Assert.That(source).Contains("[JsonConverter(typeof(WireNullRejectingSpecialNumberJsonConverter))]");
         await Assert.That(source).Contains("[JsonNumberHandling(JsonNumberHandling.AllowNamedFloatingPointLiterals)]");
-        var occurrences = source.Split("WireNullRejecting").Length - 1;
-        await Assert.That(occurrences).IsEqualTo(4);
+        await Assert.That(source).Contains("public required string? RequiredNullable { get; init; }");
+        await Assert.That(source).DoesNotContain("WireNullRejecting");
     }
 }

@@ -55,16 +55,6 @@ public sealed class SessionsClientContractTests
     }
 
     [Test]
-    public async Task ListSessionsAsync_Should_Treat_A_Null_Page_Element_As_A_Protocol_Failure()
-    {
-        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Page("null"));
-
-        _ = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.ListSessionsAsync())
-            .Throws<OpenCodeTransportException>();
-    }
-
-    [Test]
     public async Task ListSessionsAsync_Should_Treat_A_Null_Page_As_A_Protocol_Failure()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, "{\"data\":null,\"cursor\":{}}");

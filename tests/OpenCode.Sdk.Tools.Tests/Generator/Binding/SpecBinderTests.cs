@@ -65,7 +65,7 @@ public sealed class SpecBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Distinguish_Wire_Null_From_Optional_Absence()
+    public async Task Bind_Should_Map_Required_And_Nullable_Independently()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
             .WithSchema("ItemInfo", schema => schema.Type("object")
@@ -85,20 +85,21 @@ public sealed class SpecBinderTests
 
         var item = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "ItemInfo");
         var id = item.Properties.Single(static property => property.WireName == "id");
-        await Assert.That(id.AllowsWireNull).IsFalse();
+        await Assert.That(id.IsRequired).IsTrue();
         await Assert.That(id.Type.IsNullable).IsFalse();
         var note = item.Properties.Single(static property => property.WireName == "note");
-        await Assert.That(note.AllowsWireNull).IsFalse();
+        await Assert.That(note.IsRequired).IsFalse();
         await Assert.That(note.Type.IsNullable).IsTrue();
         var flushedAt = item.Properties.Single(static property => property.WireName == "flushedAt");
-        await Assert.That(flushedAt.AllowsWireNull).IsTrue();
+        await Assert.That(flushedAt.IsRequired).IsTrue();
         await Assert.That(flushedAt.Type.IsNullable).IsTrue();
         var extra = item.Properties.Single(static property => property.WireName == "extra");
-        await Assert.That(extra.AllowsWireNull).IsTrue();
+        await Assert.That(extra.IsRequired).IsFalse();
+        await Assert.That(extra.Type.IsNullable).IsTrue();
     }
 
     [Test]
-    public async Task Bind_Should_Keep_The_Pinned_Session_Parent_Wire_Null_Strict()
+    public async Task Bind_Should_Make_The_Optional_Pinned_Session_Parent_Nullable()
     {
         var (document, selection, curation) = await LoadPinnedInputsAsync();
 
@@ -106,7 +107,7 @@ public sealed class SpecBinderTests
 
         var session = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "SessionInfo");
         var parent = session.Properties.Single(static property => property.WireName == "parentID");
-        await Assert.That(parent.AllowsWireNull).IsFalse();
+        await Assert.That(parent.IsRequired).IsFalse();
         await Assert.That(parent.Type.IsNullable).IsTrue();
     }
 
@@ -121,7 +122,6 @@ public sealed class SpecBinderTests
         var exit = shell.Properties.Single(static property => property.WireName == "exit");
         await Assert.That(exit.Type).IsTypeOf<SpecialNumberTypeReferencePlan>();
         await Assert.That(exit.Type.IsNullable).IsTrue();
-        await Assert.That(exit.AllowsWireNull).IsFalse();
     }
 
     [Test]

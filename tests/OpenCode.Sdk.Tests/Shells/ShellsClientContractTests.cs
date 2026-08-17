@@ -55,7 +55,7 @@ public sealed class ShellsClientContractTests
         await Assert.That(request.Method).IsEqualTo(HttpMethod.Post);
         await Assert.That(request.RequestUri!.AbsoluteUri)
             .IsEqualTo("http://localhost:4096/api/shell?location[directory]=%2Frepo");
-        await Assert.That(request.Body).IsEqualTo("{\"command\":\"ls -la\",\"timeout\":5000,\"metadata\":{}}");
+        await Assert.That(request.Body).IsEqualTo("{\"command\":\"ls -la\",\"timeout\":5000}");
     }
 
     [Test]

@@ -10,7 +10,6 @@ namespace OpenCode.Sdk.Internal.Serialization;
 internal sealed record ShellListResponseEnvelope
 {
     [JsonPropertyName("data")]
-    [JsonConverter(typeof(NullElementRejectingListJsonConverter<ShellInfo>))]
     public required IReadOnlyList<ShellInfo> Data { get; init; }
 
     [JsonPropertyName("location")]
