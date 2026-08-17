@@ -75,7 +75,9 @@ internal sealed class SchemaPlanBinder
     {
         foreach (var key in reachable.GraphKeys)
         {
-            if (document.Schemas.TryGetValue(key, out var schema) && schema is UnionNode { Classification: UnionClassification.Structural })
+            if (document.Schemas.TryGetValue(key, out var schema)
+                && schema is UnionNode { Classification: UnionClassification.Structural } union
+                && UnstructuredUnionPolicy.Collapse(union) is null)
             {
                 errors.Add(BindingErrorCategory.Schema, key, "selected closure contains a structural union");
             }
@@ -587,6 +589,8 @@ internal sealed class SchemaPlanBinder
             NullableNode nullable => BindNullable(nullable, subject, aliases),
             JsonStringNode => Refuse(subject, "JSON-encoded strings are not supported by the M1 emitter"),
             TupleNode => Refuse(subject, "tuple schemas are not supported by the M1 emitter"),
+            UnionNode { Classification: UnionClassification.Structural } union
+                when UnstructuredUnionPolicy.Collapse(union) is { } collapsed => BindCore(collapsed, subject, aliases),
             ObjectNode or EnumNode or UnionNode => Refuse(subject, "inline nominal schema was not promoted into the graph"),
             _ => Refuse(subject, $"schema node '{schema.GetType().Name}' is not supported by the M1 emitter"),
         };

@@ -446,6 +446,50 @@ public sealed class SpecBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Collapse_A_Union_Of_Refinements_Over_One_Primitive()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema.Type("object")
+                .Property("digest", property => property.AnyOf(
+                    branch => branch.Type("string").Raw("pattern", "\"^[a-f0-9]{64}$\""),
+                    branch => branch.Type("string").Enum("removed")), required: true))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), }));
+
+        var item = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "ItemInfo");
+        var digest = item.Properties.Single(static property => property.WireName == "digest").Type;
+        await Assert.That(digest).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(((NamedTypeReferencePlan)digest).Name).IsEqualTo("string");
+    }
+
+    [Test]
+    public async Task Bind_Should_Read_An_Object_Or_Array_Union_As_An_Unspecified_Object()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true)
+                .Property("payload", property => property.AnyOf(
+                    branch => branch.Type("object"),
+                    branch => branch.Type("array")), required: true))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), }));
+
+        var item = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "ItemInfo");
+        var data = item.Properties.Single(static property => property.WireName == "payload").Type;
+        await Assert.That(data).IsTypeOf<DictionaryTypeReferencePlan>();
+    }
+
+    [Test]
     public async Task Bind_Should_Dispatch_A_Marker_Spanning_Nested_Union_Through_Its_Own_Leaves()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec

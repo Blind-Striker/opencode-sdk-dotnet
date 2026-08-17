@@ -51,7 +51,16 @@ internal sealed class SchemaNameResolver
         return new ReadOnlyDictionary<string, string>(result);
     }
 
-    private static bool IsNominal(SchemaNode schema) => schema is ObjectNode or EnumNode or UnionNode;
+    /// <summary>
+    /// A union that carries no choice is not a type of its own — it binds to what its branches
+    /// already are (<see cref="UnstructuredUnionPolicy"/>), so it never claims a C# name.
+    /// </summary>
+    private static bool IsNominal(SchemaNode schema) => schema switch
+    {
+        UnionNode { Classification: UnionClassification.Structural } union => UnstructuredUnionPolicy.Collapse(union) is null,
+        ObjectNode or EnumNode or UnionNode => true,
+        _ => false,
+    };
 
     /// <summary>
     /// Every selected operation's nominal body root — inline or component-referenced — is
