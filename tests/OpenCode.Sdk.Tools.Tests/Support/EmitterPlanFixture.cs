@@ -588,7 +588,7 @@ internal static class EmitterPlanFixture
             Name = name,
             Namespace = "OpenCode.Sdk.Models",
             Description = null,
-            BaseTypeName = "IExampleEvent",
+            ImplementedUnionNames = ["IExampleEvent"],
             Properties =
             [
                 LiteralProperty("type", "Type", tag),
@@ -602,7 +602,7 @@ internal static class EmitterPlanFixture
             Name = "BadRequestError",
             Namespace = "OpenCode.Sdk.Models",
             Description = "Represents a rejected request.",
-            BaseTypeName = "IOpenCodeError",
+            ImplementedUnionNames = ["IOpenCodeError"],
             Properties =
             [
                 LiteralProperty("_tag", "Tag", "BadRequestError"),

@@ -27,7 +27,7 @@ internal static class ModelEmitter
         {
             result.Add(model switch
             {
-                ObjectModelPlan objectModel => EmitObject(objectModel, ResolveBaseUnion(objectModel, unions), unions, valueTypeNames),
+                ObjectModelPlan objectModel => EmitObject(objectModel, ResolveImplementedUnions(objectModel, unions), unions, valueTypeNames),
                 EnumModelPlan enumModel => EmitEnum(enumModel),
                 _ => throw new InvalidOperationException($"Unknown model plan '{model.GetType().Name}'."),
             });
@@ -36,12 +36,12 @@ internal static class ModelEmitter
         return Array.AsReadOnly([.. result]);
     }
 
-    private static GeneratedSource EmitObject(ObjectModelPlan model, UnionPlan? baseUnion, IReadOnlyDictionary<string, UnionPlan> unions,
+    private static GeneratedSource EmitObject(ObjectModelPlan model, IReadOnlyList<UnionPlan> implemented, IReadOnlyDictionary<string, UnionPlan> unions,
         IReadOnlySet<string> valueTypeNames)
     {
         // A variant overrides one abstract marker per level of its union chain: a nested
         // union's variant carries both its own tag and the fixed outer tag.
-        var chainMarkers = GetChainMarkerWireNames(baseUnion, unions);
+        var chainMarkers = GetChainMarkerWireNames(implemented, unions);
         var unmatched = chainMarkers.Find(wireName =>
             model.Properties.Count(property => IsDiscriminator(property, wireName)) is not 1);
         if (unmatched is not null)
@@ -62,11 +62,13 @@ internal static class ModelEmitter
                 .. model.RequestQueryProperties.Select(static property => EmitRequestQueryProperty(property)),
             ]))
             .WithLeadingTrivia(EmissionSyntax.Documentation(model.Description ?? $"Represents a {DisplayName(model.Name)} value."));
-        if (model.BaseTypeName is not null)
+        if (model.ImplementedUnionNames.Count > 0)
         {
-            declaration = declaration.WithBaseList(SyntaxFactory.BaseList(
-                SyntaxFactory.SingletonSeparatedList<BaseTypeSyntax>(
-                    SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.EmitNamed(model.BaseTypeName)))));
+            declaration = declaration.WithBaseList(SyntaxFactory.BaseList(SyntaxFactory.SeparatedList<BaseTypeSyntax>(
+            [
+                .. model.ImplementedUnionNames.Select(static name =>
+                    SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.EmitNamed(name))),
+            ])));
         }
 
         var unit = EmissionSyntax.CompilationUnit(model.Namespace, CollectUsings(model), [declaration]);
@@ -395,29 +397,39 @@ internal static class ModelEmitter
         }
     }
 
-    private static UnionPlan? ResolveBaseUnion(ObjectModelPlan model, Dictionary<string, UnionPlan> unions)
-    {
-        if (model.BaseTypeName is null)
-        {
-            return null;
-        }
-
-        return unions.TryGetValue(model.BaseTypeName, out var union)
+    private static List<UnionPlan> ResolveImplementedUnions(ObjectModelPlan model, Dictionary<string, UnionPlan> unions) =>
+    [
+        .. model.ImplementedUnionNames.Select(name => unions.TryGetValue(name, out var union)
             ? union
-            : throw new InvalidOperationException($"Model '{model.Name}' references absent union '{model.BaseTypeName}'.");
-    }
+            : throw new InvalidOperationException($"Model '{model.Name}' references absent union '{name}'.")),
+    ];
 
     private static bool IsDiscriminator(ModelPropertyPlan property, string markerWireName) =>
         property.IsLiteral && string.Equals(property.WireName, markerWireName, StringComparison.Ordinal);
 
-    private static List<string> GetChainMarkerWireNames(UnionPlan? baseUnion, IReadOnlyDictionary<string, UnionPlan> unions)
+    /// <summary>
+    /// The marker each union in the schema's membership expects it to carry, walking every
+    /// chain. Two unions may name different markers, and the schema then carries both; the
+    /// same name is one property serving both contracts.
+    /// </summary>
+    private static List<string> GetChainMarkerWireNames(IReadOnlyList<UnionPlan> implemented,
+        IReadOnlyDictionary<string, UnionPlan> unions)
     {
         var result = new List<string>();
-        var current = baseUnion;
-        while (current is not null)
+        foreach (var union in implemented)
         {
-            result.Add(current.MarkerWireName);
-            current = current.BaseTypeName is not null && unions.TryGetValue(current.BaseTypeName, out var outer) ? outer : null;
+            var current = union;
+            while (current is not null)
+            {
+                if (!result.Contains(current.MarkerWireName, StringComparer.Ordinal))
+                {
+                    result.Add(current.MarkerWireName);
+                }
+
+                current = current.BaseTypeName is not null && unions.TryGetValue(current.BaseTypeName, out var outer)
+                    ? outer
+                    : null;
+            }
         }
 
         return result;

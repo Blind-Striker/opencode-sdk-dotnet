@@ -446,6 +446,37 @@ public sealed class SpecBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Let_A_Schema_Belong_To_Every_Union_That_Branches_To_It()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("Alpha", schema => schema.Type("object")
+                .Property("type", property => property.Type("string").Enum("alpha"), required: true))
+            .WithSchema("Beta", schema => schema.Type("object")
+                .Property("type", property => property.Type("string").Enum("beta"), required: true))
+            .WithSchema("Shared", schema => schema.Type("object")
+                .Property("type", property => property.Type("string").Enum("shared"), required: true))
+            .WithSchema("Durable", schema => schema.AnyOf(one => one.Ref("Alpha"), two => two.Ref("Shared")))
+            .WithSchema("Live", schema => schema.AnyOf(one => one.Ref("Beta"), two => two.Ref("Shared")))
+            .WithSchema("Feed", schema => schema.Type("object")
+                .Property("durable", property => property.Ref("Durable"), required: true)
+                .Property("live", property => property.Ref("Live"), required: true))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("Feed")))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), }));
+
+        var shared = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "Shared");
+        await Assert.That(shared.ImplementedUnionNames.Order(StringComparer.Ordinal)
+            .SequenceEqual(["IDurable", "ILive"], StringComparer.Ordinal)).IsTrue();
+
+        var alpha = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "Alpha");
+        await Assert.That(alpha.ImplementedUnionNames.SequenceEqual(["IDurable"], StringComparer.Ordinal)).IsTrue();
+    }
+
+    [Test]
     public async Task Bind_Should_Refuse_A_Tag_Owned_By_Two_Closure_Schemas()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec

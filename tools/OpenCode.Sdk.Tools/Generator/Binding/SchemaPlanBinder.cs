@@ -20,7 +20,7 @@ internal sealed class SchemaPlanBinder
         var responseRoots = reachable.ResponseRootKeys.ToHashSet(_comparer);
         RefuseStructuralUnions(document, reachable, errors);
 
-        var inheritance = new Dictionary<string, string>(StringComparer.Ordinal);
+        var inheritance = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         var unions = BindExplicitUnions(document, reachable, responseRoots, typeNames, inheritance, errors);
         var errorUnion = BindErrorUnion(document, reachable, responseRoots, typeNames, inheritance, errors);
         if (errorUnion is not null)
@@ -83,7 +83,7 @@ internal sealed class SchemaPlanBinder
     }
 
     private static List<UnionPlan> BindExplicitUnions(SpecDocument document, ReachableSchemaSet reachable, HashSet<string> responseRoots,
-        IReadOnlyDictionary<string, string> names, Dictionary<string, string> inheritance, BindingErrorCollector errors)
+        IReadOnlyDictionary<string, string> names, Dictionary<string, List<string>> inheritance, BindingErrorCollector errors)
     {
         var plans = new Dictionary<string, UnionPlan>(StringComparer.Ordinal);
         var fixedMarkers = new Dictionary<string, UnionFixedMarkerPlan>(StringComparer.Ordinal);
@@ -109,8 +109,9 @@ internal sealed class SchemaPlanBinder
         var result = new List<UnionPlan>(plans.Count);
         foreach (var (key, plan) in plans)
         {
-            result.Add(fixedMarkers.TryGetValue(key, out var fixedMarker) && inheritance.TryGetValue(key, out var baseType)
-                ? plan with { BaseTypeName = baseType, FixedMarker = fixedMarker }
+            result.Add(fixedMarkers.TryGetValue(key, out var fixedMarker)
+                       && inheritance.TryGetValue(key, out var baseTypes) && baseTypes.Count is 1
+                ? plan with { BaseTypeName = baseTypes[0], FixedMarker = fixedMarker }
                 : plan);
         }
 
@@ -118,7 +119,7 @@ internal sealed class SchemaPlanBinder
     }
 
     private static UnionPlan? BindUnion(string name, string key, UnionNode union, IReadOnlyDictionary<string, SchemaNode> graph,
-        IReadOnlyDictionary<string, string> names, Dictionary<string, string> inheritance,
+        IReadOnlyDictionary<string, string> names, Dictionary<string, List<string>> inheritance,
         Dictionary<string, UnionFixedMarkerPlan> fixedMarkers, BindingErrorCollector errors)
     {
         var resolved = ResolveBranches(key, union, graph, names, errors);
@@ -276,7 +277,7 @@ internal sealed class SchemaPlanBinder
     private sealed record ResolvedUnionBranch(string TargetKey, string TypeName, IReadOnlyList<LiteralMarker> Markers, bool IsNestedUnion);
 
     private static UnionPlan? BindErrorUnion(SpecDocument document, ReachableSchemaSet reachable, HashSet<string> responseRoots,
-        IReadOnlyDictionary<string, string> names, IDictionary<string, string> inheritance, BindingErrorCollector errors)
+        IReadOnlyDictionary<string, string> names, IDictionary<string, List<string>> inheritance, BindingErrorCollector errors)
     {
         var errorsInClosure = new List<KeyValuePair<string, ObjectNode>>();
         foreach (var key in reachable.GraphKeys)
@@ -357,7 +358,7 @@ internal sealed class SchemaPlanBinder
         };
     }
 
-    private static ObjectModelPlan? BindObject(string key, string name, ObjectNode node, IReadOnlyDictionary<string, string> inheritance,
+    private static ObjectModelPlan? BindObject(string key, string name, ObjectNode node, Dictionary<string, List<string>> inheritance,
         TypePlanBinder typeBinder, BindingErrorCollector errors)
     {
         var properties = new List<ModelPropertyPlan>(node.Properties.Count);
@@ -414,7 +415,7 @@ internal sealed class SchemaPlanBinder
             Namespace = ModelNamespace,
             Description = node.Description,
             Properties = properties,
-            BaseTypeName = inheritance.GetValueOrDefault(key),
+            ImplementedUnionNames = inheritance.TryGetValue(key, out var implemented) ? implemented : [],
         };
     }
 
@@ -440,16 +441,25 @@ internal sealed class SchemaPlanBinder
         };
     }
 
-    private static void AddInheritance(string schemaKey, string baseType, IDictionary<string, string> inheritance,
+    /// <summary>
+    /// Records one union a schema is a branch of. A schema can be a branch of several, so
+    /// membership accumulates rather than refusing the second (ADR-0011).
+    /// </summary>
+    private static void AddInheritance(string schemaKey, string unionName, IDictionary<string, List<string>> inheritance,
         BindingErrorCollector errors)
     {
-        if (inheritance.TryGetValue(schemaKey, out var existing) && !string.Equals(existing, baseType, StringComparison.Ordinal))
+        ArgumentNullException.ThrowIfNull(errors);
+
+        if (!inheritance.TryGetValue(schemaKey, out var unions))
         {
-            errors.Add(BindingErrorCategory.Schema, schemaKey, $"schema cannot derive from both '{existing}' and '{baseType}'");
-            return;
+            unions = [];
+            inheritance[schemaKey] = unions;
         }
 
-        inheritance[schemaKey] = baseType;
+        if (!unions.Contains(unionName, StringComparer.Ordinal))
+        {
+            unions.Add(unionName);
+        }
     }
 
     private sealed class TypePlanBinder

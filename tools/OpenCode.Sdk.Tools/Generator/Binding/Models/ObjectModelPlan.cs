@@ -12,7 +12,17 @@ internal sealed record ObjectModelPlan : ModelPlan
         }
     } = Array.AsReadOnly(Array.Empty<ModelPropertyPlan>());
 
-    public string? BaseTypeName { get; init; }
+    /// <summary>Gets every union interface this schema is a branch of; a schema can be a branch
+    /// of more than one (ADR-0011).</summary>
+    public IReadOnlyList<string> ImplementedUnionNames
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<string>());
 
     /// <summary>
     /// Gets the query-side properties a merged operation request carries beside its body
