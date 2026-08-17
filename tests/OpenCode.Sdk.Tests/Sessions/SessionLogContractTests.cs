@@ -107,7 +107,7 @@ public sealed class SessionLogContractTests
         using var scenario = ContractScenario.RespondingWithFrames(
             WireBodyData.Frames(WireBodyData.LogSyncedEvent));
 
-        _ = await CollectAsync(scenario, new SessionLogRequest { After = "12", Follow = true, });
+        _ = await CollectAsync(scenario, new SessionLogRequest { After = "12", Follow = QueryBoolean.True, });
 
         await Assert.That(scenario.Requests.Single().RequestUri).IsEqualTo(
             new Uri("http://localhost:4096/api/experimental/session/ses_9/log?after=12&follow=true"));

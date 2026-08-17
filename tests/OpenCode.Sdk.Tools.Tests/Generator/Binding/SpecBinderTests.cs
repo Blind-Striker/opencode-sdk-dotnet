@@ -36,12 +36,12 @@ public sealed class SpecBinderTests
         var promptFile = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "PromptFileSourceUri");
         var promptUri = promptFile.Properties.Single(static property => property.WireName == "uri").Type;
         await Assert.That(promptUri).IsTypeOf<NamedTypeReferencePlan>();
-        await Assert.That(((NamedTypeReferencePlan)promptUri).Name).IsEqualTo("Uri");
+        await Assert.That(((NamedTypeReferencePlan)promptUri).Name).IsEqualTo("string");
 
         var toolFile = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "ToolFileContent");
         var toolUri = toolFile.Properties.Single(static property => property.WireName == "uri").Type;
         await Assert.That(toolUri).IsTypeOf<NamedTypeReferencePlan>();
-        await Assert.That(((NamedTypeReferencePlan)toolUri).Name).IsEqualTo("Uri");
+        await Assert.That(((NamedTypeReferencePlan)toolUri).Name).IsEqualTo("string");
 
         var sessionMessage = plan.Unions.Single(static union => union.Name == "ISessionMessageInfo");
         await Assert.That(sessionMessage.MarkerWireName).IsEqualTo("type");
@@ -392,24 +392,25 @@ public sealed class SpecBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Report_Duplicate_Property_Overrides_As_Binding_Errors()
+    public async Task Bind_Should_Use_Uri_Only_When_OpenApi_Declares_The_Format()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
             .WithSchema("Resource", schema => schema.Type("object")
-                .Property("uri", property => property.Type("string"), required: true))
+                .Property("formatted", property => property.Type("string").Format("uri"), required: true)
+                .Property("namedUri", property => property.Type("string"), required: true))
             .WithOperation("v2.health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("Resource")))));
-        var curation = Curation(
-            new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), },
-            propertyOverrides: [UriOverride("Resource", "uri"), UriOverride("Resource", "uri")]);
 
-        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+        var plan = new BindingTestHost().Bind(
             document,
             Selection("v2.health.get"),
-            curation));
+            Curation(Groups("health", RootGroup())));
 
-        await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Curation).Problem)
-            .Contains("duplicated");
+        var resource = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "Resource");
+        var formatted = (NamedTypeReferencePlan)resource.Properties.Single(static property => property.WireName == "formatted").Type;
+        var namedUri = (NamedTypeReferencePlan)resource.Properties.Single(static property => property.WireName == "namedUri").Type;
+        await Assert.That(formatted.Name).IsEqualTo("Uri");
+        await Assert.That(namedUri.Name).IsEqualTo("string");
     }
 
     [Test]
@@ -654,46 +655,6 @@ public sealed class SpecBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Apply_A_Property_Override_Keyed_To_An_Alias_Source()
-    {
-        var document = await IngestAsync(DuplicateTagScenario());
-
-        var plan = new BindingTestHost().Bind(
-            document,
-            Selection("v2.gadget.get"),
-            Curation(
-                Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: null, handleParameter: null)),
-                propertyOverrides: [new PropertyOverride { Schema = "GadgetError1", Property = "message", Type = PropertyOverrideType.Uri, Reason = "The wire value is URL-semantic." }],
-                schemaAliases: [Alias("GadgetError1", "GadgetError")]));
-
-        var error = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "GadgetError");
-        var message = error.Properties.Single(static property => property.WireName == "message");
-        await Assert.That(message.Type).IsTypeOf<NamedTypeReferencePlan>();
-        await Assert.That(((NamedTypeReferencePlan)message.Type).Name).IsEqualTo("Uri");
-    }
-
-    [Test]
-    public async Task Bind_Should_Refuse_Overrides_Collapsing_Onto_The_Same_Property()
-    {
-        var document = await IngestAsync(DuplicateTagScenario());
-
-        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
-            document,
-            Selection("v2.gadget.get"),
-            Curation(
-                Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: null, handleParameter: null)),
-                propertyOverrides:
-                [
-                    new PropertyOverride { Schema = "GadgetError1", Property = "message", Type = PropertyOverrideType.Uri, Reason = "The wire value is URL-semantic." },
-                    new PropertyOverride { Schema = "GadgetError", Property = "message", Type = PropertyOverrideType.Uri, Reason = "The wire value is URL-semantic." },
-                ],
-                schemaAliases: [Alias("GadgetError1", "GadgetError")])));
-
-        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
-            && error.Problem.Contains("collapse", StringComparison.Ordinal))).IsTrue();
-    }
-
-    [Test]
     public async Task Bind_Should_Refuse_A_Duplicate_Error_Tag_Without_An_Alias()
     {
         var document = await IngestAsync(DuplicateTagScenario());
@@ -865,12 +826,4 @@ public sealed class SpecBinderTests
         return await new SpecIngestion(context.FileSystem).IngestAsync(context.SpecPath, CancellationToken.None);
     }
 
-    private static PropertyOverride UriOverride(string schema, string property) =>
-        new()
-        {
-            Schema = schema,
-            Property = property,
-            Type = PropertyOverrideType.Uri,
-            Reason = "The fixture omits format: uri.",
-        };
 }

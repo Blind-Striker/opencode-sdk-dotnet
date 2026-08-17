@@ -54,29 +54,6 @@ public sealed class QueryStringBuilderTests
     }
 
     [Test]
-    public async Task AddCount_Should_Write_The_Invariant_Wire_String()
-    {
-        var query = new QueryStringBuilder();
-
-        query.AddCount("limit", 50, "request");
-
-        await Assert.That(query.Value).IsEqualTo("?limit=50");
-    }
-
-    [Test]
-    [Arguments(0)]
-    [Arguments(-1)]
-    public async Task AddCount_Should_Refuse_A_Non_Positive_Value(int limit)
-    {
-        var query = new QueryStringBuilder();
-
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => query.AddCount("limit", limit, "request"));
-
-        await Assert.That(exception.ParamName).IsEqualTo("request");
-        await Assert.That(exception.Message).Contains("positive");
-    }
-
-    [Test]
     [Arguments(ListOrder.Ascending, "?order=asc")]
     [Arguments(ListOrder.Descending, "?order=desc")]
     public async Task AddOrder_Should_Write_The_Wire_Spelling(ListOrder order, string expected)
@@ -98,6 +75,27 @@ public sealed class QueryStringBuilderTests
     }
 
     [Test]
+    [Arguments(QueryBoolean.True, "?follow=true")]
+    [Arguments(QueryBoolean.False, "?follow=false")]
+    public async Task AddBoolean_Should_Write_The_Declared_String_Token(QueryBoolean value, string expected)
+    {
+        var query = new QueryStringBuilder();
+
+        query.AddBoolean("follow", value);
+
+        await Assert.That(query.Value).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task AddBoolean_Should_Refuse_An_Undefined_Value()
+    {
+        var query = new QueryStringBuilder();
+
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => query.AddBoolean("follow", (QueryBoolean)7));
+        await Task.CompletedTask;
+    }
+
+    [Test]
     public async Task AddParentFilter_Should_Write_The_Wire_Value()
     {
         var query = new QueryStringBuilder();
@@ -113,8 +111,9 @@ public sealed class QueryStringBuilderTests
     {
         var query = new QueryStringBuilder();
 
-        query.AddCount("limit", null, "request");
+        query.AddText("limit", null);
         query.AddOrder("order", null);
+        query.AddBoolean("follow", null);
         query.AddParentFilter("parentID", null);
         query.AddLocation("location", null);
 

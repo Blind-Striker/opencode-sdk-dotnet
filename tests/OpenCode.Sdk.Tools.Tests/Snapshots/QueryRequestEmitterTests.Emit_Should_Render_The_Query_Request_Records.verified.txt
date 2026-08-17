@@ -3,7 +3,7 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 namespace OpenCode.Sdk;
 /// <summary>
-/// Shapes the &apos;GET /api/widget/{widgetID}/item&apos; query.
+/// Shapes the &apos;GET /api/widget/{widgetID}/item&apos; query. &apos;limit&apos;: Maximum item count as wire text. &apos;cursor&apos;: Opaque item cursor.
 /// </summary>
 public sealed record ItemListRequest : ListRequest
 {
@@ -19,9 +19,9 @@ namespace OpenCode.Sdk;
 public sealed record WidgetListRequest
 {
     /// <summary>
-    /// Gets the &apos;limit&apos; query value; the server default applies when unset.
+    /// Maximum widget count as wire text.
     /// </summary>
-    public int? Limit { get; init; }
+    public string? Limit { get; init; }
     /// <summary>
     /// Gets the &apos;order&apos; query value; the server default applies when unset.
     /// </summary>
@@ -30,6 +30,10 @@ public sealed record WidgetListRequest
     /// Gets the &apos;cursor&apos; query value; the server default applies when unset.
     /// </summary>
     public string? Cursor { get; init; }
+    /// <summary>
+    /// Gets the &apos;enabled&apos; query value; the server default applies when unset.
+    /// </summary>
+    public QueryBoolean? Enabled { get; init; }
     /// <summary>
     /// Gets the &apos;parentID&apos; query value; the server default applies when unset.
     /// </summary>

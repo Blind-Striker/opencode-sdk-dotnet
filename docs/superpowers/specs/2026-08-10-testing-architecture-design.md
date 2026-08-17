@@ -440,11 +440,7 @@ Run against both harness modes (base + `[InheritsTests]`), fake-LLM-backed:
 4. **`session.error` events:** enqueue `httpError`/`streamError` on the fake LLM → assert the
    correctly typed variant of the 8-variant error union and the `ApiError.IsRetryable`
    mapping.
-5. **`session.history` numeric `after`/`limit`:** this scenario is the **designated catch
-   point** for the behavior-premised curation overrides (generator spec §5.3 assigns that
-   residual risk to integration tests) — if the `parameterTypeOverrides` premise drifts, this
-   test reddens.
-6. **Concurrent streams + a request:** live + durable + a CRUD call simultaneously; on the
+5. **Concurrent streams + a request:** live + durable + a CRUD call simultaneously; on the
    net472 leg this is the standing regression test for the
    `ServicePointManager.DefaultConnectionLimit=2` fix (ROADMAP spike item's test
    counterpart).

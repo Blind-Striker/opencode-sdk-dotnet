@@ -22,9 +22,7 @@ internal sealed class CurationValidator
         var documentGroups = document.Operations.Select(GetGroup).ToHashSet(_comparer);
         ValidateGroups(selected, selectedGroups, documentGroups, curation, errors);
         ValidateEnvelopeNames(selectedIds, documentIds, curation, errors);
-        ValidatePropertyOverrides(document, reachable, curation, errors);
         ValidateSchemaAliases(document, reachable, curation, errors);
-        ValidateMutuallyExclusiveQueries(selectedIds, documentIds, curation, errors);
     }
 
     private static void ValidateGroups(IReadOnlyList<SpecOperation> selected, HashSet<string> selectedGroups,
@@ -180,42 +178,6 @@ internal sealed class CurationValidator
         }
     }
 
-    private static void ValidatePropertyOverrides(SpecDocument document, ReachableSchemaSet reachable, GenerationCuration curation, BindingErrorCollector errors)
-    {
-        var reachableKeys = reachable.GraphKeys.ToHashSet(StringComparer.Ordinal);
-        var targets = new HashSet<(string Schema, string Property)>();
-        foreach (var propertyOverride in curation.PropertyOverrides)
-        {
-            var subject = $"{propertyOverride.Schema}.{propertyOverride.Property}";
-            if (!targets.Add((propertyOverride.Schema, propertyOverride.Property)))
-            {
-                errors.Add(BindingErrorCategory.Curation, subject, "property override is duplicated");
-            }
-
-            if (string.IsNullOrWhiteSpace(propertyOverride.Reason))
-            {
-                errors.Add(BindingErrorCategory.Curation, subject, "property override must declare a reason");
-            }
-
-            if (!document.Schemas.TryGetValue(propertyOverride.Schema, out var schema))
-            {
-                errors.Add(BindingErrorCategory.Curation, subject, "curated schema does not exist in the spec");
-                continue;
-            }
-
-            if (!reachableKeys.Contains(propertyOverride.Schema))
-            {
-                errors.Add(BindingErrorCategory.Curation, subject, "curated property is not selected by the current profile");
-            }
-
-            if (schema is not ObjectNode objectSchema
-                || !objectSchema.Properties.Any(property => string.Equals(property.Name, propertyOverride.Property, StringComparison.Ordinal)))
-            {
-                errors.Add(BindingErrorCategory.Curation, subject, "curated property does not exist on the schema");
-            }
-        }
-    }
-
     /// <summary>
     /// The alias walls carry the drift contract: a deleted source or target orphans the row,
     /// a dereferenced source goes dormant, and any structural divergence — the tag included —
@@ -279,40 +241,6 @@ internal sealed class CurationValidator
                      .OrderBy(static alias => alias.Schema, StringComparer.Ordinal))
         {
             errors.Add(BindingErrorCategory.Curation, alias.Schema, "schema aliases cannot chain");
-        }
-    }
-
-    /// <summary>
-    /// The mutual-exclusion relation lives only in spec prose, so a curated row carries it;
-    /// pairs only — larger groups wait for an operation that needs one.
-    /// </summary>
-    private static void ValidateMutuallyExclusiveQueries(HashSet<string> selectedIds,
-        HashSet<string> documentIds, GenerationCuration curation, BindingErrorCollector errors)
-    {
-        foreach (var row in curation.MutuallyExclusiveQueries)
-        {
-            if (string.IsNullOrWhiteSpace(row.Reason))
-            {
-                errors.Add(BindingErrorCategory.Curation, row.Operation, "mutually-exclusive query rows must state a reason");
-            }
-
-            if (!documentIds.Contains(row.Operation))
-            {
-                errors.Add(BindingErrorCategory.Curation, row.Operation, "mutually-exclusive query row names an operation absent from the spec");
-                continue;
-            }
-
-            if (!selectedIds.Contains(row.Operation))
-            {
-                errors.Add(BindingErrorCategory.Curation, row.Operation, "mutually-exclusive query row names an operation outside the selected profile");
-            }
-
-            if (row.Parameters.Count is not 2
-                || row.Parameters.Distinct(StringComparer.Ordinal).Count() is not 2
-                || row.Parameters.Any(string.IsNullOrWhiteSpace))
-            {
-                errors.Add(BindingErrorCategory.Curation, row.Operation, "mutually-exclusive query rows must name exactly two distinct parameters");
-            }
         }
     }
 

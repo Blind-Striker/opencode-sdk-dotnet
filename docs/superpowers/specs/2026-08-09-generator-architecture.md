@@ -354,8 +354,8 @@ checks are *semantic* — "does this operationId exist in the spec", "is this en
 either way, and it catches shape/typo errors with better messages than the compiler would.
 What remains for JSON is structural: logic in config is physically impossible rather than
 convention-banned, and the "curation change = API review" rule (ADR-0008) reads cleanest on
-pure-data diffs. Comments are carried as data (`reason` fields — mandatory on exclusions and
-on the behavior-premised override kinds, §5.3) and STJ comment-skip permits real comments. Ecosystem precedent: Kiota, NSwag, and OpenAPI
+pure-data diffs. Comments are carried as data (`reason` is mandatory on exact schema aliases),
+and STJ comment-skip permits real comments. Ecosystem precedent: Kiota, NSwag, and OpenAPI
 Generator all use data files for generator config.
 
 Upstream's counterpart is a tiny code-side options object —
@@ -370,12 +370,11 @@ is a few hundred rows, which justifies the dedicated data file.
 |---|---|---|
 | `groups` | modern wire group → placement and client name; paired optional `handleName` + required path `handleParameter` | `session` → client `Sessions`, handle `SessionClient`, parameter `sessionID` |
 | `envelopePayloadNames` | opId → payload property name | `v2.session.list` → `Sessions` |
-| `exclusions` | `[{op, reason}]`, reason mandatory | `pty.connect` (both surfaces): WebSocket upgrade masquerading as GET (doc 10; public API spec §14) |
-| `contentTypePayloads` | parameter-stripped media type → `stream` / `string` (§4.1 normalization) | `application/octet-stream` → `stream`; `text/x-diff` → `string` (matches the wire's `text/x-diff; charset=utf-8`) **[verified: the only two non-JSON, non-SSE response content types]** |
-| `parameterTypeOverrides` | `[{op, param, type, reason}]`, reason mandatory (§5.3 — behavior-premised) | `v2.session.history` `after`/`limit` → numeric (OpenAPI says string; Effect source is `NumberFromString` — public API spec §11.1) |
-| `propertyOverrides` | per-property: `uri` marking, `uri→string` fallback, explicit-null; `reason` mandatory (§5.3 — behavior-premised) | the `anyOf`-null fields where null carries meaning (ADR-0004) |
-| `schemaNameOverrides` | wire schema name → C# name | optional renames for trailing-digit names |
-| `brandSpellings` | curated casing exceptions | `OAuth` (ADR-0004) |
+| `schemaAliases` | source schema → structurally identical target, with mandatory reason | `Tool.FileContent1` → `Tool.FileContent`; the binder proves deep equality before collapse |
+
+Operation exclusions remain full-subtree fingerprint entries in the generated manifest rather
+than semantic curation. Wire types, formats, constraints, and validation come only from the pinned
+OpenAPI document; a missing projection stays faithful or fails closed (ADR-0013).
 
 ### 5.3 Fail-closed mechanics — the drift radar, all four layers
 
@@ -390,7 +389,6 @@ does not require modern group-handle rows.
 | selected spec → curation | every selected modern group has a `groups` row | `group 'widget': unnamed` |
 | selected spec → curation | every selected enveloped response has a payload name | `v2.widget.list: payload unnamed` |
 | selected spec → curation | every selected response content type is supported (JSON and SSE built in) | `image/png: unmapped content type` |
-| selected closure → curation | every reached `anyOf`-null field has a null-semantics decision | ADR-0004: an unmapped `anyOf`-null fails generation |
 | curation → spec | every curation key references an existing spec construct | `curation row 'session.prompt': matches nothing` (renames orphan their rows — orphans are errors, or the config rots silently) |
 
 Upstream comparison: `httpapi-codegen` throws `GenerationError` on every ambiguity it meets
@@ -399,14 +397,9 @@ wildcard paths in the Promise emitter) — the same refuse-to-guess philosophy �
 `omitEndpoints` set has no reverse check: an orphaned omit entry is silently ignored
 (`index.ts`, `compile()`). Our reverse direction closes that hole.
 
-**Uncaught by design — behavior-premised overrides.** A curation row can be structurally
-valid while its *premise* has silently expired: `parameterTypeOverrides` (numeric
-`after`/`limit` rests on server behavior the OpenAPI projection does not show) and
-`propertyOverrides`' explicit-null markings encode facts that live outside the pinned spec,
-so no layer of this radar can see them drift. Recorded as accepted residual risk. The catch
-points are integration tests against a real process (the testing session's domain) and
-refresh-PR review — which is why `reason` is mandatory on exactly these row kinds (§5.2):
-the premise sits written above the row for the reviewer to re-check.
+**No behavior-premised overrides.** Curation cannot repair projection loss from implementation
+source, prose, or names. Alias reasons explain why a collapse exists, while deep structural
+comparison is the executable wall that proves the source and target remain equivalent.
 
 **Layer 2 — the projection's dialect wall** (§4.1): unknown constructs are refused, and the
 zero-counts stay zero by force.
@@ -432,7 +425,7 @@ curation — and are Roslyn syntax-factory emitters (ADR-0003), one per artifact
 
 | Emitter | Emits | Governing rules |
 |---|---|---|
-| `ModelEmitter` | records: `init`-only, `required`, read-only collections, `[JsonPropertyName]`, `WhenWritingNull` on nullables, curated `Uri` properties | ADR-0004; public API spec §12 |
+| `ModelEmitter` | records: `init`-only, `required`, read-only collections, `[JsonPropertyName]`, `WhenWritingNull` on nullables, `Uri` only for OpenAPI `format: uri` | ADR-0004; public API spec §12 |
 | `UnionEmitter` | union base + variants + the `Unknown*` carrier + one custom converter per union: buffer the element, read the tag position-independently, dispatch via a per-union static tag→type map through the source-generated context; unknown tag → carrier (tag string + raw `JsonElement`), re-serialized as the raw payload. No `[JsonPolymorphic]`/`[JsonDerivedType]` attributes — the converter is the single dispatch owner; the discriminator is emitted as a get-only computed property (serialized on write, ignored on read). Spike-proven (2026-08-09, 88-variant harness under the full wall, reflection fallback disabled): map shape 0/0 with constant-size `Read`/`Write`; type-based context dispatch is AOT-safe; the 88-arm switch shape measured failing MA0051 (96 lines) and was rejected — dispatch as data, not control flow | ADR-0009 (marked unions; structural-union shape: §15) |
 | `EnvelopeEmitter` | per-op envelopes: guarded payload getters, internal `[SetsRequiredMembers]` error constructor, guarded `PrintMembers` override, `IDisposable` envelope for `Stream` payloads, `SessionsCursor`, payload-less 204 envelopes (19 modern 204 ops **[verified]**) | public API spec §5.1 |
 | `InputRecordEmitter` | request input records (the ≤2-scalar flat-parameter rule is applied in the Binder; the emitter writes what the plan says) | public API spec §8.3 |
@@ -645,7 +638,7 @@ build itself is the compile gate for generated output (§11).
 2. **`tools/` is the centralized repo-tooling home;** the generator lives in a `Generator/`
    subtree as its first area, not as the project's identity (§2 principle 3).
 3. **Curation config is JSON** — `tools/curation.json`, reasons as data (mandatory on
-   exclusions and behavior-premised overrides), comment-skip + trailing commas,
+   structurally verified schema aliases), comment-skip + trailing commas,
    unknown-field disallow, wire names pinned with `[JsonPropertyName]` (§5.1, §5.3;
    options run-verified).
 4. **Coverage checks are bidirectional** — missing entries and orphan entries both fail

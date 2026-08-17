@@ -1,0 +1,18 @@
+{
+  "groups": {
+    "health": {
+      "placement": "root"
+    }
+  },
+  "envelopePayloadNames": {},
+  "schemaAliases": [],
+  "propertyOverrides": [
+    {
+      "schema": "Resource",
+      "property": "uri",
+      "type": "uri",
+      "reason": "The property name looks URI-like."
+    }
+  ],
+  "mutuallyExclusiveQueries": []
+}

@@ -57,7 +57,7 @@ Console.WriteLine(string.Create(
 var page = await sessionsClient
     .ListSessionsAsync(new SessionListRequest
     {
-        Limit = 3,
+        Limit = "3",
         Order = ListOrder.Descending,
     })
     .ConfigureAwait(false);
@@ -78,7 +78,7 @@ Console.WriteLine(string.Create(
 var messages = await handle
     .ListMessagesAsync(new MessageListRequest
     {
-        Limit = 5,
+        Limit = "5",
     })
     .ConfigureAwait(false);
 Console.WriteLine(string.Create(

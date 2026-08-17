@@ -41,9 +41,8 @@ introduced gets exercised by a real operation. Sealed inputs: research log Sessi
 4. **PATCH and DELETE** verbs through routes/emitters/pipeline.
 5. The **`Shells` client family** — the roster contract test must force its DI
    registration.
-6. **#28 rider:** the mutually-exclusive-query curation row for `message.list`
-   (`order`+`cursor`), binder-validated fail-closed, route-boundary refusal, no-send
-   contract test.
+6. `message.list` query values remain faithful to their pinned schemas. The former #28
+   description-derived `order`+`cursor` refusal was removed by #54 under ADR-0013.
 
 ## Boundaries
 
@@ -76,10 +75,9 @@ introduced gets exercised by a real operation. Sealed inputs: research log Sessi
       **`v2.shell.output` deferred:** its inline data object and integer cursor/limit
       query params each need a mechanism no other admitted operation needs; it returns
       with a later batch.
-- [x] #28 rider end to end: the `mutuallyExclusiveQueries` curation section (pairs only,
-      fail-closed validated), the binder pins each name to the bound query surface, the
-      route builder refuses the pair before any request, and the no-send contract test
-      observes it on `message.list`.
+- [x] `message.list` query composition is generated from the pinned parameter schemas. #54
+      removed the former `mutuallyExclusiveQueries` section and no-send guard because their
+      premise existed only in description and implementation source.
 - [x] Live demo against `opencode2 serve` v0.0.0-next-17403 (2026-08-16): shell
       create → list → get → timeout → remove (204), session rename → remove (204), all
       typed; the ambient options location rode the header channel and came back in the

@@ -18,7 +18,7 @@ public sealed record ToolFileContent : IToolContent
     /// Gets the uri value.
     /// </summary>
     [JsonPropertyName("uri")]
-    public required Uri Uri { get; init; }
+    public required string Uri { get; init; }
 
     /// <summary>
     /// Gets the mime value.

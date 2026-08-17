@@ -27,17 +27,6 @@ internal sealed record GenerationCuration
         }
     } = new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal));
 
-    [JsonPropertyName("propertyOverrides")]
-    public required IReadOnlyList<PropertyOverride> PropertyOverrides
-    {
-        get;
-        init
-        {
-            ArgumentNullException.ThrowIfNull(value);
-            field = Array.AsReadOnly([.. value]);
-        }
-    } = Array.AsReadOnly(Array.Empty<PropertyOverride>());
-
     [JsonPropertyName("schemaAliases")]
     public required IReadOnlyList<SchemaAlias> SchemaAliases
     {
@@ -48,15 +37,4 @@ internal sealed record GenerationCuration
             field = Array.AsReadOnly([.. value]);
         }
     } = Array.AsReadOnly(Array.Empty<SchemaAlias>());
-
-    [JsonPropertyName("mutuallyExclusiveQueries")]
-    public required IReadOnlyList<MutuallyExclusiveQuery> MutuallyExclusiveQueries
-    {
-        get;
-        init
-        {
-            ArgumentNullException.ThrowIfNull(value);
-            field = Array.AsReadOnly([.. value]);
-        }
-    } = Array.AsReadOnly(Array.Empty<MutuallyExclusiveQuery>());
 }

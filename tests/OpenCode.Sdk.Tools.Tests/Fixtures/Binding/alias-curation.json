@@ -5,13 +5,11 @@
     }
   },
   "envelopePayloadNames": {},
-  "propertyOverrides": [],
   "schemaAliases": [
     {
       "schema": "InvalidRequestError1",
       "aliasOf": "InvalidRequestError",
       "reason": "Upstream spec-gen emits a structurally identical duplicate carrying the same _tag."
     }
-  ],
-  "mutuallyExclusiveQueries": []
+  ]
 }

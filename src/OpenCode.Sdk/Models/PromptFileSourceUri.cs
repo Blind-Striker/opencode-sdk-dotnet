@@ -18,5 +18,5 @@ public sealed record PromptFileSourceUri : IPromptFileSource
     /// Gets the uri value.
     /// </summary>
     [JsonPropertyName("uri")]
-    public required Uri Uri { get; init; }
+    public required string Uri { get; init; }
 }

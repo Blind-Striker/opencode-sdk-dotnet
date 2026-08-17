@@ -28,7 +28,7 @@ internal sealed class SchemaPlanBinder
             unions.Add(errorUnion);
         }
 
-        var typeBinder = new TypePlanBinder(document.Schemas, typeNames, curation.PropertyOverrides, errors);
+        var typeBinder = new TypePlanBinder(document.Schemas, typeNames, errors);
         var models = new List<ModelPlan>();
         foreach (var key in reachable.GraphKeys)
         {
@@ -528,21 +528,13 @@ internal sealed class SchemaPlanBinder
     {
         private readonly IReadOnlyDictionary<string, SchemaNode> _graph;
         private readonly IReadOnlyDictionary<string, string> _names;
-        private readonly Dictionary<string, PropertyOverrideType> _overrides;
         private readonly BindingErrorCollector _errors;
 
         public TypePlanBinder(IReadOnlyDictionary<string, SchemaNode> graph, IReadOnlyDictionary<string, string> names,
-            IReadOnlyList<PropertyOverride> overrides, BindingErrorCollector errors)
+            BindingErrorCollector errors)
         {
             _graph = graph ?? throw new ArgumentNullException(nameof(graph));
             _names = names ?? throw new ArgumentNullException(nameof(names));
-            ArgumentNullException.ThrowIfNull(overrides);
-            _overrides = new Dictionary<string, PropertyOverrideType>(StringComparer.Ordinal);
-            foreach (var propertyOverride in overrides)
-            {
-                _overrides.TryAdd($"{propertyOverride.Schema}\0{propertyOverride.Property}", propertyOverride.Type);
-            }
-
             _errors = errors ?? throw new ArgumentNullException(nameof(errors));
         }
 
@@ -552,23 +544,7 @@ internal sealed class SchemaPlanBinder
             ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
             ArgumentNullException.ThrowIfNull(schema);
 
-            var type = BindCore(schema, $"{schemaKey}.{propertyName}", []);
-            if (type is null || !_overrides.TryGetValue($"{schemaKey}\0{propertyName}", out var propertyOverride))
-            {
-                return type;
-            }
-
-            if (propertyOverride is PropertyOverrideType.Uri && type is NamedTypeReferencePlan { Name: "string" })
-            {
-                return new NamedTypeReferencePlan
-                {
-                    Name = "Uri",
-                    IsNullable = type.IsNullable,
-                };
-            }
-
-            _errors.Add(BindingErrorCategory.Curation, $"{schemaKey}.{propertyName}", "uri override requires a scalar string property");
-            return null;
+            return BindCore(schema, $"{schemaKey}.{propertyName}", []);
         }
 
         private TypeReferencePlan? BindCore(SchemaNode schema, string subject, HashSet<string> aliases) => schema switch

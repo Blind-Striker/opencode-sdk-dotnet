@@ -153,18 +153,13 @@ internal static class RoutesEmitter
                 SyntaxFactory.IdentifierName("request"),
                 SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
             SyntaxFactory.Block(SyntaxFactory.ReturnStatement(SyntaxFactory.IdentifierName("path"))));
-        foreach (var pair in operation.QueryRequest!.MutuallyExclusivePairs)
-        {
-            yield return EmitExclusivePairGuard(operation.QueryRequest, pair);
-        }
-
         yield return SyntaxFactory.LocalDeclarationStatement(SyntaxFactory.VariableDeclaration(
             SyntaxFactory.IdentifierName("var"),
             SyntaxFactory.SingletonSeparatedList(SyntaxFactory.VariableDeclarator("query")
                 .WithInitializer(SyntaxFactory.EqualsValueClause(SyntaxFactory.ObjectCreationExpression(
                         TypeSyntaxEmitter.EmitNamed("QueryStringBuilder"))
                     .WithArgumentList(SyntaxFactory.ArgumentList()))))));
-        foreach (var property in operation.QueryRequest.Properties)
+        foreach (var property in operation.QueryRequest!.Properties)
         {
             var arguments = new List<ArgumentSyntax>
             {
@@ -173,14 +168,6 @@ internal static class RoutesEmitter
                     SyntaxFactory.IdentifierName("request"),
                     property.PropertyName)),
             };
-            if (property.Kind is QueryValueKind.PositiveCount)
-            {
-                // The count guard reports the builder's own parameter, not the helper's.
-                arguments.Add(SyntaxFactory.Argument(EmissionSyntax.Invocation(
-                    SyntaxFactory.IdentifierName("nameof"),
-                    SyntaxFactory.Argument(SyntaxFactory.IdentifierName("request")))));
-            }
-
             yield return SyntaxFactory.ExpressionStatement(EmissionSyntax.Invocation(
                 EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("query"), QueryAddMethod(property.Kind)),
                 [.. arguments]));
@@ -192,42 +179,11 @@ internal static class RoutesEmitter
             EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("query"), "Value")));
     }
 
-    /// <summary>The server refuses the curated pair, so the route boundary refuses it first.</summary>
-    private static IfStatementSyntax EmitExclusivePairGuard(QueryRequestPlan queryRequest, ExclusiveQueryPairPlan pair)
-    {
-        var first = queryRequest.Properties.Single(property =>
-            string.Equals(property.WireName, pair.FirstWireName, StringComparison.Ordinal));
-        var second = queryRequest.Properties.Single(property =>
-            string.Equals(property.WireName, pair.SecondWireName, StringComparison.Ordinal));
-        return SyntaxFactory.IfStatement(
-            SyntaxFactory.BinaryExpression(
-                SyntaxKind.LogicalAndExpression,
-                SyntaxFactory.IsPatternExpression(
-                    EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("request"), first.PropertyName),
-                    SyntaxFactory.UnaryPattern(SyntaxFactory.ConstantPattern(
-                        SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)))),
-                SyntaxFactory.IsPatternExpression(
-                    EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("request"), second.PropertyName),
-                    SyntaxFactory.UnaryPattern(SyntaxFactory.ConstantPattern(
-                        SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))))),
-            SyntaxFactory.Block(SyntaxFactory.ThrowStatement(SyntaxFactory.ObjectCreationExpression(
-                    TypeSyntaxEmitter.EmitNamed("ArgumentException"))
-                .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(
-                [
-                    SyntaxFactory.Argument(StringLiteral(
-                        $"The '{pair.FirstWireName}' and '{pair.SecondWireName}' query values cannot combine.")),
-                    SyntaxFactory.Argument(EmissionSyntax.Invocation(
-                        SyntaxFactory.IdentifierName("nameof"),
-                        SyntaxFactory.Argument(SyntaxFactory.IdentifierName("request")))),
-                ]))))));
-    }
-
     private static string QueryAddMethod(QueryValueKind kind) => kind switch
     {
         QueryValueKind.Text => "AddText",
-        QueryValueKind.PositiveCount => "AddCount",
-        QueryValueKind.BooleanFlag => "AddFlag",
         QueryValueKind.ListOrder => "AddOrder",
+        QueryValueKind.BooleanText => "AddBoolean",
         QueryValueKind.SessionParentFilter => "AddParentFilter",
         QueryValueKind.Location => "AddLocation",
         _ => throw new InvalidOperationException($"Query value kind '{kind}' has no query-builder method."),

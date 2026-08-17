@@ -6,18 +6,15 @@ internal enum QueryValueKind
     /// <summary>A plain string carried verbatim.</summary>
     Text = 0,
 
-    /// <summary>A positive count exposed as <c>int?</c> and written invariantly to the wire string.</summary>
-    PositiveCount = 1,
-
     /// <summary>The asc/desc order enum exposed as the shared <c>ListOrder</c> spine type.</summary>
-    ListOrder = 2,
+    ListOrder = 1,
+
+    /// <summary>The exact true/false string enum exposed without converting it to a C# boolean.</summary>
+    BooleanText = 2,
 
     /// <summary>The parent-session filter whose wire admits an identifier or the literal <c>"null"</c>.</summary>
     SessionParentFilter = 3,
 
     /// <summary>The deepObject location selector exposed as the shared <c>LocationSelector</c> spine type.</summary>
     Location = 4,
-
-    /// <summary>A boolean the wire spells as the strings <c>"true"</c> and <c>"false"</c>.</summary>
-    BooleanFlag = 5,
 }

@@ -43,10 +43,6 @@ internal sealed class SpecBinder(
             var aliasedById = document.Operations.ToDictionary(static operation => operation.OperationId, StringComparer.Ordinal);
             selected = Array.AsReadOnly([.. selected.Select(operation => aliasedById[operation.OperationId])]);
             reachable = _reachableSchemas.Collect(document, selected, errors);
-            curation = curation with
-            {
-                PropertyOverrides = MapOverrideKeys(curation.PropertyOverrides, curation.SchemaAliases, errors),
-            };
         }
 
         // Type names are resolved exactly once per bind; schema and operation binding
@@ -167,44 +163,6 @@ internal sealed class SpecBinder(
             // Uniqueness is guaranteed by CheckDtoNameCollisions before composition.
             TypeNames = [.. schemaRegistry.TypeNames.Concat(dtoNames).Order(StringComparer.Ordinal)],
         };
-    }
-
-    /// <summary>
-    /// Property overrides follow the same collapse as reachable keys: a row keyed to an
-    /// alias source must land on the canonical schema the type binder actually looks up,
-    /// and two rows collapsing onto one logical property refuse instead of one silently
-    /// winning.
-    /// </summary>
-    private static ReadOnlyCollection<PropertyOverride> MapOverrideKeys(IReadOnlyList<PropertyOverride> overrides,
-        IReadOnlyList<SchemaAlias> aliases, BindingErrorCollector errors)
-    {
-        // Tolerant of duplicated sources: the validator has already recorded them and the
-        // batched failure throws before any plan leaves this bind.
-        var map = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var alias in aliases)
-        {
-            map[alias.Schema] = alias.AliasOf;
-        }
-
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        var canonical = new List<PropertyOverride>(overrides.Count);
-        foreach (var propertyOverride in overrides)
-        {
-            var schema = map.GetValueOrDefault(propertyOverride.Schema, propertyOverride.Schema);
-            if (!seen.Add($"{schema}\0{propertyOverride.Property}"))
-            {
-                errors.Add(
-                    BindingErrorCategory.Curation,
-                    $"{schema}.{propertyOverride.Property}",
-                    "property overrides collapse onto the same property after alias resolution");
-            }
-
-            canonical.Add(string.Equals(schema, propertyOverride.Schema, StringComparison.Ordinal)
-                ? propertyOverride
-                : propertyOverride with { Schema = schema });
-        }
-
-        return Array.AsReadOnly([.. canonical]);
     }
 
     private static ReadOnlyCollection<SpecOperation> SelectOperations(OperationSelection selection,

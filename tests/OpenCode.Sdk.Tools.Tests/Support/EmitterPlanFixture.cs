@@ -245,15 +245,12 @@ internal static class EmitterPlanFixture
                 DerivesFromListRequest = false,
                 Properties =
                 [
-                    QueryProperty("limit", "Limit", QueryValueKind.PositiveCount),
+                    QueryProperty("limit", "Limit", QueryValueKind.Text, description: "Maximum widget count as wire text."),
                     QueryProperty("order", "Order", QueryValueKind.ListOrder),
                     QueryProperty("cursor", "Cursor", QueryValueKind.Text),
+                    QueryProperty("enabled", "Enabled", QueryValueKind.BooleanText),
                     QueryProperty("parentID", "ParentId", QueryValueKind.SessionParentFilter),
                     QueryProperty("location", "Location", QueryValueKind.Location),
-                ],
-                MutuallyExclusivePairs =
-                [
-                    new ExclusiveQueryPairPlan { FirstWireName = "order", SecondWireName = "cursor", },
                 ],
             },
             Envelope = new EnvelopePlan
@@ -302,9 +299,9 @@ internal static class EmitterPlanFixture
                 DerivesFromListRequest = true,
                 Properties =
                 [
-                    QueryProperty("limit", "Limit", QueryValueKind.PositiveCount, isInherited: true),
+                    QueryProperty("limit", "Limit", QueryValueKind.Text, isInherited: true, description: "Maximum item count as wire text."),
                     QueryProperty("order", "Order", QueryValueKind.ListOrder, isInherited: true),
-                    QueryProperty("cursor", "Cursor", QueryValueKind.Text, isInherited: true),
+                    QueryProperty("cursor", "Cursor", QueryValueKind.Text, isInherited: true, description: "Opaque item cursor."),
                 ],
             },
             Envelope = new EnvelopePlan
@@ -485,12 +482,13 @@ internal static class EmitterPlanFixture
         };
 
     private static QueryPropertyPlan QueryProperty(string wireName, string propertyName, QueryValueKind kind,
-        bool isInherited = false) =>
+        bool isInherited = false, string? description = null) =>
         new()
         {
             WireName = wireName,
             PropertyName = propertyName,
             Kind = kind,
+            Description = description,
             IsInherited = isInherited,
         };
 

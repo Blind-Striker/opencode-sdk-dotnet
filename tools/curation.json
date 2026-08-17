@@ -23,20 +23,6 @@
     }
   },
   "envelopePayloadNames": {},
-  "propertyOverrides": [
-    {
-      "schema": "Prompt.FileSource#/anyOf/type=uri",
-      "property": "uri",
-      "type": "uri",
-      "reason": "The wire field carries a URI, but the pinned schema omits format: uri."
-    },
-    {
-      "schema": "Tool.FileContent",
-      "property": "uri",
-      "type": "uri",
-      "reason": "The wire field carries a URI, but the pinned schema omits format: uri."
-    }
-  ],
   "schemaAliases": [
     {
       "schema": "InvalidRequestError1",
@@ -57,16 +43,6 @@
       "schema": "Tool.FileContent1",
       "aliasOf": "Tool.FileContent",
       "reason": "Upstream spec-gen emits a structurally identical duplicate of the tool file content schema."
-    }
-  ],
-  "mutuallyExclusiveQueries": [
-    {
-      "operation": "v2.message.list",
-      "parameters": [
-        "order",
-        "cursor"
-      ],
-      "reason": "The pinned message-list contract forbids combining cursor with order and the server refuses the pair with InvalidCursorError; known invariants refuse at the route boundary."
     }
   ]
 }

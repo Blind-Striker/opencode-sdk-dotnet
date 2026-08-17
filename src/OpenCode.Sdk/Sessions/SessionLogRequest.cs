@@ -13,5 +13,5 @@ public sealed record SessionLogRequest
     /// <summary>
     /// Gets the &apos;follow&apos; query value; the server default applies when unset.
     /// </summary>
-    public bool? Follow { get; init; }
+    public QueryBoolean? Follow { get; init; }
 }

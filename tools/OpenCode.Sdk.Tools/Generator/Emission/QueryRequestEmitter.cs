@@ -40,8 +40,7 @@ internal static class QueryRequestEmitter
                     .Where(static property => !property.IsInherited)
                     .Select(static property => EmitProperty(property)),
             ]))
-            .WithLeadingTrivia(EmissionSyntax.Documentation(
-                $"Shapes the '{operation.HttpMethod.ToUpperInvariant()} {operation.RouteTemplate}' query."));
+            .WithLeadingTrivia(EmissionSyntax.Documentation(RequestDocumentation(operation)));
         if (queryRequest.DerivesFromListRequest)
         {
             declaration = declaration.WithBaseList(SyntaxFactory.BaseList(SyntaxFactory.SingletonSeparatedList<BaseTypeSyntax>(
@@ -64,18 +63,27 @@ internal static class QueryRequestEmitter
         return SyntaxFactory.PropertyDeclaration(EmitPropertyType(property.Kind), property.PropertyName)
             .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
             .WithAccessorList(accessors)
-            .WithLeadingTrivia(EmissionSyntax.Documentation(
-                $"Gets the '{property.WireName}' query value; the server default applies when unset."));
+            .WithLeadingTrivia(EmissionSyntax.Documentation(property.Description
+                ?? $"Gets the '{property.WireName}' query value; the server default applies when unset."));
     }
 
     private static NullableTypeSyntax EmitPropertyType(QueryValueKind kind) => kind switch
     {
         QueryValueKind.Text => SyntaxFactory.NullableType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword))),
-        QueryValueKind.PositiveCount => SyntaxFactory.NullableType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.IntKeyword))),
-        QueryValueKind.BooleanFlag => SyntaxFactory.NullableType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.BoolKeyword))),
         QueryValueKind.ListOrder => SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed("ListOrder")),
+        QueryValueKind.BooleanText => SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed("QueryBoolean")),
         QueryValueKind.SessionParentFilter => SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed("SessionParentFilter")),
         QueryValueKind.Location => SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed("LocationSelector")),
         _ => throw new InvalidOperationException($"Query value kind '{kind}' has no property type."),
     };
+
+    private static string RequestDocumentation(OperationPlan operation)
+    {
+        var summary = $"Shapes the '{operation.HttpMethod.ToUpperInvariant()} {operation.RouteTemplate}' query.";
+        var inherited = operation.QueryRequest!.Properties
+            .Where(static property => property.IsInherited && !string.IsNullOrWhiteSpace(property.Description))
+            .Select(static property => $"'{property.WireName}': {property.Description}")
+            .ToArray();
+        return inherited.Length is 0 ? summary : $"{summary} {string.Join(' ', inherited)}";
+    }
 }

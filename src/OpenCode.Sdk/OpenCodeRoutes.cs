@@ -55,7 +55,7 @@ public static class OpenCodeRoutes
 
             var query = new QueryStringBuilder();
             query.AddText("after", request.After);
-            query.AddFlag("follow", request.Follow);
+            query.AddBoolean("follow", request.Follow);
             return path + query.Value;
         }
 
@@ -130,13 +130,8 @@ public static class OpenCodeRoutes
                 return path;
             }
 
-            if (request.Order is not null && request.Cursor is not null)
-            {
-                throw new ArgumentException("The 'order' and 'cursor' query values cannot combine.", nameof(request));
-            }
-
             var query = new QueryStringBuilder();
-            query.AddCount("limit", request.Limit, nameof(request));
+            query.AddText("limit", request.Limit);
             query.AddOrder("order", request.Order);
             query.AddText("cursor", request.Cursor);
             return path + query.Value;
@@ -161,7 +156,7 @@ public static class OpenCodeRoutes
 
             var query = new QueryStringBuilder();
             query.AddText("workspace", request.Workspace);
-            query.AddCount("limit", request.Limit, nameof(request));
+            query.AddText("limit", request.Limit);
             query.AddOrder("order", request.Order);
             query.AddText("search", request.Search);
             query.AddParentFilter("parentID", request.ParentId);

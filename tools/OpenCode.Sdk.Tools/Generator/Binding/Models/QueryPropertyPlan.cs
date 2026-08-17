@@ -8,6 +8,8 @@ internal sealed record QueryPropertyPlan
 
     public required QueryValueKind Kind { get; init; }
 
+    public string? Description { get; init; }
+
     /// <summary>Gets a value indicating whether the property is inherited from the <c>ListRequest</c> base.</summary>
     public required bool IsInherited { get; init; }
 }

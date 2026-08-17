@@ -1,0 +1,20 @@
+{
+  "groups": {
+    "health": {
+      "placement": "root"
+    }
+  },
+  "envelopePayloadNames": {},
+  "schemaAliases": [],
+  "mutuallyExclusiveQueries": [
+    {
+      "operation": "v2.message.list",
+      "parameters": [
+        "order",
+        "cursor"
+      ],
+      "reason": "The operation description says not to combine them."
+    }
+  ],
+  "propertyOverrides": []
+}

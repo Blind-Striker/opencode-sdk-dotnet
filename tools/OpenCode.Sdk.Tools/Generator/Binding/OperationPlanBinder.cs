@@ -26,6 +26,7 @@ internal sealed class OperationPlanBinder
         "OpenCodeRequestOptions",
         "OpenCodeResponse",
         "OpenCodeTransportException",
+        "QueryBoolean",
         "SessionParentFilter",
     ];
 
@@ -781,6 +782,7 @@ internal sealed class OperationPlanBinder
         private bool IsLocationSelectorShape(SchemaNode schema)
         {
             if (Resolve(schema) is not ObjectNode selector
+                || selector.Format is not null
                 || selector.Properties.Count is not 2
                 || selector.Properties.Select(static property => property.Name).Distinct(StringComparer.Ordinal).Count() is not 2)
             {
@@ -788,13 +790,14 @@ internal sealed class OperationPlanBinder
             }
 
             return selector.Properties.All(property => property is { IsRequired: false, Name: "directory" or "workspace" }
-                && Resolve(property.Schema) is NullableNode { Inner: PrimitiveNode { Kind: PrimitiveKind.String } });
+                && IsOptionalUnformattedString(property.Schema));
         }
 
         /// <summary>Recognizes the wire cursor contract: exactly optional-nullable string <c>previous</c> and <c>next</c>.</summary>
         private bool IsListCursorShape(SchemaNode schema)
         {
             if (Resolve(schema) is not ObjectNode cursor
+                || cursor.Format is not null
                 || cursor.Properties.Count is not 2
                 || cursor.Properties.Select(static property => property.Name).Distinct(StringComparer.Ordinal).Count() is not 2)
             {
@@ -802,8 +805,12 @@ internal sealed class OperationPlanBinder
             }
 
             return cursor.Properties.All(property => property is { IsRequired: false, Name: "previous" or "next" }
-                && Resolve(property.Schema) is NullableNode { Inner: PrimitiveNode { Kind: PrimitiveKind.String } });
+                && IsOptionalUnformattedString(property.Schema));
         }
+
+        private bool IsOptionalUnformattedString(SchemaNode schema) =>
+            Resolve(schema) is NullableNode { Format: null, Inner: var inner }
+            && Resolve(inner) is PrimitiveNode { Kind: PrimitiveKind.String, Format: null };
 
         private ErrorMapPlan? BindErrorMap()
         {
@@ -970,9 +977,6 @@ internal sealed class OperationPlanBinder
                 .ToArray();
             if (query.Length is 0)
             {
-                // An operation with no query surface still answers for its curated rows;
-                // otherwise a row naming it would go dormant instead of refusing.
-                _ = BindExclusivePairs([]);
                 return null;
             }
 
@@ -1002,7 +1006,7 @@ internal sealed class OperationPlanBinder
                     continue;
                 }
 
-                var kind = ResolveQueryValueKind(parameter.Name, nullable.Inner);
+                var kind = nullable.Format is null ? ResolveQueryValueKind(nullable.Inner) : null;
                 if (kind is null)
                 {
                     Refuse($"query parameter '{parameter.Name}' has an unsupported schema shape");
@@ -1014,6 +1018,7 @@ internal sealed class OperationPlanBinder
                     WireName = parameter.Name,
                     PropertyName = CSharpNamePolicy.ToPascalCase(parameter.Name),
                     Kind = kind.Value,
+                    Description = nullable.Description ?? Resolve(nullable.Inner).Description,
                     IsInherited = false,
                 });
             }
@@ -1039,37 +1044,7 @@ internal sealed class OperationPlanBinder
                 TypeName = OperationNamePolicy.RequestTypeName(_operation),
                 DerivesFromListRequest = properties.Count > 0 && properties[0].IsInherited,
                 Properties = properties,
-                MutuallyExclusivePairs = BindExclusivePairs(properties),
             };
-        }
-
-        /// <summary>The validator owns the row shape; this wall pins each name to the bound query surface.</summary>
-        private List<ExclusiveQueryPairPlan> BindExclusivePairs(List<QueryPropertyPlan> properties)
-        {
-            var pairs = new List<ExclusiveQueryPairPlan>();
-            foreach (var parameters in _curation.MutuallyExclusiveQueries
-                         .Where(row => string.Equals(row.Operation, _operation.OperationId, StringComparison.Ordinal))
-                         .Select(static row => row.Parameters))
-            {
-                var missing = parameters.FirstOrDefault(parameter =>
-                    !properties.Any(property => string.Equals(property.WireName, parameter, StringComparison.Ordinal)));
-                if (missing is not null)
-                {
-                    Refuse($"the operation does not carry query parameter '{missing}' named by its mutually-exclusive row");
-                    continue;
-                }
-
-                if (parameters.Count is 2)
-                {
-                    pairs.Add(new ExclusiveQueryPairPlan
-                    {
-                        FirstWireName = parameters[0],
-                        SecondWireName = parameters[1],
-                    });
-                }
-            }
-
-            return pairs;
         }
 
         /// <summary>The one admitted deep-object encoding is the optional nullable location selector.</summary>
@@ -1077,6 +1052,7 @@ internal sealed class OperationPlanBinder
         {
             if (parameter.IsRequired
                 || Resolve(parameter.Schema) is not NullableNode nullable
+                || nullable.Format is not null
                 || !IsLocationSelectorShape(nullable.Inner))
             {
                 Refuse($"query parameter '{parameter.Name}' uses deep-object encoding outside the optional location selector shape");
@@ -1088,6 +1064,7 @@ internal sealed class OperationPlanBinder
                 WireName = parameter.Name,
                 PropertyName = CSharpNamePolicy.ToPascalCase(parameter.Name),
                 Kind = QueryValueKind.Location,
+                Description = parameter.Schema.Description,
                 IsInherited = false,
             };
         }
@@ -1150,19 +1127,18 @@ internal sealed class OperationPlanBinder
         /// </summary>
         private static bool MatchesListRequestProfile(List<QueryPropertyPlan> properties) =>
             properties.Count is 3
-            && properties.Any(static property => property is { WireName: "limit", Kind: QueryValueKind.PositiveCount })
+            && properties.Any(static property => property is { WireName: "limit", Kind: QueryValueKind.Text })
             && properties.Any(static property => property is { WireName: "order", Kind: QueryValueKind.ListOrder })
             && properties.Any(static property => property is { WireName: "cursor", Kind: QueryValueKind.Text });
 
-        private QueryValueKind? ResolveQueryValueKind(string wireName, SchemaNode inner)
+        private QueryValueKind? ResolveQueryValueKind(SchemaNode inner)
         {
             return Resolve(inner) switch
             {
-                PrimitiveNode { Kind: PrimitiveKind.String } =>
-                    string.Equals(wireName, "limit", StringComparison.Ordinal) ? QueryValueKind.PositiveCount : QueryValueKind.Text,
-                EnumNode { Values: ["asc", "desc"] } => QueryValueKind.ListOrder,
-                EnumNode { Values: ["true", "false"] } or EnumNode { Values: ["false", "true"] } => QueryValueKind.BooleanFlag,
-                UnionNode { Classification: UnionClassification.Structural, Branches: [var first, var second] }
+                PrimitiveNode { Kind: PrimitiveKind.String, Format: null } => QueryValueKind.Text,
+                EnumNode { Values: ["asc", "desc"], Format: null } => QueryValueKind.ListOrder,
+                EnumNode { Values: ["true", "false"] or ["false", "true"], Format: null } => QueryValueKind.BooleanText,
+                UnionNode { Classification: UnionClassification.Structural, Format: null, Branches: [var first, var second] }
                     when IsParentFilterShape(first, second) => QueryValueKind.SessionParentFilter,
                 _ => null,
             };
@@ -1180,9 +1156,9 @@ internal sealed class OperationPlanBinder
                    || (IsIdentifierString(right) && IsNullLiteral(left));
         }
 
-        private static bool IsIdentifierString(SchemaNode schema) => schema is PrimitiveNode { Kind: PrimitiveKind.String };
+        private static bool IsIdentifierString(SchemaNode schema) => schema is PrimitiveNode { Kind: PrimitiveKind.String, Format: null };
 
-        private static bool IsNullLiteral(SchemaNode schema) => schema is LiteralNode { Kind: LiteralKind.String, Value: "null" };
+        private static bool IsNullLiteral(SchemaNode schema) => schema is LiteralNode { Kind: LiteralKind.String, Value: "null", Format: null };
 
         private void Refuse(string problem) => _errors.Add(BindingErrorCategory.Operation, _operation.OperationId, problem);
 

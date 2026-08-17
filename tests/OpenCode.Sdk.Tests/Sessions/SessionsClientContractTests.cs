@@ -30,7 +30,7 @@ public sealed class SessionsClientContractTests
 
         _ = await scenario.Client.Sessions.ListSessionsAsync(new SessionListRequest
         {
-            Limit = 5,
+            Limit = "5",
             Order = ListOrder.Descending,
             Search = "a b",
             ParentId = SessionParentFilter.RootOnly,
@@ -75,15 +75,14 @@ public sealed class SessionsClientContractTests
     }
 
     [Test]
-    public async Task ListSessionsAsync_Should_Refuse_A_Non_Positive_Limit_Before_Sending()
+    public async Task ListSessionsAsync_Should_Send_The_OpenApi_String_Limit_Without_Local_Validation()
     {
-        using var scenario = ContractScenario.Responding();
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Page(""));
 
-        var exception = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.ListSessionsAsync(new SessionListRequest { Limit = 0 }))
-            .Throws<ArgumentOutOfRangeException>();
-        await Assert.That(exception!.ParamName).IsEqualTo("request");
-        await Assert.That(scenario.Requests).IsEmpty();
+        _ = await scenario.Client.Sessions.ListSessionsAsync(new SessionListRequest { Limit = "not-a-number" });
+
+        await Assert.That(scenario.Requests.Single().RequestUri!.AbsoluteUri)
+            .IsEqualTo("http://localhost:4096/api/session?limit=not-a-number");
     }
 
     [Test]

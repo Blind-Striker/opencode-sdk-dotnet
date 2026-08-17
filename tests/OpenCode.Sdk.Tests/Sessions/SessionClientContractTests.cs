@@ -88,7 +88,7 @@ public sealed class SessionClientContractTests
 
         var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ListMessagesAsync(new MessageListRequest
         {
-            Limit = 2,
+            Limit = "2",
             Order = ListOrder.Ascending,
         });
 
@@ -138,20 +138,18 @@ public sealed class SessionClientContractTests
     }
 
     [Test]
-    public async Task ListMessagesAsync_Should_Refuse_Order_Combined_With_Cursor_Before_Sending()
+    public async Task ListMessagesAsync_Should_Send_Order_Combined_With_Cursor()
     {
-        using var scenario = ContractScenario.Responding();
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Page(""));
 
-        var exception = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").ListMessagesAsync(new MessageListRequest
-            {
-                Order = ListOrder.Ascending,
-                Cursor = "cur_1",
-            }))
-            .Throws<ArgumentException>();
+        _ = await scenario.Client.Sessions.GetSessionClient("ses_100").ListMessagesAsync(new MessageListRequest
+        {
+            Order = ListOrder.Ascending,
+            Cursor = "cur_1",
+        });
 
-        await Assert.That(exception!.ParamName).IsEqualTo("request");
-        await Assert.That(scenario.Requests).IsEmpty();
+        await Assert.That(scenario.Requests.Single().RequestUri!.AbsoluteUri)
+            .IsEqualTo("http://localhost:4096/api/session/ses_100/message?order=asc&cursor=cur_1");
     }
 
     [Test]

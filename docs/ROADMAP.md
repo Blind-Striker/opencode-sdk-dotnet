@@ -97,14 +97,18 @@ metadata and arbitrary numeric strings remain unrepresentable as ordinary double
 
 Session 29 reset two cross-cutting boundaries before more model breadth lands. The pinned OpenAPI
 document is now the sole protocol-semantic generation input; curation cannot restore types,
-constraints, formats, or validation from upstream implementation source (ADR-0013). Runtime now
+constraints, formats, or validation from upstream implementation source (ADR-0013). #54 removes the
+former property-type and mutually-exclusive-query curation sections, name-derived positive counts,
+and string-enum boolean conversion. Selected `limit` and `after` queries retain the pinned
+document's string shape; `follow` preserves its exact string tokens through `QueryBoolean`, and
+exact `asc`/`desc` order remains typed from its declared enum. Runtime now
 validates only transport/framing, .NET materialization, and union dispatch; it does not replay
 server schema validation, normalize optional collections to empty, or defensively own generated
 model collections (ADR-0014). This supersedes the old acceptance criteria behind #45/#48 and the
-source-derived parts of #28/#40 plus the explicit-null arm of #41. Two serial green increments now
-lead the queue: #54 removes semantic curation not derivable from the pin; after its hosted CI is
-green, #55 simplifies generated model/runtime materialization and reviews the intentional nullable
-API diff. #46's
+source-derived parts of #28/#40 plus the explicit-null arm of #41. The queue remains serial: #54 is
+the completed protocol-authority increment; after its hosted CI is green, #55 simplifies generated
+model/runtime materialization and reviews the intentional nullable API diff.
+#46's
 unknown-field/hybrid wall, #27's validated exact aliases, #47's stream-plan completeness, and
 #49's mechanical breadth evidence remain valid. The runtime corpus still covers two of 40 durable
 branches; no invented 40/87-payload corpus is planned. The six interim allocation baselines remain
@@ -117,9 +121,9 @@ direct-push policy remain open under #50.
 (`list`/`create`/`get`/`remove`/`timeout`) ride the 204 no-content and
 `{location, data}` envelope machinery, the deepObject `LocationSelector` query channel,
 the merged body+query request models, the ambient options location riding the
-middleware headers, and the first PATCH/DELETE verbs. #28 landed as the
-`mutuallyExclusiveQueries` curation section with the route-boundary refusal on
-`message.list`. Demonstrated live 2026-08-16 against `opencode2 serve`
+middleware headers, and the first PATCH/DELETE verbs. `message.list` now carries the pinned query
+shape without a description-derived order+cursor refusal. Demonstrated live 2026-08-16 against
+`opencode2 serve`
 v0.0.0-next-17403 (shell create → get → timeout → remove and session rename → remove,
 204s typed, ambient location echoed). `v2.shell.output` deferred to a later batch —
 its inline data object and integer cursor query params each need a mechanism of their

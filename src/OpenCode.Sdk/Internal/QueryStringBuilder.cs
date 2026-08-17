@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 
 namespace OpenCode.Sdk.Internal;
@@ -22,32 +21,6 @@ internal sealed class QueryStringBuilder
         }
     }
 
-    /// <summary>The wire spells this flag as the strings "true" and "false", not as 1/0.</summary>
-    public void AddFlag(string name, bool? value)
-    {
-        if (value is { } flag)
-        {
-            Append(name, flag ? "true" : "false");
-        }
-    }
-
-    public void AddCount(string name, int? value, string parameterName)
-    {
-        if (value is null)
-        {
-            return;
-        }
-
-        if (value <= 0)
-        {
-            // The refusal surfaces from a generated route builder, so the builder passes
-            // the parameter name its own caller can actually see.
-            throw new ArgumentOutOfRangeException(parameterName, value, $"The '{name}' query value must be positive.");
-        }
-
-        Append(name, value.Value.ToString(CultureInfo.InvariantCulture));
-    }
-
     public void AddOrder(string name, ListOrder? value)
     {
         if (value is null)
@@ -60,6 +33,22 @@ internal sealed class QueryStringBuilder
             ListOrder.Ascending => "asc",
             ListOrder.Descending => "desc",
             _ => throw new ArgumentOutOfRangeException(nameof(value), value, "Unknown ListOrder value."),
+        };
+        Append(name, wire);
+    }
+
+    public void AddBoolean(string name, QueryBoolean? value)
+    {
+        if (value is null)
+        {
+            return;
+        }
+
+        var wire = value switch
+        {
+            QueryBoolean.True => "true",
+            QueryBoolean.False => "false",
+            _ => throw new ArgumentOutOfRangeException(nameof(value), value, "Unknown QueryBoolean value."),
         };
         Append(name, wire);
     }

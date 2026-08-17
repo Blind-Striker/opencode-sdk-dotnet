@@ -35,7 +35,7 @@
     {
         protected ListRequest() { }
         public string? Cursor { get; init; }
-        public int? Limit { get; init; }
+        public string? Limit { get; init; }
         public OpenCode.Sdk.ListOrder? Order { get; init; }
     }
     public sealed class LocationSelector : System.IEquatable<OpenCode.Sdk.LocationSelector>
@@ -147,6 +147,11 @@
         public OpenCodeTransportException(string message) { }
         public OpenCodeTransportException(string message, System.Exception innerException) { }
     }
+    public enum QueryBoolean
+    {
+        True = 0,
+        False = 1,
+    }
     public class SessionClient
     {
         protected SessionClient() { }
@@ -168,7 +173,7 @@
         public SessionListRequest() { }
         public string? Cursor { get; init; }
         public string? Directory { get; init; }
-        public int? Limit { get; init; }
+        public string? Limit { get; init; }
         public OpenCode.Sdk.ListOrder? Order { get; init; }
         public OpenCode.Sdk.SessionParentFilter? ParentId { get; init; }
         public string? Project { get; init; }
@@ -187,7 +192,7 @@
     {
         public SessionLogRequest() { }
         public string? After { get; init; }
-        public bool? Follow { get; init; }
+        public OpenCode.Sdk.QueryBoolean? Follow { get; init; }
     }
     public sealed class SessionMessageResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionMessageResponse>
     {
@@ -505,7 +510,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
         [System.Text.Json.Serialization.JsonPropertyName("uri")]
-        public required System.Uri Uri { get; init; }
+        public required string Uri { get; init; }
     }
     public sealed class PromptMention : System.IEquatable<OpenCode.Sdk.Models.PromptMention>
     {
@@ -3207,7 +3212,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
         [System.Text.Json.Serialization.JsonPropertyName("uri")]
-        public required System.Uri Uri { get; init; }
+        public required string Uri { get; init; }
     }
     public sealed class ToolTextContent : OpenCode.Sdk.Models.IToolContent, System.IEquatable<OpenCode.Sdk.Models.ToolTextContent>
     {

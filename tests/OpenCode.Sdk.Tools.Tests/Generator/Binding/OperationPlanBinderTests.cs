@@ -173,6 +173,36 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Derive_Selected_Query_Types_From_The_Pinned_OpenApi()
+    {
+        var plan = await new BindingTestHost().BindPinnedAsync();
+        var sessions = plan.Clients.Single(static client => client.Name == "SessionsClient");
+        var session = plan.Clients.Single(static client => client.Name == "SessionClient");
+
+        var sessionList = sessions.Operations.Single(static operation => operation.MethodName == "ListSessionsAsync");
+        await Assert.That(sessionList.QueryRequest!.Properties.Single(static property => property.WireName == "limit").Kind)
+            .IsEqualTo(QueryValueKind.Text);
+        await Assert.That(sessionList.QueryRequest.Properties.Single(static property => property.WireName == "order").Kind)
+            .IsEqualTo(QueryValueKind.ListOrder);
+
+        var messageList = session.Operations.Single(static operation => operation.MethodName == "ListMessagesAsync");
+        await Assert.That(messageList.QueryRequest!.Properties.Single(static property => property.WireName == "limit").Kind)
+            .IsEqualTo(QueryValueKind.Text);
+        await Assert.That(messageList.QueryRequest.Properties.Single(static property => property.WireName == "order").Kind)
+            .IsEqualTo(QueryValueKind.ListOrder);
+        await Assert.That(messageList.QueryRequest.Properties.Single(static property => property.WireName == "cursor").Kind)
+            .IsEqualTo(QueryValueKind.Text);
+
+        var sessionLog = session.Operations.Single(static operation => operation.MethodName == "GetLogAsync");
+        await Assert.That(sessionLog.QueryRequest!.Properties.Single(static property => property.WireName == "after").Kind)
+            .IsEqualTo(QueryValueKind.Text);
+        await Assert.That(sessionLog.QueryRequest.Properties.Single(static property => property.WireName == "follow").Kind)
+            .IsEqualTo(QueryValueKind.BooleanText);
+        await Assert.That(messageList.QueryRequest.Properties.Single(static property => property.WireName == "cursor").Description)
+            .Contains("Do not combine with order");
+    }
+
+    [Test]
     public async Task Bind_Should_Bind_A_Synthetic_Same_Shape_Group_Through_The_Same_Rules()
     {
         var document = await BindingTestHost.IngestAsync(GadgetScenario());
@@ -266,13 +296,15 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Refuse_A_Model_Colliding_With_A_Spine_Type_Name()
+    [Arguments("ListCursor")]
+    [Arguments("QueryBoolean")]
+    public async Task Bind_Should_Refuse_A_Model_Colliding_With_A_Spine_Type_Name(string schemaName)
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
-            .WithSchema("ListCursor", schema => schema.Type("object")
+            .WithSchema(schemaName, schema => schema.Type("object")
                 .Property("id", property => property.Type("string"), required: true))
             .WithOperation("v2.widget.item", path: "/api/widget/item", configure: operation => operation
-                .Response(200, "application/json", schema => schema.Ref("ListCursor")))));
+                .Response(200, "application/json", schema => schema.Ref(schemaName)))));
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
@@ -393,7 +425,7 @@ public sealed class OperationPlanBinderTests
             .SequenceEqual(["Limit", "Order", "Cursor", "Search", "ParentId"], StringComparer.Ordinal)).IsTrue();
         await Assert.That(list.QueryRequest.Properties.Select(static property => property.Kind)
             .SequenceEqual([
-                QueryValueKind.PositiveCount,
+                QueryValueKind.Text,
                 QueryValueKind.ListOrder,
                 QueryValueKind.Text,
                 QueryValueKind.Text,
@@ -401,6 +433,24 @@ public sealed class OperationPlanBinderTests
             ])).IsTrue();
         await Assert.That(list.QueryRequest.Properties.All(static property => !property.IsInherited)).IsTrue();
         await Assert.That(list.Parameters).IsEmpty();
+    }
+
+    [Test]
+    public async Task Bind_Should_Keep_Query_Description_Without_Deriving_Validation()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("limit", "query", schema => schema
+                .AnyOf(
+                    branch => branch.Type("string"),
+                    branch => branch.Type("null"))
+                .Description("Must be a positive count."))));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        var property = list.QueryRequest!.Properties.Single();
+        await Assert.That(property.Kind).IsEqualTo(QueryValueKind.Text);
+        await Assert.That(property.Description).IsEqualTo("Must be a positive count.");
     }
 
     [Test]
@@ -791,7 +841,36 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Refuse_A_Query_Enum_Outside_The_Order_Profile()
+    public async Task Bind_Should_Refuse_A_Formatted_Query_Without_A_Declared_Mapping()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("target", "query", schema => schema.AnyOf(
+                branch => branch.Type("string").Format("uri"),
+                branch => branch.Type("null")))));
+
+        await AssertWidgetRefusalAsync(document, "unsupported schema shape");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Formatted_Parent_Filter_Branch()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("parentID", "query", QueryScenarioData.NullableFormattedParentFilter)));
+
+        await AssertWidgetRefusalAsync(document, "unsupported schema shape");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Formatted_Location_Selector_Member()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("location", "query", QueryScenarioData.NullableFormattedLocationSelector, deepObject: true)));
+
+        await AssertWidgetRefusalAsync(document, "outside the optional location selector shape");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Query_String_Enum_Outside_The_Admitted_Profiles()
     {
         var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
             .Parameter("order", "query", schema => schema.AnyOf(
@@ -811,59 +890,6 @@ public sealed class OperationPlanBinderTests
                 branch => branch.Type("null")))));
 
         await AssertWidgetRefusalAsync(document, "unsupported schema shape");
-    }
-
-    [Test]
-    public async Task Bind_Should_Record_A_Curated_Mutually_Exclusive_Query_Pair()
-    {
-        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
-            .Parameter("order", "query", QueryScenarioData.NullableOrderEnum)
-            .Parameter("cursor", "query", QueryScenarioData.NullableString)));
-
-        var plan = new BindingTestHost().Bind(
-            document,
-            Selection("v2.widget.list"),
-            Curation(
-                Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)),
-                mutuallyExclusiveQueries: [ExclusiveQuery("v2.widget.list", "order", "cursor")]));
-
-        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
-        var pair = list.QueryRequest!.MutuallyExclusivePairs.Single();
-        await Assert.That(pair.FirstWireName).IsEqualTo("order");
-        await Assert.That(pair.SecondWireName).IsEqualTo("cursor");
-    }
-
-    [Test]
-    public async Task Bind_Should_Refuse_A_Mutually_Exclusive_Row_When_The_Operation_Binds_No_Query_Surface()
-    {
-        var document = await BindingTestHost.IngestAsync(WidgetListScenario(static _ => { }));
-
-        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
-            document,
-            Selection("v2.widget.list"),
-            Curation(
-                Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)),
-                mutuallyExclusiveQueries: [ExclusiveQuery("v2.widget.list", "order", "cursor")])));
-
-        await Assert.That(exception.Errors.Any(static error =>
-            error.Problem.Contains("does not carry query parameter", StringComparison.Ordinal))).IsTrue();
-    }
-
-    [Test]
-    public async Task Bind_Should_Refuse_A_Mutually_Exclusive_Row_Naming_An_Absent_Parameter()
-    {
-        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
-            .Parameter("order", "query", QueryScenarioData.NullableOrderEnum)));
-
-        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
-            document,
-            Selection("v2.widget.list"),
-            Curation(
-                Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)),
-                mutuallyExclusiveQueries: [ExclusiveQuery("v2.widget.list", "order", "cursor")])));
-
-        await Assert.That(exception.Errors.Any(static error =>
-            error.Problem.Contains("does not carry query parameter", StringComparison.Ordinal))).IsTrue();
     }
 
     [Test]
@@ -1511,11 +1537,29 @@ public sealed class OperationPlanBinderTests
                 static inner => inner.Type("string").Enum("null")),
             static branch => branch.Type("null"));
 
+        public static void NullableFormattedParentFilter(SchemaBuilder schema) => schema.AnyOf(
+            static branch => branch.AnyOf(
+                static inner => inner.Type("string").Format("uri")
+                    .AllOf(static constraint => constraint.Raw("pattern", "\"^wid\"")),
+                static inner => inner.Type("string").Enum("null")),
+            static branch => branch.Type("null"));
+
         public static void NullableLocationSelector(SchemaBuilder schema) => schema.AnyOf(
             static branch => branch.Type("object")
                 .AdditionalPropertiesFalse()
                 .Property("directory", static property => property.AnyOf(
                     static inner => inner.Type("string"),
+                    static inner => inner.Type("null")))
+                .Property("workspace", static property => property.AnyOf(
+                    static inner => inner.Type("string"),
+                    static inner => inner.Type("null"))),
+            static branch => branch.Type("null"));
+
+        public static void NullableFormattedLocationSelector(SchemaBuilder schema) => schema.AnyOf(
+            static branch => branch.Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("directory", static property => property.AnyOf(
+                    static inner => inner.Type("string").Format("uri"),
                     static inner => inner.Type("null")))
                 .Property("workspace", static property => property.AnyOf(
                     static inner => inner.Type("string"),

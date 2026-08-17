@@ -799,6 +799,12 @@ dotnet_diagnostic.S1694.severity = none
 [src/OpenCode.Sdk/OpenCodeRoutes.cs]
 dotnet_diagnostic.CA1034.severity = none
 
+# The pinned OpenAPI schemas declare these wire members as plain strings without
+# format: uri. Winner: the sole protocol input's declared type; CA1056's name
+# inference remains enabled for every other property.
+[src/OpenCode.Sdk/Models/{PromptFileSourceUri,ToolFileContent}.cs]
+dotnet_diagnostic.CA1056.severity = none
+
 # The shipped SDK slices by client family with flat public namespaces:
 # client-family folders are placement, a namespace is API surface, and the
 # test project mirrors the layout with equally flat test namespaces. Winner: the

@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Text.Json.Serialization;
 using OpenCode.Sdk.Tools.Generator.Binding;
 using OpenCode.Sdk.Tools.Generator.Binding.Models;
 using OpenCode.Sdk.Tools.Tests.Support;
@@ -19,8 +21,19 @@ public sealed class CurationLoaderTests
 
         await Assert.That(curation.Groups["health"].Placement).IsEqualTo(GroupPlacement.Root);
         await Assert.That(curation.EnvelopePayloadNames).IsEmpty();
-        await Assert.That(curation.PropertyOverrides).IsEmpty();
         await Assert.That(curation.SchemaAliases).IsEmpty();
+    }
+
+    [Test]
+    public async Task GenerationCuration_Should_Expose_Only_Allowed_Curation_Sections()
+    {
+        var sections = typeof(GenerationCuration)
+            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+            .Select(static property => property.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name
+                ?? throw new InvalidOperationException($"Curation property '{property.Name}' has no JSON name."))
+            .Order(StringComparer.Ordinal);
+
+        await Assert.That(sections).IsEquivalentTo(["envelopePayloadNames", "groups", "schemaAliases"]);
     }
 
     [Test]
@@ -47,6 +60,21 @@ public sealed class CurationLoaderTests
 
         await Assert.That(exception!.Errors.Single().Category).IsEqualTo(BindingErrorCategory.Curation);
         await Assert.That(exception.Errors.Single().Problem).Contains("mystery");
+    }
+
+    [Test]
+    [Arguments("Binding.property-overrides-curation.json", "propertyOverrides")]
+    [Arguments("Binding.mutually-exclusive-queries-curation.json", "mutuallyExclusiveQueries")]
+    public async Task LoadAsync_Should_Refuse_Forbidden_Semantic_Curation(string fixtureName, string section)
+    {
+        var fileSystem = CreateFileSystem(fixtureName);
+
+        var exception = await Assert
+            .That(async () => _ = await new CurationLoader(fileSystem).LoadAsync(CurationPath, CancellationToken.None))
+            .Throws<BindingException>();
+
+        await Assert.That(exception!.Errors.Single().Category).IsEqualTo(BindingErrorCategory.Curation);
+        await Assert.That(exception.Errors.Single().Problem).Contains(section);
     }
 
     private static MockFileSystem CreateFileSystem(string fixtureName)

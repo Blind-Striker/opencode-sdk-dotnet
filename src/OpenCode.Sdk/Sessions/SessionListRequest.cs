@@ -11,11 +11,11 @@ public sealed record SessionListRequest
     /// </summary>
     public string? Workspace { get; init; }
     /// <summary>
-    /// Gets the &apos;limit&apos; query value; the server default applies when unset.
+    /// Maximum number of sessions to return. Defaults to the newest 50 sessions.
     /// </summary>
-    public int? Limit { get; init; }
+    public string? Limit { get; init; }
     /// <summary>
-    /// Gets the &apos;order&apos; query value; the server default applies when unset.
+    /// Session order for the first page. Use desc for newest first or asc for oldest first.
     /// </summary>
     public ListOrder? Order { get; init; }
     /// <summary>
@@ -23,7 +23,7 @@ public sealed record SessionListRequest
     /// </summary>
     public string? Search { get; init; }
     /// <summary>
-    /// Gets the &apos;parentID&apos; query value; the server default applies when unset.
+    /// Filter by parent session. Use null to return only root sessions.
     /// </summary>
     public SessionParentFilter? ParentId { get; init; }
     /// <summary>
@@ -39,7 +39,7 @@ public sealed record SessionListRequest
     /// </summary>
     public string? Subpath { get; init; }
     /// <summary>
-    /// Gets the &apos;cursor&apos; query value; the server default applies when unset.
+    /// Opaque pagination cursor returned as cursor.previous or cursor.next in the previous response.
     /// </summary>
     public string? Cursor { get; init; }
 }

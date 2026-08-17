@@ -2,7 +2,7 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 namespace OpenCode.Sdk;
 /// <summary>
-/// Shapes the &apos;GET /api/session/{sessionID}/message&apos; query.
+/// Shapes the &apos;GET /api/session/{sessionID}/message&apos; query. &apos;limit&apos;: Maximum number of messages to return. When omitted, the endpoint returns its default page size. &apos;order&apos;: Message order for the first page. Use desc for newest first or asc for oldest first. &apos;cursor&apos;: Opaque pagination cursor returned as cursor.previous or cursor.next in the previous response. Do not combine with order.
 /// </summary>
 public sealed record MessageListRequest : ListRequest
 {
