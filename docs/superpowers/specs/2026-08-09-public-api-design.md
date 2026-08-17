@@ -599,16 +599,19 @@ Task<SessionHistoryResponse>          session.Events.ListHistoryAsync(long? afte
 // ListHistoryAsync is a plain list op: after/limit parameters, {data, hasMore} envelope — no cursor.
 ```
 
-- The live union is the spec's 88-variant event union; the durable stream's schema is
-  `SessionDurableEvent` (the spec's single `oneOf`). They do not share a type.
+- The sketch above is the v1.18.15 surface; the v2 retarget (ADR-0005) replaced the durable
+  pair with `v2.session.log`. On v2 the two unions **do** share types: 39 of the durable
+  union's 40 branches are also direct branches of the 87-branch live union, which is why
+  union membership is an interface rather than a base class (ADR-0011).
 - Wire note: the OpenAPI projection types `after`/`limit` as strings; the Effect source
   is `NumberFromString` — the SDK keeps numeric parameters via the curation
   per-parameter type override. Durable SSE frames carry `{id, event, data}` where
   `data` is a JSON-encoded `SessionDurableEvent`.
 - Streams are lazy: the connection opens on first `MoveNextAsync`; the token cancels.
   No auto-reconnect (locked); the `after` cursor is consumer-held state.
-- Mechanism: `SseParser` (`System.Net.ServerSentEvents`, downlevel package) over a
-  `ResponseHeadersRead` response stream.
+- Mechanism: a hand-written `ServerSentEventReader` over a `ResponseHeadersRead` response
+  stream — the `System.Net.ServerSentEvents` package was not taken, since the frame grammar
+  is small and the reader owns the frame-size ceiling and the truncation refusal.
 - Risk note (doc 10): the durable stream is protocol-surface-only with no legacy
   counterpart — the newest, least-proven part of the upstream surface; integration tests
   must exercise it early.

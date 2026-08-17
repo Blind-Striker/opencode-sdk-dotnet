@@ -37,6 +37,9 @@ direction and rationale, not law; only this list and the ADRs bind.
 - **Generated models:** immutable, `required`-mirroring, nullable-last-resort (ADR-0004).
 - **Unknown-variant tolerance:** every union deserializes unknown tags into an explicit
   carrier (ADR-0009).
+- **Union membership:** a union emits as an interface and a wire schema stays one `sealed
+  record` implementing every union it belongs to — a schema can be a branch of more than one
+  union, which a base class cannot express (ADR-0011).
 - **Error model:** typed exception spine carrying tagged error data; per-call `NoThrow`, no
   client-level switch (ADR-0007).
 - **TFM matrix:** `netstandard2.0;net472;net8.0;net9.0;net10.0`; net11 light-up post-GA;

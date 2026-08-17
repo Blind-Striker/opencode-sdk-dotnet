@@ -116,10 +116,17 @@ Four shapes inside those counts only surface when an operation's closure is actu
 the stream operations are what first reached them (2026-08-16, by admitting `v2.session.log`
 and `v2.event.subscribe` to the profile and reading the walls):
 
-- **Single-value `enum` is not always a string.** `durable.version` is
-  `{"type":"number","enum":[1]}` — a numeric literal marker, 40 schemas across the durable
-  event family. The 370 count above does not split by type; the string-literal reading of the
-  dialect was incomplete.
+- **Single-value `enum` is not always a string.** `durable.version` is a numeric literal marker
+  across the 40-schema durable event family — `enum: [1]` on 35 of them and `enum: [2]` on the
+  other 5, so the envelope carries two versions rather than one. All 41 numeric single-value
+  enums in the spec declare `type: number`; none declare `integer`. The 370 count above does not
+  split by type; the string-literal reading of the dialect was incomplete.
+- **A leaf schema can belong to more than one union.** 39 of `Session.Event.Durable`'s 40
+  branches are also direct branches of the 87-branch `V2Event`, so the durable log stream and
+  the live bus share most of their payload types. Census of all 14 all-`$ref` unions: 41 leaves
+  carry two parents, in three families — the 39 above, plus the `Tool.Content`/`Tool.Content1`
+  and `Form.Field`/`Form.Field1` spec-gen duplicates. Every one of them discriminates on `type`
+  in both parents. This is what ADR-0011 answers.
 - **An empty struct renders as a two-branch union.** `Session.Inbox.CompactionPayload` is
   `anyOf[{"type":"object"},{"type":"array"}]`, which is how Effect emits
   `Schema.Struct({})` — upstream's own generated client types it as `{}`. It is a declaration
