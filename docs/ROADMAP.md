@@ -101,9 +101,10 @@ constraints, formats, or validation from upstream implementation source (ADR-001
 validates only transport/framing, .NET materialization, and union dispatch; it does not replay
 server schema validation, normalize optional collections to empty, or defensively own generated
 model collections (ADR-0014). This supersedes the old acceptance criteria behind #45/#48 and the
-source-derived parts of #28/#40 plus the explicit-null arm of #41. Two serial green
-increments now lead the queue: remove semantic curation not derivable from the pin, then simplify
-generated model/runtime materialization and review the intentional nullable API diff. #46's
+source-derived parts of #28/#40 plus the explicit-null arm of #41. Two serial green increments now
+lead the queue: #54 removes semantic curation not derivable from the pin; after its hosted CI is
+green, #55 simplifies generated model/runtime materialization and reviews the intentional nullable
+API diff. #46's
 unknown-field/hybrid wall, #27's validated exact aliases, #47's stream-plan completeness, and
 #49's mechanical breadth evidence remain valid. The runtime corpus still covers two of 40 durable
 branches; no invented 40/87-payload corpus is planned. The six interim allocation baselines remain
