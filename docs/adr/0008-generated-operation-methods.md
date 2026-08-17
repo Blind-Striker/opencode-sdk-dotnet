@@ -1,6 +1,6 @@
 # All operation methods are generated; excluded operations are fingerprint-pinned
 
-Date: 2026-08-13
+Date: 2026-08-17
 
 Every operation method on the generated surface is generator-emitted
 as a one-line delegation into the hand-written behavior core; behavior (retry, error
@@ -44,3 +44,10 @@ envelope; `text/*` → `string`); an unknown content type breaks generation.
   collection operations stay on the collection client. Groups without a handle declaration
   stay flat. Emitters never branch on operation IDs, wire group names, or concrete client
   names.
+- An operation name the mechanical policy cannot derive without semantic guessing rides a
+  reason-bearing, fail-closed curation row. The binder validates the final identifier and all
+  collisions; emitters consume the bound name mechanically and never branch on an operation ID.
+  The first concrete case is `v2.event.subscribe`, whose reviewed surface is
+  `Events.SubscribeAsync`, not the natural `Events.GetSubscribeAsync` derivation.
+
+Evidence: research log Q102.

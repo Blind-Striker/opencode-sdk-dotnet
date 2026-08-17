@@ -1,6 +1,6 @@
 # Testing Style — authoring tests
 
-Date: 2026-08-11
+Date: 2026-08-17
 
 Binding authorship style for every test in this repository. The testing *architecture* —
 levels, projects, the dual-mode harness, coverage gates, CI — is owned by the sealed
@@ -86,6 +86,13 @@ test body states *intent*; the data it runs on lives in one of three sanctioned 
 A short literal is acceptable only when the literal *is* the subject under test (a
 media-type string in a media-type parsing test). Data that describes structure always
 goes through 1 or 2.
+
+Representative wire fixtures prove runtime behavior, not exhaustive union membership. Do not
+invent one hand-authored payload per branch and call that contract breadth: converter maps,
+serializer registration, and plural membership are checked mechanically through the bound and
+emitted plans, while a small schema-valid runtime corpus exercises framing and deserialization.
+Real observed frames are promoted into that corpus when available. Documentation states the
+observed fixture count rather than projecting structural completeness onto it.
 
 ## 4. Fakes and mocks
 

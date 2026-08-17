@@ -1,6 +1,6 @@
 # Research log — 2026-08-08
 
-Date: 2026-08-16
+Date: 2026-08-17
 
 > How this project's understanding was built: the questions asked, how each was
 > researched, what was found, and what decision or lesson came out of it.
@@ -2236,3 +2236,106 @@ still dispatches its pending frame — that is a whole event missing only its bl
 **Accepted cost:** a deliberate divergence from both WHATWG and upstream, taken because
 neither's reasoning survives the no-reconnect posture, and because reporting a cut
 connection as a malformed payload misdirects every consumer who reads the message.
+
+# Session 28 — 2026-08-17: post-Arc 3a review, factual verification, and policy seals
+
+The 25-commit Arc 3a range (`f6a569a..b19e32d`) received its first independent review before Arc 3b could build on
+it. Eighteen fresh-context reviewers covered the streaming runtime, generator slices, generated
+surface, both test projects, shared infrastructure, concurrency, performance, TFM/AOT behavior,
+and the handoff's factual verification prompt. Their reports were cross-fed at generated/tooling
+boundaries, then every surviving class was checked against live source, executable probes, or a
+primary input before issue filing. Fifteen trigger-scoped issues (`#39`–`#53`) survived; existing
+`#23`, `#24`, `#27`, and `#30` gained same-owner riders instead of duplicates.
+
+## Q100: Did the handoff's factual claims survive primary-source verification?
+
+**How researched:** exhaustive `jq` walks over the pinned spec; pinned Effect encoder/parser,
+server handlers, generated client, package assets and per-TFM binaries; before/after Git
+worktrees for ADR-0011; and an isolated exact `opencode2` v0.0.0-next-17403 server with its own
+home, database, and port.
+
+**Found:** claims 1–11 held. The decisive counts are 39/40 durable branches shared directly
+with the 87-branch live union, 41 numeric singleton enums all declared `number`, 12 exact
+object-or-array empty-struct spellings, and four all-string refinement unions. The two SSE
+handlers, Effect's conditional `event:`/`id:` emission, generated-client field loss, direct
+dependency split, interface converter support, and downlevel Polyfill allocation also held.
+
+Claim 12 was too broad: the suite passed and one API baseline was identical across the three
+modern test TFMs, but the interface conversion intentionally changed that reviewed baseline,
+the reflected type graph, and record `ToString()` behavior. Covered wire round trips stayed
+stable; “no runtime behavior changed” did not.
+
+Claim 13 was false on its sequence half: default-server durable commits advance the watermark
+while payload persistence remains disabled. This is configured behavior, not an inert writer or
+unexplained build gap; research doc 02 carries the source trace and exact live observation.
+
+## Q101: Which review findings were real enough to schedule?
+
+**Found:** executable runtime probes reproduced stream-side untouched-token cancellation,
+enumeration after disposal, a buffered frame after cancellation, malformed UTF-8 becoming
+typed replacement-character data on both paths, a one-shot body outliving `HttpClient.Timeout`,
+JSON success under `text/plain`, automatic redirect following, named special-number rejection,
+null elements inside non-null collections, and unenforced fixed/closed-object constraints.
+Generator traces separately proved incomplete stream-profile walls and first-appearance walls
+across ingestion, binding, naming, curation, and writer recovery. The reported clean-build
+analyzer explosion was discarded: concurrent generation had exposed transient unformatted
+output, and a clean no-incremental five-TFM build completed with zero warnings and errors.
+
+**Decision:** immediate M3 correctness work is executable under `#39`–`#42` and `#44`–`#49`;
+`#43` remains the decision-first Arc 5 transport cluster. The broader fail-closed and release
+gates are trigger-anchored in `#51`–`#53`. Performance findings remain on `#23`/`#29`; no
+hot-path optimization moves before Arc 6.
+
+## Q102: How do the two public names the projection cannot express enter the API?
+
+**Found:** `after` is projected as a string, but upstream decodes `NumberFromString` into the
+non-negative integer `Event.Seq`; Q31's promised parameter override had never been implemented.
+The mechanical operation-name policy reads `v2.event.subscribe` as HTTP GET plus subject
+“Subscribe”, yielding `Events.GetSubscribeAsync`; a global verb-list addition instead yields
+`Events.SubscribeEventAsync`.
+
+**Decision (maintainer, sealed):** `SessionLogRequest.After` is `long?`, accepts zero, and
+refuses negatives before sending through generic reason-bearing parameter curation (`#40`).
+The live bus is `Events.SubscribeAsync`, supplied by generic reason-bearing operation-name
+curation with fail-closed identifier/collision validation (`#44`). Machinery never branches on
+either operation ID.
+
+## Q103: How strict are fixed values and additive fields on known models?
+
+**Found:** fixed literals and object openness survive ingestion but disappear during model
+emission. `healthy:false`, arbitrary durable versions, contradictory direct concrete markers,
+and extra fields on a closed known object all deserialize today. The mechanisms have different
+version-skew consequences: a wrong fixed value contradicts the represented variant, while an
+unknown optional field is the normal shape of an additive newer server.
+
+**Decision (maintainer, sealed):** every fixed boolean, number, or string emits as a
+constant/get-only property and validates its wire value through one name-blind literal rule
+(`#45`; ADR-0004). Known objects deliberately skip additive unmapped fields even when the pin
+closes them; required members, fixed values, represented types, and nullability remain strict.
+Pure dictionaries keep their value schema, and a hybrid named object with typed additional
+properties fails binding until represented without loss (`#46`; ADR-0012).
+
+## Q104: What proves breadth when real stream frames are sparse?
+
+**Found:** the durable runtime corpus covers two of 40 durable branches, not 40, and several
+older “known” message fixtures use IDs outside the pinned `^msg_` contract. A generated JSON
+fixture factory would add a maintained test-only schema interpreter, while 40/87 hand-authored
+payloads would multiply the unobserved wrong-at-birth risk.
+
+**Decision (maintainer, sealed):** runtime fixtures stay representative, small, schema-valid,
+and increasingly observational. Mechanical tests own exhaustive converter tags, source-generated
+registry membership, and bind → emit → compile → deserialize plural-interface guarantees. Real
+frames join the corpus as they become available; documentation states the actual runtime count
+(`#49`, testing style).
+
+## Q105: Did the performance and hosted-assurance guardrails hold?
+
+**Found:** an unchanged `MemoryDiagnoser` run reproduced all six M3 allocation baselines exactly:
+25.92 KB, 26.67 KB, 2.08 KB, 17.37 KB, 321.54 KB, and 177.69 KB. GitHub Actions had failed to
+start after `683341a` because of account spending controls, leaving the Arc 3a range without
+hosted Windows/net472 evidence. After the maintainer restored budget, rerun `32008926694`
+attempt 2 completed all three Windows, macOS, and Linux jobs successfully against source SHA
+`b19e32d`.
+
+**Decision:** the interim allocation baselines remain hard guards through Arcs 3b–5. Hosted CI
+execution is restored; branch-protection policy remains tracked separately by `#50`.

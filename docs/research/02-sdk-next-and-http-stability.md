@@ -1,6 +1,6 @@
 # sdk-next, the embedded model, and why the HTTP surface is safe to build on
 
-Date: 2026-08-16
+Date: 2026-08-17
 
 > Sources, retrieved 2026-08-08: `external/opencode/packages/sdk-next/README.md`,
 > `external/opencode/CONTEXT.md` ("Client contract architecture" and related decisions).
@@ -135,9 +135,17 @@ or deliberately not:
 | Trims all leading whitespace after `data:` | **not** mirrored; the SSE grammar strips exactly one space |
 | Appends `\n\n` at EOF, dispatching a partial trailing line | **not** mirrored; without auto-reconnect a truncated frame is lost data, so it is reported |
 
-**Consumer census (2026-08-16).** `v2.session.log` has exactly one consumer upstream — the
-TUI devtools bar, which collects the log with `follow: false` to dump a debug JSON file and
-discriminates on `event.type`, skipping the `log.synced` watermark. The web UI, desktop, app,
-session-ui and console packages do not call it at all. `v2.event.subscribe` is the one every
-front-end uses: 36 call sites in `packages/web`, 2 in the TUI, 2 in the CLI, 1 in the app.
-The durable log is a diagnostic channel; the live bus is the product surface.
+**Consumer census (2026-08-17).** Counting checked-in production calls to the generated v2
+client, `v2.session.log` has exactly one consumer upstream — the TUI devtools bar, which reads
+with `follow: false` to dump a debug JSON file and skips the `log.synced` watermark. The live
+`v2.event.subscribe` operation has five direct consumers: two CLI paths, two TUI transports,
+and the app's server connection. Core plugin `ctx.event.subscribe()` calls are in-process bus
+consumers, not HTTP operation calls; tests and the legacy Slack SDK are outside this count. The
+durable log is a diagnostic channel; the live bus is the product surface.
+
+**Default-server persistence (verified live against v0.0.0-next-17403).** The ordinary server
+configures the bus with `events.persist` unset, whose default is false. A durable commit always
+advances `event_sequence`, but inserts historical payload rows only when persistence is true.
+Three session renames therefore produced a sole `log.synced` frame at `seq: 3`, not a sequence
+stuck at zero; `/api/event` receives the live events in the same configuration. Compositions
+that require replay, such as workerd and the embedded SDK test host, set `events.persist: true`.

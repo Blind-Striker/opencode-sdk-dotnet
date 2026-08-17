@@ -66,27 +66,40 @@ and Extensions test projects, and the previously unobserved object-envelope
 by the SDK test project; the Extensions tests are registration-topology only).
 
 **M3 is open** (plan: `superpowers/plans/2026-08-15-m3-plan.md`; decisions: research log
-Session 24). Q92's simplicity-first construction (ADR-0010) is landed — Arc 1 complete:
+Sessions 24–28). Q92's simplicity-first construction (ADR-0010) is landed — Arc 1 complete:
 the transport constructor is internal friend-assembly test surface, Extensions registers
 a factory-less singleton client family with a roster contract test, and the Q91 guard
 machinery is deleted — closing #31 by construction. #32 and #33 stay sealed with their
 execution homes recorded (Session 24), and the location + merged-Request design is
 sealed (Session 25, Q93/Q94: the binder placement map and the dual-channel location
 rendering). **Arc 3a's SSE engine is landed** — `ServerSentEventReader` frames a live body
-into named events, and the pipeline opens a stream through the same decoration, walls and
-transport-failure mapping the one-shot path uses. Q98 sealed what the `event` field is for
+into named events, and the pipeline opens a stream through the same decoration and status
+walls the one-shot path uses. Q98 sealed what the `event` field is for
 (the contract's only mid-stream failure channel; upstream's own generated client discards
 it and we do not), and Q99 sealed that a body cut mid-event is reported rather than
 dispatched. **The generator side landed too**: ADR-0011 turned union membership into an
 interface because 39 schemas branch from both stream unions, a marker-spanning nested union
 now dispatches through its own leaves, the two unions carrying no choice are read rather than
-refused, numeric literal markers bind, and a streaming success binds to a stream plan whose
-frame profile, JSON-encoded payload and declared `failureEvent` are each required.
+refused, numeric literal markers bind, and a streaming success binds to a stream plan carrying
+its frame, JSON-encoded payload, and declared `failureEvent` metadata.
 `v2.session.log` is selected — 14 operations — and `SessionClient.GetLogAsync` returns
 `IAsyncEnumerable<ISessionLogItem>` with no per-call options. Demonstrated live 2026-08-17
 against `opencode2 serve` v0.0.0-next-17403: the stream opens, frames decode, and the
-watermark types as `EventLogSynced`; the durable union itself could not be exercised because
-that build writes nothing into the log (Open Questions).
+watermark types as `EventLogSynced`; research doc 02 records why the default server advances
+the watermark without persisting historical payload rows.
+
+The post-Arc 3a independent review and factual verification are complete (research log Session
+28). Fifteen trigger-scoped findings live in #39–#53; #23/#24/#27/#30 carry same-owner riders.
+Before Arc 3b, the runway closes stream lifecycle (#39), strict SSE UTF-8 (#42), special-number
+and nested-null model fidelity (#41/#48), the complete stream-plan wall (#47), numeric resume
+cursor (#40), fixed literals (#45), and known-object field policy (#46). The Arc 3b selection
+also waits for #49's mechanical breadth gates, then closes reviewed `Events.SubscribeAsync`
+naming (#44) itself. Fixed literals are generated as
+constants when #45 closes, and known objects deliberately tolerate additive unmapped fields
+(ADR-0012/#46). The runtime corpus currently covers two of 40 durable branches; #49 will add
+mechanical converter, registry, and plural-membership breadth gates rather than invented
+40/87-payload corpora. The six interim allocation baselines did not move. Hosted CI execution
+is restored at `b19e32d`; master protection and direct-push policy remain open under #50.
 
 **The M2 second breadth batch is complete** (plan:
 `superpowers/plans/2026-08-15-m2-second-breadth-batch.md`) — the design-prover batch:
@@ -129,7 +142,9 @@ is revisited at each milestone boundary.
    over the v2 stream surface (`v2.event.subscribe`, `v2.session.log` with
    `after`/`follow`, cursor-paged `v2.message.list`); the v1 durable-stream design does
    not carry over and is re-derived here. Demo: watching a real session's event stream.
-   The net472 `ServicePointManager` connection-lease item lands here as a GA gate. The
+   Immediate review blockers #39–#42 and #45–#49 close before the live-bus breadth step; #44
+   closes with that selection. The net472 owned-transport cluster (#43) lands here as a GA
+   gate. The
    union single-pass deserialization and streaming adapter-boundary redesign (#23) land
    on the M3 runway, gated on the performance baselines (#18), together with the
    second-review perf mechanisms and #29; #32 (uniform route-boundary refusal) rides the
@@ -140,7 +155,8 @@ is revisited at each milestone boundary.
    background service's discovery file are candidate mechanisms — decided in the M4 plan;
    platform detail: research doc 15.)
 5. **M5 — Full surface.** Complete generation profile over the protocol surface,
-   exclusion fingerprints (ADR-0008), packaging unblocked. The **ambient location
+   exclusion fingerprints (ADR-0008), remaining ingestion/binding walls (#52/#53), and
+   package/API/TFM assurance (#51), packaging unblocked. The **ambient location
    header decision (#37)** lands here and is decision-first: packaging unblocking
    freezes the public surface, so this is the last free moment to drop
    `OpenCodeClientOptions.Location` (option B) or fold it into the query channel
@@ -158,23 +174,10 @@ is revisited at each milestone boundary.
 - **v2 GA watch** — the v2 line ships as `opencode2` (npm `@opencode-ai/cli@next`, desktop
   beta via `update.opencode.ai`) with no GA date; the spec pin stays a deliberate snapshot,
   refreshed at milestone boundaries. Platform detail: research doc 15.
-- **`v2.session.log` semantics** — it replaces the v1 durable stream (`after` + `follow` on
-  an experimental path); resume guarantees are unestablished. Owned by M3. Observed
-  2026-08-17 against `opencode2 serve` v0.0.0-next-17403: the read side answers, but the
-  write side is inert — the aggregate sequence stays at 0 through repeated renames and a
-  complete assistant turn, and only the `log.synced` watermark ever arrives. Proven by raw
-  `curl`, independent of this SDK, while `/api/event` emitted normally in the same window.
-  Upstream declares those session events `Event.durable(...)`, so this reads as a gap in the
-  build rather than in the contract; re-check at the spec-pin refresh.
-- **Synthetic wire fixtures have no observational check** — the durable-log contract test
-  covers 40 union branches from hand-authored frames, because no server writes them yet.
-  Generated types protect the fixtures against *drift* (a spec refresh changes the models and
-  a stale frame stops binding), but nothing protects them against being *wrong at birth*: a
-  frame we invented that deserializes cleanly and never occurs on the wire. Candidate answers,
-  none chosen: emit minimal valid instances per branch from the spec so the fixture cannot
-  disagree with it; capture and promote real frames once the write side lands; or cross-check
-  against upstream's own fixtures. Not urgent while the branch coverage is the only breadth
-  evidence available, but it should not be inherited silently by Arc 3b.
+- **`v2.session.log` resume guarantees** — it replaces the v1 durable stream (`after` +
+  `follow` on an experimental path). The cursor is a non-negative aggregate sequence (#40),
+  but retention/replay guarantees remain unestablished. Research doc 02 records the default
+  server's persistence behavior; re-check guarantees at the spec-pin refresh.
 - **Spec refresh cadence** — the `refresh-spec` tool lands in M6; the cadence policy stays
   open.
 - **Structural-union emission shape** — the v1 pin had five structural-union sites
@@ -189,4 +192,3 @@ is revisited at each milestone boundary.
 
 - **`BuildOs`/`BuildArch`** properties are kept in `Directory.Build.props`; adapt their values to
   opencode's release-asset naming when the binary-download need lands.
-

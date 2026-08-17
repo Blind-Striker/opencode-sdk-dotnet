@@ -8,8 +8,10 @@ the HTTP API that every opencode front-end (TUI, desktop, web UI, plugins) goes
 through — with an MCP server planned on top of it.
 
 **Status: early development.** Nothing is published to NuGet yet; the public API
-surface is still being designed. See [GOAL.md](GOAL.md) for goals, decisions, and
-roadmap, and [`docs/research/`](docs/research/) for the research notes behind them.
+surface is still being designed. See the
+[roadmap](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/ROADMAP.md)
+and [research notes](https://github.com/Blind-Striker/opencode-sdk-dotnet/tree/master/docs/research)
+for the current direction and its evidence.
 
 ## Planned packages
 

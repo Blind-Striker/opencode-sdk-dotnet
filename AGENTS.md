@@ -34,9 +34,14 @@ direction and rationale, not law; only this list and the ADRs bind.
   (ADR-0003, ADR-0008).
 - **Generator packaging:** repo tooling under `tools/`; committed output passes the analyzer
   wall on merit; the same tool owns spec refresh (ADR-0003).
-- **Generated models:** immutable, `required`-mirroring, nullable-last-resort (ADR-0004).
+- **Generated models:** immutable, `required`-mirroring, fixed literals exposed as
+  read-validated constants, nullable-last-resort (ADR-0004).
 - **Unknown-variant tolerance:** every union deserializes unknown tags into an explicit
   carrier (ADR-0009).
+- **Unknown-field tolerance:** known object variants deliberately skip additive unmapped
+  fields, including schemas closed by the pin; required members, fixed literals, nullability,
+  and represented types stay strict, while a hybrid named-object + typed-additional-properties
+  shape fails binding until it can be represented without loss (ADR-0012).
 - **Union membership:** a union emits as an interface and a wire schema stays one `sealed
   record` implementing every union it belongs to — a schema can be a branch of more than one
   union, which a base class cannot express (ADR-0011).
