@@ -189,11 +189,4 @@ is revisited at each milestone boundary.
 
 - **`BuildOs`/`BuildArch`** properties are kept in `Directory.Build.props`; adapt their values to
   opencode's release-asset naming when the binary-download need lands.
-- **`Microsoft.Bcl.AsyncInterfaces` is undeclared.** `IAsyncEnumerable<T>` exists on
-  `netstandard2.0` and `net472` only through that package, and it reaches the SDK
-  transitively through `System.Text.Json` — there is no `Directory.Packages.props` entry, so
-  another package's graph picks its version. This is inert while the streaming surface is
-  `internal`. **Trigger:** the first generated stream operation that returns
-  `IAsyncEnumerable<T>` publicly (Arc 3a admitting `v2.session.log`) puts a foreign package's
-  type in the SDK's own public signature, at which point the dependency must be declared and
-  pinned directly under research doc 06's policy.
+
