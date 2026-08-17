@@ -9,13 +9,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message assistant reasoning value.
 /// </summary>
-public sealed record SessionMessageAssistantReasoning : SessionMessageAssistantContent
+public sealed record SessionMessageAssistantReasoning : ISessionMessageAssistantContent
 {
     /// <summary>
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => "reasoning";
+    public string Type => "reasoning";
 
     /// <summary>
     /// Gets the text value.

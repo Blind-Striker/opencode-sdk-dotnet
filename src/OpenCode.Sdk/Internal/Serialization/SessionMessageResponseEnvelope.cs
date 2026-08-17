@@ -10,5 +10,5 @@ namespace OpenCode.Sdk.Internal.Serialization;
 internal sealed record SessionMessageResponseEnvelope
 {
     [JsonPropertyName("data")]
-    public required SessionMessageInfo Data { get; init; }
+    public required ISessionMessageInfo Data { get; init; }
 }

@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 /// Preserves an unknown session message tool state payload.
 /// </summary>
 [JsonConverter(typeof(UnknownSessionMessageToolStateJsonConverter))]
-public sealed record UnknownSessionMessageToolState : SessionMessageToolState
+public sealed record UnknownSessionMessageToolState : ISessionMessageToolState
 {
     private readonly string _marker;
     /// <summary>
@@ -32,7 +32,7 @@ public sealed record UnknownSessionMessageToolState : SessionMessageToolState
     /// Gets the unrecognized &apos;status&apos; marker.
     /// </summary>
     [JsonPropertyName("status")]
-    public override string Status => _marker;
+    public string Status => _marker;
     /// <summary>
     /// Gets the preserved raw JSON payload.
     /// </summary>

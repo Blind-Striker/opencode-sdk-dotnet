@@ -4,7 +4,11 @@ namespace OpenCode.Sdk.Tools.Generator.Binding.Models;
 
 internal sealed record UnionPlan
 {
+    /// <summary>Gets the emitted interface name, which is what every reference binds to.</summary>
     public required string Name { get; init; }
+
+    /// <summary>Gets the union name without its interface prefix, which names the members around it.</summary>
+    public required string ConceptName { get; init; }
 
     public required string Namespace { get; init; }
 

@@ -34,6 +34,23 @@ internal static class CSharpNamePolicy
         return string.Concat(char.ToLowerInvariant(pascal[0]), pascal[1..]);
     }
 
+    /// <summary>Names a union's emitted interface; unions are interfaces because a schema can
+    /// belong to more than one of them (ADR-0011).</summary>
+    public static string ToUnionInterfaceName(string conceptName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(conceptName);
+
+        return string.Concat("I", conceptName);
+    }
+
+    /// <summary>The inverse of <see cref="ToUnionInterfaceName"/>; names the members around a union.</summary>
+    public static string ToUnionConceptName(string interfaceName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(interfaceName);
+
+        return interfaceName[0] is 'I' ? interfaceName[1..] : interfaceName;
+    }
+
     public static bool IsValidIdentifier(string candidate)
     {
         if (string.IsNullOrEmpty(candidate) || !(char.IsLetter(candidate[0]) || candidate[0] is '_'))

@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message location switched value.
 /// </summary>
-public sealed record SessionMessageLocationSwitched : SessionMessageInfo
+public sealed record SessionMessageLocationSwitched : ISessionMessageInfo
 {
     /// <summary>
     /// Gets the id value.
@@ -33,7 +33,7 @@ public sealed record SessionMessageLocationSwitched : SessionMessageInfo
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => "location-switched";
+    public string Type => "location-switched";
 
     /// <summary>
     /// Gets the location value.

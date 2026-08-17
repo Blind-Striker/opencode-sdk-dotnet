@@ -6,7 +6,7 @@ using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk.Internal.Serialization;
 
-internal sealed class PromptFileSourceJsonConverter : JsonConverter<PromptFileSource>
+internal sealed class PromptFileSourceJsonConverter : JsonConverter<IPromptFileSource>
 {
     private static readonly Dictionary<string, Type> TypesByTag = new(StringComparer.Ordinal)
     {
@@ -15,7 +15,7 @@ internal sealed class PromptFileSourceJsonConverter : JsonConverter<PromptFileSo
     };
     public override bool HandleNull => true;
 
-    public override PromptFileSource Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override IPromptFileSource Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
@@ -50,13 +50,13 @@ internal sealed class PromptFileSourceJsonConverter : JsonConverter<PromptFileSo
         if (TypesByTag.TryGetValue(marker, out var targetType))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for PromptFileSource.");
-            return JsonSerializer.Deserialize(payload, typeInfo) as PromptFileSource ?? throw new JsonException("The PromptFileSource payload deserialized to null.");
+            return JsonSerializer.Deserialize(payload, typeInfo) as IPromptFileSource ?? throw new JsonException("The PromptFileSource payload deserialized to null.");
         }
 
         return new UnknownPromptFileSource(marker, payload);
     }
 
-    public override void Write(Utf8JsonWriter writer, PromptFileSource value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, IPromptFileSource value, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);

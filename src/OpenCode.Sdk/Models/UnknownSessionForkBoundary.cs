@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 /// Preserves an unknown session fork boundary payload.
 /// </summary>
 [JsonConverter(typeof(UnknownSessionForkBoundaryJsonConverter))]
-public sealed record UnknownSessionForkBoundary : SessionForkBoundary
+public sealed record UnknownSessionForkBoundary : ISessionForkBoundary
 {
     private readonly string _marker;
     /// <summary>
@@ -32,7 +32,7 @@ public sealed record UnknownSessionForkBoundary : SessionForkBoundary
     /// Gets the unrecognized &apos;type&apos; marker.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => _marker;
+    public string Type => _marker;
     /// <summary>
     /// Gets the preserved raw JSON payload.
     /// </summary>

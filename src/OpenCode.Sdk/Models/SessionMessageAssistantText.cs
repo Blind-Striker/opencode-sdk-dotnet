@@ -9,13 +9,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message assistant text value.
 /// </summary>
-public sealed record SessionMessageAssistantText : SessionMessageAssistantContent
+public sealed record SessionMessageAssistantText : ISessionMessageAssistantContent
 {
     /// <summary>
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => "text";
+    public string Type => "text";
 
     /// <summary>
     /// Gets the text value.

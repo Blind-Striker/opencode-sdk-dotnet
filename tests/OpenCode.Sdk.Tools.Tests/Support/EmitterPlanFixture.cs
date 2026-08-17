@@ -36,11 +36,11 @@ internal static class EmitterPlanFixture
                     "BadRequestError",
                     "CreatedEvent",
                     "DeletedEvent",
-                    "ExampleEvent",
+                    "IExampleEvent",
                     "ExampleItem",
                     "ExampleMode",
                     "ExamplePlace",
-                    "OpenCodeError",
+                    "IOpenCodeError",
                     "UnknownExampleEvent",
                     "UnknownOpenCodeError",
                     "WidgetCreateRequest",
@@ -519,7 +519,7 @@ internal static class EmitterPlanFixture
                 plan.Models.Single(static model => model.Name == "ExampleMode"),
                 plan.Models.Single(static model => model.Name == "WidgetCreateRequest"),
             ],
-            Unions = [plan.Unions.Single(static union => union.Name == "OpenCodeError")],
+            Unions = [plan.Unions.Single(static union => union.Name == "IOpenCodeError")],
         };
     }
 
@@ -529,13 +529,14 @@ internal static class EmitterPlanFixture
     private static UnionPlan CreateExamplePhase() =>
         new()
         {
-            Name = "ExamplePhase",
+            Name = "IExamplePhase",
+            ConceptName = "ExamplePhase",
             Namespace = "OpenCode.Sdk.Models",
             UnknownTypeName = "UnknownExamplePhase",
             MarkerWireName = "status",
             MarkerName = "Status",
             MarkerKind = LiteralKind.String,
-            BaseTypeName = "ExampleEvent",
+            BaseTypeName = "IExampleEvent",
             FixedMarker = new UnionFixedMarkerPlan
             {
                 WireName = "type",
@@ -587,7 +588,7 @@ internal static class EmitterPlanFixture
             Name = name,
             Namespace = "OpenCode.Sdk.Models",
             Description = null,
-            BaseTypeName = "ExampleEvent",
+            BaseTypeName = "IExampleEvent",
             Properties =
             [
                 LiteralProperty("type", "Type", tag),
@@ -601,7 +602,7 @@ internal static class EmitterPlanFixture
             Name = "BadRequestError",
             Namespace = "OpenCode.Sdk.Models",
             Description = "Represents a rejected request.",
-            BaseTypeName = "OpenCodeError",
+            BaseTypeName = "IOpenCodeError",
             Properties =
             [
                 LiteralProperty("_tag", "Tag", "BadRequestError"),
@@ -612,7 +613,8 @@ internal static class EmitterPlanFixture
     private static UnionPlan CreateExampleEvent() =>
         new()
         {
-            Name = "ExampleEvent",
+            Name = "IExampleEvent",
+            ConceptName = "ExampleEvent",
             Namespace = "OpenCode.Sdk.Models",
             UnknownTypeName = "UnknownExampleEvent",
             MarkerWireName = "type",
@@ -629,7 +631,8 @@ internal static class EmitterPlanFixture
     private static UnionPlan CreateOpenCodeError() =>
         new()
         {
-            Name = "OpenCodeError",
+            Name = "IOpenCodeError",
+            ConceptName = "IOpenCodeError",
             Namespace = "OpenCode.Sdk.Models",
             UnknownTypeName = "UnknownOpenCodeError",
             MarkerWireName = "_tag",

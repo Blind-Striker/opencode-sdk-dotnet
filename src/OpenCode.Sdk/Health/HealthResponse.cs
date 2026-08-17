@@ -22,7 +22,7 @@ public sealed record HealthResponse : OpenCodeResponse
     /// Initializes an error-path instance; the payload stays unset behind its guard.
     /// </summary>
     [SetsRequiredMembers]
-    internal HealthResponse(int status, OpenCodeError? error, string? rawBody)
+    internal HealthResponse(int status, IOpenCodeError? error, string? rawBody)
     {
         Status = status;
         IsError = true;

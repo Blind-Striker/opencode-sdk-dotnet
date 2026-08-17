@@ -6,13 +6,13 @@ using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk.Internal.Serialization;
 
-internal sealed class SessionMessageInfoJsonConverter : JsonConverter<SessionMessageInfo>
+internal sealed class SessionMessageInfoJsonConverter : JsonConverter<ISessionMessageInfo>
 {
     private static readonly Dictionary<string, Type> TypesByTag = new(StringComparer.Ordinal)
     {
         ["agent-switched"] = typeof(SessionMessageAgentSelected),
         ["assistant"] = typeof(SessionMessageAssistant),
-        ["compaction"] = typeof(SessionMessageCompaction),
+        ["compaction"] = typeof(ISessionMessageCompaction),
         ["location-switched"] = typeof(SessionMessageLocationSwitched),
         ["model-switched"] = typeof(SessionMessageModelSelected),
         ["shell"] = typeof(SessionMessageShell),
@@ -23,7 +23,7 @@ internal sealed class SessionMessageInfoJsonConverter : JsonConverter<SessionMes
     };
     public override bool HandleNull => true;
 
-    public override SessionMessageInfo Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override ISessionMessageInfo Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
@@ -58,13 +58,13 @@ internal sealed class SessionMessageInfoJsonConverter : JsonConverter<SessionMes
         if (TypesByTag.TryGetValue(marker, out var targetType))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for SessionMessageInfo.");
-            return JsonSerializer.Deserialize(payload, typeInfo) as SessionMessageInfo ?? throw new JsonException("The SessionMessageInfo payload deserialized to null.");
+            return JsonSerializer.Deserialize(payload, typeInfo) as ISessionMessageInfo ?? throw new JsonException("The SessionMessageInfo payload deserialized to null.");
         }
 
         return new UnknownSessionMessageInfo(marker, payload);
     }
 
-    public override void Write(Utf8JsonWriter writer, SessionMessageInfo value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, ISessionMessageInfo value, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);
@@ -75,9 +75,9 @@ internal sealed class SessionMessageInfoJsonConverter : JsonConverter<SessionMes
             return;
         }
 
-        if (value is SessionMessageCompaction nestedSessionMessageCompaction)
+        if (value is ISessionMessageCompaction nestedISessionMessageCompaction)
         {
-            JsonSerializer.Serialize(writer, nestedSessionMessageCompaction, OpenCodeJsonContext.Default.SessionMessageCompaction);
+            JsonSerializer.Serialize(writer, nestedISessionMessageCompaction, OpenCodeJsonContext.Default.ISessionMessageCompaction);
             return;
         }
 

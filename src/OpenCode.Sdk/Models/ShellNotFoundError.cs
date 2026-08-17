@@ -6,13 +6,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a shell not found error value.
 /// </summary>
-public sealed record ShellNotFoundError : OpenCodeError
+public sealed record ShellNotFoundError : IOpenCodeError
 {
     /// <summary>
     /// Gets the tag value.
     /// </summary>
     [JsonPropertyName("_tag")]
-    public override string Tag => "ShellNotFoundError";
+    public string Tag => "ShellNotFoundError";
 
     /// <summary>
     /// Gets the id value.

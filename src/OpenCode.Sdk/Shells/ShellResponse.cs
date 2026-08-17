@@ -23,7 +23,7 @@ public sealed record ShellResponse : OpenCodeResponse
     /// Initializes an error-path instance; the payload stays unset behind its guard.
     /// </summary>
     [SetsRequiredMembers]
-    internal ShellResponse(int status, OpenCodeError? error, string? rawBody)
+    internal ShellResponse(int status, IOpenCodeError? error, string? rawBody)
     {
         Status = status;
         IsError = true;

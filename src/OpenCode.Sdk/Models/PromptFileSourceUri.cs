@@ -6,13 +6,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a prompt file source uri value.
 /// </summary>
-public sealed record PromptFileSourceUri : PromptFileSource
+public sealed record PromptFileSourceUri : IPromptFileSource
 {
     /// <summary>
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => "uri";
+    public string Type => "uri";
 
     /// <summary>
     /// Gets the uri value.

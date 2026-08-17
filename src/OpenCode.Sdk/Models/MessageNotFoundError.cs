@@ -6,13 +6,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a message not found error value.
 /// </summary>
-public sealed record MessageNotFoundError : OpenCodeError
+public sealed record MessageNotFoundError : IOpenCodeError
 {
     /// <summary>
     /// Gets the tag value.
     /// </summary>
     [JsonPropertyName("_tag")]
-    public override string Tag => "MessageNotFoundError";
+    public string Tag => "MessageNotFoundError";
 
     /// <summary>
     /// Gets the session id value.

@@ -13,13 +13,13 @@ namespace OpenCode.Sdk.Internal;
 /// </summary>
 internal static class OpenCodeErrorReader
 {
-    public static OpenCodeError? Read(string rawBody, IReadOnlyCollection<string>? allowedTags)
+    public static IOpenCodeError? Read(string rawBody, IReadOnlyCollection<string>? allowedTags)
     {
         ArgumentNullException.ThrowIfNull(rawBody);
 
         try
         {
-            var error = JsonSerializer.Deserialize(rawBody, OpenCodeJsonContext.Default.OpenCodeError);
+            var error = JsonSerializer.Deserialize(rawBody, OpenCodeJsonContext.Default.IOpenCodeError);
             return error switch
             {
                 null => null,
@@ -35,7 +35,7 @@ internal static class OpenCodeErrorReader
     }
 
     /// <summary>Builds the failure an error status raises on the throwing channel.</summary>
-    public static OpenCodeApiException CreateApiException(int status, OpenCodeError? error, string? rawBody)
+    public static OpenCodeApiException CreateApiException(int status, IOpenCodeError? error, string? rawBody)
     {
         var statusText = status.ToString(System.Globalization.CultureInfo.InvariantCulture);
         var message = error is null

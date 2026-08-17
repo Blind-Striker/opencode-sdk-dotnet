@@ -12,7 +12,7 @@ public abstract record OpenCodeResponse
     public bool IsError { get; init; }
 
     /// <summary>Gets the typed API error, or <see langword="null"/> when the error body could not be parsed.</summary>
-    public OpenCodeError? Error { get; init; }
+    public IOpenCodeError? Error { get; init; }
 
     /// <summary>Gets the raw error body; populated only on the error path.</summary>
     public string? RawBody { get; init; }

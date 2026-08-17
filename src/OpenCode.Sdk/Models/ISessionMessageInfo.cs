@@ -5,14 +5,14 @@ using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a session message assistant content union.
+/// Represents a session message info union.
 /// </summary>
-[JsonConverter(typeof(SessionMessageAssistantContentJsonConverter))]
-public abstract record SessionMessageAssistantContent
+[JsonConverter(typeof(SessionMessageInfoJsonConverter))]
+public interface ISessionMessageInfo
 {
     /// <summary>
     /// Gets the &apos;type&apos; union marker.
     /// </summary>
     [JsonPropertyName("type")]
-    public abstract string Type { get; }
+    public string Type { get; }
 }

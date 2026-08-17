@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message synthetic value.
 /// </summary>
-public sealed record SessionMessageSynthetic : SessionMessageInfo
+public sealed record SessionMessageSynthetic : ISessionMessageInfo
 {
     /// <summary>
     /// Gets the id value.
@@ -47,5 +47,5 @@ public sealed record SessionMessageSynthetic : SessionMessageInfo
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => "synthetic";
+    public string Type => "synthetic";
 }

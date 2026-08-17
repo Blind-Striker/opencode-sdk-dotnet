@@ -20,7 +20,7 @@ public sealed record SessionRemoveResponse : OpenCodeResponse
     /// Initializes an error-path instance; the payload stays unset behind its guard.
     /// </summary>
     [SetsRequiredMembers]
-    internal SessionRemoveResponse(int status, OpenCodeError? error, string? rawBody)
+    internal SessionRemoveResponse(int status, IOpenCodeError? error, string? rawBody)
     {
         Status = status;
         IsError = true;

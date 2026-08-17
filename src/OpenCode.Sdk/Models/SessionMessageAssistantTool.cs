@@ -9,13 +9,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message assistant tool value.
 /// </summary>
-public sealed record SessionMessageAssistantTool : SessionMessageAssistantContent
+public sealed record SessionMessageAssistantTool : ISessionMessageAssistantContent
 {
     /// <summary>
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => "tool";
+    public string Type => "tool";
 
     /// <summary>
     /// Gets the id value.
@@ -53,7 +53,7 @@ public sealed record SessionMessageAssistantTool : SessionMessageAssistantConten
     /// Gets the state value.
     /// </summary>
     [JsonPropertyName("state")]
-    public required SessionMessageToolState State { get; init; }
+    public required ISessionMessageToolState State { get; init; }
 
     /// <summary>
     /// Gets the time value.

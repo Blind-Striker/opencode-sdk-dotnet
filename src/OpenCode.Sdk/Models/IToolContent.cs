@@ -5,14 +5,14 @@ using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a session fork boundary union.
+/// Represents a tool content union.
 /// </summary>
-[JsonConverter(typeof(SessionForkBoundaryJsonConverter))]
-public abstract record SessionForkBoundary
+[JsonConverter(typeof(ToolContentJsonConverter))]
+public interface IToolContent
 {
     /// <summary>
     /// Gets the &apos;type&apos; union marker.
     /// </summary>
     [JsonPropertyName("type")]
-    public abstract string Type { get; }
+    public string Type { get; }
 }

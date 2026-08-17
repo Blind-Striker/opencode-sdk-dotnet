@@ -30,7 +30,7 @@ public class OpenCodeApiException : OpenCodeException
     /// <param name="status">The HTTP status code of the error response.</param>
     /// <param name="error">The typed API error, when the error body carried a known shape.</param>
     /// <param name="rawBody">The raw error body.</param>
-    public OpenCodeApiException(string message, int status, OpenCodeError? error, string? rawBody)
+    public OpenCodeApiException(string message, int status, IOpenCodeError? error, string? rawBody)
         : base(message)
     {
         Status = status;
@@ -42,7 +42,7 @@ public class OpenCodeApiException : OpenCodeException
     public int Status { get; }
 
     /// <summary>Gets the typed API error, or <see langword="null"/> when the error body could not be parsed.</summary>
-    public OpenCodeError? Error { get; }
+    public IOpenCodeError? Error { get; }
 
     /// <summary>Gets the raw error body.</summary>
     public string? RawBody { get; }

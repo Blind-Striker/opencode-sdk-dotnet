@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 /// Preserves an unknown prompt file source payload.
 /// </summary>
 [JsonConverter(typeof(UnknownPromptFileSourceJsonConverter))]
-public sealed record UnknownPromptFileSource : PromptFileSource
+public sealed record UnknownPromptFileSource : IPromptFileSource
 {
     private readonly string _marker;
     /// <summary>
@@ -32,7 +32,7 @@ public sealed record UnknownPromptFileSource : PromptFileSource
     /// Gets the unrecognized &apos;type&apos; marker.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => _marker;
+    public string Type => _marker;
     /// <summary>
     /// Gets the preserved raw JSON payload.
     /// </summary>

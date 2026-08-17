@@ -9,13 +9,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message tool state completed value.
 /// </summary>
-public sealed record SessionMessageToolStateCompleted : SessionMessageToolState
+public sealed record SessionMessageToolStateCompleted : ISessionMessageToolState
 {
     /// <summary>
     /// Gets the status value.
     /// </summary>
     [JsonPropertyName("status")]
-    public override string Status => "completed";
+    public string Status => "completed";
 
     /// <summary>
     /// Gets the input value.
@@ -35,13 +35,13 @@ public sealed record SessionMessageToolStateCompleted : SessionMessageToolState
     /// Gets the content value.
     /// </summary>
     [JsonPropertyName("content")]
-    public required IReadOnlyList<ToolContent> Content
+    public required IReadOnlyList<IToolContent> Content
     {
         get;
         init
         {
             ArgumentNullException.ThrowIfNull(value);
-            field = new List<ToolContent>(value).AsReadOnly();
+            field = new List<IToolContent>(value).AsReadOnly();
         }
     } = [];
 

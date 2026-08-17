@@ -6,13 +6,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a unauthorized error value.
 /// </summary>
-public sealed record UnauthorizedError : OpenCodeError
+public sealed record UnauthorizedError : IOpenCodeError
 {
     /// <summary>
     /// Gets the tag value.
     /// </summary>
     [JsonPropertyName("_tag")]
-    public override string Tag => "UnauthorizedError";
+    public string Tag => "UnauthorizedError";
 
     /// <summary>
     /// Gets the message value.

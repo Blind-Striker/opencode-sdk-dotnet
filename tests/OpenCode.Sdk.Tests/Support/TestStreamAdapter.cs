@@ -21,5 +21,5 @@ internal sealed class TestStreamAdapter : IStreamAdapter<TestBody>
 
     public JsonTypeInfo<TestBody> PayloadTypeInfo => TestBodyJsonContext.Default.TestBody;
 
-    public OpenCodeError? ReadError(int status, string rawBody) => OpenCodeErrorReader.Read(rawBody, _allowedTags);
+    public IOpenCodeError? ReadError(int status, string rawBody) => OpenCodeErrorReader.Read(rawBody, _allowedTags);
 }

@@ -6,7 +6,7 @@ using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk.Internal.Serialization;
 
-internal sealed class OpenCodeErrorJsonConverter : JsonConverter<OpenCodeError>
+internal sealed class OpenCodeErrorJsonConverter : JsonConverter<IOpenCodeError>
 {
     private static readonly Dictionary<string, Type> TypesByTag = new(StringComparer.Ordinal)
     {
@@ -20,7 +20,7 @@ internal sealed class OpenCodeErrorJsonConverter : JsonConverter<OpenCodeError>
     };
     public override bool HandleNull => true;
 
-    public override OpenCodeError Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override IOpenCodeError Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
@@ -55,13 +55,13 @@ internal sealed class OpenCodeErrorJsonConverter : JsonConverter<OpenCodeError>
         if (TypesByTag.TryGetValue(marker, out var targetType))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for OpenCodeError.");
-            return JsonSerializer.Deserialize(payload, typeInfo) as OpenCodeError ?? throw new JsonException("The OpenCodeError payload deserialized to null.");
+            return JsonSerializer.Deserialize(payload, typeInfo) as IOpenCodeError ?? throw new JsonException("The OpenCodeError payload deserialized to null.");
         }
 
         return new UnknownOpenCodeError(marker, payload);
     }
 
-    public override void Write(Utf8JsonWriter writer, OpenCodeError value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, IOpenCodeError value, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);

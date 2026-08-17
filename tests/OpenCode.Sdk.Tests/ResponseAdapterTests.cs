@@ -81,7 +81,7 @@ public sealed class ResponseAdapterTests
         public static TPayload Bare<TPayload>(string rawBody, JsonTypeInfo<TPayload> typeInfo) =>
             ReadBarePayload(rawBody, typeInfo);
 
-        public static OpenCodeError? Error(string rawBody, IReadOnlyCollection<string>? allowedTags) =>
+        public static IOpenCodeError? Error(string rawBody, IReadOnlyCollection<string>? allowedTags) =>
             ReadTolerantError(rawBody, allowedTags);
 
         public override TestResponse Adapt(int status, string rawBody) =>

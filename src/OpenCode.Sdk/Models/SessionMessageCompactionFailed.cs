@@ -9,13 +9,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message compaction failed value.
 /// </summary>
-public sealed record SessionMessageCompactionFailed : SessionMessageCompaction
+public sealed record SessionMessageCompactionFailed : ISessionMessageCompaction
 {
     /// <summary>
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => "compaction";
+    public string Type => "compaction";
 
     /// <summary>
     /// Gets the id value.
@@ -39,7 +39,7 @@ public sealed record SessionMessageCompactionFailed : SessionMessageCompaction
     /// Gets the status value.
     /// </summary>
     [JsonPropertyName("status")]
-    public override string Status => "failed";
+    public string Status => "failed";
 
     /// <summary>
     /// Gets the reason value.

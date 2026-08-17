@@ -6,13 +6,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a unknown error value.
 /// </summary>
-public sealed record UnknownError : OpenCodeError
+public sealed record UnknownError : IOpenCodeError
 {
     /// <summary>
     /// Gets the tag value.
     /// </summary>
     [JsonPropertyName("_tag")]
-    public override string Tag => "UnknownError";
+    public string Tag => "UnknownError";
 
     /// <summary>
     /// Gets the message value.

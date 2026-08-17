@@ -7,13 +7,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a rejected request.
 /// </summary>
-public sealed record BadRequestError : OpenCodeError
+public sealed record BadRequestError : IOpenCodeError
 {
     /// <summary>
     /// Gets the tag value.
     /// </summary>
     [JsonPropertyName("_tag")]
-    public override string Tag => "BadRequestError";
+    public string Tag => "BadRequestError";
 
     /// <summary>
     /// Gets the error message.

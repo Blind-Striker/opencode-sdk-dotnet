@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message model selected value.
 /// </summary>
-public sealed record SessionMessageModelSelected : SessionMessageInfo
+public sealed record SessionMessageModelSelected : ISessionMessageInfo
 {
     /// <summary>
     /// Gets the id value.
@@ -33,7 +33,7 @@ public sealed record SessionMessageModelSelected : SessionMessageInfo
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => "model-switched";
+    public string Type => "model-switched";
 
     /// <summary>
     /// Gets the model value.

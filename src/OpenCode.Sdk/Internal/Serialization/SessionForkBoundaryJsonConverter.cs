@@ -6,7 +6,7 @@ using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk.Internal.Serialization;
 
-internal sealed class SessionForkBoundaryJsonConverter : JsonConverter<SessionForkBoundary>
+internal sealed class SessionForkBoundaryJsonConverter : JsonConverter<ISessionForkBoundary>
 {
     private static readonly Dictionary<string, Type> TypesByTag = new(StringComparer.Ordinal)
     {
@@ -15,7 +15,7 @@ internal sealed class SessionForkBoundaryJsonConverter : JsonConverter<SessionFo
     };
     public override bool HandleNull => true;
 
-    public override SessionForkBoundary Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override ISessionForkBoundary Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
@@ -50,13 +50,13 @@ internal sealed class SessionForkBoundaryJsonConverter : JsonConverter<SessionFo
         if (TypesByTag.TryGetValue(marker, out var targetType))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for SessionForkBoundary.");
-            return JsonSerializer.Deserialize(payload, typeInfo) as SessionForkBoundary ?? throw new JsonException("The SessionForkBoundary payload deserialized to null.");
+            return JsonSerializer.Deserialize(payload, typeInfo) as ISessionForkBoundary ?? throw new JsonException("The SessionForkBoundary payload deserialized to null.");
         }
 
         return new UnknownSessionForkBoundary(marker, payload);
     }
 
-    public override void Write(Utf8JsonWriter writer, SessionForkBoundary value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, ISessionForkBoundary value, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);

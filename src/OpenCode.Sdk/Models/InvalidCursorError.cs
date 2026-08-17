@@ -6,13 +6,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a invalid cursor error value.
 /// </summary>
-public sealed record InvalidCursorError : OpenCodeError
+public sealed record InvalidCursorError : IOpenCodeError
 {
     /// <summary>
     /// Gets the tag value.
     /// </summary>
     [JsonPropertyName("_tag")]
-    public override string Tag => "InvalidCursorError";
+    public string Tag => "InvalidCursorError";
 
     /// <summary>
     /// Gets the message value.

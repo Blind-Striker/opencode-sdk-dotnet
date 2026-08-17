@@ -6,7 +6,7 @@ using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk.Internal.Serialization;
 
-internal sealed class SessionMessageCompactionJsonConverter : JsonConverter<SessionMessageCompaction>
+internal sealed class SessionMessageCompactionJsonConverter : JsonConverter<ISessionMessageCompaction>
 {
     private static readonly Dictionary<string, Type> TypesByTag = new(StringComparer.Ordinal)
     {
@@ -16,7 +16,7 @@ internal sealed class SessionMessageCompactionJsonConverter : JsonConverter<Sess
     };
     public override bool HandleNull => true;
 
-    public override SessionMessageCompaction Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override ISessionMessageCompaction Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
@@ -61,13 +61,13 @@ internal sealed class SessionMessageCompactionJsonConverter : JsonConverter<Sess
         if (TypesByTag.TryGetValue(marker, out var targetType))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for SessionMessageCompaction.");
-            return JsonSerializer.Deserialize(payload, typeInfo) as SessionMessageCompaction ?? throw new JsonException("The SessionMessageCompaction payload deserialized to null.");
+            return JsonSerializer.Deserialize(payload, typeInfo) as ISessionMessageCompaction ?? throw new JsonException("The SessionMessageCompaction payload deserialized to null.");
         }
 
         return new UnknownSessionMessageCompaction(marker, payload);
     }
 
-    public override void Write(Utf8JsonWriter writer, SessionMessageCompaction value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, ISessionMessageCompaction value, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);

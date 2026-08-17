@@ -24,7 +24,7 @@ public sealed record PingResponse : OpenCodeResponse
     /// Initializes an error-path instance; the payload stays unset behind its guard.
     /// </summary>
     [SetsRequiredMembers]
-    internal PingResponse(int status, OpenCodeError? error, string? rawBody)
+    internal PingResponse(int status, IOpenCodeError? error, string? rawBody)
     {
         Status = status;
         IsError = true;
@@ -86,7 +86,7 @@ public sealed record WidgetCreateResponse : OpenCodeResponse
     /// Initializes an error-path instance; the payload stays unset behind its guard.
     /// </summary>
     [SetsRequiredMembers]
-    internal WidgetCreateResponse(int status, OpenCodeError? error, string? rawBody)
+    internal WidgetCreateResponse(int status, IOpenCodeError? error, string? rawBody)
     {
         Status = status;
         IsError = true;
@@ -150,7 +150,7 @@ public sealed record WidgetItemListResponse : OpenCodeResponse
     /// Initializes an error-path instance; the payload stays unset behind its guard.
     /// </summary>
     [SetsRequiredMembers]
-    internal WidgetItemListResponse(int status, OpenCodeError? error, string? rawBody)
+    internal WidgetItemListResponse(int status, IOpenCodeError? error, string? rawBody)
     {
         Status = status;
         IsError = true;
@@ -217,7 +217,7 @@ public sealed record WidgetItemResponse : OpenCodeResponse
     /// Initializes an error-path instance; the payload stays unset behind its guard.
     /// </summary>
     [SetsRequiredMembers]
-    internal WidgetItemResponse(int status, OpenCodeError? error, string? rawBody)
+    internal WidgetItemResponse(int status, IOpenCodeError? error, string? rawBody)
     {
         Status = status;
         IsError = true;
@@ -281,7 +281,7 @@ public sealed record WidgetListResponse : OpenCodeResponse
     /// Initializes an error-path instance; the payload stays unset behind its guard.
     /// </summary>
     [SetsRequiredMembers]
-    internal WidgetListResponse(int status, OpenCodeError? error, string? rawBody)
+    internal WidgetListResponse(int status, IOpenCodeError? error, string? rawBody)
     {
         Status = status;
         IsError = true;
@@ -348,7 +348,7 @@ public sealed record WidgetOverviewResponse : OpenCodeResponse
     /// Initializes an error-path instance; the payload stays unset behind its guard.
     /// </summary>
     [SetsRequiredMembers]
-    internal WidgetOverviewResponse(int status, OpenCodeError? error, string? rawBody)
+    internal WidgetOverviewResponse(int status, IOpenCodeError? error, string? rawBody)
     {
         Status = status;
         IsError = true;
@@ -407,7 +407,7 @@ public sealed record WidgetRemoveResponse : OpenCodeResponse
     /// Initializes an error-path instance; the payload stays unset behind its guard.
     /// </summary>
     [SetsRequiredMembers]
-    internal WidgetRemoveResponse(int status, OpenCodeError? error, string? rawBody)
+    internal WidgetRemoveResponse(int status, IOpenCodeError? error, string? rawBody)
     {
         Status = status;
         IsError = true;
@@ -444,7 +444,7 @@ public sealed record WidgetSpotListResponse : OpenCodeResponse
     /// Initializes an error-path instance; the payload stays unset behind its guard.
     /// </summary>
     [SetsRequiredMembers]
-    internal WidgetSpotListResponse(int status, OpenCodeError? error, string? rawBody)
+    internal WidgetSpotListResponse(int status, IOpenCodeError? error, string? rawBody)
     {
         Status = status;
         IsError = true;
@@ -512,7 +512,7 @@ public sealed record WidgetSpotResponse : OpenCodeResponse
     /// Initializes an error-path instance; the payload stays unset behind its guard.
     /// </summary>
     [SetsRequiredMembers]
-    internal WidgetSpotResponse(int status, OpenCodeError? error, string? rawBody)
+    internal WidgetSpotResponse(int status, IOpenCodeError? error, string? rawBody)
     {
         Status = status;
         IsError = true;

@@ -6,13 +6,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session fork boundary before value.
 /// </summary>
-public sealed record SessionForkBoundaryBefore : SessionForkBoundary
+public sealed record SessionForkBoundaryBefore : ISessionForkBoundary
 {
     /// <summary>
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => "before";
+    public string Type => "before";
 
     /// <summary>
     /// Gets the message id value.

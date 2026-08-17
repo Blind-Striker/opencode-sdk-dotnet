@@ -22,7 +22,7 @@ public sealed record SessionResponse : OpenCodeResponse
     /// Initializes an error-path instance; the payload stays unset behind its guard.
     /// </summary>
     [SetsRequiredMembers]
-    internal SessionResponse(int status, OpenCodeError? error, string? rawBody)
+    internal SessionResponse(int status, IOpenCodeError? error, string? rawBody)
     {
         Status = status;
         IsError = true;

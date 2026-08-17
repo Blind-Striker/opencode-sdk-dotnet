@@ -8,13 +8,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message tool state running value.
 /// </summary>
-public sealed record SessionMessageToolStateRunning : SessionMessageToolState
+public sealed record SessionMessageToolStateRunning : ISessionMessageToolState
 {
     /// <summary>
     /// Gets the status value.
     /// </summary>
     [JsonPropertyName("status")]
-    public override string Status => "running";
+    public string Status => "running";
 
     /// <summary>
     /// Gets the input value.

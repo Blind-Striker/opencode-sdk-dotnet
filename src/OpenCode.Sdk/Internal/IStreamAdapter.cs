@@ -25,5 +25,5 @@ internal interface IStreamAdapter<TPayload>
     /// <param name="status">The HTTP status code.</param>
     /// <param name="rawBody">The buffered error body.</param>
     /// <returns>The typed error, or <see langword="null"/> when the body could not be parsed.</returns>
-    public OpenCodeError? ReadError(int status, string rawBody);
+    public IOpenCodeError? ReadError(int status, string rawBody);
 }

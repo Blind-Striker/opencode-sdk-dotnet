@@ -6,13 +6,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session fork boundary through value.
 /// </summary>
-public sealed record SessionForkBoundaryThrough : SessionForkBoundary
+public sealed record SessionForkBoundaryThrough : ISessionForkBoundary
 {
     /// <summary>
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => "through";
+    public string Type => "through";
 
     /// <summary>
     /// Gets the message id value.

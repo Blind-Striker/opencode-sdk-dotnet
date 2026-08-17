@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 /// Preserves an unknown tool content payload.
 /// </summary>
 [JsonConverter(typeof(UnknownToolContentJsonConverter))]
-public sealed record UnknownToolContent : ToolContent
+public sealed record UnknownToolContent : IToolContent
 {
     private readonly string _marker;
     /// <summary>
@@ -32,7 +32,7 @@ public sealed record UnknownToolContent : ToolContent
     /// Gets the unrecognized &apos;type&apos; marker.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => _marker;
+    public string Type => _marker;
     /// <summary>
     /// Gets the preserved raw JSON payload.
     /// </summary>

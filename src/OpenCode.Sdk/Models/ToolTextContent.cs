@@ -6,13 +6,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a tool text content value.
 /// </summary>
-public sealed record ToolTextContent : ToolContent
+public sealed record ToolTextContent : IToolContent
 {
     /// <summary>
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => "text";
+    public string Type => "text";
 
     /// <summary>
     /// Gets the text value.

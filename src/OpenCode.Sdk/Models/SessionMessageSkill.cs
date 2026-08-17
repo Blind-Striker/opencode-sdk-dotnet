@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message skill value.
 /// </summary>
-public sealed record SessionMessageSkill : SessionMessageInfo
+public sealed record SessionMessageSkill : ISessionMessageInfo
 {
     /// <summary>
     /// Gets the id value.
@@ -33,7 +33,7 @@ public sealed record SessionMessageSkill : SessionMessageInfo
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => "skill";
+    public string Type => "skill";
 
     /// <summary>
     /// Gets the skill value.

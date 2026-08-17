@@ -9,13 +9,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message compaction running value.
 /// </summary>
-public sealed record SessionMessageCompactionRunning : SessionMessageCompaction
+public sealed record SessionMessageCompactionRunning : ISessionMessageCompaction
 {
     /// <summary>
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => "compaction";
+    public string Type => "compaction";
 
     /// <summary>
     /// Gets the id value.
@@ -39,7 +39,7 @@ public sealed record SessionMessageCompactionRunning : SessionMessageCompaction
     /// Gets the status value.
     /// </summary>
     [JsonPropertyName("status")]
-    public override string Status => "running";
+    public string Status => "running";
 
     /// <summary>
     /// Gets the reason value.

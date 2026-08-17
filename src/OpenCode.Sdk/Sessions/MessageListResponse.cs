@@ -11,7 +11,7 @@ namespace OpenCode.Sdk;
 /// </summary>
 public sealed record MessageListResponse : OpenCodeResponse
 {
-    private readonly IReadOnlyList<SessionMessageInfo>? _messages;
+    private readonly IReadOnlyList<ISessionMessageInfo>? _messages;
     private readonly ListCursor? _cursor;
     /// <summary>
     /// Initializes a success instance of the &apos;MessageListResponse&apos; envelope.
@@ -24,7 +24,7 @@ public sealed record MessageListResponse : OpenCodeResponse
     /// Initializes an error-path instance; the payload stays unset behind its guard.
     /// </summary>
     [SetsRequiredMembers]
-    internal MessageListResponse(int status, OpenCodeError? error, string? rawBody)
+    internal MessageListResponse(int status, IOpenCodeError? error, string? rawBody)
     {
         Status = status;
         IsError = true;
@@ -37,7 +37,7 @@ public sealed record MessageListResponse : OpenCodeResponse
     /// <summary>
     /// Gets the Messages payload; guarded on the error path.
     /// </summary>
-    public required IReadOnlyList<SessionMessageInfo> Messages { get => _messages ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Messages."); init => _messages = value is null ? null : ListPayloadInput.CopyRejectingNullElements(value); }
+    public required IReadOnlyList<ISessionMessageInfo> Messages { get => _messages ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Messages."); init => _messages = value is null ? null : ListPayloadInput.CopyRejectingNullElements(value); }
     /// <summary>
     /// Gets the page cursor; guarded on the error path.
     /// </summary>

@@ -10,7 +10,7 @@ namespace OpenCode.Sdk;
 /// </summary>
 public sealed record SessionMessageResponse : OpenCodeResponse
 {
-    private readonly SessionMessageInfo? _message;
+    private readonly ISessionMessageInfo? _message;
     /// <summary>
     /// Initializes a success instance of the &apos;SessionMessageResponse&apos; envelope.
     /// </summary>
@@ -22,7 +22,7 @@ public sealed record SessionMessageResponse : OpenCodeResponse
     /// Initializes an error-path instance; the payload stays unset behind its guard.
     /// </summary>
     [SetsRequiredMembers]
-    internal SessionMessageResponse(int status, OpenCodeError? error, string? rawBody)
+    internal SessionMessageResponse(int status, IOpenCodeError? error, string? rawBody)
     {
         Status = status;
         IsError = true;
@@ -34,7 +34,7 @@ public sealed record SessionMessageResponse : OpenCodeResponse
     /// <summary>
     /// Gets the Message payload; guarded on the error path.
     /// </summary>
-    public required SessionMessageInfo Message { get => _message ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Message."); init => _message = value; }
+    public required ISessionMessageInfo Message { get => _message ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Message."); init => _message = value; }
 
     /// <summary>
     /// Prints the shared metadata and appends the payload only when it is present.

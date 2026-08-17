@@ -59,6 +59,6 @@ internal abstract class ResponseAdapter<TResponse>
     /// <param name="rawBody">The buffered error body.</param>
     /// <param name="allowedTags">The tags the status map declares for this status, or <see langword="null"/> for an undeclared status.</param>
     /// <returns>The typed error, or <see langword="null"/> when the body could not be parsed.</returns>
-    protected static OpenCodeError? ReadTolerantError(string rawBody, IReadOnlyCollection<string>? allowedTags) =>
+    protected static IOpenCodeError? ReadTolerantError(string rawBody, IReadOnlyCollection<string>? allowedTags) =>
         OpenCodeErrorReader.Read(rawBody, allowedTags);
 }

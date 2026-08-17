@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 /// Preserves an unknown session message compaction payload.
 /// </summary>
 [JsonConverter(typeof(UnknownSessionMessageCompactionJsonConverter))]
-public sealed record UnknownSessionMessageCompaction : SessionMessageCompaction
+public sealed record UnknownSessionMessageCompaction : ISessionMessageCompaction
 {
     private readonly string _marker;
     /// <summary>
@@ -32,13 +32,13 @@ public sealed record UnknownSessionMessageCompaction : SessionMessageCompaction
     /// Gets the unrecognized &apos;status&apos; marker.
     /// </summary>
     [JsonPropertyName("status")]
-    public override string Status => _marker;
+    public string Status => _marker;
 
     /// <summary>
     /// Gets the fixed &apos;type&apos; marker of this nested union.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => "compaction";
+    public string Type => "compaction";
     /// <summary>
     /// Gets the preserved raw JSON payload.
     /// </summary>

@@ -159,11 +159,13 @@ internal sealed class SchemaPlanBinder
             });
         }
 
+        var conceptName = CSharpNamePolicy.ToUnionConceptName(name);
         return new UnionPlan
         {
             Name = name,
+            ConceptName = conceptName,
             Namespace = ModelNamespace,
-            UnknownTypeName = $"Unknown{name}",
+            UnknownTypeName = $"Unknown{conceptName}",
             MarkerWireName = marker.PropertyName,
             MarkerName = CSharpNamePolicy.ToPascalCase(marker.PropertyName),
             MarkerKind = marker.Kind,
@@ -315,7 +317,7 @@ internal sealed class SchemaPlanBinder
                 continue;
             }
 
-            AddInheritance(key, "OpenCodeError", inheritance, errors);
+            AddInheritance(key, CSharpNamePolicy.ToUnionInterfaceName("OpenCodeError"), inheritance, errors);
             variants.Add(new UnionVariantPlan
             {
                 TypeName = typeName,
@@ -343,7 +345,8 @@ internal sealed class SchemaPlanBinder
 
         return new UnionPlan
         {
-            Name = "OpenCodeError",
+            Name = CSharpNamePolicy.ToUnionInterfaceName("OpenCodeError"),
+            ConceptName = "OpenCodeError",
             Namespace = ModelNamespace,
             UnknownTypeName = "UnknownOpenCodeError",
             MarkerWireName = "_tag",

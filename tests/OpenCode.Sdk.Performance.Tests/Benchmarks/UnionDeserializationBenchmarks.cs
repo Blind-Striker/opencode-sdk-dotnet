@@ -19,6 +19,6 @@ public class UnionDeserializationBenchmarks
     public async Task SetupAsync() => _deepAssistantMessage = await BenchmarkFixtures.DeepAssistantMessageAsync().ConfigureAwait(false);
 
     [Benchmark]
-    public SessionMessageInfo? DeserializeDeepAssistantMessage()
-        => JsonSerializer.Deserialize(_deepAssistantMessage, OpenCodeJsonContext.Default.SessionMessageInfo);
+    public ISessionMessageInfo? DeserializeDeepAssistantMessage()
+        => JsonSerializer.Deserialize(_deepAssistantMessage, OpenCodeJsonContext.Default.ISessionMessageInfo);
 }

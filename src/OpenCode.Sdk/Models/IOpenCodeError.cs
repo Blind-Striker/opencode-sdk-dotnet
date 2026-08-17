@@ -5,14 +5,14 @@ using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a tool content union.
+/// Represents a typed error returned by the opencode API.
 /// </summary>
-[JsonConverter(typeof(ToolContentJsonConverter))]
-public abstract record ToolContent
+[JsonConverter(typeof(OpenCodeErrorJsonConverter))]
+public interface IOpenCodeError
 {
     /// <summary>
-    /// Gets the &apos;type&apos; union marker.
+    /// Gets the &apos;_tag&apos; union marker.
     /// </summary>
-    [JsonPropertyName("type")]
-    public abstract string Type { get; }
+    [JsonPropertyName("_tag")]
+    public string Tag { get; }
 }

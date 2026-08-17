@@ -10,8 +10,8 @@ namespace OpenCode.Sdk.Internal.Serialization;
 internal sealed record MessageListResponseEnvelope
 {
     [JsonPropertyName("data")]
-    [JsonConverter(typeof(NullElementRejectingListJsonConverter<SessionMessageInfo>))]
-    public required IReadOnlyList<SessionMessageInfo> Data { get; init; }
+    [JsonConverter(typeof(NullElementRejectingListJsonConverter<ISessionMessageInfo>))]
+    public required IReadOnlyList<ISessionMessageInfo> Data { get; init; }
 
     [JsonPropertyName("cursor")]
     public required ListCursor Cursor { get; init; }

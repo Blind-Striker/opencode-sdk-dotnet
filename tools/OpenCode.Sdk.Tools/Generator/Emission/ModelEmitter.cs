@@ -137,9 +137,7 @@ internal static class ModelEmitter
         if (isDiscriminator)
         {
             return declaration
-                .WithModifiers(SyntaxFactory.TokenList(
-                    SyntaxFactory.Token(SyntaxKind.PublicKeyword),
-                    SyntaxFactory.Token(SyntaxKind.OverrideKeyword)))
+                .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
                 .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(EmitLiteral(property)))
                 .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
         }

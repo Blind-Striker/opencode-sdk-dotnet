@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 /// Preserves an unknown open code error payload.
 /// </summary>
 [JsonConverter(typeof(UnknownOpenCodeErrorJsonConverter))]
-public sealed record UnknownOpenCodeError : OpenCodeError
+public sealed record UnknownOpenCodeError : IOpenCodeError
 {
     private readonly string _marker;
     /// <summary>
@@ -32,7 +32,7 @@ public sealed record UnknownOpenCodeError : OpenCodeError
     /// Gets the unrecognized &apos;_tag&apos; marker.
     /// </summary>
     [JsonPropertyName("_tag")]
-    public override string Tag => _marker;
+    public string Tag => _marker;
     /// <summary>
     /// Gets the preserved raw JSON payload.
     /// </summary>

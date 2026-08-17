@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message user value.
 /// </summary>
-public sealed record SessionMessageUser : SessionMessageInfo
+public sealed record SessionMessageUser : ISessionMessageInfo
 {
     /// <summary>
     /// Gets the id value.
@@ -57,5 +57,5 @@ public sealed record SessionMessageUser : SessionMessageInfo
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => "user";
+    public string Type => "user";
 }

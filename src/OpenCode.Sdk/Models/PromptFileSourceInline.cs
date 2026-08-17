@@ -6,11 +6,11 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a prompt file source inline value.
 /// </summary>
-public sealed record PromptFileSourceInline : PromptFileSource
+public sealed record PromptFileSourceInline : IPromptFileSource
 {
     /// <summary>
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => "inline";
+    public string Type => "inline";
 }

@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 /// Preserves an unknown session message info payload.
 /// </summary>
 [JsonConverter(typeof(UnknownSessionMessageInfoJsonConverter))]
-public sealed record UnknownSessionMessageInfo : SessionMessageInfo
+public sealed record UnknownSessionMessageInfo : ISessionMessageInfo
 {
     private readonly string _marker;
     /// <summary>
@@ -32,7 +32,7 @@ public sealed record UnknownSessionMessageInfo : SessionMessageInfo
     /// Gets the unrecognized &apos;type&apos; marker.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => _marker;
+    public string Type => _marker;
     /// <summary>
     /// Gets the preserved raw JSON payload.
     /// </summary>

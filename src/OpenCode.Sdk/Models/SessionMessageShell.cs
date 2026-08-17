@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message shell value.
 /// </summary>
-public sealed record SessionMessageShell : SessionMessageInfo
+public sealed record SessionMessageShell : ISessionMessageInfo
 {
     /// <summary>
     /// Gets the id value.
@@ -33,7 +33,7 @@ public sealed record SessionMessageShell : SessionMessageInfo
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => "shell";
+    public string Type => "shell";
 
     /// <summary>
     /// Gets the shell id value.

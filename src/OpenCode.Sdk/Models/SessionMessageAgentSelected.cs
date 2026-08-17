@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message agent selected value.
 /// </summary>
-public sealed record SessionMessageAgentSelected : SessionMessageInfo
+public sealed record SessionMessageAgentSelected : ISessionMessageInfo
 {
     /// <summary>
     /// Gets the id value.
@@ -33,7 +33,7 @@ public sealed record SessionMessageAgentSelected : SessionMessageInfo
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => "agent-switched";
+    public string Type => "agent-switched";
 
     /// <summary>
     /// Gets the agent value.

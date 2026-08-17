@@ -6,13 +6,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message tool state streaming value.
 /// </summary>
-public sealed record SessionMessageToolStateStreaming : SessionMessageToolState
+public sealed record SessionMessageToolStateStreaming : ISessionMessageToolState
 {
     /// <summary>
     /// Gets the status value.
     /// </summary>
     [JsonPropertyName("status")]
-    public override string Status => "streaming";
+    public string Status => "streaming";
 
     /// <summary>
     /// Gets the input value.

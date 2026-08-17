@@ -34,7 +34,9 @@ internal sealed class SchemaNameResolver
             }
             else
             {
-                name = schema is UnionNode union ? ResolveUnionName(key, union, document.Schemas) : ResolveDefault(key);
+                name = schema is UnionNode union
+                    ? CSharpNamePolicy.ToUnionInterfaceName(ResolveUnionName(key, union, document.Schemas))
+                    : ResolveDefault(key);
             }
             if (owners.TryGetValue(name, out var existing))
             {

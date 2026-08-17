@@ -6,7 +6,7 @@ using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk.Internal.Serialization;
 
-internal sealed class ToolContentJsonConverter : JsonConverter<ToolContent>
+internal sealed class ToolContentJsonConverter : JsonConverter<IToolContent>
 {
     private static readonly Dictionary<string, Type> TypesByTag = new(StringComparer.Ordinal)
     {
@@ -15,7 +15,7 @@ internal sealed class ToolContentJsonConverter : JsonConverter<ToolContent>
     };
     public override bool HandleNull => true;
 
-    public override ToolContent Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override IToolContent Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
@@ -50,13 +50,13 @@ internal sealed class ToolContentJsonConverter : JsonConverter<ToolContent>
         if (TypesByTag.TryGetValue(marker, out var targetType))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for ToolContent.");
-            return JsonSerializer.Deserialize(payload, typeInfo) as ToolContent ?? throw new JsonException("The ToolContent payload deserialized to null.");
+            return JsonSerializer.Deserialize(payload, typeInfo) as IToolContent ?? throw new JsonException("The ToolContent payload deserialized to null.");
         }
 
         return new UnknownToolContent(marker, payload);
     }
 
-    public override void Write(Utf8JsonWriter writer, ToolContent value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, IToolContent value, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);

@@ -18,5 +18,5 @@ public sealed record SessionInfoFork
     /// Gets the boundary value.
     /// </summary>
     [JsonPropertyName("boundary")]
-    public required SessionForkBoundary Boundary { get; init; }
+    public required ISessionForkBoundary Boundary { get; init; }
 }

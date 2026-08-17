@@ -26,27 +26,24 @@ internal static class UnionEmitter
 
     private static GeneratedSource EmitBase(UnionPlan union)
     {
-        var converterTypeName = $"{union.Name}JsonConverter";
+        var converterTypeName = $"{union.ConceptName}JsonConverter";
+
+        // The union is an interface because a wire schema can be a branch of more than one
+        // union, which a base class cannot express (ADR-0011).
         var marker = SyntaxFactory.PropertyDeclaration(TypeSyntaxEmitter.EmitMarker(union.MarkerKind), union.MarkerName)
-            .WithModifiers(SyntaxFactory.TokenList(
-                SyntaxFactory.Token(SyntaxKind.PublicKeyword),
-                SyntaxFactory.Token(SyntaxKind.AbstractKeyword)))
+            .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
             .AddAttributeLists(EmissionSyntax.Attribute("JsonPropertyName", EmissionSyntax.StringArgument(union.MarkerWireName)))
             .WithAccessorList(SyntaxFactory.AccessorList(SyntaxFactory.SingletonList(
                 SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
                     .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)))))
             .WithLeadingTrivia(EmissionSyntax.Documentation($"Gets the '{union.MarkerWireName}' union marker."));
-        var declaration = SyntaxFactory.RecordDeclaration(SyntaxFactory.Token(SyntaxKind.RecordKeyword), union.Name)
-            .WithModifiers(SyntaxFactory.TokenList(
-                SyntaxFactory.Token(SyntaxKind.PublicKeyword),
-                SyntaxFactory.Token(SyntaxKind.AbstractKeyword)))
-            .WithOpenBraceToken(SyntaxFactory.Token(SyntaxKind.OpenBraceToken))
-            .WithCloseBraceToken(SyntaxFactory.Token(SyntaxKind.CloseBraceToken))
+        var declaration = SyntaxFactory.InterfaceDeclaration(union.Name)
+            .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
             .AddAttributeLists(EmissionSyntax.Attribute(
                 "JsonConverter",
                 SyntaxFactory.AttributeArgument(SyntaxFactory.TypeOfExpression(TypeSyntaxEmitter.EmitNamed(converterTypeName)))))
             .WithMembers(SyntaxFactory.SingletonList<MemberDeclarationSyntax>(marker))
-            .WithLeadingTrivia(EmissionSyntax.Documentation(union.Description ?? $"Represents a {DisplayName(union.Name)} union."));
+            .WithLeadingTrivia(EmissionSyntax.Documentation(union.Description ?? $"Represents a {DisplayName(union.ConceptName)} union."));
         if (union.BaseTypeName is not null)
         {
             declaration = declaration.WithBaseList(SyntaxFactory.BaseList(SyntaxFactory.SingletonSeparatedList<BaseTypeSyntax>(
@@ -92,7 +89,7 @@ internal static class UnionEmitter
                 SyntaxFactory.AttributeArgument(SyntaxFactory.TypeOfExpression(
                     TypeSyntaxEmitter.EmitNamed($"{union.UnknownTypeName}JsonConverter")))))
             .WithMembers(SyntaxFactory.List(members))
-            .WithLeadingTrivia(EmissionSyntax.Documentation($"Preserves an unknown {DisplayName(union.Name)} payload."));
+            .WithLeadingTrivia(EmissionSyntax.Documentation($"Preserves an unknown {DisplayName(union.ConceptName)} payload."));
         var usingNames = union.MarkerKind is LiteralKind.String
             ? new[] { "System", "System.Text.Json", "System.Text.Json.Serialization", "OpenCode.Sdk.Internal.Serialization", }
             : ["System.Text.Json", "System.Text.Json.Serialization", "OpenCode.Sdk.Internal.Serialization"];
@@ -244,8 +241,7 @@ internal static class UnionEmitter
     private static PropertyDeclarationSyntax EmitUnknownMarkerProperty(UnionPlan union, TypeSyntax markerType) =>
         SyntaxFactory.PropertyDeclaration(markerType, union.MarkerName)
             .WithModifiers(SyntaxFactory.TokenList(
-                SyntaxFactory.Token(SyntaxKind.PublicKeyword),
-                SyntaxFactory.Token(SyntaxKind.OverrideKeyword)))
+                SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
             .AddAttributeLists(EmissionSyntax.Attribute("JsonPropertyName", EmissionSyntax.StringArgument(union.MarkerWireName)))
             .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(SyntaxFactory.IdentifierName("_marker")))
             .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
@@ -254,8 +250,7 @@ internal static class UnionEmitter
     private static PropertyDeclarationSyntax EmitFixedMarkerProperty(UnionFixedMarkerPlan marker) =>
         SyntaxFactory.PropertyDeclaration(TypeSyntaxEmitter.EmitMarker(marker.Kind), marker.Name)
             .WithModifiers(SyntaxFactory.TokenList(
-                SyntaxFactory.Token(SyntaxKind.PublicKeyword),
-                SyntaxFactory.Token(SyntaxKind.OverrideKeyword)))
+                SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
             .AddAttributeLists(EmissionSyntax.Attribute("JsonPropertyName", EmissionSyntax.StringArgument(marker.WireName)))
             .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(EmitMarkerLiteral(marker.Kind, marker.Value)))
             .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
@@ -271,7 +266,7 @@ internal static class UnionEmitter
 
     private static GeneratedSource EmitConverter(UnionPlan union)
     {
-        var converterName = $"{union.Name}JsonConverter";
+        var converterName = $"{union.ConceptName}JsonConverter";
         var declaration = SyntaxFactory.ClassDeclaration(converterName)
             .WithModifiers(SyntaxFactory.TokenList(
                 SyntaxFactory.Token(SyntaxKind.InternalKeyword),
@@ -383,7 +378,7 @@ internal static class UnionEmitter
                 SyntaxKind.EqualsExpression,
                 EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("reader"), "TokenType"),
                 EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("JsonTokenType"), "Null")),
-            ThrowJson($"The {union.Name} payload cannot be null."));
+            ThrowJson($"The {union.ConceptName} payload cannot be null."));
 
     /// <summary>
     /// A nested union's fixed outer tag is structural identity, not dispatch input: a
@@ -407,7 +402,7 @@ internal static class UnionEmitter
                         SyntaxFactory.IdentifierName("var"),
                         SyntaxFactory.SingleVariableDesignation(SyntaxFactory.Identifier("fixedElement"))))
                     .WithRefKindKeyword(SyntaxFactory.Token(SyntaxKind.OutKeyword)))),
-            ThrowJson($"The {union.Name} payload must contain '{marker.WireName}'."));
+            ThrowJson($"The {union.ConceptName} payload must contain '{marker.WireName}'."));
         var value = SyntaxFactory.IfStatement(
             EmitFixedMarkerMismatch(union, marker),
             ThrowJson($"The '{marker.WireName}' marker must be '{marker.Value}'."));
@@ -434,7 +429,7 @@ internal static class UnionEmitter
                 SyntaxFactory.IdentifierName("JsonValueKind"),
                 flag ? "True" : "False")),
         LiteralKind.Number or _ => throw new InvalidOperationException(
-            $"Union '{union.Name}' fixes marker '{marker.WireName}' with kind '{marker.Kind}', which has no emission consumer."),
+            $"Union '{union.ConceptName}' fixes marker '{marker.WireName}' with kind '{marker.Kind}', which has no emission consumer."),
     };
 
     private static LocalDeclarationStatementSyntax EmitPayloadDocument()
@@ -455,7 +450,7 @@ internal static class UnionEmitter
                 SyntaxKind.NotEqualsExpression,
                 EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("payload"), "ValueKind"),
                 EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("JsonValueKind"), "Object")),
-            ThrowJson($"The {union.Name} payload must be a JSON object."));
+            ThrowJson($"The {union.ConceptName} payload must be a JSON object."));
 
     private static IfStatementSyntax EmitMarkerPresenceCheck(UnionPlan union)
     {
@@ -470,14 +465,14 @@ internal static class UnionEmitter
                 .WithRefKindKeyword(SyntaxFactory.Token(SyntaxKind.OutKeyword)));
         return SyntaxFactory.IfStatement(
             SyntaxFactory.PrefixUnaryExpression(SyntaxKind.LogicalNotExpression, tryGet),
-            ThrowJson($"The {union.Name} payload must contain '{union.MarkerWireName}'."));
+            ThrowJson($"The {union.ConceptName} payload must contain '{union.MarkerWireName}'."));
     }
 
     private static IReadOnlyList<StatementSyntax> EmitMarkerRead(UnionPlan union) => union.MarkerKind switch
     {
         LiteralKind.String => EmitStringMarkerRead(union),
         LiteralKind.Boolean => EmitBooleanMarkerRead(union),
-        LiteralKind.Number => throw new InvalidOperationException($"Union '{union.Name}' uses a number marker, which has no emission consumer."),
+        LiteralKind.Number => throw new InvalidOperationException($"Union '{union.ConceptName}' uses a number marker, which has no emission consumer."),
         _ => throw new InvalidOperationException($"Unknown marker kind '{union.MarkerKind}'."),
     };
 
@@ -548,7 +543,7 @@ internal static class UnionEmitter
         var typeInfo = SyntaxFactory.BinaryExpression(
             SyntaxKind.CoalesceExpression,
             getTypeInfo,
-            SyntaxFactory.ThrowExpression(JsonException($"The generated context has no metadata for {union.Name}.")));
+            SyntaxFactory.ThrowExpression(JsonException($"The generated context has no metadata for {union.ConceptName}.")));
         var deserialize = EmissionSyntax.Invocation(
             EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("JsonSerializer"), "Deserialize"),
             SyntaxFactory.Argument(SyntaxFactory.IdentifierName("payload")),
@@ -559,7 +554,7 @@ internal static class UnionEmitter
                 SyntaxKind.AsExpression,
                 deserialize,
                 TypeSyntaxEmitter.EmitNamed(union.Name)),
-            SyntaxFactory.ThrowExpression(JsonException($"The {union.Name} payload deserialized to null.")));
+            SyntaxFactory.ThrowExpression(JsonException($"The {union.ConceptName} payload deserialized to null.")));
         return SyntaxFactory.IfStatement(tryGet, SyntaxFactory.Block(
             Local("typeInfo", typeInfo),
             SyntaxFactory.ReturnStatement(result)));
@@ -589,7 +584,7 @@ internal static class UnionEmitter
         var typeInfo = SyntaxFactory.BinaryExpression(
             SyntaxKind.CoalesceExpression,
             getTypeInfo,
-            SyntaxFactory.ThrowExpression(JsonException($"The generated context has no metadata for {union.Name}.")));
+            SyntaxFactory.ThrowExpression(JsonException($"The generated context has no metadata for {union.ConceptName}.")));
         var serialize = EmissionSyntax.Invocation(
             EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("JsonSerializer"), "Serialize"),
             SyntaxFactory.Argument(SyntaxFactory.IdentifierName("writer")),

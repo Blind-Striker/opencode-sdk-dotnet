@@ -6,13 +6,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a tool file content value.
 /// </summary>
-public sealed record ToolFileContent : ToolContent
+public sealed record ToolFileContent : IToolContent
 {
     /// <summary>
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => "file";
+    public string Type => "file";
 
     /// <summary>
     /// Gets the uri value.

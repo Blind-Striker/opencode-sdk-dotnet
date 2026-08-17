@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message assistant value.
 /// </summary>
-public sealed record SessionMessageAssistant : SessionMessageInfo
+public sealed record SessionMessageAssistant : ISessionMessageInfo
 {
     /// <summary>
     /// Gets the id value.
@@ -33,7 +33,7 @@ public sealed record SessionMessageAssistant : SessionMessageInfo
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public override string Type => "assistant";
+    public string Type => "assistant";
 
     /// <summary>
     /// Gets the agent value.
@@ -51,13 +51,13 @@ public sealed record SessionMessageAssistant : SessionMessageInfo
     /// Gets the content value.
     /// </summary>
     [JsonPropertyName("content")]
-    public required IReadOnlyList<SessionMessageAssistantContent> Content
+    public required IReadOnlyList<ISessionMessageAssistantContent> Content
     {
         get;
         init
         {
             ArgumentNullException.ThrowIfNull(value);
-            field = new List<SessionMessageAssistantContent>(value).AsReadOnly();
+            field = new List<ISessionMessageAssistantContent>(value).AsReadOnly();
         }
     } = [];
 

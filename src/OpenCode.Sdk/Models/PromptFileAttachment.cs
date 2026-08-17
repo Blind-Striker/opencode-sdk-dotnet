@@ -25,7 +25,7 @@ public sealed record PromptFileAttachment
     /// Gets the source value.
     /// </summary>
     [JsonPropertyName("source")]
-    public required PromptFileSource Source { get; init; }
+    public required IPromptFileSource Source { get; init; }
 
     /// <summary>
     /// Gets the name value.

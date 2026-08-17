@@ -6,13 +6,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a invalid request error value.
 /// </summary>
-public sealed record InvalidRequestError : OpenCodeError
+public sealed record InvalidRequestError : IOpenCodeError
 {
     /// <summary>
     /// Gets the tag value.
     /// </summary>
     [JsonPropertyName("_tag")]
-    public override string Tag => "InvalidRequestError";
+    public string Tag => "InvalidRequestError";
 
     /// <summary>
     /// Gets the message value.

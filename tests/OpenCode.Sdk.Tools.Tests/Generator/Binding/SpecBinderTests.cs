@@ -43,23 +43,23 @@ public sealed class SpecBinderTests
         await Assert.That(toolUri).IsTypeOf<NamedTypeReferencePlan>();
         await Assert.That(((NamedTypeReferencePlan)toolUri).Name).IsEqualTo("Uri");
 
-        var sessionMessage = plan.Unions.Single(static union => union.Name == "SessionMessageInfo");
+        var sessionMessage = plan.Unions.Single(static union => union.Name == "ISessionMessageInfo");
         await Assert.That(sessionMessage.MarkerWireName).IsEqualTo("type");
         await Assert.That(sessionMessage.Variants).Count().IsEqualTo(10);
 
-        var compaction = plan.Unions.Single(static union => union.Name == "SessionMessageCompaction");
+        var compaction = plan.Unions.Single(static union => union.Name == "ISessionMessageCompaction");
         await Assert.That(compaction.MarkerWireName).IsEqualTo("status");
-        await Assert.That(compaction.BaseTypeName).IsEqualTo("SessionMessageInfo");
+        await Assert.That(compaction.BaseTypeName).IsEqualTo("ISessionMessageInfo");
         await Assert.That(compaction.FixedMarker!.WireName).IsEqualTo("type");
         await Assert.That(compaction.FixedMarker.Value).IsEqualTo("compaction");
         await Assert.That(compaction.Variants).Count().IsEqualTo(3);
 
-        await Assert.That(plan.Unions.Any(static union => union.Name == "SessionMessageAssistantContent")).IsTrue();
-        await Assert.That(plan.Unions.Any(static union => union.Name == "SessionMessageToolState")).IsTrue();
-        await Assert.That(plan.Unions.Any(static union => union.Name == "PromptFileSource")).IsTrue();
-        await Assert.That(plan.Unions.Any(static union => union.Name == "ToolContent")).IsTrue();
+        await Assert.That(plan.Unions.Any(static union => union.Name == "ISessionMessageAssistantContent")).IsTrue();
+        await Assert.That(plan.Unions.Any(static union => union.Name == "ISessionMessageToolState")).IsTrue();
+        await Assert.That(plan.Unions.Any(static union => union.Name == "IPromptFileSource")).IsTrue();
+        await Assert.That(plan.Unions.Any(static union => union.Name == "IToolContent")).IsTrue();
 
-        var errors = plan.Unions.Single(static union => union.Name == "OpenCodeError");
+        var errors = plan.Unions.Single(static union => union.Name == "IOpenCodeError");
         await Assert.That(errors.Variants.Select(static variant => variant.TypeName).Order(StringComparer.Ordinal)
             .SequenceEqual(ExpectedErrorTypeNames, StringComparer.Ordinal)).IsTrue();
     }
@@ -242,14 +242,14 @@ public sealed class SpecBinderTests
             Selection("v2.health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), }));
 
-        var outer = plan.Unions.Single(static union => union.Name == "Outer");
+        var outer = plan.Unions.Single(static union => union.Name == "IOuter");
         await Assert.That(outer.MarkerWireName).IsEqualTo("type");
         await Assert.That(outer.Variants.Select(static variant => variant.Tag).Order(StringComparer.Ordinal)
             .SequenceEqual(["alpha", "wrap"], StringComparer.Ordinal)).IsTrue();
 
-        var nested = plan.Unions.Single(static union => union.Name == "Wrap");
+        var nested = plan.Unions.Single(static union => union.Name == "IWrap");
         await Assert.That(nested.MarkerWireName).IsEqualTo("status");
-        await Assert.That(nested.BaseTypeName).IsEqualTo("Outer");
+        await Assert.That(nested.BaseTypeName).IsEqualTo("IOuter");
         await Assert.That(nested.FixedMarker!.WireName).IsEqualTo("type");
         await Assert.That(nested.FixedMarker.Value).IsEqualTo("wrap");
     }
@@ -440,9 +440,9 @@ public sealed class SpecBinderTests
             Selection("v2.health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), }));
 
-        var wrap = plan.Unions.Single(static union => union.Name == "Wrap");
+        var wrap = plan.Unions.Single(static union => union.Name == "IWrap");
         await Assert.That(wrap.MarkerWireName).IsEqualTo("status");
-        await Assert.That(wrap.BaseTypeName).IsEqualTo("Outer");
+        await Assert.That(wrap.BaseTypeName).IsEqualTo("IOuter");
     }
 
     [Test]
@@ -522,7 +522,7 @@ public sealed class SpecBinderTests
         await Assert.That(status.Tags.Select(static tag => tag.TypeName)
             .SequenceEqual(["GadgetError"], StringComparer.Ordinal)).IsTrue();
         await Assert.That(plan.Models.Any(static model => model.Name == "GadgetError1")).IsFalse();
-        await Assert.That(plan.Unions.Single(static union => union.Name == "OpenCodeError")
+        await Assert.That(plan.Unions.Single(static union => union.Name == "IOpenCodeError")
             .Variants.Select(static variant => variant.TypeName)
             .SequenceEqual(["GadgetError"], StringComparer.Ordinal)).IsTrue();
     }

@@ -163,7 +163,7 @@ public sealed class OperationPlanBinderTests
         await Assert.That(message.Envelope.ResponseTypeName).IsEqualTo("SessionMessageResponse");
         await Assert.That(message.Envelope.AdapterTypeName).IsEqualTo("SessionMessageResponseAdapter");
         await Assert.That(message.Envelope.PayloadName).IsEqualTo("Message");
-        await Assert.That(message.Envelope.PayloadTypeName).IsEqualTo("SessionMessageInfo");
+        await Assert.That(message.Envelope.PayloadTypeName).IsEqualTo("ISessionMessageInfo");
         await Assert.That(message.Envelope.Kind).IsEqualTo(EnvelopeKind.Data);
         await Assert.That(message.ErrorMap.Statuses.Select(static status => status.StatusCode)
             .SequenceEqual([400, 401, 404])).IsTrue();

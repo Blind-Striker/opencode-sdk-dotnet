@@ -16,13 +16,13 @@ public sealed class OpenCodeJsonContextTests
     {
         var json = _fixtures.LoadJson("Serialization.known-session-message.json");
 
-        var result = _serializer.Deserialize<SessionMessageInfo>(json);
+        var result = _serializer.Deserialize<ISessionMessageInfo>(json);
 
         await Assert.That(result).IsTypeOf<SessionMessageUser>();
         var user = (SessionMessageUser)result;
         await Assert.That(user.Id).IsEqualTo("message-1");
         await Assert.That(user.Text).IsEqualTo("hello");
-        var serialized = _serializer.Serialize<SessionMessageInfo>(user);
+        var serialized = _serializer.Serialize<ISessionMessageInfo>(user);
         using var document = JsonDocument.Parse(serialized);
         await Assert.That(document.RootElement.GetProperty("type").GetString()).IsEqualTo("user");
     }
@@ -65,7 +65,7 @@ public sealed class OpenCodeJsonContextTests
     {
         var json = _fixtures.LoadJson("Serialization.mismatched-compaction-marker.json");
 
-        _ = await Assert.That(() => _serializer.Deserialize<SessionMessageCompaction>(json)).Throws<JsonException>();
+        _ = await Assert.That(() => _serializer.Deserialize<ISessionMessageCompaction>(json)).Throws<JsonException>();
     }
 
     [Test]
@@ -101,7 +101,7 @@ public sealed class OpenCodeJsonContextTests
     {
         var json = _fixtures.LoadJson("Serialization.known-session-message.json");
 
-        var result = _serializer.Deserialize<SessionMessageInfo>(json);
+        var result = _serializer.Deserialize<ISessionMessageInfo>(json);
 
         await Assert.That(result).IsTypeOf<SessionMessageUser>();
         var user = (SessionMessageUser)result;
@@ -116,12 +116,12 @@ public sealed class OpenCodeJsonContextTests
     {
         var json = _fixtures.LoadJson("Serialization.unknown-session-message.json");
 
-        var result = _serializer.Deserialize<SessionMessageInfo>(json);
+        var result = _serializer.Deserialize<ISessionMessageInfo>(json);
 
         await Assert.That(result).IsTypeOf<UnknownSessionMessageInfo>();
         var unknown = (UnknownSessionMessageInfo)result;
         await Assert.That(unknown.Type).IsEqualTo("future-message");
-        var roundTrip = _serializer.Serialize<SessionMessageInfo>(unknown);
+        var roundTrip = _serializer.Serialize<ISessionMessageInfo>(unknown);
         await Assert.That(roundTrip).IsEqualTo(json);
     }
 
@@ -129,7 +129,7 @@ public sealed class OpenCodeJsonContextTests
     public async Task Serialize_Should_Reproduce_The_Raw_Document_Through_The_Concrete_Carrier_Type()
     {
         var json = _fixtures.LoadJson("Serialization.unknown-session-message.json");
-        var unknown = (UnknownSessionMessageInfo)_serializer.Deserialize<SessionMessageInfo>(json);
+        var unknown = (UnknownSessionMessageInfo)_serializer.Deserialize<ISessionMessageInfo>(json);
 
         var roundTrip = _serializer.Serialize(unknown);
 
@@ -151,7 +151,7 @@ public sealed class OpenCodeJsonContextTests
     public async Task Serialize_Should_Reproduce_The_Raw_Error_Through_The_Concrete_Carrier_Type()
     {
         const string json = "{\"_tag\":\"BrandNewError\",\"detail\":{\"code\":7}}";
-        var unknown = (UnknownOpenCodeError)_serializer.Deserialize<OpenCodeError>(json);
+        var unknown = (UnknownOpenCodeError)_serializer.Deserialize<IOpenCodeError>(json);
 
         var roundTrip = _serializer.Serialize(unknown);
 
@@ -163,14 +163,14 @@ public sealed class OpenCodeJsonContextTests
     {
         var json = _fixtures.LoadJson("Serialization.known-compaction-message.json");
 
-        var result = _serializer.Deserialize<SessionMessageInfo>(json);
+        var result = _serializer.Deserialize<ISessionMessageInfo>(json);
 
         await Assert.That(result).IsTypeOf<SessionMessageCompactionRunning>();
         var running = (SessionMessageCompactionRunning)result;
         await Assert.That(running.Type).IsEqualTo("compaction");
         await Assert.That(running.Status).IsEqualTo("running");
         await Assert.That(running.Reason).IsEqualTo(SessionMessageCompactionRunningReason.Auto);
-        var serialized = _serializer.Serialize<SessionMessageInfo>(running);
+        var serialized = _serializer.Serialize<ISessionMessageInfo>(running);
         using var document = JsonDocument.Parse(serialized);
         await Assert.That(document.RootElement.GetProperty("type").GetString()).IsEqualTo("compaction");
         await Assert.That(document.RootElement.GetProperty("status").GetString()).IsEqualTo("running");
@@ -181,13 +181,13 @@ public sealed class OpenCodeJsonContextTests
     {
         var json = _fixtures.LoadJson("Serialization.unknown-compaction-status.json");
 
-        var result = _serializer.Deserialize<SessionMessageInfo>(json);
+        var result = _serializer.Deserialize<ISessionMessageInfo>(json);
 
         await Assert.That(result).IsTypeOf<UnknownSessionMessageCompaction>();
         var unknown = (UnknownSessionMessageCompaction)result;
         await Assert.That(unknown.Type).IsEqualTo("compaction");
         await Assert.That(unknown.Status).IsEqualTo("paused");
-        var roundTrip = _serializer.Serialize<SessionMessageInfo>(unknown);
+        var roundTrip = _serializer.Serialize<ISessionMessageInfo>(unknown);
         await Assert.That(roundTrip).IsEqualTo(json);
     }
 
@@ -196,12 +196,12 @@ public sealed class OpenCodeJsonContextTests
     {
         var json = _fixtures.LoadJson("Serialization.known-assistant-content.json");
 
-        var result = _serializer.Deserialize<SessionMessageAssistantContent>(json);
+        var result = _serializer.Deserialize<ISessionMessageAssistantContent>(json);
 
         await Assert.That(result).IsTypeOf<SessionMessageAssistantText>();
         var text = (SessionMessageAssistantText)result;
         await Assert.That(text.Text).IsEqualTo("answer");
-        var serialized = _serializer.Serialize<SessionMessageAssistantContent>(text);
+        var serialized = _serializer.Serialize<ISessionMessageAssistantContent>(text);
         using var document = JsonDocument.Parse(serialized);
         await Assert.That(document.RootElement.GetProperty("type").GetString()).IsEqualTo("text");
     }
@@ -211,11 +211,11 @@ public sealed class OpenCodeJsonContextTests
     {
         var json = _fixtures.LoadJson("Serialization.unknown-assistant-content.json");
 
-        var result = _serializer.Deserialize<SessionMessageAssistantContent>(json);
+        var result = _serializer.Deserialize<ISessionMessageAssistantContent>(json);
 
         await Assert.That(result).IsTypeOf<UnknownSessionMessageAssistantContent>();
         var unknown = (UnknownSessionMessageAssistantContent)result;
-        var roundTrip = _serializer.Serialize<SessionMessageAssistantContent>(unknown);
+        var roundTrip = _serializer.Serialize<ISessionMessageAssistantContent>(unknown);
         using var expected = JsonDocument.Parse(json);
         using var actual = JsonDocument.Parse(roundTrip);
         await Assert.That(JsonElement.DeepEquals(expected.RootElement, actual.RootElement)).IsTrue();
@@ -226,12 +226,12 @@ public sealed class OpenCodeJsonContextTests
     {
         var json = _fixtures.LoadJson("Serialization.known-tool-state.json");
 
-        var result = _serializer.Deserialize<SessionMessageToolState>(json);
+        var result = _serializer.Deserialize<ISessionMessageToolState>(json);
 
         await Assert.That(result).IsTypeOf<SessionMessageToolStateRunning>();
         var running = (SessionMessageToolStateRunning)result;
         await Assert.That(running.Input["query"].GetString()).IsEqualTo("queued input");
-        var serialized = _serializer.Serialize<SessionMessageToolState>(running);
+        var serialized = _serializer.Serialize<ISessionMessageToolState>(running);
         using var document = JsonDocument.Parse(serialized);
         await Assert.That(document.RootElement.GetProperty("status").GetString()).IsEqualTo("running");
     }
@@ -241,12 +241,12 @@ public sealed class OpenCodeJsonContextTests
     {
         var json = _fixtures.LoadJson("Serialization.unknown-tool-state.json");
 
-        var result = _serializer.Deserialize<SessionMessageToolState>(json);
+        var result = _serializer.Deserialize<ISessionMessageToolState>(json);
 
         await Assert.That(result).IsTypeOf<UnknownSessionMessageToolState>();
         var unknown = (UnknownSessionMessageToolState)result;
         await Assert.That(unknown.Status).IsEqualTo("paused");
-        var roundTrip = _serializer.Serialize<SessionMessageToolState>(unknown);
+        var roundTrip = _serializer.Serialize<ISessionMessageToolState>(unknown);
         await Assert.That(roundTrip).IsEqualTo(json);
     }
 
@@ -255,7 +255,7 @@ public sealed class OpenCodeJsonContextTests
     {
         var json = _fixtures.LoadJson("Serialization.missing-assistant-marker.json");
 
-        _ = await Assert.That(() => _serializer.Deserialize<SessionMessageAssistantContent>(json))
+        _ = await Assert.That(() => _serializer.Deserialize<ISessionMessageAssistantContent>(json))
             .Throws<JsonException>();
     }
 
@@ -264,7 +264,7 @@ public sealed class OpenCodeJsonContextTests
     {
         var json = _fixtures.LoadJson("Serialization.empty-assistant-marker.json");
 
-        _ = await Assert.That(() => _serializer.Deserialize<SessionMessageAssistantContent>(json))
+        _ = await Assert.That(() => _serializer.Deserialize<ISessionMessageAssistantContent>(json))
             .Throws<JsonException>();
     }
 
@@ -273,7 +273,7 @@ public sealed class OpenCodeJsonContextTests
     {
         var json = _fixtures.LoadJson("Serialization.malformed-assistant-marker.json");
 
-        _ = await Assert.That(() => _serializer.Deserialize<SessionMessageAssistantContent>(json))
+        _ = await Assert.That(() => _serializer.Deserialize<ISessionMessageAssistantContent>(json))
             .Throws<JsonException>();
     }
 
@@ -282,7 +282,7 @@ public sealed class OpenCodeJsonContextTests
     {
         var json = _fixtures.LoadJson("Serialization.null-optional-collection.json");
 
-        _ = await Assert.That(() => _serializer.Deserialize<SessionMessageInfo>(json))
+        _ = await Assert.That(() => _serializer.Deserialize<ISessionMessageInfo>(json))
             .Throws<JsonException>();
     }
 
@@ -291,7 +291,7 @@ public sealed class OpenCodeJsonContextTests
     {
         var json = _fixtures.LoadJson("Serialization.non-object-assistant-payload.json");
 
-        _ = await Assert.That(() => _serializer.Deserialize<SessionMessageAssistantContent>(json))
+        _ = await Assert.That(() => _serializer.Deserialize<ISessionMessageAssistantContent>(json))
             .Throws<JsonException>();
     }
 
@@ -318,9 +318,9 @@ public sealed class OpenCodeJsonContextTests
     public async Task GetTypeInfo_Should_Resolve_Union_Metadata_Without_Reflection_Fallback()
     {
         await Assert.That(JsonSerializer.IsReflectionEnabledByDefault).IsFalse();
-        await Assert.That(_serializer.GetTypeInfo(typeof(SessionMessageInfo))).IsNotNull();
-        await Assert.That(_serializer.GetTypeInfo(typeof(SessionMessageCompaction))).IsNotNull();
-        await Assert.That(_serializer.GetTypeInfo(typeof(SessionMessageAssistantContent))).IsNotNull();
-        await Assert.That(_serializer.GetTypeInfo(typeof(SessionMessageToolState))).IsNotNull();
+        await Assert.That(_serializer.GetTypeInfo(typeof(ISessionMessageInfo))).IsNotNull();
+        await Assert.That(_serializer.GetTypeInfo(typeof(ISessionMessageCompaction))).IsNotNull();
+        await Assert.That(_serializer.GetTypeInfo(typeof(ISessionMessageAssistantContent))).IsNotNull();
+        await Assert.That(_serializer.GetTypeInfo(typeof(ISessionMessageToolState))).IsNotNull();
     }
 }

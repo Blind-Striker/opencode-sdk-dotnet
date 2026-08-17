@@ -5,14 +5,14 @@ using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a session message compaction union.
+/// Represents a prompt file source union.
 /// </summary>
-[JsonConverter(typeof(SessionMessageCompactionJsonConverter))]
-public abstract record SessionMessageCompaction : SessionMessageInfo
+[JsonConverter(typeof(PromptFileSourceJsonConverter))]
+public interface IPromptFileSource
 {
     /// <summary>
-    /// Gets the &apos;status&apos; union marker.
+    /// Gets the &apos;type&apos; union marker.
     /// </summary>
-    [JsonPropertyName("status")]
-    public abstract string Status { get; }
+    [JsonPropertyName("type")]
+    public string Type { get; }
 }

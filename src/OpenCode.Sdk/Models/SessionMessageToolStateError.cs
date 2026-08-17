@@ -9,13 +9,13 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message tool state error value.
 /// </summary>
-public sealed record SessionMessageToolStateError : SessionMessageToolState
+public sealed record SessionMessageToolStateError : ISessionMessageToolState
 {
     /// <summary>
     /// Gets the status value.
     /// </summary>
     [JsonPropertyName("status")]
-    public override string Status => "error";
+    public string Status => "error";
 
     /// <summary>
     /// Gets the input value.
@@ -41,7 +41,7 @@ public sealed record SessionMessageToolStateError : SessionMessageToolState
     /// Gets the content value.
     /// </summary>
     [JsonPropertyName("content")]
-    public IReadOnlyList<ToolContent> Content { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new List<ToolContent>(input).AsReadOnly()); } = [];
+    public IReadOnlyList<IToolContent> Content { get; init => field = OptionalCollectionInput.Normalize(value, field, static input => new List<IToolContent>(input).AsReadOnly()); } = [];
 
     /// <summary>
     /// Gets the metadata value.
