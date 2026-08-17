@@ -13,6 +13,7 @@ internal static class TypeSyntaxEmitter
         var type = plan switch
         {
             NamedTypeReferencePlan named => EmitNamed(named.Name),
+            SpecialNumberTypeReferencePlan => SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.DoubleKeyword)),
             ListTypeReferencePlan list => Generic("IReadOnlyList", Emit(list.ElementType)),
             DictionaryTypeReferencePlan dictionary => Generic(
                 "IReadOnlyDictionary",

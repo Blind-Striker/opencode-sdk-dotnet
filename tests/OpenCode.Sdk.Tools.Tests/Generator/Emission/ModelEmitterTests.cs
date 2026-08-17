@@ -29,7 +29,9 @@ public sealed class ModelEmitterTests
 
         await Assert.That(source).Contains("[JsonConverter(typeof(WireNullRejectingJsonConverter<string>))]");
         await Assert.That(source).Contains("[JsonConverter(typeof(WireNullRejectingValueJsonConverter<double>))]");
+        await Assert.That(source).Contains("[JsonConverter(typeof(WireNullRejectingSpecialNumberJsonConverter))]");
+        await Assert.That(source).Contains("[JsonNumberHandling(JsonNumberHandling.AllowNamedFloatingPointLiterals)]");
         var occurrences = source.Split("WireNullRejecting").Length - 1;
-        await Assert.That(occurrences).IsEqualTo(3);
+        await Assert.That(occurrences).IsEqualTo(4);
     }
 }

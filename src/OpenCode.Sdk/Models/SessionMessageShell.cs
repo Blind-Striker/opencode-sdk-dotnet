@@ -58,7 +58,7 @@ public sealed record SessionMessageShell : ISessionMessageInfo
     /// </summary>
     [JsonPropertyName("exit")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [JsonConverter(typeof(WireNullRejectingValueJsonConverter<double>))]
+    [JsonConverter(typeof(WireNullRejectingSpecialNumberJsonConverter))]
     public double? Exit { get; init; }
 
     /// <summary>

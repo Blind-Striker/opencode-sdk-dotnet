@@ -111,6 +111,20 @@ public sealed class SpecBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Preserve_The_Pinned_Special_Number_Semantics()
+    {
+        var (document, selection, curation) = await LoadPinnedInputsAsync();
+
+        var plan = new BindingTestHost().Bind(document, selection, curation);
+
+        var shell = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "SessionMessageShell");
+        var exit = shell.Properties.Single(static property => property.WireName == "exit");
+        await Assert.That(exit.Type).IsTypeOf<SpecialNumberTypeReferencePlan>();
+        await Assert.That(exit.Type.IsNullable).IsTrue();
+        await Assert.That(exit.AllowsWireNull).IsFalse();
+    }
+
+    [Test]
     public async Task Bind_Should_Be_Deterministic_For_The_Selected_Pin()
     {
         var (document, selection, curation) = await LoadPinnedInputsAsync();

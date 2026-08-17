@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization.Metadata;
 using OpenCode.Sdk.Models;
 using OpenCode.Sdk.Tests.Support;
@@ -84,6 +85,56 @@ public sealed class OpenCodeJsonContextTests
         var diff = _serializer.Deserialize<FileDiffInfo>(json);
 
         await Assert.That(diff.Status).IsEqualTo(FileDiffInfoStatus.Modified);
+    }
+
+    [Arguments("NaN", double.NaN)]
+    [Arguments("Infinity", double.PositiveInfinity)]
+    [Arguments("-Infinity", double.NegativeInfinity)]
+    [Test]
+    public async Task Deserialize_Should_Round_Trip_A_Declared_Special_Number(string wireValue, double expected)
+    {
+        var json = CreateShellJson(JsonValue.Create(wireValue));
+
+        var result = _serializer.Deserialize<ISessionMessageInfo>(json);
+
+        await Assert.That(result).IsTypeOf<SessionMessageShell>();
+        var shell = (SessionMessageShell)result;
+        await Assert.That(shell.Exit).IsEqualTo(expected);
+        var roundTrip = _serializer.Serialize<ISessionMessageInfo>(shell);
+        using var document = JsonDocument.Parse(roundTrip);
+        var exit = document.RootElement.GetProperty("exit");
+        await Assert.That(exit.ValueKind).IsEqualTo(JsonValueKind.String);
+        await Assert.That(exit.GetString()).IsEqualTo(wireValue);
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Preserve_An_Ordinary_Finite_Special_Number()
+    {
+        var json = _fixtures.LoadJson("Serialization.known-session-message-shell.json");
+
+        var result = _serializer.Deserialize<ISessionMessageInfo>(json);
+
+        var shell = (SessionMessageShell)result;
+        await Assert.That(shell.Exit).IsEqualTo(7.25);
+        var roundTrip = _serializer.Serialize<ISessionMessageInfo>(shell);
+        using var document = JsonDocument.Parse(roundTrip);
+        await Assert.That(document.RootElement.GetProperty("exit").ValueKind).IsEqualTo(JsonValueKind.Number);
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Reject_An_Arbitrary_Numeric_String_For_A_Special_Number()
+    {
+        var json = CreateShellJson(JsonValue.Create("7.25"));
+
+        _ = await Assert.That(() => _serializer.Deserialize<ISessionMessageInfo>(json)).Throws<JsonException>();
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Reject_Explicit_Null_For_An_Optional_Special_Number()
+    {
+        var json = CreateShellJson(exit: null);
+
+        _ = await Assert.That(() => _serializer.Deserialize<ISessionMessageInfo>(json)).Throws<JsonException>();
     }
 
     [Test]
@@ -322,5 +373,14 @@ public sealed class OpenCodeJsonContextTests
         await Assert.That(_serializer.GetTypeInfo(typeof(ISessionMessageCompaction))).IsNotNull();
         await Assert.That(_serializer.GetTypeInfo(typeof(ISessionMessageAssistantContent))).IsNotNull();
         await Assert.That(_serializer.GetTypeInfo(typeof(ISessionMessageToolState))).IsNotNull();
+    }
+
+    private string CreateShellJson(JsonNode? exit)
+    {
+        var json = _fixtures.LoadJson("Serialization.known-session-message-shell.json");
+        var shell = JsonNode.Parse(json)?.AsObject()
+                    ?? throw new InvalidOperationException("The session shell fixture must contain a JSON object.");
+        shell["exit"] = exit;
+        return shell.ToJsonString();
     }
 }

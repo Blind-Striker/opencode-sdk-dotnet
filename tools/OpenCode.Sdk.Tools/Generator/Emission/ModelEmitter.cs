@@ -113,6 +113,15 @@ internal static class ModelEmitter
         var declaration = SyntaxFactory.PropertyDeclaration(TypeSyntaxEmitter.Emit(property.Type), property.Name)
             .AddAttributeLists(EmissionSyntax.Attribute("JsonPropertyName", EmissionSyntax.StringArgument(property.WireName)))
             .WithLeadingTrivia(EmissionSyntax.Documentation(property.Description ?? $"Gets the {DisplayName(property.Name)} value."));
+        if (ContainsSpecialNumber(property.Type) && !RejectsWireNull(property))
+        {
+            declaration = declaration.AddAttributeLists(EmissionSyntax.Attribute(
+                "JsonNumberHandling",
+                SyntaxFactory.AttributeArgument(EmissionSyntax.MemberAccess(
+                    SyntaxFactory.IdentifierName("JsonNumberHandling"),
+                    "AllowNamedFloatingPointLiterals"))));
+        }
+
         if (property.Type.IsNullable)
         {
             declaration = declaration.AddAttributeLists(EmissionSyntax.Attribute(
@@ -123,14 +132,11 @@ internal static class ModelEmitter
                     .WithNameEquals(SyntaxFactory.NameEquals("Condition"))));
         }
 
-        if (RejectsWireNull(property) && property.Type is NamedTypeReferencePlan named)
+        if (RejectsWireNull(property))
         {
             // The C# type stays nullable for absence; an explicit wire null is a contract
             // violation the converter turns into a JsonException.
-            var inner = TypeSyntaxEmitter.Emit(named with { IsNullable = false });
-            var converter = TypeSyntaxEmitter.Generic(
-                valueTypeNames.Contains(named.Name) ? "WireNullRejectingValueJsonConverter" : "WireNullRejectingJsonConverter",
-                inner);
+            var converter = EmitWireNullRejectingConverter(property.Type, valueTypeNames);
             declaration = declaration.AddAttributeLists(EmissionSyntax.Attribute(
                 "JsonConverter",
                 SyntaxFactory.AttributeArgument(SyntaxFactory.TypeOfExpression(converter))));
@@ -366,6 +372,23 @@ internal static class ModelEmitter
     /// explicit wire null; required properties never reach the serializer as null-for-absence.</summary>
     private static bool RejectsWireNull(ModelPropertyPlan property) =>
         !property.IsRequired && !property.Type.IsCollection && !property.AllowsWireNull;
+
+    private static TypeSyntax EmitWireNullRejectingConverter(TypeReferencePlan type, IReadOnlySet<string> valueTypeNames) => type switch
+    {
+        SpecialNumberTypeReferencePlan => SyntaxFactory.IdentifierName("WireNullRejectingSpecialNumberJsonConverter"),
+        NamedTypeReferencePlan named => TypeSyntaxEmitter.Generic(
+            valueTypeNames.Contains(named.Name) ? "WireNullRejectingValueJsonConverter" : "WireNullRejectingJsonConverter",
+            TypeSyntaxEmitter.Emit(named with { IsNullable = false })),
+        _ => throw new InvalidOperationException($"Type-reference plan '{type.GetType().Name}' cannot reject wire null."),
+    };
+
+    private static bool ContainsSpecialNumber(TypeReferencePlan type) => type switch
+    {
+        SpecialNumberTypeReferencePlan => true,
+        ListTypeReferencePlan list => ContainsSpecialNumber(list.ElementType),
+        DictionaryTypeReferencePlan dictionary => ContainsSpecialNumber(dictionary.ValueType),
+        _ => false,
+    };
 
     private static void CollectTypeUsings(TypeReferencePlan type, ISet<string> usings)
     {

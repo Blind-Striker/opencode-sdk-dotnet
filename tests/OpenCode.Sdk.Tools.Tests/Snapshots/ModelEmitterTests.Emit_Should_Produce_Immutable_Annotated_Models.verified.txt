@@ -61,6 +61,21 @@ public sealed record ExampleItem
     public double? Count { get; init; }
 
     /// <summary>
+    /// Gets the item ratio.
+    /// </summary>
+    [JsonPropertyName("ratio")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(WireNullRejectingSpecialNumberJsonConverter))]
+    public double? Ratio { get; init; }
+
+    /// <summary>
+    /// Gets the item peak.
+    /// </summary>
+    [JsonPropertyName("peak")]
+    [JsonNumberHandling(JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+    public required double Peak { get; init; }
+
+    /// <summary>
     /// Gets the flush timestamp, or null when never flushed.
     /// </summary>
     [JsonPropertyName("flushedAt")]

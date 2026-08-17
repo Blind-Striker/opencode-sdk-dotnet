@@ -561,6 +561,8 @@ internal static class EmitterPlanFixture
                 Property("id", "ID", Named("string"), isRequired: true, "Gets the item identifier."),
                 Property("note", "Note", Named("string", isNullable: true), isRequired: false, description: null),
                 Property("count", "Count", Named("double", isNullable: true), isRequired: false, "Gets the item count."),
+                Property("ratio", "Ratio", SpecialNumber(isNullable: true), isRequired: false, "Gets the item ratio."),
+                Property("peak", "Peak", SpecialNumber(), isRequired: true, "Gets the item peak."),
                 Property("flushedAt", "FlushedAt", Named("double", isNullable: true), isRequired: false,
                     "Gets the flush timestamp, or null when never flushed.", allowsWireNull: true),
                 Property("tags", "Tags", ListOf(Named("string")), isRequired: false, "Gets the item tags."),
@@ -673,6 +675,12 @@ internal static class EmitterPlanFixture
         new()
         {
             Name = name,
+            IsNullable = isNullable,
+        };
+
+    private static SpecialNumberTypeReferencePlan SpecialNumber(bool isNullable = false) =>
+        new()
+        {
             IsNullable = isNullable,
         };
 

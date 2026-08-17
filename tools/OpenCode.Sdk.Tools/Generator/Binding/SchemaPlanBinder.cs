@@ -585,7 +585,7 @@ internal sealed class SchemaPlanBinder
             DictionaryNode dictionary => BindDictionary(dictionary, subject, aliases),
             FreeFormObjectNode => DictionaryOf(Named("JsonElement")),
             UnrestrictedNode => Named("JsonElement"),
-            SpecialNumberNode => Named("double"),
+            SpecialNumberNode => SpecialNumber(),
             NullableNode nullable => BindNullable(nullable, subject, aliases),
             JsonStringNode => Refuse(subject, "JSON-encoded strings are not supported by the M1 emitter"),
             TupleNode => Refuse(subject, "tuple schemas are not supported by the M1 emitter"),
@@ -655,6 +655,12 @@ internal sealed class SchemaPlanBinder
             new()
             {
                 Name = name,
+                IsNullable = false,
+            };
+
+        private static SpecialNumberTypeReferencePlan SpecialNumber() =>
+            new()
+            {
                 IsNullable = false,
             };
 
