@@ -18,6 +18,7 @@ internal sealed class ServerSentEventReader
     private const char FieldSeparator = ':';
     private const char ByteOrderMark = '\uFEFF';
     private const int ReadBufferBytes = 8192;
+    private static readonly Encoding StrictUtf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
     private readonly StringBuilder _data = new();
     private readonly StringBuilder _line = new();
@@ -53,9 +54,22 @@ internal sealed class ServerSentEventReader
     {
         // The decoder carries a partial multi-byte character across reads, so a chunk
         // boundary inside one character never corrupts it.
-        var decoder = Encoding.UTF8.GetDecoder();
+        var decoder = StrictUtf8.GetDecoder();
         var bytes = new byte[ReadBufferBytes];
         var characters = new char[Encoding.UTF8.GetMaxCharCount(ReadBufferBytes)];
+
+        int Decode(int byteCount, bool flush)
+        {
+            try
+            {
+                return decoder.GetChars(bytes, 0, byteCount, characters, 0, flush);
+            }
+            catch (DecoderFallbackException exception)
+            {
+                throw new OpenCodeTransportException("The opencode event stream contains malformed UTF-8.", exception);
+            }
+        }
+
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -65,7 +79,7 @@ internal sealed class ServerSentEventReader
                 break;
             }
 
-            var decoded = decoder.GetChars(bytes, 0, read, characters, 0);
+            var decoded = Decode(read, flush: false);
             for (var index = 0; index < decoded; index++)
             {
                 if (Accept(characters[index]) is { } payload)
@@ -78,7 +92,7 @@ internal sealed class ServerSentEventReader
 
         // Flushing surfaces a multi-byte character the body cut in half as a replacement
         // character rather than dropping it unseen.
-        var flushed = decoder.GetChars(bytes, 0, 0, characters, 0, flush: true);
+        var flushed = Decode(byteCount: 0, flush: true);
         for (var index = 0; index < flushed; index++)
         {
             if (Accept(characters[index]) is { } payload)

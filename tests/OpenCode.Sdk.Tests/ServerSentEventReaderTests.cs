@@ -201,6 +201,33 @@ public sealed class ServerSentEventReaderTests
     }
 
     [Test]
+    public async Task ReadAsync_Should_Refuse_An_Invalid_Utf8_Byte()
+    {
+        var body = Encoding.UTF8.GetBytes("data: value\n\n");
+        body["data: ".Length] = 0xff;
+        using var stream = new MemoryStream(body);
+
+        var exception = await Assert
+            .That(async () => _ = await ReadAllAsync(stream))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception!.InnerException).IsTypeOf<DecoderFallbackException>();
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Refuse_An_Incomplete_Utf8_Character_At_End_Of_Body()
+    {
+        var prefix = Encoding.UTF8.GetBytes("data: ");
+        using var stream = new MemoryStream([.. prefix, 0xc5]);
+
+        var exception = await Assert
+            .That(async () => _ = await ReadAllAsync(stream))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception!.InnerException).IsTypeOf<DecoderFallbackException>();
+    }
+
+    [Test]
     public async Task ReadAsync_Should_Normalize_Crlf_Line_Endings()
     {
         using var stream = ChunkedStream.Of("data: first\r\n\r\ndata: second\r\n\r\n");

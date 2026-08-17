@@ -90,10 +90,10 @@ the watermark without persisting historical payload rows.
 
 The post-Arc 3a independent review and factual verification are complete (research log Session
 28). Fifteen trigger-scoped findings live in #39–#53; #23/#24/#27/#30 carry same-owner riders.
-Stream lifecycle and cancellation parity are closed (#39). Before Arc 3b, the runway closes
-strict SSE UTF-8 (#42), special-number and nested-null model fidelity (#41/#48), the complete
-stream-plan wall (#47), numeric resume cursor (#40), fixed literals (#45), and known-object
-field policy (#46). The Arc 3b selection
+Stream lifecycle, cancellation parity, and strict SSE UTF-8 are closed (#39/#42 SSE arm).
+Before Arc 3b, the runway closes special-number and nested-null model fidelity (#41/#48), the
+complete stream-plan wall (#47), numeric resume cursor (#40), fixed literals (#45), and
+known-object field policy (#46). The Arc 3b selection
 also waits for #49's mechanical breadth gates, then closes reviewed `Events.SubscribeAsync`
 naming (#44) itself. Fixed literals are generated as
 constants when #45 closes, and known objects deliberately tolerate additive unmapped fields
