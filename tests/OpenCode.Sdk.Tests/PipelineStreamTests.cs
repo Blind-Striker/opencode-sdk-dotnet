@@ -28,6 +28,23 @@ public sealed class PipelineStreamTests
     }
 
     [Test]
+    public async Task ExecuteStreamAsync_Should_Yield_The_First_Frame_Before_The_Body_Ends()
+    {
+        using var body = new BlockingStream(Encoding.UTF8.GetBytes(FirstFrame));
+        using var handler = new RecordingHttpHandler(_ => EventStreamOf(body));
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(httpClient);
+        var stream = pipeline.ExecuteStreamAsync(
+            HttpMethod.Get, "/api/event", new TestStreamAdapter(), CancellationToken.None);
+
+        await using var enumerator = stream.GetAsyncEnumerator(CancellationToken.None);
+        var moved = await enumerator.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+
+        await Assert.That(moved).IsTrue();
+        await Assert.That(enumerator.Current.Value).IsEqualTo("first");
+    }
+
+    [Test]
     public async Task ExecuteStreamAsync_Should_Decorate_The_Request_Like_Any_Other()
     {
         using var handler = new RecordingHttpHandler(static _ => EventStream(FirstFrame));
@@ -137,6 +154,20 @@ public sealed class PipelineStreamTests
     }
 
     [Test]
+    public async Task ExecuteStreamAsync_Should_Read_Transport_Cancellation_As_A_Transport_Failure()
+    {
+        using var handler = new RecordingHttpHandler(static _ => EventStreamOf(new CancelingStream()));
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(httpClient);
+
+        var exception = await Assert
+            .That(async () => _ = await CollectAsync(pipeline))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception!.InnerException).IsTypeOf<TaskCanceledException>();
+    }
+
+    [Test]
     public async Task ExecuteStreamAsync_Should_Refuse_A_Stream_Failure_Frame_Instead_Of_Yielding_It()
     {
         using var handler = new RecordingHttpHandler(static _ => EventStream(
@@ -225,6 +256,27 @@ public sealed class PipelineStreamTests
 
         _ = Assert.Throws<ObjectDisposedException>(() => _ = pipeline.ExecuteStreamAsync(
             HttpMethod.Get, "/api/event", new TestStreamAdapter(), CancellationToken.None));
+
+        await Assert.That(handler.Requests).IsEmpty();
+    }
+
+    [Test]
+    public async Task ExecuteStreamAsync_Should_Refuse_Enumeration_That_Starts_After_Dispose()
+    {
+        using var handler = new RecordingHttpHandler(static _ => EventStream(FirstFrame));
+        using var httpClient = new HttpClient(handler);
+        var pipeline = PipelineFactory.Create(httpClient);
+        var stream = pipeline.ExecuteStreamAsync(
+            HttpMethod.Get, "/api/event", new TestStreamAdapter(), CancellationToken.None);
+        pipeline.Dispose();
+
+        _ = await Assert
+            .That(async () =>
+            {
+                await using var enumerator = stream.GetAsyncEnumerator(CancellationToken.None);
+                _ = await enumerator.MoveNextAsync();
+            })
+            .Throws<ObjectDisposedException>();
 
         await Assert.That(handler.Requests).IsEmpty();
     }

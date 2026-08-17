@@ -307,6 +307,7 @@ internal sealed class Pipeline : IDisposable
     private async IAsyncEnumerable<TPayload> ExecuteStreamCoreAsync<TPayload>(HttpMethod method, string route,
         IStreamAdapter<TPayload> adapter, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         using var request = new HttpRequestMessage(method, new Uri(_endpointBase + route, UriKind.Absolute));
         Decorate(request);
         using var response = await SendCoreAsync(request, cancellationToken).ConfigureAwait(false);
@@ -357,6 +358,10 @@ internal sealed class Pipeline : IDisposable
             {
                 throw new OpenCodeTransportException("The opencode event stream could not be read.", exception);
             }
+            catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new OpenCodeTransportException("The opencode event stream could not be read.", exception);
+            }
 
             if (!moved)
             {
@@ -375,6 +380,10 @@ internal sealed class Pipeline : IDisposable
         }
         catch (Exception exception)
             when (exception is HttpRequestException or IOException or ObjectDisposedException)
+        {
+            throw new OpenCodeTransportException("The opencode event stream could not be read.", exception);
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
             throw new OpenCodeTransportException("The opencode event stream could not be read.", exception);
         }

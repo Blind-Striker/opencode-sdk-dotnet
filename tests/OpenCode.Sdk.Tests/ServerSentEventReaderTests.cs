@@ -262,6 +262,25 @@ public sealed class ServerSentEventReaderTests
             .Throws<OperationCanceledException>();
     }
 
+    [Test]
+    public async Task ReadAsync_Should_Not_Yield_Another_Buffered_Frame_After_Cancellation()
+    {
+        using var stream = ChunkedStream.Of("data: first\n\ndata: second\n\n");
+        using var cancellation = new CancellationTokenSource();
+        await using var frames = new ServerSentEventReader()
+            .ReadAsync(stream, cancellation.Token)
+            .GetAsyncEnumerator(CancellationToken.None);
+        _ = await frames.MoveNextAsync();
+        var first = frames.Current.Data;
+        await cancellation.CancelAsync();
+
+        _ = await Assert
+            .That(async () => _ = await frames.MoveNextAsync())
+            .Throws<OperationCanceledException>();
+
+        await Assert.That(first).IsEqualTo("first");
+    }
+
     private static async Task<List<string>> ReadAllAsync(Stream stream,
         int maxFrameCharacters = ServerSentEventReader.DefaultMaxFrameCharacters,
         CancellationToken cancellationToken = default)

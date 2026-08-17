@@ -507,6 +507,8 @@ public sealed class PipelineTests
             .That(async () => _ = await pipeline.ExecuteAsync(
                 HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, cancellation.Token))
             .Throws<OperationCanceledException>();
+
+        await Assert.That(handler.CancellationTokens.Single().IsCancellationRequested).IsTrue();
     }
 
     [Test]

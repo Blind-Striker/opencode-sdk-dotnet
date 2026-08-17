@@ -70,6 +70,7 @@ internal sealed class ServerSentEventReader
             {
                 if (Accept(characters[index]) is { } payload)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     yield return payload;
                 }
             }
@@ -82,6 +83,7 @@ internal sealed class ServerSentEventReader
         {
             if (Accept(characters[index]) is { } payload)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 yield return payload;
             }
         }
@@ -97,6 +99,7 @@ internal sealed class ServerSentEventReader
 
         if (TakeFrame() is { } trailing)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             yield return trailing;
         }
     }

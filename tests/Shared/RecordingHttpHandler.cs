@@ -6,6 +6,7 @@ namespace OpenCode.Sdk.TestSupport;
 internal sealed class RecordingHttpHandler : HttpMessageHandler
 {
     private readonly Func<HttpRequestMessage, HttpResponseMessage> _responder;
+    private readonly List<CancellationToken> _cancellationTokens = [];
     private readonly List<RecordedRequest> _requests = [];
 
     public RecordingHttpHandler()
@@ -25,10 +26,13 @@ internal sealed class RecordingHttpHandler : HttpMessageHandler
 
     public IReadOnlyList<RecordedRequest> Requests => _requests;
 
+    public IReadOnlyList<CancellationToken> CancellationTokens => _cancellationTokens;
+
     public bool IsDisposed { get; private set; }
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        _cancellationTokens.Add(cancellationToken);
         _requests.Add(new RecordedRequest
         {
             RequestUri = request.RequestUri,
