@@ -109,10 +109,18 @@ internal sealed class SchemaPlanBinder
         var result = new List<UnionPlan>(plans.Count);
         foreach (var (key, plan) in plans)
         {
-            result.Add(fixedMarkers.TryGetValue(key, out var fixedMarker)
-                       && inheritance.TryGetValue(key, out var baseTypes) && baseTypes.Count is 1
-                ? plan with { BaseTypeName = baseTypes[0], FixedMarker = fixedMarker }
-                : plan);
+            var wired = plan;
+            if (inheritance.TryGetValue(key, out var baseTypes) && baseTypes.Count is 1)
+            {
+                wired = wired with { BaseTypeName = baseTypes[0] };
+            }
+
+            if (fixedMarkers.TryGetValue(key, out var fixedMarker))
+            {
+                wired = wired with { FixedMarker = fixedMarker };
+            }
+
+            result.Add(wired);
         }
 
         return result;
@@ -140,10 +148,10 @@ internal sealed class SchemaPlanBinder
         {
             var tag = branch.Markers.First(candidate =>
                 string.Equals(candidate.PropertyName, marker.PropertyName, StringComparison.Ordinal)).Value;
-            AddInheritance(branch.TargetKey, name, inheritance, errors);
+            AddInheritance(branch.MemberKey, name, inheritance, errors);
             if (branch.IsNestedUnion)
             {
-                fixedMarkers[branch.TargetKey] = new UnionFixedMarkerPlan
+                fixedMarkers[branch.MemberKey] = new UnionFixedMarkerPlan
                 {
                     WireName = marker.PropertyName,
                     Name = CSharpNamePolicy.ToPascalCase(marker.PropertyName),
@@ -192,10 +200,30 @@ internal sealed class SchemaPlanBinder
                 continue;
             }
 
+            // A nested union that fixes the outer marker behaves like one tag. One that
+            // discriminates on the outer marker instead spans it, so the outer dispatches
+            // straight to that union's own leaves rather than through a second converter.
+            if (target is UnionNode { Classification: UnionClassification.Marked } nested
+                && ResolveUniformNestedMarkers(nested, graph) is not { Count: > 0 })
+            {
+                var spanned = ResolveSpannedBranches(nested, reference.Target, graph, names);
+                if (spanned is null)
+                {
+                    errors.Add(
+                        BindingErrorCategory.Schema,
+                        key,
+                        "marked union branch must reference a named object or nested marked union with a literal marker");
+                    continue;
+                }
+
+                resolved.AddRange(spanned);
+                continue;
+            }
+
             var markers = target switch
             {
                 ObjectNode { LiteralMarkers.Count: > 0 } objectNode => objectNode.LiteralMarkers,
-                UnionNode { Classification: UnionClassification.Marked } nested => ResolveUniformNestedMarkers(nested, graph),
+                UnionNode { Classification: UnionClassification.Marked } uniform => ResolveUniformNestedMarkers(uniform, graph),
                 _ => null,
             };
             if (markers is not { Count: > 0 })
@@ -207,10 +235,36 @@ internal sealed class SchemaPlanBinder
                 continue;
             }
 
-            resolved.Add(new ResolvedUnionBranch(reference.Target, typeName, markers, target is UnionNode));
+            resolved.Add(new ResolvedUnionBranch(reference.Target, typeName, markers, target is UnionNode, reference.Target));
         }
 
-        return resolved.Count == union.Branches.Count ? resolved : null;
+        // A spanning branch contributes several entries under one member key, so the arity
+        // check counts branches answered rather than entries produced.
+        var answered = resolved.Select(static branch => branch.MemberKey).Distinct(StringComparer.Ordinal).Count();
+        return answered == union.Branches.Count ? resolved : null;
+    }
+
+    /// <summary>Expands a marker-spanning nested union into the leaves the outer dispatches to.</summary>
+    private static List<ResolvedUnionBranch>? ResolveSpannedBranches(UnionNode nested, string nestedKey,
+        IReadOnlyDictionary<string, SchemaNode> graph, IReadOnlyDictionary<string, string> names)
+    {
+        var result = new List<ResolvedUnionBranch>(nested.Branches.Count);
+        foreach (var branch in nested.Branches)
+        {
+            // Only one level is admitted: a leaf of a spanning union must itself be a marked
+            // object, never another union.
+            if (branch is not RefNode reference
+                || !graph.TryGetValue(reference.Target, out var target)
+                || target is not ObjectNode { LiteralMarkers.Count: > 0 } leaf
+                || !names.TryGetValue(reference.Target, out var typeName))
+            {
+                return null;
+            }
+
+            result.Add(new ResolvedUnionBranch(reference.Target, typeName, leaf.LiteralMarkers, IsNestedUnion: false, nestedKey));
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -274,7 +328,13 @@ internal sealed class SchemaPlanBinder
         return null;
     }
 
-    private sealed record ResolvedUnionBranch(string TargetKey, string TypeName, IReadOnlyList<LiteralMarker> Markers, bool IsNestedUnion);
+    /// <summary>
+    /// One dispatch entry of a union. <paramref name="MemberKey"/> is the schema that records
+    /// membership, which differs from <paramref name="TargetKey"/> when a nested union spans
+    /// the outer marker: the nested union is the member, its leaves are the dispatch targets.
+    /// </summary>
+    private sealed record ResolvedUnionBranch(string TargetKey, string TypeName, IReadOnlyList<LiteralMarker> Markers,
+        bool IsNestedUnion, string MemberKey);
 
     private static UnionPlan? BindErrorUnion(SpecDocument document, ReachableSchemaSet reachable, HashSet<string> responseRoots,
         IReadOnlyDictionary<string, string> names, IDictionary<string, List<string>> inheritance, BindingErrorCollector errors)

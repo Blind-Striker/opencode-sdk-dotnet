@@ -446,6 +446,43 @@ public sealed class SpecBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Dispatch_A_Marker_Spanning_Nested_Union_Through_Its_Own_Leaves()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("Created", schema => schema.Type("object")
+                .Property("type", property => property.Type("string").Enum("created"), required: true))
+            .WithSchema("Renamed", schema => schema.Type("object")
+                .Property("type", property => property.Type("string").Enum("renamed"), required: true))
+            .WithSchema("Synced", schema => schema.Type("object")
+                .Property("type", property => property.Type("string").Enum("synced"), required: true))
+            .WithSchema("Durable", schema => schema.OneOf(one => one.Ref("Created"), two => two.Ref("Renamed")))
+            .WithSchema("LogItem", schema => schema.AnyOf(one => one.Ref("Durable"), two => two.Ref("Synced")))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("LogItem")))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), }));
+
+        // The nested union discriminates on the parent's own marker, so the parent dispatches
+        // straight to its leaves rather than handing the payload to a second converter.
+        var outer = plan.Unions.Single(static union => union.Name == "ILogItem");
+        await Assert.That(outer.Variants.Select(static variant => variant.Tag).Order(StringComparer.Ordinal)
+            .SequenceEqual(["created", "renamed", "synced"], StringComparer.Ordinal)).IsTrue();
+        await Assert.That(outer.Variants.Select(static variant => variant.TypeName).Order(StringComparer.Ordinal)
+            .SequenceEqual(["Created", "Renamed", "Synced"], StringComparer.Ordinal)).IsTrue();
+
+        // The grouping survives as an interface the leaves implement.
+        var nested = plan.Unions.Single(static union => union.Name == "IDurable");
+        await Assert.That(nested.BaseTypeName).IsEqualTo("ILogItem");
+        await Assert.That(nested.FixedMarker).IsNull();
+
+        var created = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "Created");
+        await Assert.That(created.ImplementedUnionNames.SequenceEqual(["IDurable"], StringComparer.Ordinal)).IsTrue();
+    }
+
+    [Test]
     public async Task Bind_Should_Let_A_Schema_Belong_To_Every_Union_That_Branches_To_It()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
