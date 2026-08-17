@@ -26,6 +26,11 @@ schemas: 19 sites, which grep-based counting undercounts as 6). Using a reader l
 is not adopting a foreign code generator — Kiota/NSwag/OpenAPI Generator remain
 eliminated on the run evidence above. Evidence and prototypes: research log session 12.
 
+The pinned document is also the sole protocol-semantic input (ADR-0013). Curation reaches the
+Binder only to organize the represented OpenAPI surface; upstream TypeScript/Effect source never
+supplies a missing wire type, constraint, format, or validation rule. Projection loss is reported
+upstream or left faithful/fail-closed, not repaired through a hidden second contract.
+
 ## Emission: Roslyn syntax trees — decided against the slice's cost evidence
 
 The spike implemented the same slice twice behind a shared parser/IR. Template/string emission

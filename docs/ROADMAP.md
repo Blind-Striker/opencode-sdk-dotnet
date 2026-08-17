@@ -66,7 +66,7 @@ and Extensions test projects, and the previously unobserved object-envelope
 by the SDK test project; the Extensions tests are registration-topology only).
 
 **M3 is open** (plan: `superpowers/plans/2026-08-15-m3-plan.md`; decisions: research log
-Sessions 24–28). Q92's simplicity-first construction (ADR-0010) is landed — Arc 1 complete:
+Sessions 24–29). Q92's simplicity-first construction (ADR-0010) is landed — Arc 1 complete:
 the transport constructor is internal friend-assembly test surface, Extensions registers
 a factory-less singleton client family with a roster contract test, and the Q91 guard
 machinery is deleted — closing #31 by construction. #32 and #33 stay sealed with their
@@ -93,17 +93,22 @@ The post-Arc 3a independent review and factual verification are complete (resear
 Stream lifecycle, cancellation parity, and strict SSE UTF-8 are closed (#39/#42 SSE arm).
 Special-number schemas retain their provenance through binding and emission (#41): ordinary
 numbers and exactly `"NaN"`, `"Infinity"`, and `"-Infinity"` round-trip through source-generated
-metadata, while arbitrary numeric strings and disallowed wire null remain strict. Before Arc 3b,
-the remaining runway closes nested-null model fidelity (#48), the complete stream-plan wall
-(#47), numeric resume cursor (#40), fixed literals (#45), and known-object field policy (#46).
-The Arc 3b selection
-also waits for #49's mechanical breadth gates, then closes reviewed `Events.SubscribeAsync`
-naming (#44) itself. Fixed literals are generated as
-constants when #45 closes, and known objects deliberately tolerate additive unmapped fields
-(ADR-0012/#46). The runtime corpus currently covers two of 40 durable branches; #49 will add
-mechanical converter, registry, and plural-membership breadth gates rather than invented
-40/87-payload corpora. The six interim allocation baselines did not move. Hosted CI execution
-is restored at `b19e32d`; master protection and direct-push policy remain open under #50.
+metadata and arbitrary numeric strings remain unrepresentable as ordinary doubles.
+
+Session 29 reset two cross-cutting boundaries before more model breadth lands. The pinned OpenAPI
+document is now the sole protocol-semantic generation input; curation cannot restore types,
+constraints, formats, or validation from upstream implementation source (ADR-0013). Runtime now
+validates only transport/framing, .NET materialization, and union dispatch; it does not replay
+server schema validation, normalize optional collections to empty, or defensively own generated
+model collections (ADR-0014). This supersedes the old acceptance criteria behind #45/#48 and the
+source-derived parts of #28/#40 plus the explicit-null arm of #41. Two serial green
+increments now lead the queue: remove semantic curation not derivable from the pin, then simplify
+generated model/runtime materialization and review the intentional nullable API diff. #46's
+unknown-field/hybrid wall, #27's validated exact aliases, #47's stream-plan completeness, and
+#49's mechanical breadth evidence remain valid. The runtime corpus still covers two of 40 durable
+branches; no invented 40/87-payload corpus is planned. The six interim allocation baselines remain
+the comparison guards. Hosted CI is green at `050b4f8` (run `32037611341`); master protection and
+direct-push policy remain open under #50.
 
 **The M2 second breadth batch is complete** (plan:
 `superpowers/plans/2026-08-15-m2-second-breadth-batch.md`) — the design-prover batch:
@@ -146,8 +151,9 @@ is revisited at each milestone boundary.
    over the v2 stream surface (`v2.event.subscribe`, `v2.session.log` with
    `after`/`follow`, cursor-paged `v2.message.list`); the v1 durable-stream design does
    not carry over and is re-derived here. Demo: watching a real session's event stream.
-   Immediate review blockers #39–#42 and #45–#49 close before the live-bus breadth step; #44
-   closes with that selection. The net472 owned-transport cluster (#43) lands here as a GA
+   The ADR-0013/0014 authority/materialization cleanup and surviving review findings close before
+   the live-bus breadth step; #44 closes with that selection. The net472 owned-transport cluster
+   (#43) lands here as a GA
    gate. The
    union single-pass deserialization and streaming adapter-boundary redesign (#23) land
    on the M3 runway, gated on the performance baselines (#18), together with the
@@ -178,12 +184,22 @@ is revisited at each milestone boundary.
 - **v2 GA watch** — the v2 line ships as `opencode2` (npm `@opencode-ai/cli@next`, desktop
   beta via `update.opencode.ai`) with no GA date; the spec pin stays a deliberate snapshot,
   refreshed at milestone boundaries. Platform detail: research doc 15.
-- **`v2.session.log` resume guarantees** — it replaces the v1 durable stream (`after` +
-  `follow` on an experimental path). The cursor is a non-negative aggregate sequence (#40),
-  but retention/replay guarantees remain unestablished. Research doc 02 records the default
-  server's persistence behavior; re-check guarantees at the spec-pin refresh.
+- **`v2.session.log` resume guarantees** — the pinned OpenAPI exposes `after` as an optional
+  string. Upstream implementation source decodes it to a non-negative aggregate sequence, but
+  ADR-0013 forbids importing that hidden type through curation. Keep the generated surface
+  faithful and use the projection-fidelity audit below to seek an upstream contract fix;
+  retention/replay guarantees also remain unestablished (research doc 02).
 - **Spec refresh cadence** — the `refresh-spec` tool lands in M6; the cadence policy stays
   open.
+- **OpenAPI projection fidelity** — at the next sanctioned refresh and before M5 public-surface
+  freeze, independent read-only passes compare current upstream Effect schemas, generated OpenAPI,
+  and first-party generated clients. Reproduce and report confirmed losses upstream; seed cases
+  are numeric `limit`/`after` decode targets emitted only as strings. Reports are diagnostic and
+  never feed generation or curation (ADR-0013, research Q107/Q108).
+- **Generated collection representation** — Arc 6 benchmarks direct `IReadOnly*` surfaces against
+  `ImmutableArray`/`ImmutableDictionary` across JSON, AOT, downlevel TFMs, request ergonomics, and
+  allocation/throughput before M5 freezes the API. `IReadOnly*` remains the default unless total
+  evidence favors concrete immutable types (research Q108).
 - **Structural-union emission shape** — the v1 pin had five structural-union sites
   (`Config.formatter` et al.); the population is re-censused at the retarget, and the
   emission decision lands when a breadth batch first reaches one (a public API review).

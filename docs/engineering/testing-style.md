@@ -94,6 +94,12 @@ emitted plans, while a small schema-valid runtime corpus exercises framing and d
 Real observed frames are promoted into that corpus when available. Documentation states the
 observed fixture count rather than projecting structural completeness onto it.
 
+Runtime tests assert transport/framing, JSON materialization, required .NET shape, and union
+dispatch. They do not mutate otherwise representable payloads solely to prove that the SDK
+revalidates an OpenAPI range, fixed literal, optional-null distinction, or collection child
+constraint; those remain server responsibilities (ADR-0014). Generator tests still fail closed on
+unsupported OpenAPI constructs and prove the exact required/nullable C# mapping.
+
 ## 4. Fakes and mocks
 
 - **Substitute at seams only** (NSubstitute over interfaces). Records, IR types, and

@@ -2339,3 +2339,82 @@ attempt 2 completed all three Windows, macOS, and Linux jobs successfully agains
 
 **Decision:** the interim allocation baselines remain hard guards through Arcs 3b–5. Hosted CI
 execution is restored; branch-protection policy remains tracked separately by `#50`.
+
+# Session 29 — 2026-08-17: protocol authority and runtime boundary reset
+
+## Q106: Where does SDK runtime validation stop?
+
+**How researched:** four fresh-context read-only audits traced runtime serialization, generator
+mapping, tests/canonicals, and performance/AOT from clean `050b4f8`; a fifth pass compared the
+pinned upstream Promise client, Effect client, server encoder, and Effect schema runtime at the
+same `a6a712a` pin. Local package decompilation supplied controls: AWS SDK for .NET 4.0.100.8 and
+Azure Search Documents 12.0.0 admit some nested nulls, while Google.Protobuf 3.34.1 explicitly
+refuses them. The current selected output contains 94 collection properties and 109
+wire-null-rejecting attributes; the deep-assistant benchmark fixture reaches repeated empty
+dictionary construction and deserialize-then-copy paths.
+
+**Found:** upstream has no single answer. Its Promise client parses and casts representable JSON;
+its Effect client replays schema validation; normal server encoders prevent many contradictions
+from reaching either. The .NET SDK had mixed those postures: it distinguished omission from null,
+rescanned page elements, normalized optional collections to empty, copied and wrapped every
+collection, and planned validation for all fixed literals. Those checks are unnecessary when the
+wire value already materializes in the declared C# shape, and `IReadOnly*` plus a copied outer
+container still does not prove a recursively immutable object graph.
+
+**Decision (maintainer, sealed):** runtime validates transport/framing, JSON materialization,
+required .NET shape, and union dispatch; it does not revalidate representable server values against
+OpenAPI (ADR-0014). `required` follows schema presence; nullable C# means optional or
+schema-nullable; required-nullable values write explicit null; optional collections remain null
+rather than becoming empty. Generated collections are shallow init-only `IReadOnly*` properties
+with caller-owned mutation. Collection children are annotation-only, non-discriminator literals
+remain ordinary properties, declared 204 bodies are ignored, and optional explicit null collapses
+with absence. Buffered JSON charset/BOM handling remains delegated to `HttpContent`; no one-shot
+strict-UTF-8 layer is added. A one-shot JSON success with one declared materializer does not
+validate response media; media remains a build-time contract input and a runtime dispatch key only
+when several materializers exist. SSE keeps its protocol-specific media/UTF-8/framing behavior.
+This supersedes Q103's non-discriminator fixed-literal validation and Q68's optional-collection
+explicit-null rejection, empty normalization, and defensive-copy decisions; Q103's unknown-field
+tolerance and hybrid-object wall remain.
+
+## Q107: What may curation change?
+
+**How researched:** the pinned OpenAPI operations for `session.list`, `message.list`, and
+`session.log` were compared with the TypeScript/Effect contract source at the exact same upstream
+commit. `NumberFromString` decode targets and refinements (`PositiveInt`, message limit 1..200,
+`Event.Seq`) appear in source, while generated OpenAPI exposes plain `string | null`; the
+`order`+`cursor` prohibition appears only in description and handler code. Existing tooling then
+revealed name-based `PositiveCount`, a behavior-premised `mutuallyExclusiveQueries` row, URI type
+overrides, and a planned `after -> long?` override.
+
+**Found:** this is projection loss, not pin drift: upstream's executable schema has encoded and
+decoded sides, while its OpenAPI generator retained only part of that information. The C# tool
+cannot consume those hidden semantics without executing/reimplementing Effect or introducing a
+second machine-readable contract. Repairing them through hand-authored curation would make
+upstream implementation source a silent generation input and defeat snapshot determinism.
+
+**Decision (maintainer, sealed):** pinned `spec/openapi.json` is the sole protocol-semantic input
+(ADR-0013). Upstream source remains provenance/diagnostic evidence. Curation may name/place the
+represented surface, collapse proven-equivalent OpenAPI shapes, and fingerprint evidenced
+exclusions; it may not invent types, formats, constraints, cross-field rules, or runtime
+validation. Descriptions generate documentation only. A lossy construct stays faithful or fails
+closed, and a confirmed projection defect is reported upstream instead of becoming a local
+semantic override.
+This supersedes Q102's `after -> long?`/non-negative decision and Session 24's #28
+prose/handler-derived mutual-exclusion guard. Q102's operation-name curation and Session 24's
+#32/#33 decisions remain unchanged. It also supersedes Q39's behavior-premised semantic-override
+category; curation rows remain fail-closed only within ADR-0013's naming/placement/equivalence/
+exclusion boundary.
+
+## Q108: Which evidence follows from the reset?
+
+**Decision (maintainer):** two pre-freeze investigations enter the roadmap. First, benchmark
+direct `IReadOnlyList`/`IReadOnlyDictionary` model surfaces against
+`ImmutableArray`/`ImmutableDictionary` across source-generated JSON, Native AOT, downlevel TFMs,
+request ergonomics, and allocation/throughput; `FrozenDictionary` is only a comparison control for
+long-lived read-heavy data. `IReadOnly*` remains the shipped shape unless immutable collections
+show a compelling total-cost win. Second, at the next sanctioned spec refresh, independent
+read-only passes compare current upstream Effect schemas, generated OpenAPI, and first-party
+generated client types. Verified losses are canonicalized and filed upstream after duplicate
+search and maintainer review. Seed cases are `message.list.limit` (integer 1..200),
+`session.list.limit` (`PositiveInt`), and `session.log.after` (`Event.Seq`) appearing only as strings
+in OpenAPI. The diagnostic report never becomes generator or curation input.

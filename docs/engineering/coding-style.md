@@ -99,16 +99,18 @@ for a pile of static steps.
   named record. Tuples are tolerated only inside a method body.
 - **No concrete collection parameters** (`List<T>`, `Dictionary<K,V>`) on non-private
   members — accept `IReadOnlyList<T>` / `IReadOnlyDictionary<K,V>` /
-  `IEnumerable<T>` or a domain type; expose `IReadOnly*`, constructed defensively
-  (a frozen copy, not a live view of private state).
+  `IEnumerable<T>` or a domain type. Generated wire models expose shallow `IReadOnly*`
+  properties without copying caller-owned collections; collaborators that own mutable private
+  state still return a snapshot or a read-only view appropriate to that ownership boundary.
 - **A parameter cluster traveling together is a record asking to exist** — the same
   three values on four signatures means the domain grew a concept the code has not
   named yet.
 - **Guard public inputs** with BCL throw-helpers; assert internal invariants with
   `Debug.Assert` — the repo's defensive-programming default (`AGENTS.md`).
-- Immutability by default: records with `required`/`init`, read-only collections —
-  the same principles the generated models follow (ADR-0004) apply to hand-written
-  types.
+- Immutability by default: records with `required`/`init`; name actual collection ownership
+  rather than treating `IReadOnly*` as a deep-immutability guarantee. Generated wire models are
+  shallow init-only DTOs (ADR-0004/0014); hand-written domain types choose stronger ownership only
+  when a concrete consumer or concurrency boundary requires it.
 
 ## 4. Layout
 

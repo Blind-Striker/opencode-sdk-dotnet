@@ -21,9 +21,10 @@ lazily); this list is the complete inventory of what is settled. Do not reopen w
 evidence. The design specs under `docs/superpowers/` are vision/reference material —
 direction and rationale, not law; only this list and the ADRs bind.
 
-- **Target artifact:** upstream's `packages/protocol/openapi.json` from the active `v2`
-  branch (OpenAPI 3.1), pinned as a snapshot under `spec/` (ADR-0005; the 1.x pin retires
-  at the M1 retarget task).
+- **Target artifact and protocol authority:** upstream's `packages/protocol/openapi.json` from
+  the active `v2` branch (OpenAPI 3.1), pinned as a snapshot under `spec/`, is the generator's
+  sole protocol-semantic input. Upstream implementation source is provenance/diagnostic evidence,
+  never a second generation input (ADR-0005, ADR-0013).
 - **API surface:** the v2 protocol surface only — public names strip the `v2.` operationId
   prefix ("V2" never appears) (ADR-0005).
 - **Hybrid construction:** hand-written behavior core; models *and* operation methods from
@@ -34,14 +35,21 @@ direction and rationale, not law; only this list and the ADRs bind.
   (ADR-0003, ADR-0008).
 - **Generator packaging:** repo tooling under `tools/`; committed output passes the analyzer
   wall on merit; the same tool owns spec refresh (ADR-0003).
-- **Generated models:** immutable, `required`-mirroring, fixed literals exposed as
-  read-validated constants, nullable-last-resort (ADR-0004).
+- **Curation boundary:** curation may name/place the represented OpenAPI surface, collapse
+  proven-equivalent shapes, and fingerprint evidenced exclusions; it may not invent wire types,
+  constraints, formats, or validation absent from the pin (ADR-0013).
+- **Generated models:** sealed records with shallow `init`-only collection ownership;
+  `required` mirrors schema presence, nullable C# means optional or schema-nullable, optional
+  collections stay nullable, and only union-dispatch literals are constants (ADR-0004, ADR-0014).
+- **Runtime validation:** the SDK validates transport/framing and what is required to materialize
+  the declared .NET shape or dispatch a union; it does not revalidate representable server values
+  against the OpenAPI schema (ADR-0014).
 - **Unknown-variant tolerance:** every union deserializes unknown tags into an explicit
   carrier (ADR-0009).
 - **Unknown-field tolerance:** known object variants deliberately skip additive unmapped
-  fields, including schemas closed by the pin; required members, fixed literals, nullability,
-  and represented types stay strict, while a hybrid named-object + typed-additional-properties
-  shape fails binding until it can be represented without loss (ADR-0012).
+  fields, including schemas closed by the pin; required shape and represented token types stay
+  materializable, while a hybrid named-object + typed-additional-properties shape fails binding
+  until it can be represented without loss (ADR-0012, ADR-0014).
 - **Union membership:** a union emits as an interface and a wire schema stays one `sealed
   record` implementing every union it belongs to — a schema can be a branch of more than one
   union, which a base class cannot express (ADR-0011).
@@ -130,14 +138,15 @@ direction and rationale, not law; only this list and the ADRs bind.
 
 ## Engineering Conventions
 
-- **Defensive programming is the default, everywhere:** guard public inputs, assert internal
-  invariants, fail loudly rather than guess — silent fallbacks exist only as explicitly
-  recorded tolerances (ADR-0009 pattern).
+- **Defensive programming is the default, everywhere:** guard local representability, transport,
+  and public API preconditions; assert internal invariants; fail loudly rather than guess. Do not
+  turn defensive programming into a second server-schema validator (ADR-0009, ADR-0014).
 - **Performance is a standing concern, weighted by artifact:** the shipped SDK targets both
-  speed and minimal allocation on its hot paths (zero *avoidable* allocations — ADR-0004's
-  immutable models and ADR-0007's raw-body retention are contracts, not waste); repo tooling
-  targets speed. No speculative optimization, but obvious waste (redundant parses, needless
-  copies, avoidable buffering) is always evaluated, starting with the low-hanging fruit.
+  speed and minimal allocation on its hot paths (zero *avoidable* allocations — ADR-0014 makes
+  defensive model copies/wrappers avoidable, while ADR-0007's error-path raw-body retention is an
+  intentional contract cost); repo tooling targets speed. No speculative optimization, but
+  obvious waste (redundant parses, needless copies, avoidable buffering) is always evaluated,
+  starting with the low-hanging fruit.
   Performance claims are settled by benchmarks (`tests/OpenCode.Sdk.Performance.Tests`,
   `MemoryDiagnoser` on), never by argument; performance-touching PRs carry before/after
   numbers.

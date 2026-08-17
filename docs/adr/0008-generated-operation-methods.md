@@ -49,5 +49,7 @@ envelope; `text/*` → `string`); an unknown content type breaks generation.
   collisions; emitters consume the bound name mechanically and never branch on an operation ID.
   The first concrete case is `v2.event.subscribe`, whose reviewed surface is
   `Events.SubscribeAsync`, not the natural `Events.GetSubscribeAsync` derivation.
+- This curation changes only .NET naming. It cannot repair a type, constraint, format, or
+  validation missing from the pinned OpenAPI document (ADR-0013).
 
 Evidence: research log Q102.

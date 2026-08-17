@@ -24,6 +24,11 @@ four mechanisms in the API design spec §4.2: the open error set (upstream regen
 the spec continually — a closed union can never hold), the single error channel, the
 stream plane's structural need to throw, and .NET ecosystem convention.
 
+"Protocol failure" here means status/framing/dispatch failure, malformed JSON, or failure to
+materialize the declared non-null .NET response shape. A representable value that merely violates
+an OpenAPI constraint is not reclassified as transport failure; the server owns that validation
+(ADR-0014). `NoThrow` therefore remains unrelated to duplicate schema checks.
+
 ## Considered options
 
 - **Result/DU-style returns** — rejected on the four mechanisms; C# 14 has no unions,
