@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using OpenCode.Sdk.TestSupport;
 
 namespace OpenCode.Sdk.Tests.Support;
@@ -36,6 +37,19 @@ internal sealed class ContractScenario : IDisposable
     }
 
     public static ContractScenario Responding() => new(new RecordingHttpHandler());
+
+    /// <summary>Answers with a server-sent event body, the shape a streaming operation reads.</summary>
+    public static ContractScenario RespondingWithFrames(string body)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+
+        return new(new RecordingHttpHandler(_ =>
+        {
+            var content = new StringContent(body);
+            content.Headers.ContentType = new MediaTypeHeaderValue("text/event-stream");
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = content, };
+        }));
+    }
 
     public void Dispose()
     {

@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-16
+Date: 2026-08-17
 
 Operational state: what is done, what is next, what is open. This file shrinks as work lands.
 Evergreen rules and locked decisions live in `../AGENTS.md`; decision records in `adr/`.
@@ -77,8 +77,16 @@ into named events, and the pipeline opens a stream through the same decoration, 
 transport-failure mapping the one-shot path uses. Q98 sealed what the `event` field is for
 (the contract's only mid-stream failure channel; upstream's own generated client discards
 it and we do not), and Q99 sealed that a body cut mid-event is reported rather than
-dispatched. What remains in Arc 3a is the generator side: the fail-closed stream walls, the
-JsonString dialect, admitting `v2.session.log`, and the live demo.
+dispatched. **The generator side landed too**: ADR-0011 turned union membership into an
+interface because 39 schemas branch from both stream unions, a marker-spanning nested union
+now dispatches through its own leaves, the two unions carrying no choice are read rather than
+refused, numeric literal markers bind, and a streaming success binds to a stream plan whose
+frame profile, JSON-encoded payload and declared `failureEvent` are each required.
+`v2.session.log` is selected — 14 operations — and `SessionClient.GetLogAsync` returns
+`IAsyncEnumerable<ISessionLogItem>` with no per-call options. Demonstrated live 2026-08-17
+against `opencode2 serve` v0.0.0-next-17403: the stream opens, frames decode, and the
+watermark types as `EventLogSynced`; the durable union itself could not be exercised because
+that build writes nothing into the log (Open Questions).
 
 **The M2 second breadth batch is complete** (plan:
 `superpowers/plans/2026-08-15-m2-second-breadth-batch.md`) — the design-prover batch:
@@ -92,7 +100,7 @@ middleware headers, and the first PATCH/DELETE verbs. #28 landed as the
 v0.0.0-next-17403 (shell create → get → timeout → remove and session rename → remove,
 204s typed, ambient location echoed). `v2.shell.output` deferred to a later batch —
 its inline data object and integer cursor query params each need a mechanism of their
-own. 13 operations selected, 107 pending.
+own.
 
 ## Milestones
 
@@ -151,7 +159,22 @@ is revisited at each milestone boundary.
   beta via `update.opencode.ai`) with no GA date; the spec pin stays a deliberate snapshot,
   refreshed at milestone boundaries. Platform detail: research doc 15.
 - **`v2.session.log` semantics** — it replaces the v1 durable stream (`after` + `follow` on
-  an experimental path); resume guarantees are unestablished. Owned by M3.
+  an experimental path); resume guarantees are unestablished. Owned by M3. Observed
+  2026-08-17 against `opencode2 serve` v0.0.0-next-17403: the read side answers, but the
+  write side is inert — the aggregate sequence stays at 0 through repeated renames and a
+  complete assistant turn, and only the `log.synced` watermark ever arrives. Proven by raw
+  `curl`, independent of this SDK, while `/api/event` emitted normally in the same window.
+  Upstream declares those session events `Event.durable(...)`, so this reads as a gap in the
+  build rather than in the contract; re-check at the spec-pin refresh.
+- **Synthetic wire fixtures have no observational check** — the durable-log contract test
+  covers 40 union branches from hand-authored frames, because no server writes them yet.
+  Generated types protect the fixtures against *drift* (a spec refresh changes the models and
+  a stale frame stops binding), but nothing protects them against being *wrong at birth*: a
+  frame we invented that deserializes cleanly and never occurs on the wire. Candidate answers,
+  none chosen: emit minimal valid instances per branch from the spec so the fixture cannot
+  disagree with it; capture and promote real frames once the write side lands; or cross-check
+  against upstream's own fixtures. Not urgent while the branch coverage is the only breadth
+  evidence available, but it should not be inherited silently by Arc 3b.
 - **Spec refresh cadence** — the `refresh-spec` tool lands in M6; the cadence policy stays
   open.
 - **Structural-union emission shape** — the v1 pin had five structural-union sites
