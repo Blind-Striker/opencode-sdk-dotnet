@@ -72,6 +72,7 @@ internal static class QueryRequestEmitter
     {
         QueryValueKind.Text => SyntaxFactory.NullableType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword))),
         QueryValueKind.PositiveCount => SyntaxFactory.NullableType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.IntKeyword))),
+        QueryValueKind.BooleanFlag => SyntaxFactory.NullableType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.BoolKeyword))),
         QueryValueKind.ListOrder => SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed("ListOrder")),
         QueryValueKind.SessionParentFilter => SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed("SessionParentFilter")),
         QueryValueKind.Location => SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed("LocationSelector")),

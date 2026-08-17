@@ -47,12 +47,25 @@
       "schema": "Shell.Info1",
       "aliasOf": "Shell.Info",
       "reason": "Upstream spec-gen emits a structurally identical duplicate of the shell info schema."
+    },
+    {
+      "schema": "Tool.Content1",
+      "aliasOf": "Tool.Content",
+      "reason": "Collapsing the duplicated file content makes this union identical to its twin."
+    },
+    {
+      "schema": "Tool.FileContent1",
+      "aliasOf": "Tool.FileContent",
+      "reason": "Upstream spec-gen emits a structurally identical duplicate of the tool file content schema."
     }
   ],
   "mutuallyExclusiveQueries": [
     {
       "operation": "v2.message.list",
-      "parameters": ["order", "cursor"],
+      "parameters": [
+        "order",
+        "cursor"
+      ],
       "reason": "The pinned message-list contract forbids combining cursor with order and the server refuses the pair with InvalidCursorError; known invariants refuse at the route boundary."
     }
   ]

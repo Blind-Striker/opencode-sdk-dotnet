@@ -10,19 +10,31 @@ namespace OpenCode.Sdk.Tools.Generator.Binding;
 /// </summary>
 internal static class SchemaNodeComparer
 {
-    public static bool DeepEquals(SchemaNode left, SchemaNode right, IReadOnlyDictionary<string, SchemaNode> graph)
+    /// <param name="left">The first schema.</param>
+    /// <param name="right">The second schema.</param>
+    /// <param name="graph">The schema graph both nodes resolve references against.</param>
+    /// <param name="aliases">
+    /// Declared duplicates, collapsed before the comparison: identity is judged on the graph as
+    /// it will be bound, so one alias can make a second pair identical. Undeclared names stay
+    /// distinct, which is what keeps the alias an explicit act.
+    /// </param>
+    public static bool DeepEquals(SchemaNode left, SchemaNode right, IReadOnlyDictionary<string, SchemaNode> graph,
+        IReadOnlyDictionary<string, string>? aliases = null)
     {
         ArgumentNullException.ThrowIfNull(left);
         ArgumentNullException.ThrowIfNull(right);
         ArgumentNullException.ThrowIfNull(graph);
 
-        return new GraphComparison(graph).NodesEqual(left, right);
+        return new GraphComparison(graph, aliases).NodesEqual(left, right);
     }
 
-    private sealed class GraphComparison(IReadOnlyDictionary<string, SchemaNode> graph)
+    private sealed class GraphComparison(IReadOnlyDictionary<string, SchemaNode> graph,
+        IReadOnlyDictionary<string, string>? aliases)
     {
         private readonly IReadOnlyDictionary<string, SchemaNode> _graph =
             graph ?? throw new ArgumentNullException(nameof(graph));
+
+        private readonly IReadOnlyDictionary<string, string>? _aliases = aliases;
 
         private readonly HashSet<string> _visitedPairs = new(StringComparer.Ordinal);
 
@@ -55,29 +67,33 @@ internal static class SchemaNodeComparer
             };
         }
 
-        private bool RefsEqual(RefNode left, RefNode right)
+        private bool RefsEqual(RefNode reference, RefNode other)
         {
-            if (string.Equals(left.Target, right.Target, StringComparison.Ordinal))
+            var left = Resolve(reference.Target);
+            var right = Resolve(other.Target);
+            if (string.Equals(left, right, StringComparison.Ordinal))
             {
                 return true;
             }
 
-            if (!left.Target.Contains('#', StringComparison.Ordinal)
-                || !right.Target.Contains('#', StringComparison.Ordinal))
+            if (!left.Contains('#', StringComparison.Ordinal) || !right.Contains('#', StringComparison.Ordinal))
             {
                 return false;
             }
 
             // A revisited pair is a cycle inside a comparison that has not failed yet.
-            if (!_visitedPairs.Add($"{left.Target}\0{right.Target}"))
+            if (!_visitedPairs.Add(string.Concat(left, "\0", right)))
             {
                 return true;
             }
 
-            return _graph.TryGetValue(left.Target, out var leftTarget)
-                && _graph.TryGetValue(right.Target, out var rightTarget)
+            return _graph.TryGetValue(left, out var leftTarget)
+                && _graph.TryGetValue(right, out var rightTarget)
                 && NodesEqual(leftTarget, rightTarget);
         }
+
+        private string Resolve(string target) =>
+            _aliases is not null && _aliases.TryGetValue(target, out var aliased) ? aliased : target;
 
         private bool ObjectsEqual(ObjectNode left, ObjectNode right) =>
             left.AdditionalProperties == right.AdditionalProperties

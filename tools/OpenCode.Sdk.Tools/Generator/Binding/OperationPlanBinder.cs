@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Text.Json;
 using OpenCode.Sdk.Tools.Generator.Binding.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 
@@ -229,12 +230,23 @@ internal sealed class OperationPlanBinder
             errors.Add(BindingErrorCategory.Naming, name, $"client type name '{name}' collides with another generated type");
         }
 
-        foreach (var operation in bound.Where(operation => !owners.Add(operation.Plan.Envelope.ResponseTypeName)))
+        // A streaming operation declares no response type; its adapter name is claimed below.
+        foreach (var operation in bound.Where(operation =>
+                     operation.Plan.Envelope is { } envelope && !owners.Add(envelope.ResponseTypeName)))
         {
             errors.Add(
                 BindingErrorCategory.Naming,
                 operation.OperationId,
-                $"multiple operations map to response type '{operation.Plan.Envelope.ResponseTypeName}'");
+                $"multiple operations map to response type '{operation.Plan.Envelope!.ResponseTypeName}'");
+        }
+
+        foreach (var operation in bound.Where(operation =>
+                     operation.Plan.Stream is { } stream && !owners.Add(stream.AdapterTypeName)))
+        {
+            errors.Add(
+                BindingErrorCategory.Naming,
+                operation.OperationId,
+                $"multiple operations map to stream adapter '{operation.Plan.Stream!.AdapterTypeName}'");
         }
 
         // A merged request's type IS the body model, so only standalone query records
@@ -297,7 +309,8 @@ internal sealed class OperationPlanBinder
             }
 
             var success = _operation.Responses.Single(static response => response.StatusCode is 200 or 204);
-            var envelope = BindEnvelope(success);
+            var stream = success.IsSse ? BindStream(success) : null;
+            var envelope = success.IsSse ? null : BindEnvelope(success);
             var errorMap = BindErrorMap();
             var parameters = BindParameters(row);
             var optionalPlanErrorsBefore = _errors.Count;
@@ -323,7 +336,8 @@ internal sealed class OperationPlanBinder
                 return null;
             }
 
-            if (envelope is null || errorMap is null || parameters is null || _errors.Count != optionalPlanErrorsBefore)
+            if ((success.IsSse ? stream is null : envelope is null)
+                || errorMap is null || parameters is null || _errors.Count != optionalPlanErrorsBefore)
             {
                 return null;
             }
@@ -345,6 +359,7 @@ internal sealed class OperationPlanBinder
                     QueryRequest = queryRequest,
                     RequestBody = requestBody,
                     Envelope = envelope,
+                    Stream = stream,
                     ErrorMap = errorMap,
                     Summary = _operation.Summary,
                     Description = _operation.Description,
@@ -372,11 +387,6 @@ internal sealed class OperationPlanBinder
             if (_operation.IsWebSocket)
             {
                 Refuse("WebSocket operations are not supported in M1");
-            }
-
-            if (_operation.IsSse)
-            {
-                Refuse("event-stream responses are not supported in M1");
             }
 
             if ((isGet || isDelete) && _operation.RequestBody is not null)
@@ -428,6 +438,89 @@ internal sealed class OperationPlanBinder
             {
                 Refuse($"status '{response.StatusCode.ToString(CultureInfo.InvariantCulture)}' must be an error status");
             }
+        }
+
+        /// <summary>
+        /// Reads a streaming success: the frame profile the contract declares, the payload its
+        /// JSON-encoded data field carries, and the event name that reports a mid-stream failure.
+        /// Every part is required — a stream whose shape is not fully declared is refused.
+        /// </summary>
+        private StreamPlan? BindStream(SpecResponse success)
+        {
+            if (success.ContentType is not { IsEventStream: true } || success.Schema is null)
+            {
+                return RefuseStream("a streaming success must carry a text/event-stream schema");
+            }
+
+            if (success.Schema is not RefNode reference
+                || !_document.Schemas.TryGetValue(reference.Target, out var target)
+                || target is not ObjectNode frame)
+            {
+                return RefuseStream("the event frame must reference a named object schema");
+            }
+
+            var data = frame.Properties.FirstOrDefault(static property => property.Name is "data");
+            if (frame.Properties.Count is not 3
+                || frame.Properties.Any(static property => property.Name is not ("id" or "event" or "data"))
+                || frame.Properties.Any(static property => !property.IsRequired)
+                || data is null)
+            {
+                return RefuseStream("the event frame must require exactly 'id', 'event' and 'data'");
+            }
+
+            var payload = BindFramePayload(data.Schema);
+            var failureEvent = ReadFailureEventName(success);
+            if (payload is null || failureEvent is null)
+            {
+                return null;
+            }
+
+            var responseTypeName = OperationNamePolicy.ResponseTypeName(_operation);
+            return new StreamPlan
+            {
+                PayloadTypeName = payload,
+                AdapterTypeName = $"{responseTypeName}StreamAdapter",
+                FailureEventName = failureEvent,
+            };
+        }
+
+        /// <summary>The frame's data field is a JSON-encoded string; the stream yields what it encodes.</summary>
+        private string? BindFramePayload(SchemaNode schema)
+        {
+            var node = schema is RefNode reference && _document.Schemas.TryGetValue(reference.Target, out var target)
+                ? target
+                : schema;
+            return node is JsonStringNode { Inner: RefNode inner } && _typeNames.TryGetValue(inner.Target, out var name)
+                ? name
+                : RefuseNull("the event frame's data must be a JSON-encoded string over a named schema");
+        }
+
+        private string? ReadFailureEventName(SpecResponse success)
+        {
+            if (success.EffectStreamJson is null)
+            {
+                return RefuseNull("a streaming success must declare 'x-effect-stream'");
+            }
+
+            try
+            {
+                using var extension = JsonDocument.Parse(success.EffectStreamJson);
+                return extension.RootElement.TryGetProperty("failureEvent", out var failureEvent)
+                       && failureEvent.ValueKind is JsonValueKind.String
+                       && failureEvent.GetString() is { Length: > 0 } name
+                    ? name
+                    : RefuseNull("'x-effect-stream' must declare a non-empty 'failureEvent'");
+            }
+            catch (JsonException)
+            {
+                return RefuseNull("'x-effect-stream' must contain JSON");
+            }
+        }
+
+        private StreamPlan? RefuseStream(string problem)
+        {
+            Refuse(problem);
+            return null;
         }
 
         private EnvelopePlan? BindEnvelope(SpecResponse success)
@@ -1068,6 +1161,7 @@ internal sealed class OperationPlanBinder
                 PrimitiveNode { Kind: PrimitiveKind.String } =>
                     string.Equals(wireName, "limit", StringComparison.Ordinal) ? QueryValueKind.PositiveCount : QueryValueKind.Text,
                 EnumNode { Values: ["asc", "desc"] } => QueryValueKind.ListOrder,
+                EnumNode { Values: ["true", "false"] } or EnumNode { Values: ["false", "true"] } => QueryValueKind.BooleanFlag,
                 UnionNode { Classification: UnionClassification.Structural, Branches: [var first, var second] }
                     when IsParentFilterShape(first, second) => QueryValueKind.SessionParentFilter,
                 _ => null,

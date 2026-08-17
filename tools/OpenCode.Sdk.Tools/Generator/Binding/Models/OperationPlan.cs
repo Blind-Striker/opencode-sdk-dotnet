@@ -32,7 +32,11 @@ internal sealed record OperationPlan
     /// <summary>Gets the request-body plan, or <see langword="null"/> when the operation sends no body.</summary>
     public RequestBodyPlan? RequestBody { get; init; }
 
-    public required EnvelopePlan Envelope { get; init; }
+    /// <summary>Gets the response envelope, or <see langword="null"/> when the operation streams.</summary>
+    public EnvelopePlan? Envelope { get; init; }
+
+    /// <summary>Gets the stream contract, or <see langword="null"/> when the operation answers once.</summary>
+    public StreamPlan? Stream { get; init; }
 
     public required ErrorMapPlan ErrorMap { get; init; }
 

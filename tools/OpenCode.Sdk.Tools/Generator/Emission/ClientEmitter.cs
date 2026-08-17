@@ -60,19 +60,25 @@ internal static class ClientEmitter
                 SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.EmitNamed("IDisposable")))));
         }
 
-        var unit = EmissionSyntax.CompilationUnit(
-            client.Namespace,
-            [
-                "System",
-                "System.Net.Http",
-                "System.Threading",
-                "System.Threading.Tasks",
-                "OpenCode.Sdk.Internal",
-                "OpenCode.Sdk.Internal.ResponseAdapters",
-                "OpenCode.Sdk.Internal.Serialization",
-                "OpenCode.Sdk.Models",
-            ],
-            [declaration]);
+        // The stream-adapter namespace exists only where a streaming operation emitted one.
+        var usings = new List<string>
+        {
+            "System",
+            "System.Net.Http",
+            "System.Threading",
+            "System.Threading.Tasks",
+            "OpenCode.Sdk.Internal",
+            "OpenCode.Sdk.Internal.ResponseAdapters",
+        };
+        if (client.Operations.Any(static operation => operation.Stream is not null))
+        {
+            usings.Add("System.Collections.Generic");
+            usings.Add("OpenCode.Sdk.Internal.StreamAdapters");
+        }
+
+        usings.Add("OpenCode.Sdk.Internal.Serialization");
+        usings.Add("OpenCode.Sdk.Models");
+        var unit = EmissionSyntax.CompilationUnit(client.Namespace, usings, [declaration]);
         return EmissionSyntax.CreateSource(
             client.ContainerName is null ? $"{client.Name}.cs" : $"{client.ContainerName}/{client.Name}.cs",
             unit);

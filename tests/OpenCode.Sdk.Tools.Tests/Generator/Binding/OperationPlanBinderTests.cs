@@ -36,7 +36,7 @@ public sealed class OperationPlanBinderTests
         await Assert.That(health.Parameters).IsEmpty();
         await Assert.That(health.Summary).IsEqualTo("Check server health");
         await Assert.That(health.Description).IsNotNull();
-        await Assert.That(health.Envelope.ResponseTypeName).IsEqualTo("HealthResponse");
+        await Assert.That(health.Envelope!.ResponseTypeName).IsEqualTo("HealthResponse");
         await Assert.That(health.Envelope.AdapterTypeName).IsEqualTo("HealthResponseAdapter");
         await Assert.That(health.Envelope.PayloadName).IsEqualTo("Health");
         await Assert.That(health.Envelope.PayloadTypeName).IsEqualTo("ServiceHealth");
@@ -66,7 +66,7 @@ public sealed class OperationPlanBinderTests
             .SequenceEqual(
                 ["Workspace", "Limit", "Order", "Search", "ParentId", "Directory", "Project", "Subpath", "Cursor"],
                 StringComparer.Ordinal)).IsTrue();
-        await Assert.That(list.Envelope.Kind).IsEqualTo(EnvelopeKind.CursorList);
+        await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.CursorList);
         await Assert.That(list.Envelope.PayloadName).IsEqualTo("Sessions");
         await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("SessionInfo");
         await Assert.That(list.ErrorMap.Statuses[0].Tags.Select(static tag => tag.TypeName)
@@ -76,7 +76,7 @@ public sealed class OperationPlanBinderTests
         await Assert.That(create.HttpMethod).IsEqualTo("post");
         await Assert.That(create.RequestBody!.TypeName).IsEqualTo("SessionCreateRequest");
         await Assert.That(create.RequestBody.IsOptional).IsTrue();
-        await Assert.That(create.Envelope.ResponseTypeName).IsEqualTo("SessionCreateResponse");
+        await Assert.That(create.Envelope!.ResponseTypeName).IsEqualTo("SessionCreateResponse");
         await Assert.That(create.Envelope.PayloadName).IsEqualTo("Session");
     }
 
@@ -96,7 +96,7 @@ public sealed class OperationPlanBinderTests
         await Assert.That(createShell.RequestBody!.TypeName).IsEqualTo("ShellCreateRequest");
         await Assert.That(createShell.QueryRequest!.RidesRequestBody).IsTrue();
         await Assert.That(createShell.QueryRequest.TypeName).IsEqualTo("ShellCreateRequest");
-        await Assert.That(createShell.Envelope.Kind).IsEqualTo(EnvelopeKind.DataLocation);
+        await Assert.That(createShell.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocation);
         await Assert.That(createShell.Envelope.PayloadTypeName).IsEqualTo("ShellInfo");
         await Assert.That(createShell.Envelope.LocationTypeName).IsEqualTo("LocationInfo");
 
@@ -104,7 +104,7 @@ public sealed class OperationPlanBinderTests
         await Assert.That(listShells.QueryRequest!.TypeName).IsEqualTo("ShellListRequest");
         await Assert.That(listShells.QueryRequest.RidesRequestBody).IsFalse();
         await Assert.That(listShells.QueryRequest.Properties.Single().Kind).IsEqualTo(QueryValueKind.Location);
-        await Assert.That(listShells.Envelope.Kind).IsEqualTo(EnvelopeKind.DataLocationList);
+        await Assert.That(listShells.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocationList);
     }
 
     [Test]
@@ -118,12 +118,12 @@ public sealed class OperationPlanBinderTests
         await Assert.That(session.HandleParameter.IsHandleParameter).IsTrue();
         await Assert.That(session.Operations.Select(static operation => operation.MethodName)
             .SequenceEqual(
-                ["GetMessageAsync", "GetSessionAsync", "ListMessagesAsync", "RemoveSessionAsync", "RenameSessionAsync"],
+                ["GetLogAsync", "GetMessageAsync", "GetSessionAsync", "ListMessagesAsync", "RemoveSessionAsync", "RenameSessionAsync"],
                 StringComparer.Ordinal)).IsTrue();
 
         var remove = session.Operations.Single(static operation => operation.MethodName == "RemoveSessionAsync");
         await Assert.That(remove.HttpMethod).IsEqualTo("delete");
-        await Assert.That(remove.Envelope.Kind).IsEqualTo(EnvelopeKind.NoContent);
+        await Assert.That(remove.Envelope!.Kind).IsEqualTo(EnvelopeKind.NoContent);
         await Assert.That(remove.Envelope.SuccessStatusCode).IsEqualTo(204);
         await Assert.That(remove.Envelope.ResponseTypeName).IsEqualTo("SessionRemoveResponse");
 
@@ -139,12 +139,12 @@ public sealed class OperationPlanBinderTests
 
         var getShell = shell.Operations.Single(static operation => operation.MethodName == "GetShellAsync");
         await Assert.That(getShell.QueryRequest!.TypeName).IsEqualTo("ShellRequest");
-        await Assert.That(getShell.Envelope.Kind).IsEqualTo(EnvelopeKind.DataLocation);
+        await Assert.That(getShell.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocation);
 
         var messages = session.Operations.Single(static operation => operation.MethodName == "ListMessagesAsync");
         await Assert.That(messages.QueryRequest!.TypeName).IsEqualTo("MessageListRequest");
         await Assert.That(messages.QueryRequest.DerivesFromListRequest).IsTrue();
-        await Assert.That(messages.Envelope.Kind).IsEqualTo(EnvelopeKind.CursorList);
+        await Assert.That(messages.Envelope!.Kind).IsEqualTo(EnvelopeKind.CursorList);
         await Assert.That(messages.Envelope.PayloadName).IsEqualTo("Messages");
         await Assert.That(messages.ErrorMap.Statuses.Select(static status => status.StatusCode)
             .SequenceEqual([400, 401, 404, 500])).IsTrue();
@@ -160,7 +160,7 @@ public sealed class OperationPlanBinderTests
         await Assert.That(message.Parameters[1].IsHandleParameter).IsFalse();
         await Assert.That(message.Parameters[1].WireName).IsEqualTo("messageID");
         await Assert.That(message.Parameters[1].TypeName).IsEqualTo("string");
-        await Assert.That(message.Envelope.ResponseTypeName).IsEqualTo("SessionMessageResponse");
+        await Assert.That(message.Envelope!.ResponseTypeName).IsEqualTo("SessionMessageResponse");
         await Assert.That(message.Envelope.AdapterTypeName).IsEqualTo("SessionMessageResponseAdapter");
         await Assert.That(message.Envelope.PayloadName).IsEqualTo("Message");
         await Assert.That(message.Envelope.PayloadTypeName).IsEqualTo("ISessionMessageInfo");
@@ -199,7 +199,7 @@ public sealed class OperationPlanBinderTests
         await Assert.That(part.RouteMemberName).IsEqualTo("GetPart");
         await Assert.That(part.Parameters.Select(static parameter => parameter.Name)
             .SequenceEqual(["gadgetId", "partId"], StringComparer.Ordinal)).IsTrue();
-        await Assert.That(part.Envelope.ResponseTypeName).IsEqualTo("GadgetPartResponse");
+        await Assert.That(part.Envelope!.ResponseTypeName).IsEqualTo("GadgetPartResponse");
         await Assert.That(part.Envelope.AdapterTypeName).IsEqualTo("GadgetPartResponseAdapter");
         await Assert.That(part.Envelope.PayloadName).IsEqualTo("Part");
         await Assert.That(part.Envelope.PayloadTypeName).IsEqualTo("GadgetPart");
@@ -490,7 +490,7 @@ public sealed class OperationPlanBinderTests
         var plan = BindWidgets(document);
 
         var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
-        await Assert.That(list.Envelope.Kind).IsEqualTo(EnvelopeKind.CursorList);
+        await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.CursorList);
         await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("WidgetInfo");
         await Assert.That(list.Envelope.EnvelopeDtoTypeName).IsEqualTo("WidgetListResponseEnvelope");
         await Assert.That(plan.Models.Select(static model => model.Name)
@@ -507,7 +507,7 @@ public sealed class OperationPlanBinderTests
         var plan = BindWidgets(document);
 
         var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
-        await Assert.That(list.Envelope.Kind).IsEqualTo(EnvelopeKind.DataLocation);
+        await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocation);
         await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("WidgetInfo");
         await Assert.That(list.Envelope.LocationTypeName).IsEqualTo("PlaceInfo");
         await Assert.That(list.Envelope.EnvelopeDtoTypeName).IsEqualTo("WidgetListResponseEnvelope");
@@ -525,7 +525,7 @@ public sealed class OperationPlanBinderTests
         var plan = BindWidgets(document);
 
         var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
-        await Assert.That(list.Envelope.Kind).IsEqualTo(EnvelopeKind.DataLocationList);
+        await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocationList);
         await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("WidgetInfo");
         await Assert.That(list.Envelope.LocationTypeName).IsEqualTo("PlaceInfo");
     }
@@ -663,7 +663,7 @@ public sealed class OperationPlanBinderTests
         var plan = BindWidgets(document);
 
         var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
-        await Assert.That(list.Envelope.Kind).IsEqualTo(EnvelopeKind.Data);
+        await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.Data);
         await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("WidgetInfo");
         await Assert.That(plan.Models.Select(static model => model.Name)
             .SequenceEqual(["WidgetInfo"], StringComparer.Ordinal)).IsTrue();
@@ -948,7 +948,7 @@ public sealed class OperationPlanBinderTests
         var remove = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(remove.MethodName).IsEqualTo("RemoveWidgetAsync");
         await Assert.That(remove.HttpMethod).IsEqualTo("delete");
-        await Assert.That(remove.Envelope.Kind).IsEqualTo(EnvelopeKind.NoContent);
+        await Assert.That(remove.Envelope!.Kind).IsEqualTo(EnvelopeKind.NoContent);
     }
 
     [Test]
@@ -1024,7 +1024,7 @@ public sealed class OperationPlanBinderTests
         var plan = BindWidgets(document, "v2.widget.create");
 
         var create = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
-        await Assert.That(create.Envelope.Kind).IsEqualTo(EnvelopeKind.NoContent);
+        await Assert.That(create.Envelope!.Kind).IsEqualTo(EnvelopeKind.NoContent);
         await Assert.That(create.Envelope.SuccessStatusCode).IsEqualTo(204);
         await Assert.That(create.Envelope.ResponseTypeName).IsEqualTo("WidgetCreateResponse");
         await Assert.That(create.Envelope.PayloadName).IsNull();
@@ -1041,7 +1041,7 @@ public sealed class OperationPlanBinderTests
         var plan = BindWidgets(document);
 
         var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
-        await Assert.That(list.Envelope.SuccessStatusCode).IsEqualTo(200);
+        await Assert.That(list.Envelope!.SuccessStatusCode).IsEqualTo(200);
     }
 
     [Test]
@@ -1105,7 +1105,7 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Refuse_An_Event_Stream_Response()
+    public async Task Bind_Should_Refuse_An_Event_Stream_Whose_Frame_Is_Not_Declared()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
             .WithSchema("ItemInfo", schema => schema.Type("object")
@@ -1113,7 +1113,39 @@ public sealed class OperationPlanBinderTests
             .WithOperation("v2.health.get", configure: operation => operation
                 .SseResponse(schema => schema.Ref("ItemInfo")))));
 
-        await AssertOperationRefusalAsync(document, "v2.health.get", "event-stream");
+        await AssertOperationRefusalAsync(document, "v2.health.get", "event frame");
+    }
+
+    [Test]
+    public async Task Bind_Should_Bind_An_Event_Stream_Into_A_Stream_Plan()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("ItemInfoJsonString", schema => schema.Type("string")
+                .Raw("contentMediaType", "\"application/json\"")
+                .Raw("contentSchema", "{\"$ref\":\"#/components/schemas/ItemInfo\"}"))
+            .WithSchema("ItemFrame", schema => schema.Type("object")
+                .Property("id", property => property.AnyOf(
+                    branch => branch.Type("string"),
+                    branch => branch.Type("null")), required: true)
+                .Property("event", property => property.Type("string"), required: true)
+                .Property("data", property => property.Ref("ItemInfoJsonString"), required: true))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .SseResponse(
+                    schema => schema.Ref("ItemFrame"),
+                    "{\"encoding\":\"sse\",\"failureEvent\":\"effect/httpapi/stream/failure\"}"))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), }));
+
+        var operation = plan.Clients.SelectMany(static client => client.Operations).Single();
+        await Assert.That(operation.Envelope).IsNull();
+        await Assert.That(operation.Stream).IsNotNull();
+        await Assert.That(operation.Stream!.PayloadTypeName).IsEqualTo("ItemInfo");
+        await Assert.That(operation.Stream.FailureEventName).IsEqualTo("effect/httpapi/stream/failure");
     }
 
     [Test]
@@ -1285,7 +1317,7 @@ public sealed class OperationPlanBinderTests
                 payloadNames));
 
         var part = plan.Clients.Single(static client => client.Role == ClientRole.Handle).Operations.Single();
-        await Assert.That(part.Envelope.PayloadName).IsEqualTo("Component");
+        await Assert.That(part.Envelope!.PayloadName).IsEqualTo("Component");
     }
 
     [Test]
@@ -1339,7 +1371,7 @@ public sealed class OperationPlanBinderTests
             Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)), payloadNames));
 
         var status = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
-        await Assert.That(status.Envelope.PayloadName).IsEqualTo("WidgetStatus");
+        await Assert.That(status.Envelope!.PayloadName).IsEqualTo("WidgetStatus");
     }
 
     [Test]

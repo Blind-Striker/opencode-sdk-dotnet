@@ -226,6 +226,7 @@ internal static class RoutesEmitter
     {
         QueryValueKind.Text => "AddText",
         QueryValueKind.PositiveCount => "AddCount",
+        QueryValueKind.BooleanFlag => "AddFlag",
         QueryValueKind.ListOrder => "AddOrder",
         QueryValueKind.SessionParentFilter => "AddParentFilter",
         QueryValueKind.Location => "AddLocation",

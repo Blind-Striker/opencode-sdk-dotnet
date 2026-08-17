@@ -16,14 +16,15 @@ internal static class ResponseAdapterEmitter
         [
             .. clients
                 .SelectMany(static client => client.Operations)
-                .OrderBy(static operation => operation.Envelope.AdapterTypeName, StringComparer.Ordinal)
+                .Where(static operation => operation.Envelope is not null)
+                .OrderBy(static operation => operation.Envelope!.AdapterTypeName, StringComparer.Ordinal)
                 .Select(static operation => EmitAdapter(operation)),
         ]);
     }
 
     private static GeneratedSource EmitAdapter(OperationPlan operation)
     {
-        var envelope = operation.Envelope;
+        var envelope = operation.Envelope!;
         var members = new List<MemberDeclarationSyntax>();
         members.AddRange(operation.ErrorMap.Statuses.Select(static status => EmitTagSet(status)));
         members.Add(SyntaxFactory.ConstructorDeclaration(envelope.AdapterTypeName)
@@ -94,7 +95,7 @@ internal static class ResponseAdapterEmitter
 
     private static MethodDeclarationSyntax EmitAdapt(OperationPlan operation)
     {
-        var envelope = operation.Envelope;
+        var envelope = operation.Envelope!;
         var arms = new List<SwitchExpressionArmSyntax>
         {
             SyntaxFactory.SwitchExpressionArm(

@@ -16,14 +16,15 @@ internal static class EnvelopeEmitter
         [
             .. clients
                 .SelectMany(static client => client.Operations)
-                .OrderBy(static operation => operation.Envelope.ResponseTypeName, StringComparer.Ordinal)
+                .Where(static operation => operation.Envelope is not null)
+                .OrderBy(static operation => operation.Envelope!.ResponseTypeName, StringComparer.Ordinal)
                 .Select(static operation => EmitEnvelope(operation)),
         ]);
     }
 
     private static GeneratedSource EmitEnvelope(OperationPlan operation)
     {
-        var envelope = operation.Envelope;
+        var envelope = operation.Envelope!;
         var members = envelope.Kind is EnvelopeKind.NoContent
             ? EmitNoContentMembers(envelope)
             : EmitPayloadMembers(envelope);

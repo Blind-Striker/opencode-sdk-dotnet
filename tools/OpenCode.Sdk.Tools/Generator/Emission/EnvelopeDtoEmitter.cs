@@ -20,9 +20,11 @@ internal static class EnvelopeDtoEmitter
         [
             .. clients
                 .SelectMany(static client => client.Operations)
-                .Where(static operation => operation.Envelope.EnvelopeDtoTypeName is not null)
-                .OrderBy(static operation => operation.Envelope.EnvelopeDtoTypeName, StringComparer.Ordinal)
-                .Select(static operation => EmitDto(operation.Envelope)),
+                .Select(static operation => operation.Envelope)
+                .OfType<EnvelopePlan>()
+                .Where(static envelope => envelope.EnvelopeDtoTypeName is not null)
+                .OrderBy(static envelope => envelope.EnvelopeDtoTypeName, StringComparer.Ordinal)
+                .Select(static envelope => EmitDto(envelope)),
         ]);
     }
 

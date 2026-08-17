@@ -22,6 +22,15 @@ internal sealed class QueryStringBuilder
         }
     }
 
+    /// <summary>The wire spells this flag as the strings "true" and "false", not as 1/0.</summary>
+    public void AddFlag(string name, bool? value)
+    {
+        if (value is { } flag)
+        {
+            Append(name, flag ? "true" : "false");
+        }
+    }
+
     public void AddCount(string name, int? value, string parameterName)
     {
         if (value is null)

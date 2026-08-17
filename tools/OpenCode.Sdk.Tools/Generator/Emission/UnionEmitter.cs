@@ -12,10 +12,11 @@ internal static class UnionEmitter
     public static IReadOnlyList<GeneratedSource> Emit(IReadOnlyList<UnionPlan> unions)
     {
         ArgumentNullException.ThrowIfNull(unions);
+        var byName = unions.ToDictionary(static union => union.Name, StringComparer.Ordinal);
         var result = new List<GeneratedSource>(unions.Count * 4);
         foreach (var union in unions.OrderBy(static union => union.Name, StringComparer.Ordinal))
         {
-            result.Add(EmitBase(union));
+            result.Add(EmitBase(union, byName));
             result.Add(EmitUnknown(union));
             result.Add(EmitConverter(union));
             result.Add(EmitCarrierConverter(union));
@@ -24,7 +25,7 @@ internal static class UnionEmitter
         return Array.AsReadOnly([.. result]);
     }
 
-    private static GeneratedSource EmitBase(UnionPlan union)
+    private static GeneratedSource EmitBase(UnionPlan union, IReadOnlyDictionary<string, UnionPlan> unions)
     {
         var converterTypeName = $"{union.ConceptName}JsonConverter";
 
@@ -37,12 +38,17 @@ internal static class UnionEmitter
                 SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
                     .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)))))
             .WithLeadingTrivia(EmissionSyntax.Documentation($"Gets the '{union.MarkerWireName}' union marker."));
+        // A nested union that discriminates on its parent's marker inherits that member;
+        // redeclaring it would hide the one the parent already promises.
+        var declaresMarker = !InheritsMarker(union, unions);
         var declaration = SyntaxFactory.InterfaceDeclaration(union.Name)
             .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
             .AddAttributeLists(EmissionSyntax.Attribute(
                 "JsonConverter",
                 SyntaxFactory.AttributeArgument(SyntaxFactory.TypeOfExpression(TypeSyntaxEmitter.EmitNamed(converterTypeName)))))
-            .WithMembers(SyntaxFactory.SingletonList<MemberDeclarationSyntax>(marker))
+            .WithMembers(declaresMarker
+                ? SyntaxFactory.SingletonList<MemberDeclarationSyntax>(marker)
+                : SyntaxFactory.List<MemberDeclarationSyntax>())
             .WithLeadingTrivia(EmissionSyntax.Documentation(union.Description ?? $"Represents a {DisplayName(union.ConceptName)} union."));
         if (union.BaseTypeName is not null)
         {
@@ -55,6 +61,23 @@ internal static class UnionEmitter
             ["OpenCode.Sdk.Internal.Serialization", "System.Text.Json.Serialization"],
             [declaration]);
         return EmissionSyntax.CreateSource($"Models/{union.Name}.cs", unit);
+    }
+
+    private static bool InheritsMarker(UnionPlan union, IReadOnlyDictionary<string, UnionPlan> unions)
+    {
+        var current = union.BaseTypeName;
+        while (current is not null && unions.TryGetValue(current, out var outer))
+        {
+            if (string.Equals(outer.MarkerWireName, union.MarkerWireName, StringComparison.Ordinal)
+                && outer.MarkerKind == union.MarkerKind)
+            {
+                return true;
+            }
+
+            current = outer.BaseTypeName;
+        }
+
+        return false;
     }
 
     private static GeneratedSource EmitUnknown(UnionPlan union)

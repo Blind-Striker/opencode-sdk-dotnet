@@ -226,6 +226,12 @@ internal sealed class CurationValidator
     {
         var reachableKeys = reachable.GraphKeys.ToHashSet(StringComparer.Ordinal);
         var sources = new HashSet<string>(StringComparer.Ordinal);
+        // Identity is judged on the graph as it will be bound, so one alias can be what makes
+        // a second pair identical.
+        // A duplicated source is reported below rather than throwing here.
+        var aliasTargets = curation.SchemaAliases
+            .DistinctBy(static alias => alias.Schema, StringComparer.Ordinal)
+            .ToDictionary(static alias => alias.Schema, static alias => alias.AliasOf, StringComparer.Ordinal);
         foreach (var alias in curation.SchemaAliases)
         {
             if (!sources.Add(alias.Schema))
@@ -261,7 +267,7 @@ internal sealed class CurationValidator
                 errors.Add(BindingErrorCategory.Curation, alias.Schema, "aliased schema is not referenced by the selected profile");
             }
 
-            if (!SchemaNodeComparer.DeepEquals(source, target, document.Schemas))
+            if (!SchemaNodeComparer.DeepEquals(source, target, document.Schemas, aliasTargets))
             {
                 errors.Add(BindingErrorCategory.Curation, alias.Schema, "aliased schemas must be structurally identical");
             }

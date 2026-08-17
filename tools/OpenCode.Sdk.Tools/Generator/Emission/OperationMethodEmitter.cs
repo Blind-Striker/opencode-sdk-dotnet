@@ -29,9 +29,10 @@ internal static class OperationMethodEmitter
         }
 
         statements.Add(SyntaxFactory.ReturnStatement(EmitDelegation(operation)));
-        return SyntaxFactory.MethodDeclaration(
-                TypeSyntaxEmitter.Generic("Task", TypeSyntaxEmitter.EmitNamed(operation.Envelope.ResponseTypeName)),
-                operation.MethodName)
+        var returnType = operation.Stream is { } streaming
+            ? TypeSyntaxEmitter.Generic("IAsyncEnumerable", TypeSyntaxEmitter.EmitNamed(streaming.PayloadTypeName))
+            : TypeSyntaxEmitter.Generic("Task", TypeSyntaxEmitter.EmitNamed(operation.Envelope!.ResponseTypeName));
+        return SyntaxFactory.MethodDeclaration(returnType, operation.MethodName)
             .WithModifiers(SyntaxFactory.TokenList(
                 SyntaxFactory.Token(SyntaxKind.PublicKeyword),
                 SyntaxFactory.Token(SyntaxKind.VirtualKeyword)))
@@ -66,9 +67,13 @@ internal static class OperationMethodEmitter
                 .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)));
         }
 
-        yield return SyntaxFactory.Parameter(SyntaxFactory.Identifier("requestOptions"))
-            .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed("OpenCodeRequestOptions")))
-            .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)));
+        if (operation.Stream is null)
+        {
+            yield return SyntaxFactory.Parameter(SyntaxFactory.Identifier("requestOptions"))
+                .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed("OpenCodeRequestOptions")))
+                .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)));
+        }
+
         yield return SyntaxFactory.Parameter(SyntaxFactory.Identifier("cancellationToken"))
             .WithType(TypeSyntaxEmitter.EmitNamed("CancellationToken"))
             .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.DefaultLiteralExpression)));
@@ -95,13 +100,20 @@ internal static class OperationMethodEmitter
                 operation.RequestBody.TypeName)));
         }
 
+        // A stream yields its payloads directly, so it carries no per-call options (ADR-0007).
         arguments.Add(SyntaxFactory.Argument(EmissionSyntax.MemberAccess(
-            SyntaxFactory.IdentifierName(operation.Envelope.AdapterTypeName),
+            SyntaxFactory.IdentifierName(operation.Stream?.AdapterTypeName ?? operation.Envelope!.AdapterTypeName),
             "Instance")));
-        arguments.Add(SyntaxFactory.Argument(SyntaxFactory.IdentifierName("requestOptions")));
+        if (operation.Stream is null)
+        {
+            arguments.Add(SyntaxFactory.Argument(SyntaxFactory.IdentifierName("requestOptions")));
+        }
+
         arguments.Add(SyntaxFactory.Argument(SyntaxFactory.IdentifierName("cancellationToken")));
         return EmissionSyntax.Invocation(
-            EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("Pipeline"), "ExecuteAsync"),
+            EmissionSyntax.MemberAccess(
+                SyntaxFactory.IdentifierName("Pipeline"),
+                operation.Stream is null ? "ExecuteAsync" : "ExecuteStreamAsync"),
             [.. arguments]);
     }
 
@@ -165,7 +177,11 @@ internal static class OperationMethodEmitter
             parameters.Add(new DocumentedParameter("request", "The request shaping the query."));
         }
 
-        parameters.Add(new DocumentedParameter("requestOptions", "The per-call options."));
+        if (operation.Stream is null)
+        {
+            parameters.Add(new DocumentedParameter("requestOptions", "The per-call options."));
+        }
+
         parameters.Add(new DocumentedParameter("cancellationToken", "The cancellation token."));
 
         var exceptions = new List<DocumentedException>();
@@ -187,11 +203,15 @@ internal static class OperationMethodEmitter
 
         exceptions.Add(new DocumentedException(
             "OpenCodeTransportException",
-            "The server could not be reached or returned a malformed success body."));
+            operation.Stream is null
+                ? "The server could not be reached or returned a malformed success body."
+                : "The server could not be reached, the stream failed after it opened, or a frame was malformed."));
         return EmissionSyntax.MemberDocumentation(
             operation.Summary ?? operation.Description ?? $"Calls the '{operation.RouteTemplate}' operation.",
             parameters,
-            $"The '{operation.Envelope.ResponseTypeName}' envelope.",
+            operation.Stream is { } streamed
+                ? $"The '{streamed.PayloadTypeName}' stream."
+                : $"The '{operation.Envelope!.ResponseTypeName}' envelope.",
             exceptions);
     }
 }

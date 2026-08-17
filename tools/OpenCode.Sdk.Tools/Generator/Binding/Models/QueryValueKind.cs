@@ -17,4 +17,7 @@ internal enum QueryValueKind
 
     /// <summary>The deepObject location selector exposed as the shared <c>LocationSelector</c> spine type.</summary>
     Location = 4,
+
+    /// <summary>A boolean the wire spells as the strings <c>"true"</c> and <c>"false"</c>.</summary>
+    BooleanFlag = 5,
 }

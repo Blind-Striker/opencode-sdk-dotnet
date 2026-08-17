@@ -19,6 +19,7 @@ internal static class SourceEmitter
             sources.AddRange(EnvelopeDtoEmitter.Emit(plan.Clients));
             sources.AddRange(EnvelopeEmitter.Emit(plan.Clients));
             sources.AddRange(ResponseAdapterEmitter.Emit(plan.Clients));
+            sources.AddRange(StreamAdapterEmitter.Emit(plan.Clients));
             sources.AddRange(ClientEmitter.Emit(plan.Clients));
         }
 

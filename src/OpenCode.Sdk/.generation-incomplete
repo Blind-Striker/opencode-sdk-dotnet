@@ -1,12 +1,13 @@
 Generation is incomplete; packages must not be published.
-Selected operations: 13
-Pending operations: 107
+Selected operations: 14
+Pending operations: 106
 Selected:
 - v2.health.get
 - v2.message.list
 - v2.session.create
 - v2.session.get
 - v2.session.list
+- v2.session.log
 - v2.session.message
 - v2.session.remove
 - v2.session.rename
@@ -97,7 +98,6 @@ Pending:
 - v2.session.instructions.entry.put
 - v2.session.instructions.entry.remove
 - v2.session.interrupt
-- v2.session.log
 - v2.session.move
 - v2.session.permission.create
 - v2.session.permission.get

@@ -59,9 +59,17 @@ internal sealed class ReachableSchemaCollector
                 var isInlineRoot = reference.Target.StartsWith($"op:{operationId}#", StringComparison.Ordinal);
                 var isWrapperShape = response.EnvelopeShape
                     is SpecEnvelopeShape.Data or SpecEnvelopeShape.CursorData or SpecEnvelopeShape.DataLocation;
-                if (isInlineRoot || isWrapperShape)
+
+                // An event frame is framing the engine consumes, never a model: the stream
+                // yields what the frame's data encodes, not the frame.
+                if (isInlineRoot || isWrapperShape || response.IsSse)
                 {
                     _ = _responseRoots.Add(reference.Target);
+                }
+
+                if (response.IsSse)
+                {
+                    ExcludeFrameDataString(reference.Target);
                 }
 
                 if (response.EnvelopeShape is SpecEnvelopeShape.CursorData)
@@ -73,6 +81,26 @@ internal sealed class ReachableSchemaCollector
             if (schema is not null)
             {
                 Visit(schema);
+            }
+        }
+
+        /// <summary>
+        /// The frame's data is a JSON-encoded string wrapper; the payload it encodes is the model,
+        /// and the wrapper itself has no C# shape.
+        /// </summary>
+        private void ExcludeFrameDataString(string frameKey)
+        {
+            if (!_graph.TryGetValue(frameKey, out var frameSchema) || frameSchema is not ObjectNode frame)
+            {
+                return;
+            }
+
+            foreach (var property in frame.Properties)
+            {
+                if (property is { Name: "data", Schema: RefNode dataReference })
+                {
+                    _ = _responseRoots.Add(dataReference.Target);
+                }
             }
         }
 

@@ -3,6 +3,7 @@
 using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Internal.ResponseAdapters;
 using OpenCode.Sdk.Internal.Serialization;
+using OpenCode.Sdk.Internal.StreamAdapters;
 using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk;
@@ -35,6 +36,19 @@ public class SessionClient
 
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("SessionClient", "Pipeline");
     private string SessionId => _sessionId ?? throw MockSeam.CreateError("SessionClient", "SessionId");
+
+    /// <summary>
+    /// Read the session log
+    /// </summary>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ISessionLogItem&apos; stream.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached, the stream failed after it opened, or a frame was malformed.</exception>
+    public virtual IAsyncEnumerable<ISessionLogItem> GetLogAsync(SessionLogRequest? request = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteStreamAsync(HttpMethod.Get, OpenCodeRoutes.Sessions.GetLog(SessionId, request), SessionLogResponseStreamAdapter.Instance, cancellationToken);
+    }
 
     /// <summary>
     /// Get session message

@@ -133,7 +133,7 @@ internal sealed class SpecBinder(
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var dtoName in clients
                      .SelectMany(static client => client.Operations)
-                     .Select(static operation => operation.Envelope.EnvelopeDtoTypeName)
+                     .Select(static operation => operation.Envelope?.EnvelopeDtoTypeName)
                      .OfType<string>()
                      .OrderBy(static name => name, StringComparer.Ordinal))
         {
@@ -160,7 +160,7 @@ internal sealed class SpecBinder(
     {
         var dtoNames = clients
             .SelectMany(static client => client.Operations)
-            .Select(static operation => operation.Envelope.EnvelopeDtoTypeName)
+            .Select(static operation => operation.Envelope?.EnvelopeDtoTypeName)
             .OfType<string>();
         return new RegistryPlan
         {

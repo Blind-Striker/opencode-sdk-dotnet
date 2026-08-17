@@ -30,6 +30,36 @@ public static class OpenCodeRoutes
         /// </summary>
         public const string CreateSession = "/api/session";
         /// <summary>
+        /// The &apos;GET /api/experimental/session/{sessionID}/log&apos; route template.
+        /// </summary>
+        public const string GetLogTemplate = "/api/experimental/session/{sessionID}/log";
+        /// <summary>
+        /// Builds the &apos;/api/experimental/session/{sessionID}/log&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetLog(string sessionId, SessionLogRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            var path = "/api/experimental/session/" + Uri.EscapeDataString(sessionId) + "/log";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddText("after", request.After);
+            query.AddFlag("follow", request.Follow);
+            return path + query.Value;
+        }
+
+        /// <summary>
         /// The &apos;GET /api/session/{sessionID}/message/{messageID}&apos; route template.
         /// </summary>
         public const string GetMessageTemplate = "/api/session/{sessionID}/message/{messageID}";

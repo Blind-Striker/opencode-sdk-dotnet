@@ -3,6 +3,7 @@ v2.message.list
 v2.session.create
 v2.session.get
 v2.session.list
+v2.session.log
 v2.session.message
 v2.session.remove
 v2.session.rename

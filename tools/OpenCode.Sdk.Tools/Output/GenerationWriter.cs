@@ -260,7 +260,8 @@ internal sealed class GenerationWriter(IFileSystem fileSystem, IProjectFormatter
     private static bool IsStaticallyOwnedPath(string relativePath) =>
         relativePath.StartsWith("Models/", StringComparison.Ordinal)
         || relativePath.StartsWith("Internal/Serialization/", StringComparison.Ordinal)
-        || relativePath.StartsWith("Internal/ResponseAdapters/", StringComparison.Ordinal);
+        || relativePath.StartsWith("Internal/ResponseAdapters/", StringComparison.Ordinal)
+        || relativePath.StartsWith("Internal/StreamAdapters/", StringComparison.Ordinal);
 
     private static bool IsAdmittedFamilyPath(string relativePath, HashSet<string> familyFolders) =>
         relativePath.Split('/') is [var folder, _] && familyFolders.Contains(folder);
