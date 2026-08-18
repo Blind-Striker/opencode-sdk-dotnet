@@ -38,7 +38,7 @@ public sealed record SessionToolSuccessData
     /// </summary>
     [JsonPropertyName("metadata")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyDictionary<string, JsonElement?>? Metadata { get; init; }
+    public IReadOnlyDictionary<string, JsonElement>? Metadata { get; init; }
 
     /// <summary>
     /// Gets the executed value.
@@ -51,5 +51,5 @@ public sealed record SessionToolSuccessData
     /// </summary>
     [JsonPropertyName("resultState")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyDictionary<string, JsonElement?>? ResultState { get; init; }
+    public IReadOnlyDictionary<string, JsonElement>? ResultState { get; init; }
 }

@@ -19,11 +19,11 @@ public sealed record SessionMessageToolStateRunning : ISessionMessageToolState
     /// Gets the input value.
     /// </summary>
     [JsonPropertyName("input")]
-    public required IReadOnlyDictionary<string, JsonElement?> Input { get; init; }
+    public required IReadOnlyDictionary<string, JsonElement> Input { get; init; }
 
     /// <summary>
     /// Gets the metadata value.
     /// </summary>
     [JsonPropertyName("metadata")]
-    public required IReadOnlyDictionary<string, JsonElement?> Metadata { get; init; }
+    public required IReadOnlyDictionary<string, JsonElement> Metadata { get; init; }
 }

@@ -31,7 +31,7 @@ public sealed record SessionToolCalledData
     /// Gets the input value.
     /// </summary>
     [JsonPropertyName("input")]
-    public required IReadOnlyDictionary<string, JsonElement?> Input { get; init; }
+    public required IReadOnlyDictionary<string, JsonElement> Input { get; init; }
 
     /// <summary>
     /// Gets the executed value.
@@ -44,5 +44,5 @@ public sealed record SessionToolCalledData
     /// </summary>
     [JsonPropertyName("state")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyDictionary<string, JsonElement?>? State { get; init; }
+    public IReadOnlyDictionary<string, JsonElement>? State { get; init; }
 }

@@ -19,7 +19,7 @@ public sealed record SessionInboxItemCompaction : ISessionInboxItem
     /// Gets the payload value.
     /// </summary>
     [JsonPropertyName("payload")]
-    public required IReadOnlyDictionary<string, JsonElement?> Payload { get; init; }
+    public required IReadOnlyDictionary<string, JsonElement> Payload { get; init; }
 
     /// <summary>
     /// Gets the delivery value.

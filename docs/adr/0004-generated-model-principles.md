@@ -1,18 +1,22 @@
-# Generated models: init-only, required-mirroring, schema-shaped nullability
+# Generated models: init-only, required-mirroring, schema-shaped null representation
 
-Date: 2026-08-17
+Date: 2026-08-18
 
 Generated models are sealed records with `init`-only properties. Schema presence and represented
-nullability are independent: a required member emits the C# `required` modifier; a property emits
-nullable C# when it is optional or its schema admits null. Optional omission and explicit null
-collapse to that one nullable state. Required-nullable properties remain `required T?`, accept an
-explicit null, and write it back rather than omitting the member.
+null are independent: a required member emits the C# `required` modifier; an optional property emits
+nullable C# so omission and explicit null collapse to one absent state. A required property whose
+selected representation uses CLR null emits `required T?` when its schema admits null, accepts an
+explicit null, and writes it back rather than omitting the member. When a representation carries
+JSON null in-band, its canonical non-null CLR state represents wire null instead of `Nullable<T>`.
+`JsonElement` is the current carrier through `JsonValueKind.Null`.
 
 Collections follow the same outer-property rule. Optional lists/dictionaries are nullable;
-required collections remain required; item/value schemas shape nested nullable annotations. The
-public surface uses `IReadOnlyList<T>` / `IReadOnlyDictionary<string, T>` without defensive copies,
-read-only wrappers, empty normalization, or recursive item/value validation. `IReadOnly*` is an API
-view, not a deep-immutability guarantee; caller-supplied collection ownership stays with the caller
+required collections remain required. Present list slots and dictionary entries have no omission
+state, so their item/value types use nullable C# only when the selected representation requires CLR
+null. A source-generation-proven in-band JSON-null carrier remains non-nullable. The public surface
+uses `IReadOnlyList<T>` / `IReadOnlyDictionary<string, T>` without defensive copies, read-only
+wrappers, empty normalization, or recursive item/value validation. `IReadOnly*` is an API view, not
+a deep-immutability guarantee; caller-supplied collection ownership stays with the caller
 (ADR-0014).
 
 A literal used for union dispatch emits as a constant/get-only property because successful
@@ -20,7 +24,7 @@ dispatch already proved it. Other boolean, numeric, and string literals remain o
 properties so the SDK preserves the wire value instead of validating or silently normalizing a
 representable server contradiction.
 
-Evidence for the model/nullability decision: research log Q106–Q108.
+Evidence for the model/nullability decision: research log Q106–Q109.
 
 ## Generator policy
 
@@ -34,6 +38,10 @@ Evidence for the model/nullability decision: research log Q106–Q108.
 - **`WhenWritingNull` only on optional properties;** required-nullable members must retain an
   explicit JSON null. Optional schema-non-null and schema-nullable values intentionally share the
   same C# representation.
+- **In-band JSON-null carriers stay non-nullable;** admission requires source-generated
+  serialization evidence that JSON null materializes as a canonical non-null CLR state and writes
+  back as JSON null in every supported runtime context. This is a representation capability, never
+  an endpoint/property curation rule.
 - **Guard emission** — every generated method opens with BCL throw-helper guards;
   CA1062 at `error` guards the contract; invariants otherwise live in the type system
   (NRT, `required`, init-only assignment, guarded getters).

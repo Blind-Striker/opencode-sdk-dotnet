@@ -63,7 +63,7 @@ public sealed record ShellInfo
     /// Gets the metadata value.
     /// </summary>
     [JsonPropertyName("metadata")]
-    public required IReadOnlyDictionary<string, JsonElement?> Metadata { get; init; }
+    public required IReadOnlyDictionary<string, JsonElement> Metadata { get; init; }
 
     /// <summary>
     /// Gets the time value.

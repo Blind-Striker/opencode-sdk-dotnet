@@ -33,7 +33,7 @@ public sealed record ShellCreateRequest
     /// </summary>
     [JsonPropertyName("metadata")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyDictionary<string, JsonElement?>? Metadata { get; init; }
+    public IReadOnlyDictionary<string, JsonElement>? Metadata { get; init; }
 
     /// <summary>
     /// Gets the &apos;location&apos; query value; the server default applies when unset.

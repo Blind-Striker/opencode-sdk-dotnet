@@ -19,7 +19,7 @@ public sealed record SessionMessageToolStateError : ISessionMessageToolState
     /// Gets the input value.
     /// </summary>
     [JsonPropertyName("input")]
-    public required IReadOnlyDictionary<string, JsonElement?> Input { get; init; }
+    public required IReadOnlyDictionary<string, JsonElement> Input { get; init; }
 
     /// <summary>
     /// Gets the error value.
@@ -39,5 +39,5 @@ public sealed record SessionMessageToolStateError : ISessionMessageToolState
     /// </summary>
     [JsonPropertyName("metadata")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyDictionary<string, JsonElement?>? Metadata { get; init; }
+    public IReadOnlyDictionary<string, JsonElement>? Metadata { get; init; }
 }

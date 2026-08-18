@@ -1,6 +1,6 @@
 # Testing Style — authoring tests
 
-Date: 2026-08-17
+Date: 2026-08-18
 
 Binding authorship style for every test in this repository. The testing *architecture* —
 levels, projects, the dual-mode harness, coverage gates, CI — is owned by the sealed
@@ -98,7 +98,7 @@ Runtime tests assert transport/framing, JSON materialization, required .NET shap
 dispatch. They do not mutate otherwise representable payloads solely to prove that the SDK
 revalidates an OpenAPI range, fixed literal, optional-null distinction, or collection child
 constraint; those remain server responsibilities (ADR-0014). Generator tests still fail closed on
-unsupported OpenAPI constructs and prove the exact required/nullable C# mapping.
+unsupported OpenAPI constructs and prove the exact required/null-representation C# mapping.
 
 ## 4. Fakes and mocks
 

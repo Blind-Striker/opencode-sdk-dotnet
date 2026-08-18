@@ -172,6 +172,22 @@ public sealed class OpenCodeJsonContextTests
     }
 
     [Test]
+    public async Task Deserialize_Should_Round_Trip_An_In_Band_Null_Dictionary_Value()
+    {
+        var json = _fixtures.LoadJson("Serialization.known-shell.json");
+
+        var shell = _serializer.Deserialize<ShellInfo>(json);
+        object? metadataValue = shell.Metadata["nullable"];
+
+        await Assert.That(metadataValue).IsTypeOf<JsonElement>();
+        await Assert.That(((JsonElement)metadataValue).ValueKind).IsEqualTo(JsonValueKind.Null);
+        var serialized = _serializer.Serialize(shell);
+        using var document = JsonDocument.Parse(serialized);
+        await Assert.That(document.RootElement.GetProperty("metadata").GetProperty("nullable").ValueKind)
+            .IsEqualTo(JsonValueKind.Null);
+    }
+
+    [Test]
     public async Task Deserialize_Should_Preserve_Unknown_Outer_Variant_Byte_For_Byte()
     {
         var json = _fixtures.LoadJson("Serialization.unknown-session-message.json");
@@ -290,7 +306,7 @@ public sealed class OpenCodeJsonContextTests
 
         await Assert.That(result).IsTypeOf<SessionMessageToolStateRunning>();
         var running = (SessionMessageToolStateRunning)result;
-        await Assert.That(running.Input["query"]?.GetString()).IsEqualTo("queued input");
+        await Assert.That(running.Input["query"].GetString()).IsEqualTo("queued input");
         var serialized = _serializer.Serialize<ISessionMessageToolState>(running);
         using var document = JsonDocument.Parse(serialized);
         await Assert.That(document.RootElement.GetProperty("status").GetString()).IsEqualTo("running");
@@ -359,9 +375,11 @@ public sealed class OpenCodeJsonContextTests
     [Test]
     public async Task State_Should_Retain_The_Caller_Owned_Collection_Reference()
     {
-        var state = new Dictionary<string, JsonElement?>(StringComparer.Ordinal)
+        using var document = JsonDocument.Parse("null");
+        var nullValue = document.RootElement.Clone();
+        var state = new Dictionary<string, JsonElement>(StringComparer.Ordinal)
         {
-            ["original"] = default,
+            ["original"] = nullValue,
         };
         var model = new SessionMessageAssistantReasoning
         {
@@ -369,7 +387,7 @@ public sealed class OpenCodeJsonContextTests
             State = state,
         };
 
-        state.Add("mutation", default);
+        state.Add("mutation", nullValue);
 
         await Assert.That(model.State.ContainsKey("mutation")).IsTrue();
         await Assert.That(model.State.ContainsKey("original")).IsTrue();

@@ -39,6 +39,8 @@ public sealed class ModelMaterializationMatrixTests
                      ("requiredNullableDictionary", true, true),
                      ("optionalDictionary", false, true),
                      ("optionalNullableDictionary", false, true),
+                     ("requiredNullableAny", true, false),
+                     ("optionalAny", false, true),
                  })
         {
             var property = model.Properties.Single(property => property.WireName == expected.Item1);
@@ -54,17 +56,43 @@ public sealed class ModelMaterializationMatrixTests
             .Single(static property => property.WireName == "nonnullValues").Type;
         var nullableValues = (DictionaryTypeReferencePlan)model.Properties
             .Single(static property => property.WireName == "nullableValues").Type;
+        var anyItems = (ListTypeReferencePlan)model.Properties
+            .Single(static property => property.WireName == "anyItems").Type;
+        var nullableAnyItems = (ListTypeReferencePlan)model.Properties
+            .Single(static property => property.WireName == "nullableAnyItems").Type;
+        var anyValues = (DictionaryTypeReferencePlan)model.Properties
+            .Single(static property => property.WireName == "anyValues").Type;
+        var nullableAnyValues = (DictionaryTypeReferencePlan)model.Properties
+            .Single(static property => property.WireName == "nullableAnyValues").Type;
+        var optionalAny = (NamedTypeReferencePlan)model.Properties
+            .Single(static property => property.WireName == "optionalAny").Type;
         await Assert.That(nonnullItems.ElementType.IsNullable).IsFalse();
         await Assert.That(nullableItems.ElementType.IsNullable).IsTrue();
         await Assert.That(nonnullValues.ValueType.IsNullable).IsFalse();
         await Assert.That(nullableValues.ValueType.IsNullable).IsTrue();
+        await Assert.That(anyItems.ElementType.IsNullable).IsFalse();
+        await Assert.That(anyItems.ElementType.JsonNullRepresentation).IsEqualTo(JsonNullRepresentation.InBand);
+        await Assert.That(nullableAnyItems.ElementType.IsNullable).IsFalse();
+        await Assert.That(nullableAnyItems.ElementType.JsonNullRepresentation).IsEqualTo(JsonNullRepresentation.InBand);
+        await Assert.That(anyValues.ValueType.IsNullable).IsFalse();
+        await Assert.That(anyValues.ValueType.JsonNullRepresentation).IsEqualTo(JsonNullRepresentation.InBand);
+        await Assert.That(nullableAnyValues.ValueType.IsNullable).IsFalse();
+        await Assert.That(nullableAnyValues.ValueType.JsonNullRepresentation).IsEqualTo(JsonNullRepresentation.InBand);
+        await Assert.That(optionalAny.IsNullable).IsTrue();
+        await Assert.That(optionalAny.JsonNullRepresentation).IsEqualTo(JsonNullRepresentation.InBand);
         var requiredAny = (NamedTypeReferencePlan)model.Properties
             .Single(static property => property.WireName == "requiredAny").Type;
+        var requiredNullableAny = (NamedTypeReferencePlan)model.Properties
+            .Single(static property => property.WireName == "requiredNullableAny").Type;
         var freeform = (DictionaryTypeReferencePlan)model.Properties
             .Single(static property => property.WireName == "freeform").Type;
         await Assert.That(requiredAny.Name).IsEqualTo("JsonElement");
-        await Assert.That(requiredAny.IsNullable).IsTrue();
-        await Assert.That(freeform.ValueType.IsNullable).IsTrue();
+        await Assert.That(requiredAny.IsNullable).IsFalse();
+        await Assert.That(requiredAny.JsonNullRepresentation).IsEqualTo(JsonNullRepresentation.InBand);
+        await Assert.That(requiredNullableAny.IsNullable).IsFalse();
+        await Assert.That(requiredNullableAny.JsonNullRepresentation).IsEqualTo(JsonNullRepresentation.InBand);
+        await Assert.That(freeform.ValueType.IsNullable).IsFalse();
+        await Assert.That(freeform.ValueType.JsonNullRepresentation).IsEqualTo(JsonNullRepresentation.InBand);
     }
 
     [Test]
@@ -96,6 +124,7 @@ public sealed class ModelMaterializationMatrixTests
                      "OptionalNullableList",
                      "OptionalDictionary",
                      "OptionalNullableDictionary",
+                     "OptionalAny",
                  })
         {
             await Assert.That(GetProperty(value, name)).IsNull();
@@ -109,6 +138,20 @@ public sealed class ModelMaterializationMatrixTests
         await Assert.That(((IDictionary)GetProperty(value, "NonnullValues")!)["key"]).IsNull();
         await Assert.That(((IDictionary)GetProperty(value, "NullableValues")!)["key"]).IsNull();
         await Assert.That(((IList)GetProperty(value, "Choices")!)[0]).IsNull();
+        var requiredAny = (JsonElement)GetProperty(value, "RequiredAny")!;
+        var requiredNullableAny = (JsonElement)GetProperty(value, "RequiredNullableAny")!;
+        var anyItem = (JsonElement)((IList)GetProperty(value, "AnyItems")!)[0]!;
+        var nullableAnyItem = (JsonElement)((IList)GetProperty(value, "NullableAnyItems")!)[0]!;
+        var anyValue = (JsonElement)((IDictionary)GetProperty(value, "AnyValues")!)["key"]!;
+        var nullableAnyValue = (JsonElement)((IDictionary)GetProperty(value, "NullableAnyValues")!)["key"]!;
+        var freeformValue = (JsonElement)((IDictionary)GetProperty(value, "Freeform")!)["key"]!;
+        await Assert.That(requiredAny.ValueKind).IsEqualTo(JsonValueKind.Null);
+        await Assert.That(requiredNullableAny.ValueKind).IsEqualTo(JsonValueKind.Null);
+        await Assert.That(anyItem.ValueKind).IsEqualTo(JsonValueKind.Null);
+        await Assert.That(nullableAnyItem.ValueKind).IsEqualTo(JsonValueKind.Null);
+        await Assert.That(anyValue.ValueKind).IsEqualTo(JsonValueKind.Null);
+        await Assert.That(nullableAnyValue.ValueKind).IsEqualTo(JsonValueKind.Null);
+        await Assert.That(freeformValue.ValueKind).IsEqualTo(JsonValueKind.Null);
         await Assert.That((bool)GetProperty(value, "FixedFlag")!).IsFalse();
     }
 
@@ -124,6 +167,7 @@ public sealed class ModelMaterializationMatrixTests
                          "requiredNullableList",
                          "requiredNullableDictionary",
                          "requiredAny",
+                         "requiredNullableAny",
                      })
             {
                 await Assert.That(document.RootElement.GetProperty(name).ValueKind).IsEqualTo(JsonValueKind.Null);
@@ -132,6 +176,15 @@ public sealed class ModelMaterializationMatrixTests
             await Assert.That(document.RootElement.TryGetProperty("optionalScalar", out _)).IsFalse();
             await Assert.That(document.RootElement.TryGetProperty("optionalList", out _)).IsFalse();
             await Assert.That(document.RootElement.TryGetProperty("optionalDictionary", out _)).IsFalse();
+            await Assert.That(document.RootElement.TryGetProperty("optionalAny", out _)).IsFalse();
+            await Assert.That(document.RootElement.GetProperty("anyItems")[0].ValueKind).IsEqualTo(JsonValueKind.Null);
+            await Assert.That(document.RootElement.GetProperty("nullableAnyItems")[0].ValueKind).IsEqualTo(JsonValueKind.Null);
+            await Assert.That(document.RootElement.GetProperty("anyValues").GetProperty("key").ValueKind)
+                .IsEqualTo(JsonValueKind.Null);
+            await Assert.That(document.RootElement.GetProperty("nullableAnyValues").GetProperty("key").ValueKind)
+                .IsEqualTo(JsonValueKind.Null);
+            await Assert.That(document.RootElement.GetProperty("freeform").GetProperty("key").ValueKind)
+                .IsEqualTo(JsonValueKind.Null);
             await Assert.That(document.RootElement.GetProperty("fixedFlag").GetBoolean()).IsFalse();
         }
     }
@@ -149,6 +202,7 @@ public sealed class ModelMaterializationMatrixTests
                      "optionalNullableList",
                      "optionalDictionary",
                      "optionalNullableDictionary",
+                     "optionalAny",
                  })
         {
             explicitOptionalNulls[name] = null;
@@ -162,6 +216,7 @@ public sealed class ModelMaterializationMatrixTests
             await Assert.That(document.RootElement.TryGetProperty("optionalNullableNumber", out _)).IsFalse();
             await Assert.That(document.RootElement.TryGetProperty("optionalNullableList", out _)).IsFalse();
             await Assert.That(document.RootElement.TryGetProperty("optionalNullableDictionary", out _)).IsFalse();
+            await Assert.That(document.RootElement.TryGetProperty("optionalAny", out _)).IsFalse();
         }
     }
 
@@ -180,6 +235,7 @@ public sealed class ModelMaterializationMatrixTests
         payload["optionalNullableList"] = new JsonArray(JsonValue.Create("optional-nullable"));
         payload["optionalDictionary"] = new JsonObject { ["key"] = "optional", };
         payload["optionalNullableDictionary"] = new JsonObject { ["key"] = "optional-nullable", };
+        payload["optionalAny"] = new JsonObject { ["present"] = true, };
 
         var value = Deserialize(payload, typeInfo);
         var serialized = await SerializeAsync(value, typeInfo);
@@ -198,6 +254,7 @@ public sealed class ModelMaterializationMatrixTests
                      "optionalNullableList",
                      "optionalDictionary",
                      "optionalNullableDictionary",
+                     "optionalAny",
                  })
         {
             await Assert.That(document.RootElement.TryGetProperty(name, out _)).IsTrue();
@@ -228,6 +285,11 @@ public sealed class ModelMaterializationMatrixTests
                      "choices",
                      "fixedFlag",
                      "requiredAny",
+                     "requiredNullableAny",
+                     "anyItems",
+                     "nullableAnyItems",
+                     "anyValues",
+                     "nullableAnyValues",
                      "freeform",
                  })
         {
@@ -245,6 +307,10 @@ public sealed class ModelMaterializationMatrixTests
                      "requiredChoice",
                      "choices",
                      "fixedFlag",
+                     "anyItems",
+                     "nullableAnyItems",
+                     "anyValues",
+                     "nullableAnyValues",
                      "freeform",
                  })
         {
@@ -278,6 +344,11 @@ public sealed class ModelMaterializationMatrixTests
         ["nonnullValues"] = new JsonObject { ["key"] = null, },
         ["nullableValues"] = new JsonObject { ["key"] = null, },
         ["requiredAny"] = null,
+        ["requiredNullableAny"] = null,
+        ["anyItems"] = new JsonArray((JsonNode?)null),
+        ["nullableAnyItems"] = new JsonArray((JsonNode?)null),
+        ["anyValues"] = new JsonObject { ["key"] = null, },
+        ["nullableAnyValues"] = new JsonObject { ["key"] = null, },
         ["freeform"] = new JsonObject { ["key"] = null, },
         ["requiredChoice"] = new JsonObject { ["type"] = "alpha", },
         ["choices"] = new JsonArray((JsonNode?)null),

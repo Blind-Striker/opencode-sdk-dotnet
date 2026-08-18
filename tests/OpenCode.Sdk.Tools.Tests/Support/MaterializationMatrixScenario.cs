@@ -62,6 +62,16 @@ internal sealed class MaterializationMatrixScenario : SpecScenario
         .Property("nullableValues", property => property.Type("object")
             .AdditionalProperties(NullableString), required: true)
         .Property("requiredAny", property => property.Unrestricted(), required: true)
+        .Property("requiredNullableAny", NullableAny, required: true)
+        .Property("optionalAny", property => property.Unrestricted())
+        .Property("anyItems", property => property.Type("array")
+            .Items(item => item.Unrestricted()), required: true)
+        .Property("nullableAnyItems", property => property.Type("array")
+            .Items(NullableAny), required: true)
+        .Property("anyValues", property => property.Type("object")
+            .AdditionalProperties(value => value.Unrestricted()), required: true)
+        .Property("nullableAnyValues", property => property.Type("object")
+            .AdditionalProperties(NullableAny), required: true)
         .Property("freeform", property => property.Type("object").AdditionalPropertiesTrue(), required: true)
         .Property("requiredChoice", property => property.Ref("MatrixChoice"), required: true)
         .Property("choices", property => property.Type("array").Items(item => item.Ref("MatrixChoice")), required: true)
@@ -73,5 +83,9 @@ internal sealed class MaterializationMatrixScenario : SpecScenario
 
     private static void NullableNumber(SchemaBuilder schema) => schema.AnyOf(
         branch => branch.Type("number"),
+        branch => branch.Type("null"));
+
+    private static void NullableAny(SchemaBuilder schema) => schema.AnyOf(
+        branch => branch.Unrestricted(),
         branch => branch.Type("null"));
 }

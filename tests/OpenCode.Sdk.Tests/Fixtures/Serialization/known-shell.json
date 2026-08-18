@@ -6,7 +6,9 @@
   "shell": "/bin/bash",
   "file": "/tmp/sh_100.log",
   "pid": 4242,
-  "metadata": {},
+  "metadata": {
+    "nullable": null
+  },
   "time": {
     "started": 1755200000
   }

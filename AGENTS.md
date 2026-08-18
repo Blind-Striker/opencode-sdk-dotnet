@@ -39,8 +39,9 @@ direction and rationale, not law; only this list and the ADRs bind.
   proven-equivalent shapes, and fingerprint evidenced exclusions; it may not invent wire types,
   constraints, formats, or validation absent from the pin (ADR-0013).
 - **Generated models:** sealed records with shallow `init`-only collection ownership;
-  `required` mirrors schema presence, nullable C# means optional or schema-nullable, optional
-  collections stay nullable, and only union-dispatch literals are constants (ADR-0004, ADR-0014).
+  `required` mirrors schema presence, optional properties stay nullable, schema-null uses CLR null
+  unless the selected representation carries JSON null in-band, optional collections stay nullable,
+  and only union-dispatch literals are constants (ADR-0004, ADR-0014).
 - **Runtime validation:** the SDK validates transport/framing and what is required to materialize
   the declared .NET shape or dispatch a union; it does not revalidate representable server values
   against the OpenAPI schema (ADR-0014).

@@ -38,5 +38,5 @@ public sealed record SessionReasoningEndedData
     /// </summary>
     [JsonPropertyName("state")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyDictionary<string, JsonElement?>? State { get; init; }
+    public IReadOnlyDictionary<string, JsonElement>? State { get; init; }
 }

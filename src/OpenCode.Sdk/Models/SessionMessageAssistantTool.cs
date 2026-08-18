@@ -39,14 +39,14 @@ public sealed record SessionMessageAssistantTool : ISessionMessageAssistantConte
     /// </summary>
     [JsonPropertyName("providerState")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyDictionary<string, JsonElement?>? ProviderState { get; init; }
+    public IReadOnlyDictionary<string, JsonElement>? ProviderState { get; init; }
 
     /// <summary>
     /// Gets the provider result state value.
     /// </summary>
     [JsonPropertyName("providerResultState")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyDictionary<string, JsonElement?>? ProviderResultState { get; init; }
+    public IReadOnlyDictionary<string, JsonElement>? ProviderResultState { get; init; }
 
     /// <summary>
     /// Gets the state value.

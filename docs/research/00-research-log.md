@@ -1,6 +1,6 @@
 # Research log — 2026-08-08
 
-Date: 2026-08-17
+Date: 2026-08-18
 
 > How this project's understanding was built: the questions asked, how each was
 > researched, what was found, and what decision or lesson came out of it.
@@ -2418,3 +2418,33 @@ generated client types. Verified losses are canonicalized and filed upstream aft
 search and maintainer review. Seed cases are `message.list.limit` (integer 1..200),
 `session.list.limit` (`PositiveInt`), and `session.log.after` (`Event.Seq`) appearing only as strings
 in OpenAPI. The diagnostic report never becomes generator or curation input.
+
+## Q109: Must every admitted JSON null materialize as CLR null?
+
+**How researched:** the pinned `Shell.Info.metadata` schema was traced through the free-form-object
+projection, type-plan binding, Roslyn type emission, and reflection-disabled source-generated JSON
+context. The exact upstream pin supplied diagnostic controls only: `Shell.Metadata` is
+`Schema.Record(Schema.String, Schema.Unknown)`, shell runtime echoes caller metadata without
+inspecting values, and the generated `JsonValue` wire type explicitly includes null. A
+source-generated .NET probe then deserialized a null dictionary value as
+`JsonElement.ValueKind == JsonValueKind.Null`, serialized it back as JSON null, and repeated the
+same result after round-trip. Before the correction, the selected PublicApi contained 77
+unrestricted dictionary-value signatures using `JsonElement?`.
+
+**Found:** schema nullability and CLR nullability are not identical when the selected CLR
+representation has a canonical in-band JSON-null state. `Nullable<JsonElement>` creates two CLR
+representations for one wire token (`null` and `JsonValueKind.Null`) even though non-null
+`JsonElement` already materializes and writes the token through source-generated metadata. Optional
+outer properties still need CLR null to represent absence; present required properties, list slots,
+and dictionary entries do not.
+
+**Decision (maintainer, sealed):** null representation is capability-based rather than a
+`JsonElement` name exception. A representation remains non-nullable when source-generated
+serialization proves that JSON null materializes as a canonical non-null CLR state and that state
+writes back as JSON null across the supported runtime matrix. `JsonElement` is the current carrier
+through `JsonValueKind.Null`. Optional properties remain nullable so omission and explicit null
+collapse; required properties and present collection slots use the carrier's in-band state. The
+generator records this representation capability mechanically, never through endpoint/property
+curation, and adds no recursive runtime validation or normalization. This narrows Q106's universal
+schema-nullable-to-CLR-nullable wording without changing its presence, ownership, or materialization
+boundaries (ADR-0004, ADR-0014).

@@ -26,7 +26,7 @@ public sealed record SessionMessageAssistantReasoning : ISessionMessageAssistant
     /// </summary>
     [JsonPropertyName("state")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyDictionary<string, JsonElement?>? State { get; init; }
+    public IReadOnlyDictionary<string, JsonElement>? State { get; init; }
 
     /// <summary>
     /// Gets the time value.

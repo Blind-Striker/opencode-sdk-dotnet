@@ -675,12 +675,14 @@ internal static class EmitterPlanFixture
         {
             Name = name,
             IsNullable = isNullable,
+            JsonNullRepresentation = JsonNullRepresentation.ClrNull,
         };
 
     private static SpecialNumberTypeReferencePlan SpecialNumber(bool isNullable = false) =>
         new()
         {
             IsNullable = isNullable,
+            JsonNullRepresentation = JsonNullRepresentation.ClrNull,
         };
 
     private static ListTypeReferencePlan ListOf(TypeReferencePlan elementType, bool isNullable = false) =>
@@ -688,6 +690,7 @@ internal static class EmitterPlanFixture
         {
             ElementType = elementType,
             IsNullable = isNullable,
+            JsonNullRepresentation = JsonNullRepresentation.ClrNull,
         };
 
     private static DictionaryTypeReferencePlan DictionaryOf(TypeReferencePlan valueType, bool isNullable = false) =>
@@ -695,5 +698,6 @@ internal static class EmitterPlanFixture
         {
             ValueType = valueType,
             IsNullable = isNullable,
+            JsonNullRepresentation = JsonNullRepresentation.ClrNull,
         };
 }

@@ -554,8 +554,8 @@ internal sealed class SchemaPlanBinder
             LiteralNode literal => Refuse(subject, $"literal kind '{literal.Kind}' is not supported by the emitter"),
             ArrayNode array => BindArray(array, subject, aliases),
             DictionaryNode dictionary => BindDictionary(dictionary, subject, aliases),
-            FreeFormObjectNode => DictionaryOf(NullableJsonElement()),
-            UnrestrictedNode => NullableJsonElement(),
+            FreeFormObjectNode => DictionaryOf(JsonElement()),
+            UnrestrictedNode => JsonElement(),
             SpecialNumberNode => SpecialNumber(),
             NullableNode nullable => BindNullable(nullable, subject, aliases),
             JsonStringNode => Refuse(subject, "JSON-encoded strings are not supported by the M1 emitter"),
@@ -613,7 +613,9 @@ internal sealed class SchemaPlanBinder
         private TypeReferencePlan? BindNullable(NullableNode nullable, string subject, HashSet<string> aliases)
         {
             var inner = BindCore(nullable.Inner, subject, aliases);
-            return inner is null ? null : inner with { IsNullable = true };
+            return inner is null || inner.JsonNullRepresentation == JsonNullRepresentation.InBand
+                ? inner
+                : inner with { IsNullable = true };
         }
 
         private TypeReferencePlan? Refuse(string subject, string problem)
@@ -627,19 +629,22 @@ internal sealed class SchemaPlanBinder
             {
                 Name = name,
                 IsNullable = false,
+                JsonNullRepresentation = JsonNullRepresentation.ClrNull,
             };
 
-        private static NamedTypeReferencePlan NullableJsonElement() =>
+        private static NamedTypeReferencePlan JsonElement() =>
             new()
             {
                 Name = "JsonElement",
-                IsNullable = true,
+                IsNullable = false,
+                JsonNullRepresentation = JsonNullRepresentation.InBand,
             };
 
         private static SpecialNumberTypeReferencePlan SpecialNumber() =>
             new()
             {
                 IsNullable = false,
+                JsonNullRepresentation = JsonNullRepresentation.ClrNull,
             };
 
         private static ListTypeReferencePlan ListOf(TypeReferencePlan elementType) =>
@@ -647,6 +652,7 @@ internal sealed class SchemaPlanBinder
             {
                 ElementType = elementType,
                 IsNullable = false,
+                JsonNullRepresentation = JsonNullRepresentation.ClrNull,
             };
 
         private static DictionaryTypeReferencePlan DictionaryOf(TypeReferencePlan valueType) =>
@@ -654,6 +660,7 @@ internal sealed class SchemaPlanBinder
             {
                 ValueType = valueType,
                 IsNullable = false,
+                JsonNullRepresentation = JsonNullRepresentation.ClrNull,
             };
     }
 }

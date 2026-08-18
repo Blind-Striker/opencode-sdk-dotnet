@@ -66,7 +66,7 @@ and Extensions test projects, and the previously unobserved object-envelope
 by the SDK test project; the Extensions tests are registration-topology only).
 
 **M3 is open** (plan: `superpowers/plans/2026-08-15-m3-plan.md`; decisions: research log
-Sessions 24–29). Q92's simplicity-first construction (ADR-0010) is landed — Arc 1 complete:
+Sessions 24–30). Q92's simplicity-first construction (ADR-0010) is landed — Arc 1 complete:
 the transport constructor is internal friend-assembly test surface, Extensions registers
 a factory-less singleton client family with a roster contract test, and the Q91 guard
 machinery is deleted — closing #31 by construction. #32 and #33 stay sealed with their
@@ -111,6 +111,14 @@ keeps optional collections nullable, exposes shallow init-only collection refere
 collection-child nullability to static annotations, and ignores bodies on declared no-content
 statuses. The synthetic matrix binds, emits, source-generates, compiles, and round-trips scalar,
 list, dictionary, value-type, unrestricted, literal, and union shapes without reflection fallback.
+
+Q109 seals a pre-#46 representation correction: a serializer-proven in-band JSON-null carrier stays
+non-nullable at required properties and present collection slots because its canonical CLR state
+already materializes wire null. `JsonElement` is the current carrier through
+`JsonValueKind.Null`; optional outer properties remain nullable for absence. The implementation is
+locally complete as its own reviewed increment because the binder change is small but intentionally
+updates 77 unrestricted dictionary-value signatures in the generated PublicApi. All six local gates
+are green with 1,229 tests; commit and three-OS hosted confirmation remain before #46.
 
 The #55 allocation-first comparison against untouched `050b4f8`, under .NET SDK `10.0.302`, .NET
 `10.0.10`, and concurrent workstation GC, measured `GetMessageAsync` at 26,548 → 22,606 B/op
