@@ -253,9 +253,8 @@ the profile is partial. Later breadth proceeds in bounded vertical operation bat
 its reachable models, operation methods, and contract tests; there is no separate orphan-model
 horizontal milestone.
 
-The detailed architecture, public inventory, verification matrix, stop conditions, and required
-decision-document cascade are canonical in
-`docs/superpowers/specs/2026-08-11-production-walking-skeleton-design.md`.
+The selected delivery status and milestone boundary live in `docs/ROADMAP.md`; this checkpoint
+retains the supporting verification evidence and complexity decision.
 
 ## Sources
 
@@ -272,8 +271,7 @@ decision-document cascade are canonical in
   complexity-grill evidence.
 - `docs/adr/0003-model-layer-codegen.md` - own generator, Microsoft.OpenApi reader, semantic
   projection, and Roslyn emission.
-- `docs/superpowers/specs/2026-08-11-production-walking-skeleton-design.md` - selected delivery
-  design.
+- `docs/ROADMAP.md` - selected delivery status and milestone boundary.
 - Commit `1934930` - exact production ingestion implementation used by the absorption probe.
 
 ### External primary sources

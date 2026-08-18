@@ -27,9 +27,8 @@ the blocker set (typed-spine leaks, silent route rewriting) lands on the PR bran
 issues #19–#25 pinned to the milestone that resolves it — nothing on that list outlives the
 M series.
 
-**M2's first breadth batch is complete** (plan:
-`superpowers/plans/2026-08-14-m2-first-breadth-batch.md`; decisions: research log Sessions
-19–20). `session.list`, `session.get`, `session.create`, and `message.list` are callable
+**M2's first breadth batch is complete** (decisions: research log Sessions 19–20).
+`session.list`, `session.get`, `session.create`, and `message.list` are callable
 through their final generated surface — uniform `*Request` operation inputs (Q83) with the
 query records riding the `ListRequest` seam, `SessionCreateRequest` bodies through the
 pipeline's JSON path, cursor-list envelopes with the shared `ListCursor`, query-composing
@@ -140,8 +139,7 @@ valid. The runtime corpus still covers two of 40 durable branches; no invented 4
 is planned. The six interim allocation baselines remain the comparison guards; master protection
 and direct-push policy remain open under #50.
 
-**The M2 second breadth batch is complete** (plan:
-`superpowers/plans/2026-08-15-m2-second-breadth-batch.md`) — the design-prover batch:
+**The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family
 (`list`/`create`/`get`/`remove`/`timeout`) ride the 204 no-content and
 `{location, data}` envelope machinery, the deepObject `LocationSelector` query channel,
@@ -166,8 +164,7 @@ is revisited at each milestone boundary.
    hand against a real `opencode2 serve` with the output pasted into the PR. Arc B opens
    with the v2 retarget task (pin snapshot, ingestion-wall admit rule, regenerated
    closure). Two independently mergeable arcs: selected compiler + committed models
-   (landed), then the callable client with typed errors and `NoThrow`. Design reference:
-   `superpowers/specs/2026-08-11-production-walking-skeleton-design.md`.
+   (landed), then the callable client with typed errors and `NoThrow`.
 2. **M2 — Breadth batches.** The generation profile grows in vertical operation batches;
    each batch lands its curation rows, reachable models, operation methods, and contract
    tests together. The first batch (list/get/create/message-list) is complete with every
@@ -205,7 +202,7 @@ is revisited at each milestone boundary.
    channel.
 6. **M6 — Operational closure.** `refresh-spec`, retry/telemetry/hooks, quarantine
    lane, nightly canary (the performance suite joins it); durable decisions distill
-   into ADRs and the `superpowers/` documents retire. Any
+   into ADRs and the remaining `superpowers/` documents retire. Any
    hygiene-sweep leftovers (#24) are resolved here — nothing from the review queue
    survives the M series.
 
