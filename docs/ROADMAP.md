@@ -148,7 +148,11 @@ maintained diagnostic allow-list or a second solution-wide third-party analyzer 
 output keeps its narrower project-scoped, generated-path-only mutating full formatter. Warm local
 solution linting fell from 117.00 to 67.29 seconds while preserving the existing style policy. A
 separate analyzer-cost probe measured 42.96 seconds with analyzers and 10.72 without, but no target
-or OS analyzer coverage is weakened without a dedicated coverage-preserving design.
+or OS analyzer coverage is weakened without a dedicated coverage-preserving design. Hosted run
+`32188680204` is green on Linux, Windows, and macOS at `005030f`: Linux whitespace took 17 seconds
+and style 1:34, totaling 1:51 versus the previous 3:00 full solution lint pass. Generator verify
+retained its project-scoped full formatter and took 1:16. Linux build variance rose to 4:26 and
+Windows completed in 10:04, so the matrix wall remains build rather than formatting.
 
 #49 remains the exact next source increment: mechanical converter/registry completeness, valid
 central `msg_` fixtures, and honest representative runtime claims under its sealed decision. The
