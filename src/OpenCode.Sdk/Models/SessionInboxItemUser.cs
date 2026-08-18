@@ -18,7 +18,7 @@ public sealed record SessionInboxItemUser : ISessionInboxItem
     /// Gets the payload value.
     /// </summary>
     [JsonPropertyName("payload")]
-    public required SessionInboxUserPayload1 Payload { get; init; }
+    public required SessionInboxUserPayload Payload { get; init; }
 
     /// <summary>
     /// Gets the delivery value.

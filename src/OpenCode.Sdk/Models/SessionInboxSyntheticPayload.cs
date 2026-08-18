@@ -5,9 +5,9 @@ using System.Text.Json.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a session inbox user payload 1 value.
+/// Represents a session inbox synthetic payload value.
 /// </summary>
-public sealed record SessionInboxUserPayload1
+public sealed record SessionInboxSyntheticPayload
 {
     /// <summary>
     /// Gets the text value.
@@ -16,25 +16,11 @@ public sealed record SessionInboxUserPayload1
     public required string Text { get; init; }
 
     /// <summary>
-    /// Gets the files value.
+    /// Gets the description value.
     /// </summary>
-    [JsonPropertyName("files")]
+    [JsonPropertyName("description")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyList<PromptFileAttachment>? Files { get; init; }
-
-    /// <summary>
-    /// Gets the agents value.
-    /// </summary>
-    [JsonPropertyName("agents")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyList<PromptAgentAttachment>? Agents { get; init; }
-
-    /// <summary>
-    /// Gets the skills value.
-    /// </summary>
-    [JsonPropertyName("skills")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyList<PromptSkillAttachment>? Skills { get; init; }
+    public string? Description { get; init; }
 
     /// <summary>
     /// Gets the metadata value.

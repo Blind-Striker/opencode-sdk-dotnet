@@ -18,7 +18,7 @@ public sealed record SessionInboxItemSynthetic : ISessionInboxItem
     /// Gets the payload value.
     /// </summary>
     [JsonPropertyName("payload")]
-    public required SessionInboxSyntheticPayload1 Payload { get; init; }
+    public required SessionInboxSyntheticPayload Payload { get; init; }
 
     /// <summary>
     /// Gets the delivery value.

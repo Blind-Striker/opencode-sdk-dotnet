@@ -30,6 +30,16 @@
       "reason": "Upstream spec-gen emits a structurally identical duplicate carrying the same _tag."
     },
     {
+      "schema": "Session.Inbox.SyntheticPayload1",
+      "aliasOf": "Session.Inbox.SyntheticPayload",
+      "reason": "Upstream spec-gen emits a structurally identical duplicate of the session inbox synthetic payload schema."
+    },
+    {
+      "schema": "Session.Inbox.UserPayload1",
+      "aliasOf": "Session.Inbox.UserPayload",
+      "reason": "Upstream spec-gen emits a structurally identical duplicate of the session inbox user payload schema."
+    },
+    {
       "schema": "Shell.Info1",
       "aliasOf": "Shell.Info",
       "reason": "Upstream spec-gen emits a structurally identical duplicate of the shell info schema."

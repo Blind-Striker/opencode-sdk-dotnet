@@ -1251,7 +1251,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("delivery")]
         public required OpenCode.Sdk.Models.SessionInboxDelivery Delivery { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("payload")]
-        public required OpenCode.Sdk.Models.SessionInboxSyntheticPayload1 Payload { get; init; }
+        public required OpenCode.Sdk.Models.SessionInboxSyntheticPayload Payload { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
     }
@@ -1261,7 +1261,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("delivery")]
         public required OpenCode.Sdk.Models.SessionInboxDelivery Delivery { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("payload")]
-        public required OpenCode.Sdk.Models.SessionInboxUserPayload1 Payload { get; init; }
+        public required OpenCode.Sdk.Models.SessionInboxUserPayload Payload { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
     }
@@ -1276,9 +1276,9 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("subpath")]
         public string? Subpath { get; init; }
     }
-    public sealed class SessionInboxSyntheticPayload1 : System.IEquatable<OpenCode.Sdk.Models.SessionInboxSyntheticPayload1>
+    public sealed class SessionInboxSyntheticPayload : System.IEquatable<OpenCode.Sdk.Models.SessionInboxSyntheticPayload>
     {
-        public SessionInboxSyntheticPayload1() { }
+        public SessionInboxSyntheticPayload() { }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("description")]
         public string? Description { get; init; }
@@ -1288,9 +1288,9 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("text")]
         public required string Text { get; init; }
     }
-    public sealed class SessionInboxUserPayload1 : System.IEquatable<OpenCode.Sdk.Models.SessionInboxUserPayload1>
+    public sealed class SessionInboxUserPayload : System.IEquatable<OpenCode.Sdk.Models.SessionInboxUserPayload>
     {
-        public SessionInboxUserPayload1() { }
+        public SessionInboxUserPayload() { }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("agents")]
         public System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.PromptAgentAttachment>? Agents { get; init; }

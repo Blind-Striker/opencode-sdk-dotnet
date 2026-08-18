@@ -65,6 +65,28 @@ public sealed class SpecBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Collapse_The_Current_Inbox_Duplicate_Schemas()
+    {
+        var (document, selection, curation) = await LoadPinnedInputsAsync();
+
+        var plan = new BindingTestHost().Bind(document, selection, curation);
+
+        await Assert.That(plan.Models.Any(static model => model.Name == "SessionInboxUserPayload")).IsTrue();
+        await Assert.That(plan.Models.Any(static model => model.Name == "SessionInboxSyntheticPayload")).IsTrue();
+        await Assert.That(plan.Models.Any(static model => model.Name == "SessionInboxUserPayload1")).IsFalse();
+        await Assert.That(plan.Models.Any(static model => model.Name == "SessionInboxSyntheticPayload1")).IsFalse();
+        await Assert.That(plan.Registry.TypeNames.Contains("SessionInboxUserPayload", StringComparer.Ordinal)).IsTrue();
+        await Assert.That(plan.Registry.TypeNames.Contains("SessionInboxSyntheticPayload", StringComparer.Ordinal)).IsTrue();
+
+        var user = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "SessionInboxItemUser");
+        var synthetic = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "SessionInboxItemSynthetic");
+        var userPayload = (NamedTypeReferencePlan)user.Properties.Single(static property => property.WireName == "payload").Type;
+        var syntheticPayload = (NamedTypeReferencePlan)synthetic.Properties.Single(static property => property.WireName == "payload").Type;
+        await Assert.That(userPayload.Name).IsEqualTo("SessionInboxUserPayload");
+        await Assert.That(syntheticPayload.Name).IsEqualTo("SessionInboxSyntheticPayload");
+    }
+
+    [Test]
     public async Task Bind_Should_Map_Required_And_Nullable_Independently()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
