@@ -2419,6 +2419,8 @@ search and maintainer review. Seed cases are `message.list.limit` (integer 1..20
 `session.list.limit` (`PositiveInt`), and `session.log.after` (`Event.Seq`) appearing only as strings
 in OpenAPI. The diagnostic report never becomes generator or curation input.
 
+# Session 30 — 2026-08-18: in-band JSON-null representation
+
 ## Q109: Must every admitted JSON null materialize as CLR null?
 
 **How researched:** the pinned `Shell.Info.metadata` schema was traced through the free-form-object
