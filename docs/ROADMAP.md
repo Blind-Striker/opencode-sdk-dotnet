@@ -119,18 +119,26 @@ already materializes wire null. `JsonElement` is the current carrier through
 locally complete as its own reviewed increment because the binder change is small but intentionally
 updates 77 unrestricted dictionary-value signatures in the generated PublicApi. All six local gates
 are green with 1,229 tests; the source increment is committed at `075e000`, and three-OS hosted
-run `32115094777` is green at handoff tip `7abab38`. #46 is next.
+run `32115094777` is green at handoff tip `7abab38`.
+
+#46 then made known-object unknown-field skipping explicit in generated JSON metadata and added the
+fail-closed named-object + typed-additional-properties binding wall at `ca79254`; three-OS hosted
+run `32123321173` is green. The current exact aliases carried by #27 landed at `7123627`:
+`Session.Inbox.SyntheticPayload1` and `Session.Inbox.UserPayload1` now collapse through structurally
+validated curation onto their canonical payload schemas, with generator-owned model, registry,
+manifest, owner, and PublicApi changes. Three-OS hosted run `32128587050` is green, and the local
+suite now executes 1,240 tests with none failed or skipped. #27 remains open for its later
+first-occurrence and M5 walls.
 
 The #55 allocation-first comparison against untouched `050b4f8`, under .NET SDK `10.0.302`, .NET
 `10.0.10`, and concurrent workstation GC, measured `GetMessageAsync` at 26,548 → 22,606 B/op
 (`0.852x`), `ListMessagesAsync` at 27,316 → 23,316 B/op (`0.854x`), and deep-union deserialization
 at 17,786 → 13,842 B/op (`0.778x`); `GetHealthAsync` stayed 2,128 → 2,128 B/op. Corresponding mean
-ratios were `0.888x`, `0.837x`, `0.898x`, and `1.012x`. The queue pauses for the required checkpoint
-before #46. #46's
-unknown-field/hybrid wall, #27's validated exact aliases, #47's stream-plan completeness, and
-#49's mechanical breadth evidence remain valid. The runtime corpus still covers two of 40 durable
-branches; no invented 40/87-payload corpus is planned. The six interim allocation baselines remain
-the comparison guards; master protection and direct-push policy remain open under #50.
+ratios were `0.888x`, `0.837x`, `0.898x`, and `1.012x`. The queue pauses at the required post-alias
+checkpoint before #47. #47's stream-plan completeness and #49's mechanical breadth evidence remain
+valid. The runtime corpus still covers two of 40 durable branches; no invented 40/87-payload corpus
+is planned. The six interim allocation baselines remain the comparison guards; master protection
+and direct-push policy remain open under #50.
 
 **The M2 second breadth batch is complete** (plan:
 `superpowers/plans/2026-08-15-m2-second-breadth-batch.md`) — the design-prover batch:
