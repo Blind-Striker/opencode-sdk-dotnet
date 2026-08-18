@@ -119,7 +119,7 @@ already materializes wire null. `JsonElement` is the current carrier through
 locally complete as its own reviewed increment because the binder change is small but intentionally
 updates 77 unrestricted dictionary-value signatures in the generated PublicApi. All six local gates
 are green with 1,229 tests; the source increment is committed at `075e000`, and three-OS hosted
-confirmation remains before #46.
+run `32115094777` is green at handoff tip `7abab38`. #46 is next.
 
 The #55 allocation-first comparison against untouched `050b4f8`, under .NET SDK `10.0.302`, .NET
 `10.0.10`, and concurrent workstation GC, measured `GetMessageAsync` at 26,548 → 22,606 B/op
