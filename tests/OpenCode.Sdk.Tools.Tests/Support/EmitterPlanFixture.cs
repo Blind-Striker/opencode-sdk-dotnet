@@ -1,10 +1,20 @@
 using OpenCode.Sdk.Tools.Generator.Binding.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
+using static OpenCode.Sdk.Tools.Tests.Support.BindingScenarioData;
 
 namespace OpenCode.Sdk.Tools.Tests.Support;
 
 internal static class EmitterPlanFixture
 {
+    public static async Task<EmitPlan> CreateStreamPlanAsync()
+    {
+        var document = await BindingTestHost.IngestAsync(new StreamOperationScenario());
+        return new BindingTestHost().Bind(
+            document,
+            Selection(StreamOperationScenario.OperationId),
+            Curation(Groups(StreamOperationScenario.GroupName, RootGroup())));
+    }
+
     public static EmitPlan Create()
     {
         var models = new ModelPlan[]

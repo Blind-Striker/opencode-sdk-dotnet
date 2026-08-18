@@ -60,7 +60,7 @@ internal static class ClientEmitter
                 SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.EmitNamed("IDisposable")))));
         }
 
-        // The stream-adapter namespace exists only where a streaming operation emitted one.
+        // Adapter namespaces exist only where the corresponding operation kind emitted one.
         var usings = new List<string>
         {
             "System",
@@ -68,8 +68,12 @@ internal static class ClientEmitter
             "System.Threading",
             "System.Threading.Tasks",
             "OpenCode.Sdk.Internal",
-            "OpenCode.Sdk.Internal.ResponseAdapters",
         };
+        if (client.Operations.Any(static operation => operation.Envelope is not null))
+        {
+            usings.Add("OpenCode.Sdk.Internal.ResponseAdapters");
+        }
+
         if (client.Operations.Any(static operation => operation.Stream is not null))
         {
             usings.Add("System.Collections.Generic");

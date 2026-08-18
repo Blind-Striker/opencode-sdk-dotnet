@@ -130,11 +130,17 @@ The #55 allocation-first comparison against untouched `050b4f8`, under .NET SDK 
 `10.0.10`, and concurrent workstation GC, measured `GetMessageAsync` at 26,548 → 22,606 B/op
 (`0.852x`), `ListMessagesAsync` at 27,316 → 23,316 B/op (`0.854x`), and deep-union deserialization
 at 17,786 → 13,842 B/op (`0.778x`); `GetHealthAsync` stayed 2,128 → 2,128 B/op. Corresponding mean
-ratios were `0.888x`, `0.837x`, `0.898x`, and `1.012x`. The queue pauses at the required post-alias
-checkpoint before #47. #47's stream-plan completeness and #49's mechanical breadth evidence remain
-valid. The runtime corpus still covers two of 40 durable branches; no invented 40/87-payload corpus
-is planned. The six interim allocation baselines remain the comparison guards; master protection
-and direct-push policy remain open under #50.
+ratios were `0.888x`, `0.837x`, `0.898x`, and `1.012x`. #47 now closes the stream-plan contract
+before live-bus breadth: frame `id` and `event`, SSE encoding, failure-event separation, and the
+no-body runtime boundary fail closed. Stream methods document their always-throw error channel
+without exposing request options. A generic
+stream profile binds, emits, source-generates, and compiles while pinning its route, payload/failure
+metadata, and complete error map; the selected `session.log` contract pins GET plus 400/401/404.
+The fresh-context review reported no findings after its one low-severity test-helper duplication was
+resolved; all local gates are green with 1,255 tests and none failed or skipped. #49's mechanical
+breadth evidence is next. The runtime corpus still covers two of 40 durable branches; no invented
+40/87-payload corpus is planned. The six interim allocation baselines remain the comparison guards;
+master protection and direct-push policy remain open under #50.
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family

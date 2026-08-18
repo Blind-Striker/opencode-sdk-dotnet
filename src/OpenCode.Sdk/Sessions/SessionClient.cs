@@ -43,7 +43,7 @@ public class SessionClient
     /// <param name = "request">The request shaping the query.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
     /// <returns>The &apos;ISessionLogItem&apos; stream.</returns>
-    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeApiException">The API returned a declared error status (declared: 400, 401, 404); streaming API errors always throw.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached, the stream failed after it opened, or a frame was malformed.</exception>
     public virtual IAsyncEnumerable<ISessionLogItem> GetLogAsync(SessionLogRequest? request = null, CancellationToken cancellationToken = default)
     {

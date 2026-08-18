@@ -1143,6 +1143,62 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    [Arguments((int)StreamFrameProfile.NonNullableStringId)]
+    [Arguments((int)StreamFrameProfile.NullableNumberId)]
+    public async Task BindStream_Should_Refuse_An_Id_That_Is_Not_A_Nullable_String(int profile)
+    {
+        var document = await BindingTestHost.IngestAsync(new StreamOperationScenario(frameProfile: (StreamFrameProfile)profile));
+
+        await AssertStreamRefusalAsync(document, "frame 'id' must be a nullable string");
+    }
+
+    [Test]
+    public async Task BindStream_Should_Refuse_An_Event_That_Is_Not_A_String()
+    {
+        var document = await BindingTestHost.IngestAsync(
+            new StreamOperationScenario(frameProfile: StreamFrameProfile.NumberEvent));
+
+        await AssertStreamRefusalAsync(document, "frame 'event' must be a string");
+    }
+
+    [Test]
+    [Arguments((int)StreamExtensionProfile.MissingEncoding)]
+    [Arguments((int)StreamExtensionProfile.UnsupportedEncoding)]
+    public async Task BindStream_Should_Require_Sse_Encoding(int profile)
+    {
+        var document = await BindingTestHost.IngestAsync(
+            new StreamOperationScenario(extensionProfile: (StreamExtensionProfile)profile));
+
+        await AssertStreamRefusalAsync(document, "encoding' must equal 'sse");
+    }
+
+    [Test]
+    public async Task BindStream_Should_Refuse_A_Non_Object_Extension()
+    {
+        var document = await BindingTestHost.IngestAsync(
+            new StreamOperationScenario(extensionProfile: StreamExtensionProfile.NonObject));
+
+        await AssertStreamRefusalAsync(document, "must contain a JSON object");
+    }
+
+    [Test]
+    public async Task BindStream_Should_Refuse_The_Ordinary_Message_Event_As_A_Failure()
+    {
+        var document = await BindingTestHost.IngestAsync(
+            new StreamOperationScenario(extensionProfile: StreamExtensionProfile.MessageFailure));
+
+        await AssertStreamRefusalAsync(document, "failureEvent' must not equal 'message");
+    }
+
+    [Test]
+    public async Task BindStream_Should_Refuse_A_Request_Body()
+    {
+        var document = await BindingTestHost.IngestAsync(new StreamOperationScenario(carriesRequestBody: true));
+
+        await AssertStreamRefusalAsync(document, "streaming operations must not carry a request body");
+    }
+
+    [Test]
     public async Task Bind_Should_Bind_An_Event_Stream_Into_A_Stream_Plan()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
@@ -1426,17 +1482,25 @@ public sealed class OperationPlanBinderTests
         await Assert.That(subjects).Contains("v2.health.probe");
     }
 
-    private static async Task AssertOperationRefusalAsync(SpecDocument document, string operationId, string expectedProblem)
+    private static async Task AssertOperationRefusalAsync(SpecDocument document, string operationId, string expectedProblem,
+        string groupName = "health")
     {
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
             Selection(operationId),
-            Curation(Groups("health", RootGroup()))));
+            Curation(Groups(groupName, RootGroup()))));
 
         await Assert.That(exception.Errors.Any(error => error.Category == BindingErrorCategory.Operation
             && string.Equals(error.Subject, operationId, StringComparison.Ordinal)
             && error.Problem.Contains(expectedProblem, StringComparison.Ordinal))).IsTrue();
     }
+
+    private static Task AssertStreamRefusalAsync(SpecDocument document, string expectedProblem) =>
+        AssertOperationRefusalAsync(
+            document,
+            StreamOperationScenario.OperationId,
+            expectedProblem,
+            StreamOperationScenario.GroupName);
 
     private static SpecScenario WidgetListScenario(Action<OperationBuilder> configureParameters) =>
         SpecScenario.Define(spec => spec

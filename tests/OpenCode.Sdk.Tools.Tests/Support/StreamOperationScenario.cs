@@ -1,0 +1,102 @@
+namespace OpenCode.Sdk.Tools.Tests.Support;
+
+internal sealed class StreamOperationScenario(
+    StreamFrameProfile frameProfile = StreamFrameProfile.Valid,
+    StreamExtensionProfile extensionProfile = StreamExtensionProfile.Valid,
+    bool carriesRequestBody = false) : SpecScenario
+{
+    public const string OperationId = "v2.example.events";
+    public const string GroupName = "example";
+    public const string FailureEventName = "effect/httpapi/stream/failure";
+
+    protected override void Arrange(SpecDocumentBuilder spec)
+    {
+        _ = spec
+            .WithSchema("ExampleEvent", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("ExampleEventJsonString", schema => schema
+                .Type("string")
+                .Raw("contentMediaType", "\"application/json\"")
+                .Raw("contentSchema", "{\"$ref\":\"#/components/schemas/ExampleEvent\"}"))
+            .WithSchema("ExampleEventFrame", schema => schema
+                .Type("object")
+                .Property("id", ConfigureId, required: true)
+                .Property("event", ConfigureEvent, required: true)
+                .Property("data", property => property.Ref("ExampleEventJsonString"), required: true))
+            .WithSchema("ExampleEventsPostRequest", schema => schema
+                .Type("object")
+                .Property("filter", property => property.Type("string"), required: true))
+            .WithSchema("ExampleBadRequestError", schema => Error(schema, "ExampleBadRequestError"))
+            .WithSchema("ExampleUnauthorizedError", schema => Error(schema, "ExampleUnauthorizedError"))
+            .WithSchema("ExampleNotFoundError", schema => Error(schema, "ExampleNotFoundError"))
+            .WithSchema("ExampleGoneError", schema => Error(schema, "ExampleGoneError"))
+            .WithOperation(
+                OperationId,
+                method: carriesRequestBody ? "post" : "get",
+                path: "/api/example/{exampleID}/events",
+                configure: operation => ConfigureOperation(operation, carriesRequestBody));
+    }
+
+    private void ConfigureId(SchemaBuilder schema)
+    {
+        _ = frameProfile switch
+        {
+            StreamFrameProfile.Valid => schema.AnyOf(
+                static branch => branch.Type("string"),
+                static branch => branch.Type("null")),
+            StreamFrameProfile.NonNullableStringId => schema.Type("string"),
+            StreamFrameProfile.NullableNumberId => schema.AnyOf(
+                static branch => branch.Type("number"),
+                static branch => branch.Type("null")),
+            StreamFrameProfile.NumberEvent => schema.AnyOf(
+                static branch => branch.Type("string"),
+                static branch => branch.Type("null")),
+            _ => throw new InvalidOperationException($"Unknown stream-frame profile '{frameProfile}'."),
+        };
+    }
+
+    private void ConfigureEvent(SchemaBuilder schema)
+    {
+        _ = frameProfile is StreamFrameProfile.NumberEvent
+            ? schema.Type("number")
+            : schema.Type("string");
+    }
+
+    private void ConfigureOperation(OperationBuilder operation, bool withBody)
+    {
+        _ = operation
+            .Parameter("exampleID", "path", schema => schema.Type("string"), required: true)
+            .Summary("Watch example events");
+        if (withBody)
+        {
+            _ = operation.RequestBody(
+                "application/json",
+                schema => schema.Ref("ExampleEventsPostRequest"),
+                required: true);
+        }
+
+        _ = operation
+            .SseResponse(schema => schema.Ref("ExampleEventFrame"), EffectStreamJson())
+            .Response(400, "application/json", schema => schema.Ref("ExampleBadRequestError"))
+            .Response(401, "application/json", schema => schema.Ref("ExampleUnauthorizedError"))
+            .Response(404, "application/json", schema => schema.AnyOf(
+                static branch => branch.Ref("ExampleNotFoundError"),
+                static branch => branch.Ref("ExampleGoneError")));
+    }
+
+    private string EffectStreamJson() => extensionProfile switch
+    {
+        StreamExtensionProfile.Valid => $"{{\"encoding\":\"sse\",\"failureEvent\":\"{FailureEventName}\"}}",
+        StreamExtensionProfile.MissingEncoding => $"{{\"failureEvent\":\"{FailureEventName}\"}}",
+        StreamExtensionProfile.UnsupportedEncoding => $"{{\"encoding\":\"jsonl\",\"failureEvent\":\"{FailureEventName}\"}}",
+        StreamExtensionProfile.MessageFailure => "{\"encoding\":\"sse\",\"failureEvent\":\"message\"}",
+        StreamExtensionProfile.NonObject => "[]",
+        _ => throw new InvalidOperationException($"Unknown stream-extension profile '{extensionProfile}'."),
+    };
+
+    private static void Error(SchemaBuilder schema, string tag) => schema
+        .Type("object")
+        .Property("_tag", property => property.Type("string").Enum(tag), required: true)
+        .Property("message", property => property.Type("string"), required: true);
+}

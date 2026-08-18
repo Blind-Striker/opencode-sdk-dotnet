@@ -25,7 +25,9 @@ public sealed class SessionLogContractTests
         await Assert.That(items[0]).IsTypeOf<SessionCreated>();
         await Assert.That(items[1]).IsTypeOf<SessionDeleted>();
         await Assert.That(items[2]).IsTypeOf<EventLogSynced>();
-        await Assert.That(scenario.Requests.Single().RequestUri)
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo(HttpMethod.Get);
+        await Assert.That(request.RequestUri)
             .IsEqualTo(new Uri("http://localhost:4096/api/experimental/session/ses_9/log"));
     }
 
@@ -89,16 +91,22 @@ public sealed class SessionLogContractTests
     }
 
     [Test]
-    public async Task GetLogAsync_Should_Throw_The_Typed_Error_Before_Opening_The_Stream()
+    [Arguments(400, WireBodyData.InvalidRequestError, typeof(InvalidRequestError))]
+    [Arguments(401, WireBodyData.UnauthorizedError, typeof(UnauthorizedError))]
+    [Arguments(404, WireBodyData.SessionNotFoundError, typeof(SessionNotFoundError))]
+    public async Task GetLogAsync_Should_Throw_Each_Declared_Error_Before_Opening_The_Stream(
+        int status,
+        string body,
+        Type expectedErrorType)
     {
-        using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.SessionNotFoundError);
+        using var scenario = ContractScenario.Responding((HttpStatusCode)status, body);
 
         var exception = await Assert
             .That(async () => _ = await CollectAsync(scenario))
             .Throws<OpenCodeApiException>();
 
-        await Assert.That(exception!.Status).IsEqualTo(404);
-        await Assert.That(exception.Error).IsTypeOf<SessionNotFoundError>();
+        await Assert.That(exception!.Status).IsEqualTo(status);
+        await Assert.That(exception.Error!.GetType()).IsEqualTo(expectedErrorType);
     }
 
     [Test]

@@ -312,6 +312,12 @@ internal sealed class OperationPlanBinder
             var success = _operation.Responses.Single(static response => response.StatusCode is 200 or 204);
             var stream = success.IsSse ? BindStream(success) : null;
             var envelope = success.IsSse ? null : BindEnvelope(success);
+            if (success.IsSse && _operation.RequestBody is not null)
+            {
+                Refuse("streaming operations must not carry a request body");
+                return null;
+            }
+
             var errorMap = BindErrorMap();
             var parameters = BindParameters(row);
             var optionalPlanErrorsBefore = _errors.Count;
@@ -460,13 +466,27 @@ internal sealed class OperationPlanBinder
                 return RefuseStream("the event frame must reference a named object schema");
             }
 
+            var id = frame.Properties.FirstOrDefault(static property => property.Name is "id");
+            var eventName = frame.Properties.FirstOrDefault(static property => property.Name is "event");
             var data = frame.Properties.FirstOrDefault(static property => property.Name is "data");
             if (frame.Properties.Count is not 3
                 || frame.Properties.Any(static property => property.Name is not ("id" or "event" or "data"))
                 || frame.Properties.Any(static property => !property.IsRequired)
+                || id is null
+                || eventName is null
                 || data is null)
             {
                 return RefuseStream("the event frame must require exactly 'id', 'event' and 'data'");
+            }
+
+            if (!IsNullableUnformattedString(id.Schema))
+            {
+                return RefuseStream("the event frame 'id' must be a nullable string");
+            }
+
+            if (Resolve(eventName.Schema) is not PrimitiveNode { Kind: PrimitiveKind.String, Format: null })
+            {
+                return RefuseStream("the event frame 'event' must be a string");
             }
 
             var payload = BindFramePayload(data.Schema);
@@ -506,11 +526,29 @@ internal sealed class OperationPlanBinder
             try
             {
                 using var extension = JsonDocument.Parse(success.EffectStreamJson);
-                return extension.RootElement.TryGetProperty("failureEvent", out var failureEvent)
-                       && failureEvent.ValueKind is JsonValueKind.String
-                       && failureEvent.GetString() is { Length: > 0 } name
-                    ? name
-                    : RefuseNull("'x-effect-stream' must declare a non-empty 'failureEvent'");
+                var root = extension.RootElement;
+                if (root.ValueKind is not JsonValueKind.Object)
+                {
+                    return RefuseNull("'x-effect-stream' must contain a JSON object");
+                }
+
+                if (!root.TryGetProperty("encoding", out var encoding)
+                    || encoding.ValueKind is not JsonValueKind.String
+                    || !string.Equals(encoding.GetString(), "sse", StringComparison.Ordinal))
+                {
+                    return RefuseNull("'x-effect-stream.encoding' must equal 'sse'");
+                }
+
+                if (!root.TryGetProperty("failureEvent", out var failureEvent)
+                    || failureEvent.ValueKind is not JsonValueKind.String
+                    || failureEvent.GetString() is not { Length: > 0 } name)
+                {
+                    return RefuseNull("'x-effect-stream' must declare a non-empty 'failureEvent'");
+                }
+
+                return string.Equals(name, "message", StringComparison.Ordinal)
+                    ? RefuseNull("'x-effect-stream.failureEvent' must not equal 'message'")
+                    : name;
             }
             catch (JsonException)
             {
@@ -790,7 +828,7 @@ internal sealed class OperationPlanBinder
             }
 
             return selector.Properties.All(property => property is { IsRequired: false, Name: "directory" or "workspace" }
-                && IsOptionalUnformattedString(property.Schema));
+                && IsNullableUnformattedString(property.Schema));
         }
 
         /// <summary>Recognizes the wire cursor contract: exactly optional-nullable string <c>previous</c> and <c>next</c>.</summary>
@@ -805,10 +843,10 @@ internal sealed class OperationPlanBinder
             }
 
             return cursor.Properties.All(property => property is { IsRequired: false, Name: "previous" or "next" }
-                && IsOptionalUnformattedString(property.Schema));
+                && IsNullableUnformattedString(property.Schema));
         }
 
-        private bool IsOptionalUnformattedString(SchemaNode schema) =>
+        private bool IsNullableUnformattedString(SchemaNode schema) =>
             Resolve(schema) is NullableNode { Format: null, Inner: var inner }
             && Resolve(inner) is PrimitiveNode { Kind: PrimitiveKind.String, Format: null };
 

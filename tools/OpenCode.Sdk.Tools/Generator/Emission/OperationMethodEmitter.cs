@@ -192,13 +192,17 @@ internal static class OperationMethodEmitter
                 operation.ErrorMap.Statuses.Select(static status => status.StatusCode.ToString(CultureInfo.InvariantCulture)));
             exceptions.Add(new DocumentedException(
                 "OpenCodeApiException",
-                $"The API returned an error status (declared: {statuses}) and NoThrow was not selected."));
+                operation.Stream is null
+                    ? $"The API returned an error status (declared: {statuses}) and NoThrow was not selected."
+                    : $"The API returned a declared error status (declared: {statuses}); streaming API errors always throw."));
         }
         else
         {
             exceptions.Add(new DocumentedException(
                 "OpenCodeApiException",
-                "The API returned an error status and NoThrow was not selected."));
+                operation.Stream is null
+                    ? "The API returned an error status and NoThrow was not selected."
+                    : "The API returned an error status; streaming API errors always throw."));
         }
 
         exceptions.Add(new DocumentedException(
