@@ -2458,3 +2458,60 @@ generator records this representation capability mechanically, never through end
 curation, and adds no recursive runtime validation or normalization. This narrows Q106's universal
 schema-nullable-to-CLR-nullable wording without changing its presence, ownership, or materialization
 boundaries (ADR-0004, ADR-0014).
+
+# Session 31 — 2026-08-18: CI analyzer and formatting ownership
+
+## Q110: Which gate should own semantic linting and physical formatting?
+
+**How researched:** current Microsoft Learn guidance and the SDK 10.0.302 `dotnet format`/Roslyn
+sources were compared with the effective repository MSBuild and `.editorconfig` configuration. The
+solution contains 8 projects and 20 Linux target compilations. Controlled scratch probes injected
+one file into the shipped SDK project without modifying project sources, then compared build,
+`format whitespace`, `format style`, `format analyzers`, and bare format for IDE0055, IDE0007,
+IDE0002, IDE0049, CA1822, Sonar S2325, and import ordering. Effective analyzer items and generated
+globalconfig inputs were also inspected. Warm local wall/RSS measurements covered each format mode,
+and no-incremental solution builds compared analyzer-on and analyzer-off cost without changing
+repository policy.
+
+**Found:** `RunAnalyzersDuringBuild=true`, `EnforceCodeStyleInBuild=true`, `AnalysisMode=All`,
+warnings-as-errors, and per-rule severities make build the semantic wall for compiler,
+build-enforceable IDE, SDK CA, third-party analyzer, and source-generator diagnostics across target
+compilations. Build refused IDE0055, IDE0007, CA1822, and S2325 probes; whitespace did not rerun the
+semantic diagnostics. Bare format creates a second MSBuild/Roslyn workspace and runs whitespace,
+style, and analyzer passes; `--no-restore` skips restore only, and no `--no-build` option exists.
+Full format's unique policy was import organization plus IDE0001/0002/0003/0035/0049-class cleanup
+that Roslyn marks unavailable during build. Build and whitespace passed IDE0002, IDE0049, and import
+order probes while style format refused them. A diagnostic-filtered style pass still ran import
+organization and measured 45.84 seconds, only 9.79 seconds faster than unfiltered style; maintaining
+an SDK-sensitive allow-list did not earn that small saving. Microsoft documents import preferences
+among IDE0055 formatting options, but SDK 10.0.302 implements import organization as a separate
+CodeStyle-category formatter: build IDE0055 and whitespace passed the misordered-import probe while
+style failed `IMPORTS`. That documented-versus-observed split is why the style gate remains.
+
+Warm local full/whitespace/style/analyzer format elapsed times were 117.00/11.66/55.63/98.53
+seconds, with 2.53 GB/398 MB/1.43 GB/2.40 GB maximum RSS. Hosted Linux full format took 3:56, 3:53,
+and 3:00 in the three sampled runs. A no-incremental local solution build measured 42.96 seconds
+with analyzers and 10.72 without. That cost does not justify disabling analyzers on an OS or TFM:
+Windows has two additional net472 test compilations, and equivalent coverage needs its own design.
+The explicit NetAnalyzers package plus `EnableNETAnalyzers=true` resolved to one effective SDK
+NetAnalyzers assembly on both net10.0 and net472, not duplicate analyzer execution. The active SDK
+globalconfig was `analysislevel_10_all_warnaserror`, confirming the intended pinned All mode.
+Third-party ownership follows mechanically rather than from the single Sonar probe: all analyzer
+packages inherit through `Directory.Build.props`, `TreatWarningsAsErrors` and
+`CodeAnalysisTreatWarningsAsErrors` are global, no `WarningsNotAsErrors` escape exists, and the two
+project `NoWarn` rows apply identically to build and format.
+
+**Decision:** build owns compiler, SDK CA, third-party analyzer, source-generator, and
+build-enforceable IDE diagnostics. The former bare format gate splits into
+`dotnet format whitespace --verify-no-changes --no-restore` for UTF-8, LF, final newline, trailing
+whitespace, and syntax formatting, plus
+`dotnet format style --verify-no-changes --no-restore --severity warn` for import organization and
+all configured warning/error Roslyn style rules. The style pass intentionally has no diagnostic
+allow-list, so SDK rule changes cannot silently escape CI. This preserves IDE0001/0002/0003/0035
+and IDE0049 as errors while avoiding the expensive solution-wide SDK CA and third-party
+format-analyzer pass. Generation remains a distinct mutating pipeline:
+after writing source, `GenerationWriter` runs project-scoped full format over only generated paths
+to canonicalize committed output. Analyzer execution remains enabled for every current target and
+OS pending a separate coverage-preserving build optimization. This supersedes Q18's single bare
+`dotnet format --verify-no-changes` CI clause; its rejection of CSharpier and advisory line-width
+decision remain unchanged.

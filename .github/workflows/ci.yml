@@ -74,11 +74,17 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release
 
-      # Format/lint gate (one leg is enough — results are OS-independent). Layered on top of
-      # the in-build enforcement (EnforceCodeStyleInBuild + IDE0055=error).
+      # Physical formatting gate (one leg is enough — results are OS-independent). This retains
+      # encoding/EOL/whitespace without rerunning the semantic analyzer set.
       - name: Verify formatting
         if: runner.os == 'Linux'
-        run: dotnet format --verify-no-changes --no-restore
+        run: dotnet format whitespace --verify-no-changes --no-restore
+
+      # Build owns compiler/CA/third-party diagnostics. This pass retains all warning-level Roslyn
+      # style rules plus import organization, including rules Roslyn cannot enforce during build.
+      - name: Verify code style
+        if: runner.os == 'Linux'
+        run: dotnet format style --verify-no-changes --no-restore --severity warn
 
       # Smoke-runs the repo tooling entry; exercises the committed executable bit and the
       # shebang, which only take effect on a Linux checkout.

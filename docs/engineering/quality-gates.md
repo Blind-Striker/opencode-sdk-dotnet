@@ -1,6 +1,6 @@
 # Engineering Quality Gates
 
-Date: 2026-08-18
+Date: 2026-08-19
 
 Canonical quality policy for product code, generated output, repository tooling, tests, analyzers,
 performance evidence, and completion claims.
@@ -27,11 +27,13 @@ the process boundary is the product, and three-OS launcher acceptance.
 
 ## Analyzer policy
 
-The analyzer wall is fail-closed and final. Do not relitigate or broadly weaken it to make a change
-pass. Redundant rules are deliberate where their coverage differs or supplies defense in depth.
-When a rule misfires on valid code, use a narrowly scoped per-rule arbitration comment that names
-the winning rule or contract; never roll back the policy globally. `.editorconfig` contains the
-established pattern.
+The analyzer wall is fail-closed and final. Build owns compiler, SDK CA, third-party analyzer,
+source-generator, and build-enforceable IDE diagnostics; the warning-level style formatter owns
+Roslyn rules classified `EnforceOnBuild.Never` plus deterministic import organization. Do not
+relitigate or broadly weaken either side to make a change pass. Redundant rules are deliberate where
+their coverage differs or supplies defense in depth. When a rule misfires on valid code, use a
+narrowly scoped per-rule arbitration comment that names the winning rule or contract; never roll
+back the policy globally. `.editorconfig` contains the established pattern.
 
 - `LangVersion=14.0` and `AnalysisLevel=10.0` are deliberate numeric pins. Never replace either
   with `latest`.
@@ -42,6 +44,9 @@ established pattern.
 - Analyzer package currency is manual. Since SDK 9, the build does not warn reliably when the
   pinned NetAnalyzers package falls behind the SDK; deliberate analyzer-package updates own that
   comparison explicitly.
+- Repository-wide analyzer packages inherit into every project, and global warning escalation has
+  no `WarningsNotAsErrors` escape. The few project `NoWarn` rows apply equally to build and format,
+  so build mechanically owns enabled warning/error diagnostics from every third-party analyzer.
 - Product code uses `ConfigureAwait(false)`, triple-enforced by CA2007, MA0004 in `Always` mode,
   and VSTHRD111. Tests are exempt from all three rules.
 
@@ -57,7 +62,8 @@ weaken it:
 ```bash
 dotnet tool run slopwatch analyze --exclude ".scratchpad/**,external/**" --fail-on warning
 dotnet build --configuration Release
-dotnet format --verify-no-changes --no-restore
+dotnet format whitespace --verify-no-changes --no-restore
+dotnet format style --verify-no-changes --no-restore --severity warn
 dotnet test --configuration Release --no-build
 ```
 
@@ -74,6 +80,17 @@ A current development handoff may require the Unix direct-invocation smoke
 Slopwatch excludes local scratch work and checked-out upstream submodules because neither is
 repository-authored product surface. A failed, skipped, weakened, or unrun gate must be reported
 honestly.
+
+The build is the semantic analyzer wall: compiler diagnostics, build-enforceable IDE rules, SDK CA
+rules, third-party analyzers, and source-generator diagnostics run there for every target
+compilation. The whitespace pass separately retains UTF-8, LF, final-newline, trailing-whitespace,
+and syntax-whitespace enforcement. The warning-level style pass retains deterministic import
+organization and every configured Roslyn style error, including rules classified
+`EnforceOnBuild.Never`, without rerunning the SDK CA and third-party analyzer set. It deliberately
+uses no diagnostic allow-list so future warning/error style rules remain covered automatically.
+Repository generation is a separate mutating path: after writing generated source, it deliberately
+runs project-scoped full format over only generator-owned paths. That canonicalization step is not
+the solution-wide CI lint gate this split optimizes.
 
 ## Performance
 

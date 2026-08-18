@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-18
+Date: 2026-08-19
 
 Operational state: what is done, what is next, what is open. This file shrinks as work lands.
 `../AGENTS.md` routes to current architecture and engineering canon; decision records live in
@@ -140,14 +140,21 @@ The fresh-context review reported no findings after its one low-severity test-he
 resolved; all local gates are green with 1,255 tests and none failed or skipped. Hosted run
 `32178776110` is green on Linux, Windows, and macOS at `2f48d11`, and #47 is closed.
 
-Before #49 starts, a bounded CI-gate evidence pass will verify the overlap among the in-build
-analyzer wall, `.editorconfig`, and `dotnet format`, then decide whether the separate formatting
-gate should remain full, narrow to whitespace, or retire. No analyzer, severity, target, or OS leg
-is weakened on timing evidence alone. #49 remains the exact next source increment: mechanical
-converter/registry completeness, valid central `msg_` fixtures, and honest representative runtime
-claims under its sealed decision. The runtime corpus still covers two of 40 durable branches; no
-invented 40/87-payload corpus is planned. The six interim allocation baselines remain the comparison
-guards; master protection and direct-push policy remain open under #50.
+The bounded CI-gate pass establishes build as the semantic analyzer wall and splits the former full
+format pass into physical whitespace and warning-level Roslyn style gates. Controlled probes proved
+build catches IDE0055, build-enforceable IDE style, SDK CA, and third-party diagnostics; the style
+pass retains build-inert simplification rules and deterministic import organization without a
+maintained diagnostic allow-list or a second solution-wide third-party analyzer pass. Generator
+output keeps its narrower project-scoped, generated-path-only mutating full formatter. Warm local
+solution linting fell from 117.00 to 67.29 seconds while preserving the existing style policy. A
+separate analyzer-cost probe measured 42.96 seconds with analyzers and 10.72 without, but no target
+or OS analyzer coverage is weakened without a dedicated coverage-preserving design.
+
+#49 remains the exact next source increment: mechanical converter/registry completeness, valid
+central `msg_` fixtures, and honest representative runtime claims under its sealed decision. The
+runtime corpus still covers two of 40 durable branches; no invented 40/87-payload corpus is planned.
+The six interim allocation baselines remain the comparison guards; master protection and direct-push
+policy remain open under #50.
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family
