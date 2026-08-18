@@ -154,11 +154,16 @@ and style 1:34, totaling 1:51 versus the previous 3:00 full solution lint pass. 
 retained its project-scoped full formatter and took 1:16. Linux build variance rose to 4:26 and
 Windows completed in 10:04, so the matrix wall remains build rather than formatting.
 
-#49 remains the exact next source increment: mechanical converter/registry completeness, valid
-central `msg_` fixtures, and honest representative runtime claims under its sealed decision. The
-runtime corpus still covers two of 40 durable branches; no invented 40/87-payload corpus is planned.
-The six interim allocation baselines remain the comparison guards; master protection and direct-push
-policy remain open under #50.
+#49's pre-Arc-3b evidence is complete at `8d5d537`: the four central message fixtures use valid
+`msg_` identifiers, every bound converter tag maps mechanically to its declared variant, and every
+converter-required variant/interface/unknown-carrier type is proven through `RegistryPlan`, the
+single emitted source-generated registry, and fresh compilation. Runtime evidence remains honest:
+two of 40 durable branches, the `log.synced` watermark, and unknown-carrier behavior. Hosted run
+`32192213328` is green on Linux, Windows, and macOS. #49 remains open only for the deferred Arc 3b
+plural-interface closure; no invented 40/87-payload corpus is planned. The six interim allocation
+baselines remain the comparison guards; master protection and direct-push policy remain open under
+#50. The exact next source increment is #53's typed stream failure-cause M3 subset; Arc 3b breadth
+remains closed until that work and the Arc 3a deliverable closure are green and hosted.
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family
