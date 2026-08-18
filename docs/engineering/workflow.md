@@ -1,0 +1,57 @@
+# Repository Workflow
+
+Date: 2026-08-18
+
+Canonical working agreements for research, implementation, temporary work, verification, and Git
+history.
+
+## Collaboration
+
+- Be direct, practical, and clear. Challenge decisions with mechanisms and sources rather than
+  convention; do not agree your way into a weaker architecture.
+- A question asks for an answer, not an unrequested mutation. When a request is ambiguous, present
+  the options, recommend one, and ask.
+- Align on structure and direction before writing. Prefer the smallest correct change over a broad
+  refactor.
+- When implementation contradicts current canon, stop the affected work and follow
+  `../agents/deviation-protocol.md`; never silently code around the contradiction.
+
+## Repository artifacts and temporary work
+
+All repository-authored artifacts are written in English.
+
+Everything temporary - prototypes, scratch scripts, generated probes, and working notes - lives
+under the fully gitignored root `.scratchpad/` directory. Nothing permanent references it. Keep its
+minimal `Directory.Build.props` stub as an empty project that disables central package management, so
+scratch projects do not inherit the repository's strict build infrastructure. Validated outcomes
+move into code or canonical documentation.
+
+Upstream submodules under `external/` are read-only evidence. Never hand-edit them.
+
+## Verification and generated output
+
+Verification requirements live in `quality-gates.md`. Run them before claiming completion and state
+honestly what was not run. Generated SDK output changes through the generator and is reviewed as a
+complete diff; it is never hand-edited.
+
+## Documentation sessions
+
+Research and decision sessions end with a documentation pass: a chronological research log in
+question -> finding -> decision form, topic evidence where it adds retrieval value, current canon or
+ADR updates when a decision changes, and operational state in the roadmap. The resulting change is
+one coherent commit after maintainer approval.
+
+Documentation maintenance follows `documentation.md`, especially its lossless-relocation and
+single-owner rules.
+
+## Commits and CI
+
+- Commit only with maintainer approval, except inside an explicitly agreed development loop where
+  committing is part of the flow.
+- Use Conventional Commits: `feat`, `fix`, `perf`, `docs`, `test`, `refactor`, `build`, `ci`, or
+  `chore`. Do not add AI-attribution trailers.
+- `perf` is distinct from `refactor` because performance work requires before/after benchmark
+  evidence.
+- A documentation-only follow-up to an already-green mixed pull request may use `[skip ci]` only
+  when every change since the tested commit is Markdown or `LICENSE`. Never skip CI for source,
+  tests, project/build files, tool manifests or baselines, workflows, or generated artifacts.

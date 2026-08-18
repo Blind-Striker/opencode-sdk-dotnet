@@ -3,7 +3,8 @@
 Date: 2026-08-18
 
 Operational state: what is done, what is next, what is open. This file shrinks as work lands.
-Evergreen rules and locked decisions live in `../AGENTS.md`; decision records in `adr/`.
+`../AGENTS.md` routes to current architecture and engineering canon; decision records live in
+`adr/`.
 
 ## Status
 
@@ -41,16 +42,12 @@ against `opencode2 serve` v0.0.0-next-17403 (create → list → get → message
 round-tripped). The #20 decision landed (blank explicit passwords refuse; the environment
 fallback was later removed by Q90 — `null` sends anonymous requests) and #25 closed keep. The alignment batch is complete — the uniform
 `*Request` rename (Q83), the feature-slice layout migration (Q84), and the Extensions
-bring-up (Q85) — and the follow-on construction/options/DI reshape (research log Q90)
-landed on the same PR: options-only construction with the read-only
-`IOpenCodeClientOptions` view and configurable `Username`, no SDK environment reads,
-`IHttpClientFactory`-based `AddOpenCode` returning the `IHttpClientBuilder`, pooled
-connection lifetime on the owned transport, and the sandbox as the Generic Host DI
-showcase. The PR #26 external review ran through adversarial verification (36 findings:
-30 confirmed / 4 plausible / 2 refuted), and the verified fix batch landed 2026-08-15
-red-test-first — all ten merge blockers plus the small confirmed fold-ins, with Q91 sealed
-(research log Session 23, doc 16: the caller-owned HttpClient constructor stays public
-behind a fail-closed anonymous-mode guard). A second full-diff review (15 verified
+bring-up (Q85) — and the follow-on construction/options/DI work (research log Q90/Q91)
+landed on the same PR. That intermediate factory/public-transport shape was later superseded by
+Q92; ADR-0010 and the M3 status below own the current construction. The PR #26 external review ran
+through adversarial verification (36 findings: 30 confirmed / 4 plausible / 2 refuted), and the
+verified fix batch landed 2026-08-15 red-test-first — all ten merge blockers plus the small
+confirmed fold-ins. A second full-diff review (15 verified
 findings) closed the same day: six runtime/emitter fixes landed on the branch (timeouts
 route onto the transport spine, conflicting BaseAddress refuses, handle guards match the
 route guards, carrier payload guards, count-guard identity, the Pagination shadow wall)

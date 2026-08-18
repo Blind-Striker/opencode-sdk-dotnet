@@ -1,5 +1,10 @@
 # Assessment: the unofficial `opencode-mcp` server
 
+Date: 2026-08-08
+
+> Dated evidence and decision history, not current policy. Follow current canon through
+> `AGENTS.md`.
+>
 > Research snapshot, 2026-08-08. `opencode-mcp@1.11.0` (npm), repo
 > `AlaeddineMessadi/opencode-mcp`, MIT, ~110 stars. Paths relative to the
 > `external/opencode-mcp` submodule.

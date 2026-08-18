@@ -1,6 +1,6 @@
 # Model layer: own generator, Roslyn emission, packaged as repo tooling
 
-Date: 2026-08-08
+Date: 2026-08-17
 
 The generated model layer comes from our own generator — not Kiota, NSwag, or OpenAPI
 Generator. All three were run against the real pinned spec under the repo's strict-analyzer
@@ -66,6 +66,5 @@ specs.
   helped own-generator win. Rules that genuinely cannot apply go through the existing per-rule
   arbitration pattern. Accepted cost: the emitter tracks the analyzer wall permanently — a new
   rule firing on generated code forces an emitter fix or a recorded arbitration.
-- File naming and exemption-disabling mechanics (`.g.cs` with `generated_code=false` vs plain
-  `.cs`, the fate of per-file `#nullable` directives) are settled at generator build-out
-  (ROADMAP).
+- Generated output uses ordinary `.cs` files with an explicit provenance header and is tracked by
+  `src/OpenCode.Sdk/.generated-manifest.json`.

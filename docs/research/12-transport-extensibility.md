@@ -2,6 +2,9 @@
 
 Date: 2026-08-09
 
+> Dated evidence and decision history, not current policy. Follow current canon through
+> `AGENTS.md`; ADR-0010 owns the current transport surface.
+>
 > Research snapshot, 2026-08-09. Primary sources only: Azure SDK for .NET source and
 > Microsoft Learn API reference (Azure.Core, System.ClientModel), aws/aws-sdk-net source +
 > AWS developer guide, dotnet/extensions source + Learn resilience docs, ASP.NET Core gRPC

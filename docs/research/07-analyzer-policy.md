@@ -1,5 +1,10 @@
 # Analyzer & .editorconfig policy: claim verification + community survey
 
+Date: 2026-08-08
+
+> Dated evidence and decision history, not current policy. Follow current canon through
+> `AGENTS.md`; current analyzer rules live in `../engineering/quality-gates.md`.
+>
 > Research snapshot, 2026-08-08. Verifies 13 claims (from an external ChatGPT
 > conversation, treated as unverified input) against primary sources, then surveys
 > how 11 prominent OSS .NET repos actually configure analyzers. Sources: Microsoft

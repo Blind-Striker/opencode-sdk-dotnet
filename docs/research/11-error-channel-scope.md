@@ -2,6 +2,9 @@
 
 Date: 2026-08-13
 
+> Dated evidence and decision history, not current policy. Follow current canon through
+> `AGENTS.md`; ADR-0007 owns the current error model.
+>
 > Research snapshot, 2026-08-09. Question: given the sealed throw-by-default error model
 > (typed `OpenCodeException` spine, per-call `OpenCodeRequestOptions.ErrorBehavior`),
 > should `OpenCodeClientOptions` also carry a client-level `ErrorBehavior` default?

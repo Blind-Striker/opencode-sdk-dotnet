@@ -1,207 +1,70 @@
 # Agent Instructions
 
-Operating rules for LLM/code agents working in this repository. Harness-neutral: multiple
-agent harnesses read this file natively — keep it free of harness-specific content. Canonical
-and evergreen: it holds only what stays true. Current state, the work queue, and open
-questions live in `docs/ROADMAP.md`.
+Harness-neutral entry point for LLM/code agents working in this repository. Keep this file focused
+on rules that apply before task-specific context is known; detailed canon is loaded through the
+routing table below. Current status, queue, and open questions live in `docs/ROADMAP.md`.
 
 ## Purpose
 
-Build a **.NET SDK for opencode** — a typed client for the HTTP API every opencode front-end
-(TUI, desktop, web UI, plugins) goes through — and, on top of it, an **MCP server** exposing
-opencode to any MCP client. Both live in this repository; the MCP server is by design a thin
-adapter over our own SDK (ADR-0006). Ecosystem-gap evidence: research docs 03/04.
+Build a typed .NET SDK for the opencode HTTP API and, in the same repository, an MCP server that is
+a thin adapter over that SDK.
 
-## Locked Decisions
+## Universal Rules
 
-One line per decision; rationale lives in the ADRs (`docs/adr/`), dated evidence in
-`docs/research/`. **Reading the ADRs is an integral part of onboarding — do not propose or
-change design without knowing them.** Not every locked decision has an ADR (ADRs are created
-lazily); this list is the complete inventory of what is settled. Do not reopen without new
-evidence. The design specs under `docs/superpowers/` are vision/reference material —
-direction and rationale, not law; only this list and the ADRs bind.
+- Repository-authored artifacts are written in English. Temporary work lives only under
+  `.scratchpad/`; validated outcomes move into code or canonical documentation.
+- Upstream submodules under `external/` are read-only evidence. Never hand-edit them.
+- Generated SDK output is changed through the repository generator, never by hand.
+- Be direct and practical. Challenge decisions with mechanisms and sources rather than convention.
+- A question asks for an answer, not an unrequested mutation. When intent is ambiguous, present the
+  options, recommend one, and ask.
+- Align on structure and direction before writing. Prefer the smallest correct change.
+- If implementation contradicts current canon, stop the affected work and follow
+  `docs/agents/deviation-protocol.md`; never silently code around it or reopen a decision for
+  convenience.
+- Documentation refactors preserve useful, unique information. Relocate it to the right canonical,
+  rationale, evidence, or operational home; do not discard it merely to shorten a file.
+- Keep affected documentation current in the same change as code. Every current fact has one
+  canonical owner; other mentions are brief relays.
+- Before reporting completion, run the applicable gate in
+  `docs/engineering/quality-gates.md`. "Builds" and "works" are different claims.
+- Commit only with maintainer approval, except inside an explicitly agreed development loop.
 
-- **Target artifact and protocol authority:** upstream's `packages/protocol/openapi.json` from
-  the active `v2` branch (OpenAPI 3.1), pinned as a snapshot under `spec/`, is the generator's
-  sole protocol-semantic input. Upstream implementation source is provenance/diagnostic evidence,
-  never a second generation input (ADR-0005, ADR-0013).
-- **API surface:** the v2 protocol surface only — public names strip the `v2.` operationId
-  prefix ("V2" never appears) (ADR-0005).
-- **Hybrid construction:** hand-written behavior core; models *and* operation methods from
-  our own Roslyn-emission generator; spec ingestion rides the pinned `Microsoft.OpenApi`
-  reader — the generator owns a fail-closed semantic projection, never an OpenAPI parser;
-  streaming endpoints generate like any other operation over the hand-written engine, and
-  excluded operations — transports HTTP cannot carry — are fingerprint-pinned
-  (ADR-0003, ADR-0008).
-- **Generator packaging:** repo tooling under `tools/`; committed output passes the analyzer
-  wall on merit; the same tool owns spec refresh (ADR-0003).
-- **Curation boundary:** curation may name/place the represented OpenAPI surface, collapse
-  proven-equivalent shapes, and fingerprint evidenced exclusions; it may not invent wire types,
-  constraints, formats, or validation absent from the pin (ADR-0013).
-- **Generated models:** sealed records with shallow `init`-only collection ownership;
-  `required` mirrors schema presence, optional properties stay nullable, schema-null uses CLR null
-  unless the selected representation carries JSON null in-band, optional collections stay nullable,
-  and only union-dispatch literals are constants (ADR-0004, ADR-0014).
-- **Runtime validation:** the SDK validates transport/framing and what is required to materialize
-  the declared .NET shape or dispatch a union; it does not revalidate representable server values
-  against the OpenAPI schema (ADR-0014).
-- **Unknown-variant tolerance:** every union deserializes unknown tags into an explicit
-  carrier (ADR-0009).
-- **Unknown-field tolerance:** known object variants deliberately skip additive unmapped
-  fields, including schemas closed by the pin; required shape and represented token types stay
-  materializable, while a hybrid named-object + typed-additional-properties shape fails binding
-  until it can be represented without loss (ADR-0012, ADR-0014).
-- **Union membership:** a union emits as an interface and a wire schema stays one `sealed
-  record` implementing every union it belongs to — a schema can be a branch of more than one
-  union, which a base class cannot express (ADR-0011).
-- **Error model:** typed exception spine carrying tagged error data; per-call `NoThrow`, no
-  client-level switch (ADR-0007).
-- **TFM matrix:** `netstandard2.0;net472;net8.0;net9.0;net10.0`; net11 light-up post-GA;
-  ns2.0 tested by proxy via the net472 legs (ADR-0002).
-- **Packages:** `OpenCode.Sdk` (core; server launcher included, hand-rolled — ADR-0001) +
-  `OpenCode.Sdk.Extensions` (DI); dependency policy: research doc 06.
-- **Construction & transport:** options-only public construction; the SDK owns a
-  singleton-friendly transport (pooled connection lifetime; net472 connection-lease
-  hardening is a GA gate); no public transport injection — the `(HttpClient, options)`
-  constructor is internal IVT test surface; Extensions registers singletons without
-  `IHttpClientFactory`; no consumer composition seam before M6's hooks (ADR-0010).
-- **Monorepo, independent versioning:** per-merge GitHub Packages CD, manual NuGet.org
-  releases (ADR-0006).
-- **Licensing:** MIT (`PackageLicenseFile`).
-- **SSE:** `IAsyncEnumerable<T>`, no auto-reconnect (research doc 02); the durable-stream
-  resume design is re-derived against the v2 surface at M3 (`v2.session.log` carries
-  `after`/`follow`).
-- **`ConfigureAwait(false)`:** triple-enforced in product code, off in tests (research
-  doc 07).
-- **Analyzer policy:** fail-closed maximalist (research doc 07; relitigation ban: Hard
-  Rules).
-- **Native AOT:** source-generated System.Text.Json via a generator-emitted registry;
-  `IsAotCompatible` on net10+ (ADR-0003).
-- **Testing posture:** borderline-paranoid, fail-closed, defensive by default —
-  observation-based gates, absolute determinism, fake only published contracts; TUnit on
-  Microsoft.Testing.Platform, real-process integration, three-OS launcher acceptance
-  (ADR-0001). Assurance intensity scales with blast radius: shipped SDK runtime highest;
-  committed generated output next (git diff + analyzer wall + contract tests are its
-  radar); repo tooling internals lightest — every extra mechanism must name a consumer or
-  a concrete failure it prevents.
+Full collaboration, scratchpad, commit, and CI agreements live in
+`docs/engineering/workflow.md`. Documentation ownership and lifecycle rules live in
+`docs/engineering/documentation.md`.
 
-## Hard Rules
+## Task Routing
 
-- **Analyzer policy is final — do not relitigate.** Redundant rules are deliberate. When a rule
-  misfires on real code, the move is a per-rule arbitration comment naming the winner — pattern
-  in `.editorconfig` §12 and doc 07 Part II d — never a policy rollback.
-- **`LangVersion=14.0` and `AnalysisLevel=10.0` are deliberate numeric pins** — never "fix" them
-  back to `latest`. C# 14 on net472 is unsupported-but-standard via polyfills (Polyfill, wired
-  repo-wide; it expects a current language version, so a future C# bump is done by moving the
-  pin deliberately).
-- **`GenerateDocumentationFile=true` is load-bearing:** IDE0005 (unused usings) does not fire in
-  CLI builds without it. Keep it and the guard comment beside it in `Directory.Build.props`.
-- **Analyzer package currency is manual:** since SDK 9 nothing warns when the pinned NetAnalyzers
-  package falls behind the SDK — the periodic bump routine owns it.
-- `external/` submodules belong to upstream; never hand-edit them.
+Read the canon relevant to the work before proposing or changing design. ADRs explain why a
+decision exists; dated research supplies evidence and may intentionally contain superseded
+positions.
 
-## Working Agreements
-
-- All repo artifacts are written in English.
-- Everything temporary — prototypes, scratch scripts, working notes — lives under the root
-  `.scratchpad/` directory, which is fully gitignored. Nothing permanent lives there and no
-  permanent artifact references it; validated results are canonicalized into `docs/` or code
-  once settled. Keep a minimal `Directory.Build.props` stub (empty `<Project>` that also turns
-  central package management off) at the `.scratchpad/` root so scratch projects do not inherit
-  the repo's strict build infrastructure.
-- Be direct, practical, and clear. Challenge decisions when needed — argue from mechanisms and
-  sources, not convention; do not yes-person your way into bad architecture. A well-grounded
-  "no" will be accepted.
-- *"No plan survives first contact with the enemy."* — Helmuth von Moltke. Specs and plans are
-  falsifiable instruments, not law: when implementation contradicts a sealed decision, stop
-  and follow the deviation protocol (`docs/agents/deviation-protocol.md`) — never silently
-  code around it.
-- A question wants an answer, not an action. When something is ambiguous, lay out options with a
-  recommendation and ask — don't resolve it silently.
-- Align before writing: propose structure/plan first, get an OK, then write.
-- Prefer small correct changes over broad refactors.
-- Verify before claiming: "builds" and "works" are different words — run build, tests, and the
-  format gate before reporting done.
-- Run the local Slopwatch gate as `dotnet tool run slopwatch analyze --exclude
-  ".scratchpad/**,external/**" --fail-on warning`; local throwaway work and checked-out upstream
-  submodules are outside the repository-authored code surface.
-- A docs-only follow-up commit to an already-green mixed PR uses `[skip ci]` only when every
-  change since the tested commit is Markdown or `LICENSE`. Never skip CI for source, tests,
-  project/build files, tool manifests or baselines, workflow files, or generated artifacts.
-- Research/decision sessions end with a documentation pass (research log in
-  question→finding→decision format, topic docs, ROADMAP) and a single commit.
-- Commit messages follow Conventional Commits (`feat`, `fix`, `perf`, `docs`, `test`,
-  `refactor`, `build`, `ci`, `chore`); no AI attribution trailers. `perf` is its own type
-  because performance work here carries its own evidence rule — before/after benchmark
-  numbers in the commit — which `refactor` would hide.
-- Commit only with the maintainer's approval — except inside an explicitly agreed development
-  loop, where committing is part of the flow.
-
-## Engineering Conventions
-
-- **Defensive programming is the default, everywhere:** guard local representability, transport,
-  and public API preconditions; assert internal invariants; fail loudly rather than guess. Do not
-  turn defensive programming into a second server-schema validator (ADR-0009, ADR-0014).
-- **Performance is a standing concern, weighted by artifact:** the shipped SDK targets both
-  speed and minimal allocation on its hot paths (zero *avoidable* allocations — ADR-0014 makes
-  defensive model copies/wrappers avoidable, while ADR-0007's error-path raw-body retention is an
-  intentional contract cost); repo tooling targets speed. No speculative optimization, but
-  obvious waste (redundant parses, needless copies, avoidable buffering) is always evaluated,
-  starting with the low-hanging fruit.
-  Performance claims are settled by benchmarks (`tests/OpenCode.Sdk.Performance.Tests`,
-  `MemoryDiagnoser` on), never by argument; performance-touching PRs carry before/after
-  numbers.
-- **Code style is canonical in `docs/engineering/coding-style.md`:** named collaborator
-  classes over private-method accumulation; interfaces at seams with full-battery DI-first
-  executable composition, sealed everywhere else; no tuple returns or concrete-collection
-  parameters across class boundaries; vertical feature-slice layout with conventional groups.
-- **Test authorship is canonical in `docs/engineering/testing-style.md`:** test
-  infrastructure is first-class (central scenario assembly, domain-aware fluent builders;
-  named scenario classes promoted only on reuse/complexity/domain identity); test data lives
-  in embedded fixtures, typed builders, or centralized constants — never as inline dumps in
-  test bodies; Testably supplies the repository's shared `IFileSystem` seam and canonical fake.
-- **Test naming:** `{Symbol}_Should_{Expected_Behavior}[_When_{Condition}]`. Symbol names stay
-  intact as one token (`TryResolve`, `NuGet`); every other word is `_`-separated and starts with
-  a capital. Example: `TryResolve_Should_Return_False_When_Routes_Are_Invalid`. Test classes are
-  `{Sut}Tests` in a single file by default; promote a SUT to a folder with per-method test files
-  only when the class outgrows comfortable navigation.
-
-## Sources of Truth
-
-Read change-prone facts from their source files instead of copying them into docs.
-
-| Fact | Source |
+| Task | Read first |
 |---|---|
-| Purpose, locked decisions, rules | `AGENTS.md` (this file) |
-| Decision rationale, dated research | `docs/research/` |
-| Status, queue, open questions, known gaps | `docs/ROADMAP.md` (operational — expected to change) |
-| Architecture decisions | `docs/adr/` (criteria & format: its `README.md`) |
-| Domain glossary | `CONTEXT.md` (`external/opencode` has its own — no clash) |
-| Engineering style (code & test authorship) | `docs/engineering/` |
-| Pinned OpenAPI spec + provenance | `spec/` (`SNAPSHOT.md` records commit/tag and refresh steps) |
-| Agent-only config (issue tracker, triage labels, domain-doc rules) | `docs/agents/` |
-| Session handovers | `docs/agents/handover-prompts/` |
+| Protocol, spec ingestion, curation, generator, generated models or operations | `docs/architecture/protocol-and-generation.md` plus relevant ADRs |
+| Client construction, transport, errors, SSE, DI or launcher | `docs/architecture/client-runtime.md` plus relevant ADRs |
+| Target frameworks, packages, dependencies, versioning, release or licensing | `docs/architecture/platform-and-packaging.md` plus relevant ADRs |
+| Hand-written code structure, signatures, DI composition or layout | `docs/engineering/coding-style.md` |
+| Test design or test code | `docs/engineering/testing-style.md` |
+| Analyzer, build, formatting, performance or completion gates | `docs/engineering/quality-gates.md` |
+| Documentation, research, ADRs or repository workflow | `docs/engineering/documentation.md`, `docs/engineering/workflow.md`, and `docs/adr/README.md` as applicable |
+| Domain terminology | `CONTEXT.md` |
+| Current status, queue, open questions or known gaps | `docs/ROADMAP.md` and any active handoff under `docs/agents/handover-prompts/` |
+| Pinned protocol identity or refresh | `spec/SNAPSHOT.md` |
 
-## Documentation Hygiene
+## Authority
 
-Evergreen (`AGENTS.md`, `docs/adr/`, `docs/research/`) answers "how it works and why".
-Operational (`docs/ROADMAP.md`) answers "what is done, what is next" and shrinks as work lands. A
-sentence that needs rewriting when a task completes is operational. Keep documentation current in
-the same change as the code it describes — docs are a first-class citizen, not follow-up work.
-Documents describe the status quo, not their own
-history — no amendment notes; git carries history. Every hand-written document under `docs/`
-carries a `Date:` line.
+- `docs/architecture/` and `docs/engineering/` own current normative project rules.
+- `docs/adr/` records accepted decision context, trade-offs, consequences, and reversal triggers.
+- `docs/research/` is dated evidence and history, not current policy.
+- `docs/ROADMAP.md` is operational and expected to change and shrink as work lands.
+- `CONTEXT.md` owns current domain vocabulary.
+- `spec/SNAPSHOT.md` owns the exact OpenAPI pin and refresh procedure.
+- `docs/agents/` owns agent-only operation and temporary handovers.
+- `docs/superpowers/` is transient vision/reference material, not canonical or operational
+  authority. Contradicting it does not override current canon.
 
-Every fact has exactly one canonical home; any other appearance is a relay that links there
-instead of restating it. Audience decides placement: `docs/agents/` holds guidance only an AI
-agent needs; knowledge shared by humans and agents lives in `docs/research/`, `docs/adr/`, and
-`docs/ROADMAP.md`.
-
-References point one way only: docs may cite code, **code never cites docs**. Comments in code
-artifacts (source, project files, `.editorconfig`, workflows) explain the status quo on the spot
-— never "see docs/…", never decision history. Docs move and renumber; a stale pointer baked into
-code is worse than none.
-
-ADRs are created lazily; criteria and format live in `docs/adr/README.md`. Handovers track
-unfinished cross-session state: consume them against live git and delete them when the
-follow-up ships.
+Repository files and current canon beat memory, transient plans, dated research, and handoffs. If
+two current canonical sources appear to disagree, do not choose one silently; use the deviation
+protocol.

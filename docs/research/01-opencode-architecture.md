@@ -1,5 +1,10 @@
 # opencode architecture and the official SDK
 
+Date: 2026-08-08
+
+> Dated evidence and decision history, not current policy. Follow current canon through
+> `AGENTS.md`.
+>
 > Research snapshot, 2026-08-08. opencode / `@opencode-ai/sdk` at **1.18.15**.
 > Paths are relative to the `external/opencode` submodule.
 
@@ -111,6 +116,6 @@ TUI.
    handling, not plain deserialization.
 2. **`pty.connect` / `v2.pty.connect`** are WebSocket upgrades; upstream excludes them
    from HTTP codegen — we probably should too.
-3. **v1/v2 split** — decide which surface(s) to ship (see GOAL.md).
+3. **v1/v2 split** — this was open at the snapshot and is now settled by ADR-0005.
 4. Multi-project targeting is done with an **`x-opencode-directory` header** on every
    request (this is how the unofficial MCP server fans out across projects).

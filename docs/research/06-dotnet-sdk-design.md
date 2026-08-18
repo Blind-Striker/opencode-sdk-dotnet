@@ -1,8 +1,14 @@
 # .NET SDK design decisions: packaging, process management, TFMs
 
+Date: 2026-08-08
+
+> Dated evidence and decision history, not current policy. Follow current canon through
+> `AGENTS.md`; several construction and generation positions below were superseded later.
+>
 > Research snapshot, 2026-08-08 (second session, same day). Records the design
 > discussion that shaped the package structure, the process-launcher strategy, and
-> the TFM/polyfill matrix. Decisions here are reflected in `GOAL.md`.
+> the TFM/polyfill matrix. Decisions were reflected in the then-current `GOAL.md`, which was
+> later dissolved into the repository's canonical and operational documents.
 
 ## 1. Construction strategy: hybrid (hand-written core + mechanical model layer)
 
@@ -153,7 +159,8 @@ for `src` is the top item of the parked editorconfig review.
 
 ## 5. Skeleton review outcome (imported from the LocalStack repo)
 
-Full findings delivered in-session; actionable items live in `GOAL.md` TODO. Highlights:
+Full findings were delivered in-session; actionable items moved from the former `GOAL.md` into the
+later canonical and operational work queues. Highlights:
 LocalStack identity leftovers (editorconfig header, Authors/Company/URLs/Copyright vs
 LICENSE mismatch), pack references to files that don't exist yet (README.md, icon
 asset), `OpenTelemetry.Instrumentation.AWS(+Lambda)` to remove, several packages

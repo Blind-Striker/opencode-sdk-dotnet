@@ -2,6 +2,9 @@
 
 Date: 2026-08-12
 
+> Dated evidence and decision history, not current policy. Follow current canon through
+> `AGENTS.md`.
+
 This inventory answers only what the pinned Polyfill package contributes to this repository,
 which parts are actually enabled, and what that means for M1's minimal HTTP transport. It is
 not a general catalogue of every API the package can emit.

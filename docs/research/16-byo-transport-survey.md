@@ -2,6 +2,9 @@
 
 Date: 2026-08-14
 
+> Dated evidence and decision history, not current policy. Q91 below was superseded by Q92;
+> ADR-0010 owns the current construction and transport decision.
+>
 > Research snapshot, 2026-08-14. Primary sources only, retrieved fresh at pinned release
 > tags: Azure SDK for .NET source (Azure.Core 1.61.0, System.ClientModel 1.15.0,
 > Microsoft.Extensions.Azure 1.14.0), openai/openai-dotnet 2.13.0, aws/aws-sdk-net v4
@@ -78,7 +81,7 @@ concrete option knobs.
   only atop a pipeline/transport abstraction this SDK deliberately does not have; for us
   it is the same raw `HttpClient` with the same hazard and more public surface.
 
-## 5. Decision (sealed — research log Session 23)
+## 5. Decision at Session 23 (superseded by Q92 / ADR-0010)
 
 The `(HttpClient, options)` constructor stays public. Anonymous mode fails closed:
 `Password == null` while the injected client's `DefaultRequestHeaders` carry

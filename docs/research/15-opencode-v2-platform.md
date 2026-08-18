@@ -2,6 +2,9 @@
 
 Date: 2026-08-16
 
+> Dated evidence and decision history, not current policy. Follow current canon through
+> `AGENTS.md`; `spec/SNAPSHOT.md` owns the current protocol pin.
+>
 > Retarget-decision research (docs 09/10 follow-up). Question: what is the opencode v2 platform
 > today — which branch carries it, what API surface it serves, how its server/client architecture
 > and its distribution work, and what retargeting this SDK onto it changes. Sources, retrieved
@@ -11,7 +14,7 @@ Date: 2026-08-16
 > `update.opencode.ai`; and a live install and run of `@opencode-ai/cli@next` (0.0.0-next-17403)
 > on this machine. §5a and the auth detail in §6 were re-derived 2026-08-14 against the pinned
 > spec commit `a6a712a` directly (submodule checkout, `git grep`/`git show` at the pin). This
-> document is the canonical current-state picture of the v2 platform; docs 09 and 10 remain the
+> document is the dated platform picture that supported the retarget; docs 09 and 10 remain the
 > dated v1-line genealogy it extends, and research log session 12 (Q58) recorded the branch's
 > first sighting.
 
@@ -344,15 +347,15 @@ dual-channel, query > header) and its SDK rendering is designed in the location 
 merged-Request session at M3 planning; the M3 durable-stream design is re-derived against
 `session.log` (`after` + `follow`).
 
-## UNVERIFIED / open
+## Unverified at the snapshot
 
 - The beta-desktop→v2-branch CI wiring is not traced line-level; the link is inferred from the
   artifact shape (desktop-only), the distinct build-number versioning, same-day cadence with
   branch activity, and the branch's electron-builder config.
 - v2 GA timing and channel stabilization — no `latest`-equivalent channel exists yet;
   `@opencode-ai/cli@next` cadence is unclear now that v2 publishing went manual (2026-08-13).
-- `session.log` semantics versus the v1 durable stream (ordering, replay guarantees, the
-  `follow` flag) — M3 re-research.
-- The v2-side error-response shapes of the selected M1 operations — derived by the retarget
-  task, not yet inspected.
+- `session.log` semantics versus the v1 durable stream were unresolved at this snapshot. Research
+  doc 02 now records the pinned implementation and live default-server behavior.
+- The v2-side error-response shapes of the selected M1 operations were unresolved at this snapshot;
+  M1 later bound and generated their declared status maps.
 - How long the 1.x line keeps publishing releases alongside v2.

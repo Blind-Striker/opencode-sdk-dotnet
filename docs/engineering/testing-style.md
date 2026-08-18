@@ -2,12 +2,10 @@
 
 Date: 2026-08-18
 
-Binding authorship style for every test in this repository. The testing *architecture* —
-levels, projects, the dual-mode harness, coverage gates, CI — is owned by the sealed
-testing design (`AGENTS.md` testing posture; fine-grained design currently in the
-transient design specs, reachable via `docs/ROADMAP.md`, distilled at build-out); this
-document governs how tests are *written* inside that architecture, and it applies
-`coding-style.md` to test code — test infrastructure is code and follows every rule
+Binding authorship style for every test in this repository. `quality-gates.md` owns the
+current assurance posture and completion gates; operational build-out state belongs in
+`../ROADMAP.md`. This document governs how tests are written inside that architecture and
+applies `coding-style.md` to test code - test infrastructure is code and follows every rule
 there.
 
 ## 1. Test infrastructure is a first-class citizen
@@ -117,9 +115,10 @@ unsupported OpenAPI constructs and prove the exact required/null-representation 
 
 ## 5. TUnit mechanics
 
-- Naming: `{Symbol}_Should_{Expected_Behavior}[_When_{Condition}]` (`AGENTS.md`); test
-  classes `{Sut}Tests`, one class per file; promote a SUT to a folder with per-area
-  test files only when it outgrows comfortable navigation.
+- Naming: `{Symbol}_Should_{Expected_Behavior}[_When_{Condition}]`. Symbol names stay intact as one
+  token (`TryResolve`, `NuGet`); every other word is underscore-separated and starts with a capital.
+  Test classes are `{Sut}Tests`, one class per file; promote a SUT to a folder with per-area test
+  files only when it outgrows comfortable navigation.
 - TUnit creates a fresh instance per test: setup belongs in the constructor or
   `[Before(Test)]`; no state carried between tests, no shared mutable fields.
 - Assertions state intent in the test body — snapshot testing is reserved for its two
@@ -132,8 +131,8 @@ unsupported OpenAPI constructs and prove the exact required/null-representation 
 - Real file I/O in a level-1/2 test; raw `System.IO` anywhere in tests.
 - Full-spec count assertions against the pin — counts are research-doc facts, and a
   count test turns every legitimate spec refresh into noise.
-- `Skip` outside the sanctioned mechanisms (the container conditional skip and
-  `[Quarantined]`).
+- `Skip` outside a mechanism that is implemented, documented, and sanctioned by the current test
+  architecture. The container conditional skip is the only such mechanism today.
 - A second filesystem fake, a resurrected retired helper, or infrastructure kept "just
   in case" — deleted code is recoverable from git.
 - Testing library internals (the OpenAPI reader's conformance, TUnit itself, the BCL)

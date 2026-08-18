@@ -20,9 +20,9 @@ deletes with the doors it defended. Evidence: research doc 16, research log Q90â
 
 ## Consequences
 
-- No consumer composition seam (proxy/TLS/resilience/telemetry handlers) before M6's
-  hook design; the common proxy case rides the ambient `HttpClient.DefaultProxy`.
-  Recorded as an accepted position, not an oversight.
+- No consumer composition seam (proxy/TLS/resilience/telemetry handlers) is public today; the
+  common proxy case rides the ambient `HttpClient.DefaultProxy`. Adding a seam requires a concrete
+  consumer need and a deliberate design. Its absence is an accepted position, not an oversight.
 - The mocking constructor is the consumer substitution point for testing.
 - The factory-era DI lifetime hazards (#31) resolve by construction â€” singletons
   end-to-end, one pipeline, no transient-disposable tracking; a roster contract test

@@ -1,6 +1,6 @@
 # Error model: typed exception spine carrying tagged error data
 
-Date: 2026-08-13
+Date: 2026-08-17
 
 API failures throw through a typed exception spine (`OpenCodeException` →
 `OpenCodeApiException`) by default; per-call `NoThrow` returns them on the response spine.

@@ -1,29 +1,14 @@
 # Domain Docs
 
-Date: 2026-08-08
+Date: 2026-08-18
 
 How the engineering skills should consume this repo's domain documentation when exploring the codebase.
 
 ## Before exploring, read these
 
 - **`CONTEXT.md`** at the repo root — the domain glossary.
+- **`docs/architecture/`** — read the current canon for the area you are about to work in.
 - **`docs/adr/`** — read ADRs that touch the area you're about to work in.
-
-If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest
-creating them upfront — they are created lazily, in a domain-modeling session, when a term or
-decision actually gets resolved (ADR criteria and format: `docs/adr/README.md`).
-
-## File structure
-
-Single-context repo:
-
-```
-/
-├── CONTEXT.md
-├── docs/adr/
-│   └── 0001-example-decision.md
-└── src/
-```
 
 Note: `external/opencode` carries upstream's own `CONTEXT.md`; ours lives at the repo root — no
 clash.
@@ -43,4 +28,5 @@ domain-modeling session).
 If your output contradicts an existing ADR, surface it explicitly rather than silently
 overriding:
 
-> _Contradicts ADR-0007 (event-sourced orders) — but worth reopening because…_
+> _Contradicts ADR-0013 (the pinned OpenAPI document is the sole protocol input) — but worth
+> reopening because…_

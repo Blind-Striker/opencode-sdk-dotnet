@@ -2,11 +2,15 @@
 
 Date: 2026-08-18
 
+> Dated evidence and decision history, not current policy. Follow current canon through
+> `AGENTS.md`; later sessions in this log intentionally supersede some earlier conclusions.
+>
 > How this project's understanding was built: the questions asked, how each was
 > researched, what was found, and what decision or lesson came out of it.
 > Chronological. Details live in the numbered topic docs; this is the chain.
 
-Reference repos used throughout (git submodules):
+Reference snapshots used by the initial sessions (git submodules; later sessions record pin
+changes explicitly):
 
 - `external/opencode` — the opencode monorepo (SDK at version 1.18.15)
 - `external/opencode-mcp` — unofficial MCP server for opencode (npm `opencode-mcp@1.11.0`)
@@ -156,7 +160,8 @@ by the owner: **.NET STS support was extended to 24 months — .NET 9 is support
 **Decisions:** TFM matrix `net472;net8.0;net9.0;net10.0`. Keep Aspire + core OTel
 (planned local dev/test AppHost + mini UI). Keep `BuildOs`/`BuildArch` (future opencode
 binary downloads for integration tests). Remove AWS OTel instrumentation. Cleanup list
-→ GOAL.md TODO. Parked: full editorconfig/analyzer contradiction review.
+→ The then-current `GOAL.md` TODO, later dissolved into `AGENTS.md` and `docs/ROADMAP.md`.
+Parked: full editorconfig/analyzer contradiction review.
 
 ## Q10: Fully generated client, or hand-crafted?
 
@@ -202,7 +207,7 @@ Acceptance criterion: three-OS CI matrix with real `opencode serve` start/stop t
 
 # Session 3 — 2026-08-08 (night): analyzer & .editorconfig policy
 
-Trigger: the parked analyzer items in GOAL.md plus a ChatGPT conversation the owner
+Trigger: the parked analyzer items in the then-current `GOAL.md` plus a ChatGPT conversation the owner
 had reviewed the (ancestor of the) skeleton with a few weeks earlier — shared with
 the explicit instruction to treat it as unverified input.
 → Details: [07-analyzer-policy.md](07-analyzer-policy.md)
@@ -262,7 +267,10 @@ IDE0005 doesn't fire in CLI builds without it (guard comment added to props).
 
 ---
 
-## Standing conclusions
+## Standing conclusions after Session 3 (historical)
+
+These were the working conclusions at this point in the chronology. Later sessions below revise
+several of them; current policy lives in the routed canon, not this checkpoint list.
 
 1. Target `packages/sdk/openapi.json`; **v2 surface only** — it carries upstream's
    stability guarantees.

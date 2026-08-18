@@ -2,6 +2,9 @@
 
 Date: 2026-08-08
 
+> Dated evidence and decision history, not current policy. Follow current canon through
+> `AGENTS.md`.
+>
 > Spike record (queue item 1) and primary evidence for the grill session. Question: which
 > mechanism keeps the model layer mechanical — our own generator, or Kiota / NSwag / OpenAPI
 > Generator? For the own-generator route: which emission mechanism (Roslyn syntax trees vs

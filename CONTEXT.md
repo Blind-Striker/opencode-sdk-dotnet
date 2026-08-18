@@ -22,7 +22,8 @@ a literal `type` marker.
 Something that happened, delivered over SSE.
 
 **Durable Session event stream**:
-The per-Session event stream; replayable and resumable via the `after` cursor.
+The per-Session event stream; callers request continuation through the `after` cursor. Persistence,
+retention, and replay guarantees remain unestablished.
 _Avoid_: session events (ambiguous with the live stream)
 
 **Live event stream**:
@@ -90,8 +91,8 @@ The per-union `Unknown*` variant absorbing unrecognized discriminators at runtim
 string + raw payload).
 
 **Fingerprint pin**:
-The committed hash of an excluded operation's spec subtree, or of a hand-wired
-operation's transport shape; CI breaks when the pinned construct drifts.
+The committed hash of an excluded operation's full spec subtree; CI breaks when the pinned
+construct drifts.
 
 **Output manifest**:
 The committed inventory of generated files; generated-ness is tracked here, never by

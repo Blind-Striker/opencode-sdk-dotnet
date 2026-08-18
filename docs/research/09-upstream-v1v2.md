@@ -2,6 +2,9 @@
 
 Date: 2026-08-08
 
+> Dated evidence and decision history, not current policy. Follow current canon through
+> `AGENTS.md`; ADR-0005 owns the current surface decision.
+>
 > Codegen-spike follow-up. Question: what exactly is "v2" — a product version, an API surface,
 > or both — and does building against the `v2.*` surface in our pinned v1.18.15 spec carry
 > forward to opencode 2.0? Sources: the submodule read-only at v1.18.15, remote branch `2.0`
@@ -63,7 +66,7 @@ release notes already exercise v2 servers. The practical consequence: at 1.18.x 
 surface does not yet cover the product's full capability — the legacy surface still carries
 most of the TUI.
 
-## Consequences for this SDK (decisions recorded in `AGENTS.md`)
+## Consequences recorded at the snapshot
 
 1. Both surfaces of the pinned 1.x spec are generated: the MCP-server goal needs today's full
    capability, and the modern block alone does not provide it. Deep integration testing

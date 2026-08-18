@@ -1,5 +1,10 @@
 # Ecosystem: SDKs in other languages, and the protocol map (MCP vs ACP)
 
+Date: 2026-08-08
+
+> Dated evidence and decision history, not current policy. Follow current canon through
+> `AGENTS.md`.
+>
 > Research snapshot, 2026-08-08.
 
 ## Official SDKs outside JS/TS: nominally present, practically abandoned

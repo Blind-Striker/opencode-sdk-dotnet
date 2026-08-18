@@ -2,13 +2,16 @@
 
 Date: 2026-08-11
 
+> Dated evidence and decision history, not current policy. Follow current canon through
+> `AGENTS.md`.
+>
 This document records the completed checkpoint raised after Slice 1 Task 7. The concern was
 that ingestion and SpecIR complexity had grown substantially before the repository produced any
 SDK source. It captures the evidence gathered against the pinned spec, the reassessment of local
 open-source generators, and the delivery direction selected from that evidence.
 
-Current execution state belongs in `docs/ROADMAP.md` and the active SDD ledger. This document is
-the dated question -> finding -> decision record.
+Current execution state belongs in `docs/ROADMAP.md` and any active handoff under
+`docs/agents/handover-prompts/`. This document is the dated question -> finding -> decision record.
 
 ## Q1: Was the complexity concern grounded?
 

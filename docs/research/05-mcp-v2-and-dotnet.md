@@ -1,5 +1,10 @@
 # MCP 2026-07-28, the MCP C# SDK v2.0, and SSE in .NET
 
+Date: 2026-08-08
+
+> Dated evidence and decision history, not current policy. Follow current canon through
+> `AGENTS.md`.
+>
 > Research snapshot, 2026-08-08. Sources verified live:
 > modelcontextprotocol.io/specification/2026-07-28 (changelog) and the .NET blog post
 > "Announcing v2.0 of the official MCP C# SDK".
@@ -94,9 +99,9 @@ it.
   live events missed during a disconnect cannot be replayed, so consumers must refresh
   authoritative state and resubscribe. For the durable per-session stream, resume is
   explicit via the `after` sequence cursor.
-- The event payload is a large discriminated union (part of the spec's 472 schemas) —
-  the typed event model (polymorphic deserialization + unknown-event forward
-  compatibility) is a deep-dive item in GOAL.md.
+- The event payload is a large discriminated union. Unknown-variant behavior is now settled by
+  ADR-0009; current generated-stream rules live in
+  `../architecture/protocol-and-generation.md`.
 
 ## Side note: building UIs on the SDK
 

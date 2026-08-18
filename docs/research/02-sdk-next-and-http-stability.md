@@ -2,6 +2,9 @@
 
 Date: 2026-08-17
 
+> Dated evidence and decision history, not current policy. Follow current canon through
+> `AGENTS.md`.
+>
 > Sources, retrieved 2026-08-08: `external/opencode/packages/sdk-next/README.md`,
 > `external/opencode/CONTEXT.md` ("Client contract architecture" and related decisions).
 > The streaming section below is re-derived against the v2 wire, retrieved 2026-08-16:
@@ -99,6 +102,9 @@ Also from `CONTEXT.md` — these shape our .NET API design:
   (structural, with type guards — not exception-subclass identity) or a single
   infrastructure `ClientError` with a structured reason. A clean model to mirror with
   .NET exception design or result types.
+
+The pagination bullet records upstream direction, not SDK generation policy. The .NET surface
+remains faithful to the pinned OpenAPI document under ADR-0013.
 
 ## How the v2 SSE wire actually behaves
 

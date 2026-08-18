@@ -1,12 +1,11 @@
 # Coding Style — hand-written code
 
-Date: 2026-08-11
+Date: 2026-08-18
 
 Binding authoring style for every hand-written line in this repository — product code,
 `tools/`, and tests. Generated output is governed by the generator's emitters (ADR-0003);
 mechanical formatting is governed by `.editorconfig`. This document governs what neither
-can see: how code is decomposed, composed, and shaped. `AGENTS.md` Engineering
-Conventions relays the load-bearing rules; this is the canonical home.
+can see: how code is decomposed, composed, and shaped.
 
 ## 1. The central rule
 
@@ -106,7 +105,8 @@ for a pile of static steps.
   three values on four signatures means the domain grew a concept the code has not
   named yet.
 - **Guard public inputs** with BCL throw-helpers; assert internal invariants with
-  `Debug.Assert` — the repo's defensive-programming default (`AGENTS.md`).
+  `Debug.Assert` - the repository's defensive-programming default
+  (`quality-gates.md`).
 - Immutability by default: records with `required`/`init`; name actual collection ownership
   rather than treating `IReadOnly*` as a deep-immutability guarantee. Generated wire models are
   shallow init-only DTOs (ADR-0004/0014); hand-written domain types choose stronger ownership only
