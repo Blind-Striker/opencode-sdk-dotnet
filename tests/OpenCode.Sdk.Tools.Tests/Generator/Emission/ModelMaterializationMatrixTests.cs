@@ -39,6 +39,7 @@ public sealed class ModelMaterializationMatrixTests
                      ("requiredNullableDictionary", true, true),
                      ("optionalDictionary", false, true),
                      ("optionalNullableDictionary", false, true),
+                     ("openKnown", true, false),
                      ("requiredNullableAny", true, false),
                      ("optionalAny", false, true),
                  })
@@ -105,6 +106,7 @@ public sealed class ModelMaterializationMatrixTests
         var value = Deserialize(CreatePayload(), typeInfo);
         await AssertOptionalPropertiesAreNullAsync(value);
         await AssertCollectionChildrenAndLiteralAsync(value);
+        await AssertUnknownFieldsAreSkippedAsync(value);
         await AssertSerializationAsync(value, typeInfo);
         await AssertExplicitOptionalNullsAsync(typeInfo);
         await AssertNonNullOptionalAndNullableValuesAsync(typeInfo);
@@ -153,6 +155,14 @@ public sealed class ModelMaterializationMatrixTests
         await Assert.That(nullableAnyValue.ValueKind).IsEqualTo(JsonValueKind.Null);
         await Assert.That(freeformValue.ValueKind).IsEqualTo(JsonValueKind.Null);
         await Assert.That((bool)GetProperty(value, "FixedFlag")!).IsFalse();
+    }
+
+    private static async Task AssertUnknownFieldsAreSkippedAsync(object value)
+    {
+        await Assert.That(GetProperty(value, "RequiredScalar")).IsEqualTo("value");
+        var openKnown = GetProperty(value, "OpenKnown")
+                        ?? throw new InvalidOperationException("The open known object deserialized to null.");
+        await Assert.That(GetProperty(openKnown, "Value")).IsEqualTo("known");
     }
 
     private static async Task AssertSerializationAsync(object value, JsonTypeInfo typeInfo)
@@ -291,6 +301,7 @@ public sealed class ModelMaterializationMatrixTests
                      "anyValues",
                      "nullableAnyValues",
                      "freeform",
+                     "openKnown",
                  })
         {
             var missing = CreatePayload();
@@ -312,6 +323,7 @@ public sealed class ModelMaterializationMatrixTests
                      "anyValues",
                      "nullableAnyValues",
                      "freeform",
+                     "openKnown",
                  })
         {
             var explicitNull = CreatePayload();
@@ -350,9 +362,11 @@ public sealed class ModelMaterializationMatrixTests
         ["anyValues"] = new JsonObject { ["key"] = null, },
         ["nullableAnyValues"] = new JsonObject { ["key"] = null, },
         ["freeform"] = new JsonObject { ["key"] = null, },
+        ["openKnown"] = new JsonObject { ["value"] = "known", ["unexpectedOpen"] = true, },
         ["requiredChoice"] = new JsonObject { ["type"] = "alpha", },
         ["choices"] = new JsonArray((JsonNode?)null),
         ["fixedFlag"] = false,
+        ["unexpectedClosed"] = true,
     };
 
     private static object Deserialize(JsonObject payload, JsonTypeInfo typeInfo) =>

@@ -23,7 +23,11 @@ internal static class RegistryEmitter
                         "Metadata"))
                     .WithNameEquals(SyntaxFactory.NameEquals("GenerationMode")),
                 SyntaxFactory.AttributeArgument(SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression))
-                    .WithNameEquals(SyntaxFactory.NameEquals("RespectNullableAnnotations"))));
+                    .WithNameEquals(SyntaxFactory.NameEquals("RespectNullableAnnotations")),
+                SyntaxFactory.AttributeArgument(EmissionSyntax.MemberAccess(
+                        SyntaxFactory.IdentifierName("JsonUnmappedMemberHandling"),
+                        "Skip"))
+                    .WithNameEquals(SyntaxFactory.NameEquals("UnmappedMemberHandling"))));
         foreach (var typeName in plan.TypeNames.Order(StringComparer.Ordinal))
         {
             declaration = declaration.AddAttributeLists(EmissionSyntax.Attribute(

@@ -25,6 +25,31 @@ public sealed class OpenCodeClientContractTests
     }
 
     [Test]
+    public async Task GetHealthAsync_Should_Skip_An_Additive_Unknown_Field()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.HealthWithUnknownField);
+
+        var response = await scenario.Client.GetHealthAsync();
+
+        await Assert.That(response.IsError).IsFalse();
+        await Assert.That(response.Health.Healthy).IsTrue();
+        await Assert.That(response.Health.Version).IsEqualTo("0.0.0-test");
+        await Assert.That(response.Health.Pid).IsEqualTo(42);
+    }
+
+    [Test]
+    [Arguments(WireBodyData.HealthMissingRequiredMember)]
+    [Arguments(WireBodyData.HealthWithWrongTokenType)]
+    public async Task GetHealthAsync_Should_Treat_Unmaterializable_Known_Members_As_Protocol_Failures(string body)
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, body);
+
+        _ = await Assert
+            .That(async () => _ = await scenario.Client.GetHealthAsync())
+            .Throws<OpenCodeTransportException>();
+    }
+
+    [Test]
     public async Task GetHealthAsync_Should_Throw_The_Typed_Error_By_Default()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);

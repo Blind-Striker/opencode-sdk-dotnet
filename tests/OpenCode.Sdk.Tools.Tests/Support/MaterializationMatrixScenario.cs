@@ -73,6 +73,9 @@ internal sealed class MaterializationMatrixScenario : SpecScenario
         .Property("nullableAnyValues", property => property.Type("object")
             .AdditionalProperties(NullableAny), required: true)
         .Property("freeform", property => property.Type("object").AdditionalPropertiesTrue(), required: true)
+        .Property("openKnown", property => property.Type("object")
+            .AdditionalPropertiesTrue()
+            .Property("value", value => value.Type("string"), required: true), required: true)
         .Property("requiredChoice", property => property.Ref("MatrixChoice"), required: true)
         .Property("choices", property => property.Type("array").Items(item => item.Ref("MatrixChoice")), required: true)
         .Property("fixedFlag", property => property.Type("boolean").BooleanEnum(true), required: true);

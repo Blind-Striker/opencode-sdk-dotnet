@@ -423,6 +423,15 @@ internal sealed class SchemaPlanBinder
     private static ObjectModelPlan? BindObject(string key, string name, ObjectNode node, Dictionary<string, List<string>> inheritance,
         TypePlanBinder typeBinder, BindingErrorCollector errors)
     {
+        if (node.AdditionalProperties is AdditionalPropertiesKind.Schema)
+        {
+            errors.Add(
+                BindingErrorCategory.Schema,
+                string.Concat(key, "/additionalProperties"),
+                "named properties and schema-valued additional properties cannot be represented without data loss");
+            return null;
+        }
+
         var properties = new List<ModelPropertyPlan>(node.Properties.Count);
         foreach (var property in node.Properties)
         {

@@ -5,6 +5,13 @@ internal static class WireBodyData
 {
     public const string HealthOk = "{\"healthy\":true,\"version\":\"0.0.0-test\",\"pid\":42}";
 
+    public const string HealthWithUnknownField =
+        "{\"healthy\":true,\"version\":\"0.0.0-test\",\"pid\":42,\"unexpected\":true}";
+
+    public const string HealthMissingRequiredMember = "{\"healthy\":true,\"pid\":42}";
+
+    public const string HealthWithWrongTokenType = "{\"healthy\":true,\"version\":\"0.0.0-test\",\"pid\":\"forty-two\"}";
+
     public const string UnauthorizedError = "{\"_tag\":\"UnauthorizedError\",\"message\":\"password required\"}";
 
     public const string SessionNotFoundError = "{\"_tag\":\"SessionNotFoundError\",\"sessionID\":\"ses_9\",\"message\":\"gone\"}";

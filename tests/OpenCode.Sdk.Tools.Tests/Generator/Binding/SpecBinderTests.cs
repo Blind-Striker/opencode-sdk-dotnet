@@ -188,6 +188,27 @@ public sealed class SpecBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Refuse_Named_Object_With_Schema_Valued_Additional_Properties()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("HybridInfo", schema => schema.Type("object")
+                .Property("id", property => property.Type("string"), required: true)
+                .AdditionalProperties(value => value.Type("string")))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("HybridInfo")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(Groups("health", RootGroup()))));
+
+        var error = exception.Errors.Single(static candidate =>
+            candidate is { Category: BindingErrorCategory.Schema, Subject: "HybridInfo/additionalProperties" });
+        await Assert.That(error.Problem).Contains("named properties and schema-valued additional properties");
+        await Assert.That(error.Problem).Contains("without data loss");
+    }
+
+    [Test]
     public async Task Bind_Should_Refuse_Operation_Curation_For_Pending_Operation()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
