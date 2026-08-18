@@ -130,17 +130,24 @@ The #55 allocation-first comparison against untouched `050b4f8`, under .NET SDK 
 `10.0.10`, and concurrent workstation GC, measured `GetMessageAsync` at 26,548 → 22,606 B/op
 (`0.852x`), `ListMessagesAsync` at 27,316 → 23,316 B/op (`0.854x`), and deep-union deserialization
 at 17,786 → 13,842 B/op (`0.778x`); `GetHealthAsync` stayed 2,128 → 2,128 B/op. Corresponding mean
-ratios were `0.888x`, `0.837x`, `0.898x`, and `1.012x`. #47 now closes the stream-plan contract
+ratios were `0.888x`, `0.837x`, `0.898x`, and `1.012x`. #47 closes the stream-plan contract
 before live-bus breadth: frame `id` and `event`, SSE encoding, failure-event separation, and the
 no-body runtime boundary fail closed. Stream methods document their always-throw error channel
-without exposing request options. A generic
-stream profile binds, emits, source-generates, and compiles while pinning its route, payload/failure
-metadata, and complete error map; the selected `session.log` contract pins GET plus 400/401/404.
+without exposing request options. A generic stream profile binds, emits, source-generates, and
+compiles while pinning its route, payload/failure metadata, and complete error map; the selected
+`session.log` contract pins GET plus 400/401/404.
 The fresh-context review reported no findings after its one low-severity test-helper duplication was
-resolved; all local gates are green with 1,255 tests and none failed or skipped. #49's mechanical
-breadth evidence is next. The runtime corpus still covers two of 40 durable branches; no invented
-40/87-payload corpus is planned. The six interim allocation baselines remain the comparison guards;
-master protection and direct-push policy remain open under #50.
+resolved; all local gates are green with 1,255 tests and none failed or skipped. Hosted run
+`32178776110` is green on Linux, Windows, and macOS at `2f48d11`, and #47 is closed.
+
+Before #49 starts, a bounded CI-gate evidence pass will verify the overlap among the in-build
+analyzer wall, `.editorconfig`, and `dotnet format`, then decide whether the separate formatting
+gate should remain full, narrow to whitespace, or retire. No analyzer, severity, target, or OS leg
+is weakened on timing evidence alone. #49 remains the exact next source increment: mechanical
+converter/registry completeness, valid central `msg_` fixtures, and honest representative runtime
+claims under its sealed decision. The runtime corpus still covers two of 40 durable branches; no
+invented 40/87-payload corpus is planned. The six interim allocation baselines remain the comparison
+guards; master protection and direct-push policy remain open under #50.
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family
