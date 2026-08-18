@@ -74,7 +74,7 @@ public sealed class OpenCodeClientContractTests
 
         await Assert.That(response.Status).IsEqualTo(200);
         await Assert.That(response.Message).IsTypeOf<SessionMessageUser>();
-        await Assert.That(((SessionMessageUser)response.Message).Id).IsEqualTo("message-1");
+        await Assert.That(((SessionMessageUser)response.Message).Id).IsEqualTo("msg_1");
         await Assert.That(scenario.Requests.Single().RequestUri!.AbsoluteUri)
             .IsEqualTo("http://localhost:4096/api/session/ses_1%20x/message/msg_2%2Fy");
     }

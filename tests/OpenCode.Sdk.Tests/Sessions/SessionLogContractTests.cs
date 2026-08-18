@@ -5,9 +5,9 @@ using OpenCode.Sdk.Tests.Support;
 namespace OpenCode.Sdk.Tests;
 
 /// <summary>
-/// The durable log's wire contract. The frames are hand-authored because no server build
-/// writes this log yet, so this is the only evidence the union's branches bind — see the
-/// roadmap's open question on what keeps them honest.
+/// The durable log's representative runtime corpus exercises two of 40 durable branches,
+/// the log-synced watermark, and unknown-carrier behavior. Generator tests mechanically
+/// prove complete converter mappings and source-generated registry coverage.
 /// </summary>
 public sealed class SessionLogContractTests
 {

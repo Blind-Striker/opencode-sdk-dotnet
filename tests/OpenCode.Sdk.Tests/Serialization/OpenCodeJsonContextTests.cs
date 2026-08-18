@@ -21,7 +21,7 @@ public sealed class OpenCodeJsonContextTests
 
         await Assert.That(result).IsTypeOf<SessionMessageUser>();
         var user = (SessionMessageUser)result;
-        await Assert.That(user.Id).IsEqualTo("message-1");
+        await Assert.That(user.Id).IsEqualTo("msg_1");
         await Assert.That(user.Text).IsEqualTo("hello");
         var serialized = _serializer.Serialize<ISessionMessageInfo>(user);
         using var document = JsonDocument.Parse(serialized);
@@ -197,6 +197,7 @@ public sealed class OpenCodeJsonContextTests
         await Assert.That(result).IsTypeOf<UnknownSessionMessageInfo>();
         var unknown = (UnknownSessionMessageInfo)result;
         await Assert.That(unknown.Type).IsEqualTo("future-message");
+        await Assert.That(unknown.Payload.GetProperty("id").GetString()).IsEqualTo("msg_2");
         var roundTrip = _serializer.Serialize<ISessionMessageInfo>(unknown);
         await Assert.That(roundTrip).IsEqualTo(json);
     }
@@ -243,6 +244,7 @@ public sealed class OpenCodeJsonContextTests
 
         await Assert.That(result).IsTypeOf<SessionMessageCompactionRunning>();
         var running = (SessionMessageCompactionRunning)result;
+        await Assert.That(running.Id).IsEqualTo("msg_4");
         await Assert.That(running.Type).IsEqualTo("compaction");
         await Assert.That(running.Status).IsEqualTo("running");
         await Assert.That(running.Reason).IsEqualTo(SessionMessageCompactionRunningReason.Auto);
@@ -360,6 +362,7 @@ public sealed class OpenCodeJsonContextTests
 
         var user = (SessionMessageUser)_serializer.Deserialize<ISessionMessageInfo>(json);
 
+        await Assert.That(user.Id).IsEqualTo("msg_3");
         await Assert.That(user.Metadata).IsNull();
     }
 
