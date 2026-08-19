@@ -167,17 +167,16 @@ survives ingestion, binding, model/union planning, registry emission, source gen
 compilation; `not: {}` remains never, its uninhabitable `Fail` branch is a known protocol refusal,
 and valid `Die`/`Interrupt` or genuinely unknown causes ride `OpenCodeStreamFailureException` as
 typed data. All 1,290 local test executions are green, and hosted run `32233455578` passed on Linux,
-Windows, and macOS. #53 remains open for its deferred M5 wall inventory. Arc 3b breadth remains
-closed while Arc 3a deliverable closure passes its source-increment gates. The committed sandbox is
-now a Generic Host worker that obtains a bound `SessionClient`, consumes `GetLogAsync` with the host
-stopping token, and was repeated live against pinned-compatible `opencode2`
-`0.0.0-next-17403`: generated
+Windows, and macOS. #53 remains open for its deferred M5 wall inventory. **Arc 3a deliverable
+closure is complete at `c7a35bd`**, with hosted run `32240794296` green on Linux, Windows, and
+macOS. The committed sandbox now has a Generic Host worker that obtains a bound `SessionClient`,
+consumes `GetLogAsync` with the host stopping token, and was repeated live against
+pinned-compatible `opencode2` `0.0.0-next-17403`: generated
 `EventLogSynced` materialized, then SIGINT drove normal host shutdown. The new end-to-end
 pipeline/reader/generated-adapter benchmark measured 64 large frames at 1.157 ms and 717.82 KB per
 complete response, and 1,024 small frames at 1.674 ms and 507.20 KB on the recorded Linux/.NET 10
-environment. Research Q113/Q114 own the exact setup, statistics, and environmental limits. Arc 3b
-does not open until this closure increment is reviewed, locally green, pushed, and hosted green on
-Linux, Windows, and macOS.
+environment. Research Q113/Q114 own the exact setup, statistics, and environmental limits. The Arc
+3b gate is now open, but no Arc 3b source work has begun.
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family

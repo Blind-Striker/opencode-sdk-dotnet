@@ -2618,3 +2618,10 @@ inject a reserved failure frame, network cut, malformed frame, or unknown varian
 contract tests own those paths. The example creates a session on each run and does not delete it
 during host shutdown. This is one Linux process-lifecycle demonstration, not the three-OS hosted
 acceptance required of the source increment.
+
+**Closure verification:** an independent review found six actionable example, benchmark, and
+evidence issues; all were corrected before the source checkpoint. A final fresh-context review found
+no substantive defect, and its one low-severity statistical-completeness note produced the
+bimodal/outlier disclosure above. Slopwatch, Release build, whitespace, style, and all 1,290 local
+test executions passed with none failed or skipped. Source commit `c7a35bd` then passed hosted run
+`32240794296` on Linux, Windows, and macOS.
