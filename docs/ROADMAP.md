@@ -163,7 +163,9 @@ two of 40 durable branches, the `log.synced` watermark, and unknown-carrier beha
 plural-interface closure; no invented 40/87-payload corpus is planned. The six interim allocation
 baselines remain the comparison guards; master protection and direct-push policy remain open under
 #50. The exact next source increment is #53's typed stream failure-cause M3 subset; Arc 3b breadth
-remains closed until that work and the Arc 3a deliverable closure are green and hosted.
+remains closed until that work and the Arc 3a deliverable closure are green and hosted. Arc 3a
+closure means a Generic Host `SessionClient.GetLogAsync` example, an end-to-end
+pipeline/reader/adapter benchmark, and a precise repeat live demonstration.
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family
