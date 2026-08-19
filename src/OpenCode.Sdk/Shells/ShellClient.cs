@@ -37,7 +37,7 @@ public class ShellClient
     private string Id => _id ?? throw MockSeam.CreateError("ShellClient", "Id");
 
     /// <summary>
-    /// Get shell command
+    /// Get shell command. Get one shell command, including its status and exit code once exited.
     /// </summary>
     /// <param name = "request">The request shaping the query.</param>
     /// <param name = "requestOptions">The per-call options.</param>
@@ -51,7 +51,7 @@ public class ShellClient
     }
 
     /// <summary>
-    /// Remove shell command
+    /// Remove shell command. Terminate and remove one shell command and its retained output.
     /// </summary>
     /// <param name = "request">The request shaping the query.</param>
     /// <param name = "requestOptions">The per-call options.</param>
@@ -65,7 +65,7 @@ public class ShellClient
     }
 
     /// <summary>
-    /// Update shell timeout
+    /// Update shell timeout. Replace a running shell command&apos;s timeout from now, or clear it with zero.
     /// </summary>
     /// <param name = "request">The request body.</param>
     /// <param name = "requestOptions">The per-call options.</param>

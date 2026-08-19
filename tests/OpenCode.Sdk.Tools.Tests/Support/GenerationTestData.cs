@@ -16,16 +16,18 @@ internal static class GenerationTestData
     public static string OwnedContent(string content) => $"{GenerationProvenance.Header}{content}";
 
     private const string Curation = """
-        {
-          "groups": {
-            "health": {
-              "placement": "root"
-            }
-          },
-          "envelopePayloadNames": {},
-          "schemaAliases": []
-        }
-        """;
+                                    {
+                                      "groups": {
+                                        "health": {
+                                          "placement": "root"
+                                        }
+                                      },
+                                      "operationNames": [],
+                                      "schemaNames": [],
+                                      "envelopePayloadNames": {},
+                                      "schemaAliases": []
+                                    }
+                                    """;
 
     public static MockFileSystem CreateFileSystem()
     {
@@ -37,17 +39,20 @@ internal static class GenerationTestData
     public static MockFileSystem CreateCommandFileSystem()
     {
         var spec = new SpecDocumentBuilder()
-            .WithSchema("ExampleHealth", schema => schema.Type("object")
+            .WithSchema("ExampleHealth", schema => schema
+                .Type("object")
                 .Property("healthy", property => property.Type("boolean"), required: true))
             .WithOperation("v2.health.get", path: "/api/health", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("ExampleHealth")))
             .WithOperation("v2.session.list", path: "/api/session")
             .BuildJson();
         var fileSystem = CreateFileSystem();
-        fileSystem.Initialize().With(
-            new FileDescription("spec/openapi.json", spec),
-            new FileDescription("tools/generation-profile.txt", "v2.health.get\n"),
-            new FileDescription("tools/curation.json", Curation));
+        fileSystem
+            .Initialize()
+            .With(
+                new FileDescription("spec/openapi.json", spec),
+                new FileDescription("tools/generation-profile.txt", "v2.health.get\n"),
+                new FileDescription("tools/curation.json", Curation));
         return fileSystem;
     }
 

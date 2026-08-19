@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session compaction ended value.
 /// </summary>
-public sealed record SessionCompactionEnded : ISessionEventDurable
+public sealed record SessionCompactionEnded : ISessionEventDurable, IEvent
 {
     /// <summary>
     /// Gets the id value.

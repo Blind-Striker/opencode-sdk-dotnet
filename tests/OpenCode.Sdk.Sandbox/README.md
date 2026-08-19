@@ -6,7 +6,7 @@ gate) — unlike `.scratchpad/`, which remains the home for throwaway prototypes
 question and disappear.
 
 Configuration comes from environment variables, prefilled for the IDE by
-`Properties/launchSettings.json` (profile `sandbox`):
+`Properties/launchSettings.json` (profiles `sandbox-session-log` and `sandbox-events`):
 
 | Variable | Meaning |
 |---|---|
@@ -23,10 +23,11 @@ random one):
 OPENCODE_SERVER_PASSWORD=123456 opencode2 serve --hostname 127.0.0.1 --port 4096
 ```
 
-Then F5 with the `sandbox` profile, or run the stream mode directly:
+Then F5 with one of the sandbox profiles, or run either stream mode directly:
 
 ```sh
 dotnet run --project tests/OpenCode.Sdk.Sandbox -- --stream
+dotnet run --project tests/OpenCode.Sdk.Sandbox -- --events
 ```
 
 The stream example composes through the Extensions package:
@@ -36,5 +37,12 @@ The stream example composes through the Extensions package:
 Each frame is logged with its generated runtime type. Ctrl+C stops the host, cancels the
 open response read, and disposes the singleton SDK transport with the container.
 
-Run without `--stream` to keep driving the standing breadth walkthrough: health, session
+The event mode injects `EventsClient` into `EventBusWorker` and consumes the volatile global bus.
+After it reports that the bus is opening, trigger server activity from another process; running the
+standing breadth walkthrough without a mode flag creates a session and supplies representative
+events. The bus has no replay or resume contract: events during disconnection are missed, and a slow
+consumer can overflow and fail the stream. Ctrl+C exercises the same host cancellation path.
+
+`--stream` and `--events` are mutually exclusive. Run without either flag to keep driving the
+standing breadth walkthrough: health, session
 create/list/get, and message list through the same Extensions registration.

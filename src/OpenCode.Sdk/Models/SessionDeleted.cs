@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session deleted value.
 /// </summary>
-public sealed record SessionDeleted : ISessionEventDurable
+public sealed record SessionDeleted : ISessionEventDurable, IEvent
 {
     /// <summary>
     /// Gets the id value.

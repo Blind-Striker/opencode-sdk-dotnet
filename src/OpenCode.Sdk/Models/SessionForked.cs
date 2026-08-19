@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session forked value.
 /// </summary>
-public sealed record SessionForked : ISessionEventDurable
+public sealed record SessionForked : ISessionEventDurable, IEvent
 {
     /// <summary>
     /// Gets the id value.

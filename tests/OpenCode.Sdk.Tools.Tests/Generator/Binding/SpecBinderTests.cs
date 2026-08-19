@@ -1,3 +1,4 @@
+using System.Text.Json;
 using OpenCode.Sdk.Tools.Generator.Binding;
 using OpenCode.Sdk.Tools.Generator.Binding.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion;
@@ -60,8 +61,53 @@ public sealed class SpecBinderTests
         await Assert.That(plan.Unions.Any(static union => union.Name == "IToolContent")).IsTrue();
 
         var errors = plan.Unions.Single(static union => union.Name == "IOpenCodeError");
-        await Assert.That(errors.Variants.Select(static variant => variant.TypeName).Order(StringComparer.Ordinal)
-            .SequenceEqual(ExpectedErrorTypeNames, StringComparer.Ordinal)).IsTrue();
+        await Assert
+            .That(errors
+                .Variants.Select(static variant => variant.TypeName)
+                .Order(StringComparer.Ordinal)
+                .SequenceEqual(ExpectedErrorTypeNames, StringComparer.Ordinal))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Carry_The_Pinned_Global_Event_Stream_Without_Request_Parameters()
+    {
+        var (document, selection, curation) = await LoadPinnedInputsAsync();
+
+        var plan = new BindingTestHost().Bind(document, selection, curation);
+
+        var operation = plan.Clients.Single(static client => client.Name == "EventsClient").Operations.Single();
+        await Assert.That(operation.MethodName).IsEqualTo("SubscribeAsync");
+        await Assert.That(operation.HttpMethod).IsEqualTo("get");
+        await Assert.That(operation.RouteTemplate).IsEqualTo("/api/event");
+        await Assert.That(operation.RouteMemberName).IsEqualTo("Subscribe");
+        await Assert.That(operation.Parameters).IsEmpty();
+        await Assert.That(operation.QueryRequest).IsNull();
+        await Assert.That(operation.RequestBody).IsNull();
+        await Assert.That(operation.Stream!.PayloadTypeName).IsEqualTo("IEvent");
+        await Assert
+            .That(operation
+                .ErrorMap.Statuses.Select(static status => status.StatusCode)
+                .Order()
+                .SequenceEqual([400, 401]))
+            .IsTrue();
+
+        var sessionCreated = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "SessionCreated");
+        await Assert
+            .That(sessionCreated
+                .ImplementedUnionNames.Order(StringComparer.Ordinal)
+                .SequenceEqual(["IEvent", "ISessionEventDurable"], StringComparer.Ordinal))
+            .IsTrue();
+        await Assert
+            .That(plan.Models.Any(static model => model.Name.StartsWith("Form", StringComparison.Ordinal)
+                                                  && model.Name.Length > 0 && model.Name[^1] is '1'))
+            .IsFalse();
+        await Assert
+            .That(plan.Unions.Any(static union => union.Name.StartsWith("IForm", StringComparison.Ordinal)
+                                                  && union.Name.Length > 0 && union.Name[^1] is '1'))
+            .IsFalse();
+        await Assert.That(plan.Models.Any(static model => model.Name == "TuiCommandExecuteDataCommand0")).IsFalse();
+        await Assert.That(plan.Registry.TypeNames.Any(static name => name.Contains("V2", StringComparison.Ordinal))).IsFalse();
     }
 
     [Test]
@@ -90,7 +136,8 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Map_Required_And_Nullable_Independently()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
-            .WithSchema("ItemInfo", schema => schema.Type("object")
+            .WithSchema("ItemInfo", schema => schema
+                .Type("object")
                 .Property("id", property => property.Type("string"), required: true)
                 .Property("note", property => property.Type("string"))
                 .Property("flushedAt", property => property.AnyOf(
@@ -155,17 +202,29 @@ public sealed class SpecBinderTests
         var first = host.Bind(document, selection, curation);
         var second = host.Bind(document, selection, curation);
 
-        await Assert.That(first.Models.Select(static model => model.Name)
-            .SequenceEqual(second.Models.Select(static model => model.Name), StringComparer.Ordinal)).IsTrue();
-        await Assert.That(first.Unions.Select(static union => union.Name)
-            .SequenceEqual(second.Unions.Select(static union => union.Name), StringComparer.Ordinal)).IsTrue();
+        await Assert
+            .That(first
+                .Models.Select(static model => model.Name)
+                .SequenceEqual(second.Models.Select(static model => model.Name), StringComparer.Ordinal))
+            .IsTrue();
+        await Assert
+            .That(first
+                .Unions.Select(static union => union.Name)
+                .SequenceEqual(second.Unions.Select(static union => union.Name), StringComparer.Ordinal))
+            .IsTrue();
         await Assert.That(first.Registry.TypeNames.SequenceEqual(second.Registry.TypeNames, StringComparer.Ordinal)).IsTrue();
-        await Assert.That(first.Clients.Select(static client => client.Name)
-            .SequenceEqual(second.Clients.Select(static client => client.Name), StringComparer.Ordinal)).IsTrue();
-        await Assert.That(first.Clients.SelectMany(static client => client.Operations.Select(static operation => operation.MethodName))
-            .SequenceEqual(
-                second.Clients.SelectMany(static client => client.Operations.Select(static operation => operation.MethodName)),
-                StringComparer.Ordinal)).IsTrue();
+        await Assert
+            .That(first
+                .Clients.Select(static client => client.Name)
+                .SequenceEqual(second.Clients.Select(static client => client.Name), StringComparer.Ordinal))
+            .IsTrue();
+        await Assert
+            .That(first
+                .Clients.SelectMany(static client => client.Operations.Select(static operation => operation.MethodName))
+                .SequenceEqual(
+                    second.Clients.SelectMany(static client => client.Operations.Select(static operation => operation.MethodName)),
+                    StringComparer.Ordinal))
+            .IsTrue();
     }
 
     [Test]
@@ -191,29 +250,142 @@ public sealed class SpecBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Refuse_Structural_Union_In_Selected_Closure()
+    public async Task Bind_Should_Apply_A_Reasoned_Operation_Name()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithSchema("Choice", schema => schema.AnyOf(
-                branch => branch.Type("string"),
-                branch => branch.Type("boolean")))
-            .WithOperation("v2.health.get", configure: operation => operation
-                .Response(200, "application/json", schema => schema.Ref("Choice")))));
+            .WithSchema("EventReady", schema => schema
+                .Type("object")
+                .Property("ready", property => property.Type("boolean"), required: true))
+            .WithOperation("v2.event.subscribe", path: "/api/event", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("EventReady")))));
+        var curation = Curation(
+            Groups("event", ClientGroup(clientName: "Events", handleName: null, handleParameter: null)),
+            operationNames: [OperationName("v2.event.subscribe", "SubscribeAsync")]);
+
+        var plan = new BindingTestHost().Bind(document, Selection("v2.event.subscribe"), curation);
+
+        var operation = plan.Clients.Single(static client => client.Name == "EventsClient").Operations.Single();
+        await Assert.That(operation.MethodName).IsEqualTo("SubscribeAsync");
+        await Assert.That(operation.RouteContainerName).IsEqualTo("Events");
+        await Assert.That(operation.RouteMemberName).IsEqualTo("Subscribe");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_Orphaned_And_Duplicated_Operation_Name_Rows()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.health.get")
+            .WithOperation("v2.event.subscribe", path: "/api/event")));
+        var curation = Curation(
+            Groups("health", RootGroup()),
+            operationNames:
+            [
+                OperationName("v2.event.subscribe", "SubscribeAsync"),
+                OperationName("v2.health.get", "HealthAsync", reason: " "),
+                OperationName("v2.health.get", "OtherHealthAsync"),
+                OperationName("v2.missing.get", "MissingAsync"),
+            ]);
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
             Selection("v2.health.get"),
-            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), })));
+            curation));
 
-        await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Schema).Problem)
-            .Contains("structural union");
+        await Assert
+            .That(exception.Errors.Any(static error => error.Subject == "v2.event.subscribe"
+                                                       && error.Problem.Contains("not selected", StringComparison.Ordinal)))
+            .IsTrue();
+        await Assert
+            .That(exception.Errors.Any(static error => error.Subject == "v2.health.get"
+                                                       && error.Problem.Contains("duplicated", StringComparison.Ordinal)))
+            .IsTrue();
+        await Assert
+            .That(exception.Errors.Any(static error => error.Subject == "v2.health.get"
+                                                       && error.Problem.Contains("declare a reason", StringComparison.Ordinal)))
+            .IsTrue();
+        await Assert
+            .That(exception.Errors.Any(static error => error.Subject == "v2.missing.get"
+                                                       && error.Problem.Contains("does not exist", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_Curated_Operation_Name_Collisions()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("EventReady", schema => schema
+                .Type("object")
+                .Property("ready", property => property.Type("boolean"), required: true))
+            .WithOperation("v2.event.subscribe", path: "/api/event", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("EventReady")))
+            .WithOperation("v2.event.watch", path: "/api/event/watch", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("EventReady")))));
+        var curation = Curation(
+            Groups("event", ClientGroup(clientName: "Events", handleName: null, handleParameter: null)),
+            operationNames:
+            [
+                OperationName("v2.event.subscribe", "SubscribeAsync"),
+                OperationName("v2.event.watch", "SubscribeAsync"),
+            ]);
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.event.subscribe", "v2.event.watch"),
+            curation));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
+                                                       && error.Problem.Contains("multiple members", StringComparison.Ordinal)))
+            .IsTrue();
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
+                                                       && error.Problem.Contains("route member", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_Orphaned_And_Duplicated_Schema_Name_Rows()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("Item", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.item.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("Item")))));
+        var curation = Curation(
+            Groups("item", RootGroup()),
+            schemaNames:
+            [
+                SchemaName("Item", "ReviewedItem", reason: " "),
+                SchemaName("Item", "OtherItem"),
+                SchemaName("Missing", "MissingItem"),
+            ]);
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.item.get"),
+            curation));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Subject == "Item"
+                                                       && error.Problem.Contains("duplicated", StringComparison.Ordinal)))
+            .IsTrue();
+        await Assert
+            .That(exception.Errors.Any(static error => error.Subject == "Item"
+                                                       && error.Problem.Contains("declare a reason", StringComparison.Ordinal)))
+            .IsTrue();
+        await Assert
+            .That(exception.Errors.Any(static error => error.Subject == "Missing"
+                                                       && error.Problem.Contains("does not exist", StringComparison.Ordinal)))
+            .IsTrue();
     }
 
     [Test]
     public async Task Bind_Should_Refuse_Named_Object_With_Schema_Valued_Additional_Properties()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithSchema("HybridInfo", schema => schema.Type("object")
+            .WithSchema("HybridInfo", schema => schema
+                .Type("object")
                 .Property("id", property => property.Type("string"), required: true)
                 .AdditionalProperties(value => value.Type("string")))
             .WithOperation("v2.health.get", configure: operation => operation
@@ -236,7 +408,8 @@ public sealed class SpecBinderTests
         var document = await IngestAsync(SpecScenario.Define(spec => spec
             .WithOperation("v2.health.get")
             .WithOperation("v2.session.message", path: "/api/session/message", configure: operation => operation
-                .Response(200, "application/json", schema => schema.Type("object")
+                .Response(200, "application/json", schema => schema
+                    .Type("object")
                     .Property("data", property => property.Type("string"), required: true)))));
         var envelopeNames = new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -246,9 +419,13 @@ public sealed class SpecBinderTests
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
             Selection("v2.health.get"),
-            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), }, envelopeNames)));
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+            {
+                ["health"] = RootGroup(),
+            }, envelopeNames)));
 
-        await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Curation).Problem)
+        await Assert
+            .That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Curation).Problem)
             .Contains("not selected");
     }
 
@@ -256,9 +433,11 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Collapse_Duplicate_References_Into_Semantic_Type_Plans()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithSchema("Shared", schema => schema.Type("object")
+            .WithSchema("Shared", schema => schema
+                .Type("object")
                 .Property("value", property => property.Type("string"), required: true))
-            .WithSchema("Container", schema => schema.Type("object")
+            .WithSchema("Container", schema => schema
+                .Type("object")
                 .Property("first", property => property.Ref("Shared"), required: true)
                 .Property("items", property => property.Type("array").Items(item => item.Ref("Shared")), required: true))
             .WithOperation("v2.health.get", configure: operation => operation
@@ -267,7 +446,10 @@ public sealed class SpecBinderTests
         var plan = new BindingTestHost().Bind(
             document,
             Selection("v2.health.get"),
-            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), }));
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+            {
+                ["health"] = RootGroup(),
+            }));
 
         await Assert.That(plan.Models.Count(static model => model.Name == "Shared")).IsEqualTo(1);
         var container = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "Container");
@@ -281,12 +463,15 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Bind_Nested_Marked_Union_With_The_Discriminating_Marker()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithSchema("Alpha", schema => schema.Type("object")
+            .WithSchema("Alpha", schema => schema
+                .Type("object")
                 .Property("type", property => property.Type("string").Enum("alpha"), required: true))
-            .WithSchema("WrapOne", schema => schema.Type("object")
+            .WithSchema("WrapOne", schema => schema
+                .Type("object")
                 .Property("type", property => property.Type("string").Enum("wrap"), required: true)
                 .Property("status", property => property.Type("string").Enum("one"), required: true))
-            .WithSchema("WrapTwo", schema => schema.Type("object")
+            .WithSchema("WrapTwo", schema => schema
+                .Type("object")
                 .Property("type", property => property.Type("string").Enum("wrap"), required: true)
                 .Property("status", property => property.Type("string").Enum("two"), required: true))
             .WithSchema("Wrap", schema => schema.AnyOf(one => one.Ref("WrapOne"), two => two.Ref("WrapTwo")))
@@ -297,12 +482,19 @@ public sealed class SpecBinderTests
         var plan = new BindingTestHost().Bind(
             document,
             Selection("v2.health.get"),
-            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), }));
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+            {
+                ["health"] = RootGroup(),
+            }));
 
         var outer = plan.Unions.Single(static union => union.Name == "IOuter");
         await Assert.That(outer.MarkerWireName).IsEqualTo("type");
-        await Assert.That(outer.Variants.Select(static variant => variant.Tag).Order(StringComparer.Ordinal)
-            .SequenceEqual(["alpha", "wrap"], StringComparer.Ordinal)).IsTrue();
+        await Assert
+            .That(outer
+                .Variants.Select(static variant => variant.Tag)
+                .Order(StringComparer.Ordinal)
+                .SequenceEqual(["alpha", "wrap"], StringComparer.Ordinal))
+            .IsTrue();
 
         var nested = plan.Unions.Single(static union => union.Name == "IWrap");
         await Assert.That(nested.MarkerWireName).IsEqualTo("status");
@@ -315,9 +507,11 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Refuse_Union_When_Branches_Share_No_Discriminating_Marker()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithSchema("First", schema => schema.Type("object")
+            .WithSchema("First", schema => schema
+                .Type("object")
                 .Property("type", property => property.Type("string").Enum("same"), required: true))
-            .WithSchema("Second", schema => schema.Type("object")
+            .WithSchema("Second", schema => schema
+                .Type("object")
                 .Property("type", property => property.Type("string").Enum("same"), required: true))
             .WithSchema("Twin", schema => schema.AnyOf(first => first.Ref("First"), second => second.Ref("Second")))
             .WithOperation("v2.health.get", configure: operation => operation
@@ -326,9 +520,13 @@ public sealed class SpecBinderTests
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
             Selection("v2.health.get"),
-            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), })));
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+            {
+                ["health"] = RootGroup(),
+            })));
 
-        await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Schema).Problem)
+        await Assert
+            .That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Schema).Problem)
             .Contains("no discriminating marker");
     }
 
@@ -338,7 +536,8 @@ public sealed class SpecBinderTests
         var document = await IngestAsync(SpecScenario.Define(spec => spec
             .WithOperation("v2.session.message", path: "/api/session/{sessionID}/message", configure: operation => operation
                 .Parameter("sessionID", "path", schema => schema.Type("string"), required: true)
-                .Response(200, "application/json", schema => schema.Type("object")
+                .Response(200, "application/json", schema => schema
+                    .Type("object")
                     .Property("value", property => property.Type("string"), required: true)))));
         var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
         {
@@ -350,7 +549,8 @@ public sealed class SpecBinderTests
             Selection("v2.session.message"),
             Curation(groups)));
 
-        await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Curation).Problem)
+        await Assert
+            .That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Curation).Problem)
             .Contains("together");
     }
 
@@ -360,7 +560,8 @@ public sealed class SpecBinderTests
         var document = await IngestAsync(SpecScenario.Define(spec => spec
             .WithOperation("v2.session.message", path: "/api/session/{sessionID}/message", configure: operation => operation
                 .Parameter("sessionID", "path", schema => schema.Type("string"), required: true)
-                .Response(200, "application/json", schema => schema.Type("object")
+                .Response(200, "application/json", schema => schema
+                    .Type("object")
                     .Property("value", property => property.Type("string"), required: true)))));
         var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
         {
@@ -372,7 +573,8 @@ public sealed class SpecBinderTests
             Selection("v2.session.message"),
             Curation(groups)));
 
-        await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Curation).Problem)
+        await Assert
+            .That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Curation).Problem)
             .Contains("together");
     }
 
@@ -394,8 +596,10 @@ public sealed class SpecBinderTests
             Selection("v2.health.get"),
             Curation(groups)));
 
-        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
-            && error.Problem.Contains("root group cannot declare", StringComparison.Ordinal))).IsTrue();
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+                                                       && error.Problem.Contains("root group cannot declare", StringComparison.Ordinal)))
+            .IsTrue();
     }
 
     [Test]
@@ -404,7 +608,8 @@ public sealed class SpecBinderTests
         var document = await IngestAsync(SpecScenario.Define(spec => spec
             .WithOperation("v2.session.message", path: "/api/session/message/{messageID}", configure: operation => operation
                 .Parameter("messageID", "path", schema => schema.Type("string"), required: true)
-                .Response(200, "application/json", schema => schema.Type("object")
+                .Response(200, "application/json", schema => schema
+                    .Type("object")
                     .Property("value", property => property.Type("string"), required: true)))));
         var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
         {
@@ -416,7 +621,8 @@ public sealed class SpecBinderTests
             Selection("v2.session.message"),
             Curation(groups)));
 
-        await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Curation).Problem)
+        await Assert
+            .That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Curation).Problem)
             .Contains("required path parameter");
     }
 
@@ -430,7 +636,8 @@ public sealed class SpecBinderTests
             Selection("v2.health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal))));
 
-        await Assert.That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Curation).Problem)
+        await Assert
+            .That(exception.Errors.Single(static error => error.Category == BindingErrorCategory.Curation).Problem)
             .Contains("no curation row");
     }
 
@@ -438,7 +645,8 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Use_Uri_Only_When_OpenApi_Declares_The_Format()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithSchema("Resource", schema => schema.Type("object")
+            .WithSchema("Resource", schema => schema
+                .Type("object")
                 .Property("formatted", property => property.Type("string").Format("uri"), required: true)
                 .Property("namedUri", property => property.Type("string"), required: true))
             .WithOperation("v2.health.get", configure: operation => operation
@@ -460,7 +668,8 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Bind_A_Numeric_Literal_Like_Its_Primitive()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithSchema("VersionedItem", schema => schema.Type("object")
+            .WithSchema("VersionedItem", schema => schema
+                .Type("object")
                 .Property("version", property => property.Type("number").Raw("enum", "[3]"), required: true))
             .WithOperation("v2.health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("VersionedItem")))));
@@ -468,7 +677,10 @@ public sealed class SpecBinderTests
         var plan = new BindingTestHost().Bind(
             document,
             Selection("v2.health.get"),
-            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), }));
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+            {
+                ["health"] = RootGroup(),
+            }));
 
         var item = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "VersionedItem");
         var version = item.Properties.Single(static property => property.WireName == "version").Type;
@@ -480,12 +692,15 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Bind_A_Nested_Marked_OneOf_Union()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithSchema("Alpha", schema => schema.Type("object")
+            .WithSchema("Alpha", schema => schema
+                .Type("object")
                 .Property("type", property => property.Type("string").Enum("alpha"), required: true))
-            .WithSchema("WrapOne", schema => schema.Type("object")
+            .WithSchema("WrapOne", schema => schema
+                .Type("object")
                 .Property("type", property => property.Type("string").Enum("wrap"), required: true)
                 .Property("status", property => property.Type("string").Enum("one"), required: true))
-            .WithSchema("WrapTwo", schema => schema.Type("object")
+            .WithSchema("WrapTwo", schema => schema
+                .Type("object")
                 .Property("type", property => property.Type("string").Enum("wrap"), required: true)
                 .Property("status", property => property.Type("string").Enum("two"), required: true))
             .WithSchema("Wrap", schema => schema.OneOf(one => one.Ref("WrapOne"), two => two.Ref("WrapTwo")))
@@ -496,7 +711,10 @@ public sealed class SpecBinderTests
         var plan = new BindingTestHost().Bind(
             document,
             Selection("v2.health.get"),
-            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), }));
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+            {
+                ["health"] = RootGroup(),
+            }));
 
         var wrap = plan.Unions.Single(static union => union.Name == "IWrap");
         await Assert.That(wrap.MarkerWireName).IsEqualTo("status");
@@ -507,7 +725,8 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Collapse_A_Union_Of_Refinements_Over_One_Primitive()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithSchema("ItemInfo", schema => schema.Type("object")
+            .WithSchema("ItemInfo", schema => schema
+                .Type("object")
                 .Property("digest", property => property.AnyOf(
                     branch => branch.Type("string").Raw("pattern", "\"^[a-f0-9]{64}$\""),
                     branch => branch.Type("string").Enum("removed")), required: true))
@@ -517,7 +736,10 @@ public sealed class SpecBinderTests
         var plan = new BindingTestHost().Bind(
             document,
             Selection("v2.health.get"),
-            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), }));
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+            {
+                ["health"] = RootGroup(),
+            }));
 
         var item = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "ItemInfo");
         var digest = item.Properties.Single(static property => property.WireName == "digest").Type;
@@ -526,10 +748,163 @@ public sealed class SpecBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Create_A_Token_Dispatched_Structural_Union_Carrier()
+    {
+        var document = await IngestAsync(new StructuralUnionScenario());
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection(StructuralUnionScenario.OperationId),
+            Curation(Groups(StructuralUnionScenario.GroupName, RootGroup())));
+
+        var structural = plan.Models.OfType<StructuralUnionModelPlan>().Single();
+        await Assert.That(structural.Name).IsEqualTo("StructuralValue");
+        await Assert.That(structural.KindTypeName).IsEqualTo("StructuralValueKind");
+        await Assert
+            .That(structural
+                .Arms.Select(static arm => arm.Name)
+                .SequenceEqual(["Text", "Number", "Boolean", "TextList"], StringComparer.Ordinal))
+            .IsTrue();
+        await Assert
+            .That(structural.Arms.Single(static arm => arm.Name == "Text").Tokens)
+            .IsEquivalentTo([JsonTokenType.String]);
+        await Assert
+            .That(structural.Arms.Single(static arm => arm.Name == "Number").Tokens)
+            .IsEquivalentTo([JsonTokenType.Number]);
+        await Assert
+            .That(structural.Arms.Single(static arm => arm.Name == "Boolean").Tokens)
+            .IsEquivalentTo([JsonTokenType.True, JsonTokenType.False]);
+        await Assert
+            .That(structural.Arms.Single(static arm => arm.Name == "TextList").Tokens)
+            .IsEquivalentTo([JsonTokenType.StartArray]);
+        await Assert
+            .That(structural.Arms.Single(static arm => arm.Name == "Number").Type)
+            .IsTypeOf<NamedTypeReferencePlan>();
+        await Assert
+            .That(((NamedTypeReferencePlan)structural.Arms.Single(static arm => arm.Name == "Number").Type).Name)
+            .IsEqualTo("double");
+        await Assert.That(plan.Registry.TypeNames).Contains("StructuralValue");
+        await Assert.That(plan.Registry.TypeNames).DoesNotContain("StructuralValueKind");
+        await Assert.That(plan.Registry.TypeNames).DoesNotContain("string");
+        await Assert.That(plan.Registry.TypeNames).DoesNotContain("double");
+        await Assert.That(plan.Registry.TypeNames).DoesNotContain("bool");
+        await Assert.That(plan.Registry.TypeNames).Contains("IReadOnlyList<string>");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_Ambiguous_Structural_Union_Tokens()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("First", schema => schema
+                .Type("object")
+                .Property("first", property => property.Type("string"), required: true))
+            .WithSchema("Second", schema => schema
+                .Type("object")
+                .Property("second", property => property.Type("string"), required: true))
+            .WithSchema("Choice", schema => schema.AnyOf(
+                branch => branch.Ref("First"),
+                branch => branch.Ref("Second")))
+            .WithSchema("Container", schema => schema
+                .Type("object")
+                .Property("choice", property => property.Ref("Choice"), required: true))
+            .WithOperation("v2.choice.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("Container")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.choice.get"),
+            Curation(Groups("choice", RootGroup()))));
+
+        var problems = string.Join(Environment.NewLine, exception.Errors.Select(static error => $"{error.Subject}: {error.Problem}"));
+        await Assert.That(problems).Contains("Choice: structural union branch 1 overlaps earlier branch token kind(s): StartObject");
+    }
+
+    [Test]
+    public async Task Bind_Should_Require_Text_To_Precede_A_Structural_Special_Number()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("Choice", schema => schema.AnyOf(
+                branch => branch.AnyOf(
+                    value => value.Type("number"),
+                    value => value.Type("string").Enum("NaN"),
+                    value => value.Type("string").Enum("Infinity"),
+                    value => value.Type("string").Enum("-Infinity")),
+                branch => branch.Type("boolean")))
+            .WithSchema("Container", schema => schema
+                .Type("object")
+                .Property("choice", property => property.Ref("Choice"), required: true))
+            .WithOperation("v2.choice.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("Container")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.choice.get"),
+            Curation(Groups("choice", RootGroup()))));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Subject == "Choice"
+                                                       && error.Problem.Contains("requires an earlier text branch", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Count_Resolved_Never_Branches_As_Uninhabitable()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("Impossible", schema => schema.Raw("not", "{}"))
+            .WithSchema("Choice", schema => schema.AnyOf(
+                branch => branch.Ref("Impossible"),
+                branch => branch.Type("string")))
+            .WithSchema("Container", schema => schema
+                .Type("object")
+                .Property("choice", property => property.Ref("Choice"), required: true))
+            .WithOperation("v2.choice.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("Container")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.choice.get"),
+            Curation(Groups("choice", RootGroup()))));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Subject == "Choice"
+                                                       && error.Problem.Contains("at least two inhabitable", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Structural_Arm_Colliding_With_Carrier_Members()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("Kind", schema => schema
+                .Type("object")
+                .Property("value", property => property.Type("string"), required: true))
+            .WithSchema("Choice", schema => schema.AnyOf(
+                branch => branch.Type("string"),
+                branch => branch.Ref("Kind")))
+            .WithSchema("Container", schema => schema
+                .Type("object")
+                .Property("choice", property => property.Ref("Choice"), required: true))
+            .WithOperation("v2.choice.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("Container")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.choice.get"),
+            Curation(Groups("choice", RootGroup()))));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Subject == "Choice"
+                                                       && error.Problem.Contains("reserved carrier member", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
     public async Task Bind_Should_Read_An_Object_Or_Array_Union_As_An_Unspecified_Object()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithSchema("ItemInfo", schema => schema.Type("object")
+            .WithSchema("ItemInfo", schema => schema
+                .Type("object")
                 .Property("id", property => property.Type("string"), required: true)
                 .Property("payload", property => property.AnyOf(
                     branch => branch.Type("object"),
@@ -540,7 +915,10 @@ public sealed class SpecBinderTests
         var plan = new BindingTestHost().Bind(
             document,
             Selection("v2.health.get"),
-            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), }));
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+            {
+                ["health"] = RootGroup(),
+            }));
 
         var item = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "ItemInfo");
         var data = item.Properties.Single(static property => property.WireName == "payload").Type;
@@ -551,11 +929,14 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Dispatch_A_Marker_Spanning_Nested_Union_Through_Its_Own_Leaves()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithSchema("Created", schema => schema.Type("object")
+            .WithSchema("Created", schema => schema
+                .Type("object")
                 .Property("type", property => property.Type("string").Enum("created"), required: true))
-            .WithSchema("Renamed", schema => schema.Type("object")
+            .WithSchema("Renamed", schema => schema
+                .Type("object")
                 .Property("type", property => property.Type("string").Enum("renamed"), required: true))
-            .WithSchema("Synced", schema => schema.Type("object")
+            .WithSchema("Synced", schema => schema
+                .Type("object")
                 .Property("type", property => property.Type("string").Enum("synced"), required: true))
             .WithSchema("Durable", schema => schema.OneOf(one => one.Ref("Created"), two => two.Ref("Renamed")))
             .WithSchema("LogItem", schema => schema.AnyOf(one => one.Ref("Durable"), two => two.Ref("Synced")))
@@ -565,15 +946,26 @@ public sealed class SpecBinderTests
         var plan = new BindingTestHost().Bind(
             document,
             Selection("v2.health.get"),
-            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), }));
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+            {
+                ["health"] = RootGroup(),
+            }));
 
         // The nested union discriminates on the parent's own marker, so the parent dispatches
         // straight to its leaves rather than handing the payload to a second converter.
         var outer = plan.Unions.Single(static union => union.Name == "ILogItem");
-        await Assert.That(outer.Variants.Select(static variant => variant.Tag).Order(StringComparer.Ordinal)
-            .SequenceEqual(["created", "renamed", "synced"], StringComparer.Ordinal)).IsTrue();
-        await Assert.That(outer.Variants.Select(static variant => variant.TypeName).Order(StringComparer.Ordinal)
-            .SequenceEqual(["Created", "Renamed", "Synced"], StringComparer.Ordinal)).IsTrue();
+        await Assert
+            .That(outer
+                .Variants.Select(static variant => variant.Tag)
+                .Order(StringComparer.Ordinal)
+                .SequenceEqual(["created", "renamed", "synced"], StringComparer.Ordinal))
+            .IsTrue();
+        await Assert
+            .That(outer
+                .Variants.Select(static variant => variant.TypeName)
+                .Order(StringComparer.Ordinal)
+                .SequenceEqual(["Created", "Renamed", "Synced"], StringComparer.Ordinal))
+            .IsTrue();
 
         // The grouping survives as an interface the leaves implement.
         var nested = plan.Unions.Single(static union => union.Name == "IDurable");
@@ -588,15 +980,19 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Let_A_Schema_Belong_To_Every_Union_That_Branches_To_It()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithSchema("Alpha", schema => schema.Type("object")
+            .WithSchema("Alpha", schema => schema
+                .Type("object")
                 .Property("type", property => property.Type("string").Enum("alpha"), required: true))
-            .WithSchema("Beta", schema => schema.Type("object")
+            .WithSchema("Beta", schema => schema
+                .Type("object")
                 .Property("type", property => property.Type("string").Enum("beta"), required: true))
-            .WithSchema("Shared", schema => schema.Type("object")
+            .WithSchema("Shared", schema => schema
+                .Type("object")
                 .Property("type", property => property.Type("string").Enum("shared"), required: true))
             .WithSchema("Durable", schema => schema.AnyOf(one => one.Ref("Alpha"), two => two.Ref("Shared")))
             .WithSchema("Live", schema => schema.AnyOf(one => one.Ref("Beta"), two => two.Ref("Shared")))
-            .WithSchema("Feed", schema => schema.Type("object")
+            .WithSchema("Feed", schema => schema
+                .Type("object")
                 .Property("durable", property => property.Ref("Durable"), required: true)
                 .Property("live", property => property.Ref("Live"), required: true))
             .WithOperation("v2.health.get", configure: operation => operation
@@ -605,11 +1001,17 @@ public sealed class SpecBinderTests
         var plan = new BindingTestHost().Bind(
             document,
             Selection("v2.health.get"),
-            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), }));
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+            {
+                ["health"] = RootGroup(),
+            }));
 
         var shared = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "Shared");
-        await Assert.That(shared.ImplementedUnionNames.Order(StringComparer.Ordinal)
-            .SequenceEqual(["IDurable", "ILive"], StringComparer.Ordinal)).IsTrue();
+        await Assert
+            .That(shared
+                .ImplementedUnionNames.Order(StringComparer.Ordinal)
+                .SequenceEqual(["IDurable", "ILive"], StringComparer.Ordinal))
+            .IsTrue();
 
         var alpha = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "Alpha");
         await Assert.That(alpha.ImplementedUnionNames.SequenceEqual(["IDurable"], StringComparer.Ordinal)).IsTrue();
@@ -619,12 +1021,15 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Refuse_A_Tag_Owned_By_Two_Closure_Schemas()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithSchema("ItemInfo", schema => schema.Type("object")
+            .WithSchema("ItemInfo", schema => schema
+                .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithSchema("GoneError", schema => schema.Type("object")
+            .WithSchema("GoneError", schema => schema
+                .Type("object")
                 .Property("_tag", property => property.Type("string").Enum("SharedError"), required: true)
                 .Property("message", property => property.Type("string"), required: true))
-            .WithSchema("LostError", schema => schema.Type("object")
+            .WithSchema("LostError", schema => schema
+                .Type("object")
                 .Property("_tag", property => property.Type("string").Enum("SharedError"), required: true)
                 .Property("detail", property => property.Type("string"), required: true))
             .WithOperation("v2.health.get", configure: operation => operation
@@ -635,10 +1040,15 @@ public sealed class SpecBinderTests
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
             Selection("v2.health.get"),
-            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal) { ["health"] = RootGroup(), })));
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+            {
+                ["health"] = RootGroup(),
+            })));
 
-        await Assert.That(exception.Errors.Any(static error =>
-            error.Problem.Contains("multiple error schemas declare tag 'SharedError'", StringComparison.Ordinal))).IsTrue();
+        await Assert
+            .That(exception.Errors.Any(static error =>
+                error.Problem.Contains("multiple error schemas declare tag 'SharedError'", StringComparison.Ordinal)))
+            .IsTrue();
     }
 
     [Test]
@@ -646,11 +1056,15 @@ public sealed class SpecBinderTests
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
             .WithOperation("v2.health.get", configure: operation => operation
-                .Response(200, "application/json", schema => schema.Type("object")
+                .Response(200, "application/json", schema => schema
+                    .Type("object")
                     .Property("data", property => property.Type("string"), required: true)))));
         var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
         {
-            ["health"] = new GroupCuration { Placement = (GroupPlacement)7 },
+            ["health"] = new GroupCuration
+            {
+                Placement = (GroupPlacement)7
+            },
         };
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
@@ -658,8 +1072,10 @@ public sealed class SpecBinderTests
             Selection("v2.health.get"),
             Curation(groups)));
 
-        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
-            && error.Problem.Contains("not a recognized group placement", StringComparison.Ordinal))).IsTrue();
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+                                                       && error.Problem.Contains("not a recognized group placement", StringComparison.Ordinal)))
+            .IsTrue();
     }
 
     [Test]
@@ -673,8 +1089,10 @@ public sealed class SpecBinderTests
             .That(async () => _ = await IngestAsync(scenario))
             .Throws<IngestionException>();
 
-        await Assert.That(exception!.Errors.Any(static error =>
-            error.Problem.Contains("must appear exactly once", StringComparison.Ordinal))).IsTrue();
+        await Assert
+            .That(exception!.Errors.Any(static error =>
+                error.Problem.Contains("must appear exactly once", StringComparison.Ordinal)))
+            .IsTrue();
     }
 
     [Test]
@@ -689,12 +1107,18 @@ public sealed class SpecBinderTests
 
         var gadget = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         var status = gadget.ErrorMap.Statuses.Single(static entry => entry.StatusCode == 400);
-        await Assert.That(status.Tags.Select(static tag => tag.TypeName)
-            .SequenceEqual(["GadgetError"], StringComparer.Ordinal)).IsTrue();
+        await Assert
+            .That(status
+                .Tags.Select(static tag => tag.TypeName)
+                .SequenceEqual(["GadgetError"], StringComparer.Ordinal))
+            .IsTrue();
         await Assert.That(plan.Models.Any(static model => model.Name == "GadgetError1")).IsFalse();
-        await Assert.That(plan.Unions.Single(static union => union.Name == "IOpenCodeError")
-            .Variants.Select(static variant => variant.TypeName)
-            .SequenceEqual(["GadgetError"], StringComparer.Ordinal)).IsTrue();
+        await Assert
+            .That(plan
+                .Unions.Single(static union => union.Name == "IOpenCodeError")
+                .Variants.Select(static variant => variant.TypeName)
+                .SequenceEqual(["GadgetError"], StringComparer.Ordinal))
+            .IsTrue();
     }
 
     [Test]
@@ -707,14 +1131,17 @@ public sealed class SpecBinderTests
             Selection("v2.gadget.get"),
             GadgetCuration()));
 
-        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Operation
-            && error.Problem.Contains("duplicate error tag", StringComparison.Ordinal))).IsTrue();
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Operation
+                                                       && error.Problem.Contains("duplicate error tag", StringComparison.Ordinal)))
+            .IsTrue();
     }
 
     [Test]
     public async Task Bind_Should_Refuse_An_Alias_Whose_Shapes_Differ()
     {
-        var document = await IngestAsync(DuplicateTagScenario(duplicate => duplicate.Type("object")
+        var document = await IngestAsync(DuplicateTagScenario(duplicate => duplicate
+            .Type("object")
             .Property("_tag", property => property.Type("string").Enum("GadgetError"), required: true)
             .Property("message", property => property.Type("string"), required: true)
             .Property("detail", property => property.Type("string"))));
@@ -725,7 +1152,8 @@ public sealed class SpecBinderTests
     [Test]
     public async Task Bind_Should_Refuse_An_Alias_Whose_Formats_Differ()
     {
-        var document = await IngestAsync(DuplicateTagScenario(static duplicate => duplicate.Type("object")
+        var document = await IngestAsync(DuplicateTagScenario(static duplicate => duplicate
+            .Type("object")
             .Property("_tag", property => property.Type("string").Enum("GadgetError"), required: true)
             .Property("message", property => property.Type("string").Format("uri"), required: true)));
 
@@ -770,8 +1198,10 @@ public sealed class SpecBinderTests
             Selection("v2.gadget.get"),
             GadgetCuration(Alias("GadgetError2", "GadgetError1"), Alias("GadgetError1", "GadgetError"))));
 
-        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
-            && error.Problem.Contains("chain", StringComparison.Ordinal))).IsTrue();
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+                                                       && error.Problem.Contains("chain", StringComparison.Ordinal)))
+            .IsTrue();
     }
 
     [Test]
@@ -784,8 +1214,10 @@ public sealed class SpecBinderTests
             Selection("v2.gadget.get"),
             GadgetCuration(Alias("GadgetError1", "GadgetError"), Alias("GadgetError1", "GadgetError"))));
 
-        await Assert.That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
-            && error.Problem.Contains("duplicated", StringComparison.Ordinal))).IsTrue();
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+                                                       && error.Problem.Contains("duplicated", StringComparison.Ordinal)))
+            .IsTrue();
     }
 
     [Test]
@@ -802,7 +1234,8 @@ public sealed class SpecBinderTests
         var document = await IngestAsync(SpecScenario.Define(spec =>
         {
             DefineDuplicateTagSpec(spec, DefaultDuplicate);
-            _ = spec.WithSchema("LonelyError", DefaultDuplicate)
+            _ = spec
+                .WithSchema("LonelyError", DefaultDuplicate)
                 .WithSchema("LonelyError1", DefaultDuplicate);
         }));
 
@@ -821,9 +1254,11 @@ public sealed class SpecBinderTests
             Selection("v2.gadget.get"),
             GadgetCuration(alias)));
 
-        await Assert.That(exception.Errors.Any(error => error.Category == BindingErrorCategory.Curation
-            && string.Equals(error.Subject, subject ?? alias.Schema, StringComparison.Ordinal)
-            && error.Problem.Contains(expectedProblem, StringComparison.Ordinal))).IsTrue();
+        await Assert
+            .That(exception.Errors.Any(error => error.Category == BindingErrorCategory.Curation
+                                                && string.Equals(error.Subject, subject ?? alias.Schema, StringComparison.Ordinal)
+                                                && error.Problem.Contains(expectedProblem, StringComparison.Ordinal)))
+            .IsTrue();
     }
 
     private static SpecScenario DuplicateTagScenario(Action<SchemaBuilder>? duplicate = null) =>
@@ -831,7 +1266,8 @@ public sealed class SpecBinderTests
 
     private static void DefineDuplicateTagSpec(SpecDocumentBuilder spec, Action<SchemaBuilder> duplicate) =>
         _ = spec
-            .WithSchema("GadgetInfo", schema => schema.Type("object")
+            .WithSchema("GadgetInfo", schema => schema
+                .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
             .WithSchema("GadgetError", DefaultDuplicate)
             .WithSchema("GadgetError1", duplicate)
@@ -841,7 +1277,8 @@ public sealed class SpecBinderTests
                     static branch => branch.Ref("GadgetError1"),
                     static branch => branch.Ref("GadgetError"))));
 
-    private static void DefaultDuplicate(SchemaBuilder schema) => schema.Type("object")
+    private static void DefaultDuplicate(SchemaBuilder schema) => schema
+        .Type("object")
         .Property("_tag", property => property.Type("string").Enum("GadgetError"), required: true)
         .Property("message", property => property.Type("string"), required: true);
 
@@ -868,5 +1305,4 @@ public sealed class SpecBinderTests
         var context = scenario.Build();
         return await new SpecIngestion(context.FileSystem).IngestAsync(context.SpecPath, CancellationToken.None);
     }
-
 }

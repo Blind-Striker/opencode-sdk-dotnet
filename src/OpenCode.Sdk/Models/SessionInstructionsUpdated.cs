@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session instructions updated value.
 /// </summary>
-public sealed record SessionInstructionsUpdated : ISessionEventDurable
+public sealed record SessionInstructionsUpdated : ISessionEventDurable, IEvent
 {
     /// <summary>
     /// Gets the id value.

@@ -9,27 +9,37 @@ internal sealed class SchemaNameResolver
     private readonly StringComparer _comparer = StringComparer.Ordinal;
 
     public IReadOnlyDictionary<string, string> Resolve(SpecDocument document, ReachableSchemaSet reachable,
-        IReadOnlyList<SpecOperation> selected, BindingErrorCollector errors)
+        IReadOnlyList<SpecOperation> selected, GenerationCuration curation, BindingErrorCollector errors)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(reachable);
         ArgumentNullException.ThrowIfNull(selected);
+        ArgumentNullException.ThrowIfNull(curation);
         ArgumentNullException.ThrowIfNull(errors);
 
         var responseRoots = reachable.ResponseRootKeys.ToHashSet(_comparer);
         var requestRoots = ResolveRequestBodyRootNames(selected, errors);
         var effectStreamTypes = ResolveEffectStreamTypeNames(document, selected);
+        var curatedNames = curation
+            .SchemaNames
+            .DistinctBy(static row => row.Schema, StringComparer.Ordinal)
+            .ToDictionary(static row => row.Schema, static row => row.DotNetName, StringComparer.Ordinal);
         var result = new Dictionary<string, string>(_comparer);
         var owners = new Dictionary<string, string>(_comparer);
         foreach (var key in reachable.GraphKeys)
         {
-            if (responseRoots.Contains(key) || !document.Schemas.TryGetValue(key, out var schema) || !IsNominal(schema))
+            if (responseRoots.Contains(key) || !document.Schemas.TryGetValue(key, out var schema)
+                                            || !IsNominal(schema, document.Schemas))
             {
                 continue;
             }
 
             string name;
-            if (effectStreamTypes.TryGetValue(key, out var effectStreamName))
+            if (curatedNames.TryGetValue(key, out var curatedName))
+            {
+                name = curatedName;
+            }
+            else if (effectStreamTypes.TryGetValue(key, out var effectStreamName))
             {
                 name = effectStreamName;
             }
@@ -39,9 +49,13 @@ internal sealed class SchemaNameResolver
             }
             else
             {
-                name = schema is UnionNode union
-                    ? CSharpNamePolicy.ToUnionInterfaceName(ResolveUnionName(key, union, document.Schemas))
-                    : ResolveDefault(key);
+                name = schema switch
+                {
+                    UnionNode { Classification: UnionClassification.Marked } union =>
+                        CSharpNamePolicy.ToUnionInterfaceName(ResolveUnionName(key, union, document.Schemas)),
+                    UnionNode union => ResolveUnionName(key, union, document.Schemas),
+                    _ => ResolveDefault(key),
+                };
             }
 
             if (owners.TryGetValue(name, out var existing))
@@ -100,9 +114,9 @@ internal sealed class SchemaNameResolver
     /// A union that carries no choice is not a type of its own — it binds to what its branches
     /// already are (<see cref="UnstructuredUnionPolicy"/>), so it never claims a C# name.
     /// </summary>
-    private static bool IsNominal(SchemaNode schema) => schema switch
+    private static bool IsNominal(SchemaNode schema, IReadOnlyDictionary<string, SchemaNode> graph) => schema switch
     {
-        UnionNode { Classification: UnionClassification.Structural } union => UnstructuredUnionPolicy.Collapse(union) is null,
+        UnionNode { Classification: UnionClassification.Structural } union => UnstructuredUnionPolicy.Collapse(union, graph) is null,
         ObjectNode or EnumNode or UnionNode => true,
         _ => false,
     };

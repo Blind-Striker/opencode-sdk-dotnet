@@ -5,6 +5,11 @@
         Default = 0,
         NoThrow = 1,
     }
+    public class EventsClient
+    {
+        protected EventsClient() { }
+        public virtual System.Collections.Generic.IAsyncEnumerable<OpenCode.Sdk.Models.IEvent> SubscribeAsync(System.Threading.CancellationToken cancellationToken = default) { }
+    }
     public sealed class HealthResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.HealthResponse>
     {
         public HealthResponse() { }
@@ -69,6 +74,7 @@
     {
         protected OpenCodeClient() { }
         public OpenCodeClient(OpenCode.Sdk.OpenCodeClientOptions options) { }
+        public virtual OpenCode.Sdk.EventsClient Events { get; }
         public virtual OpenCode.Sdk.SessionsClient Sessions { get; }
         public virtual OpenCode.Sdk.ShellsClient Shells { get; }
         public void Dispose() { }
@@ -105,6 +111,10 @@
     }
     public static class OpenCodeRoutes
     {
+        public static class Events
+        {
+            public const string Subscribe = "/api/event";
+        }
         public static class Health
         {
             public const string Get = "/api/health";
@@ -298,6 +308,78 @@
 }
 namespace OpenCode.Sdk.Models
 {
+    public sealed class AgentUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.AgentUpdated>
+    {
+        public AgentUpdated() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class CatalogUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.CatalogUpdated>
+    {
+        public CatalogUpdated() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class CommandUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.CommandUpdated>
+    {
+        public CommandUpdated() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class ConfigUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.ConfigUpdated>
+    {
+        public ConfigUpdated() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
     public sealed class EventLogSynced : OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.EventLogSynced>
     {
         public EventLogSynced() { }
@@ -306,6 +388,22 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("seq")]
         public long? Seq { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class EventServerConnected : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.EventServerConnected>
+    {
+        public EventServerConnected() { }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
     }
@@ -332,6 +430,412 @@ namespace OpenCode.Sdk.Models
         Deleted = 1,
         [System.Text.Json.Serialization.JsonStringEnumMemberName("modified")]
         Modified = 2,
+    }
+    public sealed class FilesystemChanged : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.FilesystemChanged>
+    {
+        public FilesystemChanged() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.FilesystemChangedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class FilesystemChangedData : System.IEquatable<OpenCode.Sdk.Models.FilesystemChangedData>
+    {
+        public FilesystemChangedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("event")]
+        public required OpenCode.Sdk.Models.FilesystemChangedDataEvent Event { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("file")]
+        public required string File { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.FilesystemChangedDataEvent>))]
+    public enum FilesystemChangedDataEvent
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("add")]
+        Add = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("change")]
+        Change = 1,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("unlink")]
+        Unlink = 2,
+    }
+    public sealed class FormBooleanField : OpenCode.Sdk.Models.IFormField, System.IEquatable<OpenCode.Sdk.Models.FormBooleanField>
+    {
+        public FormBooleanField() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("default")]
+        public bool? Default { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("key")]
+        public required string Key { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("required")]
+        public bool? Required { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("title")]
+        public string? Title { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("when")]
+        public System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.FormWhen>? When { get; init; }
+    }
+    public sealed class FormCancelled : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.FormCancelled>
+    {
+        public FormCancelled() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.FormCancelledData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class FormCancelledData : System.IEquatable<OpenCode.Sdk.Models.FormCancelledData>
+    {
+        public FormCancelledData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        public required string SessionId { get; init; }
+    }
+    public sealed class FormCreated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.FormCreated>
+    {
+        public FormCreated() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.FormCreatedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class FormCreatedData : System.IEquatable<OpenCode.Sdk.Models.FormCreatedData>
+    {
+        public FormCreatedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("form")]
+        public required OpenCode.Sdk.Models.FormInfo Form { get; init; }
+    }
+    public sealed class FormExternalField : OpenCode.Sdk.Models.IFormField, System.IEquatable<OpenCode.Sdk.Models.FormExternalField>
+    {
+        public FormExternalField() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("key")]
+        public required string Key { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("title")]
+        public string? Title { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("url")]
+        public required string Url { get; init; }
+    }
+    public sealed class FormInfo : System.IEquatable<OpenCode.Sdk.Models.FormInfo>
+    {
+        public FormInfo() { }
+        [System.Text.Json.Serialization.JsonPropertyName("fields")]
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.IFormField> Fields { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        public required string SessionId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("title")]
+        public required string Title { get; init; }
+    }
+    public sealed class FormIntegerField : OpenCode.Sdk.Models.IFormField, System.IEquatable<OpenCode.Sdk.Models.FormIntegerField>
+    {
+        public FormIntegerField() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("default")]
+        public double? Default { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("key")]
+        public required string Key { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("maximum")]
+        public double? Maximum { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("minimum")]
+        public double? Minimum { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("required")]
+        public bool? Required { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("title")]
+        public string? Title { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("when")]
+        public System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.FormWhen>? When { get; init; }
+    }
+    public sealed class FormMultiselectField : OpenCode.Sdk.Models.IFormField, System.IEquatable<OpenCode.Sdk.Models.FormMultiselectField>
+    {
+        public FormMultiselectField() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("custom")]
+        public bool? Custom { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("default")]
+        public System.Collections.Generic.IReadOnlyList<string>? Default { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("key")]
+        public required string Key { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("maxItems")]
+        public long? MaxItems { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("minItems")]
+        public long? MinItems { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("options")]
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.FormOption> Options { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("required")]
+        public bool? Required { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("title")]
+        public string? Title { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("when")]
+        public System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.FormWhen>? When { get; init; }
+    }
+    public sealed class FormNumberField : OpenCode.Sdk.Models.IFormField, System.IEquatable<OpenCode.Sdk.Models.FormNumberField>
+    {
+        public FormNumberField() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("default")]
+        public double? Default { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("key")]
+        public required string Key { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("maximum")]
+        public double? Maximum { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("minimum")]
+        public double? Minimum { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("required")]
+        public bool? Required { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("title")]
+        public string? Title { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("when")]
+        public System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.FormWhen>? When { get; init; }
+    }
+    public sealed class FormOption : System.IEquatable<OpenCode.Sdk.Models.FormOption>
+    {
+        public FormOption() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("label")]
+        public required string Label { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("value")]
+        public required string Value { get; init; }
+    }
+    public sealed class FormReplied : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.FormReplied>
+    {
+        public FormReplied() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.FormRepliedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class FormRepliedData : System.IEquatable<OpenCode.Sdk.Models.FormRepliedData>
+    {
+        public FormRepliedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("answer")]
+        public required System.Collections.Generic.IReadOnlyDictionary<string, OpenCode.Sdk.Models.FormValue> Answer { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        public required string SessionId { get; init; }
+    }
+    public sealed class FormStringField : OpenCode.Sdk.Models.IFormField, System.IEquatable<OpenCode.Sdk.Models.FormStringField>
+    {
+        public FormStringField() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("custom")]
+        public bool? Custom { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("default")]
+        public string? Default { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("format")]
+        public OpenCode.Sdk.Models.FormStringFieldFormat? Format { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("key")]
+        public required string Key { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("maxLength")]
+        public long? MaxLength { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("minLength")]
+        public long? MinLength { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("options")]
+        public System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.FormOption>? Options { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("pattern")]
+        public string? Pattern { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("placeholder")]
+        public string? Placeholder { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("required")]
+        public bool? Required { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("title")]
+        public string? Title { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("when")]
+        public System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.FormWhen>? When { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.FormStringFieldFormat>))]
+    public enum FormStringFieldFormat
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("email")]
+        Email = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("uri")]
+        Uri = 1,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("date")]
+        Date = 2,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("date-time")]
+        DateTime = 3,
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.FormValueJsonConverter))]
+    public sealed class FormValue : System.IEquatable<OpenCode.Sdk.Models.FormValue>
+    {
+        public bool Boolean { get; }
+        public OpenCode.Sdk.Models.FormValueKind Kind { get; }
+        public double Number { get; }
+        public string Text { get; }
+        public System.Collections.Generic.IReadOnlyList<string> TextList { get; }
+        public System.Text.Json.JsonElement Unknown { get; }
+        public static OpenCode.Sdk.Models.FormValue FromBoolean(bool value) { }
+        public static OpenCode.Sdk.Models.FormValue FromNumber(double value) { }
+        public static OpenCode.Sdk.Models.FormValue FromText(string value) { }
+        public static OpenCode.Sdk.Models.FormValue FromTextList(System.Collections.Generic.IReadOnlyList<string> value) { }
+        public static OpenCode.Sdk.Models.FormValue FromUnknown(System.Text.Json.JsonElement value) { }
+    }
+    public enum FormValueKind
+    {
+        Text = 0,
+        Number = 1,
+        Boolean = 2,
+        TextList = 3,
+        Unknown = 4,
+    }
+    public sealed class FormWhen : System.IEquatable<OpenCode.Sdk.Models.FormWhen>
+    {
+        public FormWhen() { }
+        [System.Text.Json.Serialization.JsonPropertyName("key")]
+        public required string Key { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("op")]
+        public required OpenCode.Sdk.Models.FormWhenOp Op { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("value")]
+        public required OpenCode.Sdk.Models.FormWhenValue Value { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.FormWhenOp>))]
+    public enum FormWhenOp
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("eq")]
+        Eq = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("neq")]
+        Neq = 1,
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.FormWhenValueJsonConverter))]
+    public sealed class FormWhenValue : System.IEquatable<OpenCode.Sdk.Models.FormWhenValue>
+    {
+        public bool Boolean { get; }
+        public OpenCode.Sdk.Models.FormWhenValueKind Kind { get; }
+        public double Number { get; }
+        public string Text { get; }
+        public System.Text.Json.JsonElement Unknown { get; }
+        public static OpenCode.Sdk.Models.FormWhenValue FromBoolean(bool value) { }
+        public static OpenCode.Sdk.Models.FormWhenValue FromNumber(double value) { }
+        public static OpenCode.Sdk.Models.FormWhenValue FromText(string value) { }
+        public static OpenCode.Sdk.Models.FormWhenValue FromUnknown(System.Text.Json.JsonElement value) { }
+    }
+    public enum FormWhenValueKind
+    {
+        Text = 0,
+        Number = 1,
+        Boolean = 2,
+        Unknown = 3,
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.EventJsonConverter))]
+    public interface IEvent
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        string Type { get; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.FormFieldJsonConverter))]
+    public interface IFormField
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        string Type { get; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.OpenCodeErrorJsonConverter))]
     public interface IOpenCodeError
@@ -390,6 +894,12 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("status")]
         string Status { get; }
     }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.SessionStatusJsonConverter))]
+    public interface ISessionStatus
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        string Type { get; }
+    }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StreamFailureCauseJsonConverter))]
     public interface IStreamFailureCause : OpenCode.Sdk.Models.IOpenCodeStreamFailureCause
     {
@@ -401,6 +911,96 @@ namespace OpenCode.Sdk.Models
     {
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         string Type { get; }
+    }
+    public sealed class InstallationUpdateAvailable : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.InstallationUpdateAvailable>
+    {
+        public InstallationUpdateAvailable() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.InstallationUpdateAvailableData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class InstallationUpdateAvailableData : System.IEquatable<OpenCode.Sdk.Models.InstallationUpdateAvailableData>
+    {
+        public InstallationUpdateAvailableData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("version")]
+        public required string Version { get; init; }
+    }
+    public sealed class InstallationUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.InstallationUpdated>
+    {
+        public InstallationUpdated() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.InstallationUpdatedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class InstallationUpdatedData : System.IEquatable<OpenCode.Sdk.Models.InstallationUpdatedData>
+    {
+        public InstallationUpdatedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("version")]
+        public required string Version { get; init; }
+    }
+    public sealed class IntegrationConnectionUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.IntegrationConnectionUpdated>
+    {
+        public IntegrationConnectionUpdated() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.IntegrationConnectionUpdatedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class IntegrationConnectionUpdatedData : System.IEquatable<OpenCode.Sdk.Models.IntegrationConnectionUpdatedData>
+    {
+        public IntegrationConnectionUpdatedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("integrationID")]
+        public required string IntegrationId { get; init; }
+    }
+    public sealed class IntegrationUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.IntegrationUpdated>
+    {
+        public IntegrationUpdated() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
     }
     public sealed class InvalidCursorError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.InvalidCursorError>
     {
@@ -454,6 +1054,54 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("workspaceID")]
         public string? WorkspaceId { get; init; }
     }
+    public sealed class McpResourcesChanged : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.McpResourcesChanged>
+    {
+        public McpResourcesChanged() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.McpResourcesChangedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class McpResourcesChangedData : System.IEquatable<OpenCode.Sdk.Models.McpResourcesChangedData>
+    {
+        public McpResourcesChangedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("server")]
+        public required string Server { get; init; }
+    }
+    public sealed class McpStatusChanged : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.McpStatusChanged>
+    {
+        public McpStatusChanged() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.McpStatusChangedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class McpStatusChangedData : System.IEquatable<OpenCode.Sdk.Models.McpStatusChangedData>
+    {
+        public McpStatusChangedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("server")]
+        public required string Server { get; init; }
+    }
     public sealed class MessageNotFoundError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.MessageNotFoundError>
     {
         public MessageNotFoundError() { }
@@ -476,6 +1124,217 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("variant")]
         public string? Variant { get; init; }
+    }
+    public sealed class ModelsDevRefreshed : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.ModelsDevRefreshed>
+    {
+        public ModelsDevRefreshed() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class PermissionAsked : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.PermissionAsked>
+    {
+        public PermissionAsked() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.PermissionAskedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class PermissionAskedData : System.IEquatable<OpenCode.Sdk.Models.PermissionAskedData>
+    {
+        public PermissionAskedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("action")]
+        public required string Action { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("resources")]
+        public required System.Collections.Generic.IReadOnlyList<string> Resources { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("save")]
+        public System.Collections.Generic.IReadOnlyList<string>? Save { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        public required string SessionId { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("source")]
+        public OpenCode.Sdk.Models.PermissionSourceTool? Source { get; init; }
+    }
+    public sealed class PermissionReplied : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.PermissionReplied>
+    {
+        public PermissionReplied() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.PermissionRepliedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class PermissionRepliedData : System.IEquatable<OpenCode.Sdk.Models.PermissionRepliedData>
+    {
+        public PermissionRepliedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("reply")]
+        public required OpenCode.Sdk.Models.PermissionReply Reply { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("requestID")]
+        public required string RequestId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        public required string SessionId { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.PermissionReply>))]
+    public enum PermissionReply
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("once")]
+        Once = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("always")]
+        Always = 1,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("reject")]
+        Reject = 2,
+    }
+    public sealed class PermissionSourceTool : System.IEquatable<OpenCode.Sdk.Models.PermissionSourceTool>
+    {
+        public PermissionSourceTool() { }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("messageID")]
+        public required string MessageId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public required string Type { get; init; }
+    }
+    public sealed class PluginAdded : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.PluginAdded>
+    {
+        public PluginAdded() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.PluginAddedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class PluginAddedData : System.IEquatable<OpenCode.Sdk.Models.PluginAddedData>
+    {
+        public PluginAddedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+    }
+    public sealed class PluginUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.PluginUpdated>
+    {
+        public PluginUpdated() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class ProjectDirectoriesUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.ProjectDirectoriesUpdated>
+    {
+        public ProjectDirectoriesUpdated() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.ProjectDirectoriesUpdatedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class ProjectDirectoriesUpdatedData : System.IEquatable<OpenCode.Sdk.Models.ProjectDirectoriesUpdatedData>
+    {
+        public ProjectDirectoriesUpdatedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("projectID")]
+        public required string ProjectId { get; init; }
+    }
+    public sealed class ProjectDirectoryResolved : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.ProjectDirectoryResolved>
+    {
+        public ProjectDirectoryResolved() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.ProjectDirectoryResolvedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("durable")]
+        public required OpenCode.Sdk.Models.ProjectDirectoryResolvedDurable Durable { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class ProjectDirectoryResolvedData : System.IEquatable<OpenCode.Sdk.Models.ProjectDirectoryResolvedData>
+    {
+        public ProjectDirectoryResolvedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("directory")]
+        public required string Directory { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("previous")]
+        public required string Previous { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("projectID")]
+        public required string ProjectId { get; init; }
+    }
+    public sealed class ProjectDirectoryResolvedDurable : System.IEquatable<OpenCode.Sdk.Models.ProjectDirectoryResolvedDurable>
+    {
+        public ProjectDirectoryResolvedDurable() { }
+        [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
+        public required string AggregateId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("seq")]
+        public required long Seq { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("version")]
+        public required double Version { get; init; }
     }
     public sealed class PromptAgentAttachment : System.IEquatable<OpenCode.Sdk.Models.PromptAgentAttachment>
     {
@@ -542,6 +1401,268 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("text")]
         public required string Text { get; init; }
     }
+    public sealed class Pty : System.IEquatable<OpenCode.Sdk.Models.Pty>
+    {
+        public Pty() { }
+        [System.Text.Json.Serialization.JsonPropertyName("args")]
+        public required System.Collections.Generic.IReadOnlyList<string> Args { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("command")]
+        public required string Command { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("cwd")]
+        public required string Cwd { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("exitCode")]
+        public long? ExitCode { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("pid")]
+        public required long Pid { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public required OpenCode.Sdk.Models.PtyStatus Status { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("title")]
+        public required string Title { get; init; }
+    }
+    public sealed class PtyCreated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.PtyCreated>
+    {
+        public PtyCreated() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.PtyCreatedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class PtyCreatedData : System.IEquatable<OpenCode.Sdk.Models.PtyCreatedData>
+    {
+        public PtyCreatedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("info")]
+        public required OpenCode.Sdk.Models.Pty Info { get; init; }
+    }
+    public sealed class PtyDeleted : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.PtyDeleted>
+    {
+        public PtyDeleted() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.PtyDeletedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class PtyDeletedData : System.IEquatable<OpenCode.Sdk.Models.PtyDeletedData>
+    {
+        public PtyDeletedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+    }
+    public sealed class PtyExited : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.PtyExited>
+    {
+        public PtyExited() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.PtyExitedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class PtyExitedData : System.IEquatable<OpenCode.Sdk.Models.PtyExitedData>
+    {
+        public PtyExitedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("exitCode")]
+        public required long ExitCode { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.PtyStatus>))]
+    public enum PtyStatus
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("running")]
+        Running = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("exited")]
+        Exited = 1,
+    }
+    public sealed class PtyUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.PtyUpdated>
+    {
+        public PtyUpdated() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.PtyUpdatedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class PtyUpdatedData : System.IEquatable<OpenCode.Sdk.Models.PtyUpdatedData>
+    {
+        public PtyUpdatedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("info")]
+        public required OpenCode.Sdk.Models.Pty Info { get; init; }
+    }
+    public sealed class QuestionAsked : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.QuestionAsked>
+    {
+        public QuestionAsked() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.QuestionAskedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class QuestionAskedData : System.IEquatable<OpenCode.Sdk.Models.QuestionAskedData>
+    {
+        public QuestionAskedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("questions")]
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.QuestionInfo> Questions { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        public required string SessionId { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("tool")]
+        public OpenCode.Sdk.Models.QuestionTool? Tool { get; init; }
+    }
+    public sealed class QuestionInfo : System.IEquatable<OpenCode.Sdk.Models.QuestionInfo>
+    {
+        public QuestionInfo() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("custom")]
+        public bool? Custom { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("header")]
+        public required string Header { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("multiple")]
+        public bool? Multiple { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("options")]
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.QuestionOption> Options { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("question")]
+        public required string Question { get; init; }
+    }
+    public sealed class QuestionOption : System.IEquatable<OpenCode.Sdk.Models.QuestionOption>
+    {
+        public QuestionOption() { }
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public required string Description { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("label")]
+        public required string Label { get; init; }
+    }
+    public sealed class QuestionRejected : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.QuestionRejected>
+    {
+        public QuestionRejected() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.QuestionRejectedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class QuestionRejectedData : System.IEquatable<OpenCode.Sdk.Models.QuestionRejectedData>
+    {
+        public QuestionRejectedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("requestID")]
+        public required string RequestId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        public required string SessionId { get; init; }
+    }
+    public sealed class QuestionReplied : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.QuestionReplied>
+    {
+        public QuestionReplied() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.QuestionRepliedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class QuestionRepliedData : System.IEquatable<OpenCode.Sdk.Models.QuestionRepliedData>
+    {
+        public QuestionRepliedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("answers")]
+        public required System.Collections.Generic.IReadOnlyList<System.Collections.Generic.IReadOnlyList<string>> Answers { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("requestID")]
+        public required string RequestId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        public required string SessionId { get; init; }
+    }
+    public sealed class QuestionTool : System.IEquatable<OpenCode.Sdk.Models.QuestionTool>
+    {
+        public QuestionTool() { }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("messageID")]
+        public required string MessageId { get; init; }
+    }
+    public sealed class ReferenceUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.ReferenceUpdated>
+    {
+        public ReferenceUpdated() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
     public sealed class ServiceHealth : System.IEquatable<OpenCode.Sdk.Models.ServiceHealth>
     {
         public ServiceHealth() { }
@@ -552,7 +1673,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required string Version { get; init; }
     }
-    public sealed class SessionAgentSelected : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionAgentSelected>
+    public sealed class SessionAgentSelected : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionAgentSelected>
     {
         public SessionAgentSelected() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -593,7 +1714,33 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionCompactionEnded : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionCompactionEnded>
+    public sealed class SessionCompactionDelta : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.SessionCompactionDelta>
+    {
+        public SessionCompactionDelta() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.SessionCompactionDeltaData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class SessionCompactionDeltaData : System.IEquatable<OpenCode.Sdk.Models.SessionCompactionDeltaData>
+    {
+        public SessionCompactionDeltaData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        public required string SessionId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("text")]
+        public required string Text { get; init; }
+    }
+    public sealed class SessionCompactionEnded : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionCompactionEnded>
     {
         public SessionCompactionEnded() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -643,7 +1790,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionCompactionFailed : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionCompactionFailed>
+    public sealed class SessionCompactionFailed : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionCompactionFailed>
     {
         public SessionCompactionFailed() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -694,7 +1841,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionCompactionStarted : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionCompactionStarted>
+    public sealed class SessionCompactionStarted : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionCompactionStarted>
     {
         public SessionCompactionStarted() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -764,7 +1911,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("title")]
         public string? Title { get; init; }
     }
-    public sealed class SessionCreated : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionCreated>
+    public sealed class SessionCreated : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionCreated>
     {
         public SessionCreated() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -823,7 +1970,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionDeleted : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionDeleted>
+    public sealed class SessionDeleted : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionDeleted>
     {
         public SessionDeleted() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -859,7 +2006,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionExecutionFailed : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionExecutionFailed>
+    public sealed class SessionExecutionFailed : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionExecutionFailed>
     {
         public SessionExecutionFailed() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -897,7 +2044,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionExecutionInterrupted : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionExecutionInterrupted>
+    public sealed class SessionExecutionInterrupted : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionExecutionInterrupted>
     {
         public SessionExecutionInterrupted() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -945,7 +2092,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionExecutionStarted : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionExecutionStarted>
+    public sealed class SessionExecutionStarted : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionExecutionStarted>
     {
         public SessionExecutionStarted() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -981,7 +2128,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionExecutionSucceeded : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionExecutionSucceeded>
+    public sealed class SessionExecutionSucceeded : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionExecutionSucceeded>
     {
         public SessionExecutionSucceeded() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -1033,7 +2180,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
     }
-    public sealed class SessionForked : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionForked>
+    public sealed class SessionForked : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionForked>
     {
         public SessionForked() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -1076,7 +2223,31 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionInboxCancelled : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionInboxCancelled>
+    public sealed class SessionIdle : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.SessionIdle>
+    {
+        public SessionIdle() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.SessionIdleData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class SessionIdleData : System.IEquatable<OpenCode.Sdk.Models.SessionIdleData>
+    {
+        public SessionIdleData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        public required string SessionId { get; init; }
+    }
+    public sealed class SessionInboxCancelled : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionInboxCancelled>
     {
         public SessionInboxCancelled() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -1114,7 +2285,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionInboxDelivered : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionInboxDelivered>
+    public sealed class SessionInboxDelivered : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionInboxDelivered>
     {
         public SessionInboxDelivered() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -1160,7 +2331,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonStringEnumMemberName("queue")]
         Queue = 1,
     }
-    public sealed class SessionInboxDeliveryChanged : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionInboxDeliveryChanged>
+    public sealed class SessionInboxDeliveryChanged : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionInboxDeliveryChanged>
     {
         public SessionInboxDeliveryChanged() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -1200,7 +2371,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionInboxEnqueued : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionInboxEnqueued>
+    public sealed class SessionInboxEnqueued : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionInboxEnqueued>
     {
         public SessionInboxEnqueued() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -1377,7 +2548,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("updated")]
         public required double Updated { get; init; }
     }
-    public sealed class SessionInstructionsUpdated : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionInstructionsUpdated>
+    public sealed class SessionInstructionsUpdated : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionInstructionsUpdated>
     {
         public SessionInstructionsUpdated() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -1974,7 +3145,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("created")]
         public required double Created { get; init; }
     }
-    public sealed class SessionModelSelected : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionModelSelected>
+    public sealed class SessionModelSelected : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionModelSelected>
     {
         public SessionModelSelected() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2015,7 +3186,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionMoved : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionMoved>
+    public sealed class SessionMoved : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionMoved>
     {
         public SessionMoved() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2068,7 +3239,37 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("_tag")]
         public string Tag { get; }
     }
-    public sealed class SessionReasoningEnded : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionReasoningEnded>
+    public sealed class SessionReasoningDelta : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.SessionReasoningDelta>
+    {
+        public SessionReasoningDelta() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.SessionReasoningDeltaData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class SessionReasoningDeltaData : System.IEquatable<OpenCode.Sdk.Models.SessionReasoningDeltaData>
+    {
+        public SessionReasoningDeltaData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("assistantMessageID")]
+        public required string AssistantMessageId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("delta")]
+        public required string Delta { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("ordinal")]
+        public required long Ordinal { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        public required string SessionId { get; init; }
+    }
+    public sealed class SessionReasoningEnded : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionReasoningEnded>
     {
         public SessionReasoningEnded() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2113,7 +3314,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionReasoningStarted : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionReasoningStarted>
+    public sealed class SessionReasoningStarted : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionReasoningStarted>
     {
         public SessionReasoningStarted() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2162,7 +3363,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("title")]
         public required string Title { get; init; }
     }
-    public sealed class SessionRenamed : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionRenamed>
+    public sealed class SessionRenamed : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionRenamed>
     {
         public SessionRenamed() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2200,7 +3401,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionRetryScheduled : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionRetryScheduled>
+    public sealed class SessionRetryScheduled : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionRetryScheduled>
     {
         public SessionRetryScheduled() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2259,7 +3460,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("snapshot")]
         public string? Snapshot { get; init; }
     }
-    public sealed class SessionRevertCleared : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionRevertCleared>
+    public sealed class SessionRevertCleared : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionRevertCleared>
     {
         public SessionRevertCleared() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2295,7 +3496,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionRevertCommitted : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionRevertCommitted>
+    public sealed class SessionRevertCommitted : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionRevertCommitted>
     {
         public SessionRevertCommitted() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2333,7 +3534,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionRevertStaged : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionRevertStaged>
+    public sealed class SessionRevertStaged : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionRevertStaged>
     {
         public SessionRevertStaged() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2371,7 +3572,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionShellEnded : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionShellEnded>
+    public sealed class SessionShellEnded : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionShellEnded>
     {
         public SessionShellEnded() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2423,7 +3624,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionShellStarted : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionShellStarted>
+    public sealed class SessionShellStarted : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionShellStarted>
     {
         public SessionShellStarted() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2461,7 +3662,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionSkillActivated : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionSkillActivated>
+    public sealed class SessionSkillActivated : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionSkillActivated>
     {
         public SessionSkillActivated() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2503,7 +3704,77 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionStepEnded : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionStepEnded>
+    public sealed class SessionStatus : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.SessionStatus>
+    {
+        public SessionStatus() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.SessionStatusData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class SessionStatusBusy : OpenCode.Sdk.Models.ISessionStatus, System.IEquatable<OpenCode.Sdk.Models.SessionStatusBusy>
+    {
+        public SessionStatusBusy() { }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class SessionStatusData : System.IEquatable<OpenCode.Sdk.Models.SessionStatusData>
+    {
+        public SessionStatusData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        public required string SessionId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public required OpenCode.Sdk.Models.ISessionStatus Status { get; init; }
+    }
+    public sealed class SessionStatusIdle : OpenCode.Sdk.Models.ISessionStatus, System.IEquatable<OpenCode.Sdk.Models.SessionStatusIdle>
+    {
+        public SessionStatusIdle() { }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class SessionStatusRetry : OpenCode.Sdk.Models.ISessionStatus, System.IEquatable<OpenCode.Sdk.Models.SessionStatusRetry>
+    {
+        public SessionStatusRetry() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("action")]
+        public OpenCode.Sdk.Models.SessionStatusRetryAction? Action { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("attempt")]
+        public required long Attempt { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public required string Message { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("next")]
+        public required long Next { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class SessionStatusRetryAction : System.IEquatable<OpenCode.Sdk.Models.SessionStatusRetryAction>
+    {
+        public SessionStatusRetryAction() { }
+        [System.Text.Json.Serialization.JsonPropertyName("label")]
+        public required string Label { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("link")]
+        public string? Link { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public required string Message { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("provider")]
+        public required string Provider { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("reason")]
+        public required string Reason { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("title")]
+        public required string Title { get; init; }
+    }
+    public sealed class SessionStepEnded : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionStepEnded>
     {
         public SessionStepEnded() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2569,7 +3840,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionStepFailed : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionStepFailed>
+    public sealed class SessionStepFailed : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionStepFailed>
     {
         public SessionStepFailed() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2621,7 +3892,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionStepStarted : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionStepStarted>
+    public sealed class SessionStepStarted : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionStepStarted>
     {
         public SessionStepStarted() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2677,7 +3948,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public required string Type { get; init; }
     }
-    public sealed class SessionSynthetic : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionSynthetic>
+    public sealed class SessionSynthetic : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionSynthetic>
     {
         public SessionSynthetic() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2721,7 +3992,37 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionTextEnded : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionTextEnded>
+    public sealed class SessionTextDelta : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.SessionTextDelta>
+    {
+        public SessionTextDelta() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.SessionTextDeltaData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class SessionTextDeltaData : System.IEquatable<OpenCode.Sdk.Models.SessionTextDeltaData>
+    {
+        public SessionTextDeltaData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("assistantMessageID")]
+        public required string AssistantMessageId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("delta")]
+        public required string Delta { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("ordinal")]
+        public required long Ordinal { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        public required string SessionId { get; init; }
+    }
+    public sealed class SessionTextEnded : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionTextEnded>
     {
         public SessionTextEnded() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2766,7 +4067,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionTextStarted : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionTextStarted>
+    public sealed class SessionTextStarted : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionTextStarted>
     {
         public SessionTextStarted() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2806,7 +4107,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionToolCalled : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionToolCalled>
+    public sealed class SessionToolCalled : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionToolCalled>
     {
         public SessionToolCalled() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2853,7 +4154,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionToolFailed : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionToolFailed>
+    public sealed class SessionToolFailed : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionToolFailed>
     {
         public SessionToolFailed() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2906,7 +4207,37 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionToolInputEnded : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionToolInputEnded>
+    public sealed class SessionToolInputDelta : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.SessionToolInputDelta>
+    {
+        public SessionToolInputDelta() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.SessionToolInputDeltaData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class SessionToolInputDeltaData : System.IEquatable<OpenCode.Sdk.Models.SessionToolInputDeltaData>
+    {
+        public SessionToolInputDeltaData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("assistantMessageID")]
+        public required string AssistantMessageId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("delta")]
+        public required string Delta { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        public required string SessionId { get; init; }
+    }
+    public sealed class SessionToolInputEnded : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionToolInputEnded>
     {
         public SessionToolInputEnded() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2948,7 +4279,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionToolInputStarted : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionToolInputStarted>
+    public sealed class SessionToolInputStarted : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionToolInputStarted>
     {
         public SessionToolInputStarted() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -2990,7 +4321,37 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionToolSuccess : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionToolSuccess>
+    public sealed class SessionToolProgress : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.SessionToolProgress>
+    {
+        public SessionToolProgress() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.SessionToolProgressData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class SessionToolProgressData : System.IEquatable<OpenCode.Sdk.Models.SessionToolProgressData>
+    {
+        public SessionToolProgressData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("assistantMessageID")]
+        public required string AssistantMessageId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public required System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        public required string SessionId { get; init; }
+    }
+    public sealed class SessionToolSuccess : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionToolSuccess>
     {
         public SessionToolSuccess() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -3090,6 +4451,34 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
+    public sealed class SessionUsageUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.SessionUsageUpdated>
+    {
+        public SessionUsageUpdated() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.SessionUsageUpdatedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class SessionUsageUpdatedData : System.IEquatable<OpenCode.Sdk.Models.SessionUsageUpdatedData>
+    {
+        public SessionUsageUpdatedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("cost")]
+        public required double Cost { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        public required string SessionId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("tokens")]
+        public required OpenCode.Sdk.Models.TokenUsageInfo Tokens { get; init; }
+    }
     public sealed class ShellCreateRequest : System.IEquatable<OpenCode.Sdk.Models.ShellCreateRequest>
     {
         public ShellCreateRequest() { }
@@ -3105,6 +4494,95 @@ namespace OpenCode.Sdk.Models
         public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("timeout")]
         public required long Timeout { get; init; }
+    }
+    public sealed class ShellCreated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.ShellCreated>
+    {
+        public ShellCreated() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.ShellCreatedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class ShellCreatedData : System.IEquatable<OpenCode.Sdk.Models.ShellCreatedData>
+    {
+        public ShellCreatedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("info")]
+        public required OpenCode.Sdk.Models.ShellInfo Info { get; init; }
+    }
+    public sealed class ShellDeleted : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.ShellDeleted>
+    {
+        public ShellDeleted() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.ShellDeletedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class ShellDeletedData : System.IEquatable<OpenCode.Sdk.Models.ShellDeletedData>
+    {
+        public ShellDeletedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+    }
+    public sealed class ShellExited : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.ShellExited>
+    {
+        public ShellExited() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.ShellExitedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class ShellExitedData : System.IEquatable<OpenCode.Sdk.Models.ShellExitedData>
+    {
+        public ShellExitedData() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("exit")]
+        public double? Exit { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public required OpenCode.Sdk.Models.ShellExitedDataStatus Status { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.ShellExitedDataStatus>))]
+    public enum ShellExitedDataStatus
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("running")]
+        Running = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("exited")]
+        Exited = 1,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("timeout")]
+        Timeout = 2,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("killed")]
+        Killed = 3,
     }
     public sealed class ShellInfo : System.IEquatable<OpenCode.Sdk.Models.ShellInfo>
     {
@@ -3171,6 +4649,24 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("timeout")]
         public required long Timeout { get; init; }
     }
+    public sealed class SkillUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.SkillUpdated>
+    {
+        public SkillUpdated() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
     public sealed class StreamFailureCauseDie : OpenCode.Sdk.Models.IOpenCodeStreamFailureCause, OpenCode.Sdk.Models.IStreamFailureCause, System.IEquatable<OpenCode.Sdk.Models.StreamFailureCauseDie>
     {
         public StreamFailureCauseDie() { }
@@ -3228,6 +4724,122 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
     }
+    public sealed class TuiCommandExecute : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.TuiCommandExecute>
+    {
+        public TuiCommandExecute() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.TuiCommandExecuteData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class TuiCommandExecuteData : System.IEquatable<OpenCode.Sdk.Models.TuiCommandExecuteData>
+    {
+        public TuiCommandExecuteData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("command")]
+        public required string Command { get; init; }
+    }
+    public sealed class TuiPromptAppend : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.TuiPromptAppend>
+    {
+        public TuiPromptAppend() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.TuiPromptAppendData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class TuiPromptAppendData : System.IEquatable<OpenCode.Sdk.Models.TuiPromptAppendData>
+    {
+        public TuiPromptAppendData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("text")]
+        public required string Text { get; init; }
+    }
+    public sealed class TuiSessionSelect : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.TuiSessionSelect>
+    {
+        public TuiSessionSelect() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.TuiSessionSelectData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class TuiSessionSelectData : System.IEquatable<OpenCode.Sdk.Models.TuiSessionSelectData>
+    {
+        public TuiSessionSelectData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        public required string SessionId { get; init; }
+    }
+    public sealed class TuiToastShow : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.TuiToastShow>
+    {
+        public TuiToastShow() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.TuiToastShowData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class TuiToastShowData : System.IEquatable<OpenCode.Sdk.Models.TuiToastShowData>
+    {
+        public TuiToastShowData() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("duration")]
+        public long? Duration { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public required string Message { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("title")]
+        public string? Title { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("variant")]
+        public required OpenCode.Sdk.Models.TuiToastShowDataVariant Variant { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.TuiToastShowDataVariant>))]
+    public enum TuiToastShowDataVariant
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("info")]
+        Info = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("success")]
+        Success = 1,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("warning")]
+        Warning = 2,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("error")]
+        Error = 3,
+    }
     public sealed class UnauthorizedError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.UnauthorizedError>
     {
         public UnauthorizedError() { }
@@ -3246,6 +4858,24 @@ namespace OpenCode.Sdk.Models
         public string? Ref { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("_tag")]
         public string Tag { get; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownEventJsonConverter))]
+    public sealed class UnknownEvent : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.UnknownEvent>
+    {
+        [System.Text.Json.Serialization.JsonConstructor]
+        public UnknownEvent(string type, System.Text.Json.JsonElement payload) { }
+        public System.Text.Json.JsonElement Payload { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownFormFieldJsonConverter))]
+    public sealed class UnknownFormField : OpenCode.Sdk.Models.IFormField, System.IEquatable<OpenCode.Sdk.Models.UnknownFormField>
+    {
+        [System.Text.Json.Serialization.JsonConstructor]
+        public UnknownFormField(string type, System.Text.Json.JsonElement payload) { }
+        public System.Text.Json.JsonElement Payload { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownOpenCodeErrorJsonConverter))]
     public sealed class UnknownOpenCodeError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.UnknownOpenCodeError>
@@ -3339,6 +4969,15 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("status")]
         public string Status { get; }
     }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownSessionStatusJsonConverter))]
+    public sealed class UnknownSessionStatus : OpenCode.Sdk.Models.ISessionStatus, System.IEquatable<OpenCode.Sdk.Models.UnknownSessionStatus>
+    {
+        [System.Text.Json.Serialization.JsonConstructor]
+        public UnknownSessionStatus(string type, System.Text.Json.JsonElement payload) { }
+        public System.Text.Json.JsonElement Payload { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownStreamFailureCauseJsonConverter))]
     public sealed class UnknownStreamFailureCause : OpenCode.Sdk.Models.IOpenCodeStreamFailureCause, OpenCode.Sdk.Models.IStreamFailureCause, System.IEquatable<OpenCode.Sdk.Models.UnknownStreamFailureCause>
     {
@@ -3354,6 +4993,49 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonConstructor]
         public UnknownToolContent(string type, System.Text.Json.JsonElement payload) { }
         public System.Text.Json.JsonElement Payload { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class VcsBranchUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.VcsBranchUpdated>
+    {
+        public VcsBranchUpdated() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.VcsBranchUpdatedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class VcsBranchUpdatedData : System.IEquatable<OpenCode.Sdk.Models.VcsBranchUpdatedData>
+    {
+        public VcsBranchUpdatedData() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("branch")]
+        public string? Branch { get; init; }
+    }
+    public sealed class WebsearchUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.WebsearchUpdated>
+    {
+        public WebsearchUpdated() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
     }

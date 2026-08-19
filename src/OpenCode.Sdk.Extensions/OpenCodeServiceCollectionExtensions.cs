@@ -47,6 +47,7 @@ public static class OpenCodeServiceCollectionExtensions
         // that same instance, so every injection shares one pipeline and the container
         // disposes one client at shutdown.
         _ = services.AddSingleton(static provider => new OpenCodeClient(provider.GetRequiredService<IOptions<OpenCodeClientOptions>>().Value));
+        _ = services.AddSingleton(static EventsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Events);
         _ = services.AddSingleton(static SessionsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Sessions);
         _ = services.AddSingleton(static ShellsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Shells);
         return services;

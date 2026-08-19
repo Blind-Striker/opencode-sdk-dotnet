@@ -1,8 +1,8 @@
 # Union membership is an interface, not a base class
 
-Date: 2026-08-17
+Date: 2026-08-19
 
-A generated union is emitted as an **interface** declaring the union's discriminator, and each
+A generated **marked union** is emitted as an interface declaring the union's discriminator, and each
 wire schema stays one `sealed record` implementing every union it belongs to. Membership is not
 expressible as a base class because a schema can belong to more than one union: 39 of the 40
 branches of `Session.Event.Durable` are also direct branches of the 87-branch `V2Event`, so the
@@ -11,6 +11,29 @@ class, and the binder already refuses this by name — *"schema cannot derive fr
 '…'"* — which would leave `v2.event.subscribe`, the surface every upstream front-end consumes
 (research doc 02), permanently ungenerable. Interfaces make membership plural, and because both
 unions discriminate on the same wire field the leaf satisfies both contracts with one property.
+
+## Scope: marked versus structural unions
+
+A marked union has a common literal discriminator whose value selects an object schema:
+
+```json
+{ "type": "session.created", "data": {} }
+{ "type": "session.deleted", "data": {} }
+```
+
+`SessionCreated` and `SessionDeleted` are wire schemas in their own right, so implementing `IEvent`
+expresses membership without wrapping either object. A structural union has no such marker; its
+branch is selected from the JSON value shape instead:
+
+```json
+"hello"
+42
+true
+["a", "b"]
+```
+
+Primitive and collection values cannot implement a generated interface. Token-distinct structural
+unions therefore use the generated carrier decision in ADR-0016, not this membership mechanism.
 
 The discriminator is the interface's whole member set and does not grow, so this is not the
 member-growth hazard that keeps client types free of interfaces. Grouping composes for free:

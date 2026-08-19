@@ -25,7 +25,17 @@ var password = Environment.GetEnvironmentVariable("OPENCODE_PASSWORD")
                ?? Environment.GetEnvironmentVariable("OPENCODE_SERVER_PASSWORD");
 
 var streamMode = args.Contains("--stream", StringComparer.Ordinal);
-var hostArgs = args.Where(static argument => !string.Equals(argument, "--stream", StringComparison.Ordinal)).ToArray();
+var eventMode = args.Contains("--events", StringComparer.Ordinal);
+if (streamMode && eventMode)
+{
+    await Console.Error.WriteLineAsync("Choose either --stream or --events, not both.").ConfigureAwait(false);
+    return 1;
+}
+
+var hostArgs = args
+    .Where(static argument => !string.Equals(argument, "--stream", StringComparison.Ordinal)
+                              && !string.Equals(argument, "--events", StringComparison.Ordinal))
+    .ToArray();
 var builder = Host.CreateApplicationBuilder(hostArgs);
 _ = builder.Services.AddOpenCode(options =>
 {
@@ -37,12 +47,24 @@ if (streamMode)
     _ = builder.Services.AddSingleton<SessionLogWorker>();
     _ = builder.Services.AddHostedService(static provider => provider.GetRequiredService<SessionLogWorker>());
 }
+else if (eventMode)
+{
+    _ = builder.Services.AddSingleton<EventBusWorker>();
+    _ = builder.Services.AddHostedService(static provider => provider.GetRequiredService<EventBusWorker>());
+}
 
 using var host = builder.Build();
 
 if (streamMode)
 {
     var worker = host.Services.GetRequiredService<SessionLogWorker>();
+    await host.RunAsync().ConfigureAwait(false);
+    return worker.Failure is null ? 0 : 1;
+}
+
+if (eventMode)
+{
+    var worker = host.Services.GetRequiredService<EventBusWorker>();
     await host.RunAsync().ConfigureAwait(false);
     return worker.Failure is null ? 0 : 1;
 }

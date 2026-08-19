@@ -146,6 +146,14 @@ internal sealed class ReachableSchemaCollector
                 return;
             }
 
+            // A structural union collapsed to one semantic value has no nominal branch
+            // models. Traversing its promoted refinement branches would emit dead public types.
+            if (schema is UnionNode { Classification: UnionClassification.Structural } union
+                && UnstructuredUnionPolicy.Collapse(union, _graph) is not null)
+            {
+                return;
+            }
+
             foreach (var child in schema.Children)
             {
                 Visit(child, isStreamCause);

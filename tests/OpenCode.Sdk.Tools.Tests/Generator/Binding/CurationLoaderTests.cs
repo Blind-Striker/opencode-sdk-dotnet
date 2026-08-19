@@ -20,6 +20,8 @@ public sealed class CurationLoaderTests
         var curation = await new CurationLoader(fileSystem).LoadAsync(CurationPath, CancellationToken.None);
 
         await Assert.That(curation.Groups["health"].Placement).IsEqualTo(GroupPlacement.Root);
+        await Assert.That(curation.OperationNames).IsEmpty();
+        await Assert.That(curation.SchemaNames).IsEmpty();
         await Assert.That(curation.EnvelopePayloadNames).IsEmpty();
         await Assert.That(curation.SchemaAliases).IsEmpty();
     }
@@ -30,10 +32,30 @@ public sealed class CurationLoaderTests
         var sections = typeof(GenerationCuration)
             .GetProperties(BindingFlags.Instance | BindingFlags.Public)
             .Select(static property => property.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name
-                ?? throw new InvalidOperationException($"Curation property '{property.Name}' has no JSON name."))
+                                       ?? throw new InvalidOperationException($"Curation property '{property.Name}' has no JSON name."))
             .Order(StringComparer.Ordinal);
 
-        await Assert.That(sections).IsEquivalentTo(["envelopePayloadNames", "groups", "schemaAliases"]);
+        await Assert
+            .That(sections)
+            .IsEquivalentTo(
+                ["envelopePayloadNames", "groups", "operationNames", "schemaAliases", "schemaNames"]);
+    }
+
+    [Test]
+    public async Task LoadAsync_Should_Read_Reasoned_Operation_Name_Rows()
+    {
+        var fileSystem = CreateFileSystem("Binding.operation-name-curation.json");
+
+        var curation = await new CurationLoader(fileSystem).LoadAsync(CurationPath, CancellationToken.None);
+
+        var operationName = curation.OperationNames.Single();
+        await Assert.That(operationName.OperationId).IsEqualTo("v2.event.subscribe");
+        await Assert.That(operationName.MethodName).IsEqualTo("SubscribeAsync");
+        await Assert.That(operationName.Reason).Contains("reviewed public surface");
+        var schemaName = curation.SchemaNames.Single();
+        await Assert.That(schemaName.Schema).IsEqualTo("V2Event");
+        await Assert.That(schemaName.DotNetName).IsEqualTo("IEvent");
+        await Assert.That(schemaName.Reason).Contains("transport prefix");
     }
 
     [Test]

@@ -1,0 +1,24 @@
+{
+  "groups": {
+    "event": {
+      "placement": "client",
+      "clientName": "Events"
+    }
+  },
+  "operationNames": [
+    {
+      "operationId": "v2.event.subscribe",
+      "methodName": "SubscribeAsync",
+      "reason": "The reviewed public surface names the global event subscription directly."
+    }
+  ],
+  "schemaNames": [
+    {
+      "schema": "V2Event",
+      "dotnetName": "IEvent",
+      "reason": "The transport prefix is not part of the reviewed .NET domain name."
+    }
+  ],
+  "envelopePayloadNames": {},
+  "schemaAliases": []
+}

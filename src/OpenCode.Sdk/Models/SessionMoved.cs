@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session moved value.
 /// </summary>
-public sealed record SessionMoved : ISessionEventDurable
+public sealed record SessionMoved : ISessionEventDurable, IEvent
 {
     /// <summary>
     /// Gets the id value.

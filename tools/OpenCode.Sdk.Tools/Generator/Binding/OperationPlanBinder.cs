@@ -350,8 +350,7 @@ internal sealed class OperationPlanBinder
                 };
             }
 
-            var methodName = OperationNamePolicy.MethodName(_operation);
-            var routeMemberName = OperationNamePolicy.RouteMemberName(_operation, row.Placement);
+            var (methodName, routeMemberName) = ResolveNames(row);
             if (methodName is null || routeMemberName is null)
             {
                 Refuse("the operation's names cannot be derived mechanically: the group does not pluralize naively");
@@ -387,6 +386,14 @@ internal sealed class OperationPlanBinder
                     Description = _operation.Description,
                 },
             };
+        }
+
+        private (string? MethodName, string? RouteMemberName) ResolveNames(GroupCuration row)
+        {
+            var curatedName = _curation.OperationNames.FirstOrDefault(operationName =>
+                string.Equals(operationName.OperationId, _operation.OperationId, StringComparison.Ordinal));
+            return (OperationNamePolicy.MethodName(_operation, curatedName),
+                OperationNamePolicy.RouteMemberName(_operation, row.Placement, curatedName));
         }
 
         private bool CheckWireShape()

@@ -16,6 +16,7 @@ public sealed class PublicApiBaselineTests
         // covers them all.
         var settings = new VerifySettings();
         settings.UseFileName("PublicApi");
-        await Verify(api, settings);
+        // Keep the reviewed baseline a normal LF-terminated text artifact on every OS.
+        await Verify(string.Concat(api, "\n"), settings);
     }
 }

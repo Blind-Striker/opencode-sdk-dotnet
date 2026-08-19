@@ -17,6 +17,11 @@ internal static class ModelEmitter
         var result = new List<GeneratedSource>(plan.Models.Count);
         foreach (var model in plan.Models.OrderBy(static model => model.Name, StringComparer.Ordinal))
         {
+            if (model is StructuralUnionModelPlan)
+            {
+                continue;
+            }
+
             result.Add(model switch
             {
                 ObjectModelPlan objectModel => EmitObject(objectModel, ResolveImplementedUnions(objectModel, unions), unions),
@@ -41,7 +46,8 @@ internal static class ModelEmitter
             throw new InvalidOperationException($"Union variant '{model.Name}' must carry exactly one '{unmatched}' marker.");
         }
 
-        var declaration = SyntaxFactory.RecordDeclaration(SyntaxFactory.Token(SyntaxKind.RecordKeyword), model.Name)
+        var declaration = SyntaxFactory
+            .RecordDeclaration(SyntaxFactory.Token(SyntaxKind.RecordKeyword), model.Name)
             .WithModifiers(SyntaxFactory.TokenList(
                 SyntaxFactory.Token(SyntaxKind.PublicKeyword),
                 SyntaxFactory.Token(SyntaxKind.SealedKeyword)))
@@ -72,11 +78,13 @@ internal static class ModelEmitter
         // Strict by contract: the schema types enum values as strings, so the permissive
         // default's integer tolerance would admit malformed bodies as undefined members.
         var converterType = TypeSyntaxEmitter.Generic("StrictJsonStringEnumConverter", TypeSyntaxEmitter.EmitNamed(model.Name));
-        var declaration = SyntaxFactory.EnumDeclaration(model.Name)
+        var declaration = SyntaxFactory
+            .EnumDeclaration(model.Name)
             .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
             .AddAttributeLists(EmissionSyntax.Attribute("JsonConverter", SyntaxFactory.AttributeArgument(
                 SyntaxFactory.TypeOfExpression(converterType))))
-            .WithMembers(SyntaxFactory.SeparatedList(model.Values.Select(static value => SyntaxFactory.EnumMemberDeclaration(value.Name)
+            .WithMembers(SyntaxFactory.SeparatedList(model.Values.Select(static value => SyntaxFactory
+                .EnumMemberDeclaration(value.Name)
                 .AddAttributeLists(EmissionSyntax.Attribute("JsonStringEnumMemberName", EmissionSyntax.StringArgument(value.WireValue)))
                 .WithLeadingTrivia(EmissionSyntax.Documentation($"Represents the '{value.WireValue}' wire value.")))))
             .WithLeadingTrivia(EmissionSyntax.Documentation(model.Description ?? $"Defines the supported {DisplayName(model.Name)} values."));
@@ -101,7 +109,8 @@ internal static class ModelEmitter
 
     private static PropertyDeclarationSyntax EmitProperty(ModelPropertyPlan property, bool isDiscriminator)
     {
-        var declaration = SyntaxFactory.PropertyDeclaration(TypeSyntaxEmitter.Emit(property.Type), property.Name)
+        var declaration = SyntaxFactory
+            .PropertyDeclaration(TypeSyntaxEmitter.Emit(property.Type), property.Name)
             .AddAttributeLists(EmissionSyntax.Attribute("JsonPropertyName", EmissionSyntax.StringArgument(property.WireName)))
             .WithLeadingTrivia(EmissionSyntax.Documentation(property.Description ?? $"Gets the {DisplayName(property.Name)} value."));
         if (ContainsSpecialNumber(property.Type))
@@ -117,7 +126,8 @@ internal static class ModelEmitter
         {
             declaration = declaration.AddAttributeLists(EmissionSyntax.Attribute(
                 "JsonIgnore",
-                SyntaxFactory.AttributeArgument(EmissionSyntax.MemberAccess(
+                SyntaxFactory
+                    .AttributeArgument(EmissionSyntax.MemberAccess(
                         SyntaxFactory.IdentifierName("JsonIgnoreCondition"),
                         "WhenWritingNull"))
                     .WithNameEquals(SyntaxFactory.NameEquals("Condition"))));
@@ -131,7 +141,10 @@ internal static class ModelEmitter
                 .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
         }
 
-        var modifiers = new List<SyntaxToken> { SyntaxFactory.Token(SyntaxKind.PublicKeyword), };
+        var modifiers = new List<SyntaxToken>
+        {
+            SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+        };
         if (property.IsRequired)
         {
             modifiers.Add(SyntaxFactory.Token(SyntaxKind.RequiredKeyword));
@@ -145,9 +158,11 @@ internal static class ModelEmitter
 
     private static AccessorListSyntax EmitAutoAccessors() => SyntaxFactory.AccessorList(SyntaxFactory.List(
     [
-        SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+        SyntaxFactory
+            .AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
             .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
-        SyntaxFactory.AccessorDeclaration(SyntaxKind.InitAccessorDeclaration)
+        SyntaxFactory
+            .AccessorDeclaration(SyntaxKind.InitAccessorDeclaration)
             .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
     ]));
 
@@ -158,7 +173,8 @@ internal static class ModelEmitter
             SyntaxFactory.Literal(property.LiteralValue ?? throw new InvalidOperationException("String literal had no value."))),
         LiteralKind.Boolean when bool.TryParse(property.LiteralValue, out var value) => SyntaxFactory.LiteralExpression(
             value ? SyntaxKind.TrueLiteralExpression : SyntaxKind.FalseLiteralExpression),
-        LiteralKind.Number => throw new InvalidOperationException($"Property '{property.Name}' uses a number literal, which has no emission consumer."),
+        LiteralKind.Number => throw new InvalidOperationException(
+            $"Property '{property.Name}' uses a number literal, which has no emission consumer."),
         _ => throw new InvalidOperationException($"Property '{property.Name}' has an invalid literal plan."),
     };
 

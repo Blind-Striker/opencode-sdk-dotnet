@@ -10,6 +10,7 @@ namespace OpenCode.Sdk;
 public class OpenCodeClient : IDisposable
 {
     private readonly Pipeline? _pipeline;
+    private readonly EventsClient? _events;
     private readonly SessionsClient? _sessions;
     private readonly ShellsClient? _shells;
     /// <summary>
@@ -19,6 +20,7 @@ public class OpenCodeClient : IDisposable
     public OpenCodeClient(OpenCodeClientOptions options)
     {
         _pipeline = Pipeline.Create(options);
+        _events = new EventsClient(_pipeline);
         _sessions = new SessionsClient(_pipeline);
         _shells = new ShellsClient(_pipeline);
     }
@@ -31,6 +33,7 @@ public class OpenCodeClient : IDisposable
     internal OpenCodeClient(HttpClient httpClient, OpenCodeClientOptions options)
     {
         _pipeline = Pipeline.Create(httpClient, options);
+        _events = new EventsClient(_pipeline);
         _sessions = new SessionsClient(_pipeline);
         _shells = new ShellsClient(_pipeline);
     }
@@ -64,6 +67,10 @@ public class OpenCodeClient : IDisposable
     }
 
     /// <summary>
+    /// Gets the &apos;Events&apos; collection client.
+    /// </summary>
+    public virtual EventsClient Events => _events ?? throw MockSeam.CreateError("OpenCodeClient", "Events");
+    /// <summary>
     /// Gets the &apos;Sessions&apos; collection client.
     /// </summary>
     public virtual SessionsClient Sessions => _sessions ?? throw MockSeam.CreateError("OpenCodeClient", "Sessions");
@@ -74,7 +81,7 @@ public class OpenCodeClient : IDisposable
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("OpenCodeClient", "Pipeline");
 
     /// <summary>
-    /// Check server health
+    /// Check server health. Report the owning server process and its application status.
     /// </summary>
     /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>

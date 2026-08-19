@@ -38,7 +38,7 @@ public class SessionClient
     private string SessionId => _sessionId ?? throw MockSeam.CreateError("SessionClient", "SessionId");
 
     /// <summary>
-    /// Read the session log
+    /// Read the session log. Experimental durable session event log. Reads events after an exclusive aggregate sequence and continues with live events when follow=true.
     /// </summary>
     /// <param name = "request">The request shaping the query.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
@@ -52,7 +52,7 @@ public class SessionClient
     }
 
     /// <summary>
-    /// Get session message
+    /// Get session message. Retrieve one projected message owned by the Session.
     /// </summary>
     /// <param name = "messageId">The &apos;messageID&apos; route value.</param>
     /// <param name = "requestOptions">The per-call options.</param>
@@ -67,7 +67,7 @@ public class SessionClient
     }
 
     /// <summary>
-    /// Get session
+    /// Get session. Retrieve a session by ID.
     /// </summary>
     /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
@@ -80,7 +80,7 @@ public class SessionClient
     }
 
     /// <summary>
-    /// Get session messages
+    /// Get session messages. Retrieve projected messages for a session. Items keep the requested order across pages; use cursor.next or cursor.previous to move through the ordered timeline.
     /// </summary>
     /// <param name = "request">The request shaping the query.</param>
     /// <param name = "requestOptions">The per-call options.</param>
@@ -94,7 +94,7 @@ public class SessionClient
     }
 
     /// <summary>
-    /// Delete session
+    /// Delete session. Delete a session and its child sessions.
     /// </summary>
     /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
@@ -107,7 +107,7 @@ public class SessionClient
     }
 
     /// <summary>
-    /// Rename session
+    /// Rename session. Update the session title.
     /// </summary>
     /// <param name = "request">The request body.</param>
     /// <param name = "requestOptions">The per-call options.</param>

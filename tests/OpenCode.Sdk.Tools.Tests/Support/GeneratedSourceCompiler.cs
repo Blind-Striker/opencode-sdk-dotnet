@@ -36,14 +36,16 @@ internal static class GeneratedSourceCompiler
         var result = Compile(sources, await LoadSdkCoreTreesAsync());
         if (result.Diagnostics.Length > 0)
         {
-            throw new InvalidOperationException(string.Join(Environment.NewLine, result.Diagnostics.Select(static diagnostic => diagnostic.ToString())));
+            throw new InvalidOperationException(string.Join(Environment.NewLine,
+                result.Diagnostics.Select(static diagnostic => diagnostic.ToString())));
         }
 
         using var stream = new MemoryStream();
         var emitted = result.Compilation.Emit(stream);
         if (!emitted.Success)
         {
-            throw new InvalidOperationException(string.Join(Environment.NewLine, emitted.Diagnostics.Select(static diagnostic => diagnostic.ToString())));
+            throw new InvalidOperationException(string.Join(Environment.NewLine,
+                emitted.Diagnostics.Select(static diagnostic => diagnostic.ToString())));
         }
 
         stream.Position = 0;
@@ -54,21 +56,22 @@ internal static class GeneratedSourceCompiler
     {
         // The SDK project compiles with implicit usings; the probe replays the same set.
         const string implicitUsings = """
-            global using System;
-            global using System.Collections.Generic;
-            global using System.IO;
-            global using System.Linq;
-            global using System.Net.Http;
-            global using System.Threading;
-            global using System.Threading.Tasks;
-            """;
+                                      global using System;
+                                      global using System.Collections.Generic;
+                                      global using System.IO;
+                                      global using System.Linq;
+                                      global using System.Net.Http;
+                                      global using System.Threading;
+                                      global using System.Threading.Tasks;
+                                      """;
         var fileSystem = new RealFileSystem();
         var root = fileSystem.Path.Combine(AppContext.BaseDirectory, "Fixtures", "SdkSource");
         var coreTrees = new List<SyntaxTree>
         {
             CSharpSyntaxTree.ParseText(implicitUsings, ParseOptions, "sdk:ImplicitUsings.cs", Encoding.UTF8),
         };
-        foreach (var entry in fileSystem.Directory
+        foreach (var entry in fileSystem
+                     .Directory
                      .EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
                      .Select(path => (Path: path, Relative: fileSystem.Path.GetRelativePath(root, path).Replace('\\', '/')))
                      .OrderBy(static entry => entry.Relative, StringComparer.Ordinal))
@@ -85,14 +88,15 @@ internal static class GeneratedSourceCompiler
 
     private static CompilationResult Compile(IReadOnlyList<GeneratedSource> sources, IReadOnlyList<SyntaxTree> extraTrees)
     {
-        var syntaxTrees = sources.Select(static source => CSharpSyntaxTree.ParseText(
+        var syntaxTrees = sources
+            .Select(static source => CSharpSyntaxTree.ParseText(
                 Encoding.UTF8.GetString(source.Utf8Source.Span),
                 ParseOptions,
                 source.RelativePath,
                 Encoding.UTF8))
             .Concat(extraTrees);
         var compilation = CSharpCompilation.Create(
-            "GeneratedSourceProbe",
+            $"GeneratedSourceProbe_{Guid.NewGuid():N}",
             syntaxTrees,
             References,
             new CSharpCompilationOptions(
@@ -106,7 +110,8 @@ internal static class GeneratedSourceCompiler
 
         Diagnostic[] diagnostics =
         [
-            .. generatorDiagnostics.Concat(outputCompilation.GetDiagnostics())
+            .. generatorDiagnostics
+                .Concat(outputCompilation.GetDiagnostics())
                 .Where(static diagnostic => diagnostic.Severity is DiagnosticSeverity.Warning or DiagnosticSeverity.Error),
         ];
         return new CompilationResult(outputCompilation, diagnostics);
@@ -119,8 +124,8 @@ internal static class GeneratedSourceCompiler
         return
         [
             .. trustedAssemblies
-            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
-            .Select(static path => MetadataReference.CreateFromFile(path)),
+                .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+                .Select(static path => MetadataReference.CreateFromFile(path)),
         ];
     }
 

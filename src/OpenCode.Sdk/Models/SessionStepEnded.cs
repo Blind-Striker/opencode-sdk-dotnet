@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session step ended value.
 /// </summary>
-public sealed record SessionStepEnded : ISessionEventDurable
+public sealed record SessionStepEnded : ISessionEventDurable, IEvent
 {
     /// <summary>
     /// Gets the id value.

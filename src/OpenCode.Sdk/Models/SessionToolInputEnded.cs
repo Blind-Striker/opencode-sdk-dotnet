@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session tool input ended value.
 /// </summary>
-public sealed record SessionToolInputEnded : ISessionEventDurable
+public sealed record SessionToolInputEnded : ISessionEventDurable, IEvent
 {
     /// <summary>
     /// Gets the id value.

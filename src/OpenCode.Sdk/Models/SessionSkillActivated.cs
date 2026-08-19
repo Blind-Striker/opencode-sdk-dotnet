@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session skill activated value.
 /// </summary>
-public sealed record SessionSkillActivated : ISessionEventDurable
+public sealed record SessionSkillActivated : ISessionEventDurable, IEvent
 {
     /// <summary>
     /// Gets the id value.

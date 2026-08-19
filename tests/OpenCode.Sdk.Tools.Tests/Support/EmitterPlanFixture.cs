@@ -15,23 +15,24 @@ internal static class EmitterPlanFixture
             Curation(Groups(StreamOperationScenario.GroupName, RootGroup())));
     }
 
+    public static async Task<EmitPlan> CreateStructuralUnionPlanAsync()
+    {
+        var document = await BindingTestHost.IngestAsync(new StructuralUnionScenario());
+        return new BindingTestHost().Bind(
+            document,
+            Selection(StructuralUnionScenario.OperationId),
+            Curation(Groups(StructuralUnionScenario.GroupName, RootGroup())));
+    }
+
     public static EmitPlan Create()
     {
         var models = new ModelPlan[]
         {
-            CreateExampleItem(),
-            CreateExamplePlace(),
-            CreateExampleMode(),
+            CreateExampleItem(), CreateExamplePlace(), CreateExampleMode(),
             CreateVariant("CreatedEvent", "created", "item", "Item", Named("ExampleItem")),
-            CreateVariant("DeletedEvent", "deleted", "id", "ID", Named("string")),
-            CreateError(),
-            CreateWidgetCreateRequest(),
+            CreateVariant("DeletedEvent", "deleted", "id", "ID", Named("string")), CreateError(), CreateWidgetCreateRequest(),
         };
-        var unions = new[]
-        {
-            CreateExampleEvent(),
-            CreateOpenCodeError(),
-        };
+        var unions = new[] { CreateExampleEvent(), CreateOpenCodeError(), };
 
         return new EmitPlan
         {
@@ -143,7 +144,14 @@ internal static class EmitterPlanFixture
                     new ErrorStatusPlan
                     {
                         StatusCode = 400,
-                        Tags = [new ErrorTagPlan { Tag = "BadRequestError", TypeName = "BadRequestError", }],
+                        Tags =
+                        [
+                            new ErrorTagPlan
+                            {
+                                Tag = "BadRequestError",
+                                TypeName = "BadRequestError",
+                            }
+                        ],
                     },
                 ],
             },
@@ -213,15 +221,30 @@ internal static class EmitterPlanFixture
                     new ErrorStatusPlan
                     {
                         StatusCode = 400,
-                        Tags = [new ErrorTagPlan { Tag = "BadRequestError", TypeName = "BadRequestError", }],
+                        Tags =
+                        [
+                            new ErrorTagPlan
+                            {
+                                Tag = "BadRequestError",
+                                TypeName = "BadRequestError",
+                            }
+                        ],
                     },
                     new ErrorStatusPlan
                     {
                         StatusCode = 404,
                         Tags =
                         [
-                            new ErrorTagPlan { Tag = "GoneError", TypeName = "GoneError", },
-                            new ErrorTagPlan { Tag = "MissingError", TypeName = "MissingError", },
+                            new ErrorTagPlan
+                            {
+                                Tag = "GoneError",
+                                TypeName = "GoneError",
+                            },
+                            new ErrorTagPlan
+                            {
+                                Tag = "MissingError",
+                                TypeName = "MissingError",
+                            },
                         ],
                     },
                 ],
@@ -280,12 +303,26 @@ internal static class EmitterPlanFixture
                     new ErrorStatusPlan
                     {
                         StatusCode = 400,
-                        Tags = [new ErrorTagPlan { Tag = "BadRequestError", TypeName = "BadRequestError", }],
+                        Tags =
+                        [
+                            new ErrorTagPlan
+                            {
+                                Tag = "BadRequestError",
+                                TypeName = "BadRequestError",
+                            }
+                        ],
                     },
                     new ErrorStatusPlan
                     {
                         StatusCode = 500,
-                        Tags = [new ErrorTagPlan { Tag = "BadRequestError", TypeName = "BadRequestError", }],
+                        Tags =
+                        [
+                            new ErrorTagPlan
+                            {
+                                Tag = "BadRequestError",
+                                TypeName = "BadRequestError",
+                            }
+                        ],
                     },
                 ],
             },
@@ -331,7 +368,14 @@ internal static class EmitterPlanFixture
                     new ErrorStatusPlan
                     {
                         StatusCode = 404,
-                        Tags = [new ErrorTagPlan { Tag = "MissingError", TypeName = "MissingError", }],
+                        Tags =
+                        [
+                            new ErrorTagPlan
+                            {
+                                Tag = "MissingError",
+                                TypeName = "MissingError",
+                            }
+                        ],
                     },
                 ],
             },
@@ -379,7 +423,14 @@ internal static class EmitterPlanFixture
                     new ErrorStatusPlan
                     {
                         StatusCode = 400,
-                        Tags = [new ErrorTagPlan { Tag = "BadRequestError", TypeName = "BadRequestError", }],
+                        Tags =
+                        [
+                            new ErrorTagPlan
+                            {
+                                Tag = "BadRequestError",
+                                TypeName = "BadRequestError",
+                            }
+                        ],
                     },
                 ],
             },
@@ -421,7 +472,14 @@ internal static class EmitterPlanFixture
                     new ErrorStatusPlan
                     {
                         StatusCode = 400,
-                        Tags = [new ErrorTagPlan { Tag = "BadRequestError", TypeName = "BadRequestError", }],
+                        Tags =
+                        [
+                            new ErrorTagPlan
+                            {
+                                Tag = "BadRequestError",
+                                TypeName = "BadRequestError",
+                            }
+                        ],
                     },
                 ],
             },
@@ -449,7 +507,10 @@ internal static class EmitterPlanFixture
                 EnvelopeDtoTypeName = "WidgetSpotResponseEnvelope",
                 LocationTypeName = "ExamplePlace",
             },
-            ErrorMap = new ErrorMapPlan { Statuses = [], },
+            ErrorMap = new ErrorMapPlan
+            {
+                Statuses = [],
+            },
             Summary = "Get one widget spot",
             Description = null,
         };
@@ -474,7 +535,10 @@ internal static class EmitterPlanFixture
                 EnvelopeDtoTypeName = "WidgetSpotListResponseEnvelope",
                 LocationTypeName = "ExamplePlace",
             },
-            ErrorMap = new ErrorMapPlan { Statuses = [], },
+            ErrorMap = new ErrorMapPlan
+            {
+                Statuses = [],
+            },
             Summary = "List widget spots",
             Description = null,
         };
@@ -552,7 +616,14 @@ internal static class EmitterPlanFixture
                 Kind = LiteralKind.String,
                 Value = "phase",
             },
-            Variants = [new UnionVariantPlan { TypeName = "PhaseStartedEvent", Tag = "started", }],
+            Variants =
+            [
+                new UnionVariantPlan
+                {
+                    TypeName = "PhaseStartedEvent",
+                    Tag = "started",
+                }
+            ],
             Description = "Represents an example nested phase union.",
         };
 
@@ -589,8 +660,16 @@ internal static class EmitterPlanFixture
             Description = null,
             Values =
             [
-                new EnumValuePlan { Name = "FastMode", WireValue = "fast-mode", },
-                new EnumValuePlan { Name = "Safe", WireValue = "safe", },
+                new EnumValuePlan
+                {
+                    Name = "FastMode",
+                    WireValue = "fast-mode",
+                },
+                new EnumValuePlan
+                {
+                    Name = "Safe",
+                    WireValue = "safe",
+                },
             ],
         };
 
@@ -635,8 +714,16 @@ internal static class EmitterPlanFixture
             MarkerKind = LiteralKind.String,
             Variants =
             [
-                new UnionVariantPlan { TypeName = "CreatedEvent", Tag = "created", },
-                new UnionVariantPlan { TypeName = "DeletedEvent", Tag = "deleted", },
+                new UnionVariantPlan
+                {
+                    TypeName = "CreatedEvent",
+                    Tag = "created",
+                },
+                new UnionVariantPlan
+                {
+                    TypeName = "DeletedEvent",
+                    Tag = "deleted",
+                },
             ],
             Description = "Represents an example event.",
         };
@@ -651,7 +738,14 @@ internal static class EmitterPlanFixture
             MarkerWireName = "_tag",
             MarkerName = "Tag",
             MarkerKind = LiteralKind.String,
-            Variants = [new UnionVariantPlan { TypeName = "BadRequestError", Tag = "BadRequestError", }],
+            Variants =
+            [
+                new UnionVariantPlan
+                {
+                    TypeName = "BadRequestError",
+                    Tag = "BadRequestError",
+                }
+            ],
             Description = "Represents an opencode API error.",
         };
 

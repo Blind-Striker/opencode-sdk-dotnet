@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session execution interrupted value.
 /// </summary>
-public sealed record SessionExecutionInterrupted : ISessionEventDurable
+public sealed record SessionExecutionInterrupted : ISessionEventDurable, IEvent
 {
     /// <summary>
     /// Gets the id value.

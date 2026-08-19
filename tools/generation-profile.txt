@@ -1,3 +1,4 @@
+v2.event.subscribe
 v2.health.get
 v2.message.list
 v2.session.create

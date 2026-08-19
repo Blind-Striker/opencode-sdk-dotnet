@@ -11,14 +11,17 @@ namespace OpenCode.Sdk.Tools.Generator.Binding;
 /// </summary>
 internal static class UnstructuredUnionPolicy
 {
-    public static SchemaNode? Collapse(UnionNode union)
+    public static SchemaNode? Collapse(UnionNode union, IReadOnlyDictionary<string, SchemaNode>? graph = null)
     {
         ArgumentNullException.ThrowIfNull(union);
 
-        var kinds = union.Branches.Select(PrimitiveKindOf).ToArray();
+        var kinds = union.Branches.Select(branch => PrimitiveKindOf(branch, graph, [])).ToArray();
         if (kinds.Length > 1 && kinds[0] is { } first && Array.TrueForAll(kinds, kind => kind == first))
         {
-            return new PrimitiveNode { Kind = first };
+            return new PrimitiveNode
+            {
+                Kind = first
+            };
         }
 
         return union.Branches.Count is 2
@@ -28,13 +31,22 @@ internal static class UnstructuredUnionPolicy
             : null;
     }
 
-    private static PrimitiveKind? PrimitiveKindOf(SchemaNode branch) => branch switch
+    private static PrimitiveKind? PrimitiveKindOf(SchemaNode branch, IReadOnlyDictionary<string, SchemaNode>? graph, HashSet<string> visited)
     {
-        PrimitiveNode primitive => primitive.Kind,
-        EnumNode => PrimitiveKind.String,
-        LiteralNode { Kind: LiteralKind.String } => PrimitiveKind.String,
-        LiteralNode { Kind: LiteralKind.Number } => PrimitiveKind.Number,
-        LiteralNode { Kind: LiteralKind.Boolean } => PrimitiveKind.Boolean,
-        _ => null,
-    };
+        if (branch is RefNode reference && graph is not null && visited.Add(reference.Target)
+            && graph.TryGetValue(reference.Target, out var target))
+        {
+            return PrimitiveKindOf(target, graph, visited);
+        }
+
+        return branch switch
+        {
+            PrimitiveNode primitive => primitive.Kind,
+            EnumNode => PrimitiveKind.String,
+            LiteralNode { Kind: LiteralKind.String } => PrimitiveKind.String,
+            LiteralNode { Kind: LiteralKind.Number } => PrimitiveKind.Number,
+            LiteralNode { Kind: LiteralKind.Boolean } => PrimitiveKind.Boolean,
+            _ => null,
+        };
+    }
 }

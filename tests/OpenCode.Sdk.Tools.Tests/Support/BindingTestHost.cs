@@ -17,7 +17,7 @@ internal sealed class BindingTestHost
             new CurationValidator(),
             new SchemaAliasApplier(),
             new SchemaNameResolver(),
-            new SchemaPlanBinder(),
+            new SchemaPlanBinder(new StructuralUnionPlanBinder(), new UnionMembershipValidator()),
             new OperationPlanBinder());
     }
 

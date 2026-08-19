@@ -10,6 +10,17 @@ namespace OpenCode.Sdk;
 public static class OpenCodeRoutes
 {
     /// <summary>
+    /// Defines the &apos;Events&apos; routes.
+    /// </summary>
+    public static class Events
+    {
+        /// <summary>
+        /// The &apos;GET /api/event&apos; route.
+        /// </summary>
+        public const string Subscribe = "/api/event";
+    }
+
+    /// <summary>
     /// Defines the &apos;Health&apos; routes.
     /// </summary>
     public static class Health

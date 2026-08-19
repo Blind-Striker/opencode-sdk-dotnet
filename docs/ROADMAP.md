@@ -159,8 +159,8 @@ Windows completed in 10:04, so the matrix wall remains build rather than formatt
 converter-required variant/interface/unknown-carrier type is proven through `RegistryPlan`, the
 single emitted source-generated registry, and fresh compilation. Runtime evidence remains honest:
 two of 40 durable branches, the `log.synced` watermark, and unknown-carrier behavior. Hosted run
-`32192213328` is green on Linux, Windows, and macOS. #49 remains open only for the deferred Arc 3b
-plural-interface closure; no invented 40/87-payload corpus is planned. The six interim allocation
+`32192213328` is green on Linux, Windows, and macOS. Arc 3b now completes the deferred plural-interface
+closure without inventing a 40/87-payload corpus. The six interim allocation
 baselines remain the comparison guards; master protection and direct-push policy remain open under
 #50. #53's typed stream failure-cause M3 subset is complete at `28d09e1`: the pinned cause contract
 survives ingestion, binding, model/union planning, registry emission, source generation, and
@@ -175,8 +175,21 @@ pinned-compatible `opencode2` `0.0.0-next-17403`: generated
 `EventLogSynced` materialized, then SIGINT drove normal host shutdown. The new end-to-end
 pipeline/reader/generated-adapter benchmark measured 64 large frames at 1.157 ms and 717.82 KB per
 complete response, and 1,024 small frames at 1.674 ms and 507.20 KB on the recorded Linux/.NET 10
-environment. Research Q113/Q114 own the exact setup, statistics, and environmental limits. The Arc
-3b gate is now open, but no Arc 3b source work has begun.
+environment. Research Q113/Q114 own the exact setup, statistics, and environmental limits.
+
+**Arc 3b's live global-bus breadth is locally complete.** `v2.event.subscribe` emits as the
+parameterless `Events.SubscribeAsync(CancellationToken)` through reason-bearing operation and schema
+name curation; the profile is now 15 selected / 105 pending. The pinned live-event closure passes the
+same converter, registry, source-generation, compilation, and reflection-disabled runtime evidence
+as the durable log. Shared session leaves implement both `IEvent` and `ISessionEventDurable`, and the
+marker-kind wall refuses contradictory plural membership. The first selected heterogeneous
+structural unions use ADR-0016's generated token-dispatched carriers; same-primitive refinements emit
+no dead models. Representative runtime evidence remains one shared known leaf plus unknown/failure
+paths, while converter maps prove structural breadth mechanically. Demonstrated live on Linux against
+`opencode2` `0.0.0-next-17403`: generated `EventServerConnected` and `SessionCreated` frames
+materialized, SIGTERM drove normal host cancellation, and the separately launched server remained
+healthy until stopped independently. Research Q115/Q116 own the decision, commands, identities, and
+limitations. Hosted three-OS status follows the source push.
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family
@@ -266,9 +279,6 @@ is revisited at each milestone boundary.
   `ImmutableArray`/`ImmutableDictionary` across JSON, AOT, downlevel TFMs, request ergonomics, and
   allocation/throughput before M5 freezes the API. `IReadOnly*` remains the default unless total
   evidence favors concrete immutable types (research Q108).
-- **Structural-union emission shape** — the v1 pin had five structural-union sites
-  (`Config.formatter` et al.); the population is re-censused at the retarget, and the
-  emission decision lands when a breadth batch first reaches one (a public API review).
 - **Release mechanics** — decided parts live in ADR-0006 (independent semver, per-merge
   GitHub Packages CD, manual NuGet.org releases). Pre-1.0 numbering, `VersionPrefix`,
   RELEASE_NOTES flow, and the concrete workflows are scheduled when the first publishable

@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session inbox cancelled value.
 /// </summary>
-public sealed record SessionInboxCancelled : ISessionEventDurable
+public sealed record SessionInboxCancelled : ISessionEventDurable, IEvent
 {
     /// <summary>
     /// Gets the id value.

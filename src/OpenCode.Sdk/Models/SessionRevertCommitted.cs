@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session revert committed value.
 /// </summary>
-public sealed record SessionRevertCommitted : ISessionEventDurable
+public sealed record SessionRevertCommitted : ISessionEventDurable, IEvent
 {
     /// <summary>
     /// Gets the id value.

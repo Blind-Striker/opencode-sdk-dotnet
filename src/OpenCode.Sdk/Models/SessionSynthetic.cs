@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session synthetic value.
 /// </summary>
-public sealed record SessionSynthetic : ISessionEventDurable
+public sealed record SessionSynthetic : ISessionEventDurable, IEvent
 {
     /// <summary>
     /// Gets the id value.

@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session execution started value.
 /// </summary>
-public sealed record SessionExecutionStarted : ISessionEventDurable
+public sealed record SessionExecutionStarted : ISessionEventDurable, IEvent
 {
     /// <summary>
     /// Gets the id value.

@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session reasoning ended value.
 /// </summary>
-public sealed record SessionReasoningEnded : ISessionEventDurable
+public sealed record SessionReasoningEnded : ISessionEventDurable, IEvent
 {
     /// <summary>
     /// Gets the id value.

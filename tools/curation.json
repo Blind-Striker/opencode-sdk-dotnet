@@ -1,5 +1,9 @@
 {
   "groups": {
+    "event": {
+      "placement": "client",
+      "clientName": "Events"
+    },
     "health": {
       "placement": "root"
     },
@@ -22,8 +26,97 @@
       "handleParameter": "id"
     }
   },
+  "operationNames": [
+    {
+      "operationId": "v2.event.subscribe",
+      "methodName": "SubscribeAsync",
+      "reason": "The reviewed public surface names the global event subscription directly."
+    }
+  ],
+  "schemaNames": [
+    {
+      "schema": "V2Event",
+      "dotnetName": "IEvent",
+      "reason": "The v2 prefix identifies the selected transport line and is not part of the reviewed .NET domain name."
+    },
+    {
+      "schema": "V2Event.server.connected",
+      "dotnetName": "EventServerConnected",
+      "reason": "The v2 prefix identifies the selected transport line and is not part of the reviewed .NET domain name."
+    },
+    {
+      "schema": "Form.When1",
+      "dotnetName": "FormWhen",
+      "reason": "The numeric suffix is an upstream spec-gen collision artifact; the unsuffixed schema is not part of this selected surface."
+    },
+    {
+      "schema": "Form.When1#/properties/op",
+      "dotnetName": "FormWhenOp",
+      "reason": "The owner schema's numeric suffix is an upstream spec-gen collision artifact."
+    },
+    {
+      "schema": "Form.When1#/properties/value",
+      "dotnetName": "FormWhenValue",
+      "reason": "The owner schema's numeric suffix is an upstream spec-gen collision artifact."
+    },
+    {
+      "schema": "Form.StringField1",
+      "dotnetName": "FormStringField",
+      "reason": "The numeric suffix is an upstream spec-gen collision artifact; the unsuffixed schema is not part of this selected surface."
+    },
+    {
+      "schema": "Form.StringField1#/properties/format",
+      "dotnetName": "FormStringFieldFormat",
+      "reason": "The owner schema's numeric suffix is an upstream spec-gen collision artifact."
+    },
+    {
+      "schema": "Form.NumberField1",
+      "dotnetName": "FormNumberField",
+      "reason": "The numeric suffix is an upstream spec-gen collision artifact; the unsuffixed schema is not part of this selected surface."
+    },
+    {
+      "schema": "Form.IntegerField1",
+      "dotnetName": "FormIntegerField",
+      "reason": "The numeric suffix is an upstream spec-gen collision artifact; the unsuffixed schema is not part of this selected surface."
+    },
+    {
+      "schema": "Form.BooleanField1",
+      "dotnetName": "FormBooleanField",
+      "reason": "The numeric suffix is an upstream spec-gen collision artifact; the unsuffixed schema is not part of this selected surface."
+    },
+    {
+      "schema": "Form.MultiselectField1",
+      "dotnetName": "FormMultiselectField",
+      "reason": "The numeric suffix is an upstream spec-gen collision artifact; the unsuffixed schema is not part of this selected surface."
+    },
+    {
+      "schema": "Form.Field1",
+      "dotnetName": "IFormField",
+      "reason": "The numeric suffix is an upstream spec-gen collision artifact; the unsuffixed schema is not part of this selected surface."
+    },
+    {
+      "schema": "Form.Info1",
+      "dotnetName": "FormInfo",
+      "reason": "The numeric suffix is an upstream spec-gen collision artifact; the unsuffixed schema is not part of this selected surface."
+    },
+    {
+      "schema": "Form.Value1",
+      "dotnetName": "FormValue",
+      "reason": "The numeric suffix is an upstream spec-gen collision artifact; the unsuffixed schema is not part of this selected surface."
+    }
+  ],
   "envelopePayloadNames": {},
   "schemaAliases": [
+    {
+      "schema": "op:v2.event.subscribe#/responses/200/content/text~1event-stream/x-effect-stream/causeSchema/items",
+      "aliasOf": "op:v2.session.log#/responses/200/content/text~1event-stream/x-effect-stream/causeSchema/items",
+      "reason": "The pinned stream declarations promote structurally identical inline Effect cause unions under operation-scoped graph keys."
+    },
+    {
+      "schema": "Form.Metadata1",
+      "aliasOf": "Form.Metadata",
+      "reason": "Upstream spec-gen emits a structurally identical duplicate of the form metadata schema."
+    },
     {
       "schema": "InvalidRequestError1",
       "aliasOf": "InvalidRequestError",

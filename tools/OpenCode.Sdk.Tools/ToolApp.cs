@@ -38,6 +38,8 @@ public static class ToolApp
         services.AddSingleton<CurationValidator>();
         services.AddSingleton<SchemaAliasApplier>();
         services.AddSingleton<SchemaNameResolver>();
+        services.AddSingleton<StructuralUnionPlanBinder>();
+        services.AddSingleton<UnionMembershipValidator>();
         services.AddSingleton<SchemaPlanBinder>();
         services.AddSingleton<OperationPlanBinder>();
         services.AddSingleton<ISpecBinder, SpecBinder>();

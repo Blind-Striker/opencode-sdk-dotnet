@@ -10,13 +10,16 @@ internal static class BindingScenarioData
             OperationIds = operationIds,
         };
 
-    public static GenerationCuration Curation(
-        IReadOnlyDictionary<string, GroupCuration> groups,
+    public static GenerationCuration Curation(IReadOnlyDictionary<string, GroupCuration> groups,
         IReadOnlyDictionary<string, string>? envelopePayloadNames = null,
-        IReadOnlyList<SchemaAlias>? schemaAliases = null) =>
+        IReadOnlyList<SchemaAlias>? schemaAliases = null,
+        IReadOnlyList<OperationNameCuration>? operationNames = null,
+        IReadOnlyList<SchemaNameCuration>? schemaNames = null) =>
         new()
         {
             Groups = groups,
+            OperationNames = operationNames ?? [],
+            SchemaNames = schemaNames ?? [],
             EnvelopePayloadNames = envelopePayloadNames ?? new Dictionary<string, string>(StringComparer.Ordinal),
             SchemaAliases = schemaAliases ?? [],
         };
@@ -26,6 +29,24 @@ internal static class BindingScenarioData
         {
             Schema = schema,
             AliasOf = aliasOf,
+            Reason = reason,
+        };
+
+    public static OperationNameCuration OperationName(string operationId, string methodName,
+        string reason = "The reviewed .NET surface requires an explicit operation name.") =>
+        new()
+        {
+            OperationId = operationId,
+            MethodName = methodName,
+            Reason = reason,
+        };
+
+    public static SchemaNameCuration SchemaName(string schema, string dotnetName,
+        string reason = "The reviewed .NET surface requires an explicit schema name.") =>
+        new()
+        {
+            Schema = schema,
+            DotNetName = dotnetName,
             Reason = reason,
         };
 

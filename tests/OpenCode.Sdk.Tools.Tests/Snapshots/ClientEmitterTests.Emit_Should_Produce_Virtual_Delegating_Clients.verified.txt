@@ -74,7 +74,7 @@ public class OpenCodeClient : IDisposable
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("OpenCodeClient", "Pipeline");
 
     /// <summary>
-    /// Check example ping
+    /// Check example ping. Reports the example service state.
     /// </summary>
     /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
@@ -131,7 +131,7 @@ public class WidgetClient
     private string WidgetId => _widgetId ?? throw MockSeam.CreateError("WidgetClient", "WidgetId");
 
     /// <summary>
-    /// Get one widget item
+    /// Get one widget item. Retrieves one item owned by the widget.
     /// </summary>
     /// <param name = "itemId">The &apos;itemID&apos; route value.</param>
     /// <param name = "requestOptions">The per-call options.</param>

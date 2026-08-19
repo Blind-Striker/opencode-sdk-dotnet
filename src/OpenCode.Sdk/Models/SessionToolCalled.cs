@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session tool called value.
 /// </summary>
-public sealed record SessionToolCalled : ISessionEventDurable
+public sealed record SessionToolCalled : ISessionEventDurable, IEvent
 {
     /// <summary>
     /// Gets the id value.

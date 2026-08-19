@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session created value.
 /// </summary>
-public sealed record SessionCreated : ISessionEventDurable
+public sealed record SessionCreated : ISessionEventDurable, IEvent
 {
     /// <summary>
     /// Gets the id value.

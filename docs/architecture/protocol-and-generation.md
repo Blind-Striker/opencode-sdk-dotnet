@@ -82,8 +82,13 @@ dispatch instead of routing it through ADR-0009's unknown carrier (ADR-0015).
 - Every tagged union deserializes an unrecognized discriminator into that union's explicit unknown
   carrier, preserving the tag and raw `JsonElement` payload. Unknown frame names are not payload
   variants and remain framing failures (ADR-0009).
-- A union is emitted as an interface. One wire schema remains one sealed record implementing every
-  union to which it belongs (ADR-0011).
+- A marked union is emitted as an interface. One wire schema remains one sealed record implementing
+  every marked union to which it belongs (ADR-0011).
+- A token-distinct structural union emits one sealed carrier record with a `Kind`, guarded typed
+  accessors and factories, an explicit raw unknown arm for unclaimed non-null value tokens, and a
+  source-generated converter. Pinned
+  branch order resolves subset overlap; competing branches with the same remaining token kind fail
+  binding. Same-primitive refinements collapse without emitting dead branch models (ADR-0016).
 - Known objects skip additive unmapped fields, including when the pinned schema is closed. Required
   shape and represented token types remain materializable. Pure dictionaries retain their value
   schema; a named object combined with schema-valued additional properties fails binding until both

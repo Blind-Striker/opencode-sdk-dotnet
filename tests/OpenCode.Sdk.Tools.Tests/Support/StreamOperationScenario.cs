@@ -69,7 +69,8 @@ internal sealed class StreamOperationScenario(
     {
         _ = operation
             .Parameter("exampleID", "path", schema => schema.Type("string"), required: true)
-            .Summary("Watch example events");
+            .Summary("Watch example events")
+            .Description("The example stream is volatile by contract.");
         if (withBody)
         {
             _ = operation.RequestBody(

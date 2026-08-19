@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session revert staged value.
 /// </summary>
-public sealed record SessionRevertStaged : ISessionEventDurable
+public sealed record SessionRevertStaged : ISessionEventDurable, IEvent
 {
     /// <summary>
     /// Gets the id value.

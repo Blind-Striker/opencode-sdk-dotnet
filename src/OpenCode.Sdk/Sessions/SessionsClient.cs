@@ -44,7 +44,7 @@ public class SessionsClient
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("SessionsClient", "Pipeline");
 
     /// <summary>
-    /// Create session
+    /// Create session. Create a session at the requested location.
     /// </summary>
     /// <param name = "request">The request body; an empty body is sent when omitted.</param>
     /// <param name = "requestOptions">The per-call options.</param>
@@ -58,7 +58,7 @@ public class SessionsClient
     }
 
     /// <summary>
-    /// List sessions
+    /// List sessions. Retrieve sessions in the requested order. Items keep that order across pages; use cursor.next or cursor.previous to move through the ordered list.
     /// </summary>
     /// <param name = "request">The request shaping the query.</param>
     /// <param name = "requestOptions">The per-call options.</param>

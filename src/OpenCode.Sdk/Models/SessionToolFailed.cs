@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session tool failed value.
 /// </summary>
-public sealed record SessionToolFailed : ISessionEventDurable
+public sealed record SessionToolFailed : ISessionEventDurable, IEvent
 {
     /// <summary>
     /// Gets the id value.

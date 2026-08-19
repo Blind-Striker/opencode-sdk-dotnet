@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session inbox enqueued value.
 /// </summary>
-public sealed record SessionInboxEnqueued : ISessionEventDurable
+public sealed record SessionInboxEnqueued : ISessionEventDurable, IEvent
 {
     /// <summary>
     /// Gets the id value.

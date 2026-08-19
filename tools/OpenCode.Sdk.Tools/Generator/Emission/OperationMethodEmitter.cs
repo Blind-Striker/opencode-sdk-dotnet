@@ -14,7 +14,8 @@ internal static class OperationMethodEmitter
     {
         ArgumentNullException.ThrowIfNull(operation);
 
-        var methodParameters = operation.Parameters
+        var methodParameters = operation
+            .Parameters
             .Where(static parameter => !parameter.IsHandleParameter)
             .ToArray();
         var statements = new List<StatementSyntax>();
@@ -32,7 +33,8 @@ internal static class OperationMethodEmitter
         var returnType = operation.Stream is { } streaming
             ? TypeSyntaxEmitter.Generic("IAsyncEnumerable", TypeSyntaxEmitter.EmitNamed(streaming.PayloadTypeName))
             : TypeSyntaxEmitter.Generic("Task", TypeSyntaxEmitter.EmitNamed(operation.Envelope!.ResponseTypeName));
-        return SyntaxFactory.MethodDeclaration(returnType, operation.MethodName)
+        return SyntaxFactory
+            .MethodDeclaration(returnType, operation.MethodName)
             .WithModifiers(SyntaxFactory.TokenList(
                 SyntaxFactory.Token(SyntaxKind.PublicKeyword),
                 SyntaxFactory.Token(SyntaxKind.VirtualKeyword)))
@@ -46,7 +48,8 @@ internal static class OperationMethodEmitter
     {
         foreach (var parameter in methodParameters)
         {
-            yield return SyntaxFactory.Parameter(SyntaxFactory.Identifier(parameter.Name))
+            yield return SyntaxFactory
+                .Parameter(SyntaxFactory.Identifier(parameter.Name))
                 .WithType(TypeSyntaxEmitter.EmitNamed(parameter.TypeName));
         }
 
@@ -54,7 +57,8 @@ internal static class OperationMethodEmitter
         {
             var body = SyntaxFactory.Parameter(SyntaxFactory.Identifier(operation.RequestBody.ParameterName));
             yield return operation.RequestBody.IsOptional
-                ? body.WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(operation.RequestBody.TypeName)))
+                ? body
+                    .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(operation.RequestBody.TypeName)))
                     .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)))
                 : body.WithType(TypeSyntaxEmitter.EmitNamed(operation.RequestBody.TypeName));
         }
@@ -62,19 +66,22 @@ internal static class OperationMethodEmitter
         // A merged request already surfaced as the body parameter above.
         if (operation.QueryRequest is { RidesRequestBody: false })
         {
-            yield return SyntaxFactory.Parameter(SyntaxFactory.Identifier("request"))
+            yield return SyntaxFactory
+                .Parameter(SyntaxFactory.Identifier("request"))
                 .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(operation.QueryRequest.TypeName)))
                 .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)));
         }
 
         if (operation.Stream is null)
         {
-            yield return SyntaxFactory.Parameter(SyntaxFactory.Identifier("requestOptions"))
+            yield return SyntaxFactory
+                .Parameter(SyntaxFactory.Identifier("requestOptions"))
                 .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed("OpenCodeRequestOptions")))
                 .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)));
         }
 
-        yield return SyntaxFactory.Parameter(SyntaxFactory.Identifier("cancellationToken"))
+        yield return SyntaxFactory
+            .Parameter(SyntaxFactory.Identifier("cancellationToken"))
             .WithType(TypeSyntaxEmitter.EmitNamed("CancellationToken"))
             .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.DefaultLiteralExpression)));
     }
@@ -129,7 +136,8 @@ internal static class OperationMethodEmitter
         return SyntaxFactory.BinaryExpression(
             SyntaxKind.CoalesceExpression,
             parameter,
-            SyntaxFactory.ObjectCreationExpression(TypeSyntaxEmitter.EmitNamed(body.TypeName))
+            SyntaxFactory
+                .ObjectCreationExpression(TypeSyntaxEmitter.EmitNamed(body.TypeName))
                 .WithArgumentList(SyntaxFactory.ArgumentList()));
     }
 
@@ -218,11 +226,27 @@ internal static class OperationMethodEmitter
                 ? "The server could not be reached or returned a malformed success body."
                 : "The server could not be reached, the stream could not be read, or a frame or failure cause was malformed."));
         return EmissionSyntax.MemberDocumentation(
-            operation.Summary ?? operation.Description ?? $"Calls the '{operation.RouteTemplate}' operation.",
+            DocumentationSummary(operation),
             parameters,
             operation.Stream is { } streamed
                 ? $"The '{streamed.PayloadTypeName}' stream."
                 : $"The '{operation.Envelope!.ResponseTypeName}' envelope.",
             exceptions);
+    }
+
+    private static string DocumentationSummary(OperationPlan operation)
+    {
+        if (operation.Summary is null)
+        {
+            return operation.Description ?? $"Calls the '{operation.RouteTemplate}' operation.";
+        }
+
+        if (operation.Description is null)
+        {
+            return operation.Summary;
+        }
+
+        var separator = operation.Summary.Length > 0 && operation.Summary[^1] is '.' ? " " : ". ";
+        return string.Concat(operation.Summary, separator, operation.Description);
     }
 }

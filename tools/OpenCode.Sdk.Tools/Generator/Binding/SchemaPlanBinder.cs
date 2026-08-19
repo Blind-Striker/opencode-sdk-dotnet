@@ -3,10 +3,17 @@ using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 
 namespace OpenCode.Sdk.Tools.Generator.Binding;
 
-internal sealed class SchemaPlanBinder
+internal sealed class SchemaPlanBinder(
+    StructuralUnionPlanBinder structuralUnions,
+    UnionMembershipValidator unionMemberships)
 {
-    private const string ModelNamespace = "OpenCode.Sdk.Models";
     private readonly StringComparer _comparer = StringComparer.Ordinal;
+
+    private readonly StructuralUnionPlanBinder _structuralUnions = structuralUnions
+                                                                   ?? throw new ArgumentNullException(nameof(structuralUnions));
+
+    private readonly UnionMembershipValidator _unionMemberships = unionMemberships
+                                                                  ?? throw new ArgumentNullException(nameof(unionMemberships));
 
     public SchemaBindingResult Bind(SpecDocument document, ReachableSchemaSet reachable, GenerationCuration curation,
         IReadOnlyDictionary<string, string> typeNames, BindingErrorCollector errors)
@@ -20,8 +27,6 @@ internal sealed class SchemaPlanBinder
         var responseRoots = reachable.ResponseRootKeys.ToHashSet(_comparer);
         var streamCauseKeys = reachable.StreamCauseKeys.ToHashSet(_comparer);
         var inhabitation = new SchemaInhabitationPolicy(document.Schemas);
-        RefuseStructuralUnions(document, reachable, errors);
-
         var inheritance = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         var unions = BindExplicitUnions(document, reachable, responseRoots, streamCauseKeys, typeNames, inheritance, inhabitation, errors);
         var errorUnion = BindErrorUnion(document, reachable, responseRoots, streamCauseKeys, typeNames, inheritance, errors);
@@ -57,13 +62,28 @@ internal sealed class SchemaPlanBinder
                 case EnumNode enumNode:
                     models.Add(BindEnum(name, enumNode, errors));
                     break;
+                case UnionNode { Classification: UnionClassification.Structural } structural
+                    when UnstructuredUnionPolicy.Collapse(structural, document.Schemas) is null:
+                    var structuralPlan = _structuralUnions.Bind(key, name, structural, document.Schemas, typeBinder, errors);
+                    if (structuralPlan is not null)
+                    {
+                        models.Add(structuralPlan);
+                    }
+
+                    break;
             }
         }
 
         var orderedModels = models.OrderBy(static model => model.Name, _comparer).ToArray();
         var orderedUnions = unions.OrderBy(static union => union.Name, _comparer).ToArray();
+        _unionMemberships.Validate([.. orderedModels.OfType<ObjectModelPlan>()], orderedUnions, errors);
         var registryNames = orderedModels
             .Select(static model => model.Name)
+            .Concat(orderedModels
+                .OfType<StructuralUnionModelPlan>()
+                .SelectMany(static model => model.Arms)
+                .Where(static arm => arm.Type.IsCollection)
+                .Select(static arm => TypeReferenceNamePolicy.Format(arm.Type)))
             .Concat(orderedUnions.SelectMany(static union => new[] { union.Name, union.UnknownTypeName, }))
             .Distinct(_comparer)
             .Order(_comparer)
@@ -77,19 +97,6 @@ internal sealed class SchemaPlanBinder
                 TypeNames = registryNames,
             },
         };
-    }
-
-    private static void RefuseStructuralUnions(SpecDocument document, ReachableSchemaSet reachable, BindingErrorCollector errors)
-    {
-        foreach (var key in reachable.GraphKeys)
-        {
-            if (document.Schemas.TryGetValue(key, out var schema)
-                && schema is UnionNode { Classification: UnionClassification.Structural } union
-                && UnstructuredUnionPolicy.Collapse(union) is null)
-            {
-                errors.Add(BindingErrorCategory.Schema, key, "selected closure contains a structural union");
-            }
-        }
     }
 
     private static List<UnionPlan> BindExplicitUnions(SpecDocument document, ReachableSchemaSet reachable, HashSet<string> responseRoots,
@@ -206,7 +213,7 @@ internal sealed class SchemaPlanBinder
         {
             Name = name,
             ConceptName = conceptName,
-            Namespace = ModelNamespace,
+            Namespace = GeneratedNamespace.Models,
             UnknownTypeName = $"Unknown{conceptName}",
             MarkerWireName = marker.PropertyName,
             MarkerName = CSharpNamePolicy.ToPascalCase(marker.PropertyName),
@@ -461,7 +468,7 @@ internal sealed class SchemaPlanBinder
         {
             Name = CSharpNamePolicy.ToUnionInterfaceName("OpenCodeError"),
             ConceptName = "OpenCodeError",
-            Namespace = ModelNamespace,
+            Namespace = GeneratedNamespace.Models,
             UnknownTypeName = "UnknownOpenCodeError",
             MarkerWireName = "_tag",
             MarkerName = "Tag",
@@ -532,7 +539,7 @@ internal sealed class SchemaPlanBinder
         return new ObjectModelPlan
         {
             Name = name,
-            Namespace = ModelNamespace,
+            Namespace = GeneratedNamespace.Models,
             Description = node.Description,
             Properties = properties,
             ImplementedUnionNames = inheritance.TryGetValue(key, out var implemented) ? implemented : [],
@@ -557,7 +564,7 @@ internal sealed class SchemaPlanBinder
         return new EnumModelPlan
         {
             Name = name,
-            Namespace = ModelNamespace,
+            Namespace = GeneratedNamespace.Models,
             Description = node.Description,
             Values = values,
         };
@@ -582,154 +589,5 @@ internal sealed class SchemaPlanBinder
         {
             unions.Add(unionName);
         }
-    }
-
-    private sealed class TypePlanBinder
-    {
-        private readonly IReadOnlyDictionary<string, SchemaNode> _graph;
-        private readonly IReadOnlyDictionary<string, string> _names;
-        private readonly BindingErrorCollector _errors;
-
-        public TypePlanBinder(IReadOnlyDictionary<string, SchemaNode> graph, IReadOnlyDictionary<string, string> names,
-            BindingErrorCollector errors)
-        {
-            _graph = graph ?? throw new ArgumentNullException(nameof(graph));
-            _names = names ?? throw new ArgumentNullException(nameof(names));
-            _errors = errors ?? throw new ArgumentNullException(nameof(errors));
-        }
-
-        public TypeReferencePlan? Bind(string schemaKey, string propertyName, SchemaNode schema)
-        {
-            ArgumentException.ThrowIfNullOrWhiteSpace(schemaKey);
-            ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
-            ArgumentNullException.ThrowIfNull(schema);
-
-            return BindCore(schema, $"{schemaKey}.{propertyName}", []);
-        }
-
-        private TypeReferencePlan? BindCore(SchemaNode schema, string subject, HashSet<string> aliases) => schema switch
-        {
-            RefNode reference => BindReference(reference, subject, aliases),
-            PrimitiveNode primitive => BindPrimitive(primitive),
-            // A literal binds to the type that holds its value; the marker itself is carried
-            // by the union machinery, not by the property's type.
-            LiteralNode { Kind: LiteralKind.Boolean } => Named("bool"),
-            LiteralNode { Kind: LiteralKind.String } => Named("string"),
-            LiteralNode { Kind: LiteralKind.Number } => Named("double"),
-            LiteralNode literal => Refuse(subject, $"literal kind '{literal.Kind}' is not supported by the emitter"),
-            ArrayNode array => BindArray(array, subject, aliases),
-            DictionaryNode dictionary => BindDictionary(dictionary, subject, aliases),
-            FreeFormObjectNode => DictionaryOf(JsonElement()),
-            UnrestrictedNode => JsonElement(),
-            NeverNode => Refuse(subject, "never schemas cannot materialize a .NET value"),
-            SpecialNumberNode => SpecialNumber(),
-            NullableNode nullable => BindNullable(nullable, subject, aliases),
-            JsonStringNode => Refuse(subject, "JSON-encoded strings are not supported by the M1 emitter"),
-            TupleNode => Refuse(subject, "tuple schemas are not supported by the M1 emitter"),
-            UnionNode { Classification: UnionClassification.Structural } union
-                when UnstructuredUnionPolicy.Collapse(union) is { } collapsed => BindCore(collapsed, subject, aliases),
-            ObjectNode or EnumNode or UnionNode => Refuse(subject, "inline nominal schema was not promoted into the graph"),
-            _ => Refuse(subject, $"schema node '{schema.GetType().Name}' is not supported by the M1 emitter"),
-        };
-
-        private TypeReferencePlan? BindReference(RefNode reference, string subject, HashSet<string> aliases)
-        {
-            if (_names.TryGetValue(reference.Target, out var name))
-            {
-                return Named(name);
-            }
-
-            if (!_graph.TryGetValue(reference.Target, out var target))
-            {
-                return Refuse(subject, $"schema reference '{reference.Target}' is missing");
-            }
-
-            if (!aliases.Add(reference.Target))
-            {
-                return Refuse(subject, $"non-nominal schema alias cycle reaches '{reference.Target}'");
-            }
-
-            var result = BindCore(target, subject, aliases);
-            _ = aliases.Remove(reference.Target);
-            return result;
-        }
-
-        private static NamedTypeReferencePlan BindPrimitive(PrimitiveNode primitive) => primitive.Kind switch
-        {
-            PrimitiveKind.String when string.Equals(primitive.Format, "uri", StringComparison.Ordinal) => Named("Uri"),
-            PrimitiveKind.String => Named("string"),
-            PrimitiveKind.Number => Named("double"),
-            PrimitiveKind.Integer => Named("long"),
-            PrimitiveKind.Boolean => Named("bool"),
-            _ => throw new InvalidOperationException($"Unknown primitive kind '{primitive.Kind}'."),
-        };
-
-        private ListTypeReferencePlan? BindArray(ArrayNode array, string subject, HashSet<string> aliases)
-        {
-            var item = BindCore(array.Item, subject, aliases);
-            return item is null ? null : ListOf(item);
-        }
-
-        private DictionaryTypeReferencePlan? BindDictionary(DictionaryNode dictionary, string subject, HashSet<string> aliases)
-        {
-            var value = BindCore(dictionary.Value, subject, aliases);
-            return value is null ? null : DictionaryOf(value);
-        }
-
-        private TypeReferencePlan? BindNullable(NullableNode nullable, string subject, HashSet<string> aliases)
-        {
-            var inner = BindCore(nullable.Inner, subject, aliases);
-            return inner is null || inner.JsonNullRepresentation == JsonNullRepresentation.InBand
-                ? inner
-                : inner with
-                {
-                    IsNullable = true
-                };
-        }
-
-        private TypeReferencePlan? Refuse(string subject, string problem)
-        {
-            _errors.Add(BindingErrorCategory.Schema, subject, problem);
-            return null;
-        }
-
-        private static NamedTypeReferencePlan Named(string name) =>
-            new()
-            {
-                Name = name,
-                IsNullable = false,
-                JsonNullRepresentation = JsonNullRepresentation.ClrNull,
-            };
-
-        private static NamedTypeReferencePlan JsonElement() =>
-            new()
-            {
-                Name = "JsonElement",
-                IsNullable = false,
-                JsonNullRepresentation = JsonNullRepresentation.InBand,
-            };
-
-        private static SpecialNumberTypeReferencePlan SpecialNumber() =>
-            new()
-            {
-                IsNullable = false,
-                JsonNullRepresentation = JsonNullRepresentation.ClrNull,
-            };
-
-        private static ListTypeReferencePlan ListOf(TypeReferencePlan elementType) =>
-            new()
-            {
-                ElementType = elementType,
-                IsNullable = false,
-                JsonNullRepresentation = JsonNullRepresentation.ClrNull,
-            };
-
-        private static DictionaryTypeReferencePlan DictionaryOf(TypeReferencePlan valueType) =>
-            new()
-            {
-                ValueType = valueType,
-                IsNullable = false,
-                JsonNullRepresentation = JsonNullRepresentation.ClrNull,
-            };
     }
 }

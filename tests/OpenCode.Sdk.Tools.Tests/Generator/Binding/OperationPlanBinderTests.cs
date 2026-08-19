@@ -16,7 +16,7 @@ public sealed class OperationPlanBinderTests
             .That(plan
                 .Clients.Select(static client => client.Name)
                 .SequenceEqual(
-                    ["OpenCodeClient", "SessionClient", "SessionsClient", "ShellClient", "ShellsClient"],
+                    ["OpenCodeClient", "EventsClient", "SessionClient", "SessionsClient", "ShellClient", "ShellsClient"],
                     StringComparer.Ordinal))
             .IsTrue();
         await Assert.That(plan.Clients.All(static client => client.Namespace == "OpenCode.Sdk")).IsTrue();
@@ -26,12 +26,12 @@ public sealed class OperationPlanBinderTests
         await Assert
             .That(root
                 .SubClients.Select(static subClient => subClient.PropertyName)
-                .SequenceEqual(["Sessions", "Shells"], StringComparer.Ordinal))
+                .SequenceEqual(["Events", "Sessions", "Shells"], StringComparer.Ordinal))
             .IsTrue();
         await Assert
             .That(root
                 .SubClients.Select(static subClient => subClient.TypeName)
-                .SequenceEqual(["SessionsClient", "ShellsClient"], StringComparer.Ordinal))
+                .SequenceEqual(["EventsClient", "SessionsClient", "ShellsClient"], StringComparer.Ordinal))
             .IsTrue();
         await Assert.That(root.HandleFactory).IsNull();
         await Assert.That(root.HandleParameter).IsNull();

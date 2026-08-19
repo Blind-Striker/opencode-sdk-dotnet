@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session retry scheduled value.
 /// </summary>
-public sealed record SessionRetryScheduled : ISessionEventDurable
+public sealed record SessionRetryScheduled : ISessionEventDurable, IEvent
 {
     /// <summary>
     /// Gets the id value.

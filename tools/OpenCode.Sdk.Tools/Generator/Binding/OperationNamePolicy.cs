@@ -25,9 +25,14 @@ internal static class OperationNamePolicy
             : CSharpNamePolicy.ToPascalCase(operation.Method);
     }
 
-    public static string? MethodName(SpecOperation operation)
+    public static string? MethodName(SpecOperation operation, OperationNameCuration? curation = null)
     {
         ArgumentNullException.ThrowIfNull(operation);
+
+        if (curation is not null)
+        {
+            return curation.MethodName;
+        }
 
         var subject = SubjectOrGroupFallback(operation);
         return subject is null ? null : $"{Verb(operation)}{subject}Async";
@@ -46,9 +51,18 @@ internal static class OperationNamePolicy
     /// Route members never restate a root container; client-placed members mirror their
     /// method names so merged client families stay collision-free.
     /// </summary>
-    public static string? RouteMemberName(SpecOperation operation, GroupPlacement placement)
+    public static string? RouteMemberName(SpecOperation operation, GroupPlacement placement,
+        OperationNameCuration? curation = null)
     {
         ArgumentNullException.ThrowIfNull(operation);
+
+        if (curation is not null)
+        {
+            return curation.MethodName.EndsWith("Async", StringComparison.Ordinal)
+                   && curation.MethodName.Length > 5
+                ? curation.MethodName[..^5]
+                : null;
+        }
 
         if (placement is GroupPlacement.Root)
         {

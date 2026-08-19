@@ -1,6 +1,10 @@
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using OpenCode.Sdk.Tools.Generator.Binding;
+using OpenCode.Sdk.Tools.Generator.Binding.Models;
 using OpenCode.Sdk.Tools.Generator.Emission;
 using OpenCode.Sdk.Tools.Tests.Support;
 
@@ -16,11 +20,17 @@ public sealed class SourceEmitterTests
         var first = SourceEmitter.Emit(plan);
         var second = SourceEmitter.Emit(plan);
 
-        await Assert.That(first.Select(static source => source.RelativePath)
-            .SequenceEqual(first.Select(static source => source.RelativePath).Order(StringComparer.Ordinal), StringComparer.Ordinal)).IsTrue();
-        await Assert.That(first.Select(static source => source.Utf8Source.ToArray())
-            .Zip(second.Select(static source => source.Utf8Source.ToArray()), static (left, right) => left.SequenceEqual(right))
-            .All(static equal => equal)).IsTrue();
+        await Assert
+            .That(first
+                .Select(static source => source.RelativePath)
+                .SequenceEqual(first.Select(static source => source.RelativePath).Order(StringComparer.Ordinal), StringComparer.Ordinal))
+            .IsTrue();
+        await Assert
+            .That(first
+                .Select(static source => source.Utf8Source.ToArray())
+                .Zip(second.Select(static source => source.Utf8Source.ToArray()), static (left, right) => left.SequenceEqual(right))
+                .All(static equal => equal))
+            .IsTrue();
     }
 
     [Test]
@@ -40,6 +50,15 @@ public sealed class SourceEmitterTests
             await Assert.That(ReadConverterMappings(source).SequenceEqual(expected)).IsTrue();
         }
 
+        foreach (var structural in plan.Models.OfType<StructuralUnionModelPlan>())
+        {
+            var source = sources.Single(candidate => candidate.RelativePath ==
+                                                     $"Internal/Serialization/{structural.Name}JsonConverter.cs");
+            var expected = structural.Arms.SelectMany(arm => arm.Tokens.Select(token =>
+                new KeyValuePair<string, string>(token.ToString(), arm.Name)));
+            await Assert.That(ReadStructuralConverterMappings(source).SequenceEqual(expected)).IsTrue();
+        }
+
         var requiredRegistryTypes = plan
             .Unions
             .SelectMany(static union => union
@@ -49,7 +68,19 @@ public sealed class SourceEmitterTests
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)
             .ToArray();
-        await Assert.That(requiredRegistryTypes.Except(plan.Registry.TypeNames, StringComparer.Ordinal)).IsEmpty();
+        var requiredStructuralRegistryTypes = plan
+            .Models.OfType<StructuralUnionModelPlan>()
+            .SelectMany(static model => model
+                .Arms
+                .Where(static arm => arm.Type.IsCollection)
+                .Select(static arm => TypeReferenceNamePolicy.Format(arm.Type))
+                .Append(model.Name));
+        var allRequiredRegistryTypes = requiredRegistryTypes
+            .Concat(requiredStructuralRegistryTypes)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        await Assert.That(allRequiredRegistryTypes.Except(plan.Registry.TypeNames, StringComparer.Ordinal)).IsEmpty();
 
         var registrySource = sources.Single(static source =>
             source.RelativePath == "Internal/Serialization/OpenCodeJsonContext.cs");
@@ -59,7 +90,7 @@ public sealed class SourceEmitterTests
                 plan.Registry.TypeNames.Order(StringComparer.Ordinal),
                 StringComparer.Ordinal))
             .IsTrue();
-        await Assert.That(requiredRegistryTypes.Except(emittedRegistryTypes, StringComparer.Ordinal)).IsEmpty();
+        await Assert.That(allRequiredRegistryTypes.Except(emittedRegistryTypes, StringComparer.Ordinal)).IsEmpty();
 
         var diagnostics = await GeneratedSourceCompiler.CompileWithSdkCoreAsync(sources);
 
@@ -67,12 +98,64 @@ public sealed class SourceEmitterTests
     }
 
     [Test]
+    public async Task Emit_Should_Deserialize_A_Shared_Pinned_Leaf_Through_Both_Stream_Interfaces()
+    {
+        var plan = await new BindingTestHost().BindPinnedAsync();
+        var sources = SourceEmitter.Emit(plan);
+        var assembly = await GeneratedSourceCompiler.CompileAndLoadWithSdkCoreAsync(sources);
+        var durableType = assembly.GetType("OpenCode.Sdk.Models.ISessionEventDurable", throwOnError: true)!;
+        var liveType = assembly.GetType("OpenCode.Sdk.Models.IEvent", throwOnError: true)!;
+        var leafType = assembly.GetType("OpenCode.Sdk.Models.SessionCreated", throwOnError: true)!;
+        var contextType = assembly.GetType("OpenCode.Sdk.Internal.Serialization.OpenCodeJsonContext", throwOnError: true)!;
+        var context = (JsonSerializerContext)(contextType.GetProperty("Default")?.GetValue(null)
+                                              ?? throw new InvalidOperationException("Generated JSON context has no Default instance."));
+        var payload = new FixtureLoader().Load("Serialization.shared-live-durable-event.json");
+
+        var durable = JsonSerializer.Deserialize(payload, context.GetTypeInfo(durableType)
+                                                          ?? throw new InvalidOperationException(
+                                                              "Generated JSON context has no durable-event metadata."));
+        var live = JsonSerializer.Deserialize(payload, context.GetTypeInfo(liveType)
+                                                       ?? throw new InvalidOperationException("Generated JSON context has no live-event metadata."));
+
+        await Assert.That(durable).IsNotNull();
+        await Assert.That(live).IsNotNull();
+        await Assert.That(durable.GetType()).IsEqualTo(leafType);
+        await Assert.That(live.GetType()).IsEqualTo(leafType);
+        await Assert.That(durableType.IsInstanceOfType(live)).IsTrue();
+        await Assert.That(liveType.IsInstanceOfType(durable)).IsTrue();
+    }
+
+    [Test]
+    public async Task Emit_Should_Preserve_An_Unclaimed_Pinned_Structural_Token_As_Unknown()
+    {
+        var plan = await new BindingTestHost().BindPinnedAsync();
+        var sources = SourceEmitter.Emit(plan);
+        var assembly = await GeneratedSourceCompiler.CompileAndLoadWithSdkCoreAsync(sources);
+        var contextType = assembly.GetType("OpenCode.Sdk.Internal.Serialization.OpenCodeJsonContext", throwOnError: true)!;
+        var context = (JsonSerializerContext)(contextType.GetProperty("Default")?.GetValue(null)
+                                              ?? throw new InvalidOperationException("Generated JSON context has no Default instance."));
+
+        var conditionType = assembly.GetType("OpenCode.Sdk.Models.FormWhenValue", throwOnError: true)!;
+        var condition = JsonSerializer.Deserialize(
+                            new FixtureLoader().Load("Serialization.structural-string-list.json"),
+                            context.GetTypeInfo(conditionType)
+                            ?? throw new InvalidOperationException("Generated JSON context has no form-condition metadata."))
+                        ?? throw new InvalidOperationException("Form condition materialized null.");
+        await Assert.That(conditionType.GetProperty("Kind")!.GetValue(condition)!.ToString()).IsEqualTo("Unknown");
+        await Assert
+            .That(((JsonElement)conditionType.GetProperty("Unknown")!.GetValue(condition)!).ValueKind)
+            .IsEqualTo(JsonValueKind.Array);
+    }
+
+    [Test]
     public async Task Emit_Should_Not_Emit_Retired_Materialization_Helpers()
     {
         var sources = SourceEmitter.Emit(EmitterPlanFixture.Create());
 
-        await Assert.That(sources.Select(static source => source.RelativePath)).DoesNotContain(
-            "Internal/Serialization/OptionalCollectionInput.cs");
+        await Assert
+            .That(sources.Select(static source => source.RelativePath))
+            .DoesNotContain(
+                "Internal/Serialization/OptionalCollectionInput.cs");
         var content = EmitterSnapshot.Create(sources);
         await Assert.That(content).DoesNotContain("WireNullRejecting");
         await Assert.That(content).DoesNotContain("NullElementRejectingListJsonConverter");
@@ -96,6 +179,29 @@ public sealed class SourceEmitterTests
                         .Expression).Token.ValueText,
                     ((TypeOfExpressionSyntax)assignment.Right).Type.ToString()))
                 .OrderBy(static mapping => mapping.Key, StringComparer.Ordinal),
+        ];
+    }
+
+    private static IReadOnlyList<KeyValuePair<string, string>> ReadStructuralConverterMappings(GeneratedSource source)
+    {
+        var root = Parse(source);
+        return
+        [
+            .. root
+                .DescendantNodes()
+                .OfType<SwitchExpressionArmSyntax>()
+                .Where(static arm => arm is
+                {
+                    Pattern: ConstantPatternSyntax { Expression: MemberAccessExpressionSyntax },
+                    Expression: InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax },
+                })
+                .Select(static arm => new
+                {
+                    Token = ((MemberAccessExpressionSyntax)((ConstantPatternSyntax)arm.Pattern).Expression).Name.Identifier.ValueText,
+                    Factory = ((MemberAccessExpressionSyntax)((InvocationExpressionSyntax)arm.Expression).Expression).Name.Identifier.ValueText,
+                })
+                .Where(static mapping => mapping.Factory.StartsWith("From", StringComparison.Ordinal))
+                .Select(static mapping => new KeyValuePair<string, string>(mapping.Token, mapping.Factory[4..])),
         ];
     }
 

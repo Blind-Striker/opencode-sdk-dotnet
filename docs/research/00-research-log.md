@@ -2625,3 +2625,71 @@ no substantive defect, and its one low-severity statistical-completeness note pr
 bimodal/outlier disclosure above. Slopwatch, Release build, whitespace, style, and all 1,290 local
 test executions passed with none failed or skipped. Source commit `c7a35bd` then passed hosted run
 `32240794296` on Linux, Windows, and macOS.
+
+# Session 34 — 2026-08-19: Arc 3b structural-union decision
+
+## Q115: How should the first selected heterogeneous structural unions appear in .NET?
+
+**Trigger:** selecting `v2.event.subscribe` reached two pinned untagged value unions that the
+generator had deliberately refused: `Form.Value1` (`string | special-number | boolean | string[]`)
+and `Form.When1.value` (`string | special-number | boolean`). This was the public-API decision parked
+in the roadmap, not an endpoint transport defect. The simultaneously reached
+`tui.command.execute.data.command` is only an open string refinement; resolving its promoted enum
+reference lets the existing same-primitive policy collapse it to `string` without emitting the dead
+enum branch.
+
+**Diagnostic upstream evidence:** the pinned upstream Effect schema declares `Form.Value` as
+`String | Number | Boolean | Array(String)`, and its generated TypeScript client exposes the same
+compile-time union. Under ADR-0013 this corroborates the projection but contributes no wire type,
+dispatch precedence, or generation rule; those come only from the pinned OpenAPI graph.
+
+**Probe:** two reflection-disabled System.Text.Json prototypes exercised the exact token matrix. A
+single carrier plus `Kind` and guarded arms produced two public concepts per site; a base plus one
+record per arm produced six for the four-arm value. Both round-tripped text, finite number, boolean,
+text list, and raw unknown object values; both kept `"NaN"` in the earlier text branch, refused a
+malformed claimed text-list arm, and refused writing `double.NaN` as the ordinary number arm.
+
+**Decision (maintainer, sealed):** emit the single generated carrier shape in ADR-0016. Dispatch is
+by JSON token kind in pinned branch order. A claimed token followed by malformed content is a
+protocol failure; an otherwise unclaimed valid non-null value token uses the raw unknown arm. Ambiguous
+same-token branches fail binding. Marked object unions remain interfaces under ADR-0011, whose
+scope now includes side-by-side marked and structural examples.
+
+**Curation check:** a live `SchemaNodeComparer` probe rejected `Form.When1`, the numeric field
+schemas, `Form.Info1`, and `Form.Value1` as aliases of their unsuffixed names. After removing those
+invalid assumptions, dependent field/union/answer aliases also failed. Only
+`Form.Metadata1 -> Form.Metadata` is structurally identical under the current fail-closed graph and
+was retained. Alias identity and .NET naming remain separate: reason-bearing `schemaNames` rows remove
+the spec-gen suffix from the selected public Form family without claiming the wire schemas are equal.
+The resolver's ordinary owner collision fails closed if an unsuffixed twin later joins the profile;
+naming aesthetics therefore did not weaken the alias wall.
+
+## Q116: Does the generated global event subscription observe typed live frames and cancel cleanly?
+
+**How demonstrated:** launched exact pinned-compatible `@opencode-ai/cli@0.0.0-next-17403` on Linux
+at `127.0.0.1:41999` with the sandbox password, then ran the committed Generic Host worker over
+`EventsClient.SubscribeAsync(stoppingToken)`. Its typed health call identified server version
+`0.0.0-next-17403` and PID `597763`. A separate no-mode sandbox invocation exercised the breadth
+walkthrough and created session `ses_fe573d9ecffeIOfpw1CScSgYtI`, ensuring activity occurred only
+after the volatile subscription was open.
+
+```bash
+OPENCODE_SERVER_PASSWORD=123456 \
+  npx --yes @opencode-ai/cli@0.0.0-next-17403 serve --hostname 127.0.0.1 --port 41999
+OPENCODE_SANDBOX_ENDPOINT=http://127.0.0.1:41999 \
+  OPENCODE_SERVER_PASSWORD=123456 \
+  dotnet tests/OpenCode.Sdk.Sandbox/bin/Release/net10.0/OpenCode.Sdk.Sandbox.dll --events
+```
+
+**Observed:** the generated event adapter materialized `EventServerConnected` with tag
+`server.connected`, then the shared durable/live leaf `SessionCreated` with tag `session.created`.
+SIGTERM drove Generic Host's normal `Application is shutting down...` cancellation path, closed the
+open response, and exited the worker while the separately launched server remained healthy with the
+same identity. Stopping that server separately made health refuse the connection.
+
+**Environmental limits:** the worker was started in the background through `nohup`; that shell setup
+inherited ignored SIGINT, so cancellation evidence uses SIGTERM rather than pretending Ctrl+C was
+observed. This is one Linux live demonstration. The global bus is volatile and has no filter, cursor,
+replay, resume, or reconnect contract; the run observed two known frames and did not induce overflow,
+a reserved failure frame, malformed payload, unknown variant, or network cut. Deterministic contract
+tests own those paths. The breadth trigger created a session and did not delete it.

@@ -21,8 +21,87 @@ internal sealed class CurationValidator
         var documentIds = document.Operations.Select(static operation => operation.OperationId).ToHashSet(_comparer);
         var documentGroups = document.Operations.Select(GetGroup).ToHashSet(_comparer);
         ValidateGroups(selected, selectedGroups, documentGroups, curation, errors);
+        ValidateOperationNames(selectedIds, documentIds, curation, errors);
+        ValidateSchemaNames(document, reachable, curation, errors);
         ValidateEnvelopeNames(selectedIds, documentIds, curation, errors);
         ValidateSchemaAliases(document, reachable, curation, errors);
+    }
+
+    private static void ValidateSchemaNames(SpecDocument document, ReachableSchemaSet reachable,
+        GenerationCuration curation, BindingErrorCollector errors)
+    {
+        var reachableKeys = reachable.GraphKeys.ToHashSet(StringComparer.Ordinal);
+        var curated = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var schemaName in curation.SchemaNames)
+        {
+            if (!curated.Add(schemaName.Schema))
+            {
+                errors.Add(BindingErrorCategory.Curation, schemaName.Schema,
+                    "schema name curation is duplicated");
+            }
+
+            if (!document.Schemas.ContainsKey(schemaName.Schema))
+            {
+                errors.Add(BindingErrorCategory.Curation, schemaName.Schema,
+                    "curated schema does not exist in the spec");
+            }
+            else if (!reachableKeys.Contains(schemaName.Schema))
+            {
+                errors.Add(BindingErrorCategory.Curation, schemaName.Schema,
+                    "curated schema is not referenced by the selected profile");
+            }
+
+            if (string.IsNullOrWhiteSpace(schemaName.Reason))
+            {
+                errors.Add(BindingErrorCategory.Curation, schemaName.Schema,
+                    "schema name curation must declare a reason");
+            }
+
+            if (!CSharpNamePolicy.IsValidIdentifier(schemaName.DotNetName))
+            {
+                errors.Add(BindingErrorCategory.Naming, schemaName.Schema,
+                    $"schema name '{schemaName.DotNetName}' is not a valid C# identifier");
+            }
+        }
+    }
+
+    private static void ValidateOperationNames(HashSet<string> selectedIds, HashSet<string> documentIds,
+        GenerationCuration curation, BindingErrorCollector errors)
+    {
+        var curated = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var operationName in curation.OperationNames)
+        {
+            if (!curated.Add(operationName.OperationId))
+            {
+                errors.Add(BindingErrorCategory.Curation, operationName.OperationId,
+                    "operation name curation is duplicated");
+            }
+
+            if (!documentIds.Contains(operationName.OperationId))
+            {
+                errors.Add(BindingErrorCategory.Curation, operationName.OperationId,
+                    "curated operation does not exist in the spec");
+            }
+            else if (!selectedIds.Contains(operationName.OperationId))
+            {
+                errors.Add(BindingErrorCategory.Curation, operationName.OperationId,
+                    "curated operation is not selected by the current profile");
+            }
+
+            if (string.IsNullOrWhiteSpace(operationName.Reason))
+            {
+                errors.Add(BindingErrorCategory.Curation, operationName.OperationId,
+                    "operation name curation must declare a reason");
+            }
+
+            if (!CSharpNamePolicy.IsValidIdentifier(operationName.MethodName)
+                || !operationName.MethodName.EndsWith("Async", StringComparison.Ordinal)
+                || operationName.MethodName.Length is 5)
+            {
+                errors.Add(BindingErrorCategory.Naming, operationName.OperationId,
+                    $"method name '{operationName.MethodName}' must be a valid C# identifier ending in 'Async'");
+            }
+        }
     }
 
     private static void ValidateGroups(IReadOnlyList<SpecOperation> selected, HashSet<string> selectedGroups,
@@ -49,7 +128,8 @@ internal sealed class CurationValidator
 
         // Groups sharing a client name merge into one client family, so their handle
         // declarations must agree exactly — a divergent row would fork the family.
-        foreach (var clientName in curation.Groups
+        foreach (var clientName in curation
+                     .Groups
                      .Where(static pair => pair.Value is { Placement: GroupPlacement.Client, ClientName: not null })
                      .GroupBy(static pair => pair.Value.ClientName!, StringComparer.Ordinal)
                      .Where(static family => family
@@ -191,7 +271,8 @@ internal sealed class CurationValidator
         // Identity is judged on the graph as it will be bound, so one alias can be what makes
         // a second pair identical.
         // A duplicated source is reported below rather than throwing here.
-        var aliasTargets = curation.SchemaAliases
+        var aliasTargets = curation
+            .SchemaAliases
             .DistinctBy(static alias => alias.Schema, StringComparer.Ordinal)
             .ToDictionary(static alias => alias.Schema, static alias => alias.AliasOf, StringComparer.Ordinal);
         foreach (var alias in curation.SchemaAliases)
@@ -235,7 +316,8 @@ internal sealed class CurationValidator
             }
         }
 
-        foreach (var alias in curation.SchemaAliases
+        foreach (var alias in curation
+                     .SchemaAliases
                      .Where(alias => !string.Equals(alias.Schema, alias.AliasOf, StringComparison.Ordinal)
                                      && sources.Contains(alias.AliasOf))
                      .OrderBy(static alias => alias.Schema, StringComparer.Ordinal))

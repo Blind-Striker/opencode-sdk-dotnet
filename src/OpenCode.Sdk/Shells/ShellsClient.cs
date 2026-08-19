@@ -44,7 +44,7 @@ public class ShellsClient
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("ShellsClient", "Pipeline");
 
     /// <summary>
-    /// Run shell command
+    /// Run shell command. Spawn one non-interactive shell command for a location. Combined stdout/stderr is captured to a file pageable via output.
     /// </summary>
     /// <param name = "request">The request body.</param>
     /// <param name = "requestOptions">The per-call options.</param>
@@ -59,7 +59,7 @@ public class ShellsClient
     }
 
     /// <summary>
-    /// List running shell commands
+    /// List running shell commands. List currently running shell commands for a location. Exited commands are not included.
     /// </summary>
     /// <param name = "request">The request shaping the query.</param>
     /// <param name = "requestOptions">The per-call options.</param>
