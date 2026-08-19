@@ -62,7 +62,7 @@ and Extensions test projects, and the previously unobserved object-envelope
 by the SDK test project; the Extensions tests are registration-topology only).
 
 **M3 is open** (plan: `superpowers/plans/2026-08-15-m3-plan.md`; decisions: research log
-Sessions 24–30). Q92's simplicity-first construction (ADR-0010) is landed — Arc 1 complete:
+Sessions 24–34). Q92's simplicity-first construction (ADR-0010) is landed — Arc 1 complete:
 the transport constructor is internal friend-assembly test surface, Extensions registers
 a factory-less singleton client family with a roster contract test, and the Q91 guard
 machinery is deleted — closing #31 by construction. #32 and #33 stay sealed with their
@@ -78,7 +78,7 @@ interface because 39 schemas branch from both stream unions, a marker-spanning n
 now dispatches through its own leaves, the two unions carrying no choice are read rather than
 refused, numeric literal markers bind, and a streaming success binds to a stream plan carrying
 its frame, JSON-encoded payload, and declared `failureEvent` metadata.
-`v2.session.log` is selected — 14 operations — and `SessionClient.GetLogAsync` returns
+`v2.session.log` is selected and `SessionClient.GetLogAsync` returns
 `IAsyncEnumerable<ISessionLogItem>` with no per-call options. Demonstrated live 2026-08-17
 against `opencode2 serve` v0.0.0-next-17403: the stream opens, frames decode, and the
 watermark types as `EventLogSynced`; research doc 02 records why the default server advances
@@ -192,6 +192,16 @@ materialized, SIGTERM drove normal host cancellation, and the separately launche
 healthy until stopped independently. Research Q115/Q116 own the decision, commands, identities, and
 limitations. #44 and #49 are closed; no later M3 arc or #53 M5 wall work began in this increment.
 
+**The exact next M3 increment is Arc 4 paginator.** It starts decision-first over the existing
+`ListRequest`, `ListCursor`, `ListOrder`, and generated `MessageListResponse` seams: a short current
+.NET ecosystem survey compares an `AsyncPageable`-like public page sequence with a plain
+`IAsyncEnumerable<T>` plus explicit page access before any API is emitted. The pinned
+`v2.message.list` contract alone owns traversal: `order` shapes the first page, items retain that
+order across pages, and the opaque `cursor.next` / `cursor.previous` values move through the ordered
+timeline. ADR-0013 already removed #28's prose-derived local order+cursor refusal; do not resurrect
+it, while the declared `InvalidCursorError` remains typed. Arc 5's net472 owned-transport GA cluster
+and Arc 6's measured performance pass remain mandatory follow-ups in that order.
+
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family
 (`list`/`create`/`get`/`remove`/`timeout`) ride the 204 no-content and
@@ -232,7 +242,8 @@ is revisited at each milestone boundary.
    `after`/`follow`, cursor-paged `v2.message.list`); the v1 durable-stream design does
    not carry over and is re-derived here. Demo: watching a real session's event stream.
    The ADR-0013/0014 authority/materialization cleanup and surviving review findings close before
-   the live-bus breadth step; #44 closes with that selection. The net472 owned-transport cluster
+   the live-bus breadth step; #44 closed with that selection. Arc 4 paginator is next, followed by
+   the net472 owned-transport cluster
    (#43) lands here as a GA
    gate. The
    union single-pass deserialization and streaming adapter-boundary redesign (#23) land

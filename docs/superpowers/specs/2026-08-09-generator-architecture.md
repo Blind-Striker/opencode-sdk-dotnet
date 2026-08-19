@@ -663,11 +663,6 @@ build itself is the compile gate for generated output (§11).
 
 ## 15. UNVERIFIED / open items
 
-- Structural-union emission shape — the five pin sites whose branches carry no literal
-  markers (`Config.formatter`, `Config.lsp` ×2, `Model.capabilities.interleaved`, the
-  `ProviderConfig` model-variant `interleaved`): `JsonElement`-backed carrier vs a
-  generated wrapper type with a bespoke converter — decided at slice 2/3 planning as an
-  API review (curation changes are API reviews, ADR-0008).
 - File-based entry verification list (§3.3: clean build under the strict props, `#:project`
   cache-staleness proof, invocation-form pinning) — first build-out step; two-condition
   fallback recorded.

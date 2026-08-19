@@ -57,6 +57,16 @@ local server launcher. Protocol and generated-model rules live in
 - A body cut in the middle of an event is reported as a transport failure rather than dispatched
   as malformed payload data.
 
+## Pagination
+
+- Cursor-list operations currently expose one generated page envelope at a time. The SDK has no
+  automatic paginator yet.
+- `ListRequest` carries the represented `limit`, first-page `order`, and opaque `cursor` channels;
+  `ListCursor` preserves the response's optional `previous` and `next` values.
+- Arc 4 decides the additive traversal API before implementation. Until then consumers pass an
+  opaque returned cursor into the next explicit list call; the SDK derives no cursor structure or
+  prose-only validation rule (ADR-0013).
+
 ## Launcher
 
 The local `opencode serve` launcher belongs in `OpenCode.Sdk` when its milestone lands. Its design

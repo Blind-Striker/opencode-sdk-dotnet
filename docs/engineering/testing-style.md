@@ -86,7 +86,8 @@ media-type string in a media-type parsing test). Data that describes structure a
 goes through 1 or 2.
 
 Representative wire fixtures prove runtime behavior, not exhaustive union membership. Do not
-invent one hand-authored payload per branch and call that contract breadth: converter maps,
+invent one hand-authored payload per branch and call that contract breadth: marked tag maps and
+structural token-to-arm maps,
 serializer registration, and plural membership are checked mechanically through the bound and
 emitted plans, while a small schema-valid runtime corpus exercises framing and deserialization.
 Real observed frames are promoted into that corpus when available. Documentation states the

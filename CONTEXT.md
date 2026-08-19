@@ -27,8 +27,8 @@ retention, and replay guarantees remain unestablished.
 _Avoid_: session events (ambiguous with the live stream)
 
 **Live event stream**:
-The instance-wide event stream; no replay guarantee — consumers refresh authoritative state
-after a disconnect.
+The instance-wide event stream; the pinned operation has no filter, cursor, replay, or resume
+channel. Consumers refresh authoritative state and resubscribe after a disconnect.
 
 **Permission**:
 The user-approval gate for agent actions, surfaced as permission requests answered through the
