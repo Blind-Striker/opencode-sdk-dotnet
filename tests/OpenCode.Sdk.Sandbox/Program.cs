@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OpenCode.Sdk;
 using OpenCode.Sdk.Models;
+using OpenCode.Sdk.Sandbox;
 
 var endpoint = Environment.GetEnvironmentVariable("OPENCODE_SANDBOX_ENDPOINT");
 if (string.IsNullOrWhiteSpace(endpoint))
@@ -23,16 +24,28 @@ if (string.IsNullOrWhiteSpace(endpoint))
 var password = Environment.GetEnvironmentVariable("OPENCODE_PASSWORD")
                ?? Environment.GetEnvironmentVariable("OPENCODE_SERVER_PASSWORD");
 
-// The DI composition the Extensions package exists for: AddOpenCode registers one
-// singleton client owning its transport, and every sub-client resolves from that same
-// instance.
-var builder = Host.CreateApplicationBuilder(args);
+var streamMode = args.Contains("--stream", StringComparer.Ordinal);
+var hostArgs = args.Where(static argument => !string.Equals(argument, "--stream", StringComparison.Ordinal)).ToArray();
+var builder = Host.CreateApplicationBuilder(hostArgs);
 _ = builder.Services.AddOpenCode(options =>
 {
     options.Endpoint = new Uri(endpoint);
     options.Password = string.IsNullOrWhiteSpace(password) ? null : password;
 });
+if (streamMode)
+{
+    _ = builder.Services.AddSingleton<SessionLogWorker>();
+    _ = builder.Services.AddHostedService(static provider => provider.GetRequiredService<SessionLogWorker>());
+}
+
 using var host = builder.Build();
+
+if (streamMode)
+{
+    var worker = host.Services.GetRequiredService<SessionLogWorker>();
+    await host.RunAsync().ConfigureAwait(false);
+    return worker.Failure is null ? 0 : 1;
+}
 
 var client = host.Services.GetRequiredService<OpenCodeClient>();
 

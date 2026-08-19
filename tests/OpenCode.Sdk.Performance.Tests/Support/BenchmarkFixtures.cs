@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace OpenCode.Sdk.Performance.Tests.Support;
 
 /// <summary>Loads the canned wire payloads the benchmarks replay.</summary>
@@ -16,6 +18,25 @@ internal static class BenchmarkFixtures
     /// <summary>A small event body, the size the live feed carries most of.</summary>
     public static byte[] SessionIdleBody() =>
         "{\"type\":\"session.idle\",\"properties\":{\"sessionID\":\"ses_bench\"}}"u8.ToArray();
+
+    /// <summary>The small watermark a session log emits after replay reaches its captured sequence.</summary>
+    public static byte[] SessionLogSyncedBody() =>
+        "{\"type\":\"log.synced\",\"aggregateID\":\"ses_bench\",\"seq\":2}"u8.ToArray();
+
+    /// <summary>A durable session-log event with a large, schema-valid title.</summary>
+    public static byte[] LargeSessionCreatedBody(int titleCharacters)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(titleCharacters, 1);
+        var title = new string('x', titleCharacters);
+        return Encoding.UTF8.GetBytes(
+            "{\"id\":\"evt_bench\",\"created\":1,\"type\":\"session.created\","
+            + "\"durable\":{\"aggregateID\":\"ses_bench\",\"seq\":1,\"version\":1},"
+            + "\"location\":{\"directory\":\"/repo\"},"
+            + "\"data\":{\"sessionID\":\"ses_bench\",\"projectID\":\"prj_bench\","
+            + "\"location\":{\"directory\":\"/repo\"},\"slug\":\"benchmark\",\"title\":\""
+            + title
+            + "\",\"agent\":\"build\",\"version\":\"1\"}}");
+    }
 
     /// <summary>Wraps a payload in the <c>{"data": ...}</c> success envelope.</summary>
     public static byte[] DataEnvelope(byte[] payload)

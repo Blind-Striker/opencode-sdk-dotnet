@@ -2556,3 +2556,65 @@ existing `OpenCodeTransportException` catch behavior while exposing typed reason
 Malformed JSON, null cause materialization, and known-impossible tags remain plain protocol
 failures. The shared hand-written marker lets the runtime seam remain generic while each generated
 cause union retains its own typed discriminator interface (ADR-0015).
+
+# Session 33 — 2026-08-19: Arc 3a deliverable closure
+
+## Q113: What does the complete session-log stream path cost before Arc 3b adds breadth?
+
+**How measured:** added `SessionLogStreamBenchmarks` to the permanent BenchmarkDotNet coverage
+suite and ran both a Dry validation and the default job from a clean copy of the current tree. Each
+invocation calls generated `SessionClient.GetLogAsync` over a canned 200 `text/event-stream`
+response, crossing request construction and decoration, `Pipeline`, `ServerSentEventReader`, the
+generated `SessionLogResponseStreamAdapter`, source-generated JSON metadata, and union dispatch.
+Global setup refuses either arm unless every item materializes as its expected generated type. The
+two wire-shaped workloads cover 1,024 shallow `EventLogSynced` payloads at 55 bytes each
+(64,512-byte framed body) and 64 larger, nested, schema-valid `SessionCreated` payloads at 2,344
+bytes each (150,528-byte framed body). Because frame count, payload size, and model depth all differ,
+the arms are coverage baselines rather than causal isolation of any one cost. No network or server
+time enters the measurement.
+
+**Environment and result:** BenchmarkDotNet 0.15.8 on Ubuntu 26.04, Linux 7.0.0-29-generic,
+AMD Ryzen Threadripper 2970WX limited to 12 physical/logical cores, .NET SDK 10.0.302, and .NET
+10.0.10 x64 RyuJIT x86-64-v3 with concurrent workstation GC. The default job measured the 64 large
+frames at 1.157 ms/op (0.0243 ms error, 0.0715 ms standard deviation) and 717.82 KB/op; the 1,024
+small frames measured 1.674 ms/op (0.0318 ms error, 0.0366 ms standard deviation) and 507.20 KB/op.
+BenchmarkDotNet flagged the large-frame distribution as bimodal (`mValue = 3.83`) and removed one
+small-frame outlier while detecting two (1.58 ms and 1.97 ms); the figures above are its default
+processed summary.
+These are coverage baselines, not before/after optimization claims: one operation consumes one
+complete canned stream, so allocations and elapsed time are per complete response rather than per
+frame.
+
+**Decision:** keep the end-to-end class beside the parser-only benchmark. The parser benchmark
+continues to isolate framing mechanics; this benchmark guards the integration path Arc 3a actually
+ships. No optimization or stream-protocol expansion follows from the baseline alone.
+
+## Q114: Does the Generic Host example consume a real session log and stop through host cancellation?
+
+**How demonstrated:** `npx` resolved the exact pinned-compatible npm package
+`@opencode-ai/cli@0.0.0-next-17403`; the example's typed health call identified that same version
+and server PID 415977. The server and example were run from the repository root on Linux:
+
+```bash
+OPENCODE_SERVER_PASSWORD=123456 \
+  npx --yes @opencode-ai/cli@0.0.0-next-17403 serve --hostname 127.0.0.1 --port 41999
+OPENCODE_SANDBOX_ENDPOINT=http://127.0.0.1:41999 \
+  OPENCODE_SERVER_PASSWORD=123456 \
+  dotnet tests/OpenCode.Sdk.Sandbox/bin/Release/net10.0/OpenCode.Sdk.Sandbox.dll --stream
+```
+
+The Extensions package registered the singleton client family in a Generic Host; the hosted worker
+received `SessionsClient`, created session `ses_fe69038d1ffe89PeDlv0cRBBDo`, obtained its bound
+`SessionClient`, and called `GetLogAsync` with `Follow=True` and `BackgroundService`'s
+`stoppingToken`. The observed frame materialized as generated `EventLogSynced`. A SIGINT after five
+seconds produced the host's `Application is shutting down...` path without a transport/protocol
+failure; the separately launched server remained available until it received its own SIGINT, after
+which health refused the connection and `opencode2 service status` remained `stopped`.
+
+**Environmental limits:** the ordinary server leaves `events.persist` false: durable commits
+advance the aggregate sequence but historical payload rows are not retained, so the repeat observed
+the typed `log.synced` watermark rather than replayed durable event payloads. It did not deliberately
+inject a reserved failure frame, network cut, malformed frame, or unknown variant; deterministic
+contract tests own those paths. The example creates a session on each run and does not delete it
+during host shutdown. This is one Linux process-lifecycle demonstration, not the three-OS hosted
+acceptance required of the source increment.

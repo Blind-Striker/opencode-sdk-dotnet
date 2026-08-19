@@ -23,8 +23,18 @@ random one):
 OPENCODE_SERVER_PASSWORD=123456 opencode2 serve --hostname 127.0.0.1 --port 4096
 ```
 
-Then F5 with the `sandbox` profile. The program composes through the Extensions package —
-a Generic Host whose `AddOpenCode` registers one singleton client owning its transport,
-with `SessionsClient` resolved straight from the container — then drives the breadth
-surface end to end: health, `CreateSessionAsync`, `ListSessionsAsync` (typed page + wire
-cursor), `GetSessionAsync` on the created handle, and `ListMessagesAsync`.
+Then F5 with the `sandbox` profile, or run the stream mode directly:
+
+```sh
+dotnet run --project tests/OpenCode.Sdk.Sandbox -- --stream
+```
+
+The stream example composes through the Extensions package:
+`AddOpenCode` registers one singleton client family, and the Generic Host injects its
+`SessionsClient` into `SessionLogWorker`. The worker creates a session, obtains its bound
+`SessionClient`, and follows `GetLogAsync` through the host's normal `stoppingToken`.
+Each frame is logged with its generated runtime type. Ctrl+C stops the host, cancels the
+open response read, and disposes the singleton SDK transport with the container.
+
+Run without `--stream` to keep driving the standing breadth walkthrough: health, session
+create/list/get, and message list through the same Extensions registration.
