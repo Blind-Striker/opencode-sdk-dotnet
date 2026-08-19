@@ -177,7 +177,8 @@ pipeline/reader/generated-adapter benchmark measured 64 large frames at 1.157 ms
 complete response, and 1,024 small frames at 1.674 ms and 507.20 KB on the recorded Linux/.NET 10
 environment. Research Q113/Q114 own the exact setup, statistics, and environmental limits.
 
-**Arc 3b's live global-bus breadth is locally complete.** `v2.event.subscribe` emits as the
+**Arc 3b's live global-bus breadth is complete at `8d2a79d`**, with hosted run `32269060251`
+green on Linux, Windows, and macOS. `v2.event.subscribe` emits as the
 parameterless `Events.SubscribeAsync(CancellationToken)` through reason-bearing operation and schema
 name curation; the profile is now 15 selected / 105 pending. The pinned live-event closure passes the
 same converter, registry, source-generation, compilation, and reflection-disabled runtime evidence
@@ -189,7 +190,7 @@ paths, while converter maps prove structural breadth mechanically. Demonstrated 
 `opencode2` `0.0.0-next-17403`: generated `EventServerConnected` and `SessionCreated` frames
 materialized, SIGTERM drove normal host cancellation, and the separately launched server remained
 healthy until stopped independently. Research Q115/Q116 own the decision, commands, identities, and
-limitations. Hosted three-OS status follows the source push.
+limitations. #44 and #49 are closed; no later M3 arc or #53 M5 wall work began in this increment.
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family
