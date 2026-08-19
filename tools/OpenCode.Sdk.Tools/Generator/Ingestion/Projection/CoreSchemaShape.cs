@@ -13,4 +13,5 @@ internal enum CoreSchemaShape
     Null = 8,
     Tuple = 9,
     JsonString = 10,
+    Never = 11,
 }

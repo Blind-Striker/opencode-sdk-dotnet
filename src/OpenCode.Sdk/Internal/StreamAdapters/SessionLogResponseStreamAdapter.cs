@@ -8,7 +8,7 @@ namespace OpenCode.Sdk.Internal.StreamAdapters;
 /// <summary>
 /// Carries the &apos;GET /api/experimental/session/{sessionID}/log&apos; stream contract.
 /// </summary>
-internal sealed class SessionLogResponseStreamAdapter : IStreamAdapter<ISessionLogItem>
+internal sealed class SessionLogResponseStreamAdapter : IStreamAdapter<ISessionLogItem, IStreamFailureCause[]>
 {
     private static readonly string[] Status400Tags = ["InvalidRequestError"];
     private static readonly string[] Status401Tags = ["UnauthorizedError"];
@@ -29,6 +29,10 @@ internal sealed class SessionLogResponseStreamAdapter : IStreamAdapter<ISessionL
     /// Gets the metadata each frame&apos;s payload is read through.
     /// </summary>
     public JsonTypeInfo<ISessionLogItem> PayloadTypeInfo => OpenCodeJsonContext.Default.ISessionLogItem;
+    /// <summary>
+    /// Gets the metadata the failure frame&apos;s cause is read through.
+    /// </summary>
+    public JsonTypeInfo<IStreamFailureCause[]> CauseTypeInfo => OpenCodeJsonContext.Default.GetTypeInfo(typeof(IStreamFailureCause[])) as JsonTypeInfo<IStreamFailureCause[]> ?? throw new InvalidOperationException("The generated context has no metadata for the stream failure cause.");
 
     /// <summary>
     /// Maps a status refused before the stream opened onto its declared tags.

@@ -1,4 +1,3 @@
-using System.Text.Json.Nodes;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 using OpenCode.Sdk.Tools.Tests.Support;
 
@@ -113,7 +112,7 @@ public sealed class EnvelopeClassifierTests
     }
 
     [Test]
-    public async Task Classify_Should_Detect_Sse_And_Preserve_Effect_Stream_Json()
+    public async Task Classify_Should_Detect_Sse_And_Project_The_Effect_Stream_Contract()
     {
         var host = new OperationProjectionTestHost();
         var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.session.events", configure: operation => operation
@@ -123,11 +122,26 @@ public sealed class EnvelopeClassifierTests
 
         var operation = result.Operations[0];
         var response = operation.Responses[0];
-        var expected = JsonNode.Parse(new FixtureLoader().Load("effect-stream.json"));
-        var actual = JsonNode.Parse(response.EffectStreamJson!);
         await Assert.That(operation.IsSse).IsTrue();
         await Assert.That(response.IsSse).IsTrue();
         await Assert.That(response.ContentType!.IsEventStream).IsTrue();
-        await Assert.That(JsonNode.DeepEquals(actual, expected)).IsTrue();
+        await Assert.That(response.EffectStream).IsNotNull();
+        await Assert.That(response.EffectStream!.Encoding).IsEqualTo("sse");
+        await Assert.That(response.EffectStream.FailureEventName).IsEqualTo("effect/httpapi/stream/failure");
+        await Assert.That(response.EffectStream.CauseSchema).IsTypeOf<ArrayNode>();
+        await Assert.That(response.EffectStream.ErrorSchema).IsTypeOf<NeverNode>();
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_A_Non_Object_Effect_Stream_Extension()
+    {
+        var host = new OperationProjectionTestHost();
+        var scenario = new StreamOperationScenario(extensionProfile: StreamExtensionProfile.NonObject);
+
+        var ex = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(ex.Errors).Count().IsEqualTo(1);
+        await Assert.That(ex.Errors[0].Location).EndsWith("/x-effect-stream");
+        await Assert.That(ex.Errors[0].Problem).Contains("JSON object");
     }
 }

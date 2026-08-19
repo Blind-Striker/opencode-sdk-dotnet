@@ -5,7 +5,7 @@ using OpenCode.Sdk.Models;
 namespace OpenCode.Sdk.Tests.Support;
 
 /// <summary>A stream contract over the test payload, reading errors against declared tags.</summary>
-internal sealed class TestStreamAdapter : IStreamAdapter<TestBody>
+internal sealed class TestStreamAdapter : IStreamAdapter<TestBody, TestStreamFailureCause[]>
 {
     /// <summary>The name the pinned contract gives a mid-stream failure frame.</summary>
     public const string StreamFailureEventName = "effect/httpapi/stream/failure";
@@ -20,6 +20,8 @@ internal sealed class TestStreamAdapter : IStreamAdapter<TestBody>
     public string FailureEventName => StreamFailureEventName;
 
     public JsonTypeInfo<TestBody> PayloadTypeInfo => TestBodyJsonContext.Default.TestBody;
+
+    public JsonTypeInfo<TestStreamFailureCause[]> CauseTypeInfo => TestBodyJsonContext.Default.TestStreamFailureCauseArray;
 
     public IOpenCodeError? ReadError(int status, string rawBody) => OpenCodeErrorReader.Read(rawBody, _allowedTags);
 }

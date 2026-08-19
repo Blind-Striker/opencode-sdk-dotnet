@@ -7,6 +7,7 @@ namespace OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
 internal sealed class ResponseProjector
 {
     private readonly EnvelopeClassifier _envelopes;
+    private readonly EffectStreamProjector _effectStreams;
     private readonly GraphKeyBuilder _keys;
     private readonly SchemaProjector _schemaProjector;
 
@@ -15,6 +16,7 @@ internal sealed class ResponseProjector
         _schemaProjector = schemaProjector ?? throw new ArgumentNullException(nameof(schemaProjector));
         _keys = keys ?? throw new ArgumentNullException(nameof(keys));
         _envelopes = envelopes ?? throw new ArgumentNullException(nameof(envelopes));
+        _effectStreams = new EffectStreamProjector(_schemaProjector, _keys);
     }
 
     public IReadOnlyList<SpecResponse> Project(OpenApiResponses? responses, string root, ProjectionState state)
@@ -91,7 +93,7 @@ internal sealed class ResponseProjector
                     Schema = null,
                     EnvelopeShape = _envelopes.Classify(contentType: null, schema: null, location, state.Errors),
                     IsSse = false,
-                    EffectStreamJson = null,
+                    EffectStream = null,
                 };
         }
 
@@ -110,6 +112,8 @@ internal sealed class ResponseProjector
             schema = _schemaProjector.Project(mediaEntry.Value.Schema, root, _keys.Append(mediaPointer, "schema"), state);
         }
 
+        var effectStream = _effectStreams.Project(media.EffectStream, root, mediaPointer, state);
+
         var envelope = _envelopes.Classify(media.ContentType, mediaEntry.Value.Schema, location, state.Errors);
         return state.Errors.Count != errorCount
             ? null
@@ -121,7 +125,7 @@ internal sealed class ResponseProjector
                 Schema = schema,
                 EnvelopeShape = envelope,
                 IsSse = media.ContentType.IsEventStream,
-                EffectStreamJson = media.EffectStreamJson,
+                EffectStream = effectStream,
             };
     }
 }

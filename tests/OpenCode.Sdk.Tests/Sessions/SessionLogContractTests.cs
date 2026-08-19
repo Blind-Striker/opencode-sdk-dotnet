@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using OpenCode.Sdk.Models;
 using OpenCode.Sdk.Tests.Support;
 
@@ -27,7 +28,8 @@ public sealed class SessionLogContractTests
         await Assert.That(items[2]).IsTypeOf<EventLogSynced>();
         var request = scenario.Requests.Single();
         await Assert.That(request.Method).IsEqualTo(HttpMethod.Get);
-        await Assert.That(request.RequestUri)
+        await Assert
+            .That(request.RequestUri)
             .IsEqualTo(new Uri("http://localhost:4096/api/experimental/session/ses_9/log"));
     }
 
@@ -77,7 +79,7 @@ public sealed class SessionLogContractTests
     }
 
     [Test]
-    public async Task GetLogAsync_Should_Refuse_A_Mid_Stream_Failure_Instead_Of_Yielding_It()
+    public async Task GetLogAsync_Should_Expose_A_Typed_Mid_Stream_Failure_Cause()
     {
         using var scenario = ContractScenario.RespondingWithFrames(
             WireBodyData.Frames(WireBodyData.SessionCreatedEvent)
@@ -85,17 +87,92 @@ public sealed class SessionLogContractTests
 
         var exception = await Assert
             .That(async () => _ = await CollectAsync(scenario))
+            .Throws<OpenCodeStreamFailureException>();
+
+        var cause = (StreamFailureCauseDie)exception!.Cause.Single();
+        await Assert.That(cause.Defect.ValueKind).IsEqualTo(JsonValueKind.String);
+        await Assert.That(cause.Defect.GetString()).IsEqualTo("boom");
+    }
+
+    [Test]
+    public async Task GetLogAsync_Should_Preserve_An_Unknown_Failure_Cause_Tag()
+    {
+        using var scenario = ContractScenario.RespondingWithFrames(
+            WireBodyData.NamedFrame("effect/httpapi/stream/failure", WireBodyData.UnknownStreamFailureCause));
+
+        var exception = await Assert
+            .That(async () => _ = await CollectAsync(scenario))
+            .Throws<OpenCodeStreamFailureException>();
+
+        var cause = (UnknownStreamFailureCause)exception!.Cause.Single();
+        await Assert.That(cause.Tag).IsEqualTo("FutureCause");
+        await Assert.That(cause.Payload.GetProperty("detail").GetString()).IsEqualTo("later");
+    }
+
+    [Test]
+    public async Task GetLogAsync_Should_Refuse_The_Known_Impossible_Failure_Cause_Tag()
+    {
+        using var scenario = ContractScenario.RespondingWithFrames(
+            WireBodyData.NamedFrame("effect/httpapi/stream/failure", WireBodyData.ImpossibleStreamFailureCause));
+
+        var exception = await Assert
+            .That(async () => _ = await CollectAsync(scenario))
             .Throws<OpenCodeTransportException>();
 
-        await Assert.That(exception!.Message).Contains("Die");
+        await Assert.That(exception).IsNotTypeOf<OpenCodeStreamFailureException>();
+        await Assert.That(exception!.InnerException).IsTypeOf<JsonException>();
+        await Assert.That(exception.InnerException!.Message).Contains("admits no JSON value");
+    }
+
+    [Test]
+    [Arguments(WireBodyData.StreamInterruptNullCause, null)]
+    [Arguments(WireBodyData.StreamInterruptNumberCause, 42d)]
+    public async Task GetLogAsync_Should_Expose_An_Interrupt_Failure_Cause(string body, double? expectedFiberId)
+    {
+        using var scenario = ContractScenario.RespondingWithFrames(
+            WireBodyData.NamedFrame("effect/httpapi/stream/failure", body));
+
+        var exception = await Assert
+            .That(async () => _ = await CollectAsync(scenario))
+            .Throws<OpenCodeStreamFailureException>();
+
+        var cause = (StreamFailureCauseInterrupt)exception!.Cause.Single();
+        await Assert.That(cause.FiberId).IsEqualTo(expectedFiberId);
+    }
+
+    [Test]
+    public async Task GetLogAsync_Should_Preserve_Multiple_Failure_Causes()
+    {
+        using var scenario = ContractScenario.RespondingWithFrames(
+            WireBodyData.NamedFrame("effect/httpapi/stream/failure", WireBodyData.MultipleStreamFailureCauses));
+
+        var exception = await Assert
+            .That(async () => _ = await CollectAsync(scenario))
+            .Throws<OpenCodeStreamFailureException>();
+
+        await Assert.That(exception!.Cause).Count().IsEqualTo(2);
+        await Assert.That(exception.Cause[0]).IsTypeOf<StreamFailureCauseDie>();
+        await Assert.That(exception.Cause[1]).IsTypeOf<StreamFailureCauseInterrupt>();
+    }
+
+    [Test]
+    public async Task GetLogAsync_Should_Preserve_An_Empty_Failure_Cause()
+    {
+        using var scenario = ContractScenario.RespondingWithFrames(
+            WireBodyData.NamedFrame("effect/httpapi/stream/failure", WireBodyData.EmptyStreamFailureCause));
+
+        var exception = await Assert
+            .That(async () => _ = await CollectAsync(scenario))
+            .Throws<OpenCodeStreamFailureException>();
+
+        await Assert.That(exception!.Cause).IsEmpty();
     }
 
     [Test]
     [Arguments(400, WireBodyData.InvalidRequestError, typeof(InvalidRequestError))]
     [Arguments(401, WireBodyData.UnauthorizedError, typeof(UnauthorizedError))]
     [Arguments(404, WireBodyData.SessionNotFoundError, typeof(SessionNotFoundError))]
-    public async Task GetLogAsync_Should_Throw_Each_Declared_Error_Before_Opening_The_Stream(
-        int status,
+    public async Task GetLogAsync_Should_Throw_Each_Declared_Error_Before_Opening_The_Stream(int status,
         string body,
         Type expectedErrorType)
     {
@@ -115,10 +192,16 @@ public sealed class SessionLogContractTests
         using var scenario = ContractScenario.RespondingWithFrames(
             WireBodyData.Frames(WireBodyData.LogSyncedEvent));
 
-        _ = await CollectAsync(scenario, new SessionLogRequest { After = "12", Follow = QueryBoolean.True, });
+        _ = await CollectAsync(scenario, new SessionLogRequest
+        {
+            After = "12",
+            Follow = QueryBoolean.True,
+        });
 
-        await Assert.That(scenario.Requests.Single().RequestUri).IsEqualTo(
-            new Uri("http://localhost:4096/api/experimental/session/ses_9/log?after=12&follow=true"));
+        await Assert
+            .That(scenario.Requests.Single().RequestUri)
+            .IsEqualTo(
+                new Uri("http://localhost:4096/api/experimental/session/ses_9/log?after=12&follow=true"));
     }
 
     private static async Task<List<ISessionLogItem>> CollectAsync(ContractScenario scenario,

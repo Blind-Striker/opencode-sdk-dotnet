@@ -30,6 +30,20 @@ internal sealed record UnionPlan
         }
     } = Array.AsReadOnly(Array.Empty<UnionVariantPlan>());
 
+    /// <summary>
+    /// Gets declared marker values whose branch schemas admit no JSON value. They remain
+    /// known protocol input and must be refused rather than routed to the unknown carrier.
+    /// </summary>
+    public IReadOnlyList<string> KnownImpossibleTags
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<string>());
+
     public string? Description { get; init; }
 
     /// <summary>Gets the outer union base type when this union is itself a nested variant.</summary>

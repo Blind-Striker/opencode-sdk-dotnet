@@ -7,4 +7,7 @@ internal enum StreamExtensionProfile
     UnsupportedEncoding = 2,
     MessageFailure = 3,
     NonObject = 4,
+    MissingCauseSchema = 5,
+    NonNeverErrorSchema = 6,
+    MissingErrorSchema = 7,
 }

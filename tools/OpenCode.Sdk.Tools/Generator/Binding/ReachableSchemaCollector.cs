@@ -45,6 +45,7 @@ internal sealed class ReachableSchemaCollector
         private readonly IReadOnlyDictionary<string, SchemaNode> _graph = graph ?? throw new ArgumentNullException(nameof(graph));
         private readonly HashSet<string> _keys = new(comparer);
         private readonly HashSet<string> _responseRoots = new(comparer);
+        private readonly HashSet<string> _streamCauseKeys = new(comparer);
 
         public void VisitResponse(string operationId, SpecResponse response)
         {
@@ -81,6 +82,16 @@ internal sealed class ReachableSchemaCollector
             if (schema is not null)
             {
                 Visit(schema);
+            }
+
+            if (response.EffectStream?.CauseSchema is { } causeSchema)
+            {
+                Visit(causeSchema, isStreamCause: true);
+            }
+
+            if (response.EffectStream?.ErrorSchema is { } errorSchema)
+            {
+                Visit(errorSchema);
             }
         }
 
@@ -123,16 +134,21 @@ internal sealed class ReachableSchemaCollector
 
         public void Visit(SchemaNode schema)
         {
+            Visit(schema, isStreamCause: false);
+        }
+
+        private void Visit(SchemaNode schema, bool isStreamCause)
+        {
             ArgumentNullException.ThrowIfNull(schema);
             if (schema is RefNode reference)
             {
-                VisitReference(reference.Target);
+                VisitReference(reference.Target, isStreamCause);
                 return;
             }
 
             foreach (var child in schema.Children)
             {
-                Visit(child);
+                Visit(child, isStreamCause);
             }
         }
 
@@ -141,10 +157,16 @@ internal sealed class ReachableSchemaCollector
             {
                 GraphKeys = [.. _keys.Order(_comparer)],
                 ResponseRootKeys = [.. _responseRoots.Order(_comparer)],
+                StreamCauseKeys = [.. _streamCauseKeys.Order(_comparer)],
             };
 
-        private void VisitReference(string target)
+        private void VisitReference(string target, bool isStreamCause)
         {
+            if (isStreamCause)
+            {
+                _ = _streamCauseKeys.Add(target);
+            }
+
             if (!_keys.Add(target))
             {
                 return;
@@ -156,7 +178,7 @@ internal sealed class ReachableSchemaCollector
                 return;
             }
 
-            Visit(targetSchema);
+            Visit(targetSchema, isStreamCause);
         }
     }
 }

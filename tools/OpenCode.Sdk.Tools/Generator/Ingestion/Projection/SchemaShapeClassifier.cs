@@ -22,6 +22,7 @@ internal sealed class SchemaShapeClassifier
         new(Constraint.ContentMediaType, "contentMediaType", static schema => schema.ContentMediaType is not null),
         new(Constraint.ContentSchema, "contentSchema", static schema => schema.ContentSchema is not null),
         new(Constraint.PrefixItems, "prefixItems", static schema => schema.UnrecognizedKeywords?.ContainsKey("prefixItems") is true),
+        new(Constraint.Not, "not", static schema => schema.Not is not null),
     ];
 
     public CoreSchemaShape Classify(OpenApiSchema schema, string location, IngestionErrorCollector errors)
@@ -61,6 +62,7 @@ internal sealed class SchemaShapeClassifier
             (Constraint.Type | Constraint.Items | Constraint.PrefixItems, JsonSchemaType.Array) => CoreSchemaShape.Tuple,
             (Constraint.Type | Constraint.ContentSchema, JsonSchemaType.String) => CoreSchemaShape.JsonString,
             (Constraint.Type | Constraint.ContentMediaType | Constraint.ContentSchema, JsonSchemaType.String) => CoreSchemaShape.JsonString,
+            (Constraint.Not, _) => CoreSchemaShape.Never,
             (Constraint.Type, JsonSchemaType.Array) => CoreSchemaShape.Array,
             (Constraint.Type | Constraint.Items, JsonSchemaType.Array) => CoreSchemaShape.Array,
             _ when IsObjectShape(constraints, schema.Type) => CoreSchemaShape.Object,
@@ -108,13 +110,13 @@ internal sealed class SchemaShapeClassifier
             ReadOnly: false,
             WriteOnly: false,
         }
-            && element.DependentSchemas is not { Count: > 0 }
-            && element.DependentRequired is not { Count: > 0 }
-            && element.Definitions is not { Count: > 0 }
-            && element.Examples is not { Count: > 0 }
-            && element.Vocabulary is not { Count: > 0 }
-            && element.Extensions is not { Count: > 0 }
-            && element.UnrecognizedKeywords is not { Count: > 0 };
+               && element.DependentSchemas is not { Count: > 0 }
+               && element.DependentRequired is not { Count: > 0 }
+               && element.Definitions is not { Count: > 0 }
+               && element.Examples is not { Count: > 0 }
+               && element.Vocabulary is not { Count: > 0 }
+               && element.Extensions is not { Count: > 0 }
+               && element.UnrecognizedKeywords is not { Count: > 0 };
     }
 
     private static bool IsObjectShape(Constraint constraints, JsonSchemaType? type)
@@ -160,6 +162,7 @@ internal sealed class SchemaShapeClassifier
         ContentMediaType = 1 << 13,
         ContentSchema = 1 << 14,
         PrefixItems = 1 << 15,
+        Not = 1 << 16,
     }
 
     private sealed record ConstraintRule(Constraint Constraint, string WireName, Func<OpenApiSchema, bool> IsPopulated);

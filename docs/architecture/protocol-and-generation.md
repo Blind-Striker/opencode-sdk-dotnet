@@ -1,6 +1,6 @@
 # Protocol and Generation Architecture
 
-Date: 2026-08-18
+Date: 2026-08-19
 
 Canonical current rules for the protocol surface, generator, generated models, and runtime
 materialization boundary. ADRs record why these decisions were made; dated research records the
@@ -71,6 +71,12 @@ union dispatch, response-status selection, SSE framing, and source-generated ser
 remain hard walls. Declared no-content responses ignore unexpected bodies; ordinary one-shot JSON
 decoding delegates charset and BOM handling to `HttpContent` (ADR-0014).
 
+The exact standalone `not: {}` applicator is the dialect's never schema; other `not` shapes refuse
+at their applicator pointer rather than approximating general JSON Schema negation. A required never
+member makes its object branch uninhabitable. Tagged unions preserve such a branch as a known
+impossible tag in their bound plan, emit no dead public variant for it, and refuse that tag during
+dispatch instead of routing it through ADR-0009's unknown carrier (ADR-0015).
+
 ## Version-skew tolerance
 
 - Every tagged union deserializes an unrecognized discriminator into that union's explicit unknown
@@ -88,7 +94,9 @@ decoding delegates charset and BOM handling to `HttpContent` (ADR-0014).
 - Every HTTP operation method, including streaming operations, is generated as a short delegation
   into the hand-written behavior core (ADR-0008).
 - The SSE engine remains hand-written runtime behavior; generated stream methods bind their route,
-  payload, frame, declared failure event, and statuses from the pin (ADR-0008).
+  payload, frame, declared failure event, typed cause, and statuses from the pin. Cause models,
+  converters, array metadata, and adapter metadata pass through the same emitted registry and
+  System.Text.Json source-generation compile proof as payload models (ADR-0008, ADR-0015).
 - Exclusion is reserved for transports the HTTP pipeline cannot carry, such as a WebSocket upgrade.
   Every excluded operation is fingerprint-pinned so protocol drift forces review (ADR-0008).
 - Unknown response media types fail generation. Supported non-JSON response bodies follow the

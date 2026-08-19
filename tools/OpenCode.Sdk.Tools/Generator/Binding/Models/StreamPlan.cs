@@ -14,4 +14,7 @@ internal sealed record StreamPlan
 
     /// <summary>Gets the event name a mid-stream failure frame carries, from <c>x-effect-stream.failureEvent</c>.</summary>
     public required string FailureEventName { get; init; }
+
+    /// <summary>Gets the source-generated type used to materialize the failure frame's cause array.</summary>
+    public required string CauseTypeName { get; init; }
 }

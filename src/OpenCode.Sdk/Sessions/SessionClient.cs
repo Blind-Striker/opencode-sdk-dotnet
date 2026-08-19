@@ -44,7 +44,8 @@ public class SessionClient
     /// <param name = "cancellationToken">The cancellation token.</param>
     /// <returns>The &apos;ISessionLogItem&apos; stream.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned a declared error status (declared: 400, 401, 404); streaming API errors always throw.</exception>
-    /// <exception cref = "OpenCodeTransportException">The server could not be reached, the stream failed after it opened, or a frame was malformed.</exception>
+    /// <exception cref = "OpenCodeStreamFailureException">The opened stream reported a schema-valid failure with a typed cause.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached, the stream could not be read, or a frame or failure cause was malformed.</exception>
     public virtual IAsyncEnumerable<ISessionLogItem> GetLogAsync(SessionLogRequest? request = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteStreamAsync(HttpMethod.Get, OpenCodeRoutes.Sessions.GetLog(SessionId, request), SessionLogResponseStreamAdapter.Instance, cancellationToken);

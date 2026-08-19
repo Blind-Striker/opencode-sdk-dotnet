@@ -23,6 +23,7 @@ public sealed class StreamOperationEmissionTests
         await Assert.That(operation.Stream!.PayloadTypeName).IsEqualTo("ExampleEvent");
         await Assert.That(operation.Stream.AdapterTypeName).IsEqualTo("ExampleEventsResponseStreamAdapter");
         await Assert.That(operation.Stream.FailureEventName).IsEqualTo(StreamOperationScenario.FailureEventName);
+        await Assert.That(operation.Stream.CauseTypeName).IsEqualTo("IStreamFailureCause[]");
         await Assert.That(operation.Parameters.Single().Name).IsEqualTo("exampleId");
 
         (int Status, IReadOnlyList<string> Tags)[] expectedStatuses =
@@ -42,6 +43,8 @@ public sealed class StreamOperationEmissionTests
             [sources.Single(static source => source.RelativePath == "OpenCodeClient.cs")]);
         var adapterSource = EmitterSnapshot.Create(
             [sources.Single(static source => source.RelativePath == "Internal/StreamAdapters/ExampleEventsResponseStreamAdapter.cs")]);
+        var causeConverterSource = EmitterSnapshot.Create(
+            [sources.Single(static source => source.RelativePath == "Internal/Serialization/StreamFailureCauseJsonConverter.cs")]);
         await Assert
             .That(clientSource)
             .Contains(
@@ -53,11 +56,16 @@ public sealed class StreamOperationEmissionTests
         await Assert.That(clientSource).DoesNotContain("OpenCode.Sdk.Internal.ResponseAdapters");
         await Assert.That(clientSource).DoesNotContain("requestOptions");
         await Assert.That(clientSource).DoesNotContain("NoThrow");
+        await Assert.That(clientSource).Contains("OpenCodeStreamFailureException");
+        await Assert.That(clientSource).Contains("schema-valid failure with a typed cause");
         await Assert.That(adapterSource).Contains("public string FailureEventName => \"effect/httpapi/stream/failure\";");
         await Assert
             .That(adapterSource)
             .Contains(
                 "public JsonTypeInfo<ExampleEvent> PayloadTypeInfo => OpenCodeJsonContext.Default.ExampleEvent;");
+        await Assert.That(adapterSource).Contains("public JsonTypeInfo<IStreamFailureCause[]> CauseTypeInfo");
+        await Assert.That(causeConverterSource).Contains("[\"Fail\"] = null");
+        await Assert.That(causeConverterSource).DoesNotContain("typeof(StreamFailureCauseFail)");
         await Assert.That(adapterSource).Contains("private static readonly string[] Status400Tags = [\"ExampleBadRequestError\"];");
         await Assert.That(adapterSource).Contains("private static readonly string[] Status401Tags = [\"ExampleUnauthorizedError\"];");
         await Assert

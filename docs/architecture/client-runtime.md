@@ -1,6 +1,6 @@
 # Client Runtime Architecture
 
-Date: 2026-08-18
+Date: 2026-08-19
 
 Canonical current rules for client construction, transport ownership, API errors, streams, and the
 local server launcher. Protocol and generated-model rules live in
@@ -36,6 +36,10 @@ local server launcher. Protocol and generated-model rules live in
   API errors and never suppresses transport failures (ADR-0007, ADR-0014).
 - Streaming operations return a stream rather than a response envelope and therefore expose no
   per-call request-options parameter. Their failures always throw (ADR-0007).
+- A schema-valid reserved failure frame throws `OpenCodeStreamFailureException`, a subtype of
+  `OpenCodeTransportException`, with typed causes on its non-null `Cause` collection. Invalid cause
+  JSON, null materialization, and declared-but-impossible cause tags remain base transport/protocol
+  failures rather than partially typed exceptions (ADR-0015).
 
 ## Server-sent events
 
@@ -46,9 +50,10 @@ local server launcher. Protocol and generated-model rules live in
   `v2.session.log`'s `after` parameter; persistence, retention, and replay guarantees remain
   unestablished (research doc 02, `docs/ROADMAP.md`).
 - The SSE event name is a framing signal. An ordinary payload uses the default `message` name;
-  the operation's declared failure event throws; any other explicit name is refused. Unknown
-  payload discriminators remain governed by ADR-0009 and are not confused with unknown frame
-  names.
+  the operation's declared failure event materializes its cause through generated metadata and
+  throws; any other explicit name is refused. Unknown payload and cause discriminators remain
+  governed by ADR-0009 and are not confused with unknown frame names. A known tag whose schema is
+  impossible is a protocol failure, not an unknown variant (ADR-0015).
 - A body cut in the middle of an event is reported as a transport failure rather than dispatched
   as malformed payload data.
 

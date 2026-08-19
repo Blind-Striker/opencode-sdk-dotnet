@@ -51,7 +51,8 @@ internal sealed class SpecBinder(
         var schemaResult = _schemaPlans.Bind(document, reachable, curation, typeNames, errors);
         var clients = _operationPlans.Bind(document, selected, curation, typeNames, errors);
         var selectedIds = selected.Select(static operation => operation.OperationId).ToHashSet(StringComparer.Ordinal);
-        var pending = document.Operations
+        var pending = document
+            .Operations
             .Where(operation => !selectedIds.Contains(operation.OperationId))
             .OrderBy(static operation => operation.OperationId, StringComparer.Ordinal)
             .Select(static operation => new PendingOperationPlan
@@ -106,7 +107,10 @@ internal sealed class SpecBinder(
                 continue;
             }
 
-            result.Add(objectModel with { RequestQueryProperties = operation.QueryRequest!.Properties });
+            result.Add(objectModel with
+            {
+                RequestQueryProperties = operation.QueryRequest!.Properties
+            });
         }
 
         foreach (var missing in merged.Keys.Order(StringComparer.Ordinal))
@@ -158,10 +162,21 @@ internal sealed class SpecBinder(
             .SelectMany(static client => client.Operations)
             .Select(static operation => operation.Envelope?.EnvelopeDtoTypeName)
             .OfType<string>();
+        var streamCauseTypes = clients
+            .SelectMany(static client => client.Operations)
+            .Select(static operation => operation.Stream?.CauseTypeName)
+            .OfType<string>();
         return new RegistryPlan
         {
             // Uniqueness is guaranteed by CheckDtoNameCollisions before composition.
-            TypeNames = [.. schemaRegistry.TypeNames.Concat(dtoNames).Order(StringComparer.Ordinal)],
+            TypeNames =
+            [
+                .. schemaRegistry
+                    .TypeNames.Concat(dtoNames)
+                    .Concat(streamCauseTypes)
+                    .Distinct(StringComparer.Ordinal)
+                    .Order(StringComparer.Ordinal)
+            ],
         };
     }
 

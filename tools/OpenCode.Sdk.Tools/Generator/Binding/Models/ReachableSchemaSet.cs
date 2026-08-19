@@ -21,4 +21,15 @@ internal sealed record ReachableSchemaSet
             field = Array.AsReadOnly([.. value]);
         }
     } = Array.AsReadOnly(Array.Empty<string>());
+
+    /// <summary>Gets graph keys reached through an effect-stream cause schema.</summary>
+    public IReadOnlyList<string> StreamCauseKeys
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<string>());
 }

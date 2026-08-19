@@ -36,6 +36,15 @@ internal static class TypeSyntaxEmitter
     public static TypeSyntax EmitNamed(string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        if (name.EndsWith("[]", StringComparison.Ordinal))
+        {
+            return SyntaxFactory
+                .ArrayType(EmitNamed(name[..^2]))
+                .WithRankSpecifiers(SyntaxFactory.SingletonList(
+                    SyntaxFactory.ArrayRankSpecifier(SyntaxFactory.SingletonSeparatedList<ExpressionSyntax>(
+                        SyntaxFactory.OmittedArraySizeExpression()))));
+        }
+
         return name switch
         {
             "bool" => SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.BoolKeyword)),
@@ -50,7 +59,8 @@ internal static class TypeSyntaxEmitter
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(arguments);
-        return SyntaxFactory.GenericName(SyntaxFactory.Identifier(name))
+        return SyntaxFactory
+            .GenericName(SyntaxFactory.Identifier(name))
             .WithTypeArgumentList(SyntaxFactory.TypeArgumentList(SyntaxFactory.SeparatedList(arguments)));
     }
 }

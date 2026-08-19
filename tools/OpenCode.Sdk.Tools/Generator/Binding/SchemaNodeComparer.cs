@@ -28,7 +28,8 @@ internal static class SchemaNodeComparer
         return new GraphComparison(graph, aliases).NodesEqual(left, right);
     }
 
-    private sealed class GraphComparison(IReadOnlyDictionary<string, SchemaNode> graph,
+    private sealed class GraphComparison(
+        IReadOnlyDictionary<string, SchemaNode> graph,
         IReadOnlyDictionary<string, string>? aliases)
     {
         private readonly IReadOnlyDictionary<string, SchemaNode> _graph =
@@ -51,7 +52,7 @@ internal static class SchemaNodeComparer
             {
                 (PrimitiveNode a, PrimitiveNode b) => a.Kind == b.Kind,
                 (LiteralNode a, LiteralNode b) => a.Kind == b.Kind && a.Dialect == b.Dialect
-                    && string.Equals(a.Value, b.Value, StringComparison.Ordinal),
+                                                                   && string.Equals(a.Value, b.Value, StringComparison.Ordinal),
                 (EnumNode a, EnumNode b) => a.Values.SequenceEqual(b.Values, StringComparer.Ordinal),
                 (RefNode a, RefNode b) => RefsEqual(a, b),
                 (NullableNode a, NullableNode b) => NodesEqual(a.Inner, b.Inner),
@@ -59,10 +60,11 @@ internal static class SchemaNodeComparer
                 (TupleNode a, TupleNode b) => SequencesEqual(a.Items, b.Items),
                 (DictionaryNode a, DictionaryNode b) => NodesEqual(a.Value, b.Value),
                 (UnionNode a, UnionNode b) => a.Keyword == b.Keyword && a.Classification == b.Classification
-                    && SequencesEqual(a.Branches, b.Branches),
+                                                                     && SequencesEqual(a.Branches, b.Branches),
                 (ObjectNode a, ObjectNode b) => ObjectsEqual(a, b),
                 (FreeFormObjectNode, FreeFormObjectNode) => true,
                 (UnrestrictedNode, UnrestrictedNode) => true,
+                (NeverNode, NeverNode) => true,
                 _ => false,
             };
         }
@@ -88,8 +90,8 @@ internal static class SchemaNodeComparer
             }
 
             return _graph.TryGetValue(left, out var leftTarget)
-                && _graph.TryGetValue(right, out var rightTarget)
-                && NodesEqual(leftTarget, rightTarget);
+                   && _graph.TryGetValue(right, out var rightTarget)
+                   && NodesEqual(leftTarget, rightTarget);
         }
 
         private string Resolve(string target) =>

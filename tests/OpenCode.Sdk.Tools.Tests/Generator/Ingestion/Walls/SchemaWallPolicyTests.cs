@@ -75,4 +75,33 @@ public sealed class SchemaWallPolicyTests
 
         await Assert.That(result.Schemas["Value"]).IsTypeOf<PrimitiveNode>();
     }
+
+    [Test]
+    public async Task Project_Should_Refuse_Unsupported_Not_At_The_Applicator_Location()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema(
+            "Bad",
+            schema => schema.Raw("not", "{\"type\":\"string\"}")));
+
+        var ex = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(ex.Errors).Count().IsEqualTo(1);
+        await Assert.That(ex.Errors[0].Location).IsEqualTo("Bad/not");
+        await Assert.That(ex.Errors[0].Problem).Contains("not");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_Empty_Not_When_Combined_With_Another_Shape()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema(
+            "Bad",
+            schema => schema.Type("string").Raw("not", "{}")));
+
+        var ex = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(ex.Errors).Count().IsEqualTo(1);
+        await Assert.That(ex.Errors[0].Location).IsEqualTo("Bad/not");
+    }
 }

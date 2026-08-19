@@ -1,11 +1,61 @@
 {
-  "events": [
-    {
-      "type": "session.updated",
-      "payload": {
-        "type": "string"
-      }
+  "encoding": "sse",
+  "causeSchema": {
+    "type": "array",
+    "items": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "_tag": {
+              "type": "string",
+              "enum": ["Fail"]
+            },
+            "error": {
+              "not": {}
+            }
+          },
+          "required": ["_tag", "error"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "_tag": {
+              "type": "string",
+              "enum": ["Die"]
+            },
+            "defect": {}
+          },
+          "required": ["_tag", "defect"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "_tag": {
+              "type": "string",
+              "enum": ["Interrupt"]
+            },
+            "fiberId": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": ["_tag", "fiberId"],
+          "additionalProperties": false
+        }
+      ]
     }
-  ],
-  "nullable": true
+  },
+  "errorSchema": {
+    "not": {}
+  },
+  "failureEvent": "effect/httpapi/stream/failure"
 }

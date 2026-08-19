@@ -18,11 +18,13 @@ internal sealed class SchemaPlanBinder
         ArgumentNullException.ThrowIfNull(errors);
 
         var responseRoots = reachable.ResponseRootKeys.ToHashSet(_comparer);
+        var streamCauseKeys = reachable.StreamCauseKeys.ToHashSet(_comparer);
+        var inhabitation = new SchemaInhabitationPolicy(document.Schemas);
         RefuseStructuralUnions(document, reachable, errors);
 
         var inheritance = new Dictionary<string, List<string>>(StringComparer.Ordinal);
-        var unions = BindExplicitUnions(document, reachable, responseRoots, typeNames, inheritance, errors);
-        var errorUnion = BindErrorUnion(document, reachable, responseRoots, typeNames, inheritance, errors);
+        var unions = BindExplicitUnions(document, reachable, responseRoots, streamCauseKeys, typeNames, inheritance, inhabitation, errors);
+        var errorUnion = BindErrorUnion(document, reachable, responseRoots, streamCauseKeys, typeNames, inheritance, errors);
         if (errorUnion is not null)
         {
             unions.Add(errorUnion);
@@ -33,6 +35,11 @@ internal sealed class SchemaPlanBinder
         foreach (var key in reachable.GraphKeys)
         {
             if (responseRoots.Contains(key) || !document.Schemas.TryGetValue(key, out var schema) || !typeNames.TryGetValue(key, out var name))
+            {
+                continue;
+            }
+
+            if (!inhabitation.IsInhabited(schema))
             {
                 continue;
             }
@@ -55,7 +62,8 @@ internal sealed class SchemaPlanBinder
 
         var orderedModels = models.OrderBy(static model => model.Name, _comparer).ToArray();
         var orderedUnions = unions.OrderBy(static union => union.Name, _comparer).ToArray();
-        var registryNames = orderedModels.Select(static model => model.Name)
+        var registryNames = orderedModels
+            .Select(static model => model.Name)
             .Concat(orderedUnions.SelectMany(static union => new[] { union.Name, union.UnknownTypeName, }))
             .Distinct(_comparer)
             .Order(_comparer)
@@ -85,7 +93,8 @@ internal sealed class SchemaPlanBinder
     }
 
     private static List<UnionPlan> BindExplicitUnions(SpecDocument document, ReachableSchemaSet reachable, HashSet<string> responseRoots,
-        IReadOnlyDictionary<string, string> names, Dictionary<string, List<string>> inheritance, BindingErrorCollector errors)
+        HashSet<string> streamCauseKeys, IReadOnlyDictionary<string, string> names, Dictionary<string, List<string>> inheritance,
+        SchemaInhabitationPolicy inhabitation, BindingErrorCollector errors)
     {
         var plans = new Dictionary<string, UnionPlan>(StringComparer.Ordinal);
         var fixedMarkers = new Dictionary<string, UnionFixedMarkerPlan>(StringComparer.Ordinal);
@@ -99,7 +108,7 @@ internal sealed class SchemaPlanBinder
                 continue;
             }
 
-            var plan = BindUnion(name, key, union, document.Schemas, names, inheritance, fixedMarkers, errors);
+            var plan = BindUnion(name, key, union, document.Schemas, names, inheritance, fixedMarkers, inhabitation, errors);
             if (plan is not null)
             {
                 plans.Add(key, plan);
@@ -114,12 +123,26 @@ internal sealed class SchemaPlanBinder
             var wired = plan;
             if (inheritance.TryGetValue(key, out var baseTypes) && baseTypes.Count is 1)
             {
-                wired = wired with { BaseTypeName = baseTypes[0] };
+                wired = wired with
+                {
+                    BaseTypeName = baseTypes[0]
+                };
             }
 
             if (fixedMarkers.TryGetValue(key, out var fixedMarker))
             {
-                wired = wired with { FixedMarker = fixedMarker };
+                wired = wired with
+                {
+                    FixedMarker = fixedMarker
+                };
+            }
+
+            if (streamCauseKeys.Contains(key))
+            {
+                wired = wired with
+                {
+                    BaseTypeName = EffectStreamTypeNamePolicy.CauseMarkerInterface
+                };
             }
 
             result.Add(wired);
@@ -130,9 +153,9 @@ internal sealed class SchemaPlanBinder
 
     private static UnionPlan? BindUnion(string name, string key, UnionNode union, IReadOnlyDictionary<string, SchemaNode> graph,
         IReadOnlyDictionary<string, string> names, Dictionary<string, List<string>> inheritance,
-        Dictionary<string, UnionFixedMarkerPlan> fixedMarkers, BindingErrorCollector errors)
+        Dictionary<string, UnionFixedMarkerPlan> fixedMarkers, SchemaInhabitationPolicy inhabitation, BindingErrorCollector errors)
     {
-        var resolved = ResolveBranches(key, union, graph, names, errors);
+        var resolved = ResolveBranches(key, union, graph, names, inhabitation, errors);
         if (resolved is null)
         {
             return null;
@@ -146,10 +169,18 @@ internal sealed class SchemaPlanBinder
         }
 
         var variants = new List<UnionVariantPlan>(resolved.Count);
+        var knownImpossibleTags = new List<string>();
         foreach (var branch in resolved)
         {
             var tag = branch.Markers.First(candidate =>
-                string.Equals(candidate.PropertyName, marker.PropertyName, StringComparison.Ordinal)).Value;
+                    string.Equals(candidate.PropertyName, marker.PropertyName, StringComparison.Ordinal))
+                .Value;
+            if (!branch.IsInhabited)
+            {
+                knownImpossibleTags.Add(tag);
+                continue;
+            }
+
             AddInheritance(branch.MemberKey, name, inheritance, errors);
             if (branch.IsNestedUnion)
             {
@@ -181,12 +212,13 @@ internal sealed class SchemaPlanBinder
             MarkerName = CSharpNamePolicy.ToPascalCase(marker.PropertyName),
             MarkerKind = marker.Kind,
             Variants = variants,
+            KnownImpossibleTags = [.. knownImpossibleTags.Order(StringComparer.Ordinal)],
             Description = union.Description,
         };
     }
 
     private static List<ResolvedUnionBranch>? ResolveBranches(string key, UnionNode union, IReadOnlyDictionary<string, SchemaNode> graph,
-        IReadOnlyDictionary<string, string> names, BindingErrorCollector errors)
+        IReadOnlyDictionary<string, string> names, SchemaInhabitationPolicy inhabitation, BindingErrorCollector errors)
     {
         var resolved = new List<ResolvedUnionBranch>(union.Branches.Count);
         foreach (var branch in union.Branches)
@@ -208,7 +240,7 @@ internal sealed class SchemaPlanBinder
             if (target is UnionNode { Classification: UnionClassification.Marked } nested
                 && ResolveUniformNestedMarkers(nested, graph) is not { Count: > 0 })
             {
-                var spanned = ResolveSpannedBranches(nested, reference.Target, graph, names);
+                var spanned = ResolveSpannedBranches(nested, reference.Target, graph, names, inhabitation);
                 if (spanned is null)
                 {
                     errors.Add(
@@ -237,7 +269,12 @@ internal sealed class SchemaPlanBinder
                 continue;
             }
 
-            resolved.Add(new ResolvedUnionBranch(reference.Target, typeName, markers, target is UnionNode, reference.Target));
+            resolved.Add(new ResolvedUnionBranch(
+                typeName,
+                markers,
+                target is UnionNode,
+                reference.Target,
+                inhabitation.IsInhabited(target)));
         }
 
         // A spanning branch contributes several entries under one member key, so the arity
@@ -248,7 +285,8 @@ internal sealed class SchemaPlanBinder
 
     /// <summary>Expands a marker-spanning nested union into the leaves the outer dispatches to.</summary>
     private static List<ResolvedUnionBranch>? ResolveSpannedBranches(UnionNode nested, string nestedKey,
-        IReadOnlyDictionary<string, SchemaNode> graph, IReadOnlyDictionary<string, string> names)
+        IReadOnlyDictionary<string, SchemaNode> graph, IReadOnlyDictionary<string, string> names,
+        SchemaInhabitationPolicy inhabitation)
     {
         var result = new List<ResolvedUnionBranch>(nested.Branches.Count);
         foreach (var branch in nested.Branches)
@@ -263,7 +301,12 @@ internal sealed class SchemaPlanBinder
                 return null;
             }
 
-            result.Add(new ResolvedUnionBranch(reference.Target, typeName, leaf.LiteralMarkers, IsNestedUnion: false, nestedKey));
+            result.Add(new ResolvedUnionBranch(
+                typeName,
+                leaf.LiteralMarkers,
+                IsNestedUnion: false,
+                nestedKey,
+                inhabitation.IsInhabited(leaf)));
         }
 
         return result;
@@ -292,10 +335,12 @@ internal sealed class SchemaPlanBinder
         return
         [
             .. variantMarkers[0]
-                .Where(candidate => variantMarkers.Skip(1).All(markers => markers.Any(other =>
-                    string.Equals(other.PropertyName, candidate.PropertyName, StringComparison.Ordinal)
-                    && other.Kind == candidate.Kind
-                    && string.Equals(other.Value, candidate.Value, StringComparison.Ordinal)))),
+                .Where(candidate => variantMarkers
+                    .Skip(1)
+                    .All(markers => markers.Any(other =>
+                        string.Equals(other.PropertyName, candidate.PropertyName, StringComparison.Ordinal)
+                        && other.Kind == candidate.Kind
+                        && string.Equals(other.Value, candidate.Value, StringComparison.Ordinal)))),
         ];
     }
 
@@ -332,19 +377,25 @@ internal sealed class SchemaPlanBinder
 
     /// <summary>
     /// One dispatch entry of a union. <paramref name="MemberKey"/> is the schema that records
-    /// membership, which differs from <paramref name="TargetKey"/> when a nested union spans
-    /// the outer marker: the nested union is the member, its leaves are the dispatch targets.
+    /// membership; when a nested union spans the outer marker, that member differs from the
+    /// leaf represented by <paramref name="TypeName"/>.
     /// </summary>
-    private sealed record ResolvedUnionBranch(string TargetKey, string TypeName, IReadOnlyList<LiteralMarker> Markers,
-        bool IsNestedUnion, string MemberKey);
+    private sealed record ResolvedUnionBranch(
+        string TypeName,
+        IReadOnlyList<LiteralMarker> Markers,
+        bool IsNestedUnion,
+        string MemberKey,
+        bool IsInhabited);
 
     private static UnionPlan? BindErrorUnion(SpecDocument document, ReachableSchemaSet reachable, HashSet<string> responseRoots,
-        IReadOnlyDictionary<string, string> names, IDictionary<string, List<string>> inheritance, BindingErrorCollector errors)
+        HashSet<string> streamCauseKeys, IReadOnlyDictionary<string, string> names,
+        IDictionary<string, List<string>> inheritance, BindingErrorCollector errors)
     {
         var errorsInClosure = new List<KeyValuePair<string, ObjectNode>>();
         foreach (var key in reachable.GraphKeys)
         {
             if (!responseRoots.Contains(key)
+                && !streamCauseKeys.Contains(key)
                 && document.Schemas.TryGetValue(key, out var schema)
                 && schema is ObjectNode { ErrorStyle: not ErrorStyle.None } objectNode)
             {
@@ -443,7 +494,10 @@ internal sealed class SchemaPlanBinder
 
             if (!property.IsRequired)
             {
-                type = type with { IsNullable = true };
+                type = type with
+                {
+                    IsNullable = true
+                };
             }
 
             var literal = property.Schema as LiteralNode;
@@ -487,11 +541,13 @@ internal sealed class SchemaPlanBinder
 
     private static EnumModelPlan BindEnum(string name, EnumNode node, BindingErrorCollector errors)
     {
-        var values = node.Values.Select(value => new EnumValuePlan
-        {
-            Name = CSharpNamePolicy.ToPascalCase(value),
-            WireValue = value,
-        }).ToArray();
+        var values = node
+            .Values.Select(value => new EnumValuePlan
+            {
+                Name = CSharpNamePolicy.ToPascalCase(value),
+                WireValue = value,
+            })
+            .ToArray();
         var duplicate = values.GroupBy(static value => value.Name, StringComparer.Ordinal).FirstOrDefault(static group => group.Count() > 1);
         if (duplicate is not null)
         {
@@ -565,6 +621,7 @@ internal sealed class SchemaPlanBinder
             DictionaryNode dictionary => BindDictionary(dictionary, subject, aliases),
             FreeFormObjectNode => DictionaryOf(JsonElement()),
             UnrestrictedNode => JsonElement(),
+            NeverNode => Refuse(subject, "never schemas cannot materialize a .NET value"),
             SpecialNumberNode => SpecialNumber(),
             NullableNode nullable => BindNullable(nullable, subject, aliases),
             JsonStringNode => Refuse(subject, "JSON-encoded strings are not supported by the M1 emitter"),
@@ -624,7 +681,10 @@ internal sealed class SchemaPlanBinder
             var inner = BindCore(nullable.Inner, subject, aliases);
             return inner is null || inner.JsonNullRepresentation == JsonNullRepresentation.InBand
                 ? inner
-                : inner with { IsNullable = true };
+                : inner with
+                {
+                    IsNullable = true
+                };
         }
 
         private TypeReferencePlan? Refuse(string subject, string problem)

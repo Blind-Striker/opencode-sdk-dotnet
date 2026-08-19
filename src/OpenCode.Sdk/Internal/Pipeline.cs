@@ -123,8 +123,9 @@ internal sealed class Pipeline : IDisposable
     /// one-shot buffer is never involved, and a stream always throws on an error status —
     /// it has no envelope for one to ride.
     /// </summary>
-    public IAsyncEnumerable<TPayload> ExecuteStreamAsync<TPayload>(HttpMethod method, string route,
-        IStreamAdapter<TPayload> adapter, CancellationToken cancellationToken)
+    public IAsyncEnumerable<TPayload> ExecuteStreamAsync<TPayload, TCause>(HttpMethod method, string route,
+        IStreamAdapter<TPayload, TCause> adapter, CancellationToken cancellationToken)
+        where TCause : IReadOnlyList<Models.IOpenCodeStreamFailureCause>
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(method);
@@ -304,8 +305,9 @@ internal sealed class Pipeline : IDisposable
     private static OpenCodeApiException CreateApiException(OpenCodeResponse response) =>
         OpenCodeErrorReader.CreateApiException(response.Status, response.Error, response.RawBody);
 
-    private async IAsyncEnumerable<TPayload> ExecuteStreamCoreAsync<TPayload>(HttpMethod method, string route,
-        IStreamAdapter<TPayload> adapter, [EnumeratorCancellation] CancellationToken cancellationToken)
+    private async IAsyncEnumerable<TPayload> ExecuteStreamCoreAsync<TPayload, TCause>(HttpMethod method, string route,
+        IStreamAdapter<TPayload, TCause> adapter, [EnumeratorCancellation] CancellationToken cancellationToken)
+        where TCause : IReadOnlyList<Models.IOpenCodeStreamFailureCause>
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         using var request = new HttpRequestMessage(method, new Uri(_endpointBase + route, UriKind.Absolute));
@@ -393,11 +395,12 @@ internal sealed class Pipeline : IDisposable
     /// Reads one dispatched frame: the contract names a failure frame and leaves every other
     /// name undeclared, so only an unnamed frame carries a payload.
     /// </summary>
-    private static TPayload ReadStreamPayload<TPayload>(ServerSentEvent frame, IStreamAdapter<TPayload> adapter)
+    private static TPayload ReadStreamPayload<TPayload, TCause>(ServerSentEvent frame, IStreamAdapter<TPayload, TCause> adapter)
+        where TCause : IReadOnlyList<Models.IOpenCodeStreamFailureCause>
     {
         if (string.Equals(frame.Name, adapter.FailureEventName, StringComparison.Ordinal))
         {
-            throw new OpenCodeTransportException($"The opencode event stream failed after it opened: {frame.Data}");
+            throw new OpenCodeStreamFailureException(ReadStreamCause(frame.Data, adapter.CauseTypeInfo));
         }
 
         if (!string.Equals(frame.Name, ServerSentEvent.DefaultName, StringComparison.Ordinal))
@@ -406,6 +409,20 @@ internal sealed class Pipeline : IDisposable
         }
 
         return ReadFramePayload(frame.Data, adapter.PayloadTypeInfo);
+    }
+
+    private static TCause ReadStreamCause<TCause>(string frame, JsonTypeInfo<TCause> typeInfo)
+        where TCause : IReadOnlyList<Models.IOpenCodeStreamFailureCause>
+    {
+        try
+        {
+            return JsonSerializer.Deserialize(frame, typeInfo)
+                   ?? throw new OpenCodeTransportException("The opencode event stream produced a null failure cause.");
+        }
+        catch (JsonException exception)
+        {
+            throw new OpenCodeTransportException("The opencode event stream produced an unmaterializable failure cause.", exception);
+        }
     }
 
     /// <summary>A frame the operation's contract cannot decode is a protocol failure, never an event.</summary>

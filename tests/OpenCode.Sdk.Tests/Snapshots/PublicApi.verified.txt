@@ -141,6 +141,14 @@
             public static string TimeoutShell(string id, OpenCode.Sdk.Models.ShellTimeoutRequest? request = null) { }
         }
     }
+    public sealed class OpenCodeStreamFailureException : OpenCode.Sdk.OpenCodeTransportException
+    {
+        public OpenCodeStreamFailureException() { }
+        public OpenCodeStreamFailureException(System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.IOpenCodeStreamFailureCause> cause) { }
+        public OpenCodeStreamFailureException(string message) { }
+        public OpenCodeStreamFailureException(string message, System.Exception innerException) { }
+        public System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.IOpenCodeStreamFailureCause> Cause { get; }
+    }
     public class OpenCodeTransportException : OpenCode.Sdk.OpenCodeException
     {
         public OpenCodeTransportException() { }
@@ -331,6 +339,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("_tag")]
         string Tag { get; }
     }
+    public interface IOpenCodeStreamFailureCause { }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.PromptFileSourceJsonConverter))]
     public interface IPromptFileSource
     {
@@ -380,6 +389,12 @@ namespace OpenCode.Sdk.Models
     {
         [System.Text.Json.Serialization.JsonPropertyName("status")]
         string Status { get; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StreamFailureCauseJsonConverter))]
+    public interface IStreamFailureCause : OpenCode.Sdk.Models.IOpenCodeStreamFailureCause
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("_tag")]
+        string Tag { get; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ToolContentJsonConverter))]
     public interface IToolContent
@@ -3156,6 +3171,22 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("timeout")]
         public required long Timeout { get; init; }
     }
+    public sealed class StreamFailureCauseDie : OpenCode.Sdk.Models.IOpenCodeStreamFailureCause, OpenCode.Sdk.Models.IStreamFailureCause, System.IEquatable<OpenCode.Sdk.Models.StreamFailureCauseDie>
+    {
+        public StreamFailureCauseDie() { }
+        [System.Text.Json.Serialization.JsonPropertyName("defect")]
+        public required System.Text.Json.JsonElement Defect { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("_tag")]
+        public string Tag { get; }
+    }
+    public sealed class StreamFailureCauseInterrupt : OpenCode.Sdk.Models.IOpenCodeStreamFailureCause, OpenCode.Sdk.Models.IStreamFailureCause, System.IEquatable<OpenCode.Sdk.Models.StreamFailureCauseInterrupt>
+    {
+        public StreamFailureCauseInterrupt() { }
+        [System.Text.Json.Serialization.JsonPropertyName("fiberId")]
+        public required double? FiberId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("_tag")]
+        public string Tag { get; }
+    }
     public sealed class TokenUsageInfo : System.IEquatable<OpenCode.Sdk.Models.TokenUsageInfo>
     {
         public TokenUsageInfo() { }
@@ -3307,6 +3338,15 @@ namespace OpenCode.Sdk.Models
         public System.Text.Json.JsonElement Payload { get; }
         [System.Text.Json.Serialization.JsonPropertyName("status")]
         public string Status { get; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownStreamFailureCauseJsonConverter))]
+    public sealed class UnknownStreamFailureCause : OpenCode.Sdk.Models.IOpenCodeStreamFailureCause, OpenCode.Sdk.Models.IStreamFailureCause, System.IEquatable<OpenCode.Sdk.Models.UnknownStreamFailureCause>
+    {
+        [System.Text.Json.Serialization.JsonConstructor]
+        public UnknownStreamFailureCause(string tag, System.Text.Json.JsonElement payload) { }
+        public System.Text.Json.JsonElement Payload { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("_tag")]
+        public string Tag { get; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownToolContentJsonConverter))]
     public sealed class UnknownToolContent : OpenCode.Sdk.Models.IToolContent, System.IEquatable<OpenCode.Sdk.Models.UnknownToolContent>

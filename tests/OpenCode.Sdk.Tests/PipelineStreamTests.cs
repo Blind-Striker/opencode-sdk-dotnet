@@ -23,8 +23,11 @@ public sealed class PipelineStreamTests
 
         var payloads = await CollectAsync(pipeline);
 
-        await Assert.That(payloads.Select(static payload => payload.Value)
-            .SequenceEqual(["first", "second"], StringComparer.Ordinal)).IsTrue();
+        await Assert
+            .That(payloads
+                .Select(static payload => payload.Value)
+                .SequenceEqual(["first", "second"], StringComparer.Ordinal))
+            .IsTrue();
     }
 
     [Test]
@@ -50,7 +53,10 @@ public sealed class PipelineStreamTests
         using var handler = new RecordingHttpHandler(static _ => EventStream(FirstFrame));
         using var httpClient = new HttpClient(handler);
         using var pipeline = PipelineFactory.Create(httpClient, password: "secret",
-            location: new LocationSelector { Directory = "/repo" });
+            location: new LocationSelector
+            {
+                Directory = "/repo"
+            });
 
         _ = await CollectAsync(pipeline);
 
@@ -102,7 +108,10 @@ public sealed class PipelineStreamTests
         {
             var content = new StringContent(FirstFrame);
             content.Headers.ContentType = new MediaTypeHeaderValue(EventStreamMediaType);
-            return new HttpResponseMessage(HttpStatusCode.Created) { Content = content, };
+            return new HttpResponseMessage(HttpStatusCode.Created)
+            {
+                Content = content,
+            };
         });
         using var httpClient = new HttpClient(handler);
         using var pipeline = PipelineFactory.Create(httpClient);
@@ -168,10 +177,27 @@ public sealed class PipelineStreamTests
     }
 
     [Test]
-    public async Task ExecuteStreamAsync_Should_Refuse_A_Stream_Failure_Frame_Instead_Of_Yielding_It()
+    public async Task ExecuteStreamAsync_Should_Expose_A_Typed_Stream_Failure_Cause()
     {
         using var handler = new RecordingHttpHandler(static _ => EventStream(
-            FirstFrame + $"event: {TestStreamAdapter.StreamFailureEventName}\ndata: [{{\"_tag\":\"Fail\"}}]\n\n"));
+            FirstFrame + $"event: {TestStreamAdapter.StreamFailureEventName}\ndata: [{{\"tag\":\"Die\",\"detail\":\"boom\"}}]\n\n"));
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(httpClient);
+
+        var exception = await Assert
+            .That(async () => _ = await CollectAsync(pipeline))
+            .Throws<OpenCodeStreamFailureException>();
+
+        var cause = (TestStreamFailureCause)exception!.Cause.Single();
+        await Assert.That(cause.Tag).IsEqualTo("Die");
+        await Assert.That(cause.Detail).IsEqualTo("boom");
+    }
+
+    [Test]
+    public async Task ExecuteStreamAsync_Should_Treat_A_Malformed_Failure_Cause_As_A_Protocol_Failure()
+    {
+        using var handler = new RecordingHttpHandler(static _ => EventStream(
+            $"event: {TestStreamAdapter.StreamFailureEventName}\ndata: not json\n\n"));
         using var httpClient = new HttpClient(handler);
         using var pipeline = PipelineFactory.Create(httpClient);
 
@@ -179,7 +205,24 @@ public sealed class PipelineStreamTests
             .That(async () => _ = await CollectAsync(pipeline))
             .Throws<OpenCodeTransportException>();
 
-        await Assert.That(exception!.Message).Contains("failed");
+        await Assert.That(exception).IsNotTypeOf<OpenCodeStreamFailureException>();
+        await Assert.That(exception!.InnerException).IsTypeOf<System.Text.Json.JsonException>();
+    }
+
+    [Test]
+    public async Task ExecuteStreamAsync_Should_Treat_A_Null_Failure_Cause_As_A_Protocol_Failure()
+    {
+        using var handler = new RecordingHttpHandler(static _ => EventStream(
+            $"event: {TestStreamAdapter.StreamFailureEventName}\ndata: null\n\n"));
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(httpClient);
+
+        var exception = await Assert
+            .That(async () => _ = await CollectAsync(pipeline))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception).IsNotTypeOf<OpenCodeStreamFailureException>();
+        await Assert.That(exception!.Message).Contains("null failure cause");
     }
 
     [Test]
@@ -204,7 +247,10 @@ public sealed class PipelineStreamTests
         {
             var content = new StringContent(FirstFrame);
             content.Headers.ContentType = new MediaTypeHeaderValue("Text/Event-Stream");
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = content, };
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = content,
+            };
         });
         using var httpClient = new HttpClient(handler);
         using var pipeline = PipelineFactory.Create(httpClient);
@@ -298,14 +344,20 @@ public sealed class PipelineStreamTests
     {
         var content = new StreamContent(body);
         content.Headers.ContentType = new MediaTypeHeaderValue(EventStreamMediaType);
-        return new HttpResponseMessage(HttpStatusCode.OK) { Content = content, };
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = content,
+        };
     }
 
     private static HttpResponseMessage EventStream(string body)
     {
         var content = new StringContent(body);
         content.Headers.ContentType = new MediaTypeHeaderValue("text/event-stream");
-        return new HttpResponseMessage(HttpStatusCode.OK) { Content = content, };
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = content,
+        };
     }
 
     private static async Task<List<TestBody>> CollectAsync(Pipeline pipeline,

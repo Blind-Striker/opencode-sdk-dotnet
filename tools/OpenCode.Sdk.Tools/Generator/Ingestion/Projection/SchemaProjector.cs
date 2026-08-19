@@ -85,6 +85,7 @@ internal sealed class SchemaProjector
             (CoreSchemaShape.Tuple, _) => _prefixItemsAdapter.Project(schema, root, pointer, location, state),
             (CoreSchemaShape.JsonString, _) => _jsonStringProjector.Project(schema, root, pointer, location, state),
             (CoreSchemaShape.Unrestricted, _) => CreateUnrestricted(schema),
+            (CoreSchemaShape.Never, _) => new NeverNode(),
             _ => null,
         };
     }

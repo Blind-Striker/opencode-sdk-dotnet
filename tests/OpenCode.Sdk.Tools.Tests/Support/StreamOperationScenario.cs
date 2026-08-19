@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 namespace OpenCode.Sdk.Tools.Tests.Support;
 
 internal sealed class StreamOperationScenario(
@@ -85,15 +87,45 @@ internal sealed class StreamOperationScenario(
                 static branch => branch.Ref("ExampleGoneError")));
     }
 
-    private string EffectStreamJson() => extensionProfile switch
+    private string EffectStreamJson()
     {
-        StreamExtensionProfile.Valid => $"{{\"encoding\":\"sse\",\"failureEvent\":\"{FailureEventName}\"}}",
-        StreamExtensionProfile.MissingEncoding => $"{{\"failureEvent\":\"{FailureEventName}\"}}",
-        StreamExtensionProfile.UnsupportedEncoding => $"{{\"encoding\":\"jsonl\",\"failureEvent\":\"{FailureEventName}\"}}",
-        StreamExtensionProfile.MessageFailure => "{\"encoding\":\"sse\",\"failureEvent\":\"message\"}",
-        StreamExtensionProfile.NonObject => "[]",
-        _ => throw new InvalidOperationException($"Unknown stream-extension profile '{extensionProfile}'."),
-    };
+        if (extensionProfile is StreamExtensionProfile.NonObject)
+        {
+            return "[]";
+        }
+
+        var extension = JsonNode.Parse(new FixtureLoader().Load("effect-stream.json"))!.AsObject();
+        switch (extensionProfile)
+        {
+            case StreamExtensionProfile.Valid:
+                break;
+            case StreamExtensionProfile.MissingEncoding:
+                _ = extension.Remove("encoding");
+                break;
+            case StreamExtensionProfile.UnsupportedEncoding:
+                extension["encoding"] = "jsonl";
+                break;
+            case StreamExtensionProfile.MessageFailure:
+                extension["failureEvent"] = "message";
+                break;
+            case StreamExtensionProfile.MissingCauseSchema:
+                _ = extension.Remove("causeSchema");
+                break;
+            case StreamExtensionProfile.NonNeverErrorSchema:
+                extension["errorSchema"] = new JsonObject
+                {
+                    ["type"] = "string",
+                };
+                break;
+            case StreamExtensionProfile.MissingErrorSchema:
+                _ = extension.Remove("errorSchema");
+                break;
+            default:
+                throw new InvalidOperationException($"Unknown stream-extension profile '{extensionProfile}'.");
+        }
+
+        return extension.ToJsonString();
+    }
 
     private static void Error(SchemaBuilder schema, string tag) => schema
         .Type("object")

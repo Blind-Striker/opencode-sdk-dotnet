@@ -162,10 +162,14 @@ two of 40 durable branches, the `log.synced` watermark, and unknown-carrier beha
 `32192213328` is green on Linux, Windows, and macOS. #49 remains open only for the deferred Arc 3b
 plural-interface closure; no invented 40/87-payload corpus is planned. The six interim allocation
 baselines remain the comparison guards; master protection and direct-push policy remain open under
-#50. The exact next source increment is #53's typed stream failure-cause M3 subset; Arc 3b breadth
-remains closed until that work and the Arc 3a deliverable closure are green and hosted. Arc 3a
-closure means a Generic Host `SessionClient.GetLogAsync` example, an end-to-end
-pipeline/reader/adapter benchmark, and a precise repeat live demonstration.
+#50. #53's typed stream failure-cause M3 subset is source-complete: the pinned cause contract now
+survives ingestion, binding, model/union planning, registry emission, source generation, and
+compilation; `not: {}` remains never, its uninhabitable `Fail` branch is a known protocol refusal,
+and valid `Die`/`Interrupt` or genuinely unknown causes ride `OpenCodeStreamFailureException` as
+typed data. #53 remains open for its deferred M5 wall inventory. Arc 3b breadth remains closed until
+this increment is hosted and the Arc 3a deliverable closure is green and hosted. Arc 3a closure
+means a Generic Host `SessionClient.GetLogAsync` example, an end-to-end pipeline/reader/adapter
+benchmark, and a precise repeat live demonstration.
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family

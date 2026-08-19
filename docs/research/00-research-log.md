@@ -1,6 +1,6 @@
 # Research log — 2026-08-08
 
-Date: 2026-08-18
+Date: 2026-08-19
 
 > Dated evidence and decision history, not current policy. Follow current canon through
 > `AGENTS.md`; later sessions in this log intentionally supersede some earlier conclusions.
@@ -2515,3 +2515,44 @@ to canonicalize committed output. Analyzer execution remains enabled for every c
 OS pending a separate coverage-preserving build optimization. This supersedes Q18's single bare
 `dotnet format --verify-no-changes` CI clause; its rejection of CSharpier and advisory line-width
 decision remain unchanged.
+
+# Session 32 — 2026-08-19: typed stream failure causes
+
+## Q111: Is the pinned `Fail.error: not: {}` branch an inconsistent OpenAPI schema?
+
+**How researched:** traced both pinned stream declarations and handlers at upstream commit
+`a6a712a`, opencode's generated Effect and Promise clients, its `httpapi-codegen` stream walls, and
+the exact `effect@4.0.0-beta.101` `HttpApiSchema`, OpenAPI, server-builder, and client-builder
+sources.
+
+**Found:** the shape is valid and deliberate generic specialization, not an inconsistent document.
+`HttpApiSchema.StreamSse({ data })` defaults its typed error schema to `Schema.Never`; Effect emits
+`errorSchema` from that schema and `causeSchema` from `Schema.Cause(error, Schema.Defect())`. The
+generic `Fail | Die | Interrupt` structure therefore becomes `Fail<Never> | Die<Defect> |
+Interrupt`: `Fail` remains syntactically declared but denotes the empty set. The `session.log`
+handler additionally applies `Stream.orDie`, so normal typed failures become defects. Effect's
+server encodes a full cause under the reserved SSE event and its client preserves the event name,
+decodes the same cause schema, and re-fails the stream with that cause.
+
+**Found:** opencode's generated Promise client explicitly admits only SSE declarations whose error
+schema is Never, but its reader keeps only `data:` lines and discards `event:`/`id:`. A reserved
+failure cause is consequently yielded as an unchecked ordinary payload. The current
+`event.subscribe` handler separately writes data and heartbeat frames through `handleRaw`, but the
+pinned extension remains the sole protocol contract; neither implementation difference is a local
+endpoint-curation input (ADR-0013).
+
+**Decision (maintainer, sealed):** project exact standalone `not: {}` as a never node and refuse
+other `not` forms at the keyword pointer. Generic inhabitation analysis makes an object with a
+required never member impossible. Preserve its declared marker as a known-impossible generated
+dispatch entry, emit no public dead variant, and refuse the marker as protocol-invalid rather than
+using ADR-0009's genuinely-unknown carrier. Hand-written machinery contains no operation-ID,
+generated-type-name, or literal-tag condition (ADR-0015).
+
+## Q112: How does a schema-valid stream failure reach .NET consumers?
+
+**Decision (maintainer, sealed):** generated adapters expose source-generated metadata for the
+bound cause array. A valid reserved frame throws `OpenCodeStreamFailureException`, preserving
+existing `OpenCodeTransportException` catch behavior while exposing typed reasons through `Cause`.
+Malformed JSON, null cause materialization, and known-impossible tags remain plain protocol
+failures. The shared hand-written marker lets the runtime seam remain generic while each generated
+cause union retains its own typed discriminator interface (ADR-0015).

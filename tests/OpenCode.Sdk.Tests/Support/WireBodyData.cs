@@ -16,7 +16,8 @@ internal static class WireBodyData
 
     public const string SessionNotFoundError = "{\"_tag\":\"SessionNotFoundError\",\"sessionID\":\"ses_9\",\"message\":\"gone\"}";
 
-    public const string MessageNotFoundError = "{\"_tag\":\"MessageNotFoundError\",\"sessionID\":\"ses_9\",\"messageID\":\"msg_1\",\"message\":\"gone\"}";
+    public const string MessageNotFoundError =
+        "{\"_tag\":\"MessageNotFoundError\",\"sessionID\":\"ses_9\",\"messageID\":\"msg_1\",\"message\":\"gone\"}";
 
     public const string UnknownError = "{\"_tag\":\"UnknownError\",\"message\":\"boom\"}";
 
@@ -84,6 +85,21 @@ internal static class WireBodyData
 
     /// <summary>The cause a mid-stream failure frame carries under the declared failure event.</summary>
     public const string StreamFailureCause = "[{\"_tag\":\"Die\",\"defect\":\"boom\"}]";
+
+    /// <summary>A future cause tag preserved through ADR-0009's unknown carrier.</summary>
+    public const string UnknownStreamFailureCause = "[{\"_tag\":\"FutureCause\",\"detail\":\"later\"}]";
+
+    /// <summary>The declared but uninhabitable Fail branch, which must remain a protocol failure.</summary>
+    public const string ImpossibleStreamFailureCause = "[{\"_tag\":\"Fail\",\"error\":\"boom\"}]";
+
+    public const string StreamInterruptNullCause = "[{\"_tag\":\"Interrupt\",\"fiberId\":null}]";
+
+    public const string StreamInterruptNumberCause = "[{\"_tag\":\"Interrupt\",\"fiberId\":42}]";
+
+    public const string MultipleStreamFailureCauses =
+        "[{\"_tag\":\"Die\",\"defect\":\"boom\"},{\"_tag\":\"Interrupt\",\"fiberId\":42}]";
+
+    public const string EmptyStreamFailureCause = "[]";
 
     /// <summary>Frames one payload per event-stream frame, the shape the reader consumes.</summary>
     public static string Frames(params string[] payloads)

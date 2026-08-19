@@ -205,11 +205,18 @@ internal static class OperationMethodEmitter
                     : "The API returned an error status; streaming API errors always throw."));
         }
 
+        if (operation.Stream is not null)
+        {
+            exceptions.Add(new DocumentedException(
+                "OpenCodeStreamFailureException",
+                "The opened stream reported a schema-valid failure with a typed cause."));
+        }
+
         exceptions.Add(new DocumentedException(
             "OpenCodeTransportException",
             operation.Stream is null
                 ? "The server could not be reached or returned a malformed success body."
-                : "The server could not be reached, the stream failed after it opened, or a frame was malformed."));
+                : "The server could not be reached, the stream could not be read, or a frame or failure cause was malformed."));
         return EmissionSyntax.MemberDocumentation(
             operation.Summary ?? operation.Description ?? $"Calls the '{operation.RouteTemplate}' operation.",
             parameters,

@@ -21,6 +21,6 @@ public sealed record SpecResponse
     /// <summary>Gets a value indicating whether the response is an event stream.</summary>
     public required bool IsSse { get; init; }
 
-    /// <summary>Gets the opaque effect-stream JSON metadata, when supplied.</summary>
-    public string? EffectStreamJson { get; init; }
+    /// <summary>Gets the projected effect-stream contract, when supplied.</summary>
+    public SpecEffectStreamContract? EffectStream { get; init; }
 }

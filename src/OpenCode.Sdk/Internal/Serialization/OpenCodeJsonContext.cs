@@ -19,6 +19,8 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(ISessionMessageCompaction))]
 [JsonSerializable(typeof(ISessionMessageInfo))]
 [JsonSerializable(typeof(ISessionMessageToolState))]
+[JsonSerializable(typeof(IStreamFailureCause))]
+[JsonSerializable(typeof(IStreamFailureCause[]))]
 [JsonSerializable(typeof(IToolContent))]
 [JsonSerializable(typeof(InvalidCursorError))]
 [JsonSerializable(typeof(InvalidRequestError))]
@@ -236,6 +238,8 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(ShellResponseEnvelope))]
 [JsonSerializable(typeof(ShellTimeoutRequest))]
 [JsonSerializable(typeof(ShellTimeoutResponseEnvelope))]
+[JsonSerializable(typeof(StreamFailureCauseDie))]
+[JsonSerializable(typeof(StreamFailureCauseInterrupt))]
 [JsonSerializable(typeof(TokenUsageInfo))]
 [JsonSerializable(typeof(TokenUsageInfoCache))]
 [JsonSerializable(typeof(ToolFileContent))]
@@ -252,6 +256,7 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(UnknownSessionMessageCompaction))]
 [JsonSerializable(typeof(UnknownSessionMessageInfo))]
 [JsonSerializable(typeof(UnknownSessionMessageToolState))]
+[JsonSerializable(typeof(UnknownStreamFailureCause))]
 [JsonSerializable(typeof(UnknownToolContent))]
 internal sealed partial class OpenCodeJsonContext : JsonSerializerContext
 {

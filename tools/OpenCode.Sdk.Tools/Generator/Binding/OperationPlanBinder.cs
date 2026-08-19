@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.Text.Json;
 using OpenCode.Sdk.Tools.Generator.Binding.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 
@@ -16,6 +15,7 @@ internal sealed class OperationPlanBinder
     [
         "ErrorBehavior",
         "IOpenCodeClientOptions",
+        EffectStreamTypeNamePolicy.CauseMarkerInterface,
         "ListCursor",
         "ListOrder",
         "ListRequest",
@@ -25,6 +25,7 @@ internal sealed class OperationPlanBinder
         "OpenCodeException",
         "OpenCodeRequestOptions",
         "OpenCodeResponse",
+        "OpenCodeStreamFailureException",
         "OpenCodeTransportException",
         "QueryBoolean",
         "SessionParentFilter",
@@ -134,7 +135,8 @@ internal sealed class OperationPlanBinder
 
         return
         [
-            .. clients.OrderBy(static client => client.Role is ClientRole.Root ? 0 : 1)
+            .. clients
+                .OrderBy(static client => client.Role is ClientRole.Root ? 0 : 1)
                 .ThenBy(static client => client.Name, StringComparer.Ordinal),
         ];
     }
@@ -159,12 +161,14 @@ internal sealed class OperationPlanBinder
             Role = ClientRole.Collection,
             ContainerName = row.ClientName,
             SubClients = [],
-            HandleFactory = handleParameter is null ? null : new HandleFactoryPlan
-            {
-                MethodName = $"Get{row.HandleName}",
-                HandleTypeName = row.HandleName!,
-                Parameter = handleParameter,
-            },
+            HandleFactory = handleParameter is null
+                ? null
+                : new HandleFactoryPlan
+                {
+                    MethodName = $"Get{row.HandleName}",
+                    HandleTypeName = row.HandleName!,
+                    Parameter = handleParameter,
+                },
             Operations = collectionOperations,
         };
 
@@ -192,14 +196,16 @@ internal sealed class OperationPlanBinder
     {
         foreach (var client in clients)
         {
-            var members = client.Operations.Select(static operation => operation.MethodName)
+            var members = client
+                .Operations.Select(static operation => operation.MethodName)
                 .Concat(client.SubClients.Select(static reference => reference.PropertyName));
             if (client.HandleFactory is not null)
             {
                 members = members.Append(client.HandleFactory.MethodName);
             }
 
-            foreach (var member in members.GroupBy(static member => member, _comparer)
+            foreach (var member in members
+                         .GroupBy(static member => member, _comparer)
                          .Where(static member => member.Skip(1).Any())
                          .OrderBy(static member => member.Key, _comparer))
             {
@@ -226,6 +232,7 @@ internal sealed class OperationPlanBinder
                 entry.Key,
                 $"model type name '{entry.Value}' collides with the hand-written spine type '{entry.Value}'");
         }
+
         foreach (var name in clients.Select(static client => client.Name).Where(name => !owners.Add(name)))
         {
             errors.Add(BindingErrorCategory.Naming, name, $"client type name '{name}' collides with another generated type");
@@ -286,8 +293,12 @@ internal sealed class OperationPlanBinder
     }
 
     /// <summary>Binds one selected operation, batching every wire-contract refusal it finds.</summary>
-    private sealed class SingleOperationBinder(SpecDocument document, SpecOperation operation,
-        GenerationCuration curation, IReadOnlyDictionary<string, string> typeNames, BindingErrorCollector errors)
+    private sealed class SingleOperationBinder(
+        SpecDocument document,
+        SpecOperation operation,
+        GenerationCuration curation,
+        IReadOnlyDictionary<string, string> typeNames,
+        BindingErrorCollector errors)
     {
         private readonly GenerationCuration _curation = curation;
         private readonly SpecDocument _document = document;
@@ -333,8 +344,12 @@ internal sealed class OperationPlanBinder
                     return null;
                 }
 
-                queryRequest = queryRequest with { RidesRequestBody = true };
+                queryRequest = queryRequest with
+                {
+                    RidesRequestBody = true
+                };
             }
+
             var methodName = OperationNamePolicy.MethodName(_operation);
             var routeMemberName = OperationNamePolicy.RouteMemberName(_operation, row.Placement);
             if (methodName is null || routeMemberName is null)
@@ -490,8 +505,8 @@ internal sealed class OperationPlanBinder
             }
 
             var payload = BindFramePayload(data.Schema);
-            var failureEvent = ReadFailureEventName(success);
-            if (payload is null || failureEvent is null)
+            var failure = BindEffectStream(success);
+            if (payload is null || failure is null)
             {
                 return null;
             }
@@ -501,7 +516,8 @@ internal sealed class OperationPlanBinder
             {
                 PayloadTypeName = payload,
                 AdapterTypeName = $"{responseTypeName}StreamAdapter",
-                FailureEventName = failureEvent,
+                FailureEventName = failure.EventName,
+                CauseTypeName = failure.CauseTypeName,
             };
         }
 
@@ -516,45 +532,47 @@ internal sealed class OperationPlanBinder
                 : RefuseNull("the event frame's data must be a JSON-encoded string over a named schema");
         }
 
-        private string? ReadFailureEventName(SpecResponse success)
+        private BoundEffectStream? BindEffectStream(SpecResponse success)
         {
-            if (success.EffectStreamJson is null)
+            if (success.EffectStream is null)
             {
-                return RefuseNull("a streaming success must declare 'x-effect-stream'");
+                return RefuseNull<BoundEffectStream>("a streaming success must declare 'x-effect-stream'");
             }
 
-            try
+            var extension = success.EffectStream;
+            if (!string.Equals(extension.Encoding, "sse", StringComparison.Ordinal))
             {
-                using var extension = JsonDocument.Parse(success.EffectStreamJson);
-                var root = extension.RootElement;
-                if (root.ValueKind is not JsonValueKind.Object)
-                {
-                    return RefuseNull("'x-effect-stream' must contain a JSON object");
-                }
-
-                if (!root.TryGetProperty("encoding", out var encoding)
-                    || encoding.ValueKind is not JsonValueKind.String
-                    || !string.Equals(encoding.GetString(), "sse", StringComparison.Ordinal))
-                {
-                    return RefuseNull("'x-effect-stream.encoding' must equal 'sse'");
-                }
-
-                if (!root.TryGetProperty("failureEvent", out var failureEvent)
-                    || failureEvent.ValueKind is not JsonValueKind.String
-                    || failureEvent.GetString() is not { Length: > 0 } name)
-                {
-                    return RefuseNull("'x-effect-stream' must declare a non-empty 'failureEvent'");
-                }
-
-                return string.Equals(name, "message", StringComparison.Ordinal)
-                    ? RefuseNull("'x-effect-stream.failureEvent' must not equal 'message'")
-                    : name;
+                return RefuseNull<BoundEffectStream>("'x-effect-stream.encoding' must equal 'sse'");
             }
-            catch (JsonException)
+
+            if (extension.FailureEventName is not { Length: > 0 } name)
             {
-                return RefuseNull("'x-effect-stream' must contain JSON");
+                return RefuseNull<BoundEffectStream>("'x-effect-stream' must declare a non-empty 'failureEvent'");
             }
+
+            if (string.Equals(name, "message", StringComparison.Ordinal))
+            {
+                return RefuseNull<BoundEffectStream>("'x-effect-stream.failureEvent' must not equal 'message'");
+            }
+
+            if (extension.ErrorSchema is null || Resolve(extension.ErrorSchema) is not NeverNode)
+            {
+                return RefuseNull<BoundEffectStream>("'x-effect-stream.errorSchema' must be the never schema 'not: {}'");
+            }
+
+            if (extension.CauseSchema is not ArrayNode { Item: RefNode item }
+                || !_document.Schemas.TryGetValue(item.Target, out var itemSchema)
+                || itemSchema is not UnionNode { Classification: UnionClassification.Marked }
+                || !_typeNames.TryGetValue(item.Target, out var itemTypeName))
+            {
+                return RefuseNull<BoundEffectStream>(
+                    "'x-effect-stream.causeSchema' must be an array of a named marked union");
+            }
+
+            return new BoundEffectStream(name, $"{itemTypeName}[]");
         }
+
+        private sealed record BoundEffectStream(string EventName, string CauseTypeName);
 
         private StreamPlan? RefuseStream(string problem)
         {
@@ -828,7 +846,7 @@ internal sealed class OperationPlanBinder
             }
 
             return selector.Properties.All(property => property is { IsRequired: false, Name: "directory" or "workspace" }
-                && IsNullableUnformattedString(property.Schema));
+                                                       && IsNullableUnformattedString(property.Schema));
         }
 
         /// <summary>Recognizes the wire cursor contract: exactly optional-nullable string <c>previous</c> and <c>next</c>.</summary>
@@ -843,7 +861,7 @@ internal sealed class OperationPlanBinder
             }
 
             return cursor.Properties.All(property => property is { IsRequired: false, Name: "previous" or "next" }
-                && IsNullableUnformattedString(property.Schema));
+                                                     && IsNullableUnformattedString(property.Schema));
         }
 
         private bool IsNullableUnformattedString(SchemaNode schema) =>
@@ -916,7 +934,8 @@ internal sealed class OperationPlanBinder
             var duplicate = tags.GroupBy(static tag => tag.Tag, StringComparer.Ordinal).FirstOrDefault(static tag => tag.Skip(1).Any());
             if (duplicate is not null)
             {
-                return RefuseNullTags($"status '{response.StatusCode.ToString(CultureInfo.InvariantCulture)}' declares duplicate error tag '{duplicate.Key}'");
+                return RefuseNullTags(
+                    $"status '{response.StatusCode.ToString(CultureInfo.InvariantCulture)}' declares duplicate error tag '{duplicate.Key}'");
             }
 
             return [.. tags.OrderBy(static tag => tag.Tag, StringComparer.Ordinal)];
@@ -956,7 +975,8 @@ internal sealed class OperationPlanBinder
 
         private IReadOnlyList<OperationParameterPlan>? BindParameters(GroupCuration row)
         {
-            var plans = _operation.Parameters
+            var plans = _operation
+                .Parameters
                 .Where(static parameter => parameter.Location is SpecParameterLocation.Path)
                 .Select(parameter => new OperationParameterPlan
                 {
@@ -964,7 +984,7 @@ internal sealed class OperationPlanBinder
                     Name = CSharpNamePolicy.ToCamelCase(parameter.Name),
                     TypeName = "string",
                     IsHandleParameter = row.Placement is GroupPlacement.Client
-                        && string.Equals(parameter.Name, row.HandleParameter, StringComparison.Ordinal),
+                                        && string.Equals(parameter.Name, row.HandleParameter, StringComparison.Ordinal),
                 })
                 .ToList();
 
@@ -1010,9 +1030,7 @@ internal sealed class OperationPlanBinder
 
         private QueryRequestPlan? BindQueryRequest()
         {
-            var query = _operation.Parameters
-                .Where(static parameter => parameter.Location is SpecParameterLocation.Query)
-                .ToArray();
+            var query = _operation.Parameters.Where(static parameter => parameter.Location is SpecParameterLocation.Query).ToArray();
             if (query.Length is 0)
             {
                 return null;
@@ -1061,7 +1079,8 @@ internal sealed class OperationPlanBinder
                 });
             }
 
-            var duplicate = properties.GroupBy(static property => property.PropertyName, StringComparer.Ordinal)
+            var duplicate = properties
+                .GroupBy(static property => property.PropertyName, StringComparer.Ordinal)
                 .FirstOrDefault(static property => property.Skip(1).Any());
             if (duplicate is not null)
             {
@@ -1074,7 +1093,13 @@ internal sealed class OperationPlanBinder
 
             if (MatchesListRequestProfile(properties))
             {
-                properties = [.. properties.Select(static property => property with { IsInherited = true })];
+                properties =
+                [
+                    .. properties.Select(static property => property with
+                    {
+                        IsInherited = true
+                    })
+                ];
             }
 
             return new QueryRequestPlan
@@ -1224,7 +1249,7 @@ internal sealed class OperationPlanBinder
             var visited = new HashSet<string>(StringComparer.Ordinal);
             var current = schema;
             while (current is RefNode reference && visited.Add(reference.Target)
-                   && _document.Schemas.TryGetValue(reference.Target, out var target))
+                                                && _document.Schemas.TryGetValue(reference.Target, out var target))
             {
                 current = target;
             }

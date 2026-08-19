@@ -32,7 +32,7 @@ internal static class MediaTypeProjector
         return new MediaTypeProjection(contentType, ExtractEffectStream(concrete, contentType, location, errors));
     }
 
-    private static string? ExtractEffectStream(OpenApiMediaType media, SpecMediaType contentType, string location,
+    private static System.Text.Json.Nodes.JsonNode? ExtractEffectStream(OpenApiMediaType media, SpecMediaType contentType, string location,
         IngestionErrorCollector errors)
     {
         // x-effect-stream is the one media extension with declared semantics (the SSE item
@@ -51,7 +51,7 @@ internal static class MediaTypeProjector
 
         if (extension is JsonNodeExtension json)
         {
-            return json.Node.ToJsonString();
+            return json.Node;
         }
 
         errors.Add(location, "media extension 'x-effect-stream' must contain JSON");

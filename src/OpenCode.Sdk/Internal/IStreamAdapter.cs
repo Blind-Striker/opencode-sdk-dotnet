@@ -9,7 +9,9 @@ namespace OpenCode.Sdk.Internal;
 /// maps onto a typed error. A stream has no envelope to answer on, so an error always throws.
 /// </summary>
 /// <typeparam name="TPayload">The type each event frame carries.</typeparam>
-internal interface IStreamAdapter<TPayload>
+/// <typeparam name="TCause">The collection type carried by the declared failure frame.</typeparam>
+internal interface IStreamAdapter<TPayload, TCause>
+    where TCause : IReadOnlyList<IOpenCodeStreamFailureCause>
 {
     /// <summary>
     /// Gets the event name a mid-stream failure frame carries, from the operation's declared
@@ -20,6 +22,9 @@ internal interface IStreamAdapter<TPayload>
 
     /// <summary>Gets the source-generated metadata each frame's payload is read through.</summary>
     public JsonTypeInfo<TPayload> PayloadTypeInfo { get; }
+
+    /// <summary>Gets the source-generated metadata the failure frame's cause is read through.</summary>
+    public JsonTypeInfo<TCause> CauseTypeInfo { get; }
 
     /// <summary>Maps an error status onto its declared tags, tolerating an unparseable body.</summary>
     /// <param name="status">The HTTP status code.</param>

@@ -101,6 +101,17 @@ public sealed class SchemaProjectorTests
     }
 
     [Test]
+    public async Task Project_Should_Preserve_Empty_Not_As_Never()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema("Value", schema => schema.Raw("not", "{}")));
+
+        var result = await host.ProjectAsync(scenario);
+
+        await Assert.That(result.Schemas["Value"]).IsTypeOf<NeverNode>();
+    }
+
+    [Test]
     public async Task Project_Should_Keep_Dotted_Schema_Name_Verbatim()
     {
         var host = new SchemaProjectionTestHost();

@@ -15,6 +15,8 @@ internal static class SchemaWallPolicy
             errors.Add(location, "schema keyword 'type' does not support multiple values");
         }
 
+        TypedApplicatorPolicy.Check(schema, location, errors);
+
         // Unrecognized keywords are the one construct nothing downstream can ever see: the
         // reader retains them raw and every typed consumer is blind to them. Silence here
         // would be silent wire loss, so they refuse — unlike typed annotation/validation

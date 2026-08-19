@@ -18,6 +18,7 @@ internal sealed class SchemaNameResolver
 
         var responseRoots = reachable.ResponseRootKeys.ToHashSet(_comparer);
         var requestRoots = ResolveRequestBodyRootNames(selected, errors);
+        var effectStreamTypes = ResolveEffectStreamTypeNames(document, selected);
         var result = new Dictionary<string, string>(_comparer);
         var owners = new Dictionary<string, string>(_comparer);
         foreach (var key in reachable.GraphKeys)
@@ -28,7 +29,11 @@ internal sealed class SchemaNameResolver
             }
 
             string name;
-            if (requestRoots.TryGetValue(key, out var requestName))
+            if (effectStreamTypes.TryGetValue(key, out var effectStreamName))
+            {
+                name = effectStreamName;
+            }
+            else if (requestRoots.TryGetValue(key, out var requestName))
             {
                 name = requestName;
             }
@@ -38,6 +43,7 @@ internal sealed class SchemaNameResolver
                     ? CSharpNamePolicy.ToUnionInterfaceName(ResolveUnionName(key, union, document.Schemas))
                     : ResolveDefault(key);
             }
+
             if (owners.TryGetValue(name, out var existing))
             {
                 errors.Add(BindingErrorCategory.Naming, key, $"C# type name '{name}' collides with schema '{existing}'");
@@ -49,6 +55,45 @@ internal sealed class SchemaNameResolver
         }
 
         return new ReadOnlyDictionary<string, string>(result);
+    }
+
+    /// <summary>
+    /// The extension gives its cause graph a shared semantic role independent of the operation
+    /// carrying it. The pin currently exposes one such contract; a second selected contract
+    /// claiming the same names would hit the ordinary owner collision below rather than silently
+    /// merging distinct schemas.
+    /// </summary>
+    private static Dictionary<string, string> ResolveEffectStreamTypeNames(SpecDocument document,
+        IReadOnlyList<SpecOperation> selected)
+    {
+        var names = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var extension in selected
+                     .SelectMany(static operation => operation.Responses)
+                     .Select(static response => response.EffectStream)
+                     .OfType<SpecEffectStreamContract>())
+        {
+            if (extension.CauseSchema is not ArrayNode { Item: RefNode item }
+                || !document.Schemas.TryGetValue(item.Target, out var itemSchema)
+                || itemSchema is not UnionNode { Classification: UnionClassification.Marked } union)
+            {
+                continue;
+            }
+
+            names[item.Target] = EffectStreamTypeNamePolicy.CauseInterface;
+            foreach (var target in union.Branches.OfType<RefNode>().Select(static branch => branch.Target))
+            {
+                if (!document.Schemas.TryGetValue(target, out var branchSchema)
+                    || branchSchema is not ObjectNode objectNode
+                    || objectNode.LiteralMarkers.FirstOrDefault(static marker => marker.PropertyName is "_tag") is not { } marker)
+                {
+                    continue;
+                }
+
+                names[target] = EffectStreamTypeNamePolicy.CauseVariant(marker.Value);
+            }
+        }
+
+        return names;
     }
 
     /// <summary>
@@ -105,7 +150,8 @@ internal sealed class SchemaNameResolver
             return ResolveDefault(key);
         }
 
-        var branchNames = union.Branches
+        var branchNames = union
+            .Branches
             .OfType<RefNode>()
             .Where(reference => graph.ContainsKey(reference.Target))
             .Select(reference => ResolveDefault(reference.Target))
@@ -121,7 +167,7 @@ internal sealed class SchemaNameResolver
             var words = CSharpNamePolicy.SplitWords(branchName);
             var commonLength = 0;
             while (commonLength < commonWords.Length && commonLength < words.Count
-                   && StringComparer.OrdinalIgnoreCase.Equals(commonWords[commonLength], words[commonLength]))
+                                                     && StringComparer.OrdinalIgnoreCase.Equals(commonWords[commonLength], words[commonLength]))
             {
                 commonLength++;
             }
