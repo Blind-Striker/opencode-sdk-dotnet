@@ -835,3 +835,7 @@ dotnet_diagnostic.IDE0130.severity = none
 # cross-target test double; CA1844 remains enabled for every other file.
 [tests/OpenCode.Sdk.Tests/Support/BlockingStream.cs]
 dotnet_diagnostic.CA1844.severity = none
+
+# Sandbox application's purpose is primarly for testing
+[tests/OpenCode.Sdk.Sandbox/**.cs]
+dotnet_diagnostic.MA0076.severity = none

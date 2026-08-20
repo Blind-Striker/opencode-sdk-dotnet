@@ -21,8 +21,7 @@ if (string.IsNullOrWhiteSpace(endpoint))
 
 // The consumer owns environment resolution (upstream's own layering; the CLI does the same):
 // the SDK itself never reads environment variables.
-var password = Environment.GetEnvironmentVariable("OPENCODE_PASSWORD")
-               ?? Environment.GetEnvironmentVariable("OPENCODE_SERVER_PASSWORD");
+var password = Environment.GetEnvironmentVariable("OPENCODE_PASSWORD") ?? Environment.GetEnvironmentVariable("OPENCODE_SERVER_PASSWORD");
 
 var streamMode = args.Contains("--stream", StringComparer.Ordinal);
 var eventMode = args.Contains("--events", StringComparer.Ordinal);
@@ -39,12 +38,14 @@ var hostArgs = args
                               && !string.Equals(argument, "--events", StringComparison.Ordinal)
                               && !string.Equals(argument, "--paginate", StringComparison.Ordinal))
     .ToArray();
+
 var builder = Host.CreateApplicationBuilder(hostArgs);
 _ = builder.Services.AddOpenCode(options =>
 {
     options.Endpoint = new Uri(endpoint);
     options.Password = string.IsNullOrWhiteSpace(password) ? null : password;
 });
+
 if (streamMode)
 {
     _ = builder.Services.AddSingleton<SessionLogWorker>();
@@ -75,9 +76,7 @@ if (eventMode)
 var client = host.Services.GetRequiredService<OpenCodeClient>();
 
 var health = await client.GetHealthAsync().ConfigureAwait(false);
-Console.WriteLine(string.Create(
-    CultureInfo.InvariantCulture,
-    $"health:  status={health.Status} healthy={health.Health.Healthy} version={health.Health.Version} pid={health.Health.Pid}"));
+Console.WriteLine($"health:  status={health.Status} healthy={health.Health.Healthy} version={health.Health.Version} pid={health.Health.Pid}");
 
 if (paginationMode)
 {
@@ -89,19 +88,19 @@ if (paginationMode)
     }
 
     var count = 0;
-    await foreach (var message in client.Sessions
-                       .GetSessionClient(sessionId)
-                       .EnumerateMessagesAsync(new MessageListRequest
-                       {
-                           Limit = "1",
-                           Order = ListOrder.Ascending,
-                       }, CancellationToken.None)
-                       .WithCancellation(CancellationToken.None))
+    var sessionClient = client.Sessions.GetSessionClient(sessionId);
+
+    var listRequest = new MessageListRequest
+    {
+        Limit = "1",
+        Order = ListOrder.Ascending,
+    };
+    var messageStream = sessionClient.EnumerateMessagesAsync(listRequest, CancellationToken.None);
+
+    await foreach (var message in messageStream.WithCancellation(CancellationToken.None))
     {
         count++;
-        Console.WriteLine(string.Create(
-            CultureInfo.InvariantCulture,
-            $"page-item-{count}: {message.GetType().Name}/{message.Type}"));
+        Console.WriteLine($"page-item-{count}: {message.GetType().Name}/{message.Type}");
         if (count is 2)
         {
             break;
@@ -115,26 +114,23 @@ if (paginationMode)
 // Sub-clients resolve directly from the container as well.
 var sessionsClient = host.Services.GetRequiredService<SessionsClient>();
 
-var created = await sessionsClient
-    .CreateSessionAsync(new SessionCreateRequest
-    {
-        Title = "sdk breadth demo",
-    })
-    .ConfigureAwait(false);
-Console.WriteLine(string.Create(
-    CultureInfo.InvariantCulture,
-    $"create:  status={created.Status} id={created.Session.Id} title={created.Session.Title}"));
+var createRequest = new SessionCreateRequest
+{
+    Title = "sdk breadth demo",
+};
+var created = await sessionsClient.CreateSessionAsync(createRequest).ConfigureAwait(false);
 
-var page = await sessionsClient
-    .ListSessionsAsync(new SessionListRequest
-    {
-        Limit = "3",
-        Order = ListOrder.Descending,
-    })
-    .ConfigureAwait(false);
-Console.WriteLine(string.Create(
-    CultureInfo.InvariantCulture,
-    $"list:    status={page.Status} sessions={page.Sessions.Count} cursor.next={page.Cursor.Next ?? "<none>"}"));
+Console.WriteLine($"create:  status={created.Status} id={created.Session.Id} title={created.Session.Title}");
+
+var sessionListRequest = new SessionListRequest
+{
+    Limit = "3",
+    Order = ListOrder.Descending,
+};
+var page = await sessionsClient.ListSessionsAsync(sessionListRequest).ConfigureAwait(false);
+
+Console.WriteLine($"list:    status={page.Status} sessions={page.Sessions.Count} cursor.next={page.Cursor.Next ?? "<none>"}");
+
 foreach (var session in page.Sessions)
 {
     Console.WriteLine($"         {session.Id}  {session.Title}");
@@ -142,19 +138,17 @@ foreach (var session in page.Sessions)
 
 var handle = sessionsClient.GetSessionClient(created.Session.Id);
 var fetched = await handle.GetSessionAsync().ConfigureAwait(false);
-Console.WriteLine(string.Create(
-    CultureInfo.InvariantCulture,
-    $"get:     status={fetched.Status} id={fetched.Session.Id} directory={fetched.Session.Location.Directory}"));
 
-var messages = await handle
-    .ListMessagesAsync(new MessageListRequest
-    {
-        Limit = "5",
-    })
-    .ConfigureAwait(false);
-Console.WriteLine(string.Create(
-    CultureInfo.InvariantCulture,
-    $"messages: status={messages.Status} count={messages.Messages.Count} cursor.next={messages.Cursor.Next ?? "<none>"}"));
+Console.WriteLine($"get:     status={fetched.Status} id={fetched.Session.Id} directory={fetched.Session.Location.Directory}");
+
+var messageListRequest = new MessageListRequest
+{
+    Limit = "5",
+};
+var messages = await handle.ListMessagesAsync(messageListRequest).ConfigureAwait(false);
+
+Console.WriteLine($"messages: status={messages.Status} count={messages.Messages.Count} cursor.next={messages.Cursor.Next ?? "<none>"}");
+
 foreach (var message in messages.Messages)
 {
     Console.WriteLine($"         {message.GetType().Name}");
