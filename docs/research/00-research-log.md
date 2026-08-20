@@ -2766,3 +2766,59 @@ message, invoked no provider/model, and mutated no server state; it reused real 
 from earlier live probes. The separately launched server was then terminated and health refused the
 connection. This is one Linux demonstration, not hosted three-OS evidence; deterministic tests own
 error, cancellation, empty-page, and opaque-cursor edge paths.
+
+# Session 36 — 2026-08-20: Arc 5 owned-transport/net472 GA cluster
+
+## Q119: How does the singleton-owned transport remain safe across redirect, connection, and route boundaries?
+
+**Trigger and decision:** issue #43's real-loopback reproduction showed that the owned handlers
+followed a 302 into a typed 200 response, while the net472 path retained the two-connection
+`ServicePoint` ceiling and infinite connection lease. The sealed #32 decision separately required
+uniform refusal before `Uri.EscapeDataString`. Arc 5 kept ADR-0010's options-only public shape and
+closed the mechanisms together because redirect policy, connection ownership, and response cleanup
+meet inside the same pipeline.
+
+**Transport implementation:** every owned handler now disables automatic redirects. The pipeline
+classifies any surfaced 3xx as a protocol/transport failure before reading its body, on both one-shot
+and SSE paths; `NoThrow` cannot suppress it. Modern handlers retain their 120-second
+`PooledConnectionLifetime`, now directly observable through the real handler factory. Downlevel
+targets configure the endpoint-and-current-proxy `ServicePoint` with `ConnectionLimit = int.MaxValue`
+and `ConnectionLeaseTimeout = 120000` both at owned construction and immediately before each owned
+send. Reapplication survives idle `ServicePoint` scavenging and ambient proxy changes without
+mutating `ServicePointManager` defaults. The selected endpoint/proxy `ServicePoint` is itself
+process-shared, so its policy also affects other process traffic to that pair.
+
+**Compatibility correction from review:** a first cut assigned
+`HttpClientHandler.CheckCertificateRevocationList` through the netstandard2.0 asset. Fresh-context
+review identified that older .NET Framework implementations able to load that asset lack the runtime
+member, creating a compile-green `MissingMethodException` risk and an unrelated TLS-policy change.
+The assignment was removed. A file-scoped CA5399 arbitration records that redirect ownership wins
+without forcing a new revocation policy; the analyzer remains enabled elsewhere. The same review
+caused downlevel `ServicePoint` policy to widen beyond the NET472 compile symbol and reapply per send,
+made the net472 stream-open assertions non-vacuous, isolated global-proxy tests, and documented the
+process-shared endpoint effect. The generated-source compiler now defines its actual default-target
+`NET` symbol rather than accidentally compiling the downlevel SDK branch against net10 references.
+
+**Route implementation:** generated path segments and every query/deep-object value pass through one
+`RouteValuePolicy` before escaping. Inputs over 32,766 UTF-16 code units or containing a lone high or
+low surrogate throw `ArgumentException` consistently on every TFM. Exactly 32,766 code units and
+valid surrogate pairs remain accepted. Existing path null/blank/dot-segment guards and the empty
+opaque cursor remain unchanged. SDK-owned query names use the same centralized escaper with their
+representability asserted as an internal invariant. The ambient location header stayed outside #32's
+route boundary.
+
+**Ownership and real-handler evidence:** a raw loopback HTTP/1.1 fixture crosses the platform's real
+owned handler. It proves that a healthy redirect target is never requested, observes modern handler
+redirect/lifetime policy, verifies direct and proxy-backed net472 `ServicePoint` settings, and keeps
+two same-authority SSE responses open while an ordinary net472 request completes. Separate response
+and content trackers prove disposal after success, API error, redirect protocol failure under
+`NoThrow`, and caller cancellation after response acquisition. Streaming 3xx classification has its
+own deterministic test.
+
+**Closure:** PublicApi and generated-manifest membership are unchanged. Slopwatch reported zero
+issues; the Release build compiled every package TFM with zero warnings/errors; whitespace and
+warning-level style verification passed; all 1,374 local executions passed with zero failed or
+skipped; both tool entry smokes and generation verification passed. Source commit `b261014` passed
+hosted run `32350952168` on Linux, Windows, and macOS; the Windows leg executed the net472 runtime
+evidence. Issues #43 and #32 closed with that commit/run. No Arc 6, launcher, M5, telemetry, retry,
+hook, spec-refresh, or MCP work entered the increment.

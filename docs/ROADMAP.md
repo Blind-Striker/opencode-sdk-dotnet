@@ -203,8 +203,19 @@ pages, null-only termination, typed later-page errors, cancellation between buff
 cursor, and the mocking seam. The PublicApi review contains one additive method. Research Q117/Q118
 own the survey, decision, implementation, local 1,338-test closure, hosted matrix, and a Linux live
 run where the committed sandbox enumerated two real historical messages with `limit=1` across two
-pages without creating data or invoking a provider. **Arc 5's net472 owned-transport GA cluster is
-the exact next increment**, followed by mandatory Arc 6 measured performance work.
+pages without creating data or invoking a provider.
+
+**Arc 5's owned-transport/net472 GA cluster is complete at `b261014`**, with hosted run
+`32350952168` green on Linux, Windows, and macOS. Every owned handler refuses automatic redirects and
+the pipeline classifies surfaced 3xx as protocol failures before body reads on both one-shot and SSE
+paths. Downlevel endpoint-and-proxy `ServicePoint` settings lift connection starvation and reapply the
+modern 120-second rotation policy before each owned send. Real-handler evidence covers redirect
+surfacing, modern policy, proxy selection, and two same-authority net472 streams plus an ordinary
+request; separate trackers prove response/content disposal on every one-shot exit. #32's generated
+path/query boundary now refuses lone surrogates and values over 32,766 UTF-16 code units uniformly
+without weakening empty-cursor or path guards. PublicApi and manifest membership are unchanged;
+research Q119 owns the review corrections and local 1,374-test closure. #43 and #32 are closed.
+**Arc 6's measured performance pass is the exact next and final M3 increment.**
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family
@@ -245,15 +256,12 @@ is revisited at each milestone boundary.
    over the v2 stream surface (`v2.event.subscribe`, `v2.session.log` with
    `after`/`follow`, cursor-paged `v2.message.list`); the v1 durable-stream design does
    not carry over and is re-derived here. Demo: watching a real session's event stream.
-   The ADR-0013/0014 authority/materialization cleanup and surviving review findings close before
-   the live-bus breadth step; #44 closed with that selection. Arc 4 paginator is next, followed by
-   the net472 owned-transport cluster
-   (#43) lands here as a GA
-   gate. The
-   union single-pass deserialization and streaming adapter-boundary redesign (#23) land
+   The ADR-0013/0014 authority/materialization cleanup and surviving review findings closed before
+   the live-bus breadth step; #44 closed with that selection. Arc 4's paginator and Arc 5's
+   owned-transport/net472 GA gate (#43 plus #32) are complete. The union single-pass deserialization
+   and streaming adapter-boundary redesign (#23) land
    on the M3 runway, gated on the performance baselines (#18), together with the
-   second-review perf mechanisms and #29; #32 (uniform route-boundary refusal) rides the
-   net472 cluster and #33 (carrier construction refusal) rides #23.
+   second-review perf mechanisms and #29; #33 (carrier construction refusal) rides #23.
 4. **M4 — Launcher.** `OpenCodeServer.StartAsync` with three-OS acceptance (ADR-0001)
    over `opencode2 serve`; demo: the SDK starts the server itself and calls health. The
    net472 stdout/tree-kill items land here. (`serve --stdio`'s stdin leash and the
