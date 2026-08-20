@@ -2753,7 +2753,8 @@ source-generates, and compiles with the hand-written core.
 **Local closure:** an independent fresh-context review reported no defects. Slopwatch found zero
 issues; Release build completed with zero warnings and errors; whitespace and warning-level style
 verification passed; all 1,338 local test executions passed with none failed or skipped; both tool
-entry smokes and generation verification passed.
+entry smokes and generation verification passed. Source commit `ec043f4` then passed hosted run
+`32338694450` on Linux, Windows, and macOS.
 
 **Live evidence:** exact `@opencode-ai/cli@0.0.0-next-17403` served `127.0.0.1:41999`; generated
 health identified version `0.0.0-next-17403` and server PID `995554`. The committed sandbox's
