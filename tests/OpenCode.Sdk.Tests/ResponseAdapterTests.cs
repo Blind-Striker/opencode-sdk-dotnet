@@ -78,11 +78,19 @@ public sealed class ResponseAdapterTests
 
     private sealed class ProbeAdapter : ResponseAdapter<TestResponse>
     {
+        public override int SuccessStatusCode => 200;
+
         public static TPayload Bare<TPayload>(string rawBody, JsonTypeInfo<TPayload> typeInfo) =>
             ReadBarePayload(rawBody, typeInfo);
 
         public static IOpenCodeError? Error(string rawBody, IReadOnlyCollection<string>? allowedTags) =>
             ReadTolerantError(rawBody, allowedTags);
+
+        public override TestResponse AdaptSuccess(int status, ReadOnlySpan<byte> utf8Body) =>
+            new()
+            {
+                Status = status,
+            };
 
         public override TestResponse Adapt(int status, string rawBody) =>
             new()

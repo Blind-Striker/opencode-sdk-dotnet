@@ -18,7 +18,15 @@ internal sealed class SessionListResponseAdapter : ResponseAdapter<SessionListRe
     /// Gets the shared adapter instance.
     /// </summary>
     public static SessionListResponseAdapter Instance { get; } = new SessionListResponseAdapter();
+    /// <summary>
+    /// Gets the declared success status.
+    /// </summary>
+    public override int SuccessStatusCode => 200;
 
+    /// <summary>
+    /// Maps the declared UTF-8 success body onto the typed envelope.
+    /// </summary>
+    public override SessionListResponse AdaptSuccess(int status, ReadOnlySpan<byte> utf8Body) => CreateSuccess(status, ReadBarePayload(utf8Body, OpenCodeJsonContext.Default.SessionListResponseEnvelope));
     /// <summary>
     /// Maps one buffered response onto the typed envelope.
     /// </summary>

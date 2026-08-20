@@ -40,12 +40,13 @@ public sealed record UnknownExampleEvent : IExampleEvent
     [JsonConstructor]
     public UnknownExampleEvent(string type, JsonElement payload)
     {
-        ArgumentException.ThrowIfNullOrEmpty(type);
+        ArgumentException.ThrowIfNullOrWhiteSpace(type);
         if (payload.ValueKind is JsonValueKind.Undefined)
         {
             throw new ArgumentException("The payload must be a parsed JSON element.", nameof(payload));
         }
 
+        UnionPayloadGuard.Instance.RequireString(payload, "type", type);
         _marker = type;
         Payload = payload.Clone();
     }
@@ -78,27 +79,20 @@ internal sealed class ExampleEventJsonConverter : JsonConverter<IExampleEvent>
         ["created"] = typeof(CreatedEvent),
         ["deleted"] = typeof(DeletedEvent)
     };
+    private static readonly UnionDiscriminatorReader DiscriminatorReader = new UnionDiscriminatorReader();
     public override IExampleEvent Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        using var document = JsonDocument.ParseValue(ref reader);
-        var payload = document.RootElement;
-        if (payload.ValueKind != JsonValueKind.Object)
-            throw new JsonException("The ExampleEvent payload must be a JSON object.");
-        if (!payload.TryGetProperty("type", out var markerElement))
-            throw new JsonException("The ExampleEvent payload must contain 'type'.");
-        if (markerElement.ValueKind != JsonValueKind.String)
-            throw new JsonException("The 'type' marker must be a string.");
-        var marker = markerElement.GetString();
-        if (marker is null || string.IsNullOrWhiteSpace(marker))
-            throw new JsonException("The 'type' marker must be a non-empty string.");
+        var marker = DiscriminatorReader.ReadString(ref reader, "type", "ExampleEvent");
         if (TypesByTag.TryGetValue(marker, out var targetType))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for ExampleEvent.");
-            return JsonSerializer.Deserialize(payload, typeInfo) as IExampleEvent ?? throw new JsonException("The ExampleEvent payload deserialized to null.");
+            return JsonSerializer.Deserialize(ref reader, typeInfo) as IExampleEvent ?? throw new JsonException("The ExampleEvent payload deserialized to null.");
         }
 
+        using var document = JsonDocument.ParseValue(ref reader);
+        var payload = document.RootElement;
         return new UnknownExampleEvent(marker, payload);
     }
 
@@ -198,12 +192,14 @@ public sealed record UnknownExamplePhase : IExamplePhase
     [JsonConstructor]
     public UnknownExamplePhase(string status, JsonElement payload)
     {
-        ArgumentException.ThrowIfNullOrEmpty(status);
+        ArgumentException.ThrowIfNullOrWhiteSpace(status);
         if (payload.ValueKind is JsonValueKind.Undefined)
         {
             throw new ArgumentException("The payload must be a parsed JSON element.", nameof(payload));
         }
 
+        UnionPayloadGuard.Instance.RequireString(payload, "type", "phase");
+        UnionPayloadGuard.Instance.RequireString(payload, "status", status);
         _marker = status;
         Payload = payload.Clone();
     }
@@ -241,31 +237,21 @@ internal sealed class ExamplePhaseJsonConverter : JsonConverter<IExamplePhase>
     {
         ["started"] = typeof(PhaseStartedEvent)
     };
+    private static readonly UnionDiscriminatorReader DiscriminatorReader = new UnionDiscriminatorReader();
     public override IExamplePhase Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        using var document = JsonDocument.ParseValue(ref reader);
-        var payload = document.RootElement;
-        if (payload.ValueKind != JsonValueKind.Object)
-            throw new JsonException("The ExamplePhase payload must be a JSON object.");
-        if (!payload.TryGetProperty("type", out var fixedElement))
-            throw new JsonException("The ExamplePhase payload must contain 'type'.");
-        if (fixedElement.ValueKind != JsonValueKind.String || !fixedElement.ValueEquals("phase"))
-            throw new JsonException("The 'type' marker must be 'phase'.");
-        if (!payload.TryGetProperty("status", out var markerElement))
-            throw new JsonException("The ExamplePhase payload must contain 'status'.");
-        if (markerElement.ValueKind != JsonValueKind.String)
-            throw new JsonException("The 'status' marker must be a string.");
-        var marker = markerElement.GetString();
-        if (marker is null || string.IsNullOrWhiteSpace(marker))
-            throw new JsonException("The 'status' marker must be a non-empty string.");
+        DiscriminatorReader.RequireString(ref reader, "type", "phase", "ExamplePhase");
+        var marker = DiscriminatorReader.ReadString(ref reader, "status", "ExamplePhase");
         if (TypesByTag.TryGetValue(marker, out var targetType))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for ExamplePhase.");
-            return JsonSerializer.Deserialize(payload, typeInfo) as IExamplePhase ?? throw new JsonException("The ExamplePhase payload deserialized to null.");
+            return JsonSerializer.Deserialize(ref reader, typeInfo) as IExamplePhase ?? throw new JsonException("The ExamplePhase payload deserialized to null.");
         }
 
+        using var document = JsonDocument.ParseValue(ref reader);
+        var payload = document.RootElement;
         return new UnknownExamplePhase(marker, payload);
     }
 

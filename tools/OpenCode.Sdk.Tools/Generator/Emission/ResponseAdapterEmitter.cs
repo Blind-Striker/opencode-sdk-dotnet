@@ -31,6 +31,13 @@ internal static class ResponseAdapterEmitter
             .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PrivateKeyword)))
             .WithBody(SyntaxFactory.Block()));
         members.Add(EmitInstance(envelope.AdapterTypeName));
+        members.Add(EmitSuccessStatusCode(envelope.SuccessStatusCode));
+        if (envelope.Kind is EnvelopeKind.NoContent)
+        {
+            members.Add(EmitReadsSuccessBody());
+        }
+
+        members.Add(EmitAdaptSuccess(envelope));
         members.Add(EmitAdapt(operation));
         if (operation.Pagination is not null)
         {
@@ -121,6 +128,48 @@ internal static class ResponseAdapterEmitter
             .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
             .WithLeadingTrivia(EmissionSyntax.Documentation("Gets the shared adapter instance."));
 
+    private static PropertyDeclarationSyntax EmitSuccessStatusCode(int status) =>
+        SyntaxFactory.PropertyDeclaration(
+                SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.IntKeyword)),
+                "SuccessStatusCode")
+            .WithModifiers(SyntaxFactory.TokenList(
+                SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                SyntaxFactory.Token(SyntaxKind.OverrideKeyword)))
+            .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(Number(status)))
+            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
+            .WithLeadingTrivia(EmissionSyntax.Documentation("Gets the declared success status."));
+
+    private static PropertyDeclarationSyntax EmitReadsSuccessBody() =>
+        SyntaxFactory.PropertyDeclaration(
+                SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.BoolKeyword)),
+                "ReadsSuccessBody")
+            .WithModifiers(SyntaxFactory.TokenList(
+                SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                SyntaxFactory.Token(SyntaxKind.OverrideKeyword)))
+            .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(
+                SyntaxFactory.LiteralExpression(SyntaxKind.FalseLiteralExpression)))
+            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
+            .WithLeadingTrivia(EmissionSyntax.Documentation("Gets whether this success carries a JSON body."));
+
+    private static MethodDeclarationSyntax EmitAdaptSuccess(EnvelopePlan envelope) =>
+        SyntaxFactory.MethodDeclaration(TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName), "AdaptSuccess")
+            .WithModifiers(SyntaxFactory.TokenList(
+                SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                SyntaxFactory.Token(SyntaxKind.OverrideKeyword)))
+            .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(
+            [
+                SyntaxFactory.Parameter(SyntaxFactory.Identifier("status"))
+                    .WithType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.IntKeyword))),
+                SyntaxFactory.Parameter(SyntaxFactory.Identifier("utf8Body"))
+                    .WithType(TypeSyntaxEmitter.Generic(
+                        "ReadOnlySpan",
+                        SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.ByteKeyword)))),
+            ])))
+            .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(
+                EmitSuccessCreation(envelope, SyntaxFactory.IdentifierName("utf8Body"))))
+            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
+            .WithLeadingTrivia(EmissionSyntax.Documentation("Maps the declared UTF-8 success body onto the typed envelope."));
+
     private static MethodDeclarationSyntax EmitAdapt(OperationPlan operation)
     {
         var envelope = operation.Envelope!;
@@ -128,7 +177,7 @@ internal static class ResponseAdapterEmitter
         {
             SyntaxFactory.SwitchExpressionArm(
                 SyntaxFactory.ConstantPattern(Number(envelope.SuccessStatusCode)),
-                EmitSuccessCreation(envelope)),
+                EmitSuccessCreation(envelope, SyntaxFactory.IdentifierName("rawBody"))),
             // Any other 2xx is outside the declared contract: a protocol failure, never an API error.
             SyntaxFactory.SwitchExpressionArm(
                 SyntaxFactory.BinaryPattern(
@@ -244,7 +293,7 @@ internal static class ResponseAdapterEmitter
     /// wrapped bodies read their internal envelope DTO and project its members, and a
     /// no-content success ignores any unexpected body.
     /// </summary>
-    private static ExpressionSyntax EmitSuccessCreation(EnvelopePlan envelope)
+    private static ExpressionSyntax EmitSuccessCreation(EnvelopePlan envelope, ExpressionSyntax body)
     {
         ExpressionSyntax Read()
         {
@@ -253,7 +302,7 @@ internal static class ResponseAdapterEmitter
                                ?? throw new InvalidOperationException($"Envelope '{envelope.ResponseTypeName}' has no payload.");
             return EmissionSyntax.Invocation(
                 SyntaxFactory.IdentifierName("ReadBarePayload"),
-                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("rawBody")),
+                SyntaxFactory.Argument(body),
                 SyntaxFactory.Argument(EmissionSyntax.MemberAccess(
                     EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("OpenCodeJsonContext"), "Default"),
                     readTypeName)));

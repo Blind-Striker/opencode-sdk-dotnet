@@ -23,6 +23,9 @@ internal sealed class ServerSentEventReader
     private readonly StringBuilder _data = new();
     private readonly StringBuilder _line = new();
     private readonly int _maxFrameCharacters;
+#if !NET
+    private char[] _copyBuffer = [];
+#endif
     private string? _eventName;
     private int _frameCharacters;
     private bool _frameHasData;
@@ -57,6 +60,9 @@ internal sealed class ServerSentEventReader
         var decoder = StrictUtf8.GetDecoder();
         var bytes = new byte[ReadBufferBytes];
         var characters = new char[Encoding.UTF8.GetMaxCharCount(ReadBufferBytes)];
+#if !NET
+        _copyBuffer = new char[characters.Length];
+#endif
 
         int Decode(int byteCount, bool flush)
         {
@@ -235,8 +241,27 @@ internal sealed class ServerSentEventReader
 
         _frameHasData = true;
         var start = ValueStart(separator);
+#if NET
         _ = _data.Append(_line, start, _line.Length - start);
+#else
+        AppendDataValueDownlevel(start);
+#endif
     }
+
+#if !NET
+    private void AppendDataValueDownlevel(int start)
+    {
+        var remaining = _line.Length - start;
+        while (remaining > 0)
+        {
+            var count = Math.Min(remaining, _copyBuffer.Length);
+            _line.CopyTo(start, _copyBuffer, 0, count);
+            _ = _data.Append(_copyBuffer, 0, count);
+            start += count;
+            remaining -= count;
+        }
+    }
+#endif
 
     private void CaptureEventName(int separator)
     {

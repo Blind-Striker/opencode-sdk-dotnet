@@ -52,39 +52,20 @@ internal sealed class SessionLogItemJsonConverter : JsonConverter<ISessionLogIte
         ["session.tool.success"] = typeof(SessionToolSuccess),
         ["session.usage.recorded"] = typeof(SessionUsageRecorded)
     };
+    private static readonly UnionDiscriminatorReader DiscriminatorReader = new();
     public override ISessionLogItem Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        using var document = JsonDocument.ParseValue(ref reader);
-        var payload = document.RootElement;
-        if (payload.ValueKind != JsonValueKind.Object)
-        {
-            throw new JsonException("The SessionLogItem payload must be a JSON object.");
-        }
-
-        if (!payload.TryGetProperty("type", out var markerElement))
-        {
-            throw new JsonException("The SessionLogItem payload must contain 'type'.");
-        }
-
-        if (markerElement.ValueKind != JsonValueKind.String)
-        {
-            throw new JsonException("The 'type' marker must be a string.");
-        }
-
-        var marker = markerElement.GetString();
-        if (marker is null || string.IsNullOrWhiteSpace(marker))
-        {
-            throw new JsonException("The 'type' marker must be a non-empty string.");
-        }
-
+        var marker = DiscriminatorReader.ReadString(ref reader, "type", "SessionLogItem");
         if (TypesByTag.TryGetValue(marker, out var targetType))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for SessionLogItem.");
-            return JsonSerializer.Deserialize(payload, typeInfo) as ISessionLogItem ?? throw new JsonException("The SessionLogItem payload deserialized to null.");
+            return JsonSerializer.Deserialize(ref reader, typeInfo) as ISessionLogItem ?? throw new JsonException("The SessionLogItem payload deserialized to null.");
         }
 
+        using var document = JsonDocument.ParseValue(ref reader);
+        var payload = document.RootElement;
         return new UnknownSessionLogItem(marker, payload);
     }
 

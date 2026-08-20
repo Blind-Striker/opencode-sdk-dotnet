@@ -19,7 +19,15 @@ internal sealed class ShellTimeoutResponseAdapter : ResponseAdapter<ShellTimeout
     /// Gets the shared adapter instance.
     /// </summary>
     public static ShellTimeoutResponseAdapter Instance { get; } = new ShellTimeoutResponseAdapter();
+    /// <summary>
+    /// Gets the declared success status.
+    /// </summary>
+    public override int SuccessStatusCode => 200;
 
+    /// <summary>
+    /// Maps the declared UTF-8 success body onto the typed envelope.
+    /// </summary>
+    public override ShellTimeoutResponse AdaptSuccess(int status, ReadOnlySpan<byte> utf8Body) => CreateSuccess(status, ReadBarePayload(utf8Body, OpenCodeJsonContext.Default.ShellTimeoutResponseEnvelope));
     /// <summary>
     /// Maps one buffered response onto the typed envelope.
     /// </summary>

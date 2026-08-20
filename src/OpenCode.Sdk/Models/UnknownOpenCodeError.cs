@@ -18,12 +18,13 @@ public sealed record UnknownOpenCodeError : IOpenCodeError
     [JsonConstructor]
     public UnknownOpenCodeError(string tag, JsonElement payload)
     {
-        ArgumentException.ThrowIfNullOrEmpty(tag);
+        ArgumentException.ThrowIfNullOrWhiteSpace(tag);
         if (payload.ValueKind is JsonValueKind.Undefined)
         {
             throw new ArgumentException("The payload must be a parsed JSON element.", nameof(payload));
         }
 
+        UnionPayloadGuard.Instance.RequireString(payload, "_tag", tag);
         _marker = tag;
         Payload = payload.Clone();
     }

@@ -156,6 +156,16 @@ internal static class EmissionSyntax
         return Array.AsReadOnly<StatementSyntax>([guard]);
     }
 
+    public static IReadOnlyList<StatementSyntax> ArgumentNullOrWhiteSpaceGuard(string parameterName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(parameterName);
+        var parameter = SyntaxFactory.IdentifierName(parameterName);
+        var guard = SyntaxFactory.ExpressionStatement(Invocation(
+            MemberAccess(SyntaxFactory.IdentifierName("ArgumentException"), "ThrowIfNullOrWhiteSpace"),
+            SyntaxFactory.Argument(parameter)));
+        return Array.AsReadOnly<StatementSyntax>([guard]);
+    }
+
     /// <summary>
     /// The guard pair every route value passes — non-whitespace and never a dot segment —
     /// emitted identically wherever a route value enters, so acceptance at one boundary

@@ -5,11 +5,20 @@ using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk.Internal;
 
-/// <summary>Maps one buffered HTTP response onto an operation's typed envelope.</summary>
+/// <summary>Maps one HTTP response onto an operation's typed envelope.</summary>
 /// <typeparam name="TResponse">The operation's response envelope type.</typeparam>
 internal abstract class ResponseAdapter<TResponse>
     where TResponse : OpenCodeResponse
 {
+    /// <summary>Gets the operation's single declared success status.</summary>
+    public abstract int SuccessStatusCode { get; }
+
+    /// <summary>Gets whether the declared success status carries a JSON body.</summary>
+    public virtual bool ReadsSuccessBody => true;
+
+    /// <summary>Maps a validated UTF-8 success body onto the typed envelope.</summary>
+    public abstract TResponse AdaptSuccess(int status, ReadOnlySpan<byte> utf8Body);
+
     /// <summary>Maps a buffered response body onto the typed envelope.</summary>
     /// <param name="status">The HTTP status code.</param>
     /// <param name="rawBody">The buffered response body.</param>
@@ -29,6 +38,22 @@ internal abstract class ResponseAdapter<TResponse>
         try
         {
             return JsonSerializer.Deserialize(rawBody, typeInfo)
+                   ?? throw new OpenCodeTransportException("The opencode API returned a null success body.");
+        }
+        catch (JsonException exception)
+        {
+            throw new OpenCodeTransportException("The opencode API returned a malformed success body.", exception);
+        }
+    }
+
+    /// <summary>Reads a bare UTF-8 success payload; a malformed body is a protocol failure.</summary>
+    protected static TPayload ReadBarePayload<TPayload>(ReadOnlySpan<byte> utf8Body, JsonTypeInfo<TPayload> typeInfo)
+    {
+        ArgumentNullException.ThrowIfNull(typeInfo);
+
+        try
+        {
+            return JsonSerializer.Deserialize(utf8Body, typeInfo)
                    ?? throw new OpenCodeTransportException("The opencode API returned a null success body.");
         }
         catch (JsonException exception)

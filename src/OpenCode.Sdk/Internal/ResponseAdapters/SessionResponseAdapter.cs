@@ -19,7 +19,19 @@ internal sealed class SessionResponseAdapter : ResponseAdapter<SessionResponse>
     /// Gets the shared adapter instance.
     /// </summary>
     public static SessionResponseAdapter Instance { get; } = new SessionResponseAdapter();
+    /// <summary>
+    /// Gets the declared success status.
+    /// </summary>
+    public override int SuccessStatusCode => 200;
 
+    /// <summary>
+    /// Maps the declared UTF-8 success body onto the typed envelope.
+    /// </summary>
+    public override SessionResponse AdaptSuccess(int status, ReadOnlySpan<byte> utf8Body) => new()
+    {
+        Status = status,
+        Session = ReadBarePayload(utf8Body, OpenCodeJsonContext.Default.SessionResponseEnvelope).Data
+    };
     /// <summary>
     /// Maps one buffered response onto the typed envelope.
     /// </summary>

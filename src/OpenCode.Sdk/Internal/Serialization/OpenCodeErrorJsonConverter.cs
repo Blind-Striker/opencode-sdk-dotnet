@@ -18,39 +18,20 @@ internal sealed class OpenCodeErrorJsonConverter : JsonConverter<IOpenCodeError>
         ["UnauthorizedError"] = typeof(UnauthorizedError),
         ["UnknownError"] = typeof(UnknownError)
     };
+    private static readonly UnionDiscriminatorReader DiscriminatorReader = new();
     public override IOpenCodeError Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        using var document = JsonDocument.ParseValue(ref reader);
-        var payload = document.RootElement;
-        if (payload.ValueKind != JsonValueKind.Object)
-        {
-            throw new JsonException("The OpenCodeError payload must be a JSON object.");
-        }
-
-        if (!payload.TryGetProperty("_tag", out var markerElement))
-        {
-            throw new JsonException("The OpenCodeError payload must contain '_tag'.");
-        }
-
-        if (markerElement.ValueKind != JsonValueKind.String)
-        {
-            throw new JsonException("The '_tag' marker must be a string.");
-        }
-
-        var marker = markerElement.GetString();
-        if (marker is null || string.IsNullOrWhiteSpace(marker))
-        {
-            throw new JsonException("The '_tag' marker must be a non-empty string.");
-        }
-
+        var marker = DiscriminatorReader.ReadString(ref reader, "_tag", "OpenCodeError");
         if (TypesByTag.TryGetValue(marker, out var targetType))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for OpenCodeError.");
-            return JsonSerializer.Deserialize(payload, typeInfo) as IOpenCodeError ?? throw new JsonException("The OpenCodeError payload deserialized to null.");
+            return JsonSerializer.Deserialize(ref reader, typeInfo) as IOpenCodeError ?? throw new JsonException("The OpenCodeError payload deserialized to null.");
         }
 
+        using var document = JsonDocument.ParseValue(ref reader);
+        var payload = document.RootElement;
         return new UnknownOpenCodeError(marker, payload);
     }
 

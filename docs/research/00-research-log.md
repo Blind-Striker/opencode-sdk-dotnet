@@ -2822,3 +2822,75 @@ skipped; both tool entry smokes and generation verification passed. Source commi
 hosted run `32350952168` on Linux, Windows, and macOS; the Windows leg executed the net472 runtime
 evidence. Issues #43 and #32 closed with that commit/run. No Arc 6, launcher, M5, telemetry, retry,
 hook, spec-refresh, or MCP work entered the increment.
+
+# Session 37 — 2026-08-20: Arc 6 measured performance pass
+
+## Q120: Which response, union, collection, and downlevel costs justify the final M3 changes?
+
+**Method:** fresh baseline and final BenchmarkDotNet 0.15.8 default jobs ran from clean copies of
+the source before and after Arc 6, pinned to the same AMD Ryzen Threadripper 2970WX environment
+(12 physical/logical cores), Ubuntu 26.04 / Linux 7.0.0-29, .NET SDK 10.0.400, and .NET 10.0.11
+x64 RyuJIT x86-64-v3 with concurrent workstation GC. Every class retained `MemoryDiagnoser`; Dry
+runs preceded default jobs. Allocation is the primary comparison because timing moved with host
+load. The final results were:
+
+| Complete operation | Baseline mean / allocated | Final mean / allocated |
+|---|---:|---:|
+| `GetMessageAsync` | 45.970 us / 21.91 KB | 39.728 us / 19.15 KB |
+| `GetHealthAsync` | 1.736 us / 2.08 KB | 1.805 us / 2.05 KB |
+| `ListMessagesAsync` | 46.859 us / 22.60 KB | 43.593 us / 19.81 KB |
+| Deep known-union deserialize | 41.99 us / 13.35 KB | 37.54 us / 12.72 KB |
+| 64 large parser-only SSE frames | 777.8 us / 321.54 KB | 650.8 us / 321.54 KB |
+| 1,024 small parser-only SSE frames | 390.1 us / 177.69 KB | 396.4 us / 177.69 KB |
+| 64 large end-to-end session-log frames | 1.100 ms / 717.82 KB | 1.002 ms / 713.32 KB |
+| 1,024 small end-to-end session-log frames | 1.678 ms / 507.20 KB | 1.428 ms / 435.20 KB |
+
+The parser-only arms are controls: their allocation is byte-for-byte unchanged, and the large arm's
+timing distribution remained noisy. No health throughput improvement is claimed; its means moved in
+the wrong direction by about four percent while error/variance overlapped, but allocation did not
+regress. The retained one-shot byte path earns its place from the roughly 12 percent allocation
+reduction on representative message/list responses, while copied-reader known-union dispatch earns
+its place independently in the isolated and end-to-end stream arms. Unknown variants alone keep the
+DOM required by ADR-0009.
+
+**Response and carrier contracts:** declared successes select a generated UTF-8 adapter before
+error buffering. Valid UTF-8 materializes from bytes; an invalid charset remains a transport error;
+non-UTF-8 charset/BOM input and malformed UTF-8 retain `HttpContent`-equivalent decoding and
+replacement behavior. Error responses remain decoded strings and preserve `RawBody` under both
+throwing and `NoThrow` channels. The one-shot `HttpClient.Timeout` budget now covers send through
+body consumption, while caller cancellation remains distinct. Timeout/cancellation disposes content
+and observes the retained real body-read task; downlevel targets deliberately use the parameterless
+`HttpContent` read so Polyfill cannot hide that task behind its own cancellation wrapper. Declared
+no-content success reads no body but still disposes it. #33's public unknown carriers refuse
+non-object, missing, whitespace, fixed-marker, or discriminator disagreement; wire reads and writes
+remain payload-only replay. Duplicate top-level discriminators preserve the prior last-value rule.
+
+**Generated collection comparison:** a separate reflection-disabled source-generation probe used
+256-item list and dictionary DTOs. Direct `IReadOnlyList` construction allocated 24 B versus 2,096 B
+for `ImmutableArray`; deserialization allocated 58.77 versus 60.84 KB, while serialization was
+allocation-equivalent. Direct `IReadOnlyDictionary` construction allocated 24 B versus 16,576 B for
+`ImmutableDictionary` and 30,896 B for `FrozenDictionary`; deserialization allocated 86.39 versus
+102.48 KB and immutable serialization was 45 percent slower with effectively equal allocation.
+`FrozenDictionary` improved one lookup from 13.14 to 12.02 ns, but that long-lived read-heavy control
+did not repay its construction cost or become a DTO candidate. Both candidate families round-tripped
+through source-generated metadata in a published/run Linux Native AOT probe and compiled for
+netstandard2.0/net472; immutable downlevel use also required a new direct
+`System.Collections.Immutable` dependency. The shipped shallow `IReadOnly*` API therefore remains
+unchanged.
+
+**Downlevel append evidence:** Linux could not execute a net472 BenchmarkDotNet process, so a
+same-runtime source-equivalent probe compared Polyfill's exact whole-line `ToString` path with the
+dedicated-buffer algorithm, including one buffer allocation per complete response. Across 1,024
+small lines it moved from 37.73 us / 144.38 KB to 27.45 us / 16.41 KB; across 64 large lines it moved
+from 49.90 us / 304.82 KB to 15.74 us / 25.35 KB. The production `!NET` branch uses that dedicated
+buffer, never aliases unread decoder output, and a cross-buffer long-line/next-frame contract test is
+eligible for the hosted Windows net472 leg. These numbers are mechanism evidence on the same CPU,
+not a claim that net10 timings equal .NET Framework timings.
+
+**Review and local closure:** fresh-context adversarial review found a decoder-buffer alias, an
+unmanaged timed-out body read, a downlevel Polyfill task-wrapper gap, and a non-object constructor
+exception leak; all were corrected and the follow-up review reported no remaining substantive
+finding. PublicApi and generated-manifest membership are unchanged. Slopwatch reported zero issues;
+Release build, whitespace, warning-level style, both tool entry smokes, and generation verification
+passed. All 1,413 local modern-TFM executions passed with zero failed or skipped. Hosted three-OS and
+Windows net472 evidence remains the source-checkpoint gate.

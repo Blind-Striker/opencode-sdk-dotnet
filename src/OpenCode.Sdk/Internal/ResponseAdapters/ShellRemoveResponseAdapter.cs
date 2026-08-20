@@ -17,7 +17,22 @@ internal sealed class ShellRemoveResponseAdapter : ResponseAdapter<ShellRemoveRe
     /// Gets the shared adapter instance.
     /// </summary>
     public static ShellRemoveResponseAdapter Instance { get; } = new ShellRemoveResponseAdapter();
+    /// <summary>
+    /// Gets the declared success status.
+    /// </summary>
+    public override int SuccessStatusCode => 204;
+    /// <summary>
+    /// Gets whether this success carries a JSON body.
+    /// </summary>
+    public override bool ReadsSuccessBody => false;
 
+    /// <summary>
+    /// Maps the declared UTF-8 success body onto the typed envelope.
+    /// </summary>
+    public override ShellRemoveResponse AdaptSuccess(int status, ReadOnlySpan<byte> utf8Body) => new()
+    {
+        Status = status
+    };
     /// <summary>
     /// Maps one buffered response onto the typed envelope.
     /// </summary>

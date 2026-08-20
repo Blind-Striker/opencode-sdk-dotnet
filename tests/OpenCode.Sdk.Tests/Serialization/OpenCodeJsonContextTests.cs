@@ -29,6 +29,27 @@ public sealed class OpenCodeJsonContextTests
     }
 
     [Test]
+    public async Task Deserialize_Should_Use_The_Last_Duplicate_Marker_For_A_Known_Variant()
+    {
+        var json = _fixtures.LoadJson("Serialization.duplicate-known-session-message-marker.json");
+
+        var result = _serializer.Deserialize<ISessionMessageInfo>(json);
+
+        await Assert.That(result).IsTypeOf<SessionMessageUser>();
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Use_The_Last_Duplicate_Marker_For_An_Unknown_Variant()
+    {
+        var json = _fixtures.LoadJson("Serialization.duplicate-unknown-session-message-marker.json");
+
+        var result = _serializer.Deserialize<ISessionMessageInfo>(json);
+
+        await Assert.That(result).IsTypeOf<UnknownSessionMessageInfo>();
+        await Assert.That(((UnknownSessionMessageInfo)result).Type).IsEqualTo("future-message");
+    }
+
+    [Test]
     public async Task Deserialize_Should_Collapse_Explicit_Null_On_An_Optional_Property()
     {
         var json = _fixtures.LoadJson("Serialization.null-parent-session.json");
@@ -42,6 +63,39 @@ public sealed class OpenCodeJsonContextTests
     public async Task Carrier_Constructor_Should_Refuse_An_Unparsed_Payload()
     {
         var exception = Assert.Throws<ArgumentException>(() => _ = new UnknownOpenCodeError("future", default));
+
+        await Assert.That(exception.ParamName).IsEqualTo("payload");
+    }
+
+    [Test]
+    public async Task Carrier_Constructor_Should_Refuse_A_Payload_Without_The_Constructor_Marker()
+    {
+        using var document = JsonDocument.Parse(_fixtures.LoadJson("Serialization.unknown-error-without-marker.json"));
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            _ = new UnknownOpenCodeError("future", document.RootElement));
+
+        await Assert.That(exception.ParamName).IsEqualTo("payload");
+    }
+
+    [Test]
+    public async Task Carrier_Constructor_Should_Refuse_A_Payload_With_A_Different_Marker()
+    {
+        using var document = JsonDocument.Parse(_fixtures.LoadJson("Serialization.unknown-error-with-different-marker.json"));
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            _ = new UnknownOpenCodeError("future", document.RootElement));
+
+        await Assert.That(exception.ParamName).IsEqualTo("payload");
+    }
+
+    [Test]
+    public async Task Carrier_Constructor_Should_Refuse_A_Non_Object_Payload()
+    {
+        using var document = JsonDocument.Parse(_fixtures.LoadJson("Serialization.non-object-union-payload.json"));
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            _ = new UnknownOpenCodeError("future", document.RootElement));
 
         await Assert.That(exception.ParamName).IsEqualTo("payload");
     }
@@ -214,6 +268,20 @@ public sealed class OpenCodeJsonContextTests
     }
 
     [Test]
+    public async Task Serialize_Should_Replay_A_Valid_Hand_Constructed_Carrier_Through_Both_Metadata_Shapes()
+    {
+        var json = _fixtures.LoadJson("Serialization.unknown-session-message.json");
+        using var document = JsonDocument.Parse(json);
+        var unknown = new UnknownSessionMessageInfo("future-message", document.RootElement);
+
+        var throughInterface = _serializer.Serialize<ISessionMessageInfo>(unknown);
+        var throughConcrete = _serializer.Serialize(unknown);
+
+        await Assert.That(throughInterface).IsEqualTo(json);
+        await Assert.That(throughConcrete).IsEqualTo(json);
+    }
+
+    [Test]
     public async Task Deserialize_Should_Preserve_The_Payload_Through_The_Concrete_Carrier_Type()
     {
         var json = _fixtures.LoadJson("Serialization.unknown-session-message.json");
@@ -369,7 +437,7 @@ public sealed class OpenCodeJsonContextTests
     [Test]
     public async Task Deserialize_Should_Throw_JsonException_When_Union_Payload_Is_Not_An_Object()
     {
-        var json = _fixtures.LoadJson("Serialization.non-object-assistant-payload.json");
+        var json = _fixtures.LoadJson("Serialization.non-object-union-payload.json");
 
         _ = await Assert.That(() => _serializer.Deserialize<ISessionMessageAssistantContent>(json))
             .Throws<JsonException>();

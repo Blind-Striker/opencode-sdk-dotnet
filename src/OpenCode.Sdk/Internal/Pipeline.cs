@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 #if !NET
 using System.Net;
@@ -21,6 +22,7 @@ internal sealed class Pipeline : IDisposable
     private readonly HttpClient _httpClient;
     private readonly LocationSelector? _location;
     private readonly bool _ownsHttpClient;
+    private readonly ResponseEncodingPolicy _responseEncodingPolicy = new();
     private readonly ProductInfoHeaderValue _userAgent;
     private bool _disposed;
 
@@ -217,8 +219,7 @@ internal sealed class Pipeline : IDisposable
             throw new ArgumentOutOfRangeException(nameof(options), errorBehavior, "Unknown ErrorBehavior value.");
         }
 
-        int status;
-        string rawBody;
+        TResponse adapted;
         using (var request = new HttpRequestMessage(method, new Uri(_endpointBase + route, UriKind.Absolute)))
         {
             if (body is not null)
@@ -227,13 +228,32 @@ internal sealed class Pipeline : IDisposable
             }
 
             Decorate(request);
+            var requestStarted = Stopwatch.GetTimestamp();
             using var response = await SendCoreAsync(request, cancellationToken).ConfigureAwait(false);
-            status = (int)response.StatusCode;
+            var remainingTimeout = GetRemainingTimeout(requestStarted);
+            var status = (int)response.StatusCode;
             RefuseRedirectStatus(status);
-            rawBody = await ReadBodyAsync(response, cancellationToken).ConfigureAwait(false);
+            if (status == adapter.SuccessStatusCode)
+            {
+                if (!adapter.ReadsSuccessBody)
+                {
+                    adapted = adapter.AdaptSuccess(status, []);
+                }
+                else
+                {
+                    var encodedBody = await ReadSuccessBodyAsync(response, remainingTimeout, cancellationToken).ConfigureAwait(false);
+                    adapted = encodedBody.DecodedBody is { } decoded
+                        ? adapter.Adapt(status, decoded)
+                        : adapter.AdaptSuccess(status, encodedBody.Utf8Body.Span);
+                }
+            }
+            else
+            {
+                var rawBody = await ReadBodyAsync(response, remainingTimeout, cancellationToken).ConfigureAwait(false);
+                adapted = adapter.Adapt(status, rawBody);
+            }
         }
 
-        var adapted = adapter.Adapt(status, rawBody);
         return adapted.IsError && errorBehavior is ErrorBehavior.Default
             ? throw CreateApiException(adapted)
             : adapted;
@@ -301,13 +321,91 @@ internal sealed class Pipeline : IDisposable
         }
     }
 
-    private static async Task<string> ReadBodyAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    private async Task<EncodedResponseBody> ReadSuccessBodyAsync(HttpResponseMessage response,
+        TimeSpan remainingTimeout, CancellationToken cancellationToken)
     {
+        Task<byte[]>? pendingRead = null;
         try
         {
-            return response.Content is null
-                ? string.Empty
-                : await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            byte[] body;
+            if (response.Content is null)
+            {
+                body = [];
+            }
+            else
+            {
+#if NET
+                pendingRead = response.Content.ReadAsByteArrayAsync(cancellationToken);
+#else
+                // Retain the real task: Polyfill's token overload wraps and abandons it on cancellation.
+                pendingRead = response.Content.ReadAsByteArrayAsync();
+#endif
+                if (remainingTimeout != Timeout.InfiniteTimeSpan)
+                {
+                    body = await pendingRead
+                        .WaitAsync(remainingTimeout, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else if (cancellationToken.CanBeCanceled)
+                {
+                    body = await pendingRead.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    body = await pendingRead.ConfigureAwait(false);
+                }
+            }
+
+            return _responseEncodingPolicy.Decode(body, response.Content?.Headers.ContentType?.CharSet);
+        }
+        catch (Exception exception)
+            when (exception is HttpRequestException or IOException or ObjectDisposedException or InvalidOperationException)
+        {
+            throw new OpenCodeTransportException("The opencode response body could not be read.", exception);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            response.Content?.Dispose();
+            ObserveFault(pendingRead);
+            throw;
+        }
+        catch (OperationCanceledException exception)
+        {
+            throw new OpenCodeTransportException("The opencode response body could not be read.", exception);
+        }
+        catch (TimeoutException exception)
+        {
+            response.Content?.Dispose();
+            ObserveFault(pendingRead);
+            throw new OpenCodeTransportException("The opencode response body could not be read.", exception);
+        }
+    }
+
+    private static async Task<string> ReadBodyAsync(HttpResponseMessage response, TimeSpan remainingTimeout,
+        CancellationToken cancellationToken)
+    {
+        Task<string>? pendingRead = null;
+        try
+        {
+            if (response.Content is null)
+            {
+                return string.Empty;
+            }
+
+#if NET
+            pendingRead = response.Content.ReadAsStringAsync(cancellationToken);
+#else
+            // Retain the real task: Polyfill's token overload wraps and abandons it on cancellation.
+            pendingRead = response.Content.ReadAsStringAsync();
+#endif
+            if (remainingTimeout != Timeout.InfiniteTimeSpan)
+            {
+                return await pendingRead.WaitAsync(remainingTimeout, cancellationToken).ConfigureAwait(false);
+            }
+
+            return cancellationToken.CanBeCanceled
+                ? await pendingRead.WaitAsync(cancellationToken).ConfigureAwait(false)
+                : await pendingRead.ConfigureAwait(false);
         }
         catch (Exception exception)
             when (exception is HttpRequestException or IOException or ObjectDisposedException or InvalidOperationException)
@@ -316,16 +414,54 @@ internal sealed class Pipeline : IDisposable
             // ReadAsStringAsync.
             throw new OpenCodeTransportException("The opencode response body could not be read.", exception);
         }
-        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            response.Content?.Dispose();
+            ObserveFault(pendingRead);
+            throw;
+        }
+        catch (OperationCanceledException exception)
         {
             // The caller's token is untouched, so this cancellation is the transport timing
             // out mid-body; genuine caller cancellation passes through untouched.
+            throw new OpenCodeTransportException("The opencode response body could not be read.", exception);
+        }
+        catch (TimeoutException exception)
+        {
+            response.Content?.Dispose();
+            ObserveFault(pendingRead);
             throw new OpenCodeTransportException("The opencode response body could not be read.", exception);
         }
     }
 
     private static OpenCodeApiException CreateApiException(OpenCodeResponse response) =>
         OpenCodeErrorReader.CreateApiException(response.Status, response.Error, response.RawBody);
+
+    private TimeSpan GetRemainingTimeout(long requestStarted)
+    {
+        if (_httpClient.Timeout == Timeout.InfiniteTimeSpan)
+        {
+            return Timeout.InfiniteTimeSpan;
+        }
+
+        var elapsedSeconds = (Stopwatch.GetTimestamp() - requestStarted) / (double)Stopwatch.Frequency;
+        var remaining = _httpClient.Timeout - TimeSpan.FromSeconds(elapsedSeconds);
+        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+    }
+
+    private static void ObserveFault(Task? task)
+    {
+        if (task is null)
+        {
+            return;
+        }
+
+        _ = task.ContinueWith(
+            static completed => _ = completed.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnFaulted,
+            TaskScheduler.Default);
+    }
 
 #if !NET
     private static void ConfigureDownlevelServicePoint(Uri endpoint)
@@ -365,7 +501,7 @@ internal sealed class Pipeline : IDisposable
 
         if (status is not 200)
         {
-            var rawBody = await ReadBodyAsync(response, cancellationToken).ConfigureAwait(false);
+            var rawBody = await ReadBodyAsync(response, Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
             throw OpenCodeErrorReader.CreateApiException(status, adapter.ReadError(status, rawBody), rawBody);
         }
 

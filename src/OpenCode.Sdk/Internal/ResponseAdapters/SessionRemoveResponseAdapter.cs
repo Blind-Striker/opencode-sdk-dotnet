@@ -17,7 +17,22 @@ internal sealed class SessionRemoveResponseAdapter : ResponseAdapter<SessionRemo
     /// Gets the shared adapter instance.
     /// </summary>
     public static SessionRemoveResponseAdapter Instance { get; } = new SessionRemoveResponseAdapter();
+    /// <summary>
+    /// Gets the declared success status.
+    /// </summary>
+    public override int SuccessStatusCode => 204;
+    /// <summary>
+    /// Gets whether this success carries a JSON body.
+    /// </summary>
+    public override bool ReadsSuccessBody => false;
 
+    /// <summary>
+    /// Maps the declared UTF-8 success body onto the typed envelope.
+    /// </summary>
+    public override SessionRemoveResponse AdaptSuccess(int status, ReadOnlySpan<byte> utf8Body) => new()
+    {
+        Status = status
+    };
     /// <summary>
     /// Maps one buffered response onto the typed envelope.
     /// </summary>

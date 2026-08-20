@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
 using OpenCode.Sdk.Internal;
+using OpenCode.Sdk.Internal.ResponseAdapters;
 using OpenCode.Sdk.Models;
 using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
@@ -350,7 +351,7 @@ public sealed class PipelineTests
     [Test]
     public async Task ExecuteAsync_Should_Buffer_The_Body_For_The_Adapter()
     {
-        using var handler = new RecordingHttpHandler(static _ => new HttpResponseMessage(HttpStatusCode.OK)
+        using var handler = new RecordingHttpHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent("{\"healthy\":true}"),
         });
@@ -464,6 +465,41 @@ public sealed class PipelineTests
     }
 
     [Test]
+    public async Task ExecuteAsync_Should_Decode_A_Bom_Selected_Utf16_Success_Body()
+    {
+        var preamble = Encoding.Unicode.GetPreamble();
+        var payload = Encoding.Unicode.GetBytes(WireBodyData.HealthOk);
+        using var handler = new RecordingHttpHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent([.. preamble, .. payload]),
+        });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+        var adapter = new RecordingResponseAdapter();
+
+        _ = await pipeline.ExecuteAsync(
+            HttpMethod.Get, "/api/health", adapter, options: null, CancellationToken.None);
+
+        await Assert.That(adapter.AdaptedRawBody).IsEqualTo(WireBodyData.HealthOk);
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Preserve_Replacement_Decoding_For_Malformed_Utf8()
+    {
+        using var handler = new RecordingHttpHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(WireBodyData.HealthWithMalformedUtf8UnknownField()),
+        });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+
+        var response = await pipeline.ExecuteAsync(
+            HttpMethod.Get, "/api/health", HealthResponseAdapter.Instance, options: null, CancellationToken.None);
+
+        await Assert.That(response.Health.Healthy).IsTrue();
+    }
+
+    [Test]
     public async Task ExecuteAsync_Should_Wrap_A_Disposal_Race_On_Send_As_A_Transport_Failure()
     {
         using var handler = new RecordingHttpHandler(static _ => throw new ObjectDisposedException(nameof(HttpClient)));
@@ -542,6 +578,97 @@ public sealed class PipelineTests
             .Throws<OpenCodeTransportException>();
 
         await Assert.That(exception!.InnerException).IsTypeOf<TaskCanceledException>();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Keep_The_Body_Inside_The_Overall_Transport_Timeout()
+    {
+        using var callerCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var content = new BlockingContent();
+        using var handler = new RecordingHttpHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = content,
+        });
+        using var httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromMilliseconds(50) };
+        using var pipeline = CreatePipeline(httpClient);
+
+        var exception = await Assert
+            .That(async () => _ = await pipeline.ExecuteAsync(
+                HttpMethod.Get,
+                "/api/health",
+                new RecordingResponseAdapter(),
+                options: null,
+                callerCancellation.Token))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception!.InnerException).IsTypeOf<TimeoutException>();
+        await Assert.That(callerCancellation.IsCancellationRequested).IsFalse();
+        await content.ReadStarted.WaitAsync(TimeSpan.FromSeconds(1));
+        await content.ReadCompleted.WaitAsync(TimeSpan.FromSeconds(1));
+        await Assert.That(content.IsDisposed).IsTrue();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Keep_An_Error_Body_Inside_The_Overall_Transport_Timeout_Under_NoThrow()
+    {
+        using var callerCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var content = new BlockingContent();
+        using var handler = new RecordingHttpHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized)
+        {
+            Content = content,
+        });
+        using var httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromMilliseconds(50) };
+        using var pipeline = CreatePipeline(httpClient);
+
+        _ = await Assert
+            .That(async () => _ = await pipeline.ExecuteAsync(
+                HttpMethod.Get,
+                "/api/health",
+                new RecordingResponseAdapter(),
+                OpenCodeRequestOptions.NoThrow,
+                callerCancellation.Token))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(callerCancellation.IsCancellationRequested).IsFalse();
+        await content.ReadStarted.WaitAsync(TimeSpan.FromSeconds(1));
+        await content.ReadCompleted.WaitAsync(TimeSpan.FromSeconds(1));
+        await Assert.That(content.IsDisposed).IsTrue();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Settle_The_Body_Read_After_Caller_Cancellation()
+    {
+        using var callerCancellation = new CancellationTokenSource();
+        using var content = new BlockingContent();
+        using var handler = new RecordingHttpHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = content,
+        });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+
+        var execution = pipeline.ExecuteAsync(
+            HttpMethod.Get,
+            "/api/health",
+            new RecordingResponseAdapter(),
+            options: null,
+            callerCancellation.Token);
+        await content.ReadStarted.WaitAsync(TimeSpan.FromSeconds(1));
+        await callerCancellation.CancelAsync();
+
+        OperationCanceledException? cancellation = null;
+        try
+        {
+            _ = await execution;
+        }
+        catch (OperationCanceledException exception)
+        {
+            cancellation = exception;
+        }
+
+        await Assert.That(cancellation).IsNotNull();
+        await content.ReadCompleted.WaitAsync(TimeSpan.FromSeconds(1));
+        await Assert.That(content.IsDisposed).IsTrue();
     }
 
     [Test]

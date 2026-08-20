@@ -18,7 +18,19 @@ internal sealed class HealthResponseAdapter : ResponseAdapter<HealthResponse>
     /// Gets the shared adapter instance.
     /// </summary>
     public static HealthResponseAdapter Instance { get; } = new HealthResponseAdapter();
+    /// <summary>
+    /// Gets the declared success status.
+    /// </summary>
+    public override int SuccessStatusCode => 200;
 
+    /// <summary>
+    /// Maps the declared UTF-8 success body onto the typed envelope.
+    /// </summary>
+    public override HealthResponse AdaptSuccess(int status, ReadOnlySpan<byte> utf8Body) => new()
+    {
+        Status = status,
+        Health = ReadBarePayload(utf8Body, OpenCodeJsonContext.Default.ServiceHealth)
+    };
     /// <summary>
     /// Maps one buffered response onto the typed envelope.
     /// </summary>

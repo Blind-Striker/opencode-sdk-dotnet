@@ -18,12 +18,13 @@ public sealed record UnknownSessionMessageToolState : ISessionMessageToolState
     [JsonConstructor]
     public UnknownSessionMessageToolState(string status, JsonElement payload)
     {
-        ArgumentException.ThrowIfNullOrEmpty(status);
+        ArgumentException.ThrowIfNullOrWhiteSpace(status);
         if (payload.ValueKind is JsonValueKind.Undefined)
         {
             throw new ArgumentException("The payload must be a parsed JSON element.", nameof(payload));
         }
 
+        UnionPayloadGuard.Instance.RequireString(payload, "status", status);
         _marker = status;
         Payload = payload.Clone();
     }

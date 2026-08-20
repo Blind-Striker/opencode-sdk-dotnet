@@ -18,12 +18,13 @@ public sealed record UnknownSessionLogItem : ISessionLogItem
     [JsonConstructor]
     public UnknownSessionLogItem(string type, JsonElement payload)
     {
-        ArgumentException.ThrowIfNullOrEmpty(type);
+        ArgumentException.ThrowIfNullOrWhiteSpace(type);
         if (payload.ValueKind is JsonValueKind.Undefined)
         {
             throw new ArgumentException("The payload must be a parsed JSON element.", nameof(payload));
         }
 
+        UnionPayloadGuard.Instance.RequireString(payload, "type", type);
         _marker = type;
         Payload = payload.Clone();
     }

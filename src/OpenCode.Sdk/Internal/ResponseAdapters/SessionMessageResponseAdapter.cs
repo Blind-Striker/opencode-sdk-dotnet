@@ -19,7 +19,19 @@ internal sealed class SessionMessageResponseAdapter : ResponseAdapter<SessionMes
     /// Gets the shared adapter instance.
     /// </summary>
     public static SessionMessageResponseAdapter Instance { get; } = new SessionMessageResponseAdapter();
+    /// <summary>
+    /// Gets the declared success status.
+    /// </summary>
+    public override int SuccessStatusCode => 200;
 
+    /// <summary>
+    /// Maps the declared UTF-8 success body onto the typed envelope.
+    /// </summary>
+    public override SessionMessageResponse AdaptSuccess(int status, ReadOnlySpan<byte> utf8Body) => new()
+    {
+        Status = status,
+        Message = ReadBarePayload(utf8Body, OpenCodeJsonContext.Default.SessionMessageResponseEnvelope).Data
+    };
     /// <summary>
     /// Maps one buffered response onto the typed envelope.
     /// </summary>

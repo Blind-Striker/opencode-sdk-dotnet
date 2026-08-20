@@ -32,11 +32,13 @@ materialization or protocol walls rather than schema revalidation.
 
 - Null-rejecting optional-property converters, collection-child scans, empty normalization,
   defensive collection copies, and non-discriminator literal validation are removed.
-- Buffered JSON decoding delegates charset/BOM handling to `HttpContent`; the SDK adds no stricter
-  one-shot UTF-8 validator. A one-shot JSON success with one declared materializer does not
-  validate response `Content-Type`; declared media types remain fail-closed generation inputs, and
-  runtime media dispatch returns only when one status can select among several materializers. SSE
-  keeps its protocol-specific media and UTF-8 framing rules.
+- A valid UTF-8 one-shot success may materialize directly from bytes. Charset/BOM selection and
+  malformed-UTF-8 replacement remain equivalent to `HttpContent` string decoding, so the fast path
+  does not introduce a stricter one-shot decoder. Error bodies remain decoded strings for `RawBody`.
+  A one-shot JSON success with one declared materializer does not validate response `Content-Type`;
+  declared media types remain fail-closed generation inputs, and runtime media dispatch returns only
+  when one status can select among several materializers. SSE keeps its protocol-specific media and
+  UTF-8 framing rules.
 - Concrete immutable collection types remain a pre-freeze benchmark/design question. Until that
   evidence exists, public collection surfaces stay `IReadOnly*` without claiming deep immutability.
 

@@ -18,12 +18,14 @@ public sealed record UnknownSessionMessageCompaction : ISessionMessageCompaction
     [JsonConstructor]
     public UnknownSessionMessageCompaction(string status, JsonElement payload)
     {
-        ArgumentException.ThrowIfNullOrEmpty(status);
+        ArgumentException.ThrowIfNullOrWhiteSpace(status);
         if (payload.ValueKind is JsonValueKind.Undefined)
         {
             throw new ArgumentException("The payload must be a parsed JSON element.", nameof(payload));
         }
 
+        UnionPayloadGuard.Instance.RequireString(payload, "type", "compaction");
+        UnionPayloadGuard.Instance.RequireString(payload, "status", status);
         _marker = status;
         Payload = payload.Clone();
     }

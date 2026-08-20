@@ -11,8 +11,9 @@ applies to events, error unions, and every other tagged union alike. Mechanism: 
 generator-emitted custom converter per union base — System.Text.Json's
 `UnknownDerivedTypeHandling` is serialization-side only and cannot express
 deserialization fallback (codegen spike: unknown discriminator throws, research doc
-08) — buffering the element, reading the tag position-independently, and dispatching
-through the source-generated context so the AOT commitment holds. This resolves the
+08) — scanning a copied reader for the tag and dispatching known values directly through
+the source-generated context so the AOT commitment holds. Only an unknown value buffers
+the element needed by its raw carrier. This resolves the
 forward-compatibility question the codegen spike parked; the tolerance is a recorded
 runtime exception to the fail-closed default (API design spec §2.1/§14).
 
@@ -21,3 +22,9 @@ is the channel that says whether a frame is a payload at all, so an unrecognized
 refused rather than carried: tolerating it would route a frame of unknown meaning into a
 payload carrier and report a server-side stream failure as an ordinary event. The unknown
 this ADR protects is a new variant inside a frame whose kind is understood.
+
+Known variants may scan a copied reader for position-independent dispatch and deserialize the
+original reader directly; only an actually unknown variant pays for the retained `JsonElement`.
+Because an unknown carrier writes that payload verbatim rather than synthesizing markers, its public
+constructor refuses a missing or disagreeing discriminator (and a disagreeing fixed outer marker).
+Wire-read carriers already derive their marker from the same payload and remain unchanged.

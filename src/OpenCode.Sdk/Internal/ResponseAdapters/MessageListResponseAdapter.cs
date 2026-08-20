@@ -22,7 +22,15 @@ internal sealed class MessageListResponseAdapter : ResponseAdapter<MessageListRe
     /// Gets the shared adapter instance.
     /// </summary>
     public static MessageListResponseAdapter Instance { get; } = new MessageListResponseAdapter();
+    /// <summary>
+    /// Gets the declared success status.
+    /// </summary>
+    public override int SuccessStatusCode => 200;
 
+    /// <summary>
+    /// Maps the declared UTF-8 success body onto the typed envelope.
+    /// </summary>
+    public override MessageListResponse AdaptSuccess(int status, ReadOnlySpan<byte> utf8Body) => CreateSuccess(status, ReadBarePayload(utf8Body, OpenCodeJsonContext.Default.MessageListResponseEnvelope));
     /// <summary>
     /// Maps one buffered response onto the typed envelope.
     /// </summary>

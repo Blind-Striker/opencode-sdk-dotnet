@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace OpenCode.Sdk.Tests.Support;
 
 /// <summary>Canned wire bodies and envelope shapes for the contract tests.</summary>
@@ -11,6 +13,14 @@ internal static class WireBodyData
     public const string HealthMissingRequiredMember = "{\"healthy\":true,\"pid\":42}";
 
     public const string HealthWithWrongTokenType = "{\"healthy\":true,\"version\":\"0.0.0-test\",\"pid\":\"forty-two\"}";
+
+    public static byte[] HealthWithMalformedUtf8UnknownField()
+    {
+        var prefix = Encoding.UTF8.GetBytes(
+            "{\"healthy\":true,\"version\":\"0.0.0-test\",\"pid\":42,\"unexpected\":\"");
+        var suffix = Encoding.UTF8.GetBytes("\"}");
+        return [.. prefix, 0xFF, .. suffix];
+    }
 
     public const string UnauthorizedError = "{\"_tag\":\"UnauthorizedError\",\"message\":\"password required\"}";
 

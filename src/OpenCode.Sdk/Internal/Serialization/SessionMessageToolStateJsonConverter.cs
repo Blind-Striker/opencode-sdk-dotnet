@@ -15,39 +15,20 @@ internal sealed class SessionMessageToolStateJsonConverter : JsonConverter<ISess
         ["running"] = typeof(SessionMessageToolStateRunning),
         ["streaming"] = typeof(SessionMessageToolStateStreaming)
     };
+    private static readonly UnionDiscriminatorReader DiscriminatorReader = new();
     public override ISessionMessageToolState Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        using var document = JsonDocument.ParseValue(ref reader);
-        var payload = document.RootElement;
-        if (payload.ValueKind != JsonValueKind.Object)
-        {
-            throw new JsonException("The SessionMessageToolState payload must be a JSON object.");
-        }
-
-        if (!payload.TryGetProperty("status", out var markerElement))
-        {
-            throw new JsonException("The SessionMessageToolState payload must contain 'status'.");
-        }
-
-        if (markerElement.ValueKind != JsonValueKind.String)
-        {
-            throw new JsonException("The 'status' marker must be a string.");
-        }
-
-        var marker = markerElement.GetString();
-        if (marker is null || string.IsNullOrWhiteSpace(marker))
-        {
-            throw new JsonException("The 'status' marker must be a non-empty string.");
-        }
-
+        var marker = DiscriminatorReader.ReadString(ref reader, "status", "SessionMessageToolState");
         if (TypesByTag.TryGetValue(marker, out var targetType))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for SessionMessageToolState.");
-            return JsonSerializer.Deserialize(payload, typeInfo) as ISessionMessageToolState ?? throw new JsonException("The SessionMessageToolState payload deserialized to null.");
+            return JsonSerializer.Deserialize(ref reader, typeInfo) as ISessionMessageToolState ?? throw new JsonException("The SessionMessageToolState payload deserialized to null.");
         }
 
+        using var document = JsonDocument.ParseValue(ref reader);
+        var payload = document.RootElement;
         return new UnknownSessionMessageToolState(marker, payload);
     }
 

@@ -14,49 +14,21 @@ internal sealed class SessionMessageCompactionJsonConverter : JsonConverter<ISes
         ["failed"] = typeof(SessionMessageCompactionFailed),
         ["running"] = typeof(SessionMessageCompactionRunning)
     };
+    private static readonly UnionDiscriminatorReader DiscriminatorReader = new();
     public override ISessionMessageCompaction Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        using var document = JsonDocument.ParseValue(ref reader);
-        var payload = document.RootElement;
-        if (payload.ValueKind != JsonValueKind.Object)
-        {
-            throw new JsonException("The SessionMessageCompaction payload must be a JSON object.");
-        }
-
-        if (!payload.TryGetProperty("type", out var fixedElement))
-        {
-            throw new JsonException("The SessionMessageCompaction payload must contain 'type'.");
-        }
-
-        if (fixedElement.ValueKind != JsonValueKind.String || !fixedElement.ValueEquals("compaction"))
-        {
-            throw new JsonException("The 'type' marker must be 'compaction'.");
-        }
-
-        if (!payload.TryGetProperty("status", out var markerElement))
-        {
-            throw new JsonException("The SessionMessageCompaction payload must contain 'status'.");
-        }
-
-        if (markerElement.ValueKind != JsonValueKind.String)
-        {
-            throw new JsonException("The 'status' marker must be a string.");
-        }
-
-        var marker = markerElement.GetString();
-        if (marker is null || string.IsNullOrWhiteSpace(marker))
-        {
-            throw new JsonException("The 'status' marker must be a non-empty string.");
-        }
-
+        DiscriminatorReader.RequireString(ref reader, "type", "compaction", "SessionMessageCompaction");
+        var marker = DiscriminatorReader.ReadString(ref reader, "status", "SessionMessageCompaction");
         if (TypesByTag.TryGetValue(marker, out var targetType))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for SessionMessageCompaction.");
-            return JsonSerializer.Deserialize(payload, typeInfo) as ISessionMessageCompaction ?? throw new JsonException("The SessionMessageCompaction payload deserialized to null.");
+            return JsonSerializer.Deserialize(ref reader, typeInfo) as ISessionMessageCompaction ?? throw new JsonException("The SessionMessageCompaction payload deserialized to null.");
         }
 
+        using var document = JsonDocument.ParseValue(ref reader);
+        var payload = document.RootElement;
         return new UnknownSessionMessageCompaction(marker, payload);
     }
 

@@ -1,4 +1,5 @@
 using System.Net;
+using OpenCode.Sdk.Internal.ResponseAdapters;
 using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
 
@@ -18,6 +19,28 @@ public sealed class PipelineResponseOwnershipTests
         _ = await pipeline.ExecuteAsync(
             HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None);
 
+        await Assert.That(response.IsDisposed).IsTrue();
+        await Assert.That(content.IsDisposed).IsTrue();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Not_Read_But_Should_Dispose_A_Declared_No_Content_Success()
+    {
+        using var content = new BlockingContent();
+        using var response = new DisposalTrackingResponse(HttpStatusCode.NoContent, content);
+        using var handler = CreateHandler(response);
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(httpClient);
+
+        var result = await pipeline.ExecuteAsync(
+            HttpMethod.Delete,
+            "/api/shell/sh_1",
+            ShellRemoveResponseAdapter.Instance,
+            options: null,
+            CancellationToken.None);
+
+        await Assert.That(result.Status).IsEqualTo(204);
+        await Assert.That(content.ReadStarted.IsCompleted).IsFalse();
         await Assert.That(response.IsDisposed).IsTrue();
         await Assert.That(content.IsDisposed).IsTrue();
     }

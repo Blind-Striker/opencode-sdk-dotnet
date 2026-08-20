@@ -18,7 +18,15 @@ internal sealed class ShellListResponseAdapter : ResponseAdapter<ShellListRespon
     /// Gets the shared adapter instance.
     /// </summary>
     public static ShellListResponseAdapter Instance { get; } = new ShellListResponseAdapter();
+    /// <summary>
+    /// Gets the declared success status.
+    /// </summary>
+    public override int SuccessStatusCode => 200;
 
+    /// <summary>
+    /// Maps the declared UTF-8 success body onto the typed envelope.
+    /// </summary>
+    public override ShellListResponse AdaptSuccess(int status, ReadOnlySpan<byte> utf8Body) => CreateSuccess(status, ReadBarePayload(utf8Body, OpenCodeJsonContext.Default.ShellListResponseEnvelope));
     /// <summary>
     /// Maps one buffered response onto the typed envelope.
     /// </summary>

@@ -190,6 +190,17 @@ public sealed class ServerSentEventReaderTests
     }
 
     [Test]
+    public async Task ReadAsync_Should_Preserve_The_Next_Frame_After_A_Data_Line_Longer_Than_The_Read_Buffer()
+    {
+        var first = new string('x', 9000);
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(WireBodyData.Frames(first, "next")));
+
+        var frames = await ReadAllAsync(stream);
+
+        await Assert.That(frames.SequenceEqual([first, "next"], StringComparer.Ordinal)).IsTrue();
+    }
+
+    [Test]
     public async Task ReadAsync_Should_Reassemble_A_Multi_Byte_Character_Split_Across_Chunks()
     {
         // The 'ş' encodes as two bytes; the split lands between them.

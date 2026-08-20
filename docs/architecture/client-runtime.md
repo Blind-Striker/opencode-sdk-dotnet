@@ -43,6 +43,13 @@ local server launcher. Protocol and generated-model rules live in
   failures on both one-shot and streaming paths (ADR-0007, ADR-0014).
 - Streaming operations return a stream rather than a response envelope and therefore expose no
   per-call request-options parameter. Their failures always throw (ADR-0007).
+- A one-shot operation keeps send, headers, and body consumption inside the `HttpClient.Timeout`
+  budget. Caller cancellation still passes through; an exhausted transport budget maps to
+  `OpenCodeTransportException`. Successful JSON bodies materialize directly from validated UTF-8
+  bytes when possible, while charset/BOM selection and malformed-UTF-8 replacement behavior remain
+  equivalent to `HttpContent` string decoding. Error bodies stay decoded strings so throwing and
+  `NoThrow` paths retain exact `RawBody`. Declared no-content successes do not read an unexpected
+  body, but still dispose it with the response (ADR-0007, ADR-0014).
 - A schema-valid reserved failure frame throws `OpenCodeStreamFailureException`, a subtype of
   `OpenCodeTransportException`, with typed causes on its non-null `Cause` collection. Invalid cause
   JSON, null materialization, and declared-but-impossible cause tags remain base transport/protocol
