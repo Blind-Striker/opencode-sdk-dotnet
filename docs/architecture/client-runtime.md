@@ -9,9 +9,15 @@ local server launcher. Protocol and generated-model rules live in
 ## Construction and transport ownership
 
 - `OpenCodeClient(OpenCodeClientOptions)` is the only public construction path (ADR-0010).
-- The SDK owns a singleton-friendly transport. Modern targets use `SocketsHttpHandler` with a
-  pooled connection lifetime; net472 connection-lease hardening is a general-availability gate
-  (ADR-0010).
+- The SDK owns a singleton-friendly transport and disables automatic redirects on every owned
+  handler. A surfaced 3xx is an undeclared protocol response, never a route, authority, method, or
+  credential transition the SDK follows implicitly. Modern targets use `SocketsHttpHandler` with a
+  120-second pooled connection lifetime. Downlevel targets configure the endpoint-and-proxy
+  `ServicePoint` with an effectively unbounded connection limit and the same 120-second connection
+  lease before construction and each owned send, avoiding both long-lived stream starvation and
+  stale endpoint retention without mutating process-global defaults. The endpoint-scoped
+  `ServicePoint` itself is process-shared, so this policy also governs other process traffic to the
+  same endpoint-and-proxy pair (ADR-0010).
 - The `(HttpClient, options)` constructor is internal friend-assembly surface for this repository's
   tests and benchmarks. There is no public transport-injection constructor (ADR-0010).
 - `OpenCode.Sdk.Extensions` registers one singleton root client and resolves every sub-client from
@@ -33,7 +39,8 @@ local server launcher. Protocol and generated-model rules live in
   response spine, including when typed error parsing fails (ADR-0007).
 - Transport, status/framing, JSON, dispatch, cancellation wrapping, and impossible top-level
   materialization failures throw `OpenCodeTransportException`. `NoThrow` applies only to declared
-  API errors and never suppresses transport failures (ADR-0007, ADR-0014).
+  API errors and never suppresses transport failures. Undeclared 3xx responses are protocol
+  failures on both one-shot and streaming paths (ADR-0007, ADR-0014).
 - Streaming operations return a stream rather than a response envelope and therefore expose no
   per-call request-options parameter. Their failures always throw (ADR-0007).
 - A schema-valid reserved failure frame throws `OpenCodeStreamFailureException`, a subtype of

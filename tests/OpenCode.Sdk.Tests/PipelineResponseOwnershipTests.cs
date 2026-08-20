@@ -1,0 +1,91 @@
+using System.Net;
+using OpenCode.Sdk.Tests.Support;
+using OpenCode.Sdk.TestSupport;
+
+namespace OpenCode.Sdk.Tests;
+
+public sealed class PipelineResponseOwnershipTests
+{
+    [Test]
+    public async Task ExecuteAsync_Should_Dispose_Response_Content_After_Success()
+    {
+        using var content = new DisposalTrackingContent(string.Empty);
+        using var response = new DisposalTrackingResponse(HttpStatusCode.OK, content);
+        using var handler = CreateHandler(response);
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(httpClient);
+
+        _ = await pipeline.ExecuteAsync(
+            HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None);
+
+        await Assert.That(response.IsDisposed).IsTrue();
+        await Assert.That(content.IsDisposed).IsTrue();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Dispose_Response_Content_After_An_Api_Error()
+    {
+        using var content = new DisposalTrackingContent(string.Empty);
+        using var response = new DisposalTrackingResponse(HttpStatusCode.Unauthorized, content);
+        using var handler = CreateHandler(response);
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(httpClient);
+        var adapter = new RecordingResponseAdapter(static (status, rawBody) => new TestResponse
+        {
+            Status = status,
+            IsError = true,
+            RawBody = rawBody,
+        });
+
+        _ = await Assert
+            .That(async () => _ = await pipeline.ExecuteAsync(
+                HttpMethod.Get, "/api/health", adapter, options: null, CancellationToken.None))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(response.IsDisposed).IsTrue();
+        await Assert.That(content.IsDisposed).IsTrue();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Dispose_Response_Content_After_A_Redirect_Protocol_Failure_With_NoThrow()
+    {
+        using var content = new DisposalTrackingContent(string.Empty);
+        using var response = new DisposalTrackingResponse(HttpStatusCode.Found, content);
+        using var handler = CreateHandler(response);
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(httpClient);
+
+        _ = await Assert
+            .That(async () => _ = await pipeline.ExecuteAsync(
+                HttpMethod.Get,
+                "/api/health",
+                new RecordingResponseAdapter(),
+                OpenCodeRequestOptions.NoThrow,
+                CancellationToken.None))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(response.IsDisposed).IsTrue();
+        await Assert.That(content.IsDisposed).IsTrue();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Dispose_Response_Content_After_Caller_Cancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        using var content = new CancelingContent(cancellation);
+        using var response = new DisposalTrackingResponse(HttpStatusCode.OK, content);
+        using var handler = CreateHandler(response);
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(httpClient);
+
+        _ = await Assert
+            .That(async () => _ = await pipeline.ExecuteAsync(
+                HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, cancellation.Token))
+            .Throws<OperationCanceledException>();
+
+        await Assert.That(response.IsDisposed).IsTrue();
+        await Assert.That(content.IsDisposed).IsTrue();
+    }
+
+    private static RecordingHttpHandler CreateHandler(HttpResponseMessage response) => new(_ => response);
+}

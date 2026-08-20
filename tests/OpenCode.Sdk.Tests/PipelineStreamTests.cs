@@ -122,6 +122,23 @@ public sealed class PipelineStreamTests
     }
 
     [Test]
+    public async Task ExecuteStreamAsync_Should_Treat_A_Redirect_As_A_Protocol_Failure()
+    {
+        using var handler = new RecordingHttpHandler(static _ => new HttpResponseMessage(HttpStatusCode.Found)
+        {
+            Content = new StringContent(string.Empty),
+        });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(httpClient);
+
+        var exception = await Assert
+            .That(async () => _ = await CollectAsync(pipeline))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception!.Message).Contains("302");
+    }
+
+    [Test]
     public async Task ExecuteStreamAsync_Should_Treat_A_Malformed_Frame_As_A_Protocol_Failure()
     {
         using var handler = new RecordingHttpHandler(static _ => EventStream("data: not json\n\n"));

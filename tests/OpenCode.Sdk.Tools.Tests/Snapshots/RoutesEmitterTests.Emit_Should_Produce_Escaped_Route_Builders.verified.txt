@@ -73,7 +73,7 @@ public static class OpenCodeRoutes
                 throw new ArgumentException("Route values must not be dot segments.", nameof(itemId));
             }
 
-            return "/api/widget/" + Uri.EscapeDataString(widgetId) + "/item/" + Uri.EscapeDataString(itemId);
+            return "/api/widget/" + RouteValuePolicy.Escape(widgetId, nameof(widgetId)) + "/item/" + RouteValuePolicy.Escape(itemId, nameof(itemId));
         }
 
         /// <summary>
@@ -102,7 +102,7 @@ public static class OpenCodeRoutes
                 throw new ArgumentException("Route values must not be dot segments.", nameof(widgetId));
             }
 
-            var path = "/api/widget/" + Uri.EscapeDataString(widgetId) + "/item";
+            var path = "/api/widget/" + RouteValuePolicy.Escape(widgetId, nameof(widgetId)) + "/item";
             if (request is null)
             {
                 return path;
@@ -163,7 +163,7 @@ public static class OpenCodeRoutes
                 throw new ArgumentException("Route values must not be dot segments.", nameof(widgetId));
             }
 
-            return "/api/widget/" + Uri.EscapeDataString(widgetId);
+            return "/api/widget/" + RouteValuePolicy.Escape(widgetId, nameof(widgetId));
         }
     }
 }

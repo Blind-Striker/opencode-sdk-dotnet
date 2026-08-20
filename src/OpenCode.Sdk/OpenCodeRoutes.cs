@@ -58,7 +58,7 @@ public static class OpenCodeRoutes
                 throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
             }
 
-            var path = "/api/experimental/session/" + Uri.EscapeDataString(sessionId) + "/log";
+            var path = "/api/experimental/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/log";
             if (request is null)
             {
                 return path;
@@ -94,7 +94,7 @@ public static class OpenCodeRoutes
                 throw new ArgumentException("Route values must not be dot segments.", nameof(messageId));
             }
 
-            return "/api/session/" + Uri.EscapeDataString(sessionId) + "/message/" + Uri.EscapeDataString(messageId);
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/message/" + RouteValuePolicy.Escape(messageId, nameof(messageId));
         }
 
         /// <summary>
@@ -114,7 +114,7 @@ public static class OpenCodeRoutes
                 throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
             }
 
-            return "/api/session/" + Uri.EscapeDataString(sessionId);
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId));
         }
 
         /// <summary>
@@ -135,7 +135,7 @@ public static class OpenCodeRoutes
                 throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
             }
 
-            var path = "/api/session/" + Uri.EscapeDataString(sessionId) + "/message";
+            var path = "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/message";
             if (request is null)
             {
                 return path;
@@ -195,7 +195,7 @@ public static class OpenCodeRoutes
                 throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
             }
 
-            return "/api/session/" + Uri.EscapeDataString(sessionId);
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId));
         }
 
         /// <summary>
@@ -215,7 +215,7 @@ public static class OpenCodeRoutes
                 throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
             }
 
-            return "/api/session/" + Uri.EscapeDataString(sessionId) + "/rename";
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/rename";
         }
     }
 
@@ -264,7 +264,7 @@ public static class OpenCodeRoutes
                 throw new ArgumentException("Route values must not be dot segments.", nameof(id));
             }
 
-            var path = "/api/shell/" + Uri.EscapeDataString(id);
+            var path = "/api/shell/" + RouteValuePolicy.Escape(id, nameof(id));
             if (request is null)
             {
                 return path;
@@ -315,7 +315,7 @@ public static class OpenCodeRoutes
                 throw new ArgumentException("Route values must not be dot segments.", nameof(id));
             }
 
-            var path = "/api/shell/" + Uri.EscapeDataString(id);
+            var path = "/api/shell/" + RouteValuePolicy.Escape(id, nameof(id));
             if (request is null)
             {
                 return path;
@@ -344,7 +344,7 @@ public static class OpenCodeRoutes
                 throw new ArgumentException("Route values must not be dot segments.", nameof(id));
             }
 
-            var path = "/api/shell/" + Uri.EscapeDataString(id) + "/timeout";
+            var path = "/api/shell/" + RouteValuePolicy.Escape(id, nameof(id)) + "/timeout";
             if (request is null)
             {
                 return path;

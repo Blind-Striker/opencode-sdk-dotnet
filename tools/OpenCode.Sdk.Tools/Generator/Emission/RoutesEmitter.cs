@@ -29,7 +29,7 @@ internal static class RoutesEmitter
             usings.Add("System");
         }
 
-        if (operations.Any(static operation => operation.QueryRequest is not null))
+        if (operations.Any(static operation => operation.QueryRequest is not null || operation.Parameters.Count > 0))
         {
             usings.Add("OpenCode.Sdk.Internal");
         }
@@ -215,8 +215,11 @@ internal static class RoutesEmitter
             }
 
             pieces.Add(EmissionSyntax.Invocation(
-                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("Uri"), "EscapeDataString"),
-                SyntaxFactory.Argument(SyntaxFactory.IdentifierName(parameter.Name))));
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("RouteValuePolicy"), "Escape"),
+                SyntaxFactory.Argument(SyntaxFactory.IdentifierName(parameter.Name)),
+                SyntaxFactory.Argument(EmissionSyntax.Invocation(
+                    SyntaxFactory.IdentifierName("nameof"),
+                    SyntaxFactory.Argument(SyntaxFactory.IdentifierName(parameter.Name))))));
             position = start + token.Length;
         }
 

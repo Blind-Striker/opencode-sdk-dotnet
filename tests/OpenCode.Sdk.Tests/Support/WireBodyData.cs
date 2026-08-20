@@ -25,6 +25,8 @@ internal static class WireBodyData
 
     public const string InvalidRequestError = "{\"_tag\":\"InvalidRequestError\",\"message\":\"bad\"}";
 
+    public const string StreamTestBodyOpen = "{\"value\":\"open\"}";
+
     public const string ShellNotFoundError = "{\"_tag\":\"ShellNotFoundError\",\"id\":\"sh_9\",\"message\":\"gone\"}";
 
     public const string ResolvedLocation =

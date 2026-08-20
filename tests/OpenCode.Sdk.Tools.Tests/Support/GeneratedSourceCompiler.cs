@@ -12,7 +12,9 @@ namespace OpenCode.Sdk.Tools.Tests.Support;
 
 internal static class GeneratedSourceCompiler
 {
-    private static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.CSharp14);
+    private static readonly CSharpParseOptions ParseOptions = new(
+        LanguageVersion.CSharp14,
+        preprocessorSymbols: ["NET"]);
     private static readonly PortableExecutableReference[] References = CreateReferences();
     private static readonly AnalyzerFileReference SourceGenerator = CreateSourceGeneratorReference();
 

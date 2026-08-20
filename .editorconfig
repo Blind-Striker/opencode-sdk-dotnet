@@ -797,6 +797,13 @@ dotnet_diagnostic.CA1720.severity = none
 [src/OpenCode.Sdk/Internal/ResponseAdapter.cs]
 dotnet_diagnostic.S1694.severity = none
 
+# The owned downlevel handler changes redirect behavior only. CA5399 would require forcing
+# certificate-revocation checks on, but that is a separate TLS policy and the property is absent
+# from older .NET Framework implementations that can load the netstandard2.0 asset. Winner: the
+# cross-runtime compatibility and unchanged TLS contract; CA5399 remains enabled elsewhere.
+[src/OpenCode.Sdk/Internal/Pipeline.cs]
+dotnet_diagnostic.CA5399.severity = none
+
 # The generated route surface deliberately nests one static container per operation
 # group; flattening would erase the grouping the public
 # API promises. Winner: the generated route shape; CA1034 remains enabled for every other

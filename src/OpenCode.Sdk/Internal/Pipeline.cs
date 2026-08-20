@@ -1,4 +1,7 @@
 using System.Globalization;
+#if !NET
+using System.Net;
+#endif
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -10,6 +13,7 @@ namespace OpenCode.Sdk.Internal;
 /// <summary>Owns request decoration, sending, buffering, and error-channel policy for every operation.</summary>
 internal sealed class Pipeline : IDisposable
 {
+    private const int ConnectionLifetimeMilliseconds = 120_000;
     private const string EventStreamMediaType = "text/event-stream";
 
     private readonly AuthenticationHeaderValue? _authorization;
@@ -74,7 +78,7 @@ internal sealed class Pipeline : IDisposable
 
         // Validate before constructing the owned client so a refused endpoint leaks nothing.
         _ = EndpointPolicy.Normalize(options.Endpoint);
-        var httpClient = CreateOwnedHttpClient();
+        var httpClient = CreateOwnedHttpClient(options.Endpoint);
         try
         {
             return new Pipeline(httpClient, ownsHttpClient: true, options);
@@ -154,17 +158,13 @@ internal sealed class Pipeline : IDisposable
         }
     }
 
-    /// <summary>The owned transport: pooled connection lifetime keeps DNS rotation alive on modern TFMs.</summary>
-    private static HttpClient CreateOwnedHttpClient()
+    /// <summary>Builds the non-redirecting owned transport with endpoint rotation on every runtime.</summary>
+    private static HttpClient CreateOwnedHttpClient(Uri endpoint)
     {
-#if NET
-        SocketsHttpHandler? handler = null;
+        HttpMessageHandler? handler = null;
         try
         {
-            handler = new SocketsHttpHandler
-            {
-                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
-            };
+            handler = CreateOwnedHttpHandler(endpoint);
             var httpClient = new HttpClient(handler, disposeHandler: true);
             handler = null;
             return httpClient;
@@ -173,9 +173,24 @@ internal sealed class Pipeline : IDisposable
         {
             handler?.Dispose();
         }
+    }
+
+    /// <summary>Creates the real platform handler; internal so tests can observe its sealed policy.</summary>
+    internal static HttpMessageHandler CreateOwnedHttpHandler(Uri endpoint)
+    {
+        ArgumentNullException.ThrowIfNull(endpoint);
+#if NET
+        return new SocketsHttpHandler
+        {
+            AllowAutoRedirect = false,
+            PooledConnectionLifetime = TimeSpan.FromMilliseconds(ConnectionLifetimeMilliseconds),
+        };
 #else
-        // net472/netstandard2.0 stay on the default handler.
-        return new HttpClient();
+        ConfigureDownlevelServicePoint(endpoint);
+        return new HttpClientHandler
+        {
+            AllowAutoRedirect = false,
+        };
 #endif
     }
 
@@ -214,6 +229,7 @@ internal sealed class Pipeline : IDisposable
             Decorate(request);
             using var response = await SendCoreAsync(request, cancellationToken).ConfigureAwait(false);
             status = (int)response.StatusCode;
+            RefuseRedirectStatus(status);
             rawBody = await ReadBodyAsync(response, cancellationToken).ConfigureAwait(false);
         }
 
@@ -259,6 +275,12 @@ internal sealed class Pipeline : IDisposable
 
     private async Task<HttpResponseMessage> SendCoreAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+#if !NET
+        if (_ownsHttpClient)
+        {
+            ConfigureDownlevelServicePoint(request.RequestUri!);
+        }
+#endif
         try
         {
             return await _httpClient
@@ -305,6 +327,23 @@ internal sealed class Pipeline : IDisposable
     private static OpenCodeApiException CreateApiException(OpenCodeResponse response) =>
         OpenCodeErrorReader.CreateApiException(response.Status, response.Error, response.RawBody);
 
+#if !NET
+    private static void ConfigureDownlevelServicePoint(Uri endpoint)
+    {
+        var servicePoint = ServicePointManager.FindServicePoint(endpoint, WebRequest.DefaultWebProxy);
+        servicePoint.ConnectionLimit = int.MaxValue;
+        servicePoint.ConnectionLeaseTimeout = ConnectionLifetimeMilliseconds;
+    }
+#endif
+
+    private static void RefuseRedirectStatus(int status)
+    {
+        if (status is >= 300 and < 400)
+        {
+            throw new OpenCodeTransportException($"The opencode API returned undeclared redirect status {status.ToString(CultureInfo.InvariantCulture)}.");
+        }
+    }
+
     private async IAsyncEnumerable<TPayload> ExecuteStreamCoreAsync<TPayload, TCause>(HttpMethod method, string route,
         IStreamAdapter<TPayload, TCause> adapter, [EnumeratorCancellation] CancellationToken cancellationToken)
         where TCause : IReadOnlyList<Models.IOpenCodeStreamFailureCause>
@@ -314,6 +353,7 @@ internal sealed class Pipeline : IDisposable
         Decorate(request);
         using var response = await SendCoreAsync(request, cancellationToken).ConfigureAwait(false);
         var status = (int)response.StatusCode;
+        RefuseRedirectStatus(status);
 
         // Any other 2xx is outside the declared contract: a protocol failure, never an API
         // error — the same reading the one-shot adapters give it.

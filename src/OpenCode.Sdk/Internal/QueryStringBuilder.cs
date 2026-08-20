@@ -83,9 +83,9 @@ internal sealed class QueryStringBuilder
     {
         _builder ??= new StringBuilder();
         _ = _builder.Append(_builder.Length is 0 ? '?' : '&')
-            .Append(Uri.EscapeDataString(name))
+            .Append(RouteValuePolicy.EscapeName(name))
             .Append('=')
-            .Append(Uri.EscapeDataString(value));
+            .Append(RouteValuePolicy.Escape(value, name));
     }
 
     /// <summary>
@@ -96,11 +96,11 @@ internal sealed class QueryStringBuilder
     {
         _builder ??= new StringBuilder();
         _ = _builder.Append(_builder.Length is 0 ? '?' : '&')
-            .Append(Uri.EscapeDataString(name))
+            .Append(RouteValuePolicy.EscapeName(name))
             .Append('[')
             .Append(member)
             .Append(']')
             .Append('=')
-            .Append(Uri.EscapeDataString(value));
+            .Append(RouteValuePolicy.Escape(value, name));
     }
 }

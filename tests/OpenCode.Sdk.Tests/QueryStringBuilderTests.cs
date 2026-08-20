@@ -54,6 +54,27 @@ public sealed class QueryStringBuilderTests
     }
 
     [Test]
+    public async Task AddText_Should_Refuse_A_Lone_Surrogate()
+    {
+        var query = new QueryStringBuilder();
+
+        var exception = Assert.Throws<ArgumentException>(() => query.AddText("search", "\ud800"));
+
+        await Assert.That(exception.ParamName).IsEqualTo("search");
+    }
+
+    [Test]
+    public async Task AddText_Should_Accept_The_Downlevel_Length_Limit()
+    {
+        var query = new QueryStringBuilder();
+        var value = new string('a', 32_766);
+
+        query.AddText("search", value);
+
+        await Assert.That(query.Value).IsEqualTo("?search=" + value);
+    }
+
+    [Test]
     [Arguments(ListOrder.Ascending, "?order=asc")]
     [Arguments(ListOrder.Descending, "?order=desc")]
     public async Task AddOrder_Should_Write_The_Wire_Spelling(ListOrder order, string expected)
