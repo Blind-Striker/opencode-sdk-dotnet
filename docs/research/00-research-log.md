@@ -2892,5 +2892,7 @@ unmanaged timed-out body read, a downlevel Polyfill task-wrapper gap, and a non-
 exception leak; all were corrected and the follow-up review reported no remaining substantive
 finding. PublicApi and generated-manifest membership are unchanged. Slopwatch reported zero issues;
 Release build, whitespace, warning-level style, both tool entry smokes, and generation verification
-passed. All 1,413 local modern-TFM executions passed with zero failed or skipped. Hosted three-OS and
-Windows net472 evidence remains the source-checkpoint gate.
+passed. All 1,413 local modern-TFM executions passed with zero failed or skipped. Source commit
+`fa6124d` then passed hosted run `32374393085` on Linux, Windows, and macOS; the Windows leg executed
+the net472 timeout/cancellation and long-line SSE evidence. Issues #23, #29, and #33 are closed. M3
+is complete; no M4, M5, telemetry, retry, hooks, spec-refresh, or MCP source work entered the pass.

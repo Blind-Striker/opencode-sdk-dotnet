@@ -61,12 +61,12 @@ and Extensions test projects, and the previously unobserved object-envelope
 `{"data":null}` refusal pinned by test (the support pair under `tests/Shared` is consumed
 by the SDK test project; the Extensions tests are registration-topology only).
 
-**M3 is open** (plan: `superpowers/plans/2026-08-15-m3-plan.md`; decisions: research log
-Sessions 24–34). Q92's simplicity-first construction (ADR-0010) is landed — Arc 1 complete:
+**M3 is complete** (plan: `superpowers/plans/2026-08-15-m3-plan.md`; decisions: research log
+Sessions 24–37). Q92's simplicity-first construction (ADR-0010) is landed — Arc 1 complete:
 the transport constructor is internal friend-assembly test surface, Extensions registers
 a factory-less singleton client family with a roster contract test, and the Q91 guard
-machinery is deleted — closing #31 by construction. #32 and #33 stay sealed with their
-execution homes recorded (Session 24), and the location + merged-Request design is
+machinery is deleted — closing #31 by construction. #32 and #33 completed in Arcs 5 and 6,
+and the location + merged-Request design is
 sealed (Session 25, Q93/Q94: the binder placement map and the dual-channel location
 rendering). **Arc 3a's SSE engine is landed** — `ServerSentEventReader` frames a live body
 into named events, and the pipeline opens a stream through the same decoration and status
@@ -215,7 +215,17 @@ request; separate trackers prove response/content disposal on every one-shot exi
 path/query boundary now refuses lone surrogates and values over 32,766 UTF-16 code units uniformly
 without weakening empty-cursor or path guards. PublicApi and manifest membership are unchanged;
 research Q119 owns the review corrections and local 1,374-test closure. #43 and #32 are closed.
-**Arc 6's measured performance pass is the exact next and final M3 increment.**
+**Arc 6's measured performance pass is complete at `fa6124d`**, with hosted run
+`32374393085` green on Linux, Windows, and macOS. Known tagged unions now dispatch through a copied
+reader and materialize once; only unknown carriers retain a DOM. Valid UTF-8 successes avoid the
+discarded UTF-16 body while error `RawBody`, charset/BOM/replacement behavior, `NoThrow`, caller
+cancellation, timeout budgeting, and response ownership remain pinned. The generated collection
+comparison retained shallow `IReadOnly*`; Native AOT and downlevel compile probes passed without a
+public shape change. The downlevel SSE append path replaces Polyfill's whole-line string with a
+dedicated reusable buffer, with the Windows net472 leg exercising its long-line and timeout tests.
+PublicApi and manifest membership are unchanged; research Q120 owns the measurements and review
+corrections. #23, #29, and #33 are closed. **M3 is complete. M4's short launcher plan is exact next;
+no M4 source or planning work has begun.**
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family
@@ -259,9 +269,8 @@ is revisited at each milestone boundary.
    The ADR-0013/0014 authority/materialization cleanup and surviving review findings closed before
    the live-bus breadth step; #44 closed with that selection. Arc 4's paginator and Arc 5's
    owned-transport/net472 GA gate (#43 plus #32) are complete. The union single-pass deserialization
-   and streaming adapter-boundary redesign (#23) land
-   on the M3 runway, gated on the performance baselines (#18), together with the
-   second-review perf mechanisms and #29; #33 (carrier construction refusal) rides #23.
+   and streaming adapter-boundary redesign (#23), #29's surviving success-body cost, #33's carrier
+   refusal, and the generated collection comparison completed in Arc 6 at `fa6124d`. M3 is complete.
 4. **M4 — Launcher.** `OpenCodeServer.StartAsync` with three-OS acceptance (ADR-0001)
    over `opencode2 serve`; demo: the SDK starts the server itself and calls health. The
    net472 stdout/tree-kill items land here. (`serve --stdio`'s stdin leash and the
@@ -299,10 +308,6 @@ is revisited at each milestone boundary.
   and first-party generated clients. Reproduce and report confirmed losses upstream; seed cases
   are numeric `limit`/`after` decode targets emitted only as strings. Reports are diagnostic and
   never feed generation or curation (ADR-0013, research Q107/Q108).
-- **Generated collection representation** — Arc 6 benchmarks direct `IReadOnly*` surfaces against
-  `ImmutableArray`/`ImmutableDictionary` across JSON, AOT, downlevel TFMs, request ergonomics, and
-  allocation/throughput before M5 freezes the API. `IReadOnly*` remains the default unless total
-  evidence favors concrete immutable types (research Q108).
 - **Release mechanics** — decided parts live in ADR-0006 (independent semver, per-merge
   GitHub Packages CD, manual NuGet.org releases). Pre-1.0 numbering, `VersionPrefix`,
   RELEASE_NOTES flow, and the concrete workflows are scheduled when the first publishable
