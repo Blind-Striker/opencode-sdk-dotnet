@@ -224,8 +224,14 @@ comparison retained shallow `IReadOnly*`; Native AOT and downlevel compile probe
 public shape change. The downlevel SSE append path replaces Polyfill's whole-line string with a
 dedicated reusable buffer, with the Windows net472 leg exercising its long-line and timeout tests.
 PublicApi and manifest membership are unchanged; research Q120 owns the measurements and review
-corrections. #23, #29, and #33 are closed. **M3 is complete. M4's short launcher plan is exact next;
-no M4 source or planning work has begun.**
+corrections. #23, #29, and #33 are closed. The post-Arc 6 benchmark-only follow-up decomposed the
+permanent performance suite into per-operation component ladders with exact-byte and wire-size
+columns and medium/large fixtures; research Q121 owns its same-environment measurements. The
+independent Arc 6 review (research Q122) confirmed a streaming-deserialization regression in the copied-
+reader union scan, an unbounded stream-open error-body read, a raw `NotSupportedException` leak for
+`charset=utf-7`, a downlevel SSE cancellation gap, and five test gaps. **M3 is functionally complete;
+the bounded Arc 6 repair (red-test-first, Windows-executed downlevel items, net472 benchmark run) is
+exact next, and M4's short launcher plan follows it. No M4 source or planning work has begun.**
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family

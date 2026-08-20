@@ -6,44 +6,92 @@ namespace OpenCode.Sdk.Performance.Tests.Benchmarks;
 
 /// <summary>
 /// The stream frame reader in isolation: a run of event frames walked through the same
-/// per-character state machine the SDK reads a live body with. Two runs, because a reader
-/// has a per-character cost and a per-frame cost and one payload size cannot separate them:
-/// large frames amortize the per-frame work away, small frames are dominated by it, and a
-/// live event feed carries mostly small ones.
+/// per-character state machine the SDK reads a live body with. A reader has a per-character
+/// cost and a per-frame cost and one payload size cannot separate them, so large frames amortize
+/// the per-frame work away, small frames are dominated by it, single frames expose the
+/// per-stream fixed cost, and the multi-line form measures the data-line join against the
+/// one-line wire.
 /// </summary>
 [MemoryDiagnoser]
 public class ServerSentEventReaderBenchmarks
 {
     private const int SmallFrameCount = 1024;
     private const int LargeFrameCount = 64;
+    private const int LinesPerMultiLineFrame = 4;
+    private const int SocketChunkBytes = 1460;
 
-    private byte[] _largeFrames = [];
-    private byte[] _smallFrames = [];
+    public static IEnumerable<WireFixture> Fixtures()
+    {
+        var large = BenchmarkFixtures.DeepAssistantMessage();
+        var small = BenchmarkFixtures.SessionIdleBody();
+        yield return Frames("large-x1", large, 1);
+        yield return Frames("large-x64", large, LargeFrameCount);
+        yield return Frames("small-x1", small, 1);
+        yield return Frames("small-x1024", small, SmallFrameCount);
+        yield return new WireFixture("large-x64-multiline", BenchmarkFixtures.MultiLineEventStream(large, LargeFrameCount, LinesPerMultiLineFrame),
+            LargeFrameCount, payloadBytesPerItem: large.Length);
+    }
+
+    public static IEnumerable<WireFixture> ChunkedFixtures()
+    {
+        yield return Frames("large-x64", BenchmarkFixtures.DeepAssistantMessage(), LargeFrameCount);
+        yield return Frames("small-x1024", BenchmarkFixtures.SessionIdleBody(), SmallFrameCount);
+    }
 
     [GlobalSetup]
     public async Task SetupAsync()
     {
-        var payload = await BenchmarkFixtures.DeepAssistantMessageAsync().ConfigureAwait(false);
-        _largeFrames = BenchmarkFixtures.EventStream(payload, LargeFrameCount);
-        _smallFrames = BenchmarkFixtures.EventStream(BenchmarkFixtures.SessionIdleBody(), SmallFrameCount);
-    }
-
-    [Benchmark]
-    public async Task<int> ReadLargeFrames() => await ReadAsync(_largeFrames).ConfigureAwait(false);
-
-    [Benchmark]
-    public async Task<int> ReadSmallFrames() => await ReadAsync(_smallFrames).ConfigureAwait(false);
-
-    private static async Task<int> ReadAsync(byte[] body)
-    {
-        using var stream = new MemoryStream(body);
-        var characters = 0;
-        await foreach (var frame in new ServerSentEventReader().ReadAsync(stream, CancellationToken.None)
-                           .ConfigureAwait(false))
+        foreach (var fixture in Fixtures())
         {
-            characters += frame.Data.Length;
+            if (await ReadFramesAsync(fixture).ConfigureAwait(false) != fixture.Items)
+            {
+                throw new InvalidOperationException($"Fixture '{fixture.Name}' did not frame into the expected event count.");
+            }
         }
 
-        return characters;
+        foreach (var fixture in ChunkedFixtures())
+        {
+            if (await ReadFramesChunkedAsync(fixture).ConfigureAwait(false) != fixture.Items)
+            {
+                throw new InvalidOperationException($"Chunked fixture '{fixture.Name}' did not frame into the expected event count.");
+            }
+        }
     }
+
+    /// <summary>Frames one complete body, counting dispatched events.</summary>
+    [Benchmark]
+    [ArgumentsSource(nameof(Fixtures))]
+    public async Task<int> ReadFramesAsync(WireFixture fixture)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+        using var stream = new MemoryStream(fixture.Bytes);
+        var frames = 0;
+        await foreach (var frame in new ServerSentEventReader().ReadAsync(stream, CancellationToken.None).ConfigureAwait(false))
+        {
+            _ = frame;
+            frames++;
+        }
+
+        return frames;
+    }
+
+    /// <summary>Frames one complete body delivered in socket-sized reads, so cross-read assembly is measured.</summary>
+    [Benchmark]
+    [ArgumentsSource(nameof(ChunkedFixtures))]
+    public async Task<int> ReadFramesChunkedAsync(WireFixture fixture)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+        using var stream = new ChunkedReadStream(fixture.Bytes, SocketChunkBytes);
+        var frames = 0;
+        await foreach (var frame in new ServerSentEventReader().ReadAsync(stream, CancellationToken.None).ConfigureAwait(false))
+        {
+            _ = frame;
+            frames++;
+        }
+
+        return frames;
+    }
+
+    private static WireFixture Frames(string name, byte[] payload, int count) =>
+        new(name, BenchmarkFixtures.EventStream(payload, count), count, payloadBytesPerItem: payload.Length);
 }

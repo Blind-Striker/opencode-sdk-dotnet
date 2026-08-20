@@ -2896,3 +2896,156 @@ passed. All 1,413 local modern-TFM executions passed with zero failed or skipped
 `fa6124d` then passed hosted run `32374393085` on Linux, Windows, and macOS; the Windows leg executed
 the net472 timeout/cancellation and long-line SSE evidence. Issues #23, #29, and #33 are closed. M3
 is complete; no M4, M5, telemetry, retry, hooks, spec-refresh, or MCP source work entered the pass.
+
+# Session 38 — 2026-08-20: benchmark observability follow-up
+
+## Q121: What do the permanent benchmarks measure per wire byte, and how does the suite attribute cost to a component?
+
+**Method:** the maintainer's standing concern was that reports showed allocated KB without the bytes that
+arrived on the wire. The exact-byte baseline for `fa6124d` was first recovered from a clean worktree with
+BenchmarkDotNet 0.15.8 default jobs and the full JSON exporter (`Memory.BytesAllocatedPerOperation`),
+on the Q120 environment (Threadripper 2970WX limited to 12 cores, Ubuntu 26.04, Linux 7.0.0-29, SDK
+10.0.400, .NET 10.0.11, concurrent workstation GC). BenchmarkDotNet's `KB` column is KiB: every Q120
+allocation row reproduces byte for byte (19,608 B = 19.15 KB, 2,104, 20,288, 13,024, 329,256, 181,952,
+730,440, 445,648). Wire sizes were reproduced mechanically from the fixture builders: the deep assistant
+message is 2,182 B after trailing-newline trimming; its `{"data":...}` envelope 2,191 B; its single-item
+cursor page 2,228 B; health 49 B; 64 framed large frames 140,160 B (2,190 B/frame); 1,024 framed small
+frames 71,680 B (70 B/frame, 62 B payload); session-log large 150,528 B (2,344 B payload) and small
+64,512 B (55 B payload).
+
+**Wire-to-allocation for the prior eight cases (exact bytes, same environment):**
+
+| Operation | Wire B/op | Alloc B/op | Alloc/Wire | Excess B | Per item |
+|---|---:|---:|---:|---:|---:|
+| `GetMessageAsync` (deep) | 2,191 | 19,608 | 8.95x | 17,417 | 1 message |
+| `GetHealthAsync` | 49 | 2,104 | 42.94x | 2,055 | 1 |
+| `ListMessagesAsync` (1 item) | 2,228 | 20,288 | 9.11x | 18,060 | 1 |
+| Deep known-union deserialize | 2,182 | 13,024 | 5.97x | 10,842 | 1 |
+| 64 large parser-only SSE frames | 140,160 | 329,256 | 2.35x | 189,096 | 5,145 B/frame |
+| 1,024 small parser-only SSE frames | 71,680 | 181,952 | 2.54x | 110,272 | 178 B/frame |
+| 64 large session-log frames end to end | 150,528 | 730,440 | 4.85x | 579,912 | 11,413 B/frame |
+| 1,024 small session-log frames end to end | 64,512 | 445,648 | 6.91x | 381,136 | 435 B/frame |
+
+A small payload's ratio is high because the per-operation fixed cost (request, headers, URI, handler
+response, async state, body buffer growth) does not shrink with the body: the 49-byte health call pays
+the same ~1.8 KB pipeline floor as a 2 KB message call.
+
+**Suite redesign:** every class now owns one operation family and decomposes it as a component ladder
+over `WireFixture` inputs (name, exact body, item count, payload bytes per item, declared charset)
+supplied through `[ParamsSource]` (ladder classes) or `[ArgumentsSource]` (heterogeneous cases). Custom
+columns derived from the fixture and `GcStats.GetBytesAllocatedPerOperation` print `Wire B`, `Items`,
+`Payload B/item`, `Alloc B/item`, and `Alloc/Wire` beside an exact-byte `Allocated` column
+(`SummaryStyle.WithSizeUnit(SizeUnit.B)`), and the full JSON export is always on. Fixtures are composed
+from the one deep seed: marker-last, duplicate-marker-last-known, unknown-marker, 120- and 2,400-part
+messages (54,150 and 1,075,590 B), and 1/30/480-item pages (2,228 / 65,535 / 1,047,885 B); session-log
+arms add a structured `session.tool.success` event with 16 nested tool-content parts and a 256-frame mix.
+Every `GlobalSetup` refuses a fixture that does not materialize its expected generated type. BenchmarkDotNet
+requires unsealed benchmark classes and re-creates complex `[ParamsSource]` values in the benchmark
+process by index, so fixture sources are deterministic. The run must start from a clean copy outside the
+repository: BenchmarkDotNet locates the project by name from the solution root and refuses the duplicate
+copies under `.scratchpad/`. Classes: `HealthBenchmarks`, `NoContentBenchmarks`, `MessageGetBenchmarks`,
+`MessageListBenchmarks`, `PaginationBenchmarks`, `SessionCreateBenchmarks`, `ErrorChannelBenchmarks`,
+`UnionDeserializationBenchmarks`, `ResponseEncodingPolicyBenchmarks`, `ServerSentEventReaderBenchmarks`,
+`SessionLogStreamBenchmarks`, `EventStreamBenchmarks` — 78 default-job cases, about 35 minutes on this
+machine (Dry validation first, about one minute). `ClientOperationBenchmarks` was replaced; its three
+methods live on under the same names inside the health, message-get, and message-list ladders and
+reproduce the Q120 bytes exactly.
+
+**Ladder results (default job, same environment, mean ± SD, exact bytes):**
+
+| Ladder | Complete operation | Pipeline without materialization | Generated adapter | Source-generated materialization |
+|---|---:|---:|---:|---:|
+| Health 49 B | 1.78 µs / 2,104 B | 1.14 µs / 1,840 B | 512 ns / 304 B | 471 ns / 256 B |
+| Message deep 2,191 B | 42.2 µs / 19,608 B | 1.96 µs / 6,112 B | 37.4 µs / 13,216 B | 37.3 µs / 13,168 B |
+| Message medium 54,159 B | 923 µs / 433,048 B | 16.0 µs / 110,048 B | 884 µs / 322,720 B | 886 µs / 322,672 B |
+| Message large 1,075,599 B | 20.0 ms / 8,584,244 B | 532 µs / 2,154,817 B | 19.7 ms / 6,428,328 B | 19.0 ms / 6,428,280 B |
+| Page 1 / 30 / 480 items | 43.4 µs / 20,288 B; 1.17 ms / 525,112 B; 21.6 ms / 8,359,983 B | — | 36.9 µs / 13,936 B; 1.11 ms / 392,152 B; 19.5 ms / 6,260,728 B | 37.7 µs / 13,880 B; 1.19 ms / 392,096 B; 20.2 ms / 6,260,672 B |
+
+The no-content 204 operation costs 802 ns / 1,288 B and the bare `HttpClient` send over the same canned
+handler 270 ns / 520 B, so the SDK's own one-shot floor is roughly 530 ns / 770 B and the harness is in
+every number at 520 B. Reading a body through the pipeline without materializing it costs 2.0x the wire
+bytes at every size (`ReadAsByteArrayAsync` buffers once and copies once), materialization costs about
+5.97x the payload bytes and 88-96 percent of the elapsed time from 2 KB upward, and the generated
+adapter boundary adds one response record (48-56 B). The paginator adds 256 B per traversal and no
+measurable time over a hand-written page loop (1.165 vs 1.174 ms over three 10-item pages). The POST
+`CreateSessionAsync` costs 5.98 µs / 4,592 B over a 372-byte envelope, of which request serialization is
+191 ns / 56 B. The declared error channel costs 2.58 µs / 2,496 B under `NoThrow` and 10.9 µs / 3,608 B
+when the same 404 throws `OpenCodeApiException`; the tolerant typed-error read alone is 1.05 µs / 328 B.
+
+**Component observations:** the UTF-8 validation pass is vectorized and effectively free (53 ns for
+2,182 B, 958 ns for 54,150 B, zero allocation); the UTF-8-BOM and declared-`utf-8` variants stay on the
+byte path; a UTF-16 body decodes in 1.1 µs / 4,392 B; malformed UTF-8 pays an exception on the
+replacement path (5.6 µs / 5,416 B). Interface dispatch of the deep message costs 36.1 µs / 13,024 B
+against 29.5 µs / 12,984 B for the concrete record (the top-level discriminator scan is about 20 percent
+of the time at every size: 877 vs 725 µs medium, 19.4 vs 16.0 ms large) and 40 B for the marker string;
+marker position barely matters because the last-value rule scans to the end anyway (37.6 µs marker-last
+vs 36.1 marker-early); a 55-byte `log.synced` item costs 999 ns / 272 B through the union versus
+496 ns / 224 B concrete; an unknown marker retains its DOM for 13.3 µs / 4,504 B. The SSE reader's fixed
+cost per enumeration is 26,312 B for a single small frame and 52,416 B for a single 2,182-byte frame
+(8 KiB byte buffer, 16 KiB char buffer, builder growth, per-frame string); socket-sized 1,460-byte
+reads cost the same as whole reads; the multi-line data form costs the same as one-line frames. In the
+session-log ladders the request pipeline adds about 1.9 KB and 2-8 percent per stream, while framing
+is 24-64 percent of elapsed time and per-frame materialization alone is 272 B (synced), 5,904 B
+(created-2048), 8,432 B (tool-success-16), and 3,232 B (mixed) per frame. The live-bus subscription
+over 1,024 idle events (85 B payload each, 1,024 x 93 B framed) costs 2.38 ms / 1,191,384 B
+(1,163 B/frame); per-frame materialization through the 87-branch `IEvent` union alone is
+1.84 ms / 944 B per frame against 1.15 ms / 896 B into the concrete `SessionIdle` record, so union
+dispatch adds 48 B and about 0.67 µs per event while 896 B of the per-event cost is materialization
+of an 85-byte event into its record (worth its own attribution before the live bus is tuned).
+
+**Limits:** timings are single-environment and within-run comparisons only; allocation remains the
+primary metric. The canned handler completes synchronously, so these are the SDK's own floor rather
+than production numbers with real transport suspension. The performance project now carries a
+Windows-conditional net472 target (compile-validated on Linux against the reference assemblies; not
+yet executed), so downlevel numbers remain the Q120 source-equivalent evidence until a Windows run
+records real net472 figures.
+
+## Q122: What did the independent Arc 6 review find, and why had the tests not caught it?
+
+**Method:** the one-time review brief was executed as ten independent finder lenses over a read-only
+worktree at `8479149`/`fa6124d` (union dispatch, success-body materialization, timeout/cancellation/
+ownership, SSE reader, runtime architecture/perf, generator emission, test coverage, benchmark audit,
+documentation drift, adversarial generalist), one merge pass, and adversarial verification of every
+finding rated medium or higher (two lenses — refute and reproduce — for high severity): 33 agents,
+85 raw findings, 58 after merge, 21 verified (18 confirmed, 2 plausible, 1 refuted), 37 low/info
+observations passed through unverified, and 95 contract claims recorded as verified-correct.
+Verification used file-based C# probes referencing the SDK project with the test assembly name so
+`InternalsVisibleTo` applied; no repository file was modified. Temporary probes are not repository
+artifacts; each finding below states the mechanism so it can be reproduced.
+
+**Confirmed defects (severity as verified):**
+
+| Id | Severity | Location | Mechanism | Why existing tests missed it |
+|---|---|---|---|---|
+| R01 | high | `Internal/Serialization/UnionDiscriminatorReader.cs:84` | `scan.Skip()` on the copied reader throws `InvalidOperationException` whenever `IsFinalBlock` is false, so every generated marked-union converter fails under `JsonSerializer.DeserializeAsync`/`DeserializeAsyncEnumerable` over a `Stream` (known and unknown arms; even a two-element array through the async-enumerable path). Regression from the pre-Arc 6 `JsonDocument.ParseValue` (`TrySkip`-based) path. SDK-internal paths deserialize complete strings/spans and are unaffected. | Every union test deserializes a complete string or span (`IsFinalBlock=true`); no test deserializes a union from a `Stream`/`PipeReader`, and no canon sentence states whether consumer-side stream deserialization of SDK models is supported. |
+| R19 | high (verifier) | `Internal/Pipeline.cs:520`, `ServerSentEventReader.cs:82` | On .NET Framework the owned `HttpClientHandler` response stream is a `DelegatingStream` over `ConnectStream`, which overrides only `Read`/`BeginRead`/`EndRead`; HttpClient disposes its linked CTS after `ResponseHeadersRead`, so the handler's abort registration is dead; Polyfill's `ReadAsync(Memory, ct)` forwards to a base `ReadAsync` that cannot be cancelled. Cancelling an idle SSE enumeration waits for the next byte (no `ReadWriteTimeout` backstop on the async path). Pre-existing, not Arc 6. | Stream cancellation tests use fakes (`BlockingStream`, `CancelingStream`) that honor the token themselves or pre-cancel before the read starts; the net472 loopback test passes `CancellationToken.None`. Needs a Windows net472 loopback probe (cancel while idle, measure `MoveNextAsync` latency). |
+| R17 | medium | `Internal/Pipeline.cs:504` | The stream-open error body (non-200 before the stream starts) is read with `Timeout.InfiniteTimeSpan`; with `ResponseHeadersRead` the `HttpClient.Timeout` CTS is gone after headers, so a stalled 4xx/5xx body hangs the first `MoveNextAsync` until caller cancellation, while the one-shot path gained the Arc 6 remaining-timeout budget. No rationale recorded. | `PipelineStreamTests` has no timeout case; `BlockingContent` exists and could drive it. |
+| R02 | medium | `Internal/ResponseEncodingPolicy.cs:64` | `Encoding.GetEncoding("utf-7")` throws `NotSupportedException` on .NET 5+; `ResolveEncoding` catches only `ArgumentException`, and neither body-read catch filter includes `NotSupportedException`, so a `charset=utf-7` response escapes as a raw BCL exception on both success and error planes (net472 still supports UTF-7). | The only charset tests use `not-an-encoding` (`ArgumentException`) and a UTF-16 BOM body. |
+| R16 | medium (perf) | `Internal/Pipeline.cs:338` | `HttpContent.ReadAsByteArrayAsync` buffers into an exact-size array and then `CreateCopy`/`ToArray` — two transient heap copies on every TFM; 2.00x wire bytes at every size in the new ladders (4.4 KB of the 19.6 KB deep-message operation; 2.15 MB and LOH for a 1 MB body). | Not a correctness gap; the old suite had no pipeline-without-materialization row to expose the slope. |
+| R18 | medium (perf) | `Internal/ServerSentEventReader.cs:89` | Per-character `Accept()`/`StringBuilder.Append(char)`, per-frame UTF-16 string, UTF-8 -> UTF-16 -> UTF-8 round trip; a contract-neutral span-scanning variant (`IndexOfAny` over the decoded `char[]`, slice appends) measured 6.6x faster on the 64-large-frame parser arm and 2.4x on the 1,024-small-frame arm with unchanged allocation. | Not a correctness gap; the parser-only benchmarks measured the whole reader without a per-character attribution. |
+| R12 | medium (architecture) | `Internal/Pipeline.cs:324-433` | `ReadSuccessBodyAsync`/`ReadBodyAsync` are near-identical 55-line timed-read catch ladders (drift already started); Pipeline grew to 617 lines (coding-style §1/§4). | Structural; behaviour is pinned end to end. |
+| R10 | low | `Internal/ResponseEncodingPolicy.cs:57` | On net472 the success plane strips a quoted `charset="utf-8"` while the error plane (.NET Framework `HttpContent.ReadAsStringAsync`) does not; canon's "equivalent to HttpContent string decoding" holds for the .NET (Core) algorithm only. | No quoted-charset test on either plane; the Windows net472 leg never saw one. |
+
+Verified test gaps for shipped contracts (medium): no direct `ResponseEncodingPolicy` test (UTF-8 BOM
+preamble slice on the byte path, declared/quoted charset, charset plus BOM, empty body before an invalid
+charset, UTF-32/UTF-16 BOM precedence) (R09); the UTF-8 span `ReadBarePayload` overload has no top-level
+`null` success test although generated adapters now use it (R13); the nested unknown carrier's fixed-
+outer-marker constructor guard has no runtime test (R14); no timeout/cancellation test runs against a
+real handler (R15, loopback server exists); paginator cancellation between pages is untested (R20).
+Documentation: ADR-0014 still calls the immutable-collection comparison an open pre-freeze question
+although Q120 closed it (R04); `ROADMAP.md` has become append-only history (R05); the Arc 6 decoding
+rule is restated in three canonical documents (R06, plausible); ADR-0009 gained a material decision
+without moving its `Date:` and states its mechanism twice (R11, plausible). The refuted finding claimed
+nested duplicate markers were untested; existing tests cover them.
+
+**Q120 claim verdicts:** every allocation claim is supported byte for byte (Q121 table); the
+`GetMessageAsync` and deep-union timing deltas exceed noise; `ListMessagesAsync` timing is weak (final-
+to-final spread 1.1 µs against a 3.3 µs claimed delta); the end-to-end stream timing rows sit inside the
+machine's bimodal noise band (large arm within 1.4 percent of its baseline on repeat, small arm +9.7
+percent) and should not be quoted as improvements; the downlevel append numbers cannot be re-verified
+because the probe is not in the repository.
+
+**Decision (maintainer, 2026-08-20):** the confirmed defects and test gaps are repaired before M4 planning
+resumes, red-test-first, with the Windows-only items (R19, R10, net472 benchmark execution) executed on a
+Windows machine. Public-surface compatibility is not a constraint for these repairs; generated output
+still changes only through the generator.

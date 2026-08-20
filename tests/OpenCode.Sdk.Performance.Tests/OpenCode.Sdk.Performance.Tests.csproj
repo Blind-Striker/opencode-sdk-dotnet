@@ -2,11 +2,16 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>$(DefaultTargetFramework)</TargetFramework>
+    <TargetFrameworks>$(DefaultTargetFramework)</TargetFrameworks>
+    <!-- The net472 target measures the downlevel runtime itself and can only execute on Windows;
+         adding it conditionally keeps Linux/macOS builds single-target. -->
+    <TargetFrameworks Condition="'$(OS)' == 'Windows_NT'">net472;$(TargetFrameworks)</TargetFrameworks>
     <!-- BenchmarkDotNet refuses to measure unoptimized assemblies. -->
     <Optimize>true</Optimize>
     <!-- Everything measured goes through the source-generated context, exactly like the SDK. -->
     <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+    <!-- .NET Framework reads feature switches from App.config rather than runtimeconfig.json. -->
+    <AppConfig Condition="'$(TargetFramework)' == 'net472'">App.net472.config</AppConfig>
     <!-- slopwatch-ignore: SW005 benchmark-harness arbitration: the canned endpoint/credential ARE the fixture, not a real address or secret (S1075, S2068) -->
     <NoWarn>$(NoWarn);S1075;S2068</NoWarn>
   </PropertyGroup>
@@ -17,6 +22,17 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/OpenCode.Sdk/OpenCode.Sdk.csproj"/>
+  </ItemGroup>
+
+  <!-- .NET Framework ships HttpClient in this framework assembly; no NuGet HTTP stack is added. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
+  <!-- Implicit usings apply only on net6.0+; the net472 leg needs these globally too. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <Using Include="System.Linq" />
+    <Using Include="System.Net.Http" />
   </ItemGroup>
 
   <ItemGroup>

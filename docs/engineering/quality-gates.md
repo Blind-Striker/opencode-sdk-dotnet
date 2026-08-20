@@ -1,6 +1,6 @@
 # Engineering Quality Gates
 
-Date: 2026-08-19
+Date: 2026-08-20
 
 Canonical quality policy for product code, generated output, repository tooling, tests, analyzers,
 performance evidence, and completion claims.
@@ -101,3 +101,18 @@ enumeration. Do not speculate: performance claims are settled by benchmarks in
 
 Performance changes carry exact before/after evidence. Intentional contract costs, such as raw body
 retention on API errors, are not disguised as optimization opportunities.
+
+The permanent suite reports exact allocated bytes (not rounded KiB) beside each case's wire bytes,
+item count, payload bytes per item, allocated bytes per item, and allocation amplification
+(`allocated / wire`), and exports the full BenchmarkDotNet JSON; a claim quotes those columns, not a
+rounded `KB`. Each benchmark class owns one operation family and decomposes it as a component ladder
+(complete operation, pipeline without materialization, generated adapter, source-generated
+materialization) over wire-shaped fixtures whose sizes scale from the common case to very large, so
+a regression attributes to a component rather than merely registering end to end. Every
+`GlobalSetup` refuses a fixture that does not materialize the generated type it claims to measure.
+Run benchmarks from a clean copy outside the repository (BenchmarkDotNet locates the project by name
+from the solution root and refuses duplicate copies such as scratch clones), validate with
+`--job Dry` before a default job, and compare timings only within one environment; allocation is the
+primary comparison. The performance project adds a net472 target on Windows only
+(`dotnet run -f net10.0 -- --runtimes net472 net10.0 ...`); net472 numbers come from that leg, never
+from net10 or source-equivalent probes.
