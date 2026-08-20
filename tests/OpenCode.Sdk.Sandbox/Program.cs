@@ -26,15 +26,18 @@ var password = Environment.GetEnvironmentVariable("OPENCODE_PASSWORD")
 
 var streamMode = args.Contains("--stream", StringComparer.Ordinal);
 var eventMode = args.Contains("--events", StringComparer.Ordinal);
-if (streamMode && eventMode)
+var paginationMode = args.Contains("--paginate", StringComparer.Ordinal);
+var selectedModeCount = (streamMode ? 1 : 0) + (eventMode ? 1 : 0) + (paginationMode ? 1 : 0);
+if (selectedModeCount > 1)
 {
-    await Console.Error.WriteLineAsync("Choose either --stream or --events, not both.").ConfigureAwait(false);
+    await Console.Error.WriteLineAsync("Choose only one of --stream, --events, or --paginate.").ConfigureAwait(false);
     return 1;
 }
 
 var hostArgs = args
     .Where(static argument => !string.Equals(argument, "--stream", StringComparison.Ordinal)
-                              && !string.Equals(argument, "--events", StringComparison.Ordinal))
+                              && !string.Equals(argument, "--events", StringComparison.Ordinal)
+                              && !string.Equals(argument, "--paginate", StringComparison.Ordinal))
     .ToArray();
 var builder = Host.CreateApplicationBuilder(hostArgs);
 _ = builder.Services.AddOpenCode(options =>
@@ -75,6 +78,39 @@ var health = await client.GetHealthAsync().ConfigureAwait(false);
 Console.WriteLine(string.Create(
     CultureInfo.InvariantCulture,
     $"health:  status={health.Status} healthy={health.Health.Healthy} version={health.Health.Version} pid={health.Health.Pid}"));
+
+if (paginationMode)
+{
+    var sessionId = Environment.GetEnvironmentVariable("OPENCODE_PAGINATION_SESSION_ID");
+    if (string.IsNullOrWhiteSpace(sessionId))
+    {
+        await Console.Error.WriteLineAsync("Set OPENCODE_PAGINATION_SESSION_ID for --paginate.").ConfigureAwait(false);
+        return 1;
+    }
+
+    var count = 0;
+    await foreach (var message in client.Sessions
+                       .GetSessionClient(sessionId)
+                       .EnumerateMessagesAsync(new MessageListRequest
+                       {
+                           Limit = "1",
+                           Order = ListOrder.Ascending,
+                       }, CancellationToken.None)
+                       .WithCancellation(CancellationToken.None))
+    {
+        count++;
+        Console.WriteLine(string.Create(
+            CultureInfo.InvariantCulture,
+            $"page-item-{count}: {message.GetType().Name}/{message.Type}"));
+        if (count is 2)
+        {
+            break;
+        }
+    }
+
+    Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"enumerated={count}"));
+    return count is 2 ? 0 : 1;
+}
 
 // Sub-clients resolve directly from the container as well.
 var sessionsClient = host.Services.GetRequiredService<SessionsClient>();

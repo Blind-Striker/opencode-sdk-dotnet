@@ -1,6 +1,6 @@
 # Protocol and Generation Architecture
 
-Date: 2026-08-19
+Date: 2026-08-20
 
 Canonical current rules for the protocol surface, generator, generated models, and runtime
 materialization boundary. ADRs record why these decisions were made; dated research records the
@@ -98,6 +98,11 @@ dispatch instead of routing it through ADR-0009's unknown carrier (ADR-0015).
 
 - Every HTTP operation method, including streaming operations, is generated as a short delegation
   into the hand-written behavior core (ADR-0008).
+- A cursor-list operation emits an additive `Enumerate*Async` companion only when binding proves the
+  admitted `ListRequest` query, `ListCursor` response, item collection, and operation signature.
+  Generated response adapters project page items, the opaque next cursor, and the continuation
+  request into one hand-written traversal core. Method names, descriptions, and upstream source do
+  not independently confer pagination semantics (ADR-0013, ADR-0017).
 - The SSE engine remains hand-written runtime behavior; generated stream methods bind their route,
   payload, frame, declared failure event, typed cause, and statuses from the pin. Cause models,
   converters, array metadata, and adapter metadata pass through the same emitted registry and

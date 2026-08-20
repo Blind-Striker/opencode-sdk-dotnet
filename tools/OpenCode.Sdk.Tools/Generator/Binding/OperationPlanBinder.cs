@@ -198,6 +198,9 @@ internal sealed class OperationPlanBinder
         {
             var members = client
                 .Operations.Select(static operation => operation.MethodName)
+                .Concat(client.Operations
+                    .Where(static operation => operation.Pagination is not null)
+                    .Select(static operation => operation.Pagination!.MethodName))
                 .Concat(client.SubClients.Select(static reference => reference.PropertyName));
             if (client.HandleFactory is not null)
             {
@@ -332,23 +335,7 @@ internal sealed class OperationPlanBinder
             var errorMap = BindErrorMap();
             var parameters = BindParameters(row);
             var optionalPlanErrorsBefore = _errors.Count;
-            var queryRequest = BindQueryRequest();
-            var requestBody = BindRequestBody();
-            if (queryRequest is not null && requestBody is not null)
-            {
-                // A body and query merge into one uniform request model only for the
-                // location channel; every other mix keeps the deliberate wall.
-                if (queryRequest.Properties.Any(static property => property.Kind is not QueryValueKind.Location))
-                {
-                    Refuse("operations mixing a request body and query parameters are supported only for the location selector");
-                    return null;
-                }
-
-                queryRequest = queryRequest with
-                {
-                    RidesRequestBody = true
-                };
-            }
+            var (queryRequest, requestBody) = BindRequests();
 
             var (methodName, routeMemberName) = ResolveNames(row);
             if (methodName is null || routeMemberName is null)
@@ -356,6 +343,8 @@ internal sealed class OperationPlanBinder
                 Refuse("the operation's names cannot be derived mechanically: the group does not pluralize naively");
                 return null;
             }
+
+            var pagination = BindPagination(methodName, parameters, queryRequest, requestBody, envelope);
 
             if ((success.IsSse ? stream is null : envelope is null)
                 || errorMap is null || parameters is null || _errors.Count != optionalPlanErrorsBefore)
@@ -381,6 +370,7 @@ internal sealed class OperationPlanBinder
                     RequestBody = requestBody,
                     Envelope = envelope,
                     Stream = stream,
+                    Pagination = pagination,
                     ErrorMap = errorMap,
                     Summary = _operation.Summary,
                     Description = _operation.Description,
@@ -394,6 +384,68 @@ internal sealed class OperationPlanBinder
                 string.Equals(operationName.OperationId, _operation.OperationId, StringComparison.Ordinal));
             return (OperationNamePolicy.MethodName(_operation, curatedName),
                 OperationNamePolicy.RouteMemberName(_operation, row.Placement, curatedName));
+        }
+
+        private (QueryRequestPlan? Query, RequestBodyPlan? Body) BindRequests()
+        {
+            var queryRequest = BindQueryRequest();
+            var requestBody = BindRequestBody();
+            if (queryRequest is null || requestBody is null)
+            {
+                return (queryRequest, requestBody);
+            }
+
+            // A body and query merge into one uniform request model only for the location
+            // channel; every other mix keeps the deliberate wall.
+            if (queryRequest.Properties.Any(static property => property.Kind is not QueryValueKind.Location))
+            {
+                Refuse("operations mixing a request body and query parameters are supported only for the location selector");
+                return (queryRequest, requestBody);
+            }
+
+            return (queryRequest with { RidesRequestBody = true }, requestBody);
+        }
+
+        private PaginationPlan? BindPagination(string methodName, IReadOnlyList<OperationParameterPlan>? parameters,
+            QueryRequestPlan? queryRequest, RequestBodyPlan? requestBody, EnvelopePlan? envelope)
+        {
+            if (queryRequest is not { DerivesFromListRequest: true, RidesRequestBody: false }
+                || envelope is not
+                {
+                    Kind: EnvelopeKind.CursorList,
+                    PayloadName: { } payloadName,
+                    PayloadTypeName: { } itemTypeName,
+                })
+            {
+                return null;
+            }
+
+            if (!string.Equals(_operation.Method, "get", StringComparison.Ordinal)
+                || requestBody is not null
+                || parameters is null
+                || parameters.Any(static parameter => !parameter.IsHandleParameter))
+            {
+                return RefuseNull<PaginationPlan>(
+                    "cursor pagination currently requires a GET operation with no body or unbound route parameters");
+            }
+
+            var enumerationMethodName = OperationNamePolicy.EnumerationMethodName(methodName);
+            if (enumerationMethodName is null)
+            {
+                _errors.Add(
+                    BindingErrorCategory.Naming,
+                    _operation.OperationId,
+                    $"cursor-list method '{methodName}' must be an asynchronous List method before its enumeration name can be derived");
+                return null;
+            }
+
+            return new PaginationPlan
+            {
+                MethodName = enumerationMethodName,
+                RequestTypeName = queryRequest.TypeName,
+                ItemTypeName = itemTypeName,
+                PayloadName = payloadName,
+            };
         }
 
         private bool CheckWireShape()

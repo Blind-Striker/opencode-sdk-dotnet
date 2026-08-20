@@ -32,6 +32,13 @@ internal static class ResponseAdapterEmitter
             .WithBody(SyntaxFactory.Block()));
         members.Add(EmitInstance(envelope.AdapterTypeName));
         members.Add(EmitAdapt(operation));
+        if (operation.Pagination is not null)
+        {
+            members.Add(EmitGetItems(operation));
+            members.Add(EmitGetNextCursor(operation));
+            members.Add(EmitCreateNextRequest(operation));
+        }
+
         if (envelope.Kind is EnvelopeKind.CursorList)
         {
             members.Add(EmitProjectingSuccessHelper(envelope, "Cursor"));
@@ -41,20 +48,41 @@ internal static class ResponseAdapterEmitter
         {
             members.Add(EmitProjectingSuccessHelper(envelope, "Location"));
         }
+        var baseTypes = new List<BaseTypeSyntax>
+        {
+            SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.Generic(
+                "ResponseAdapter",
+                TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName))),
+        };
+        if (operation.Pagination is { } pagination)
+        {
+            baseTypes.Add(SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.Generic(
+                "ICursorPageAdapter",
+                TypeSyntaxEmitter.EmitNamed(pagination.RequestTypeName),
+                TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName),
+                TypeSyntaxEmitter.EmitNamed(pagination.ItemTypeName))));
+        }
+
         var declaration = SyntaxFactory.ClassDeclaration(envelope.AdapterTypeName)
             .WithModifiers(SyntaxFactory.TokenList(
                 SyntaxFactory.Token(SyntaxKind.InternalKeyword),
                 SyntaxFactory.Token(SyntaxKind.SealedKeyword)))
-            .WithBaseList(SyntaxFactory.BaseList(SyntaxFactory.SingletonSeparatedList<BaseTypeSyntax>(
-                SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.Generic(
-                    "ResponseAdapter",
-                    TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName))))))
+            .WithBaseList(SyntaxFactory.BaseList(SyntaxFactory.SeparatedList(baseTypes)))
             .WithMembers(SyntaxFactory.List(members))
             .WithLeadingTrivia(EmissionSyntax.Documentation(
                 $"Adapts the '{operation.HttpMethod.ToUpperInvariant()} {operation.RouteTemplate}' responses onto '{envelope.ResponseTypeName}'."));
+        var usings = new List<string> { "System" };
+        if (operation.Pagination is not null)
+        {
+            usings.Add("System.Collections.Generic");
+            usings.Add("OpenCode.Sdk.Internal.Pagination");
+            usings.Add("OpenCode.Sdk.Models");
+        }
+
+        usings.Add("OpenCode.Sdk.Internal.Serialization");
         var unit = EmissionSyntax.CompilationUnit(
             "OpenCode.Sdk.Internal.ResponseAdapters",
-            ["System", "OpenCode.Sdk.Internal.Serialization"],
+            usings,
             [declaration]);
         return EmissionSyntax.CreateSource($"Internal/ResponseAdapters/{envelope.AdapterTypeName}.cs", unit);
     }
@@ -135,6 +163,80 @@ internal static class ResponseAdapterEmitter
             ])))
             .WithBody(SyntaxFactory.Block(statements))
             .WithLeadingTrivia(EmissionSyntax.Documentation("Maps one buffered response onto the typed envelope."));
+    }
+
+    private static MethodDeclarationSyntax EmitGetItems(OperationPlan operation)
+    {
+        var pagination = operation.Pagination!;
+        var responseTypeName = operation.Envelope!.ResponseTypeName;
+        var statements = new List<StatementSyntax>();
+        statements.AddRange(EmissionSyntax.ArgumentNullGuard("response"));
+        statements.Add(SyntaxFactory.ReturnStatement(
+            EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("response"), pagination.PayloadName)));
+        return SyntaxFactory.MethodDeclaration(
+                TypeSyntaxEmitter.Generic("IReadOnlyList", TypeSyntaxEmitter.EmitNamed(pagination.ItemTypeName)),
+                "GetItems")
+            .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
+            .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SingletonSeparatedList(
+                SyntaxFactory.Parameter(SyntaxFactory.Identifier("response"))
+                    .WithType(TypeSyntaxEmitter.EmitNamed(responseTypeName)))))
+            .WithBody(SyntaxFactory.Block(statements))
+            .WithLeadingTrivia(EmissionSyntax.Documentation("Gets the ordered items carried by one successful page."));
+    }
+
+    private static MethodDeclarationSyntax EmitGetNextCursor(OperationPlan operation)
+    {
+        var responseTypeName = operation.Envelope!.ResponseTypeName;
+        var statements = new List<StatementSyntax>();
+        statements.AddRange(EmissionSyntax.ArgumentNullGuard("response"));
+        statements.Add(SyntaxFactory.ReturnStatement(EmissionSyntax.MemberAccess(
+            EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("response"), "Cursor"),
+            "Next")));
+        return SyntaxFactory.MethodDeclaration(
+                SyntaxFactory.NullableType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword))),
+                "GetNextCursor")
+            .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
+            .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SingletonSeparatedList(
+                SyntaxFactory.Parameter(SyntaxFactory.Identifier("response"))
+                    .WithType(TypeSyntaxEmitter.EmitNamed(responseTypeName)))))
+            .WithBody(SyntaxFactory.Block(statements))
+            .WithLeadingTrivia(EmissionSyntax.Documentation("Gets the opaque next cursor carried by one successful page."));
+    }
+
+    private static MethodDeclarationSyntax EmitCreateNextRequest(OperationPlan operation)
+    {
+        var requestTypeName = operation.Pagination!.RequestTypeName;
+        var statements = new List<StatementSyntax>();
+        statements.AddRange(EmissionSyntax.ArgumentNullGuard("cursor"));
+        statements.Add(SyntaxFactory.ReturnStatement(
+            SyntaxFactory.ObjectCreationExpression(TypeSyntaxEmitter.EmitNamed(requestTypeName))
+                .WithInitializer(SyntaxFactory.InitializerExpression(
+                    SyntaxKind.ObjectInitializerExpression,
+                    SyntaxFactory.SeparatedList<ExpressionSyntax>(
+                    [
+                        SyntaxFactory.AssignmentExpression(
+                            SyntaxKind.SimpleAssignmentExpression,
+                            SyntaxFactory.IdentifierName("Limit"),
+                            SyntaxFactory.ConditionalAccessExpression(
+                                SyntaxFactory.IdentifierName("initialRequest"),
+                                SyntaxFactory.MemberBindingExpression(SyntaxFactory.IdentifierName("Limit")))),
+                        SyntaxFactory.AssignmentExpression(
+                            SyntaxKind.SimpleAssignmentExpression,
+                            SyntaxFactory.IdentifierName("Cursor"),
+                            SyntaxFactory.IdentifierName("cursor")),
+                    ])))));
+        return SyntaxFactory.MethodDeclaration(TypeSyntaxEmitter.EmitNamed(requestTypeName), "CreateNextRequest")
+            .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
+            .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(
+            [
+                SyntaxFactory.Parameter(SyntaxFactory.Identifier("initialRequest"))
+                    .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(requestTypeName))),
+                SyntaxFactory.Parameter(SyntaxFactory.Identifier("cursor"))
+                    .WithType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword))),
+            ])))
+            .WithBody(SyntaxFactory.Block(statements))
+            .WithLeadingTrivia(EmissionSyntax.Documentation(
+                "Creates a continuation request carrying the initial limit and opaque next cursor."));
     }
 
     /// <summary>

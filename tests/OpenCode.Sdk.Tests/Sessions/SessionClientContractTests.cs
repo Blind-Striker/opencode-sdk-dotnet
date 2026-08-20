@@ -143,6 +143,106 @@ public sealed class SessionClientContractTests
     }
 
     [Test]
+    public async Task EnumerateMessagesAsync_Should_Lazily_Follow_Opaque_Next_Cursors()
+    {
+        const string initialCursor = "cur_start";
+        const string firstNext = "cur_next_1";
+        const string secondNext = "cur_next_2";
+        var fixtureLoader = new FixtureLoader();
+        var user = fixtureLoader.LoadJson("Serialization.known-session-message.json");
+        var shell = fixtureLoader.LoadJson("Serialization.known-session-message-shell.json");
+        var responses = new Queue<string>(
+        [
+            WireBodyData.Page("", next: firstNext),
+            WireBodyData.Page(user, next: secondNext),
+            WireBodyData.Page(shell),
+        ]);
+        using var scenario = ContractScenario.Responding(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(responses.Dequeue()),
+        });
+        var messages = scenario.Client.Sessions.GetSessionClient("ses_100").EnumerateMessagesAsync(new MessageListRequest
+        {
+            Limit = "2",
+            Order = ListOrder.Ascending,
+            Cursor = initialCursor,
+        }, CancellationToken.None);
+
+        await Assert.That(scenario.Requests).IsEmpty();
+
+        var received = new List<ISessionMessageInfo>();
+        await foreach (var message in messages.WithCancellation(CancellationToken.None))
+        {
+            received.Add(message);
+        }
+
+        await Assert.That(received.Count).IsEqualTo(2);
+        await Assert.That(received[0]).IsTypeOf<SessionMessageUser>();
+        await Assert.That(received[1]).IsTypeOf<SessionMessageShell>();
+        await Assert
+            .That(scenario.Requests.Select(static request => request.RequestUri!.AbsoluteUri).SequenceEqual(
+            [
+                $"http://localhost:4096/api/session/ses_100/message?limit=2&order=asc&cursor={initialCursor}",
+                $"http://localhost:4096/api/session/ses_100/message?limit=2&cursor={firstNext}",
+                $"http://localhost:4096/api/session/ses_100/message?limit=2&cursor={secondNext}",
+            ],
+            StringComparer.Ordinal))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task EnumerateMessagesAsync_Should_Throw_The_Declared_Error_When_A_Later_Page_Fails()
+    {
+        const string nextCursor = "cur_invalid";
+        var payload = new FixtureLoader().LoadJson("Serialization.known-session-message.json");
+        var responses = new Queue<(HttpStatusCode Status, string Body)>(
+        [
+            (HttpStatusCode.OK, WireBodyData.Page(payload, next: nextCursor)),
+            (HttpStatusCode.BadRequest, WireBodyData.InvalidCursorError),
+        ]);
+        using var scenario = ContractScenario.Responding(_ =>
+        {
+            var response = responses.Dequeue();
+            return new HttpResponseMessage(response.Status) { Content = new StringContent(response.Body), };
+        });
+        await using var enumerator = scenario.Client.Sessions.GetSessionClient("ses_100")
+            .EnumerateMessagesAsync(cancellationToken: CancellationToken.None)
+            .GetAsyncEnumerator();
+
+        await Assert.That(await enumerator.MoveNextAsync()).IsTrue();
+        await Assert.That(enumerator.Current).IsTypeOf<SessionMessageUser>();
+
+        var exception = await Assert
+            .That(async () => _ = await enumerator.MoveNextAsync())
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception?.Error).IsTypeOf<InvalidCursorError>();
+        await Assert.That(scenario.Requests.Count).IsEqualTo(2);
+        await Assert.That(scenario.Requests[1].RequestUri!.Query).IsEqualTo($"?cursor={nextCursor}");
+    }
+
+    [Test]
+    public async Task EnumerateMessagesAsync_Should_Observe_Cancellation_Between_Buffered_Items()
+    {
+        var fixtureLoader = new FixtureLoader();
+        var user = fixtureLoader.LoadJson("Serialization.known-session-message.json");
+        var shell = fixtureLoader.LoadJson("Serialization.known-session-message-shell.json");
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Page($"{user},{shell}"));
+        using var cancellation = new CancellationTokenSource();
+        await using var enumerator = scenario.Client.Sessions.GetSessionClient("ses_100")
+            .EnumerateMessagesAsync(cancellationToken: cancellation.Token)
+            .GetAsyncEnumerator();
+
+        await Assert.That(await enumerator.MoveNextAsync()).IsTrue();
+        await cancellation.CancelAsync();
+
+        _ = await Assert
+            .That(async () => _ = await enumerator.MoveNextAsync())
+            .Throws<OperationCanceledException>();
+        await Assert.That(scenario.Requests.Count).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task RemoveSessionAsync_Should_Treat_The_204_As_A_Bodiless_Success()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);

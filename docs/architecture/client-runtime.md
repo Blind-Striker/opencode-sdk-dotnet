@@ -1,6 +1,6 @@
 # Client Runtime Architecture
 
-Date: 2026-08-19
+Date: 2026-08-20
 
 Canonical current rules for client construction, transport ownership, API errors, streams, and the
 local server launcher. Protocol and generated-model rules live in
@@ -59,13 +59,22 @@ local server launcher. Protocol and generated-model rules live in
 
 ## Pagination
 
-- Cursor-list operations currently expose one generated page envelope at a time. The SDK has no
-  automatic paginator yet.
-- `ListRequest` carries the represented `limit`, first-page `order`, and opaque `cursor` channels;
-  `ListCursor` preserves the response's optional `previous` and `next` values.
-- Arc 4 decides the additive traversal API before implementation. Until then consumers pass an
-  opaque returned cursor into the next explicit list call; the SDK derives no cursor structure or
-  prose-only validation rule (ADR-0013).
+- A supported cursor-list operation has two generated doors: `List*Async` returns one endpoint-
+  specific page envelope, while `Enumerate*Async` lazily yields its items across pages. Explicit
+  pages retain cursor/status metadata and per-call `NoThrow`; automatic item traversal has no
+  response envelope and therefore always throws API errors when their page is reached (ADR-0007,
+  ADR-0017).
+- `ListRequest` carries the pinned string `limit`, first-page `order`, and opaque `cursor` channels;
+  `ListCursor` preserves the response's optional `previous` and `next` values. The first automatic
+  request is sent unchanged, including an order-plus-cursor pair. Each continuation retains the
+  initial `limit`, omits `order`, and sends the returned `cursor.next` without decoding it.
+- A missing `next` cursor is the only normal end signal. An empty page with `next` continues;
+  `previous` remains available through explicit page calls. Cursor values are never normalized,
+  incremented, compared, or cycle-checked. Cancellation reaches each request and is checked between
+  buffered items.
+- Automatic pagination is a finite pull sequence over ordinary buffered HTTP calls, not SSE. A
+  different pagination dialect does not inherit these rules from naming or prose; it requires a
+  mechanically proven binding of its own (ADR-0013, ADR-0017).
 
 ## Launcher
 

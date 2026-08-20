@@ -38,6 +38,18 @@ internal static class OperationNamePolicy
         return subject is null ? null : $"{Verb(operation)}{subject}Async";
     }
 
+    /// <summary>Replaces a list operation's verb with the reviewed automatic-traversal verb.</summary>
+    public static string? EnumerationMethodName(string methodName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(methodName);
+
+        return methodName.StartsWith("List", StringComparison.Ordinal)
+               && methodName.EndsWith("Async", StringComparison.Ordinal)
+               && methodName.Length > "ListAsync".Length
+            ? $"Enumerate{methodName[4..]}"
+            : null;
+    }
+
     public static string ResponseTypeName(SpecOperation operation)
     {
         ArgumentNullException.ThrowIfNull(operation);

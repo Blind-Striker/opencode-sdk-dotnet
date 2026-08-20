@@ -37,6 +37,22 @@ public sealed class OperationNamePolicyTests
     }
 
     [Test]
+    [Arguments("ListMessagesAsync", "EnumerateMessagesAsync")]
+    [Arguments("ListItemsAsync", "EnumerateItemsAsync")]
+    public async Task EnumerationMethodName_Should_Replace_The_List_Verb(string methodName, string expected)
+    {
+        await Assert.That(OperationNamePolicy.EnumerationMethodName(methodName)).IsEqualTo(expected);
+    }
+
+    [Test]
+    [Arguments("GetMessagesAsync")]
+    [Arguments("ListMessages")]
+    public async Task EnumerationMethodName_Should_Return_Null_Outside_Async_List_Methods(string methodName)
+    {
+        await Assert.That(OperationNamePolicy.EnumerationMethodName(methodName)).IsNull();
+    }
+
+    [Test]
     [Arguments("v2.health.get", "get", "HealthResponse")]
     [Arguments("v2.session.message", "get", "SessionMessageResponse")]
     [Arguments("v2.session.get", "get", "SessionResponse")]

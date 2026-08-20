@@ -1,6 +1,6 @@
 # Research log — 2026-08-08
 
-Date: 2026-08-19
+Date: 2026-08-20
 
 > Dated evidence and decision history, not current policy. Follow current canon through
 > `AGENTS.md`; later sessions in this log intentionally supersede some earlier conclusions.
@@ -2693,3 +2693,75 @@ observed. This is one Linux live demonstration. The global bus is volatile and h
 replay, resume, or reconnect contract; the run observed two known frames and did not induce overflow,
 a reserved failure frame, malformed payload, unknown variant, or network cut. Deterministic contract
 tests own those paths. The breadth trigger created a session and did not delete it.
+
+# Session 35 — 2026-08-20: Arc 4 paginator
+
+## Q117: What public pagination shape should the SDK add?
+
+**How researched:** current Azure.Core `AsyncPageable<T>`/`Page<T>`, System.ClientModel
+`AsyncCollectionResult<T>`, Google GAX `PagedAsyncEnumerable<TResponse, TResource>`, AWS SDK for
+.NET v4 paginators, Microsoft Graph `PageIterator`, and Stripe.net auto-pagination were compared
+against the existing `ListMessagesAsync`, `MessageListResponse`, `ListRequest`, `ListCursor`,
+multi-TFM, error, and generator contracts. Azure and System.ClientModel expose item iteration plus
+page/raw-response access; Google follows the same two-level pattern; AWS exposes item and full-
+response sequences; Stripe keeps its explicit list call and adds an item-only auto-paging sequence;
+Graph's callback state machine follows full next-link URLs and does not fit opaque query cursors.
+Primary evidence: [Azure pagination](https://learn.microsoft.com/dotnet/azure/sdk/pagination),
+[System.ClientModel](https://learn.microsoft.com/dotnet/api/system.clientmodel.asynccollectionresult-1),
+[Google GAX 4.10](https://cloud.google.com/dotnet/docs/reference/Google.Api.Gax/latest/Google.Api.Gax.PagedAsyncEnumerable-2),
+[AWS SDK v4](https://docs.aws.amazon.com/sdk-for-net/v4/developer-guide/paginators.html),
+[Microsoft Graph](https://learn.microsoft.com/graph/sdks/paging), and
+[Stripe.net](https://docs.stripe.com/api/pagination/auto?lang=dotnet).
+
+**Found:** an Azure-shaped local `Page<T>` would duplicate `MessageListResponse`, flatten the pin's
+`previous`/`next` cursor into a one-token convention, and encourage an `int` page-size hint where the
+pin exposes `limit` only as a string. The concrete additional benefit over the existing page method
+would be automatic page-metadata traversal; no current consumer requires it, and it remains
+additive. Plain `IAsyncEnumerable<TItem>` needs no dependency or second public vocabulary and is
+already supported on downlevel targets through the SDK's existing async-interfaces package.
+
+**Decision (maintainer, sealed):** keep every endpoint-specific one-page `List*Async` API and add a
+generated `Enumerate*Async` item sequence when the binder mechanically proves the supported cursor-
+list dialect (ADR-0017). `v2.message.list` is the proving slice and emits
+`EnumerateMessagesAsync(MessageListRequest?, CancellationToken)`. The first request is unchanged;
+continuations retain the exact string `Limit`, clear first-page-only `Order`, and carry opaque
+`Cursor.Next`. Only null `Next` ends traversal, errors always throw at their page boundary, and
+`Previous` stays on the explicit page path. Different pagination shapes are not guessed or folded
+into this mechanism.
+
+## Q118: Does the generated paginator preserve the pinned traversal and existing page seam?
+
+**Implementation:** the binder creates a `PaginationPlan` only for the exact `ListRequest` query
+profile plus a cursor-list response and an operation signature the current core can call without an
+endpoint-specific transport path. The generated response adapter implements the internal page
+projection contract; generated `EnumerateMessagesAsync` delegates the existing virtual
+`ListMessagesAsync` method, its initial request, and that adapter into the hand-written
+`CursorPaginator`. The core owns lazy page fetches, item flattening, cancellation between buffered
+items, null-only termination, and continuation sequencing. The adapter owns only pin-bound member
+projection and construction of the next `MessageListRequest`.
+
+**Deterministic evidence:** a three-response contract starts with an empty page carrying `next`,
+then materializes user and shell messages. It proves no request occurs before enumeration, the
+initial `limit=2&order=asc&cursor=...` is sent unchanged, and continuations are exactly
+`limit=2&cursor=...` without `order`. A later-page 400 remains a typed `InvalidCursorError`; a
+cancelled enumeration stops between two buffered items; and a protected-constructor subclass proves
+the paginator invokes the virtual page method while preserving an empty cursor as present opaque
+data. Binder evidence pins the selected positive plan, rejects a curated non-`List*Async` name, and
+keeps the extra-filter `session.list` request outside this exact dialect. Synthetic output emits,
+source-generates, and compiles with the hand-written core.
+
+**Local closure:** an independent fresh-context review reported no defects. Slopwatch found zero
+issues; Release build completed with zero warnings and errors; whitespace and warning-level style
+verification passed; all 1,338 local test executions passed with none failed or skipped; both tool
+entry smokes and generation verification passed.
+
+**Live evidence:** exact `@opencode-ai/cli@0.0.0-next-17403` served `127.0.0.1:41999`; generated
+health identified version `0.0.0-next-17403` and server PID `995554`. The committed sandbox's
+`--paginate` mode read existing historical session `ses_ff14d29a5ffeqrxEFlSnZf3btP` with
+`Limit = "1"` and ascending order. `EnumerateMessagesAsync` materialized
+`SessionMessageModelSelected/model-switched` and then `SessionMessageUser/user`, proving a second
+HTTP page was reached before the example stopped at two items. The run created no session or
+message, invoked no provider/model, and mutated no server state; it reused real data already present
+from earlier live probes. The separately launched server was then terminated and health refused the
+connection. This is one Linux demonstration, not hosted three-OS evidence; deterministic tests own
+error, cancellation, empty-page, and opaque-cursor edge paths.

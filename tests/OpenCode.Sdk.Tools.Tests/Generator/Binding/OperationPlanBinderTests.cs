@@ -223,6 +223,25 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Recognize_Only_The_Selected_ListRequest_Cursor_Operation_As_Paginated()
+    {
+        var plan = await new BindingTestHost().BindPinnedAsync();
+        var session = plan.Clients.Single(static client => client.Name == "SessionClient");
+        var sessions = plan.Clients.Single(static client => client.Name == "SessionsClient");
+        var messages = session.Operations.Single(static operation => operation.MethodName == "ListMessagesAsync");
+        var pagination = messages.Pagination;
+
+        await Assert.That(pagination).IsNotNull();
+        await Assert.That(pagination.MethodName).IsEqualTo("EnumerateMessagesAsync");
+        await Assert.That(pagination.RequestTypeName).IsEqualTo("MessageListRequest");
+        await Assert.That(pagination.ItemTypeName).IsEqualTo("ISessionMessageInfo");
+        await Assert.That(pagination.PayloadName).IsEqualTo("Messages");
+        await Assert
+            .That(sessions.Operations.Single(static operation => operation.MethodName == "ListSessionsAsync").Pagination)
+            .IsNull();
+    }
+
+    [Test]
     public async Task Bind_Should_Derive_Selected_Query_Types_From_The_Pinned_OpenApi()
     {
         var plan = await new BindingTestHost().BindPinnedAsync();
@@ -643,6 +662,30 @@ public sealed class OperationPlanBinderTests
         await Assert
             .That(plan.Registry.TypeNames
                 .SequenceEqual(["WidgetInfo", "WidgetListResponseEnvelope"], StringComparer.Ordinal))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Cursor_Paginator_Whose_Enumeration_Name_Cannot_Be_Derived()
+    {
+        var document = await BindingTestHost.IngestAsync(CursorListScenario(configure: operation => operation
+            .Parameter("limit", "query", QueryScenarioData.NullableString)
+            .Parameter("order", "query", QueryScenarioData.NullableOrderEnum)
+            .Parameter("cursor", "query", QueryScenarioData.NullableString)));
+        var curation = Curation(
+            Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)),
+            operationNames: [OperationName("v2.widget.list", "BrowseWidgetsAsync")]);
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.list"),
+            curation));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
+                                                        && error.Problem.Contains(
+                                                            "must be an asynchronous List method",
+                                                            StringComparison.Ordinal)))
             .IsTrue();
     }
 
@@ -1711,7 +1754,8 @@ public sealed class OperationPlanBinderTests
                 _ = operation.Response(200, "application/json", schema => schema.Ref("WidgetInfo"));
             }));
 
-    private static SpecScenario CursorListScenario(Action<SchemaBuilder>? cursor = null, Action<SchemaBuilder>? items = null) =>
+    private static SpecScenario CursorListScenario(Action<SchemaBuilder>? cursor = null, Action<SchemaBuilder>? items = null,
+        Action<OperationBuilder>? configure = null) =>
         SpecScenario.Define(spec => spec
             .WithSchema("WidgetInfo", schema => schema
                 .Type("object")
@@ -1723,8 +1767,11 @@ public sealed class OperationPlanBinderTests
                     .Type("array")
                     .Items(items ?? (static item => item.Ref("WidgetInfo"))), required: true)
                 .Property("cursor", cursor ?? DefaultCursor, required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
-                .Response(200, "application/json", schema => schema.Ref("WidgetsResponse"))));
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation =>
+            {
+                configure?.Invoke(operation);
+                _ = operation.Response(200, "application/json", schema => schema.Ref("WidgetsResponse"));
+            }));
 
     private static void DefaultCursor(SchemaBuilder cursor) => cursor
         .Type("object")

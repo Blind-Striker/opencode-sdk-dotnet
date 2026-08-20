@@ -38,6 +38,9 @@ internal sealed record OperationPlan
     /// <summary>Gets the stream contract, or <see langword="null"/> when the operation answers once.</summary>
     public StreamPlan? Stream { get; init; }
 
+    /// <summary>Gets the automatic cursor traversal, or <see langword="null"/> when the operation is not pageable.</summary>
+    public PaginationPlan? Pagination { get; init; }
+
     public required ErrorMapPlan ErrorMap { get; init; }
 
     public string? Summary { get; init; }

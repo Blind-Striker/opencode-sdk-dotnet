@@ -48,7 +48,7 @@ internal static class ClientEmitter
                 HandleFieldName(client.HandleParameter)));
         }
 
-        members.AddRange(client.Operations.Select(OperationMethodEmitter.Emit));
+        members.AddRange(EmitOperationMembers(client.Operations));
 
         var declaration = SyntaxFactory.ClassDeclaration(client.Name)
             .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
@@ -74,10 +74,19 @@ internal static class ClientEmitter
             usings.Add("OpenCode.Sdk.Internal.ResponseAdapters");
         }
 
-        if (client.Operations.Any(static operation => operation.Stream is not null))
+        if (client.Operations.Any(static operation => operation.Stream is not null || operation.Pagination is not null))
         {
             usings.Add("System.Collections.Generic");
+        }
+
+        if (client.Operations.Any(static operation => operation.Stream is not null))
+        {
             usings.Add("OpenCode.Sdk.Internal.StreamAdapters");
+        }
+
+        if (client.Operations.Any(static operation => operation.Pagination is not null))
+        {
+            usings.Add("OpenCode.Sdk.Internal.Pagination");
         }
 
         usings.Add("OpenCode.Sdk.Internal.Serialization");
@@ -95,6 +104,18 @@ internal static class ClientEmitter
         ClientRole.Handle => $"A bound '{client.Name}' handle; it holds an immutable identifier and the shared pipeline.",
         _ => throw new InvalidOperationException($"Unknown client role '{client.Role}'."),
     };
+
+    private static IEnumerable<MemberDeclarationSyntax> EmitOperationMembers(IReadOnlyList<OperationPlan> operations)
+    {
+        foreach (var operation in operations)
+        {
+            yield return OperationMethodEmitter.Emit(operation);
+            if (operation.Pagination is not null)
+            {
+                yield return PaginationMethodEmitter.Emit(operation);
+            }
+        }
+    }
 
     private static IEnumerable<MemberDeclarationSyntax> EmitFields(ClientPlan client)
     {

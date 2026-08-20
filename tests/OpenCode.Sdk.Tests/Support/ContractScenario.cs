@@ -36,6 +36,13 @@ internal sealed class ContractScenario : IDisposable
         }));
     }
 
+    public static ContractScenario Responding(Func<HttpRequestMessage, HttpResponseMessage> responder)
+    {
+        ArgumentNullException.ThrowIfNull(responder);
+
+        return new(new RecordingHttpHandler(responder));
+    }
+
     public static ContractScenario Responding() => new(new RecordingHttpHandler());
 
     /// <summary>Answers with a server-sent event body, the shape a streaming operation reads.</summary>

@@ -361,6 +361,13 @@ internal static class EmitterPlanFixture
                 SuccessStatusCode = 200,
                 EnvelopeDtoTypeName = "WidgetItemListResponseEnvelope",
             },
+            Pagination = new PaginationPlan
+            {
+                MethodName = "EnumerateItemsAsync",
+                RequestTypeName = "ItemListRequest",
+                ItemTypeName = "ExampleItem",
+                PayloadName = "Items",
+            },
             ErrorMap = new ErrorMapPlan
             {
                 Statuses =

@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-19
+Date: 2026-08-20
 
 Operational state: what is done, what is next, what is open. This file shrinks as work lands.
 `../AGENTS.md` routes to current architecture and engineering canon; decision records live in
@@ -192,15 +192,19 @@ materialized, SIGTERM drove normal host cancellation, and the separately launche
 healthy until stopped independently. Research Q115/Q116 own the decision, commands, identities, and
 limitations. #44 and #49 are closed; no later M3 arc or #53 M5 wall work began in this increment.
 
-**The exact next M3 increment is Arc 4 paginator.** It starts decision-first over the existing
-`ListRequest`, `ListCursor`, `ListOrder`, and generated `MessageListResponse` seams: a short current
-.NET ecosystem survey compares an `AsyncPageable`-like public page sequence with a plain
-`IAsyncEnumerable<T>` plus explicit page access before any API is emitted. The pinned
-`v2.message.list` contract alone owns traversal: `order` shapes the first page, items retain that
-order across pages, and the opaque `cursor.next` / `cursor.previous` values move through the ordered
-timeline. ADR-0013 already removed #28's prose-derived local order+cursor refusal; do not resurrect
-it, while the declared `InvalidCursorError` remains typed. Arc 5's net472 owned-transport GA cluster
-and Arc 6's measured performance pass remain mandatory follow-ups in that order.
+**Arc 4's paginator is locally complete and awaiting its source checkpoint and hosted matrix.**
+ADR-0017 keeps generated `ListMessagesAsync` as the explicit page/cursor/`NoThrow` door and adds
+`EnumerateMessagesAsync` as a lazy item sequence over the same virtual method and response adapter.
+The binder admits the companion only for the exact `ListRequest` plus cursor-list dialect; the
+hand-written core follows opaque `cursor.next`, while generated metadata retains the string `limit`,
+omits first-page-only `order` on continuations, and never decodes or compares cursors. Deterministic
+evidence covers an unchanged initial order+cursor request, empty intermediate pages, null-only
+termination, typed later-page errors, cancellation between buffered items, an empty cursor, and the
+mocking seam. The PublicApi review contains one additive method. Research Q117/Q118 own the survey,
+decision, implementation, local 1,338-test closure, and a Linux live run where the committed sandbox
+enumerated two real historical messages with `limit=1` across two pages without creating data or
+invoking a provider. Arc 5's net472 owned-transport GA cluster is next only after this source
+increment is committed and hosted green; Arc 6 remains mandatory after Arc 5.
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family
