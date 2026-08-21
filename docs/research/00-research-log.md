@@ -1,6 +1,6 @@
 # Research log — 2026-08-08
 
-Date: 2026-08-20
+Date: 2026-08-21
 
 > Dated evidence and decision history, not current policy. Follow current canon through
 > `AGENTS.md`; later sessions in this log intentionally supersede some earlier conclusions.
@@ -3049,3 +3049,95 @@ because the probe is not in the repository.
 resumes, red-test-first, with the Windows-only items (R19, R10, net472 benchmark execution) executed on a
 Windows machine. Public-surface compatibility is not a constraint for these repairs; generated output
 still changes only through the generator.
+
+# Session 39 — 2026-08-21: Arc 6 repair and Windows net472 evidence
+
+## Q123: What does the first real net472 benchmark leg show against net10.0 on Windows?
+
+**Method:** source head `713f09a` was mirrored with `robocopy` to a clean `C:\bench` outside the
+repository, excluding `.git`, `.scratchpad`, `external`, `bin`, `obj`, `BenchmarkDotNet.Artifacts`, and
+`TestResults`. Building `tests/OpenCode.Sdk.Performance.Tests` in Release compiled both net472 and
+net10.0; the only warnings were the expected SourceLink warnings caused by deliberately omitting `.git`.
+BenchmarkDotNet 0.15.8 then ran the health, message-get, and SSE-reader ladders in one process-level
+comparison:
+
+```powershell
+dotnet build tests/OpenCode.Sdk.Performance.Tests -c Release
+
+dotnet run --project tests/OpenCode.Sdk.Performance.Tests -c Release -f net10.0 --no-build -- `
+  --runtimes net472 net10.0 `
+  --filter '*ServerSentEventReaderBenchmarks*' '*HealthBenchmarks*' '*MessageGetBenchmarks*' `
+  --job Dry --artifacts <outside-copy>/q123-dry
+
+dotnet run --project tests/OpenCode.Sdk.Performance.Tests -c Release -f net10.0 --no-build -- `
+  --runtimes net472 net10.0 `
+  --filter '*ServerSentEventReaderBenchmarks*' '*HealthBenchmarks*' '*MessageGetBenchmarks*' `
+  --artifacts <outside-copy>/q123-default
+```
+
+Dry completed all 46 selected runtime cases. The default job completed the same 46 cases in 47:03.
+The environment was Windows 11 `10.0.26200.9168`, AMD Ryzen 9 5900X (12 physical / 24 logical cores),
+SDK 10.0.303, .NET 10.0.11, and concurrent workstation GC. The net472 job built a net472 executable
+and ran it on the installed .NET Framework 4.8.1 CLR (`4.8.9337.0`); these are downlevel-target results,
+not a claim that the installed CLR itself was 4.7.2. Every ratio below is net472 divided by net10.0
+inside this one run.
+
+**Health ladder (49 wire bytes, exact allocated bytes):**
+
+| Component | net10 mean / alloc | net472 mean / alloc | Time ratio | Alloc ratio |
+|---|---:|---:|---:|---:|
+| Complete `GetHealthAsync` | 1.5772 µs / 2,104 B | 17.2393 µs / 6,428 B | 10.93x | 3.06x |
+| Pipeline without adapter | 0.9134 µs / 1,840 B | 13.3170 µs / 6,141 B | 14.58x | 3.34x |
+| Generated adapter | 0.4260 µs / 304 B | 1.5728 µs / 313 B | 3.69x | 1.03x |
+| Source-generated materialization | 0.3845 µs / 256 B | 1.5248 µs / 265 B | 3.97x | 1.04x |
+
+The small response exposes downlevel fixed transport/async overhead: most of the extra 4,324 B on the
+complete call is below the adapter boundary, not in the model materializer.
+
+**Message-get ladders (one item; wire bytes include the `data` envelope):**
+
+| Fixture / component | Wire B | net10 mean / alloc | net472 mean / alloc | Time ratio | Alloc ratio |
+|---|---:|---:|---:|---:|---:|
+| Deep / complete | 2,191 | 32.793 µs / 19,608 B | 133.863 µs / 25,146 B | 4.08x | 1.28x |
+| Deep / pipeline | 2,191 | 1.295 µs / 6,112 B | 13.643 µs / 10,935 B | 10.54x | 1.79x |
+| Deep / adapter | 2,191 | 30.388 µs / 13,216 B | 108.235 µs / 13,631 B | 3.56x | 1.03x |
+| Deep / materialization | 2,191 | 30.688 µs / 13,168 B | 109.798 µs / 13,583 B | 3.58x | 1.03x |
+| Medium / complete | 54,159 | 542.019 µs / 433,048 B | 2,662.223 µs / 452,365 B | 4.91x | 1.04x |
+| Medium / pipeline | 54,159 | 7.164 µs / 110,048 B | 28.908 µs / 124,790 B | 4.04x | 1.13x |
+| Medium / adapter | 54,159 | 654.989 µs / 322,720 B | 2,572.153 µs / 329,853 B | 3.93x | 1.02x |
+| Medium / materialization | 54,159 | 685.870 µs / 322,672 B | 2,523.826 µs / 329,806 B | 3.68x | 1.02x |
+| Large / complete | 1,075,599 | 14.964 ms / 8,584,485 B | 53.855 ms / 8,732,510 B | 3.60x | 1.02x |
+| Large / pipeline | 1,075,599 | 0.369 ms / 2,154,163 B | 0.538 ms / 2,162,148 B | 1.46x | 1.00x |
+| Large / adapter | 1,075,599 | 14.541 ms / 6,428,328 B | 55.038 ms / 6,567,542 B | 3.78x | 1.02x |
+| Large / materialization | 1,075,599 | 14.879 ms / 6,428,280 B | 55.577 ms / 6,567,651 B | 3.74x | 1.02x |
+
+The response-read row remains the same defect signal on both runtimes: the large body allocates
+2,154,163 B (`2.00x` wire) on net10 and 2,162,148 B (`2.01x`) on net472. The fixed downlevel cost is
+visible on deep and health bodies, but it amortizes as the body grows; R16 remains an SDK-owned copy
+problem rather than a net472-only issue.
+
+**SSE reader, sustained rows (exact framed wire and allocated bytes):**
+
+| Fixture / method | Wire B / items | net10 mean / alloc | net472 mean / alloc | Time ratio | Alloc ratio |
+|---|---:|---:|---:|---:|---:|
+| Large x64 / whole reads | 140,160 / 64 | 474.098 µs / 329,184 B | 1,366.883 µs / 350,005 B | 2.88x | 1.06x |
+| Large x64 / 1,460 B chunks | 140,160 / 64 | 479.495 µs / 329,160 B | 1,381.588 µs / 357,527 B | 2.88x | 1.09x |
+| Large x64 / multiline | 141,952 / 64 | 490.732 µs / 324,944 B | 1,355.856 µs / 346,878 B | 2.76x | 1.07x |
+| Small x1024 / whole reads | 71,680 / 1,024 | 335.894 µs / 181,880 B | 926.668 µs / 199,250 B | 2.76x | 1.10x |
+| Small x1024 / 1,460 B chunks | 71,680 / 1,024 | 339.265 µs / 181,856 B | 948.384 µs / 203,054 B | 2.80x | 1.12x |
+
+This is the first real execution evidence for the downlevel append path: sustained net472 parsing is
+2.76-2.88x slower and allocates 1.06-1.12x as much as net10 in the same run. Socket-sized chunks do
+not materially change either runtime's mean. The single-frame rows are dominated by fixed buffers:
+large x1 was 10.667 µs / 52,416 B on net10 versus 25.409 µs / 72,164 B on net472; small x1 was
+1.995 µs / 26,312 B versus 3.723 µs / 43,140 B.
+
+**Limits and decision:** timings compare only the two jobs in this Windows run; no ratio is taken
+against the Linux Q121 machine. BenchmarkDotNet flagged multimodal distributions in health adapter/
+materialization rows, the medium net472 pipeline row, the large-x64 chunked net472 row, and both net10
+single-frame SSE rows. Their point timings are descriptive rather than precision claims; allocation is
+the primary cross-run signal, and the sustained runtime gaps remain the decision input. Q123 clears the
+net472 execution gate and confirms the existing follow-up order: R18 stage 1 (contract-neutral span
+scan), R16 (pooled response-body read, targeting about `1.0x` wire in the read row), then emitter
+typed-switch union dispatch using Q121's interface/concrete attribution. Each change keeps its own
+same-environment before/after evidence; Q123 itself changes no benchmark or product code.

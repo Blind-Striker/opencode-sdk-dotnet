@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-20
+Date: 2026-08-21
 
 Operational state: what is done, what is next, what is open. This file shrinks as work lands.
 `../AGENTS.md` routes to current architecture and engineering canon; decision records live in
@@ -230,8 +230,10 @@ columns and medium/large fixtures; research Q121 owns its same-environment measu
 independent Arc 6 review (research Q122) confirmed a streaming-deserialization regression in the copied-
 reader union scan, an unbounded stream-open error-body read, a raw `NotSupportedException` leak for
 `charset=utf-7`, a downlevel SSE cancellation gap, and five test gaps. **M3 is functionally complete;
-the bounded Arc 6 repair (red-test-first, Windows-executed downlevel items, net472 benchmark run) is
-exact next, and M4's short launcher plan follows it. No M4 source or planning work has begun.**
+the bounded Arc 6 repairs are complete at `3f68ddf` and `713f09a`, including real-handler net472
+cancellation/timeout evidence. The first net472/net10 benchmark leg is complete (research Q123), and
+the measured R18 stage-1, R16 pooled-read, and typed-switch follow-ups are exact next before M4's
+short launcher plan. No M4 source or planning work has begun.**
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family
