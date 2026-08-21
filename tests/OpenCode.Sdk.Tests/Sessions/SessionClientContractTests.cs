@@ -243,6 +243,44 @@ public sealed class SessionClientContractTests
     }
 
     [Test]
+    public async Task EnumerateMessagesAsync_Should_Send_The_Caller_Token_To_Each_Page_Request()
+    {
+        const string nextCursor = "cur_next";
+        var payload = new FixtureLoader().LoadJson("Serialization.known-session-message.json");
+        var responses = new Queue<string>(
+        [
+            WireBodyData.Page(payload, next: nextCursor),
+            WireBodyData.Page(""),
+        ]);
+        using var scenario = ContractScenario.Responding(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(responses.Dequeue()),
+        });
+        using var cancellation = new CancellationTokenSource();
+        await using var enumerator = scenario.Client.Sessions.GetSessionClient("ses_100")
+            .EnumerateMessagesAsync(cancellationToken: cancellation.Token)
+            .GetAsyncEnumerator();
+
+        await Assert.That(await enumerator.MoveNextAsync()).IsTrue();
+        await cancellation.CancelAsync();
+
+        bool? moved = null;
+        OperationCanceledException? cancellationException = null;
+        try
+        {
+            moved = await enumerator.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(1));
+        }
+        catch (OperationCanceledException exception)
+        {
+            cancellationException = exception;
+        }
+
+        await Assert.That(moved is false || cancellationException is not null).IsTrue();
+        await Assert.That(scenario.CancellationTokens.Count).IsEqualTo(2);
+        await Assert.That(scenario.CancellationTokens[1].IsCancellationRequested).IsTrue();
+    }
+
+    [Test]
     public async Task RemoveSessionAsync_Should_Treat_The_204_As_A_Bodiless_Success()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);

@@ -24,6 +24,8 @@ internal sealed class ContractScenario : IDisposable
 
     public OpenCodeClient Client { get; }
 
+    public IReadOnlyList<CancellationToken> CancellationTokens => _handler.CancellationTokens;
+
     public IReadOnlyList<RecordedRequest> Requests => _handler.Requests;
 
     public static ContractScenario Responding(HttpStatusCode status, string body)

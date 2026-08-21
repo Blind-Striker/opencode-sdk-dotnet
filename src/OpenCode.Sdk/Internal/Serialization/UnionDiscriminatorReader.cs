@@ -81,7 +81,10 @@ internal sealed class UnionDiscriminatorReader
                 found = true;
             }
 
-            scan.Skip();
+            if (!scan.TrySkip())
+            {
+                throw new JsonException($"The {conceptName} payload ended before '{propertyName}'.");
+            }
         }
 
         if (!found)

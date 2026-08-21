@@ -84,10 +84,11 @@ dispatch instead of routing it through ADR-0009's unknown carrier (ADR-0015).
   carrier, preserving the tag and raw `JsonElement` payload. Unknown frame names are not payload
   variants and remain framing failures (ADR-0009).
 - Known tagged-union arms scan a copied UTF-8 reader for the last top-level discriminator and then
-  materialize once through source-generated metadata; they do not build a JSON DOM. Unknown arms
-  alone retain the DOM needed by their lossless carrier. Public unknown-carrier construction
-  requires the payload's discriminator (and any fixed outer marker) to agree with the exposed
-  marker properties; serialization remains payload-only replay (ADR-0009).
+  materialize once through source-generated metadata; the scan remains safe when serializer stream
+  entry points supply a partial reader, and it does not build a JSON DOM. Unknown arms alone retain
+  the DOM needed by their lossless carrier. Public unknown-carrier construction requires the
+  payload's discriminator (and any fixed outer marker) to agree with the exposed marker properties;
+  serialization remains payload-only replay (ADR-0009).
 - A marked union is emitted as an interface. One wire schema remains one sealed record implementing
   every marked union to which it belongs (ADR-0011).
 - A token-distinct structural union emits one sealed carrier record with a `Kind`, guarded typed

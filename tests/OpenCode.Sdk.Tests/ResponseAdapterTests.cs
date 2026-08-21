@@ -34,6 +34,13 @@ public sealed class ResponseAdapterTests
     }
 
     [Test]
+    public async Task ReadBarePayload_Should_Treat_Null_Utf8_Bodies_As_Protocol_Failures()
+    {
+        _ = Assert.Throws<OpenCodeTransportException>(() =>
+            _ = ProbeAdapter.Bare("null"u8, OpenCodeJsonContext.Default.ServiceHealth));
+    }
+
+    [Test]
     public async Task ReadTolerantError_Should_Keep_A_Known_Tag_At_Its_Declared_Status()
     {
         var error = ProbeAdapter.Error("{\"_tag\":\"UnauthorizedError\",\"message\":\"no\"}", UnauthorizedTags);
@@ -82,6 +89,9 @@ public sealed class ResponseAdapterTests
 
         public static TPayload Bare<TPayload>(string rawBody, JsonTypeInfo<TPayload> typeInfo) =>
             ReadBarePayload(rawBody, typeInfo);
+
+        public static TPayload Bare<TPayload>(ReadOnlySpan<byte> utf8Body, JsonTypeInfo<TPayload> typeInfo) =>
+            ReadBarePayload(utf8Body, typeInfo);
 
         public static IOpenCodeError? Error(string rawBody, IReadOnlyCollection<string>? allowedTags) =>
             ReadTolerantError(rawBody, allowedTags);

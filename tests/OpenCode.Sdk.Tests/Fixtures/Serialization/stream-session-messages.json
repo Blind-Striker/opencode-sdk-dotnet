@@ -1,0 +1,1 @@
+[{"id":"msg_1","time":{"created":1},"text":"hello","type":"user"},{"id":"msg_2","future":{"enabled":true},"type":"future-message"},{"id":"msg_4","time":{"created":1},"status":"running","reason":"auto","summary":"condensed","recent":"tail","type":"compaction"}]

@@ -87,6 +87,32 @@ public sealed class PipelineStreamTests
     }
 
     [Test]
+    public async Task ExecuteStreamAsync_Should_Keep_An_Error_Body_Inside_The_Transport_Timeout()
+    {
+        using var callerCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var content = new BlockingContent();
+        using var handler = new RecordingHttpHandler(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError)
+        {
+            Content = content,
+        });
+        using var httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromMilliseconds(50) };
+        using var pipeline = PipelineFactory.Create(httpClient);
+        var stream = pipeline.ExecuteStreamAsync(
+            HttpMethod.Get, "/api/event", new TestStreamAdapter(), callerCancellation.Token);
+        await using var enumerator = stream.GetAsyncEnumerator(callerCancellation.Token);
+
+        var exception = await Assert
+            .That(async () => _ = await enumerator.MoveNextAsync())
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception!.InnerException).IsTypeOf<TimeoutException>();
+        await Assert.That(callerCancellation.IsCancellationRequested).IsFalse();
+        await content.ReadStarted.WaitAsync(TimeSpan.FromSeconds(1));
+        await content.ReadCompleted.WaitAsync(TimeSpan.FromSeconds(1));
+        await Assert.That(content.IsDisposed).IsTrue();
+    }
+
+    [Test]
     public async Task ExecuteStreamAsync_Should_Refuse_A_Success_That_Is_Not_An_Event_Stream()
     {
         using var handler = new RecordingHttpHandler(static _ => new HttpResponseMessage(HttpStatusCode.OK)

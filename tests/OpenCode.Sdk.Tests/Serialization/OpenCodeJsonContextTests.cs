@@ -1,6 +1,8 @@
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization.Metadata;
+using OpenCode.Sdk.Internal.Serialization;
 using OpenCode.Sdk.Models;
 using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
@@ -47,6 +49,71 @@ public sealed class OpenCodeJsonContextTests
 
         await Assert.That(result).IsTypeOf<UnknownSessionMessageInfo>();
         await Assert.That(((UnknownSessionMessageInfo)result).Type).IsEqualTo("future-message");
+    }
+
+    [Test]
+    public async Task DeserializeAsyncEnumerable_Should_Dispatch_Unions_From_A_Partial_Reader()
+    {
+        var json = _fixtures.LoadJson("Serialization.stream-session-messages.json");
+        var context = new OpenCodeJsonContext(new JsonSerializerOptions { DefaultBufferSize = 16 });
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+        var messages = new List<ISessionMessageInfo>();
+
+        await foreach (var message in JsonSerializer.DeserializeAsyncEnumerable(stream, context.ISessionMessageInfo))
+        {
+            messages.Add(message ?? throw new JsonException("The streamed fixture contained a null message."));
+        }
+
+        await Assert.That(messages.Count).IsEqualTo(3);
+        await Assert.That(messages[0]).IsTypeOf<SessionMessageUser>();
+        await Assert.That(messages[1]).IsTypeOf<UnknownSessionMessageInfo>();
+        await Assert.That(messages[2]).IsTypeOf<SessionMessageCompactionRunning>();
+    }
+
+    [Test]
+    public async Task DeserializeAsyncEnumerable_Should_Dispatch_Event_Unions_From_A_Partial_Reader()
+    {
+        var json = _fixtures.LoadJson("Serialization.stream-events.json");
+        var context = new OpenCodeJsonContext(new JsonSerializerOptions { DefaultBufferSize = 16 });
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+        var events = new List<IEvent>();
+
+        await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable(stream, context.IEvent))
+        {
+            events.Add(item ?? throw new JsonException("The streamed fixture contained a null event."));
+        }
+
+        await Assert.That(events.Count).IsEqualTo(2);
+        await Assert.That(events[0]).IsTypeOf<SessionCreated>();
+        await Assert.That(events[1]).IsTypeOf<UnknownEvent>();
+    }
+
+    [Test]
+    public async Task DeserializeAsync_Should_Read_A_Multi_Item_Page_Through_Partial_Readers()
+    {
+        var json = _fixtures.LoadJson("Serialization.stream-message-list-page.json");
+        var context = new OpenCodeJsonContext(new JsonSerializerOptions { DefaultBufferSize = 16 });
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+
+        var page = await JsonSerializer.DeserializeAsync(stream, context.MessageListResponseEnvelope);
+
+        await Assert.That(page).IsNotNull();
+        await Assert.That(page!.Data.Count).IsEqualTo(2);
+        await Assert.That(page.Data[0]).IsTypeOf<SessionMessageUser>();
+        await Assert.That(page.Data[1]).IsTypeOf<SessionMessageCompactionRunning>();
+        await Assert.That(page.Cursor.Next).IsEqualTo("cur_2");
+    }
+
+    [Test]
+    public async Task DeserializeAsync_Should_Read_A_Union_Before_Trailing_Stream_Padding()
+    {
+        var json = _fixtures.LoadJson("Serialization.known-session-message.json") + new string(' ', 128);
+        var context = new OpenCodeJsonContext(new JsonSerializerOptions { DefaultBufferSize = 64 });
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+
+        var message = await JsonSerializer.DeserializeAsync(stream, context.ISessionMessageInfo);
+
+        await Assert.That(message).IsTypeOf<SessionMessageUser>();
     }
 
     [Test]
@@ -125,6 +192,29 @@ public sealed class OpenCodeJsonContextTests
         var json = _fixtures.LoadJson("Serialization.mismatched-compaction-marker.json");
 
         _ = await Assert.That(() => _serializer.Deserialize<ISessionMessageCompaction>(json)).Throws<JsonException>();
+    }
+
+    [Test]
+    public async Task Carrier_Constructor_Should_Refuse_A_Disagreeing_Fixed_Outer_Marker()
+    {
+        using var document = JsonDocument.Parse(_fixtures.LoadJson("Serialization.mismatched-compaction-marker.json"));
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            _ = new UnknownSessionMessageCompaction("paused", document.RootElement));
+
+        await Assert.That(exception.ParamName).IsEqualTo("payload");
+    }
+
+    [Test]
+    public async Task Carrier_Constructor_Should_Replay_A_Matching_Fixed_Outer_Marker()
+    {
+        var json = _fixtures.LoadJson("Serialization.unknown-compaction-status.json");
+        using var document = JsonDocument.Parse(json);
+        var unknown = new UnknownSessionMessageCompaction("paused", document.RootElement);
+
+        var roundTrip = _serializer.Serialize<ISessionMessageCompaction>(unknown);
+
+        await Assert.That(roundTrip).IsEqualTo(json);
     }
 
     [Test]

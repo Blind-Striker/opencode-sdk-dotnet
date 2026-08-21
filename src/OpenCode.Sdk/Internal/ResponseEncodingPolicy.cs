@@ -61,7 +61,7 @@ internal sealed class ResponseEncodingPolicy
                 preambleLength = GetPreambleLength(body, declared);
                 return declared;
             }
-            catch (ArgumentException exception)
+            catch (Exception exception) when (exception is ArgumentException or NotSupportedException)
             {
                 throw new InvalidOperationException("The response content declared an invalid charset.", exception);
             }

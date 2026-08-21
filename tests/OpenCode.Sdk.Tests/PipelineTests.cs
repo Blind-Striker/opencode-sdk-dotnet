@@ -464,6 +464,56 @@ public sealed class PipelineTests
         await Assert.That(exception!.InnerException).IsTypeOf<InvalidOperationException>();
     }
 
+#if NET
+    [Test]
+    public async Task ExecuteAsync_Should_Wrap_An_Unsupported_Success_Charset_As_A_Transport_Failure()
+    {
+        using var handler = new RecordingHttpHandler(static _ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(Encoding.UTF8.GetBytes(WireBodyData.HealthOk)),
+            };
+            response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json") { CharSet = "utf-7" };
+            return response;
+        });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+
+        var exception = await Assert
+            .That(async () => _ = await pipeline.ExecuteAsync(
+                HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception!.InnerException).IsTypeOf<InvalidOperationException>();
+        await Assert.That(exception.InnerException!.InnerException).IsTypeOf<NotSupportedException>();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Wrap_An_Unsupported_Error_Charset_As_A_Transport_Failure()
+    {
+        using var handler = new RecordingHttpHandler(static _ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.Unauthorized)
+            {
+                Content = new ByteArrayContent(Encoding.UTF8.GetBytes(WireBodyData.UnauthorizedError)),
+            };
+            response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json") { CharSet = "utf-7" };
+            return response;
+        });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+
+        var exception = await Assert
+            .That(async () => _ = await pipeline.ExecuteAsync(
+                HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception!.InnerException).IsTypeOf<InvalidOperationException>();
+        await Assert.That(exception.InnerException!.InnerException).IsTypeOf<NotSupportedException>();
+    }
+#endif
+
     [Test]
     public async Task ExecuteAsync_Should_Decode_A_Bom_Selected_Utf16_Success_Body()
     {
@@ -481,6 +531,97 @@ public sealed class PipelineTests
             HttpMethod.Get, "/api/health", adapter, options: null, CancellationToken.None);
 
         await Assert.That(adapter.AdaptedRawBody).IsEqualTo(WireBodyData.HealthOk);
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Strip_A_Utf8_Bom_From_A_Success_Body()
+    {
+        var body = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(WireBodyData.HealthOk)).ToArray();
+        using var handler = new RecordingHttpHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(body),
+        });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+        var adapter = new RecordingResponseAdapter();
+
+        _ = await pipeline.ExecuteAsync(
+            HttpMethod.Get, "/api/health", adapter, options: null, CancellationToken.None);
+
+        await Assert.That(adapter.AdaptedRawBody).IsEqualTo(WireBodyData.HealthOk);
+    }
+
+    [Test]
+    [Arguments("utf-8")]
+    [Arguments("\"utf-8\"")]
+    public async Task ExecuteAsync_Should_Decode_A_Declared_Utf8_Success_Body(string charset)
+    {
+        using var handler = new RecordingHttpHandler(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(Encoding.UTF8.GetBytes(WireBodyData.HealthOk)),
+            };
+            response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json") { CharSet = charset };
+            return response;
+        });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+        var adapter = new RecordingResponseAdapter();
+
+        _ = await pipeline.ExecuteAsync(
+            HttpMethod.Get, "/api/health", adapter, options: null, CancellationToken.None);
+
+        await Assert.That(adapter.AdaptedRawBody).IsEqualTo(WireBodyData.HealthOk);
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Return_An_Empty_Success_Body_Before_Validating_The_Charset()
+    {
+        using var handler = new RecordingHttpHandler(static _ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent([]),
+            };
+            response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json") { CharSet = "not-an-encoding" };
+            return response;
+        });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+        var adapter = new RecordingResponseAdapter();
+
+        _ = await pipeline.ExecuteAsync(
+            HttpMethod.Get, "/api/health", adapter, options: null, CancellationToken.None);
+
+        await Assert.That(adapter.AdaptedRawBody).IsEmpty();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Decode_A_Quoted_Utf8_Error_Body()
+    {
+        using var handler = new RecordingHttpHandler(static _ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.Unauthorized)
+            {
+                Content = new ByteArrayContent(Encoding.UTF8.GetBytes(WireBodyData.UnauthorizedError)),
+            };
+            response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json") { CharSet = "\"utf-8\"" };
+            return response;
+        });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+        var adapter = new RecordingResponseAdapter(static (status, rawBody) => new TestResponse
+        {
+            Status = status,
+            IsError = true,
+            RawBody = rawBody,
+        });
+
+        var response = await pipeline.ExecuteAsync(
+            HttpMethod.Get, "/api/health", adapter, OpenCodeRequestOptions.NoThrow, CancellationToken.None);
+
+        await Assert.That(response.RawBody).IsEqualTo(WireBodyData.UnauthorizedError);
     }
 
     [Test]
