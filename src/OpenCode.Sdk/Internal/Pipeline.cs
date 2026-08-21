@@ -391,6 +391,10 @@ internal sealed class Pipeline : IDisposable
             throw new OpenCodeTransportException("The opencode API answered a streaming operation without an event-stream body.");
         }
 
+#if !NET
+        using var cancellationRegistration = RegisterStreamCancellation(response, cancellationToken);
+#endif
+
         // The response owns the body stream, so disposing it here would only duplicate the
         // disposal the enclosing using already performs when enumeration ends.
         var body = await ReadBodyStreamAsync(response, cancellationToken).ConfigureAwait(false);
@@ -408,6 +412,12 @@ internal sealed class Pipeline : IDisposable
             try
             {
                 moved = await frames.MoveNextAsync().ConfigureAwait(false);
+            }
+            catch (Exception exception)
+                when (cancellationToken.IsCancellationRequested
+                      && exception is HttpRequestException or IOException or ObjectDisposedException)
+            {
+                throw new OperationCanceledException("The opencode event stream read was canceled.", exception, cancellationToken);
             }
             catch (Exception exception)
                 when (exception is HttpRequestException or IOException or ObjectDisposedException)
@@ -435,6 +445,12 @@ internal sealed class Pipeline : IDisposable
             return await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception)
+            when (cancellationToken.IsCancellationRequested
+                  && exception is HttpRequestException or IOException or ObjectDisposedException)
+        {
+            throw new OperationCanceledException("The opencode event stream read was canceled.", exception, cancellationToken);
+        }
+        catch (Exception exception)
             when (exception is HttpRequestException or IOException or ObjectDisposedException)
         {
             throw new OpenCodeTransportException("The opencode event stream could not be read.", exception);
@@ -444,6 +460,15 @@ internal sealed class Pipeline : IDisposable
             throw new OpenCodeTransportException("The opencode event stream could not be read.", exception);
         }
     }
+
+#if !NET
+    private static CancellationTokenRegistration RegisterStreamCancellation(
+        HttpResponseMessage response, CancellationToken cancellationToken) =>
+        cancellationToken.Register(
+            static state => ((HttpResponseMessage)state).Dispose(),
+            response,
+            useSynchronizationContext: false);
+#endif
 
     /// <summary>
     /// Reads one dispatched frame: the contract names a failure frame and leaves every other

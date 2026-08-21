@@ -514,6 +514,59 @@ public sealed class PipelineTests
     }
 #endif
 
+#if NET472
+    [Test]
+    public async Task ExecuteAsync_Should_Decode_A_Utf7_Success_Body_On_Net472()
+    {
+        var encoding = Encoding.GetEncoding("utf-7");
+        using var handler = new RecordingHttpHandler(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(encoding.GetBytes(WireBodyData.HealthOk)),
+            };
+            response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json") { CharSet = "utf-7" };
+            return response;
+        });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+        var adapter = new RecordingResponseAdapter();
+
+        _ = await pipeline.ExecuteAsync(
+            HttpMethod.Get, "/api/health", adapter, options: null, CancellationToken.None);
+
+        await Assert.That(adapter.AdaptedRawBody).IsEqualTo(WireBodyData.HealthOk);
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Decode_A_Utf7_Error_Body_On_Net472()
+    {
+        var encoding = Encoding.GetEncoding("utf-7");
+        using var handler = new RecordingHttpHandler(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.Unauthorized)
+            {
+                Content = new ByteArrayContent(encoding.GetBytes(WireBodyData.UnauthorizedError)),
+            };
+            response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json") { CharSet = "utf-7" };
+            return response;
+        });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+        var adapter = new RecordingResponseAdapter(static (status, rawBody) => new TestResponse
+        {
+            Status = status,
+            IsError = true,
+            RawBody = rawBody,
+        });
+
+        var response = await pipeline.ExecuteAsync(
+            HttpMethod.Get, "/api/health", adapter, OpenCodeRequestOptions.NoThrow, CancellationToken.None);
+
+        await Assert.That(response.RawBody).IsEqualTo(WireBodyData.UnauthorizedError);
+    }
+#endif
+
     [Test]
     public async Task ExecuteAsync_Should_Decode_A_Bom_Selected_Utf16_Success_Body()
     {

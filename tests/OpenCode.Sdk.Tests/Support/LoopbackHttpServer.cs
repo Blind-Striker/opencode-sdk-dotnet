@@ -10,10 +10,11 @@ namespace OpenCode.Sdk.Tests.Support;
 internal sealed class LoopbackHttpServer : IAsyncDisposable
 {
     private readonly Task _acceptLoop;
+    private readonly TaskCompletionSource<object?> _clientDisconnected = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly ConcurrentBag<TcpClient> _clients = [];
     private readonly ConcurrentBag<Task> _connections = [];
     private readonly TcpListener _listener;
     private readonly ConcurrentQueue<string> _requestPaths = [];
-    private readonly TaskCompletionSource<object?> _responseRelease = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly Func<string, LoopbackHttpResponse> _respond;
     private readonly CancellationTokenSource _shutdown = new();
 
@@ -29,6 +30,8 @@ internal sealed class LoopbackHttpServer : IAsyncDisposable
 
     public Uri Endpoint { get; }
 
+    public Task ClientDisconnected => _clientDisconnected.Task;
+
     public IReadOnlyList<string> RequestPaths => [.. _requestPaths];
 
     public static LoopbackHttpServer Start(Func<string, LoopbackHttpResponse> respond)
@@ -43,12 +46,20 @@ internal sealed class LoopbackHttpServer : IAsyncDisposable
         _listener.Stop();
         Task[] acceptTasks = [_acceptLoop];
         await Task.WhenAll(acceptTasks);
-        _ = _responseRelease.TrySetResult(null);
+        ReleaseResponses();
         await Task.WhenAll(_connections);
 #if NET
         _listener.Dispose();
 #endif
         _shutdown.Dispose();
+    }
+
+    public void ReleaseResponses()
+    {
+        foreach (var client in _clients)
+        {
+            client.Close();
+        }
     }
 
     private async Task AcceptLoopAsync()
@@ -65,6 +76,7 @@ internal sealed class LoopbackHttpServer : IAsyncDisposable
                 break;
             }
 
+            _clients.Add(client);
             _connections.Add(ServeAsync(client));
         }
     }
@@ -80,9 +92,25 @@ internal sealed class LoopbackHttpServer : IAsyncDisposable
             await WriteResponseAsync(stream, response);
             if (response.KeepOpen)
             {
-                Task[] releaseTasks = [_responseRelease.Task];
-                await Task.WhenAll(releaseTasks);
+                await WaitForClientDisconnectAsync(stream);
+                _ = _clientDisconnected.TrySetResult(null);
             }
+        }
+    }
+
+    private static async Task WaitForClientDisconnectAsync(Stream stream)
+    {
+        var buffer = new byte[1];
+        try
+        {
+            while (await ReadAsync(stream, buffer) > 0)
+            {
+                // A GET request has no body; ignore any unexpected bytes until the client closes.
+            }
+        }
+        catch (Exception exception) when (exception is IOException or ObjectDisposedException or SocketException)
+        {
+            _ = exception;
         }
     }
 
@@ -169,6 +197,15 @@ internal sealed class LoopbackHttpServer : IAsyncDisposable
         return stream.WriteAsync(content).AsTask();
 #else
         return stream.WriteAsync(content, 0, content.Length);
+#endif
+    }
+
+    private static Task<int> ReadAsync(Stream stream, byte[] buffer)
+    {
+#if NET
+        return stream.ReadAsync(buffer).AsTask();
+#else
+        return stream.ReadAsync(buffer, 0, buffer.Length);
 #endif
     }
 }

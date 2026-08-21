@@ -48,6 +48,36 @@ public sealed class OwnedTransportTests
         await Assert.That(server.RequestPaths).IsEquivalentTo(["/api/health"]);
     }
 
+    [Test]
+    public async Task ExecuteAsync_Should_Timeout_A_Stalled_Real_Handler_Body()
+    {
+        await using var server = LoopbackHttpServer.Start(static _ => new LoopbackHttpResponse
+        {
+            StatusCode = HttpStatusCode.OK,
+            ContentType = "application/json",
+            Body = WireBodyData.HealthOk,
+            KeepOpen = true,
+        });
+        using var handler = Pipeline.CreateOwnedHttpHandler(server.Endpoint);
+        using var httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromMilliseconds(50) };
+        using var pipeline = Pipeline.Create(httpClient, new OpenCodeClientOptions { Endpoint = server.Endpoint });
+
+        var exception = await Assert
+            .That(async () => _ = await pipeline.ExecuteAsync(
+                HttpMethod.Get,
+                "/api/health",
+                new RecordingResponseAdapter(),
+                options: null,
+                CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(1)))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception!.InnerException).IsTypeOf<TimeoutException>();
+#if NET472
+        Task[] disconnectTasks = [server.ClientDisconnected];
+        await Task.WhenAll(disconnectTasks).WaitAsync(TimeSpan.FromSeconds(1));
+#endif
+    }
+
 #if NET472
     [Test]
     public async Task Create_Should_Configure_The_Endpoint_ServicePoint_For_A_Long_Lived_Client()
@@ -139,6 +169,64 @@ public sealed class OwnedTransportTests
         await Assert.That(response.Status).IsEqualTo(200);
         await Assert.That(server.RequestPaths.Count(static path => path == "/api/event")).IsEqualTo(2);
         await Assert.That(server.RequestPaths.Count(static path => path == "/api/health")).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task ExecuteStreamAsync_Should_Cancel_An_Idle_Real_Handler_Read_On_Net472()
+    {
+        await using var server = LoopbackHttpServer.Start(static _ => new LoopbackHttpResponse
+        {
+            StatusCode = HttpStatusCode.OK,
+            ContentType = "text/event-stream",
+            Body = WireBodyData.Frames(WireBodyData.StreamTestBodyOpen),
+            KeepOpen = true,
+        });
+        using var pipeline = Pipeline.Create(new OpenCodeClientOptions { Endpoint = server.Endpoint });
+        using var cancellation = new CancellationTokenSource();
+        var enumerator = pipeline.ExecuteStreamAsync(
+                HttpMethod.Get, "/api/event", new TestStreamAdapter(), cancellation.Token)
+            .GetAsyncEnumerator(cancellation.Token);
+        Task<bool>? pendingRead = null;
+        try
+        {
+            await Assert.That(await enumerator.MoveNextAsync()).IsTrue();
+            pendingRead = enumerator.MoveNextAsync().AsTask();
+            await cancellation.CancelAsync();
+            Task[] pendingReads = [pendingRead];
+
+            _ = await Assert
+                .That(async () => await Task.WhenAll(pendingReads).WaitAsync(TimeSpan.FromSeconds(1)))
+                .Throws<OperationCanceledException>();
+
+            await Assert.That(cancellation.IsCancellationRequested).IsTrue();
+            Task[] disconnectTasks = [server.ClientDisconnected];
+            await Task.WhenAll(disconnectTasks).WaitAsync(TimeSpan.FromSeconds(1));
+        }
+        finally
+        {
+            server.ReleaseResponses();
+            await SettleAfterReleaseAsync(pendingRead);
+            await enumerator.DisposeAsync();
+        }
+    }
+
+    private static async Task SettleAfterReleaseAsync(Task? pendingRead)
+    {
+        if (pendingRead is null)
+        {
+            return;
+        }
+
+        try
+        {
+            Task[] pendingReads = [pendingRead];
+            await Task.WhenAll(pendingReads).WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        catch (Exception exception)
+            when (exception is OperationCanceledException or OpenCodeTransportException or TimeoutException)
+        {
+            _ = exception;
+        }
     }
 #endif
 }

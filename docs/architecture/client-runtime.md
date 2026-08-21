@@ -60,7 +60,9 @@ local server launcher. Protocol and generated-model rules live in
 ## Server-sent events
 
 - Streams are exposed as `IAsyncEnumerable<T>` and open lazily on first enumeration.
-- Cancellation closes the stream through the enumeration token.
+- Cancellation closes the stream through the enumeration token. On downlevel targets, the SDK also
+  disposes the live response so cancellation interrupts platform response-stream reads that do not
+  observe an async read token; disposal-induced I/O failures remain caller cancellation.
 - The SDK never auto-reconnects. A live-stream consumer refreshes authoritative state and
   resubscribes after failure. Durable continuation is requested explicitly through
   `v2.session.log`'s `after` parameter; persistence, retention, and replay guarantees remain

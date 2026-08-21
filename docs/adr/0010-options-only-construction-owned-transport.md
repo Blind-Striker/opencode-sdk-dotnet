@@ -24,6 +24,10 @@ deletes with the doors it defended. Evidence: research doc 16, research log Q90â
   common proxy case rides the ambient `HttpClient.DefaultProxy`. Adding a seam requires a concrete
   consumer need and a deliberate design. Its absence is an accepted position, not an oversight.
 - The mocking constructor is the consumer substitution point for testing.
+- On downlevel targets, cancelling a live SSE enumeration disposes its response because the
+  .NET Framework response stream cannot cancel a pending asynchronous read. The resulting disposal
+  or I/O failure is classified through the caller token and remains caller cancellation rather than
+  a transport failure.
 - The factory-era DI lifetime hazards (#31) resolve by construction â€” singletons
   end-to-end, one pipeline, no transient-disposable tracking; a roster contract test
   keeps sub-client registrations complete as families grow.
