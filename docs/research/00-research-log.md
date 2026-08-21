@@ -3141,3 +3141,57 @@ net472 execution gate and confirms the existing follow-up order: R18 stage 1 (co
 scan), R16 (pooled response-body read, targeting about `1.0x` wire in the read row), then emitter
 typed-switch union dispatch using Q121's interface/concrete attribution. Each change keeps its own
 same-environment before/after evidence; Q123 itself changes no benchmark or product code.
+
+## Q124: Does decoded-span line scanning remove the SSE reader's per-character bottleneck without changing its contract?
+
+**Method:** the stage-1 change kept the strict UTF-8 decoder, `StringBuilder` frame storage, public
+`ServerSentEvent`, and every framing rule, but replaced one `Accept` call per decoded character with
+`IndexOfAny('\r', '\n')` over each decoded span and slice appends into the pending line. The existing
+reader suite supplied the behavioral comparison: 28 tests across net472/net8/net9/net10 (112
+executions) cover leading/interior BOM, CR/LF/CRLF and split CR, split UTF-8 and invalid UTF-8, lines
+and frames crossing reads, multiline data, comments/ignored fields, event names, cancellation,
+trailing frames, mid-line truncation, and the character limit.
+
+Benchmark baselines came from the untouched `713f09a` code on the Q123 Windows machine. Q123 already
+owned the parser default-job baseline; a second clean-copy run captured all 24 SessionLog rows before
+the edit (Dry first, default 16:12). The after-change source was mirrored to a new clean directory so
+no excluded baseline `bin`/`obj` output survived; Dry completed all 38 parser plus SessionLog cases and
+the combined default job completed in 34:58. Both jobs compared net472 and net10.0 in one invocation.
+
+**Parser-only before/after (same machine, exact bytes; speedup = before / after):**
+
+| Fixture / runtime | Before mean / alloc | After mean / alloc | Speedup | Alloc change |
+|---|---:|---:|---:|---:|
+| Large x1 / net10 | 10.667 µs / 52,416 B | 3.624 µs / 47,216 B | 2.94x | -5,200 B |
+| Large x1 / net472 | 25.409 µs / 72,164 B | 6.376 µs / 64,017 B | 3.99x | -8,147 B |
+| Large x64 / net10 | 474.098 µs / 329,184 B | 53.184 µs / 323,984 B | 8.91x | -5,200 B |
+| Large x64 / net472 | 1,366.883 µs / 350,005 B | 175.724 µs / 341,758 B | 7.78x | -8,247 B |
+| Large x64 chunked / net10 | 479.495 µs / 329,160 B | 56.690 µs / 326,376 B | 8.46x | -2,784 B |
+| Large x64 chunked / net472 | 1,381.588 µs / 357,527 B | 165.953 µs / 352,298 B | 8.33x | -5,229 B |
+| Large x64 multiline / net10 | 490.732 µs / 324,944 B | 56.604 µs / 323,416 B | 8.67x | -1,528 B |
+| Large x64 multiline / net472 | 1,355.856 µs / 346,878 B | 172.423 µs / 344,681 B | 7.86x | -2,197 B |
+| Small x1 / net10 | 1.995 µs / 26,312 B | 1.688 µs / 26,016 B | 1.18x | -296 B |
+| Small x1 / net472 | 3.723 µs / 43,140 B | 2.251 µs / 42,731 B | 1.65x | -409 B |
+| Small x1024 / net10 | 335.894 µs / 181,880 B | 85.622 µs / 181,584 B | 3.92x | -296 B |
+| Small x1024 / net472 | 926.668 µs / 199,250 B | 261.559 µs / 198,857 B | 3.54x | -393 B |
+| Small x1024 chunked / net10 | 339.265 µs / 181,856 B | 84.423 µs / 181,560 B | 4.02x | -296 B |
+| Small x1024 chunked / net472 | 948.384 µs / 203,054 B | 303.668 µs / 202,681 B | 3.12x | -373 B |
+
+The fixed allocation reduction comes from appending decoded slices with one capacity decision rather
+than growing the line builder one character at a time; no new pool, lifetime, or public buffer contract
+was introduced. Socket-sized chunks and multiline framing retain the same order of improvement, so the
+result is not an artifact of complete-body reads.
+
+**SessionLog limit:** reader-containing rows generally improved, for example
+`created-2048-x64` framing-plus-materialization moved 677.2 -> 432.2 µs on net10 and
+1,844.6 -> 1,120.3 µs on net472, while `tool-success-16-x64` moved 1,808.7 -> 1,428.8 µs
+on net10. However, the unchanged deserialize-only controls drifted materially between the separate
+before and after invocations (including 234.5 -> 340.8 µs for created/net10 and
+5,837.8 -> 7,552.8 µs for mixed/net472), and several rows were multimodal. Those runs prove fixture
+correctness and no allocation regression, not a precise end-to-end speedup. The direct parser rows are
+the performance decision evidence.
+
+**Decision:** retain stage 1. The speedups exceed the machine noise by multiples on every sustained
+parser case, all 112 cross-TFM behavior executions pass, allocations do not regress, and no public or
+generated surface changed. Stage 2 remains a separate public-lifetime design and is not implied. R16's
+pooled response-body read is the next measured increment.

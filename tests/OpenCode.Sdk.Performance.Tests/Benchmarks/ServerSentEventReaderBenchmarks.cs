@@ -6,11 +6,11 @@ namespace OpenCode.Sdk.Performance.Tests.Benchmarks;
 
 /// <summary>
 /// The stream frame reader in isolation: a run of event frames walked through the same
-/// per-character state machine the SDK reads a live body with. A reader has a per-character
-/// cost and a per-frame cost and one payload size cannot separate them, so large frames amortize
-/// the per-frame work away, small frames are dominated by it, single frames expose the
-/// per-stream fixed cost, and the multi-line form measures the data-line join against the
-/// one-line wire.
+/// decoded-span line scanner and state machine the SDK reads a live body with. A reader pays for
+/// decoded-character scanning/copying, line handling, and frame dispatch; one payload size cannot
+/// separate them. Large frames amortize dispatch while retaining scan/copy cost, small frames emphasize
+/// line and frame work, single frames expose the per-stream fixed cost, and the multi-line form measures
+/// the data-line join against the one-line wire.
 /// </summary>
 [MemoryDiagnoser]
 public class ServerSentEventReaderBenchmarks

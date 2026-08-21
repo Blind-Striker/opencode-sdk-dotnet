@@ -86,9 +86,10 @@ internal sealed class ServerSentEventReader
             }
 
             var decoded = Decode(read, flush: false);
-            for (var index = 0; index < decoded; index++)
+            var position = 0;
+            while (position < decoded)
             {
-                if (Accept(characters[index]) is { } payload)
+                if (ScanDecoded(characters, decoded, ref position) is { } payload)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     yield return payload;
@@ -96,17 +97,8 @@ internal sealed class ServerSentEventReader
             }
         }
 
-        // Flushing surfaces a multi-byte character the body cut in half as a replacement
-        // character rather than dropping it unseen.
-        var flushed = Decode(byteCount: 0, flush: true);
-        for (var index = 0; index < flushed; index++)
-        {
-            if (Accept(characters[index]) is { } payload)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                yield return payload;
-            }
-        }
+        // Flushing makes the strict decoder reject a body cut inside a multi-byte character.
+        _ = Decode(byteCount: 0, flush: true);
 
         // A body may end without the blank line that closes its last frame, and that frame
         // is whole. A body ending mid-line was cut instead, and this client never reconnects
@@ -124,36 +116,62 @@ internal sealed class ServerSentEventReader
         }
     }
 
-    /// <summary>Feeds one character through the line state machine, returning a dispatched frame.</summary>
-    private ServerSentEvent? Accept(char character)
+    /// <summary>Scans decoded characters by line, returning when one frame is ready or the buffer is exhausted.</summary>
+    private ServerSentEvent? ScanDecoded(char[] characters, int length, ref int position)
     {
-        if (!_sawAnyCharacter)
+        if (!_sawAnyCharacter && position < length)
         {
             _sawAnyCharacter = true;
 
             // One leading byte order mark belongs to the framing, not to the first field.
-            if (character is ByteOrderMark)
+            if (characters[position] is ByteOrderMark)
             {
-                return null;
+                position++;
             }
         }
 
-        // A CR already terminated the line, so the LF completing a CRLF pair is not a second terminator.
-        if (character is '\n' && _sawCarriageReturn)
+        while (position < length)
         {
-            _sawCarriageReturn = false;
-            return null;
+            // A CR already terminated the line, so the LF completing a CRLF pair is not a second terminator.
+            if (_sawCarriageReturn)
+            {
+                _sawCarriageReturn = false;
+                if (characters[position] is '\n')
+                {
+                    position++;
+                    continue;
+                }
+            }
+
+            var remaining = characters.AsSpan(position, length - position);
+            var terminator = remaining.IndexOfAny('\r', '\n');
+            if (terminator < 0)
+            {
+                AppendLine(characters, position, remaining.Length);
+                position = length;
+                break;
+            }
+
+            if (terminator > 0)
+            {
+                AppendLine(characters, position, terminator);
+            }
+
+            _sawCarriageReturn = characters[position + terminator] is '\r';
+            position += terminator + 1;
+            if (CompleteLine() is { } frame)
+            {
+                return frame;
+            }
         }
 
-        _sawCarriageReturn = character is '\r';
-        if (character is '\r' or '\n')
-        {
-            return CompleteLine();
-        }
-
-        Grow(1);
-        _ = _line.Append(character);
         return null;
+    }
+
+    private void AppendLine(char[] characters, int start, int count)
+    {
+        Grow(count);
+        _ = _line.Append(characters, start, count);
     }
 
     /// <summary>Closes the pending line: an empty one ends the frame, a field line extends it.</summary>

@@ -232,8 +232,9 @@ reader union scan, an unbounded stream-open error-body read, a raw `NotSupported
 `charset=utf-7`, a downlevel SSE cancellation gap, and five test gaps. **M3 is functionally complete;
 the bounded Arc 6 repairs are complete at `3f68ddf` and `713f09a`, including real-handler net472
 cancellation/timeout evidence. The first net472/net10 benchmark leg is complete (research Q123), and
-the measured R18 stage-1, R16 pooled-read, and typed-switch follow-ups are exact next before M4's
-short launcher plan. No M4 source or planning work has begun.**
+R18 stage 1 now scans decoded spans by line with 3.1-8.9x sustained parser speedups and no allocation
+regression (research Q124). The measured R16 pooled-read and typed-switch follow-ups are exact next
+before M4's short launcher plan. No M4 source or planning work has begun.**
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family
