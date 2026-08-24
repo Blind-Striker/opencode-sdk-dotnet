@@ -3426,3 +3426,35 @@ taken then. `System.Collections.Immutable` defers to the emitter allocation batc
 benchmarks (the no-package fallback is `#if NET8_0_OR_GREATER` frozen over a plain dictionary
 behind one factory), and `System.Net.ServerSentEvents` defers to the SSE stage-2 design per
 doc 17 §3.
+
+## Q134: What did Increment 3 land and what does its allocation evidence show?
+
+**Landed (commit `8632408`):** the R16 mechanism re-derived inside `ResponseBufferingPolicy` — the
+body copies once into an `ArrayPool` rent sized from the declared length plus the end-of-stream
+probe byte, grows by doubling with ownership transferred to `PipelineMessage.Dispose`, and the
+`Task.WaitAsync` abandonment, fault-observation ceremony, and `Stopwatch` budget arithmetic are
+deleted. Progress-timeout semantics per Q128: one linked CTS per operation spans the send and every
+read, `CancelAfter` re-arms on each read that progresses, the owned client's `HttpClient.Timeout` is
+infinite, and a live SSE success leaves the policy with the timer dead. `PipelineMessage` gained
+`NetworkToken` (the I/O token; classification keeps reading the caller token) and the internal
+100 s `NetworkTimeout` default with a test seam. Decisions recorded: the pooled return does not
+clear the array (upstream `LimitArrayPoolWriteStream` parity; a response body is not a secret
+against its own process); `CancellationToken.UnsafeRegister` carries the dispose-to-interrupt
+registration; `GC.AllocateUninitializedArray` found no site — no escaping copy survived the design.
+Two mechanism findings: modern `HttpClient.Timeout` never guards a post-headers read (the old test
+passed only because the deleted budget arithmetic mirrored it), and `HttpContent.ReadAsStreamAsync`
+drops its token before `SerializeToStreamAsync` on the buffering path — so dispose-to-interrupt is
+the universal settle guarantee on every target, not a downlevel workaround. Old total-budget tests
+were replaced red-first by stall/trickle progress tests plus pooled-ownership tests on the restored
+`TrackingByteArrayPool`.
+
+**Targeted short benchmark (Q131 cadence; Health/MessageGet/NoContent/ErrorChannel, both runtimes;
+artifacts `C:\bench-artifacts\inc3-*-short`):** the net10.0 pipeline row is flat at every body size
+— deep 6,112 → **2,112 B**, medium 110,048 → **2,112 B**, large 2,154,208 → **2,112 B** — and the
+complete large call drops 8,583,981 → 6,430,720 B (the wire-size copy gone). net472 fixed costs fall
+2.3–2.6 KB per call (health pipeline 6,683 → 4,413 B), repaying Increment 2's ValueTask-hop cost.
+The progress machinery costs a fixed +192..+368 B on the smallest net10 bodies. Known limit: the
+downlevel `System.Buffers` shared pool caps buckets at 1 MB, so a >1 MB body on net472 still
+allocates 1× wire (was 2×); a larger-cap `ArrayPool.Create` on downlevel is a possible follow-up,
+benchmark-gated. Adapter and materialization rows moved 0 B. Arc acceptance: the sandbox runs
+against a real opencode v2 server after Increment 4, before any push (maintainer, 2026-08-24).
