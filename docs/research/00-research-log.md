@@ -3341,3 +3341,37 @@ no trigger — it lands pre-paid as new `Classify` arms when the binder's fail-c
 such an operation. The generator typed-switch optimization stays paused until after the increments; the
 B-track binder locality findings are recorded untriggered; M4 planning starts after the increments.
 HANDOFF-2026-08-21-12 is consumed and deleted; HANDOFF-2026-08-24-13 carries the operational state.
+
+# Session 41 — 2026-08-24: Increments 1–2 execution and their benchmark evidence
+
+## Q130: What did the Increment 1 → Increment 2 benchmark comparison show?
+
+**Method:** two same-day runs on the same Windows machine as Q123, each from a `robocopy` mirror in
+the clean `C:\bench` copy: the baseline at Increment 1's commit `f6b2223`, the after-run at the
+Increment 2 worktree that landed unchanged as `910e05d`. Six benchmark families (Health, MessageGet,
+NoContent, ErrorChannel, EventStream, SessionLogStream), 36 cases per runtime, `--runtimes net472
+net10.0`, `--job Dry` validation before each default job, BenchmarkDotNet 0.15.8. Artifacts:
+`C:\bench-artifacts\inc1-baseline-*`, `inc2-after-*`, and the joined `inc2-comparison.csv`.
+Environment caveat: development builds ran on the machine during the baseline's default job, so
+single-row timings are not comparable — rows with zero allocation delta swing up to ~14x in both
+directions; medians and allocation carry the comparison.
+
+**Allocation (exact bytes, the primary axis):** attribution is surgical — every adapter-only and
+materialization-only row shows delta 0; deltas appear exclusively on pipeline-touching rows.
+net10.0: the one-shot pipeline costs a fixed **+8 B** at every body size (health 1,840 → 1,848 B;
+deep 6,112 → 6,120 B; medium +8 B; large within pool noise at +97 B on 2.15 MB), and stream opens
+get **−56 B**. net472: the one-shot pipeline gains a fixed **+542..+565 B** (health 6,142 → 6,684 B;
+deep 10,933 → 11,496 B) that amortizes with body size (medium −4 B; large +0.08%), while stream rows
+move −45..−160 B. Reading: the slice-passing `ValueTask` policy hops box their async state machines
+when the downlevel send suspends — the known downlevel price of the sealed ValueTask-hop decision
+(doc 17 §5, doc 20 A3); doc 19's `PoolingAsyncValueTaskMethodBuilder` reserve stays benchmark-gated,
+and Increment 3 rebuilds the buffered read path where this fixed cost lives, which is the natural
+point to re-measure it.
+
+**Timing (secondary, compromised by the caveat above):** median after/before ratio **1.01 on both
+runtimes**; the outlier rows (0.09x–14.6x) all carry zero or noise-level allocation deltas and swing
+in both directions, which is measurement environment, not code.
+
+**Verdict:** the relocation is allocation-neutral on net10.0 (+8 B fixed, streams cheaper) and adds a
+bounded, fixed, downlevel-only ~0.55 KB per one-shot call on net472. Increment 2's behavior
+preservation is separately pinned by the unchanged 2,016-test suite passing untouched.
