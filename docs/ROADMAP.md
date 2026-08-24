@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-21
+Date: 2026-08-24
 
 Operational state: what is done, what is next, what is open. This file shrinks as work lands.
 `../AGENTS.md` routes to current architecture and engineering canon; decision records live in
@@ -235,9 +235,15 @@ cancellation/timeout evidence. The first net472/net10 benchmark leg is complete 
 R18 stage 1 now scans decoded spans by line with 3.1-8.9x sustained parser speedups and no allocation
 regression (research Q124). R16's dirty-worktree experiment proved that a pooled read can remove the
 second body-sized allocation, but review exposed another lifecycle race and the growing Pipeline now
-needs a holistic design decision (research Q125). Exact next is a clean-session runtime-pipeline
-brainstorm; R16, typed-switch work, and M4 planning remain paused until that design chooses the module
-shape and migration order. No M4 source or planning work has begun.**
+needs a holistic design decision (research Q125). The runtime-pipeline design session is complete
+(research Q126–Q129): an internal policy pipeline is sealed with a three-policy day-one roster,
+generated status verdicts on the adapters, a named framer seam, progress-timeout semantics, and R16's
+mechanism re-derived inside the buffering policy. The staged plan is
+`superpowers/plans/2026-08-24-runtime-pipeline-plan.md`: archive the R16 patch, then
+FailureClassification → behavior-preserving pipeline skeleton → generated `Classify` verdicts → pooled
+buffering + progress timeout → encoding hardening, with research doc 17 (in flight) gating the last
+two. Typed-switch reconsideration and the M4 plan follow the increments. No M4 source or planning work
+has begun.**
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family
@@ -324,6 +330,17 @@ is revisited at each milestone boundary.
   GitHub Packages CD, manual NuGet.org releases). Pre-1.0 numbering, `VersionPrefix`,
   RELEASE_NOTES flow, and the concrete workflows are scheduled when the first publishable
   increment approaches.
+- **A6 configuration/transport split** — deferred with a trigger: when M6 attaches
+  telemetry/hook handlers to the transport, or when Extensions gains a concrete
+  `IHttpClientFactory`/named-client need, the split of validated client configuration from
+  the transport factory lands first (plan `superpowers/plans/2026-08-24-runtime-pipeline-plan.md`,
+  research Q129). Also reopen if the validate-after-owned-transport-construction ordering
+  hazard produces a real defect.
+- **Generator binding locality** — untriggered improvement item from the 2026-08-24
+  architecture scan (research Q126): `OperationPlanBinder` facet split, a single
+  reserved-name policy owner, and a scenario-derived `EmitterPlanFixture`. Priority is
+  decided separately from the runtime plan; the M5 breadth batches are the natural moment
+  to reassess.
 
 ## Known Gaps
 

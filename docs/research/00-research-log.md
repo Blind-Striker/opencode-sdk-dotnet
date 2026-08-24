@@ -3243,3 +3243,101 @@ request/response context and ownership, timeout/cancellation budgeting, buffered
 strategy, future retry/telemetry/hooks, test seams, performance gates, and migration order. Do not
 commit, discard, or build on the dirty R16 experiment until that design decides its fate. M4 remains the
 product target after the runtime/performance decision is resolved.
+
+# Session 40 — 2026-08-24: Runtime pipeline architecture design
+
+## Q126: What did the holistic architecture scans and peer-pipeline evidence show?
+
+**Method:** three parallel read-only scans over the Q125 pause state: a very-thorough depth scan of the
+hand-written runtime (committed state via `git show HEAD:` for the R16-dirty files), a state scan of the
+generator tool, and source reading of Azure.Core (`azure-sdk-for-net` @ `470fcf3`) and AWS SDK for .NET
+(`aws-sdk-net` @ `3cd03c5`) runtime pipelines, plus a focused charset follow-up. Candidates were
+presented as a temp HTML review (outside the repository) and worked through a grilling session.
+
+**Runtime findings:** committed `Pipeline` (520 lines) is overloaded-deep — eight interface members over
+~13 lifecycle policies in two orchestration methods, six shared by copy; the timeout budget straddles the
+send; four near-identical failure-classification cascades span two files; the undeclared-2xx verdict has
+two authors (stream plane inline, generated adapters' default arm); the SSE framer, body materialization,
+transport policy, and clock have no seams, so the internal `(HttpClient, options)` constructor is the
+Behavior core's only test seam and ownership tests need four bespoke `HttpContent` doubles. Deletion
+tests: `ResponseBodyReader`, `ResponseAdapter`, `IStreamAdapter`, `OpenCodeErrorReader` concentrate and
+stay; committed `EncodedResponseBody` is a two-field tuple whose one decision its caller makes.
+
+**Tool findings:** healthy four-stage skeleton with narrow inter-stage seams and no mock pain; the mass
+sits in binding — `OperationPlanBinder` (1,319 lines, 24 responsibilities) forces every new operation
+shape through four scattered regions of one file, `SchemaPlanBinder` hosts two independent union systems,
+three reserved-name tables mirror `src/` facts with no mechanical link, and the 814-line hand-built
+`EmitterPlanFixture` pays the same bill in tests. Recorded as an untriggered locality item; not part of
+the runtime plan.
+
+**Peer findings:** both SDKs send `ResponseHeadersRead`, detach body lifetime from the response message,
+put per-attempt stages inside the retry loop, classify cancel-versus-timeout by inspecting the caller's
+token first, and hide runtime mass behind ~55–65-line policy/handler interfaces. They diverge on
+buffering (Azure buffers into a plain `MemoryStream` via internal `ResponseBodyPolicy` with a
+progress-resetting timeout and dispose-to-interrupt; AWS never buffers), composition (immutable slice-
+passing array versus mutable linked handler chain), and context discipline (sealed message with internal
+setters versus a wide public bag). The charset follow-up: neither replicates `HttpContent` charset
+negotiation — `Encoding.GetEncoding`-on-charset appears nowhere in either core; Azure reads `charset`
+only to confirm `utf-8` before printing text it decodes with hardcoded UTF-8; AWS byte-sniffs a UTF-8 BOM
+and hands raw bytes to `Utf8JsonReader`. "JSON is UTF-8 bytes" is both SDKs' design axiom; our BCL-parity
+breadth is a self-imposed commitment (ADR-0014's consequence sentence), not ecosystem practice.
+
+**Decision (maintainer, 2026-08-24):** proceed to a full runtime design on this evidence; candidates and
+the sealed outcome are Q127–Q129 and the plan at `../superpowers/plans/2026-08-24-runtime-pipeline-plan.md`.
+
+## Q127: Which runtime-pipeline architecture is sealed?
+
+**Decision (maintainer, 2026-08-24):** an Azure-style internal policy pipeline now, not a narrow
+decomposition and not public extensibility (ADR-0010 untouched). ClientModel-aligned names —
+`PipelineMessage` (internal sealed, `IDisposable`, no property bag, pipeline-written members
+`internal set`), abstract `PipelinePolicy` with slice-passing `ProcessAsync`, async-only, no mutation
+API — with a day-one roster of `RequestDecorationPolicy` → `ResponseBufferingPolicy` → `TransportPolicy`,
+so the composition machinery never carries a one-element list. The composed class keeps the `Pipeline`
+name and its generated-facing entry points. Post-pipeline, an instance `ResponseMaterializer` owns
+decode + verdict consumption + adapter dispatch for both planes (the three duplicated read sites — R12 —
+collapse into it).
+
+Status authority is A3-Full: the generator emits `StatusVerdict Classify(int status)` on one-shot and
+stream adapters from each operation's pinned status table; `SuccessStatusCode` and `ReadsSuccessBody`
+fold into it; planes switch on verdicts only and the undeclared-success message has one author. 3xx
+remains `TransportPolicy`'s protocol-invariant refusal because no operation can declare it. Failure
+classification centralizes as `FailureClassification.Map(exception, token, phase)` (BCL-derived; the four
+cascades become single calls; M6's retryability question gains its home). The stream plane's frame
+dispatch moves beside `IStreamAdapter` and is tested with `ServerSentEvent` values; framing arrives
+through the named seam `IEventStreamFramer` with `ServerSentEventFramer` as a stateless one-reader-per-
+body facade — principle recorded: a seam gets a name, never a delegate parameter.
+
+R16's mechanism is accepted and its dirty code is not: the pooled destination with ownership separated
+from the pending copy is re-derived inside `ResponseBufferingPolicy`; buffer lifetime rides
+`PipelineMessage.Dispose`; the cancellation race is designed out via the classification map; no
+per-operation buffering-strategy selector. `ResponseEncodingPolicy` keeps full `HttpContent` parity on
+both planes — ADR-0014's sentence stands — and is rebuilt as a low-allocation, exception-free internal
+feature proven by a differential parity matrix (closing R09/R10) plus benchmarks; the pre-parse validity
+scan is irreducible under parity and stays. Two standing principles: policy modules declare their
+knowledge source (`pin-derived` / `BCL-derived` / `upstream-observed`, the last re-verified at spec
+refreshes), and TFM divergence splits by kind (algorithm → per-TFM adapter, API shape → `#if`).
+
+## Q128: Which timeout semantics does the rebuilt pipeline use?
+
+**Decision (maintainer, 2026-08-24):** progress-timeout semantics with Azure's machinery, replacing the
+total budget. Each read must progress within `NetworkTimeout` (internal default 100 s); the machinery is
+a linked CTS over the caller token, `CancelAfter` re-armed per read inside `ResponseBufferingPolicy`'s
+copy loop, and dispose-to-interrupt for uncancellable reads — deleting `Task.WaitAsync` abandonment, the
+fault-observation ceremony, and the `Stopwatch` budget arithmetic that straddled the send. The owned
+`HttpClient.Timeout` becomes infinite so two mechanisms cannot race. A live SSE success body stays exempt
+(existing canon line); every other response — including R17's stream-open error bodies — buffers under
+the timer. The `client-runtime.md` timeout paragraph is rewritten and the total-budget tests are replaced
+red-first inside Increment 3, not before. A public `NetworkTimeout` knob and an optional total-budget
+mode are M6 candidates.
+
+## Q129: What stays deferred or research-gated after the design?
+
+**Decision (maintainer, 2026-08-24):** research doc 17 (modern .NET allocation API sweep, dispatched this
+session) gates Increment 3's pool internals, Increment 4 entirely, and the future SSE stage-2; the sealed
+structure is not research-sensitive, which is why sealing did not wait for it. A6's
+configuration/transport split is deferred with an explicit ROADMAP trigger (M6 transport handlers or a
+concrete Extensions `IHttpClientFactory` need). A3's remaining breadth (multi-success operations) needs
+no trigger — it lands pre-paid as new `Classify` arms when the binder's fail-closed status wall meets
+such an operation. The generator typed-switch optimization stays paused until after the increments; the
+B-track binder locality findings are recorded untriggered; M4 planning starts after the increments.
+HANDOFF-2026-08-21-12 is consumed and deleted; HANDOFF-2026-08-24-13 carries the operational state.
