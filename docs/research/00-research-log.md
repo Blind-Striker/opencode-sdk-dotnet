@@ -3408,3 +3408,21 @@ drain's fixed read machinery, +480 B on net10.0 (1,288 → 1,768 B) and +97 B on
 body. The bare `HttpClient` control row moved 0 B on both runtimes. Timings are not quoted from a
 short job. Increment 3's pooled read path is where the drain's fixed cost gets rebuilt and
 re-measured.
+
+## Q133: What did the Increment 3 entry checkpoint decide?
+
+**Decision (maintainer, 2026-08-24):** the explicit-vs-transitive dependency rule is sealed into
+`platform-and-packaging.md` — declare what our source uses directly, what appears on a public
+surface, or what is version-pinned for behavior; trust the transitive graph otherwise, with
+downlevel bridges conditioned to the frameworks that need them. Its already-due consequence lands
+with the seal: explicit `System.Memory` (4.6.3) and `System.Buffers` (4.6.1) on the downlevel legs,
+at the versions the transitive graph already resolved. The four package questions: adopt
+`Microsoft.Bcl.Memory` when Increment 4 needs downlevel `Utf8.IsValid` (the alternatives keep
+exception-based control flow or hand-roll a UTF-8 scanner); neither `Microsoft.Bcl.TimeProvider`
+nor an internal clock seam — the sealed progress timeout is `CancelAfter` re-arm with no remaining
+clock-reading site, and `CancellationTokenSource` has no TimeProvider hook (doc 19 #8); if M6's
+total-budget mode reintroduces deadline arithmetic, `Microsoft.Bcl.TimeProvider` is the abstraction
+taken then. `System.Collections.Immutable` defers to the emitter allocation batch with its
+benchmarks (the no-package fallback is `#if NET8_0_OR_GREATER` frozen over a plain dictionary
+behind one factory), and `System.Net.ServerSentEvents` defers to the SSE stage-2 design per
+doc 17 §3.

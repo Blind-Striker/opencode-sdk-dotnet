@@ -32,6 +32,15 @@ document.
 - A future package is added only for a real distribution boundary; repository layout alone does
   not justify another artifact.
 
+## Dependencies
+
+- Declare explicitly every package this repository's source uses directly, that appears on a
+  public surface, or that is version-pinned for behavior; trust the transitive graph otherwise.
+- Downlevel bridge packages (`System.Memory`, `System.Buffers`, `Microsoft.Bcl.*`) are
+  conditioned to the target frameworks that need them; modern targets use the inbox APIs.
+- A new shipped dependency is a maintainer decision recorded with its consumer; no package is
+  added for a capability no scheduled work consumes.
+
 ## Repository and versioning
 
 The SDK and planned MCP server share one repository. The MCP server remains a thin adapter over the
