@@ -13,7 +13,8 @@ internal static class PipelineFactory
         Uri? endpoint = null,
         string? password = null,
         string? username = null,
-        LocationSelector? location = null)
+        LocationSelector? location = null,
+        IEventStreamFramer? framer = null)
     {
         var options = new OpenCodeClientOptions
         {
@@ -26,6 +27,6 @@ internal static class PipelineFactory
             options.Username = username;
         }
 
-        return new Pipeline(httpClient, ownsHttpClient, options);
+        return new Pipeline(httpClient, ownsHttpClient, options, framer);
     }
 }

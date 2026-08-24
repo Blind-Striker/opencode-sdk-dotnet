@@ -11,8 +11,10 @@ namespace OpenCode.Sdk.Tests;
 public sealed class PipelineStreamTests
 {
     private const string EventStreamMediaType = "text/event-stream";
-    private const string FirstFrame = "data: {\"value\":\"first\"}\n\n";
-    private const string FirstAndSecondFrames = FirstFrame + "data: {\"value\":\"second\"}\n\n";
+    private const string FirstPayload = "{\"value\":\"first\"}";
+    private const string SecondPayload = "{\"value\":\"second\"}";
+    private const string FirstFrame = "data: " + FirstPayload + "\n\n";
+    private const string FirstAndSecondFrames = FirstFrame + "data: " + SecondPayload + "\n\n";
 
     [Test]
     public async Task ExecuteStreamAsync_Should_Yield_Every_Frame_Payload()
@@ -45,6 +47,28 @@ public sealed class PipelineStreamTests
 
         await Assert.That(moved).IsTrue();
         await Assert.That(enumerator.Current.Value).IsEqualTo("first");
+    }
+
+    [Test]
+    public async Task ExecuteStreamAsync_Should_Sequence_Frames_Through_The_Framer_Seam()
+    {
+        var framer = new ScriptedFramer(
+            new ServerSentEvent(ServerSentEvent.DefaultName, FirstPayload),
+            new ServerSentEvent(ServerSentEvent.DefaultName, SecondPayload));
+        using var handler = new RecordingHttpHandler(static _ => EventStream(string.Empty));
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(httpClient, framer: framer);
+
+        var payloads = await CollectAsync(pipeline);
+
+        // The plane consumes whatever the framer seam yields: the scripted frames arrive in
+        // order and dispatch exactly as wire-framed ones would.
+        await Assert
+            .That(payloads
+                .Select(static payload => payload.Value)
+                .SequenceEqual(["first", "second"], StringComparer.Ordinal))
+            .IsTrue();
+        await Assert.That(framer.FramedStream).IsNotNull();
     }
 
     [Test]

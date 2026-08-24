@@ -11,7 +11,7 @@ public sealed class OwnedTransportTests
     [Test]
     public async Task CreateOwnedHttpHandler_Should_Expose_The_Modern_Owned_Policy()
     {
-        using var handler = Pipeline.CreateOwnedHttpHandler(new Uri("http://localhost"));
+        using var handler = TransportPolicy.CreateOwnedHttpHandler(new Uri("http://localhost"));
 
         await Assert.That(handler).IsTypeOf<SocketsHttpHandler>();
         var socketsHandler = (SocketsHttpHandler)handler;
@@ -58,7 +58,7 @@ public sealed class OwnedTransportTests
             Body = WireBodyData.HealthOk,
             KeepOpen = true,
         });
-        using var handler = Pipeline.CreateOwnedHttpHandler(server.Endpoint);
+        using var handler = TransportPolicy.CreateOwnedHttpHandler(server.Endpoint);
         using var httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromMilliseconds(50) };
         using var pipeline = Pipeline.Create(httpClient, new OpenCodeClientOptions { Endpoint = server.Endpoint });
 

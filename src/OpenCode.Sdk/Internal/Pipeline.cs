@@ -1,8 +1,4 @@
-using System.Diagnostics;
 using System.Globalization;
-#if !NET
-using System.Net;
-#endif
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -11,22 +7,37 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace OpenCode.Sdk.Internal;
 
-/// <summary>Owns request decoration, sending, buffering, and error-channel policy for every operation.</summary>
+/// <summary>
+/// The composed request pipeline behind every operation: an immutable policy roster —
+/// decoration, buffering, transport — carries each message, and the materializer maps the
+/// buffered result onto the operation's envelope. Construction owns option validation and
+/// decides transport ownership; the planes are the narrative behind the generated-facing
+/// entry points.
+/// </summary>
 internal sealed class Pipeline : IDisposable
 {
-    private const int ConnectionLifetimeMilliseconds = 120_000;
     private const string EventStreamMediaType = "text/event-stream";
 
-    private readonly AuthenticationHeaderValue? _authorization;
+    /// <summary>
+    /// JSON is UTF-8 by definition (RFC 8259); the content type carries no charset. The
+    /// instance is shared across requests and <see cref="MediaTypeHeaderValue"/> is mutable,
+    /// so no code may ever write to it.
+    /// </summary>
+    private static readonly MediaTypeHeaderValue JsonMediaType = new("application/json");
+
     private readonly string _endpointBase;
+    private readonly IEventStreamFramer _framer;
+
+    /// <summary>Read only for the per-request budget snapshot; its lifetime belongs to <see cref="_transport"/>.</summary>
     private readonly HttpClient _httpClient;
-    private readonly LocationSelector? _location;
-    private readonly bool _ownsHttpClient;
-    private readonly ResponseBodyReader _responseBodyReader = new();
-    private readonly ProductInfoHeaderValue _userAgent;
+
+    private readonly ResponseMaterializer _materializer = new();
+    private readonly PipelinePolicy[] _policies;
+    private readonly TransportPolicy _transport;
     private bool _disposed;
 
-    internal Pipeline(HttpClient httpClient, bool ownsHttpClient, IOpenCodeClientOptions options)
+    internal Pipeline(HttpClient httpClient, bool ownsHttpClient, IOpenCodeClientOptions options,
+        IEventStreamFramer? framer = null)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(options);
@@ -57,16 +68,21 @@ internal sealed class Pipeline : IDisposable
         }
 
         _httpClient = httpClient;
-        _ownsHttpClient = ownsHttpClient;
         _endpointBase = EndpointPolicy.Normalize(endpoint);
-        _location = options.Location;
-        _userAgent = UserAgentPolicy.Resolve();
+        _framer = framer ?? new ServerSentEventFramer();
 
-        // The options are read exactly once, here: the pipeline holds an immutable snapshot,
+        // The options are read exactly once, here: the policies hold an immutable snapshot,
         // so mutating the options object after construction never changes a built client.
-        _authorization = password is null
+        var authorization = password is null
             ? null
             : new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{password}")));
+        _transport = new TransportPolicy(httpClient, ownsHttpClient);
+        _policies =
+        [
+            new RequestDecorationPolicy(authorization, options.Location, UserAgentPolicy.Resolve()),
+            new ResponseBufferingPolicy(),
+            _transport,
+        ];
     }
 
     public static Pipeline Create(OpenCodeClientOptions options)
@@ -80,7 +96,7 @@ internal sealed class Pipeline : IDisposable
 
         // Validate before constructing the owned client so a refused endpoint leaks nothing.
         _ = EndpointPolicy.Normalize(options.Endpoint);
-        var httpClient = CreateOwnedHttpClient(options.Endpoint);
+        var httpClient = TransportPolicy.CreateOwnedHttpClient(options.Endpoint);
         try
         {
             return new Pipeline(httpClient, ownsHttpClient: true, options);
@@ -154,46 +170,7 @@ internal sealed class Pipeline : IDisposable
         }
 
         _disposed = true;
-        if (_ownsHttpClient)
-        {
-            _httpClient.Dispose();
-        }
-    }
-
-    /// <summary>Builds the non-redirecting owned transport with endpoint rotation on every runtime.</summary>
-    private static HttpClient CreateOwnedHttpClient(Uri endpoint)
-    {
-        HttpMessageHandler? handler = null;
-        try
-        {
-            handler = CreateOwnedHttpHandler(endpoint);
-            var httpClient = new HttpClient(handler, disposeHandler: true);
-            handler = null;
-            return httpClient;
-        }
-        finally
-        {
-            handler?.Dispose();
-        }
-    }
-
-    /// <summary>Creates the real platform handler; internal so tests can observe its sealed policy.</summary>
-    internal static HttpMessageHandler CreateOwnedHttpHandler(Uri endpoint)
-    {
-        ArgumentNullException.ThrowIfNull(endpoint);
-#if NET
-        return new SocketsHttpHandler
-        {
-            AllowAutoRedirect = false,
-            PooledConnectionLifetime = TimeSpan.FromMilliseconds(ConnectionLifetimeMilliseconds),
-        };
-#else
-        ConfigureDownlevelServicePoint(endpoint);
-        return new HttpClientHandler
-        {
-            AllowAutoRedirect = false,
-        };
-#endif
+        _transport.Dispose();
     }
 
     private async Task<TResponse> ExecuteCoreAsync<TBody, TResponse>(HttpMethod method, string route, TBody? body,
@@ -220,39 +197,10 @@ internal sealed class Pipeline : IDisposable
         }
 
         TResponse adapted;
-        using (var request = new HttpRequestMessage(method, new Uri(_endpointBase + route, UriKind.Absolute)))
+        using (var message = CreateMessage(method, route, body, bodyTypeInfo, adapter, cancellationToken))
         {
-            if (body is not null)
-            {
-                request.Content = CreateJsonContent(body, bodyTypeInfo!);
-            }
-
-            Decorate(request);
-            var requestStarted = Stopwatch.GetTimestamp();
-            using var response = await SendCoreAsync(request, cancellationToken).ConfigureAwait(false);
-            var remainingTimeout = GetRemainingTimeout(requestStarted);
-            var status = (int)response.StatusCode;
-            RefuseRedirectStatus(status);
-            if (status == adapter.SuccessStatusCode)
-            {
-                if (!adapter.ReadsSuccessBody)
-                {
-                    adapted = adapter.AdaptSuccess(status, []);
-                }
-                else
-                {
-                    var encodedBody = await _responseBodyReader.ReadAsync(response, remainingTimeout, cancellationToken).ConfigureAwait(false);
-                    adapted = encodedBody.DecodedBody is { } decoded
-                        ? adapter.Adapt(status, decoded)
-                        : adapter.AdaptSuccess(status, encodedBody.Utf8Body.Span);
-                }
-            }
-            else
-            {
-                var rawBody = (await _responseBodyReader.ReadAsync(response, remainingTimeout, cancellationToken).ConfigureAwait(false))
-                    .GetDecodedBody();
-                adapted = adapter.Adapt(status, rawBody);
-            }
+            await SendThroughPoliciesAsync(message).ConfigureAwait(false);
+            adapted = _materializer.Materialize(message, adapter);
         }
 
         return adapted.IsError && errorBehavior is ErrorBehavior.Default
@@ -260,103 +208,15 @@ internal sealed class Pipeline : IDisposable
             : adapted;
     }
 
-    /// <summary>JSON is UTF-8 by definition (RFC 8259); the content type carries no charset.</summary>
-    private static ByteArrayContent CreateJsonContent<TBody>(TBody body, JsonTypeInfo<TBody> bodyTypeInfo)
-    {
-        var content = new ByteArrayContent(JsonSerializer.SerializeToUtf8Bytes(body, bodyTypeInfo));
-        content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-        return content;
-    }
-
-    private void Decorate(HttpRequestMessage request)
-    {
-        if (_authorization is not null)
-        {
-            request.Headers.Authorization = _authorization;
-        }
-
-        // The ambient location rides the middleware's header channel, and the two members
-        // travel differently: the server percent-decodes the directory header but reads the
-        // workspace one verbatim, so the escaping mirrors that asymmetry exactly. Escaping
-        // also keeps a non-ASCII path sendable, since header values cannot carry it raw. The
-        // server resolves any explicit per-request location query first, so no client-side
-        // merge exists.
-        if (_location?.Directory is { } directory)
-        {
-            _ = request.Headers.TryAddWithoutValidation("x-opencode-directory", Uri.EscapeDataString(directory));
-        }
-
-        if (_location?.Workspace is { } workspace)
-        {
-            _ = request.Headers.TryAddWithoutValidation("x-opencode-workspace", workspace);
-        }
-
-        request.Headers.UserAgent.Add(_userAgent);
-    }
-
-    private async Task<HttpResponseMessage> SendCoreAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-    {
-#if !NET
-        if (_ownsHttpClient)
-        {
-            ConfigureDownlevelServicePoint(request.RequestUri!);
-        }
-#endif
-        try
-        {
-            return await _httpClient
-                .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
-                .ConfigureAwait(false);
-        }
-        catch (Exception exception) when (FailureClassification.Handles(exception, FailurePhase.Send))
-        {
-            throw FailureClassification.Map(exception, FailurePhase.Send, cancellationToken);
-        }
-    }
-
-    private static OpenCodeApiException CreateApiException(OpenCodeResponse response) =>
-        OpenCodeErrorReader.CreateApiException(response.Status, response.Error, response.RawBody);
-
-    private TimeSpan GetRemainingTimeout(long requestStarted)
-    {
-        if (_httpClient.Timeout == Timeout.InfiniteTimeSpan)
-        {
-            return Timeout.InfiniteTimeSpan;
-        }
-
-        var elapsedSeconds = (Stopwatch.GetTimestamp() - requestStarted) / (double)Stopwatch.Frequency;
-        var remaining = _httpClient.Timeout - TimeSpan.FromSeconds(elapsedSeconds);
-        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
-    }
-
-#if !NET
-    private static void ConfigureDownlevelServicePoint(Uri endpoint)
-    {
-        var servicePoint = ServicePointManager.FindServicePoint(endpoint, WebRequest.DefaultWebProxy);
-        servicePoint.ConnectionLimit = int.MaxValue;
-        servicePoint.ConnectionLeaseTimeout = ConnectionLifetimeMilliseconds;
-    }
-#endif
-
-    private static void RefuseRedirectStatus(int status)
-    {
-        if (status is >= 300 and < 400)
-        {
-            throw new OpenCodeTransportException($"The opencode API returned undeclared redirect status {status.ToString(CultureInfo.InvariantCulture)}.");
-        }
-    }
-
     private async IAsyncEnumerable<TPayload> ExecuteStreamCoreAsync<TPayload, TCause>(HttpMethod method, string route,
         IStreamAdapter<TPayload, TCause> adapter, [EnumeratorCancellation] CancellationToken cancellationToken)
         where TCause : IReadOnlyList<Models.IOpenCodeStreamFailureCause>
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        using var request = new HttpRequestMessage(method, new Uri(_endpointBase + route, UriKind.Absolute));
-        Decorate(request);
-        var requestStarted = Stopwatch.GetTimestamp();
-        using var response = await SendCoreAsync(request, cancellationToken).ConfigureAwait(false);
+        using var message = CreateStreamMessage(method, route, cancellationToken);
+        await SendThroughPoliciesAsync(message).ConfigureAwait(false);
+        var response = message.Response!;
         var status = (int)response.StatusCode;
-        RefuseRedirectStatus(status);
 
         // Any other 2xx is outside the declared contract: a protocol failure, never an API
         // error — the same reading the one-shot adapters give it.
@@ -368,10 +228,7 @@ internal sealed class Pipeline : IDisposable
 
         if (status is not 200)
         {
-            var rawBody = (await _responseBodyReader
-                    .ReadAsync(response, GetRemainingTimeout(requestStarted), cancellationToken)
-                    .ConfigureAwait(false))
-                .GetDecodedBody();
+            var rawBody = _materializer.ReadErrorBody(message);
             throw OpenCodeErrorReader.CreateApiException(status, adapter.ReadError(status, rawBody), rawBody);
         }
 
@@ -388,11 +245,9 @@ internal sealed class Pipeline : IDisposable
 #endif
 
         // The response owns the body stream, so disposing it here would only duplicate the
-        // disposal the enclosing using already performs when enumeration ends.
+        // disposal the message performs when enumeration ends.
         var body = await ReadBodyStreamAsync(response, cancellationToken).ConfigureAwait(false);
-        var frames = new ServerSentEventReader()
-            .ReadAsync(body, cancellationToken)
-            .GetAsyncEnumerator(cancellationToken);
+        var frames = _framer.ReadAsync(body, cancellationToken).GetAsyncEnumerator(cancellationToken);
         await using var enumeration = frames.ConfigureAwait(false);
         while (true)
         {
@@ -415,9 +270,59 @@ internal sealed class Pipeline : IDisposable
                 break;
             }
 
-            yield return ReadStreamPayload(frames.Current, adapter);
+            yield return FrameDispatch.ReadPayload(frames.Current, adapter);
         }
     }
+
+    private ValueTask SendThroughPoliciesAsync(PipelineMessage message) =>
+        _policies[0].ProcessAsync(message, _policies.AsMemory(1));
+
+    private PipelineMessage CreateMessage<TBody, TResponse>(HttpMethod method, string route, TBody? body,
+        JsonTypeInfo<TBody>? bodyTypeInfo, ResponseAdapter<TResponse> adapter, CancellationToken cancellationToken)
+        where TBody : class
+        where TResponse : OpenCodeResponse
+    {
+        var request = new HttpRequestMessage(method, new Uri(_endpointBase + route, UriKind.Absolute));
+        try
+        {
+            if (body is not null)
+            {
+                request.Content = CreateJsonContent(body, bodyTypeInfo!);
+            }
+
+            return new PipelineMessage
+            {
+                Request = request,
+                CancellationToken = cancellationToken,
+                NetworkTimeout = _httpClient.Timeout,
+                NoBodySuccessStatus = adapter.ReadsSuccessBody ? null : adapter.SuccessStatusCode,
+            };
+        }
+        catch
+        {
+            request.Dispose();
+            throw;
+        }
+    }
+
+    private PipelineMessage CreateStreamMessage(HttpMethod method, string route, CancellationToken cancellationToken) =>
+        new()
+        {
+            Request = new HttpRequestMessage(method, new Uri(_endpointBase + route, UriKind.Absolute)),
+            CancellationToken = cancellationToken,
+            NetworkTimeout = _httpClient.Timeout,
+            BufferBody = false,
+        };
+
+    private static ByteArrayContent CreateJsonContent<TBody>(TBody body, JsonTypeInfo<TBody> bodyTypeInfo)
+    {
+        var content = new ByteArrayContent(JsonSerializer.SerializeToUtf8Bytes(body, bodyTypeInfo));
+        content.Headers.ContentType = JsonMediaType;
+        return content;
+    }
+
+    private static OpenCodeApiException CreateApiException(OpenCodeResponse response) =>
+        OpenCodeErrorReader.CreateApiException(response.Status, response.Error, response.RawBody);
 
     private static async Task<Stream> ReadBodyStreamAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
@@ -439,52 +344,4 @@ internal sealed class Pipeline : IDisposable
             response,
             useSynchronizationContext: false);
 #endif
-
-    /// <summary>
-    /// Reads one dispatched frame: the contract names a failure frame and leaves every other
-    /// name undeclared, so only an unnamed frame carries a payload.
-    /// </summary>
-    private static TPayload ReadStreamPayload<TPayload, TCause>(ServerSentEvent frame, IStreamAdapter<TPayload, TCause> adapter)
-        where TCause : IReadOnlyList<Models.IOpenCodeStreamFailureCause>
-    {
-        if (string.Equals(frame.Name, adapter.FailureEventName, StringComparison.Ordinal))
-        {
-            throw new OpenCodeStreamFailureException(ReadStreamCause(frame.Data, adapter.CauseTypeInfo));
-        }
-
-        if (!string.Equals(frame.Name, ServerSentEvent.DefaultName, StringComparison.Ordinal))
-        {
-            throw new OpenCodeTransportException($"The opencode event stream produced an undeclared frame named '{frame.Name}'.");
-        }
-
-        return ReadFramePayload(frame.Data, adapter.PayloadTypeInfo);
-    }
-
-    private static TCause ReadStreamCause<TCause>(string frame, JsonTypeInfo<TCause> typeInfo)
-        where TCause : IReadOnlyList<Models.IOpenCodeStreamFailureCause>
-    {
-        try
-        {
-            return JsonSerializer.Deserialize(frame, typeInfo)
-                   ?? throw new OpenCodeTransportException("The opencode event stream produced a null failure cause.");
-        }
-        catch (JsonException exception)
-        {
-            throw new OpenCodeTransportException("The opencode event stream produced an unmaterializable failure cause.", exception);
-        }
-    }
-
-    /// <summary>A frame the operation's contract cannot decode is a protocol failure, never an event.</summary>
-    private static TPayload ReadFramePayload<TPayload>(string frame, JsonTypeInfo<TPayload> typeInfo)
-    {
-        try
-        {
-            return JsonSerializer.Deserialize(frame, typeInfo)
-                   ?? throw new OpenCodeTransportException("The opencode event stream produced a null frame payload.");
-        }
-        catch (JsonException exception)
-        {
-            throw new OpenCodeTransportException("The opencode event stream produced a malformed frame payload.", exception);
-        }
-    }
 }
