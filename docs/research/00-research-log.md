@@ -3508,3 +3508,31 @@ variant triggered mid-stream. Pagination mode ran mechanically but enumerated ze
 fresh session has no messages, and producing assistant messages needs a configured provider; a
 non-empty enumeration pass stays open for a future session with provider credentials. One sandbox
 nit recorded: `--paginate` exits nonzero on an empty enumeration.
+
+## Q137: How far has upstream v2 drifted from the pin, and what would a refresh touch?
+
+**Method (2026-08-25, read-only reconnaissance):** `git fetch origin v2` in the submodule, then a
+structural comparison of `packages/protocol/openapi.json` between the pin (`a6a712a3`,
+2026-08-13) and the `origin/v2` tip (`71f81dc0fe`, 2026-08-24) — path/operation set diffs plus a
+transitive `$ref`-closure comparison for every selected-family operation — and a diff of the
+internals on the upstream-observed list.
+
+**Findings:** 633 commits of drift; the document shrank 681 → 478 KB and 324 → 210 schemas, but
+the mass decomposes into non-events for this SDK. (1) A wholesale rename: every error schema now
+carries an `Encoded` suffix (`InvalidRequestError` → `InvalidRequestErrorEncoded`) and payload
+envelopes consolidated under the same convention (`SessionLogItemEncoded`); the wire shape is
+byte-identical where checked (`InvalidRequestError` — `_tag`, members, and required set
+unchanged). (2) Spec-gen canonicalization: `allOf` constraint wrappers flattened (`ServiceHealth`
+semantically identical), and the numeric-suffix collision artifacts our curation fingerprints
+(`InvalidRequestError1`, `Shell.Info1`, `Session.Message.ProviderState4/5`, …) are gone —
+upstream fixed the duplicate emission, so those curation rows delete at refresh. (3) Real surface
+deltas, none in the selected set: the question flow (`v2.session.question.*`,
+`v2.question.request.list` — pending question requests a session could ask its caller), the
+undocumented experimental `v2.projectCopy.*` trio, and `v2.health.stop` are removed; session
+stats/environment/view and worktree operations are added. (4) The dialect is unchanged — OpenAPI
+3.1.0, `x-effect-stream` framing metadata with the same `not: {}` never-arm cause schema, `_tag`
+unions, `anyOf`-null optionality — and `packages/server/src/location.ts` has zero diff, so the
+location-header decoding asymmetry the decoration policy mirrors still holds. Health's status
+table is unchanged (200/400/401). A refresh is therefore generator-side work — curation rename
+mappings, fingerprint deletions, regeneration, snapshot review — with no runtime mechanism
+affected; per `spec/SNAPSHOT.md` it stays deliberate at a milestone boundary.
