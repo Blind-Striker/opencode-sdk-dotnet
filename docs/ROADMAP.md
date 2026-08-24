@@ -336,11 +336,12 @@ is revisited at each milestone boundary.
   the transport factory lands first (plan `superpowers/plans/2026-08-24-runtime-pipeline-plan.md`,
   research Q129). Also reopen if the validate-after-owned-transport-construction ordering
   hazard produces a real defect.
-- **Generator binding locality** — untriggered improvement item from the 2026-08-24
-  architecture scan (research Q126): `OperationPlanBinder` facet split, a single
-  reserved-name policy owner, and a scenario-derived `EmitterPlanFixture`. Priority is
-  decided separately from the runtime plan; the M5 breadth batches are the natural moment
-  to reassess.
+- **Generator binding locality** — improvement item from the 2026-08-24 architecture scan
+  (research Q126; detailed findings, candidates, and the reassessment method are research
+  doc 18): `OperationPlanBinder` facet split, a single reserved-name policy owner, and a
+  scenario-derived `EmitterPlanFixture`. Decision point: before the first M5 breadth
+  batch, using doc 18 §8's drift-check and cost model; the reserved-name owner may ride
+  any earlier generator-touching increment opportunistically.
 
 ## Known Gaps
 
