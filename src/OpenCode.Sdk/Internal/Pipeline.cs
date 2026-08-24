@@ -308,17 +308,9 @@ internal sealed class Pipeline : IDisposable
                 .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
                 .ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is HttpRequestException or ObjectDisposedException)
+        catch (Exception exception) when (FailureClassification.Handles(exception, FailurePhase.Send))
         {
-            // ObjectDisposedException covers a dispose-during-send race; the pre-send disposed
-            // guard stays outside this catch.
-            throw new OpenCodeTransportException("The opencode server could not be reached.", exception);
-        }
-        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
-        {
-            // The caller's token is untouched, so this cancellation is the transport timing
-            // out; genuine caller cancellation passes through in the token-canceled case.
-            throw new OpenCodeTransportException("The opencode server did not respond within the transport timeout.", exception);
+            throw FailureClassification.Map(exception, FailurePhase.Send, cancellationToken);
         }
     }
 
@@ -413,20 +405,9 @@ internal sealed class Pipeline : IDisposable
             {
                 moved = await frames.MoveNextAsync().ConfigureAwait(false);
             }
-            catch (Exception exception)
-                when (cancellationToken.IsCancellationRequested
-                      && exception is HttpRequestException or IOException or ObjectDisposedException)
+            catch (Exception exception) when (FailureClassification.Handles(exception, FailurePhase.EventStreamRead))
             {
-                throw new OperationCanceledException("The opencode event stream read was canceled.", exception, cancellationToken);
-            }
-            catch (Exception exception)
-                when (exception is HttpRequestException or IOException or ObjectDisposedException)
-            {
-                throw new OpenCodeTransportException("The opencode event stream could not be read.", exception);
-            }
-            catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
-            {
-                throw new OpenCodeTransportException("The opencode event stream could not be read.", exception);
+                throw FailureClassification.Map(exception, FailurePhase.EventStreamRead, cancellationToken);
             }
 
             if (!moved)
@@ -444,20 +425,9 @@ internal sealed class Pipeline : IDisposable
         {
             return await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception exception)
-            when (cancellationToken.IsCancellationRequested
-                  && exception is HttpRequestException or IOException or ObjectDisposedException)
+        catch (Exception exception) when (FailureClassification.Handles(exception, FailurePhase.EventStreamRead))
         {
-            throw new OperationCanceledException("The opencode event stream read was canceled.", exception, cancellationToken);
-        }
-        catch (Exception exception)
-            when (exception is HttpRequestException or IOException or ObjectDisposedException)
-        {
-            throw new OpenCodeTransportException("The opencode event stream could not be read.", exception);
-        }
-        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
-        {
-            throw new OpenCodeTransportException("The opencode event stream could not be read.", exception);
+            throw FailureClassification.Map(exception, FailurePhase.EventStreamRead, cancellationToken);
         }
     }
 

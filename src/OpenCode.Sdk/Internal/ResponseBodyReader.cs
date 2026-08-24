@@ -42,26 +42,18 @@ internal sealed class ResponseBodyReader
 
             return _encodingPolicy.Decode(body, response.Content?.Headers.ContentType?.CharSet);
         }
-        catch (Exception exception)
-            when (exception is HttpRequestException or IOException or ObjectDisposedException or InvalidOperationException)
+        catch (Exception exception) when (FailureClassification.Handles(exception, FailurePhase.ResponseBodyRead))
         {
-            throw new OpenCodeTransportException("The opencode response body could not be read.", exception);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            response.Content?.Dispose();
-            ObserveFault(pendingRead);
-            throw;
-        }
-        catch (OperationCanceledException exception)
-        {
-            throw new OpenCodeTransportException("The opencode response body could not be read.", exception);
-        }
-        catch (TimeoutException exception)
-        {
-            response.Content?.Dispose();
-            ObserveFault(pendingRead);
-            throw new OpenCodeTransportException("The opencode response body could not be read.", exception);
+            // A wait that gave up leaves the pending read running: the content is disposed to
+            // interrupt it and the abandoned task's fault is observed. A settled fault needs
+            // neither, and both are harmless when the race cannot be told apart.
+            if (exception is TimeoutException || cancellationToken.IsCancellationRequested)
+            {
+                response.Content?.Dispose();
+                ObserveFault(pendingRead);
+            }
+
+            throw FailureClassification.Map(exception, FailurePhase.ResponseBodyRead, cancellationToken);
         }
     }
 
