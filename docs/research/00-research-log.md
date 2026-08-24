@@ -3486,3 +3486,25 @@ before and after (the hot path stays allocation-free); the malformed-UTF-8 row d
 4,496 B on net10.0 and 6,427 → 4,566 B on net472 (the exception machinery gone; the remaining
 bytes are the replacement-decoded string itself); net472's declared-utf8 row drops 24 → 0 B
 (the lookup skipped). UTF-16 fallback rows are unchanged — the decoded string dominates them.
+
+## Q136: What did the real-server acceptance run show for the rebuilt runtime?
+
+**Method:** the arc's agreed acceptance (maintainer, 2026-08-24) — the sandbox against a real
+opencode v2 server. The installed `opencode.exe` 1.18.21 turned out to be the v1 line and its
+`/api/health` body (`{"healthy":true}`, no `version`/`pid`) was refused by the pinned contract's
+required-member wall — the fail-closed materialization working as designed, and a clean
+demonstration that v1 is not our surface. The real oracle was then run from source at exactly the
+pinned commit: `external/opencode` @ `a6a712a3` (bin name `opencode2`), `bun install
+--frozen-lockfile` + `bun run src/index.ts serve` on 127.0.0.1:4599, which booted the v2 auth
+surface (generated server password, 401 unauthenticated).
+
+**Results (2026-08-25, all through the rebuilt pipeline on net10):** one-shot mode fully green —
+health (v2 shape with `version`/`pid` materialized), session create with a JSON body, list with a
+live cursor, get, and messages, all through Basic auth, pooled buffering, and status verdicts.
+Stream mode opened `v2.session.log`, received the typed `EventLogSynced` frame, and held the live
+SSE connection open past 45 s — the buffering exemption behaving against a real socket. Events
+mode received `EventServerConnected` on subscribe and dispatched a live `SessionCreated` union
+variant triggered mid-stream. Pagination mode ran mechanically but enumerated zero items — the
+fresh session has no messages, and producing assistant messages needs a configured provider; a
+non-empty enumeration pass stays open for a future session with provider credentials. One sandbox
+nit recorded: `--paginate` exits nonzero on an empty enumeration.
