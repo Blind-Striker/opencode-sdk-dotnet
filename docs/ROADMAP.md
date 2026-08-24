@@ -241,9 +241,11 @@ generated status verdicts on the adapters, a named framer seam, progress-timeout
 mechanism re-derived inside the buffering policy. The staged plan is
 `superpowers/plans/2026-08-24-runtime-pipeline-plan.md`: archive the R16 patch, then
 FailureClassification → behavior-preserving pipeline skeleton → generated `Classify` verdicts → pooled
-buffering + progress timeout → encoding hardening, with research doc 17 (in flight) gating the last
-two. Typed-switch reconsideration and the M4 plan follow the increments. No M4 source or planning work
-has begun.**
+buffering + progress timeout → encoding hardening. The modern-allocation research legs are complete
+(docs 17/19/20: API survey, feature catalog with verified downlevel codegen, runtime idiom audit) and
+their adoption items are folded into the plan's increments; four downlevel package decisions batch at
+the Increment 3 entry checkpoint. Typed-switch reconsideration — widened into the emitter allocation
+batch — and the M4 plan follow the increments. No M4 source or planning work has begun.**
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family

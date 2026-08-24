@@ -10,9 +10,11 @@ adapter-contract change in Increment 2b), or ADR-0010's options-only constructio
 
 Sealed inputs: research log Session 40 (Q126–Q129), the three 2026-08-24 architecture
 scans and Azure/AWS peer evidence recorded there, ADR-0007/0009/0010/0014/0015,
-`docs/architecture/client-runtime.md`, handoff HANDOFF-2026-08-24-13. Research doc 17
-(modern-allocation API sweep, in flight) gates Increments 3–4 internals; it cannot reopen
-the sealed structure below.
+`docs/architecture/client-runtime.md`, handoff HANDOFF-2026-08-24-13. The research gates
+are satisfied: doc 17 (increment-gated allocation API survey), doc 19 (feature catalog with
+the verified downlevel-codegen baseline), and doc 20 (runtime idiom audit with ranked
+findings) are all landed 2026-08-24; adoption items below cite them rather than restate
+them. None of the three reopens the sealed structure.
 
 ## Sealed design
 
@@ -162,6 +164,11 @@ with zero generated diff.
       `IStreamAdapter`. Total-budget semantics retained in this increment
       (`WaitAsync` machinery moves, not yet replaced). Benchmarks compare against the
       Increment 1 baseline.
+- [ ] Audit fold-ins (doc 20 D2/D3, behavior-preserving): the location-header
+      `Uri.EscapeDataString` moves to construction inside `RequestDecorationPolicy`
+      (the `_authorization` precedent), and the JSON `MediaTypeHeaderValue` becomes one
+      shared static with a mutability-discipline comment. Internal policy hops are
+      `ValueTask`-shaped per doc 17 §5 / doc 20 A3; public surfaces stay `Task`.
 
 ### Increment 2b — A3-Full status verdicts (generator increment)
 
@@ -169,31 +176,67 @@ with zero generated diff.
       `SuccessStatusCode`/`ReadsSuccessBody` deleted; planes consume verdicts only.
       Generator gates (`generate --verify`, snapshots, PublicApi unchanged). Canon
       wording touch: unexpected no-content bodies are drained and ignored.
+- [ ] While the error-reader neighborhood is regenerated: the comparer-overload
+      `Enumerable.Contains` on the typed-error path becomes a `foreach` over the tag
+      array (doc 20 E5).
 
 ### Increment 3 — pooled buffering + progress timeout (behavior change, red-first)
+
+Entry checkpoint (decision session before source work starts): the accumulated dependency
+decisions land as one batch under the explicit-vs-transitive rule — `Microsoft.Bcl.Memory`
+(downlevel `Utf8.IsValid`, doc 17), `Microsoft.Bcl.TimeProvider` versus an internal clock
+seam (doc 19 #8), `System.Collections.Immutable` (downlevel Frozen collections, doc 19 #5),
+and `System.Net.ServerSentEvents` (stage-2, may be deferred to that design). The rule
+itself — declare explicitly what our source uses directly, what appears on public surface,
+or what we version-pin for behavior; trust transitive otherwise — seals into
+`docs/architecture/platform-and-packaging.md` with per-edit maintainer approval, and the
+already-due consequences apply here: explicit downlevel `System.Memory` and
+`System.Buffers` references land with this increment's direct `ArrayPool` use.
 
 - [ ] R16 mechanism re-derived inside `ResponseBufferingPolicy`; linked-CTS
       `CancelAfter` + dispose-to-interrupt copy loop; owned client `Timeout` → infinite;
       SSE exemption and error-body buffering rules as sealed above.
+- [ ] Adoption details from the research (doc 17 §2/§4, doc 19 #9/#10): the
+      operation-scoped dispose registration uses `CancellationToken.UnsafeRegister`
+      (Polyfill maps it to `Register` downlevel), escaping copies use
+      `GC.AllocateUninitializedArray` under `#if NET`, and the pooled buffer's
+      `clearArray` security-versus-cost choice is decided explicitly (upstream does not
+      clear; clearing is deliberate hardening).
 - [ ] Canon edit in the same change: `client-runtime.md` timeout paragraph rewritten to
       progress semantics; old total-budget tests replaced red-first (stalled body dies at
       the window; trickling body survives past it).
 - [ ] Same-machine allocation evidence; target: reproduce R16's fixed-cost rows
       (net10 ≈ 1.7 KB pipeline row at every body size).
-- **Gate:** research doc 17 (pool shape: custom pooled stream vs `IBufferWriter`-based).
+- **Gate satisfied:** doc 17 §2 (contiguous ArrayPool grow-and-copy, per the net10
+  `LimitArrayPoolWriteStream` blueprint; `IBufferWriter`/segmented designs ruled out) and
+  doc 20 A1/A2.
 
 ### Increment 4 — encoding hardening
 
 - [ ] Parity-preserving low-allocation rebuild of `ResponseEncodingPolicy`; differential
       parity matrix (R09/R10 closure) and benchmark rows.
-- **Gate:** research doc 17 (validation and span-decode APIs; downlevel fallbacks).
+- [ ] Adoption details from the research: `Utf8.IsValid` replaces the
+      `DecoderFallbackException` control flow (doc 20 C1; downlevel per the checkpoint's
+      `Microsoft.Bcl.Memory` decision, else the strict-decoder try/catch stays behind the
+      per-TFM adapter); BOM tables become `u8` span data (doc 19 §0 — zero-alloc on all
+      five TFMs); the well-known-charset fast path uses span constant-string patterns
+      with `Ascii.EqualsIgnoreCase` as the `#if NET8_0_OR_GREATER` variant (doc 19
+      #2/#3); the double `GetPreamble()` call collapses to one local (doc 20 C3);
+      downlevel keeps `(byte[], int, count)` overloads — Polyfill's span-Encoding shims
+      allocate and are excluded from hot paths (doc 17 §1).
+- **Gate satisfied:** doc 17 §1/§5 and doc 20 C1–C3.
 
-## Research-gated / open
+## Research status / open
 
-- Research doc 17 (in flight 2026-08-24) gates Increment 3 internals, Increment 4
-  entirely, and the future SSE stage-2 (byte-level framing). The sealed structure above
-  is not research-sensitive.
-- SSE stage-2 remains a separate future design (not implied by Increment 2's framer seam).
+- All three research legs are landed (docs 17/19/20); the increment gates above are
+  satisfied. Items the research surfaced but no increment schedules — reserve tools
+  (`OverloadResolutionPriority`, `params ReadOnlySpan` helper overloads,
+  `PoolingAsyncValueTaskMethodBuilder`, `HttpHeaders.NonValidated`) — stay in doc 19's
+  ranked table, adopted only with benchmark evidence.
+- SSE stage-2 remains a separate future design (not implied by Increment 2's framer
+  seam). Its research inputs are ready: the `SseParser` blueprint and strictness decision
+  (doc 17 §3), `Utf8Parser` for `retry:` digits and `u8` field names (doc 19 §4/§1), and
+  the profiling-gated span-keyed event-name cache (doc 19 #11, doc 20 B2).
 
 ## Deferred, with triggers
 
@@ -203,8 +246,16 @@ with zero generated diff.
   validate-after-build ordering hazard bites.
 - **Total-budget timeout option + public `NetworkTimeout` knob** — M6, possibly public
   through options/Extensions.
-- **Generator typed-switch union dispatch** — unchanged from the Session 39 pause;
-  reconsidered after the runtime increments, before or with M4 planning, per ROADMAP.
+- **Generator typed-switch union dispatch, widened into the emitter allocation batch** —
+  unchanged trigger (after the runtime increments, before or with M4 planning, per
+  ROADMAP), but the batch now also owns the audit's emitter-side findings so the
+  generated dispatch neighborhood is rebuilt once: the per-payload union tag string
+  (doc 20 B2 — net9 `GetAlternateLookup` + `CopyString`), `FrozenDictionary` dispatch
+  tables (doc 20 F1, pending the Increment 3 checkpoint's `System.Collections.Immutable`
+  decision), the tag→`JsonTypeInfo` double hop (F2), cached empty-request instances
+  (D5), and the benchmark-gated route/query composition items (D1, ValueStringBuilder
+  pattern — doc 19 #6). Doc 20's ranked table is the batch's backlog; nothing from it is
+  scheduled earlier.
 - **B-track (generator tool)** — outside this plan. B1 facet binders and B2
   reserved-name policy are recorded in ROADMAP as an untriggered locality item, priority
   decided separately.
