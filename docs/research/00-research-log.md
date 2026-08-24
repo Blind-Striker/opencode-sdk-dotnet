@@ -3375,3 +3375,13 @@ in both directions, which is measurement environment, not code.
 **Verdict:** the relocation is allocation-neutral on net10.0 (+8 B fixed, streams cheaper) and adds a
 bounded, fixed, downlevel-only ~0.55 KB per one-shot call on net472. Increment 2's behavior
 preservation is separately pinned by the unchanged 2,016-test suite passing untouched.
+
+## Q131: What benchmark cadence governs the remaining increments?
+
+**Decision (maintainer, 2026-08-24):** benchmarking is tiered by scope. Increment-level checks are
+targeted and short — `--filter` narrowed to the component ladders the change touches, `--job short`,
+exact allocation columns as the before/after comparison, timings indicative only — and the full
+suite under the default job runs once as milestone evidence when a work arc completes. Sealed into
+`quality-gates.md`'s performance section the same day. Recorded alongside: pre-GA the SDK owes no
+consumer backward compatibility; the PublicApi lock stays a deliberate-diff review gate, not a
+compatibility promise.

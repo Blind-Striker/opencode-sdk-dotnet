@@ -110,9 +110,13 @@ rounded `KB`. Each benchmark class owns one operation family and decomposes it a
 materialization) over wire-shaped fixtures whose sizes scale from the common case to very large, so
 a regression attributes to a component rather than merely registering end to end. Every
 `GlobalSetup` refuses a fixture that does not materialize the generated type it claims to measure.
-Run benchmarks from a clean copy outside the repository (BenchmarkDotNet locates the project by name
-from the solution root and refuses duplicate copies such as scratch clones), validate with
-`--job Dry` before a default job, and compare timings only within one environment; allocation is the
-primary comparison. The performance project adds a net472 target on Windows only
+Benchmark cadence follows scope. An increment-level check is targeted and cheap: filter to the
+component ladders the change touches and run `--job short` (`--job Dry` first when fixtures or
+benchmark code changed); its exact allocation columns are the before/after comparison, and its
+timings are indicative only — never quoted as evidence. The full suite under the default job runs
+as milestone evidence when an arc of work completes, from a clean copy outside the repository
+(BenchmarkDotNet locates the project by name from the solution root and refuses duplicate copies
+such as scratch clones). Whatever the tier, before/after runs stay within one environment, and
+allocation is the primary comparison. The performance project adds a net472 target on Windows only
 (`dotnet run -f net10.0 -- --runtimes net472 net10.0 ...`); net472 numbers come from that leg, never
 from net10 or source-equivalent probes.
