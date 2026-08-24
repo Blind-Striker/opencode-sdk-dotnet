@@ -3536,3 +3536,28 @@ location-header decoding asymmetry the decoration policy mirrors still holds. He
 table is unchanged (200/400/401). A refresh is therefore generator-side work — curation rename
 mappings, fingerprint deletions, regeneration, snapshot review — with no runtime mechanism
 affected; per `spec/SNAPSHOT.md` it stays deliberate at a milestone boundary.
+
+## Q138: What does the arc-milestone benchmark say about the whole runtime rebuild?
+
+**Method (Q131 cadence):** the full suite — twelve families, 152 cases, both runtimes — under the
+default job from a clean `C:\bench` mirror of the final tree (`6891c6e` content), Dry-validated
+first; artifacts `C:\bench-artifacts\arc-milestone-{dry,default}` plus `arc-milestone.csv` beside
+the earlier extracts. Compared against the Increment 1 default-job baseline
+(`inc1-baseline-default`, 72 overlapping cases). Caveat carried from Q130: the baseline ran under
+development load while the milestone ran on an idle machine overnight, so timing ratios are
+directional; allocation columns are exact.
+
+**Allocation (arc totals, matching the per-increment evidence):** the net10.0 one-shot pipeline
+row is flat at 2,112 B at every body size (deep −4,000 B, medium −107,936 B, large −2,151,966 B);
+complete large calls drop ~2.15 MB (net10.0) and ~1.08 MB (net472) per operation; net472 fixed
+costs fall 1.7–2.1 KB per call. The bounded regressions are the progress machinery on the
+smallest bodies (+192..+272 B net10.0), the stream-open path (+248 B net10.0, +6xx B net472), and
+the no-content drain (+848/+803 B).
+
+**Timing (directional):** downlevel one-shot rows land at 0.35–0.55× the baseline (the WaitAsync
+abandonment and double-buffering machinery gone), net10.0 pipeline rows at 0.25–0.78× with the
+large-body row 4× faster; materialization-dominated rows sit at parity (0.97–1.03×), as they
+should — the arc never touched them. The one timing regression is the no-content operation
+(2.27× net10.0, still sub-microsecond absolute), the measured price of draining under a timer.
+The arc's quotable summary: body-size-proportional allocation is gone from the pipeline, downlevel
+calls are roughly twice as fast, and every cost added is fixed, small, and named.
