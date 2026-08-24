@@ -233,8 +233,11 @@ reader union scan, an unbounded stream-open error-body read, a raw `NotSupported
 the bounded Arc 6 repairs are complete at `3f68ddf` and `713f09a`, including real-handler net472
 cancellation/timeout evidence. The first net472/net10 benchmark leg is complete (research Q123), and
 R18 stage 1 now scans decoded spans by line with 3.1-8.9x sustained parser speedups and no allocation
-regression (research Q124). The measured R16 pooled-read and typed-switch follow-ups are exact next
-before M4's short launcher plan. No M4 source or planning work has begun.**
+regression (research Q124). R16's dirty-worktree experiment proved that a pooled read can remove the
+second body-sized allocation, but review exposed another lifecycle race and the growing Pipeline now
+needs a holistic design decision (research Q125). Exact next is a clean-session runtime-pipeline
+brainstorm; R16, typed-switch work, and M4 planning remain paused until that design chooses the module
+shape and migration order. No M4 source or planning work has begun.**
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family

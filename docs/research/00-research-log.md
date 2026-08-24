@@ -3195,3 +3195,51 @@ the performance decision evidence.
 parser case, all 112 cross-TFM behavior executions pass, allocations do not regress, and no public or
 generated surface changed. Stage 2 remains a separate public-lifetime design and is not implied. R16's
 pooled response-body read is the next measured increment.
+
+## Q125: Should the remaining performance work continue on the current Pipeline architecture?
+
+**Trigger:** R16 proved its performance premise but exposed a larger design question. The current
+`Pipeline` now coordinates owned transport construction, downlevel `ServicePoint` policy, credentials
+and request decoration, request serialization, send and redirect classification, timeout budgeting,
+one-shot body ownership/decoding, response adaptation, stream opening, SSE cancellation teardown,
+frame dispatch, and error mapping. The issue is no longer merely class length: each new lifecycle rule
+changes the same orchestration paths.
+
+**R16 experiment (uncommitted):** a clean-copy implementation copied `HttpContent` into an
+`ArrayPool<byte>`-backed writable stream and scoped an `EncodedResponseBody` lease across adaptation.
+All 1,378 SDK-project test executions passed across net472/net8/net9/net10. Default-job allocation
+evidence on the Q123 Windows machine confirmed the mechanism:
+
+| Pipeline row | Before | Experimental | Wire amplification after |
+|---|---:|---:|---:|
+| net10 deep / medium / large | 6,112 / 110,048 / 2,154,163 B | 1,712 / 1,712 / 1,712 B | 0.78x / 0.03x / effectively fixed |
+| net472 deep / medium / large | 10,935 / 124,790 / 2,162,148 B | 5,544 / 5,550 / 1,084,987 B | 2.53x / 0.10x / 1.01x |
+| net10 / net472 health | 1,840 / 6,141 B | 1,712 / 5,544 B | fixed cost also decreased |
+
+The complete-operation allocation also fell at every message size. The result is useful evidence, not
+an accepted implementation. Review found an important caller-cancellation versus I/O-fault race that
+could still map cancellation to `OpenCodeTransportException`, plus a lying `CanWrite` state and an
+avoidable facade allocation. The custom buffer, lease, race tests, and benchmark updates remain only
+as dirty-worktree evidence and are not committed.
+
+After the architecture-pause handoff was prepared, the dirty experiment also passed the mechanical
+repository gate: Slopwatch 0, Release build 0 warnings/errors, whitespace/style clean, and 1,864/1,864
+tests across the full Windows matrix. That does not override the review finding: the caller-cancellation
+race remains an Important correctness defect, so the experiment is still unaccepted and uncommitted.
+
+**Peer evidence:** Azure.Core centralizes this class of behavior in `ResponseBodyPolicy`: buffered
+responses copy the network stream into a `MemoryStream`, cancellation/timeout disposes the source
+stream, unbuffered responses may ride a `ReadTimeoutStream`, and response disposal/stream extraction
+make ownership explicit. AWS SDK for .NET similarly centralizes invocation and unmarshalling in its
+runtime pipeline and gives streaming responses explicit disposal ownership. These are evidence that a
+deep runtime pipeline can earn its complexity, not evidence that this SDK should copy their public
+surface or adopt pooling by default.
+
+**Decision (maintainer, 2026-08-21):** pause R16, generated typed-switch work, and M4 planning. The
+correctness repairs, Windows evidence, Q123, and measured R18 stage 1 remain valid accomplishments.
+Before adding another policy to the current orchestration, start a fresh brainstorming session that
+evaluates the runtime holistically: internal decomposition versus an internal policy pipeline,
+request/response context and ownership, timeout/cancellation budgeting, buffered versus streaming body
+strategy, future retry/telemetry/hooks, test seams, performance gates, and migration order. Do not
+commit, discard, or build on the dirty R16 experiment until that design decides its fate. M4 remains the
+product target after the runtime/performance decision is resolved.
