@@ -241,7 +241,7 @@ internal sealed class Pipeline : IDisposable
                 }
                 else
                 {
-                    var encodedBody = await _responseBodyReader.ReadAsync(response, remainingTimeout, cancellationToken).ConfigureAwait(false);
+                    using var encodedBody = await _responseBodyReader.ReadAsync(response, remainingTimeout, cancellationToken).ConfigureAwait(false);
                     adapted = encodedBody.DecodedBody is { } decoded
                         ? adapter.Adapt(status, decoded)
                         : adapter.AdaptSuccess(status, encodedBody.Utf8Body.Span);
@@ -249,8 +249,8 @@ internal sealed class Pipeline : IDisposable
             }
             else
             {
-                var rawBody = (await _responseBodyReader.ReadAsync(response, remainingTimeout, cancellationToken).ConfigureAwait(false))
-                    .GetDecodedBody();
+                using var encodedBody = await _responseBodyReader.ReadAsync(response, remainingTimeout, cancellationToken).ConfigureAwait(false);
+                var rawBody = encodedBody.GetDecodedBody();
                 adapted = adapter.Adapt(status, rawBody);
             }
         }
@@ -376,10 +376,10 @@ internal sealed class Pipeline : IDisposable
 
         if (status is not 200)
         {
-            var rawBody = (await _responseBodyReader
-                    .ReadAsync(response, GetRemainingTimeout(requestStarted), cancellationToken)
-                    .ConfigureAwait(false))
-                .GetDecodedBody();
+            using var encodedBody = await _responseBodyReader
+                .ReadAsync(response, GetRemainingTimeout(requestStarted), cancellationToken)
+                .ConfigureAwait(false);
+            var rawBody = encodedBody.GetDecodedBody();
             throw OpenCodeErrorReader.CreateApiException(status, adapter.ReadError(status, rawBody), rawBody);
         }
 

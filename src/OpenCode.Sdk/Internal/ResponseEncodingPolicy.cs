@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 
 namespace OpenCode.Sdk.Internal;
@@ -17,28 +18,58 @@ internal sealed class ResponseEncodingPolicy
     public EncodedResponseBody Decode(byte[] body, string? charset)
     {
         ArgumentNullException.ThrowIfNull(body);
-        if (body.Length is 0)
-        {
-            // HttpContent returns an empty string before consulting an invalid charset.
-            return new EncodedResponseBody(body, DecodedBody: null);
-        }
-
-        var encoding = ResolveEncoding(body, charset, out var preambleLength);
-        if (encoding.CodePage == Utf8CodePage && IsValidUtf8(body, preambleLength))
-        {
-            return new EncodedResponseBody(body.AsMemory(preambleLength), DecodedBody: null);
-        }
-
-        return new EncodedResponseBody(
-            Utf8Body: default,
-            encoding.GetString(body, preambleLength, body.Length - preambleLength));
+        return DecodeCore(body, body.Length, charset, pool: null);
     }
 
-    private bool IsValidUtf8(byte[] body, int offset)
+    internal EncodedResponseBody DecodeOwned(ArrayPool<byte> pool, byte[] body, int length, string? charset)
+    {
+        ArgumentNullException.ThrowIfNull(pool);
+        ArgumentNullException.ThrowIfNull(body);
+        try
+        {
+            return DecodeCore(body, length, charset, pool);
+        }
+        catch
+        {
+            pool.Return(body, clearArray: false);
+            throw;
+        }
+    }
+
+    private EncodedResponseBody DecodeCore(byte[] body, int length, string? charset, ArrayPool<byte>? pool)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(length);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(length, body.Length);
+        if (length is 0)
+        {
+            // HttpContent returns an empty string before consulting an invalid charset.
+            return Create(body.AsMemory(0, 0), decodedBody: null, pool, body);
+        }
+
+        var encoding = ResolveEncoding(body, length, charset, out var preambleLength);
+        if (encoding.CodePage == Utf8CodePage && IsValidUtf8(body, preambleLength, length))
+        {
+            return Create(body.AsMemory(preambleLength, length - preambleLength), decodedBody: null, pool, body);
+        }
+
+        return Create(
+            utf8Body: default,
+            encoding.GetString(body, preambleLength, length - preambleLength),
+            pool,
+            body);
+    }
+
+    private static EncodedResponseBody Create(ReadOnlyMemory<byte> utf8Body, string? decodedBody,
+        ArrayPool<byte>? pool, byte[] body) =>
+        pool is null
+            ? EncodedResponseBody.Borrowed(utf8Body, decodedBody)
+            : EncodedResponseBody.Owned(utf8Body, decodedBody, pool, body);
+
+    private bool IsValidUtf8(byte[] body, int offset, int length)
     {
         try
         {
-            _ = _strictUtf8.GetCharCount(body, offset, body.Length - offset);
+            _ = _strictUtf8.GetCharCount(body, offset, length - offset);
             return true;
         }
         catch (DecoderFallbackException)
@@ -48,7 +79,7 @@ internal sealed class ResponseEncodingPolicy
         }
     }
 
-    private static Encoding ResolveEncoding(byte[] body, string? charset, out int preambleLength)
+    private static Encoding ResolveEncoding(byte[] body, int length, string? charset, out int preambleLength)
     {
         if (charset is not null)
         {
@@ -58,7 +89,7 @@ internal sealed class ResponseEncodingPolicy
                     ? charset[1..^1]
                     : charset;
                 var declared = Encoding.GetEncoding(unquoted);
-                preambleLength = GetPreambleLength(body, declared);
+                preambleLength = GetPreambleLength(body, length, declared);
                 return declared;
             }
             catch (Exception exception) when (exception is ArgumentException or NotSupportedException)
@@ -67,25 +98,25 @@ internal sealed class ResponseEncodingPolicy
             }
         }
 
-        if (StartsWith(body, 0xEF, 0xBB, 0xBF))
+        if (StartsWith(body, length, 0xEF, 0xBB, 0xBF))
         {
             preambleLength = 3;
             return Encoding.UTF8;
         }
 
-        if (StartsWith(body, 0xFF, 0xFE, 0x00, 0x00))
+        if (StartsWith(body, length, 0xFF, 0xFE, 0x00, 0x00))
         {
             preambleLength = 4;
             return Encoding.UTF32;
         }
 
-        if (StartsWith(body, 0xFF, 0xFE))
+        if (StartsWith(body, length, 0xFF, 0xFE))
         {
             preambleLength = 2;
             return Encoding.Unicode;
         }
 
-        if (StartsWith(body, 0xFE, 0xFF))
+        if (StartsWith(body, length, 0xFE, 0xFF))
         {
             preambleLength = 2;
             return Encoding.BigEndianUnicode;
@@ -95,27 +126,33 @@ internal sealed class ResponseEncodingPolicy
         return Encoding.UTF8;
     }
 
-    private static int GetPreambleLength(byte[] body, Encoding encoding) => encoding.CodePage switch
+    private static int GetPreambleLength(byte[] body, int length, Encoding encoding) => encoding.CodePage switch
     {
-        Utf8CodePage => StartsWith(body, 0xEF, 0xBB, 0xBF) ? 3 : 0,
-        Utf32CodePage => StartsWith(body, 0xFF, 0xFE, 0x00, 0x00) ? 4 : 0,
-        UnicodeCodePage => StartsWith(body, 0xFF, 0xFE) ? 2 : 0,
-        BigEndianUnicodeCodePage => StartsWith(body, 0xFE, 0xFF) ? 2 : 0,
-        _ => StartsWith(body, encoding.GetPreamble()) ? encoding.GetPreamble().Length : 0,
+        Utf8CodePage => StartsWith(body, length, 0xEF, 0xBB, 0xBF) ? 3 : 0,
+        Utf32CodePage => StartsWith(body, length, 0xFF, 0xFE, 0x00, 0x00) ? 4 : 0,
+        UnicodeCodePage => StartsWith(body, length, 0xFF, 0xFE) ? 2 : 0,
+        BigEndianUnicodeCodePage => StartsWith(body, length, 0xFE, 0xFF) ? 2 : 0,
+        _ => GetOtherPreambleLength(body, length, encoding),
     };
 
-    private static bool StartsWith(byte[] body, byte first, byte second) =>
-        body.Length >= 2 && body[0] == first && body[1] == second;
-
-    private static bool StartsWith(byte[] body, byte first, byte second, byte third) =>
-        body.Length >= 3 && body[0] == first && body[1] == second && body[2] == third;
-
-    private static bool StartsWith(byte[] body, byte first, byte second, byte third, byte fourth) =>
-        body.Length >= 4 && body[0] == first && body[1] == second && body[2] == third && body[3] == fourth;
-
-    private static bool StartsWith(byte[] body, byte[] prefix)
+    private static int GetOtherPreambleLength(byte[] body, int length, Encoding encoding)
     {
-        if (body.Length < prefix.Length)
+        var preamble = encoding.GetPreamble();
+        return StartsWith(body, length, preamble) ? preamble.Length : 0;
+    }
+
+    private static bool StartsWith(byte[] body, int length, byte first, byte second) =>
+        length >= 2 && body[0] == first && body[1] == second;
+
+    private static bool StartsWith(byte[] body, int length, byte first, byte second, byte third) =>
+        length >= 3 && body[0] == first && body[1] == second && body[2] == third;
+
+    private static bool StartsWith(byte[] body, int length, byte first, byte second, byte third, byte fourth) =>
+        length >= 4 && body[0] == first && body[1] == second && body[2] == third && body[3] == fourth;
+
+    private static bool StartsWith(byte[] body, int length, byte[] prefix)
+    {
+        if (length < prefix.Length)
         {
             return false;
         }
