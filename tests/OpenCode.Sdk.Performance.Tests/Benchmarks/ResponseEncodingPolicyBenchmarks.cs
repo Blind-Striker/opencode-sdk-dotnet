@@ -13,7 +13,6 @@ namespace OpenCode.Sdk.Performance.Tests.Benchmarks;
 public class ResponseEncodingPolicyBenchmarks
 {
     private const int MediumParts = 120;
-    private readonly ResponseEncodingPolicy _policy = new();
 
     public static IEnumerable<WireFixture> Fixtures()
     {
@@ -33,7 +32,7 @@ public class ResponseEncodingPolicyBenchmarks
     {
         foreach (var fixture in Fixtures())
         {
-            var decoded = _policy.Decode(fixture.Bytes, fixture.Charset);
+            var decoded = ResponseEncodingPolicy.Decode(fixture.Bytes, fixture.Charset);
             var expectsString = fixture.Name.StartsWith("utf16", StringComparison.Ordinal) || fixture.Name.StartsWith("malformed", StringComparison.Ordinal);
             if (expectsString ? decoded.DecodedBody is null : decoded.DecodedBody is not null || decoded.Utf8Body.IsEmpty)
             {
@@ -52,7 +51,7 @@ public class ResponseEncodingPolicyBenchmarks
     public int Decode(WireFixture fixture)
     {
         ArgumentNullException.ThrowIfNull(fixture);
-        var decoded = _policy.Decode(fixture.Bytes, fixture.Charset);
+        var decoded = ResponseEncodingPolicy.Decode(fixture.Bytes, fixture.Charset);
         return decoded.DecodedBody?.Length ?? decoded.Utf8Body.Length;
     }
 

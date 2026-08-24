@@ -5,12 +5,10 @@ namespace OpenCode.Sdk.Internal;
 /// success bodies materialize from validated UTF-8 when possible, and error bodies stay
 /// decoded strings so both error channels retain the exact raw body.
 /// </summary>
-internal sealed class ResponseMaterializer
+internal static class ResponseMaterializer
 {
-    private readonly ResponseEncodingPolicy _encodingPolicy = new();
-
     /// <summary>Maps the buffered response onto the operation's typed envelope.</summary>
-    public TResponse Materialize<TResponse>(PipelineMessage message, ResponseAdapter<TResponse> adapter)
+    public static TResponse Materialize<TResponse>(PipelineMessage message, ResponseAdapter<TResponse> adapter)
         where TResponse : OpenCodeResponse
     {
         var status = (int)message.Response!.StatusCode;
@@ -35,14 +33,14 @@ internal sealed class ResponseMaterializer
     }
 
     /// <summary>Reads a buffered error body as the decoded string both error channels retain.</summary>
-    public string ReadErrorBody(PipelineMessage message) => Decode(message).GetDecodedBody();
+    public static string ReadErrorBody(PipelineMessage message) => Decode(message).GetDecodedBody();
 
-    private EncodedResponseBody Decode(PipelineMessage message)
+    private static EncodedResponseBody Decode(PipelineMessage message)
     {
         var body = message.Body ?? ResponseBody.Empty;
         try
         {
-            return _encodingPolicy.Decode(
+            return ResponseEncodingPolicy.Decode(
                 body.Bytes,
                 body.Length,
                 message.Response!.Content?.Headers.ContentType?.CharSet);

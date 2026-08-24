@@ -27,7 +27,6 @@ internal sealed class Pipeline : IDisposable
 
     private readonly string _endpointBase;
     private readonly IEventStreamFramer _framer;
-    private readonly ResponseMaterializer _materializer = new();
     private readonly TimeSpan _networkTimeout;
     private readonly PipelinePolicy[] _policies;
     private readonly TransportPolicy _transport;
@@ -197,7 +196,7 @@ internal sealed class Pipeline : IDisposable
         using (var message = CreateMessage(method, route, body, bodyTypeInfo, cancellationToken))
         {
             await SendThroughPoliciesAsync(message).ConfigureAwait(false);
-            adapted = _materializer.Materialize(message, adapter);
+            adapted = ResponseMaterializer.Materialize(message, adapter);
         }
 
         return adapted.IsError && errorBehavior is ErrorBehavior.Default
@@ -222,7 +221,7 @@ internal sealed class Pipeline : IDisposable
                 throw StatusVerdictFailures.UndeclaredSuccess(status);
             case StatusVerdict.DeclaredError:
             case StatusVerdict.UndeclaredError:
-                var rawBody = _materializer.ReadErrorBody(message);
+                var rawBody = ResponseMaterializer.ReadErrorBody(message);
                 throw OpenCodeErrorReader.CreateApiException(status, adapter.ReadError(status, rawBody), rawBody);
             default:
                 // A stream contract has no no-content success; any other verdict is a

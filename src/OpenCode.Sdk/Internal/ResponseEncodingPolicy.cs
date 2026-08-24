@@ -1,27 +1,39 @@
 using System.Text;
+using System.Text.Unicode;
 
 namespace OpenCode.Sdk.Internal;
 
-/// <summary>Matches HttpContent string decoding while retaining valid UTF-8 for direct JSON materialization.</summary>
-internal sealed class ResponseEncodingPolicy
+/// <summary>
+/// Matches HttpContent string decoding while retaining valid UTF-8 for direct JSON
+/// materialization: charset wins over BOM sniffing, a preamble the selected encoding owns is
+/// stripped, and malformed input replacement-decodes instead of throwing. Knowledge source:
+/// BCL-derived — the parity contract is proven by the differential matrix against real
+/// <see cref="HttpContent"/> decoding on every target.
+/// </summary>
+internal static class ResponseEncodingPolicy
 {
     private const int BigEndianUnicodeCodePage = 1201;
     private const int UnicodeCodePage = 1200;
     private const int Utf8CodePage = 65001;
     private const int Utf32CodePage = 12000;
 
-    private readonly Encoding _strictUtf8 = new UTF8Encoding(
-        encoderShouldEmitUTF8Identifier: false,
-        throwOnInvalidBytes: true);
+    private static ReadOnlySpan<byte> Utf8Preamble => [0xEF, 0xBB, 0xBF];
 
-    public EncodedResponseBody Decode(byte[] body, string? charset)
+    /// <summary>Checked before the UTF-16 little-endian preamble, whose two bytes it starts with.</summary>
+    private static ReadOnlySpan<byte> Utf32LittleEndianPreamble => [0xFF, 0xFE, 0x00, 0x00];
+
+    private static ReadOnlySpan<byte> Utf16LittleEndianPreamble => [0xFF, 0xFE];
+
+    private static ReadOnlySpan<byte> Utf16BigEndianPreamble => [0xFE, 0xFF];
+
+    public static EncodedResponseBody Decode(byte[] body, string? charset)
     {
         ArgumentNullException.ThrowIfNull(body);
         return Decode(body, body.Length, charset);
     }
 
     /// <summary>Decodes the first <paramref name="count"/> bytes; a pooled backing array may be longer.</summary>
-    public EncodedResponseBody Decode(byte[] body, int count, string? charset)
+    public static EncodedResponseBody Decode(byte[] body, int count, string? charset)
     {
         ArgumentNullException.ThrowIfNull(body);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(count, body.Length);
@@ -33,70 +45,50 @@ internal sealed class ResponseEncodingPolicy
         }
 
         var encoding = ResolveEncoding(body, count, charset, out var preambleLength);
-        if (encoding.CodePage == Utf8CodePage && IsValidUtf8(body, preambleLength, count))
+        if (encoding.CodePage == Utf8CodePage && Utf8.IsValid(body.AsSpan(preambleLength, count - preambleLength)))
         {
             return new EncodedResponseBody(body.AsMemory(preambleLength, count - preambleLength), DecodedBody: null);
         }
 
+        // ReadAsStringAsync replacement-decodes malformed input, so the fallback decodes
+        // permissively rather than throwing. Downlevel stays on the (array, index, count)
+        // overload deliberately: the span Encoding shims allocate on those targets.
         return new EncodedResponseBody(
             Utf8Body: default,
             encoding.GetString(body, preambleLength, count - preambleLength));
-    }
-
-    private bool IsValidUtf8(byte[] body, int offset, int count)
-    {
-        try
-        {
-            _ = _strictUtf8.GetCharCount(body, offset, count - offset);
-            return true;
-        }
-        catch (DecoderFallbackException)
-        {
-            // ReadAsStringAsync replacement-decodes malformed UTF-8. Preserve that path.
-            return false;
-        }
     }
 
     private static Encoding ResolveEncoding(byte[] body, int count, string? charset, out int preambleLength)
     {
         if (charset is not null)
         {
-            try
-            {
-                var unquoted = charset.Length > 2 && charset[0] is '"' && charset[^1] is '"'
-                    ? charset[1..^1]
-                    : charset;
-                var declared = Encoding.GetEncoding(unquoted);
-                preambleLength = GetPreambleLength(body, count, declared);
-                return declared;
-            }
-            catch (Exception exception) when (exception is ArgumentException or NotSupportedException)
-            {
-                throw new InvalidOperationException("The response content declared an invalid charset.", exception);
-            }
+            var declared = ResolveDeclaredEncoding(charset);
+            preambleLength = GetPreambleLength(body, count, declared);
+            return declared;
         }
 
-        if (StartsWith(body, count, 0xEF, 0xBB, 0xBF))
+        var span = body.AsSpan(0, count);
+        if (span.StartsWith(Utf8Preamble))
         {
-            preambleLength = 3;
+            preambleLength = Utf8Preamble.Length;
             return Encoding.UTF8;
         }
 
-        if (StartsWith(body, count, 0xFF, 0xFE, 0x00, 0x00))
+        if (span.StartsWith(Utf32LittleEndianPreamble))
         {
-            preambleLength = 4;
+            preambleLength = Utf32LittleEndianPreamble.Length;
             return Encoding.UTF32;
         }
 
-        if (StartsWith(body, count, 0xFF, 0xFE))
+        if (span.StartsWith(Utf16LittleEndianPreamble))
         {
-            preambleLength = 2;
+            preambleLength = Utf16LittleEndianPreamble.Length;
             return Encoding.Unicode;
         }
 
-        if (StartsWith(body, count, 0xFE, 0xFF))
+        if (span.StartsWith(Utf16BigEndianPreamble))
         {
-            preambleLength = 2;
+            preambleLength = Utf16BigEndianPreamble.Length;
             return Encoding.BigEndianUnicode;
         }
 
@@ -104,39 +96,54 @@ internal sealed class ResponseEncodingPolicy
         return Encoding.UTF8;
     }
 
-    private static int GetPreambleLength(byte[] body, int count, Encoding encoding) => encoding.CodePage switch
+    private static Encoding ResolveDeclaredEncoding(string charset)
     {
-        Utf8CodePage => StartsWith(body, count, 0xEF, 0xBB, 0xBF) ? 3 : 0,
-        Utf32CodePage => StartsWith(body, count, 0xFF, 0xFE, 0x00, 0x00) ? 4 : 0,
-        UnicodeCodePage => StartsWith(body, count, 0xFF, 0xFE) ? 2 : 0,
-        BigEndianUnicodeCodePage => StartsWith(body, count, 0xFE, 0xFF) ? 2 : 0,
-        _ => StartsWith(body, count, encoding.GetPreamble()) ? encoding.GetPreamble().Length : 0,
-    };
-
-    private static bool StartsWith(byte[] body, int count, byte first, byte second) =>
-        count >= 2 && body[0] == first && body[1] == second;
-
-    private static bool StartsWith(byte[] body, int count, byte first, byte second, byte third) =>
-        count >= 3 && body[0] == first && body[1] == second && body[2] == third;
-
-    private static bool StartsWith(byte[] body, int count, byte first, byte second, byte third, byte fourth) =>
-        count >= 4 && body[0] == first && body[1] == second && body[2] == third && body[3] == fourth;
-
-    private static bool StartsWith(byte[] body, int count, byte[] prefix)
-    {
-        if (count < prefix.Length)
+        // Quotes strip as a span, so the common quoted charset never allocates a substring.
+        var name = charset.AsSpan();
+        if (name.Length > 2 && name[0] is '"' && name[^1] is '"')
         {
-            return false;
+            name = name[1..^1];
         }
 
-        for (var index = 0; index < prefix.Length; index++)
+        if (IsUtf8Name(name))
         {
-            if (body[index] != prefix[index])
-            {
-                return false;
-            }
+            return Encoding.UTF8;
         }
 
-        return true;
+        try
+        {
+            return Encoding.GetEncoding(name.ToString());
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException)
+        {
+            throw new InvalidOperationException("The response content declared an invalid charset.", exception);
+        }
+    }
+
+    /// <summary>The JSON wire's overwhelmingly common charset skips the encoding-name lookup.</summary>
+    private static bool IsUtf8Name(ReadOnlySpan<char> name) =>
+#if NET8_0_OR_GREATER
+        Ascii.EqualsIgnoreCase(name, "utf-8");
+#else
+        name.Equals("utf-8".AsSpan(), StringComparison.OrdinalIgnoreCase);
+#endif
+
+    private static int GetPreambleLength(byte[] body, int count, Encoding encoding)
+    {
+        var span = body.AsSpan(0, count);
+        switch (encoding.CodePage)
+        {
+            case Utf8CodePage:
+                return span.StartsWith(Utf8Preamble) ? Utf8Preamble.Length : 0;
+            case Utf32CodePage:
+                return span.StartsWith(Utf32LittleEndianPreamble) ? Utf32LittleEndianPreamble.Length : 0;
+            case UnicodeCodePage:
+                return span.StartsWith(Utf16LittleEndianPreamble) ? Utf16LittleEndianPreamble.Length : 0;
+            case BigEndianUnicodeCodePage:
+                return span.StartsWith(Utf16BigEndianPreamble) ? Utf16BigEndianPreamble.Length : 0;
+            default:
+                var preamble = encoding.GetPreamble();
+                return span.StartsWith(preamble) ? preamble.Length : 0;
+        }
     }
 }
