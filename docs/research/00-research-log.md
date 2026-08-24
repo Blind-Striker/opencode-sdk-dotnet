@@ -3458,3 +3458,31 @@ downlevel `System.Buffers` shared pool caps buckets at 1 MB, so a >1 MB body on 
 allocates 1× wire (was 2×); a larger-cap `ArrayPool.Create` on downlevel is a possible follow-up,
 benchmark-gated. Adapter and materialization rows moved 0 B. Arc acceptance: the sandbox runs
 against a real opencode v2 server after Increment 4, before any push (maintainer, 2026-08-24).
+
+## Q135: What did Increment 4 land and what closed with it?
+
+**Landed (commit `429a08a`):** `ResponseEncodingPolicy` rebuilt exception-free and
+allocation-free on its hot path while keeping full `HttpContent` parity (ADR-0014's sentence
+untouched): `Utf8.IsValid` replaces the `DecoderFallbackException` round trip (modern inbox;
+downlevel through the checkpoint-approved `Microsoft.Bcl.Memory` 10.0.11), the BOM tables are
+static span data, the quoted charset strips as a span instead of a substring, a well-known
+`utf-8` fast path (`Ascii.EqualsIgnoreCase` on net8+, ordinal-ignore-case spans downlevel)
+skips the `Encoding.GetEncoding` lookup, and the double `GetPreamble()` collapsed to one local.
+Downlevel deliberately keeps the `(array, index, count)` `Encoding` overloads — the Polyfill
+span shims allocate (doc 17 §1). The statelessness rippled: the analyzer wall made both
+`ResponseEncodingPolicy` and the field-free `ResponseMaterializer` static classes.
+
+**R09/R10 closed by the differential parity matrix:** sixteen body-and-charset rows assert byte
+identity against real `HttpContent.ReadAsStringAsync` on the same target framework — BOM
+precedence including UTF-32-over-UTF-16, charset-plus-BOM stripping, malformed-UTF-8 replacement
+decoding, empty-body-before-invalid-charset, and matching `InvalidOperationException` refusal —
+running on every TFM including the net472 leg. One deliberate-divergence row surfaced: net472's
+own `HttpContent` rejects a quoted charset outright, so that row stays differential on modern
+frameworks and the dedicated quoted-charset tests pin the repo's modern-everywhere behavior
+downlevel.
+
+**Targeted short benchmark (`C:\bench-artifacts\inc4-*-short`):** every valid-UTF-8 row is 0 B
+before and after (the hot path stays allocation-free); the malformed-UTF-8 row drops 5,416 →
+4,496 B on net10.0 and 6,427 → 4,566 B on net472 (the exception machinery gone; the remaining
+bytes are the replacement-decoded string itself); net472's declared-utf8 row drops 24 → 0 B
+(the lookup skipped). UTF-16 fallback rows are unchanged — the decoded string dominates them.
