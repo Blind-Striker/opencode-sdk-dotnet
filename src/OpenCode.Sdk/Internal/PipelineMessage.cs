@@ -25,13 +25,6 @@ internal sealed class PipelineMessage : IDisposable
     /// </summary>
     public bool BufferBody { get; init; } = true;
 
-    /// <summary>
-    /// Gets the declared success status whose body is not read, or <see langword="null"/> when
-    /// the declared success carries one. Written by the one-shot plane from the adapter's
-    /// contract, read by <see cref="ResponseBufferingPolicy"/>.
-    /// </summary>
-    public int? NoBodySuccessStatus { get; init; }
-
     /// <summary>Gets the response; written by <see cref="TransportPolicy"/> after a classified send.</summary>
     public HttpResponseMessage? Response { get; internal set; }
 

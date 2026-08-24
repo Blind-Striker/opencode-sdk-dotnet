@@ -24,9 +24,9 @@ public sealed class PipelineResponseOwnershipTests
     }
 
     [Test]
-    public async Task ExecuteAsync_Should_Not_Read_But_Should_Dispose_A_Declared_No_Content_Success()
+    public async Task ExecuteAsync_Should_Drain_And_Ignore_An_Unexpected_No_Content_Body()
     {
-        using var content = new BlockingContent();
+        using var content = new ReadObservingContent("{\"unexpected\":true}"u8.ToArray());
         using var response = new DisposalTrackingResponse(HttpStatusCode.NoContent, content);
         using var handler = CreateHandler(response);
         using var httpClient = new HttpClient(handler);
@@ -39,8 +39,10 @@ public sealed class PipelineResponseOwnershipTests
             options: null,
             CancellationToken.None);
 
+        // The body a no-content success should not carry is drained into the buffer and
+        // ignored by the materializer (canon); nothing of it reaches the envelope.
         await Assert.That(result.Status).IsEqualTo(204);
-        await Assert.That(content.ReadStarted.IsCompleted).IsFalse();
+        await Assert.That(content.WasRead).IsTrue();
         await Assert.That(response.IsDisposed).IsTrue();
         await Assert.That(content.IsDisposed).IsTrue();
     }

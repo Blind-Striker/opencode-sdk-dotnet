@@ -14,7 +14,12 @@ internal sealed class NoOpResponseAdapter : ResponseAdapter<NoOpResponse>
 
     public static NoOpResponseAdapter Instance { get; } = new();
 
-    public override int SuccessStatusCode => 200;
+    public override StatusVerdict Classify(int status) => status switch
+    {
+        200 => StatusVerdict.Success,
+        >= 200 and < 300 => StatusVerdict.UndeclaredSuccess,
+        _ => StatusVerdict.UndeclaredError,
+    };
 
     public override NoOpResponse AdaptSuccess(int status, ReadOnlySpan<byte> utf8Body) => new()
     {

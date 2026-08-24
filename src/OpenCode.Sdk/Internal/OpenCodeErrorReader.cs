@@ -13,7 +13,7 @@ namespace OpenCode.Sdk.Internal;
 /// </summary>
 internal static class OpenCodeErrorReader
 {
-    public static IOpenCodeError? Read(string rawBody, IReadOnlyCollection<string>? allowedTags)
+    public static IOpenCodeError? Read(string rawBody, string[]? allowedTags)
     {
         ArgumentNullException.ThrowIfNull(rawBody);
 
@@ -24,7 +24,9 @@ internal static class OpenCodeErrorReader
             {
                 null => null,
                 UnknownOpenCodeError unknown => unknown,
-                _ when allowedTags is not null && allowedTags.Contains(error.Tag, StringComparer.Ordinal) => error,
+                // The tag sets are the generated per-status arrays, so the scan stays an
+                // allocation-free ordinal lookup on this per-error hot path.
+                _ when allowedTags is not null && Array.IndexOf(allowedTags, error.Tag) >= 0 => error,
                 _ => Downgrade(error.Tag, rawBody),
             };
         }

@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -197,7 +196,7 @@ internal sealed class Pipeline : IDisposable
         }
 
         TResponse adapted;
-        using (var message = CreateMessage(method, route, body, bodyTypeInfo, adapter, cancellationToken))
+        using (var message = CreateMessage(method, route, body, bodyTypeInfo, cancellationToken))
         {
             await SendThroughPoliciesAsync(message).ConfigureAwait(false);
             adapted = _materializer.Materialize(message, adapter);
@@ -217,19 +216,20 @@ internal sealed class Pipeline : IDisposable
         await SendThroughPoliciesAsync(message).ConfigureAwait(false);
         var response = message.Response!;
         var status = (int)response.StatusCode;
-
-        // Any other 2xx is outside the declared contract: a protocol failure, never an API
-        // error — the same reading the one-shot adapters give it.
-        if (status is > 200 and < 300)
+        switch (adapter.Classify(status))
         {
-            throw new OpenCodeTransportException(
-                $"The opencode API returned undeclared success status {status.ToString(CultureInfo.InvariantCulture)}.");
-        }
-
-        if (status is not 200)
-        {
-            var rawBody = _materializer.ReadErrorBody(message);
-            throw OpenCodeErrorReader.CreateApiException(status, adapter.ReadError(status, rawBody), rawBody);
+            case StatusVerdict.Success:
+                break;
+            case StatusVerdict.UndeclaredSuccess:
+                throw StatusVerdictFailures.UndeclaredSuccess(status);
+            case StatusVerdict.DeclaredError:
+            case StatusVerdict.UndeclaredError:
+                var rawBody = _materializer.ReadErrorBody(message);
+                throw OpenCodeErrorReader.CreateApiException(status, adapter.ReadError(status, rawBody), rawBody);
+            default:
+                // A stream contract has no no-content success; any other verdict is a
+                // generator defect, refused rather than guessed around.
+                throw new InvalidOperationException("The stream adapter produced a verdict its contract cannot declare.");
         }
 
         // A success that is not an event stream cannot be framed, so it fails as a
@@ -277,10 +277,9 @@ internal sealed class Pipeline : IDisposable
     private ValueTask SendThroughPoliciesAsync(PipelineMessage message) =>
         _policies[0].ProcessAsync(message, _policies.AsMemory(1));
 
-    private PipelineMessage CreateMessage<TBody, TResponse>(HttpMethod method, string route, TBody? body,
-        JsonTypeInfo<TBody>? bodyTypeInfo, ResponseAdapter<TResponse> adapter, CancellationToken cancellationToken)
+    private PipelineMessage CreateMessage<TBody>(HttpMethod method, string route, TBody? body,
+        JsonTypeInfo<TBody>? bodyTypeInfo, CancellationToken cancellationToken)
         where TBody : class
-        where TResponse : OpenCodeResponse
     {
         var request = new HttpRequestMessage(method, new Uri(_endpointBase + route, UriKind.Absolute));
         try
@@ -295,7 +294,6 @@ internal sealed class Pipeline : IDisposable
                 Request = request,
                 CancellationToken = cancellationToken,
                 NetworkTimeout = _httpClient.Timeout,
-                NoBodySuccessStatus = adapter.ReadsSuccessBody ? null : adapter.SuccessStatusCode,
             };
         }
         catch

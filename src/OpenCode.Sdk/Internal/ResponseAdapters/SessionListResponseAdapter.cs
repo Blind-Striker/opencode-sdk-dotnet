@@ -18,11 +18,18 @@ internal sealed class SessionListResponseAdapter : ResponseAdapter<SessionListRe
     /// Gets the shared adapter instance.
     /// </summary>
     public static SessionListResponseAdapter Instance { get; } = new SessionListResponseAdapter();
-    /// <summary>
-    /// Gets the declared success status.
-    /// </summary>
-    public override int SuccessStatusCode => 200;
 
+    /// <summary>
+    /// Classifies a status under this operation&apos;s pinned contract.
+    /// </summary>
+    public override StatusVerdict Classify(int status) => status switch
+    {
+        200 => StatusVerdict.Success,
+        >= 200 and < 300 => StatusVerdict.UndeclaredSuccess,
+        400 => StatusVerdict.DeclaredError,
+        401 => StatusVerdict.DeclaredError,
+        _ => StatusVerdict.UndeclaredError
+    };
     /// <summary>
     /// Maps the declared UTF-8 success body onto the typed envelope.
     /// </summary>
@@ -36,7 +43,7 @@ internal sealed class SessionListResponseAdapter : ResponseAdapter<SessionListRe
         return status switch
         {
             200 => CreateSuccess(status, ReadBarePayload(rawBody, OpenCodeJsonContext.Default.SessionListResponseEnvelope)),
-            >= 200 and < 300 => throw UndeclaredSuccessFailure(status),
+            >= 200 and < 300 => throw StatusVerdictFailures.UndeclaredSuccess(status),
             400 => new SessionListResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),
             401 => new SessionListResponse(status, ReadTolerantError(rawBody, Status401Tags), rawBody),
             _ => new SessionListResponse(status, ReadTolerantError(rawBody, null), rawBody)

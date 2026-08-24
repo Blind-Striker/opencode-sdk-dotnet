@@ -39,6 +39,14 @@ internal static class StreamAdapterEmitter
             .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PrivateKeyword)))
             .WithBody(SyntaxFactory.Block()));
         members.Add(EmitInstance(stream.AdapterTypeName));
+
+        // A stream's declared success is the pinned 200 the SSE wall accepts; there is no
+        // no-content arm because a success without a body cannot be framed.
+        members.Add(StatusVerdictEmitter.EmitClassify(
+            successStatus: 200,
+            noContentSuccess: false,
+            operation.ErrorMap.Statuses.Select(static status => status.StatusCode),
+            overrides: false));
         members.Add(EmitFailureEventName(stream));
         members.Add(EmitPayloadTypeInfo(stream));
         members.Add(EmitCauseTypeInfo(stream));

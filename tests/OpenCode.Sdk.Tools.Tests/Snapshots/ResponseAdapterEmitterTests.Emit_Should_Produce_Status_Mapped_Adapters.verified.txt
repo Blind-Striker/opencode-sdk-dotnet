@@ -19,11 +19,17 @@ internal sealed class PingResponseAdapter : ResponseAdapter<PingResponse>
     /// Gets the shared adapter instance.
     /// </summary>
     public static PingResponseAdapter Instance { get; } = new PingResponseAdapter();
-    /// <summary>
-    /// Gets the declared success status.
-    /// </summary>
-    public override int SuccessStatusCode => 200;
 
+    /// <summary>
+    /// Classifies a status under this operation&apos;s pinned contract.
+    /// </summary>
+    public override StatusVerdict Classify(int status) => status switch
+    {
+        200 => StatusVerdict.Success,
+        >= 200 and < 300 => StatusVerdict.UndeclaredSuccess,
+        400 => StatusVerdict.DeclaredError,
+        _ => StatusVerdict.UndeclaredError
+    };
     /// <summary>
     /// Maps the declared UTF-8 success body onto the typed envelope.
     /// </summary>
@@ -45,7 +51,7 @@ internal sealed class PingResponseAdapter : ResponseAdapter<PingResponse>
                 Status = status,
                 Ping = ReadBarePayload(rawBody, OpenCodeJsonContext.Default.ExampleItem)
             },
-            >= 200 and < 300 => throw UndeclaredSuccessFailure(status),
+            >= 200 and < 300 => throw StatusVerdictFailures.UndeclaredSuccess(status),
             400 => new PingResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),
             _ => new PingResponse(status, ReadTolerantError(rawBody, null), rawBody)};
     }
@@ -72,11 +78,17 @@ internal sealed class WidgetCreateResponseAdapter : ResponseAdapter<WidgetCreate
     /// Gets the shared adapter instance.
     /// </summary>
     public static WidgetCreateResponseAdapter Instance { get; } = new WidgetCreateResponseAdapter();
-    /// <summary>
-    /// Gets the declared success status.
-    /// </summary>
-    public override int SuccessStatusCode => 200;
 
+    /// <summary>
+    /// Classifies a status under this operation&apos;s pinned contract.
+    /// </summary>
+    public override StatusVerdict Classify(int status) => status switch
+    {
+        200 => StatusVerdict.Success,
+        >= 200 and < 300 => StatusVerdict.UndeclaredSuccess,
+        400 => StatusVerdict.DeclaredError,
+        _ => StatusVerdict.UndeclaredError
+    };
     /// <summary>
     /// Maps the declared UTF-8 success body onto the typed envelope.
     /// </summary>
@@ -98,7 +110,7 @@ internal sealed class WidgetCreateResponseAdapter : ResponseAdapter<WidgetCreate
                 Status = status,
                 Widget = ReadBarePayload(rawBody, OpenCodeJsonContext.Default.WidgetCreateResponseEnvelope).Data
             },
-            >= 200 and < 300 => throw UndeclaredSuccessFailure(status),
+            >= 200 and < 300 => throw StatusVerdictFailures.UndeclaredSuccess(status),
             400 => new WidgetCreateResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),
             _ => new WidgetCreateResponse(status, ReadTolerantError(rawBody, null), rawBody)};
     }
@@ -128,11 +140,17 @@ internal sealed class WidgetItemListResponseAdapter : ResponseAdapter<WidgetItem
     /// Gets the shared adapter instance.
     /// </summary>
     public static WidgetItemListResponseAdapter Instance { get; } = new WidgetItemListResponseAdapter();
-    /// <summary>
-    /// Gets the declared success status.
-    /// </summary>
-    public override int SuccessStatusCode => 200;
 
+    /// <summary>
+    /// Classifies a status under this operation&apos;s pinned contract.
+    /// </summary>
+    public override StatusVerdict Classify(int status) => status switch
+    {
+        200 => StatusVerdict.Success,
+        >= 200 and < 300 => StatusVerdict.UndeclaredSuccess,
+        404 => StatusVerdict.DeclaredError,
+        _ => StatusVerdict.UndeclaredError
+    };
     /// <summary>
     /// Maps the declared UTF-8 success body onto the typed envelope.
     /// </summary>
@@ -146,7 +164,7 @@ internal sealed class WidgetItemListResponseAdapter : ResponseAdapter<WidgetItem
         return status switch
         {
             200 => CreateSuccess(status, ReadBarePayload(rawBody, OpenCodeJsonContext.Default.WidgetItemListResponseEnvelope)),
-            >= 200 and < 300 => throw UndeclaredSuccessFailure(status),
+            >= 200 and < 300 => throw StatusVerdictFailures.UndeclaredSuccess(status),
             404 => new WidgetItemListResponse(status, ReadTolerantError(rawBody, Status404Tags), rawBody),
             _ => new WidgetItemListResponse(status, ReadTolerantError(rawBody, null), rawBody)};
     }
@@ -212,11 +230,18 @@ internal sealed class WidgetItemResponseAdapter : ResponseAdapter<WidgetItemResp
     /// Gets the shared adapter instance.
     /// </summary>
     public static WidgetItemResponseAdapter Instance { get; } = new WidgetItemResponseAdapter();
-    /// <summary>
-    /// Gets the declared success status.
-    /// </summary>
-    public override int SuccessStatusCode => 200;
 
+    /// <summary>
+    /// Classifies a status under this operation&apos;s pinned contract.
+    /// </summary>
+    public override StatusVerdict Classify(int status) => status switch
+    {
+        200 => StatusVerdict.Success,
+        >= 200 and < 300 => StatusVerdict.UndeclaredSuccess,
+        400 => StatusVerdict.DeclaredError,
+        404 => StatusVerdict.DeclaredError,
+        _ => StatusVerdict.UndeclaredError
+    };
     /// <summary>
     /// Maps the declared UTF-8 success body onto the typed envelope.
     /// </summary>
@@ -238,7 +263,7 @@ internal sealed class WidgetItemResponseAdapter : ResponseAdapter<WidgetItemResp
                 Status = status,
                 Item = ReadBarePayload(rawBody, OpenCodeJsonContext.Default.WidgetItemResponseEnvelope).Data
             },
-            >= 200 and < 300 => throw UndeclaredSuccessFailure(status),
+            >= 200 and < 300 => throw StatusVerdictFailures.UndeclaredSuccess(status),
             400 => new WidgetItemResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),
             404 => new WidgetItemResponse(status, ReadTolerantError(rawBody, Status404Tags), rawBody),
             _ => new WidgetItemResponse(status, ReadTolerantError(rawBody, null), rawBody)};
@@ -267,11 +292,18 @@ internal sealed class WidgetListResponseAdapter : ResponseAdapter<WidgetListResp
     /// Gets the shared adapter instance.
     /// </summary>
     public static WidgetListResponseAdapter Instance { get; } = new WidgetListResponseAdapter();
-    /// <summary>
-    /// Gets the declared success status.
-    /// </summary>
-    public override int SuccessStatusCode => 200;
 
+    /// <summary>
+    /// Classifies a status under this operation&apos;s pinned contract.
+    /// </summary>
+    public override StatusVerdict Classify(int status) => status switch
+    {
+        200 => StatusVerdict.Success,
+        >= 200 and < 300 => StatusVerdict.UndeclaredSuccess,
+        400 => StatusVerdict.DeclaredError,
+        500 => StatusVerdict.DeclaredError,
+        _ => StatusVerdict.UndeclaredError
+    };
     /// <summary>
     /// Maps the declared UTF-8 success body onto the typed envelope.
     /// </summary>
@@ -285,7 +317,7 @@ internal sealed class WidgetListResponseAdapter : ResponseAdapter<WidgetListResp
         return status switch
         {
             200 => CreateSuccess(status, ReadBarePayload(rawBody, OpenCodeJsonContext.Default.WidgetListResponseEnvelope)),
-            >= 200 and < 300 => throw UndeclaredSuccessFailure(status),
+            >= 200 and < 300 => throw StatusVerdictFailures.UndeclaredSuccess(status),
             400 => new WidgetListResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),
             500 => new WidgetListResponse(status, ReadTolerantError(rawBody, Status500Tags), rawBody),
             _ => new WidgetListResponse(status, ReadTolerantError(rawBody, null), rawBody)};
@@ -319,11 +351,16 @@ internal sealed class WidgetOverviewResponseAdapter : ResponseAdapter<WidgetOver
     /// Gets the shared adapter instance.
     /// </summary>
     public static WidgetOverviewResponseAdapter Instance { get; } = new WidgetOverviewResponseAdapter();
-    /// <summary>
-    /// Gets the declared success status.
-    /// </summary>
-    public override int SuccessStatusCode => 200;
 
+    /// <summary>
+    /// Classifies a status under this operation&apos;s pinned contract.
+    /// </summary>
+    public override StatusVerdict Classify(int status) => status switch
+    {
+        200 => StatusVerdict.Success,
+        >= 200 and < 300 => StatusVerdict.UndeclaredSuccess,
+        _ => StatusVerdict.UndeclaredError
+    };
     /// <summary>
     /// Maps the declared UTF-8 success body onto the typed envelope.
     /// </summary>
@@ -345,7 +382,7 @@ internal sealed class WidgetOverviewResponseAdapter : ResponseAdapter<WidgetOver
                 Status = status,
                 Overview = ReadBarePayload(rawBody, OpenCodeJsonContext.Default.ExampleItem)
             },
-            >= 200 and < 300 => throw UndeclaredSuccessFailure(status),
+            >= 200 and < 300 => throw StatusVerdictFailures.UndeclaredSuccess(status),
             _ => new WidgetOverviewResponse(status, ReadTolerantError(rawBody, null), rawBody)};
     }
 }
@@ -371,15 +408,17 @@ internal sealed class WidgetRemoveResponseAdapter : ResponseAdapter<WidgetRemove
     /// Gets the shared adapter instance.
     /// </summary>
     public static WidgetRemoveResponseAdapter Instance { get; } = new WidgetRemoveResponseAdapter();
-    /// <summary>
-    /// Gets the declared success status.
-    /// </summary>
-    public override int SuccessStatusCode => 204;
-    /// <summary>
-    /// Gets whether this success carries a JSON body.
-    /// </summary>
-    public override bool ReadsSuccessBody => false;
 
+    /// <summary>
+    /// Classifies a status under this operation&apos;s pinned contract.
+    /// </summary>
+    public override StatusVerdict Classify(int status) => status switch
+    {
+        204 => StatusVerdict.NoContentSuccess,
+        >= 200 and < 300 => StatusVerdict.UndeclaredSuccess,
+        400 => StatusVerdict.DeclaredError,
+        _ => StatusVerdict.UndeclaredError
+    };
     /// <summary>
     /// Maps the declared UTF-8 success body onto the typed envelope.
     /// </summary>
@@ -399,7 +438,7 @@ internal sealed class WidgetRemoveResponseAdapter : ResponseAdapter<WidgetRemove
             {
                 Status = status
             },
-            >= 200 and < 300 => throw UndeclaredSuccessFailure(status),
+            >= 200 and < 300 => throw StatusVerdictFailures.UndeclaredSuccess(status),
             400 => new WidgetRemoveResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),
             _ => new WidgetRemoveResponse(status, ReadTolerantError(rawBody, null), rawBody)};
     }
@@ -425,11 +464,16 @@ internal sealed class WidgetSpotListResponseAdapter : ResponseAdapter<WidgetSpot
     /// Gets the shared adapter instance.
     /// </summary>
     public static WidgetSpotListResponseAdapter Instance { get; } = new WidgetSpotListResponseAdapter();
-    /// <summary>
-    /// Gets the declared success status.
-    /// </summary>
-    public override int SuccessStatusCode => 200;
 
+    /// <summary>
+    /// Classifies a status under this operation&apos;s pinned contract.
+    /// </summary>
+    public override StatusVerdict Classify(int status) => status switch
+    {
+        200 => StatusVerdict.Success,
+        >= 200 and < 300 => StatusVerdict.UndeclaredSuccess,
+        _ => StatusVerdict.UndeclaredError
+    };
     /// <summary>
     /// Maps the declared UTF-8 success body onto the typed envelope.
     /// </summary>
@@ -443,7 +487,7 @@ internal sealed class WidgetSpotListResponseAdapter : ResponseAdapter<WidgetSpot
         return status switch
         {
             200 => CreateSuccess(status, ReadBarePayload(rawBody, OpenCodeJsonContext.Default.WidgetSpotListResponseEnvelope)),
-            >= 200 and < 300 => throw UndeclaredSuccessFailure(status),
+            >= 200 and < 300 => throw StatusVerdictFailures.UndeclaredSuccess(status),
             _ => new WidgetSpotListResponse(status, ReadTolerantError(rawBody, null), rawBody)};
     }
 
@@ -475,11 +519,16 @@ internal sealed class WidgetSpotResponseAdapter : ResponseAdapter<WidgetSpotResp
     /// Gets the shared adapter instance.
     /// </summary>
     public static WidgetSpotResponseAdapter Instance { get; } = new WidgetSpotResponseAdapter();
-    /// <summary>
-    /// Gets the declared success status.
-    /// </summary>
-    public override int SuccessStatusCode => 200;
 
+    /// <summary>
+    /// Classifies a status under this operation&apos;s pinned contract.
+    /// </summary>
+    public override StatusVerdict Classify(int status) => status switch
+    {
+        200 => StatusVerdict.Success,
+        >= 200 and < 300 => StatusVerdict.UndeclaredSuccess,
+        _ => StatusVerdict.UndeclaredError
+    };
     /// <summary>
     /// Maps the declared UTF-8 success body onto the typed envelope.
     /// </summary>
@@ -493,7 +542,7 @@ internal sealed class WidgetSpotResponseAdapter : ResponseAdapter<WidgetSpotResp
         return status switch
         {
             200 => CreateSuccess(status, ReadBarePayload(rawBody, OpenCodeJsonContext.Default.WidgetSpotResponseEnvelope)),
-            >= 200 and < 300 => throw UndeclaredSuccessFailure(status),
+            >= 200 and < 300 => throw StatusVerdictFailures.UndeclaredSuccess(status),
             _ => new WidgetSpotResponse(status, ReadTolerantError(rawBody, null), rawBody)};
     }
 

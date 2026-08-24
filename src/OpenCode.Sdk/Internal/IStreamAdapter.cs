@@ -14,6 +14,12 @@ internal interface IStreamAdapter<TPayload, TCause>
     where TCause : IReadOnlyList<IOpenCodeStreamFailureCause>
 {
     /// <summary>
+    /// Classifies a status under the operation's pinned contract. Generated from the status
+    /// table; the single authority the stream plane switches on before the body opens.
+    /// </summary>
+    public StatusVerdict Classify(int status);
+
+    /// <summary>
     /// Gets the event name a mid-stream failure frame carries, from the operation's declared
     /// <c>x-effect-stream.failureEvent</c>. A frame answering to this name reports the
     /// stream's failure instead of carrying a payload.

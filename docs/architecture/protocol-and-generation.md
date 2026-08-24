@@ -68,7 +68,7 @@ OpenAPI validation for a value already representable in that shape (ADR-0014).
 
 Required members, top-level payload presence, represented token conversion, strict enum parsing,
 union dispatch, response-status selection, SSE framing, and source-generated serializer metadata
-remain hard walls. Declared no-content responses ignore unexpected bodies; ordinary one-shot JSON
+remain hard walls. Declared no-content responses drain and ignore unexpected bodies; ordinary one-shot JSON
 success decoding preserves `HttpContent` charset, BOM, and replacement-decoding behavior while
 materializing valid UTF-8 directly (ADR-0014).
 

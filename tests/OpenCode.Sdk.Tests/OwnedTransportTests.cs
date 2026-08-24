@@ -71,7 +71,13 @@ public sealed class OwnedTransportTests
                 CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(1)))
             .Throws<OpenCodeTransportException>();
 
-        await Assert.That(exception!.InnerException).IsTypeOf<TimeoutException>();
+        // Two timers guard the same budget until the progress timeout lands: the pipeline's
+        // body wait reports TimeoutException, and the client's own timeout cancels the read
+        // as TaskCanceledException. Whichever wins the race, the contract is the same —
+        // an exhausted transport budget maps to a transport failure (canon).
+        await Assert
+            .That(exception!.InnerException is TimeoutException or OperationCanceledException)
+            .IsTrue();
 #if NET472
         Task[] disconnectTasks = [server.ClientDisconnected];
         await Task.WhenAll(disconnectTasks).WaitAsync(TimeSpan.FromSeconds(1));

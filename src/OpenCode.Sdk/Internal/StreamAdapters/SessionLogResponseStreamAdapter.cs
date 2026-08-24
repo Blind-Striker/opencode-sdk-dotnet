@@ -21,6 +21,19 @@ internal sealed class SessionLogResponseStreamAdapter : IStreamAdapter<ISessionL
     /// Gets the shared adapter instance.
     /// </summary>
     public static SessionLogResponseStreamAdapter Instance { get; } = new SessionLogResponseStreamAdapter();
+
+    /// <summary>
+    /// Classifies a status under this operation&apos;s pinned contract.
+    /// </summary>
+    public StatusVerdict Classify(int status) => status switch
+    {
+        200 => StatusVerdict.Success,
+        >= 200 and < 300 => StatusVerdict.UndeclaredSuccess,
+        400 => StatusVerdict.DeclaredError,
+        401 => StatusVerdict.DeclaredError,
+        404 => StatusVerdict.DeclaredError,
+        _ => StatusVerdict.UndeclaredError
+    };
     /// <summary>
     /// Gets the event name a mid-stream failure frame carries.
     /// </summary>

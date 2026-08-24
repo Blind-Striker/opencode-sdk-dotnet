@@ -31,12 +31,11 @@ internal static class ResponseAdapterEmitter
             .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PrivateKeyword)))
             .WithBody(SyntaxFactory.Block()));
         members.Add(EmitInstance(envelope.AdapterTypeName));
-        members.Add(EmitSuccessStatusCode(envelope.SuccessStatusCode));
-        if (envelope.Kind is EnvelopeKind.NoContent)
-        {
-            members.Add(EmitReadsSuccessBody());
-        }
-
+        members.Add(StatusVerdictEmitter.EmitClassify(
+            envelope.SuccessStatusCode,
+            noContentSuccess: envelope.Kind is EnvelopeKind.NoContent,
+            operation.ErrorMap.Statuses.Select(static status => status.StatusCode),
+            overrides: true));
         members.Add(EmitAdaptSuccess(envelope));
         members.Add(EmitAdapt(operation));
         if (operation.Pagination is not null)
@@ -128,29 +127,6 @@ internal static class ResponseAdapterEmitter
             .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
             .WithLeadingTrivia(EmissionSyntax.Documentation("Gets the shared adapter instance."));
 
-    private static PropertyDeclarationSyntax EmitSuccessStatusCode(int status) =>
-        SyntaxFactory.PropertyDeclaration(
-                SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.IntKeyword)),
-                "SuccessStatusCode")
-            .WithModifiers(SyntaxFactory.TokenList(
-                SyntaxFactory.Token(SyntaxKind.PublicKeyword),
-                SyntaxFactory.Token(SyntaxKind.OverrideKeyword)))
-            .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(Number(status)))
-            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
-            .WithLeadingTrivia(EmissionSyntax.Documentation("Gets the declared success status."));
-
-    private static PropertyDeclarationSyntax EmitReadsSuccessBody() =>
-        SyntaxFactory.PropertyDeclaration(
-                SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.BoolKeyword)),
-                "ReadsSuccessBody")
-            .WithModifiers(SyntaxFactory.TokenList(
-                SyntaxFactory.Token(SyntaxKind.PublicKeyword),
-                SyntaxFactory.Token(SyntaxKind.OverrideKeyword)))
-            .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(
-                SyntaxFactory.LiteralExpression(SyntaxKind.FalseLiteralExpression)))
-            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
-            .WithLeadingTrivia(EmissionSyntax.Documentation("Gets whether this success carries a JSON body."));
-
     private static MethodDeclarationSyntax EmitAdaptSuccess(EnvelopePlan envelope) =>
         SyntaxFactory.MethodDeclaration(TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName), "AdaptSuccess")
             .WithModifiers(SyntaxFactory.TokenList(
@@ -185,7 +161,7 @@ internal static class ResponseAdapterEmitter
                     SyntaxFactory.RelationalPattern(SyntaxFactory.Token(SyntaxKind.GreaterThanEqualsToken), Number(200)),
                     SyntaxFactory.RelationalPattern(SyntaxFactory.Token(SyntaxKind.LessThanToken), Number(300))),
                 SyntaxFactory.ThrowExpression(EmissionSyntax.Invocation(
-                    SyntaxFactory.IdentifierName("UndeclaredSuccessFailure"),
+                    EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("StatusVerdictFailures"), "UndeclaredSuccess"),
                     SyntaxFactory.Argument(SyntaxFactory.IdentifierName("status"))))),
         };
         arms.AddRange(operation.ErrorMap.Statuses.Select(status => SyntaxFactory.SwitchExpressionArm(

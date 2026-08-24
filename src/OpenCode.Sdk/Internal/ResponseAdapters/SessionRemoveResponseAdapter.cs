@@ -17,15 +17,19 @@ internal sealed class SessionRemoveResponseAdapter : ResponseAdapter<SessionRemo
     /// Gets the shared adapter instance.
     /// </summary>
     public static SessionRemoveResponseAdapter Instance { get; } = new SessionRemoveResponseAdapter();
-    /// <summary>
-    /// Gets the declared success status.
-    /// </summary>
-    public override int SuccessStatusCode => 204;
-    /// <summary>
-    /// Gets whether this success carries a JSON body.
-    /// </summary>
-    public override bool ReadsSuccessBody => false;
 
+    /// <summary>
+    /// Classifies a status under this operation&apos;s pinned contract.
+    /// </summary>
+    public override StatusVerdict Classify(int status) => status switch
+    {
+        204 => StatusVerdict.NoContentSuccess,
+        >= 200 and < 300 => StatusVerdict.UndeclaredSuccess,
+        400 => StatusVerdict.DeclaredError,
+        401 => StatusVerdict.DeclaredError,
+        404 => StatusVerdict.DeclaredError,
+        _ => StatusVerdict.UndeclaredError
+    };
     /// <summary>
     /// Maps the declared UTF-8 success body onto the typed envelope.
     /// </summary>
@@ -45,7 +49,7 @@ internal sealed class SessionRemoveResponseAdapter : ResponseAdapter<SessionRemo
             {
                 Status = status
             },
-            >= 200 and < 300 => throw UndeclaredSuccessFailure(status),
+            >= 200 and < 300 => throw StatusVerdictFailures.UndeclaredSuccess(status),
             400 => new SessionRemoveResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),
             401 => new SessionRemoveResponse(status, ReadTolerantError(rawBody, Status401Tags), rawBody),
             404 => new SessionRemoveResponse(status, ReadTolerantError(rawBody, Status404Tags), rawBody),

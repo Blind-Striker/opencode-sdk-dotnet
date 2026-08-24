@@ -50,8 +50,8 @@ local server launcher. Protocol and generated-model rules live in
   Successful JSON bodies materialize directly from validated UTF-8 bytes when possible. One decoding
   policy applies the modern `HttpContent` charset/BOM and malformed-UTF-8 replacement algorithm on
   every target framework and on both success and error planes. Error bodies stay decoded strings so
-  throwing and `NoThrow` paths retain exact `RawBody`. Declared no-content successes do not read an
-  unexpected body, but still dispose it with the response (ADR-0007, ADR-0014).
+  throwing and `NoThrow` paths retain exact `RawBody`. Declared no-content successes drain an
+  unexpected body with the buffered response and ignore it (ADR-0007, ADR-0014).
 - A schema-valid reserved failure frame throws `OpenCodeStreamFailureException`, a subtype of
   `OpenCodeTransportException`, with typed causes on its non-null `Cause` collection. Invalid cause
   JSON, null materialization, and declared-but-impossible cause tags remain base transport/protocol

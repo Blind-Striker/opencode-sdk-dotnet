@@ -26,19 +26,12 @@ internal sealed class ResponseBufferingPolicy : PipelinePolicy
 
     private static bool ShouldBuffer(PipelineMessage message)
     {
-        var status = (int)message.Response!.StatusCode;
-        if (message.BufferBody)
-        {
-            // A declared no-content success never reads an unexpected body; it is disposed
-            // with the response. Every other status buffers before the materializer runs.
-            return status != message.NoBodySuccessStatus;
-        }
-
-        // A 2xx on the stream plane is either the live event stream, which stays open until
-        // the caller is done with it, or an undeclared success the plane refuses without
-        // reading. Everything else is an error body, buffered under the same budget as any
-        // one-shot body.
-        return status is < 200 or >= 300;
+        // The one-shot plane buffers every response — an unexpected no-content body is
+        // drained here and ignored by the materializer (canon). A 2xx on the stream plane is
+        // either the live event stream, which stays open until the caller is done with it, or
+        // an undeclared success the plane refuses without reading; everything else is an
+        // error body, buffered under the same budget as any one-shot body.
+        return message.BufferBody || (int)message.Response!.StatusCode is < 200 or >= 300;
     }
 
     private static TimeSpan GetRemainingTimeout(TimeSpan totalTimeout, long requestStarted)

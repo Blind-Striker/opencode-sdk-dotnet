@@ -24,7 +24,12 @@ internal sealed class RecordingResponseAdapter : ResponseAdapter<TestResponse>
 
     public int? AdaptedStatus { get; private set; }
 
-    public override int SuccessStatusCode => 200;
+    public override StatusVerdict Classify(int status) => status switch
+    {
+        200 => StatusVerdict.Success,
+        >= 200 and < 300 => StatusVerdict.UndeclaredSuccess,
+        _ => StatusVerdict.UndeclaredError,
+    };
 
     public string? AdaptedRawBody { get; private set; }
 

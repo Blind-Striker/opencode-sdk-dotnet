@@ -14,20 +14,24 @@ internal sealed class ResponseMaterializer
         where TResponse : OpenCodeResponse
     {
         var status = (int)message.Response!.StatusCode;
-        if (status == adapter.SuccessStatusCode)
+        switch (adapter.Classify(status))
         {
-            if (!adapter.ReadsSuccessBody)
-            {
+            case StatusVerdict.Success:
+                var encodedBody = Decode(message);
+                return encodedBody.DecodedBody is { } decoded
+                    ? adapter.Adapt(status, decoded)
+                    : adapter.AdaptSuccess(status, encodedBody.Utf8Body.Span);
+            case StatusVerdict.NoContentSuccess:
+                // An unexpected body was drained into the buffer and is ignored here (canon).
                 return adapter.AdaptSuccess(status, []);
-            }
-
-            var encodedBody = Decode(message);
-            return encodedBody.DecodedBody is { } decoded
-                ? adapter.Adapt(status, decoded)
-                : adapter.AdaptSuccess(status, encodedBody.Utf8Body.Span);
+            case StatusVerdict.DeclaredError:
+            case StatusVerdict.UndeclaredError:
+                return adapter.Adapt(status, Decode(message).GetDecodedBody());
+            case StatusVerdict.UndeclaredSuccess:
+                throw StatusVerdictFailures.UndeclaredSuccess(status);
+            default:
+                throw new InvalidOperationException("The adapter produced an unknown status verdict.");
         }
-
-        return adapter.Adapt(status, Decode(message).GetDecodedBody());
     }
 
     /// <summary>Reads a buffered error body as the decoded string both error channels retain.</summary>

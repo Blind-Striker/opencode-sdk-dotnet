@@ -85,7 +85,12 @@ public sealed class ResponseAdapterTests
 
     private sealed class ProbeAdapter : ResponseAdapter<TestResponse>
     {
-        public override int SuccessStatusCode => 200;
+        public override StatusVerdict Classify(int status) => status switch
+        {
+            200 => StatusVerdict.Success,
+            >= 200 and < 300 => StatusVerdict.UndeclaredSuccess,
+            _ => StatusVerdict.UndeclaredError,
+        };
 
         public static TPayload Bare<TPayload>(string rawBody, JsonTypeInfo<TPayload> typeInfo) =>
             ReadBarePayload(rawBody, typeInfo);
@@ -93,7 +98,7 @@ public sealed class ResponseAdapterTests
         public static TPayload Bare<TPayload>(ReadOnlySpan<byte> utf8Body, JsonTypeInfo<TPayload> typeInfo) =>
             ReadBarePayload(utf8Body, typeInfo);
 
-        public static IOpenCodeError? Error(string rawBody, IReadOnlyCollection<string>? allowedTags) =>
+        public static IOpenCodeError? Error(string rawBody, string[]? allowedTags) =>
             ReadTolerantError(rawBody, allowedTags);
 
         public override TestResponse AdaptSuccess(int status, ReadOnlySpan<byte> utf8Body) =>

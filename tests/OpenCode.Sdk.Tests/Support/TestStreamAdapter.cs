@@ -10,12 +10,19 @@ internal sealed class TestStreamAdapter : IStreamAdapter<TestBody, TestStreamFai
     /// <summary>The name the pinned contract gives a mid-stream failure frame.</summary>
     public const string StreamFailureEventName = "effect/httpapi/stream/failure";
 
-    private readonly IReadOnlyCollection<string>? _allowedTags;
+    private readonly string[]? _allowedTags;
 
     public TestStreamAdapter(params string[] allowedTags)
     {
         _allowedTags = allowedTags.Length is 0 ? null : allowedTags;
     }
+
+    public StatusVerdict Classify(int status) => status switch
+    {
+        200 => StatusVerdict.Success,
+        >= 200 and < 300 => StatusVerdict.UndeclaredSuccess,
+        _ => StatusVerdict.UndeclaredError,
+    };
 
     public string FailureEventName => StreamFailureEventName;
 
