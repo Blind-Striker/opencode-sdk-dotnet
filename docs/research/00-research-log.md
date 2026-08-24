@@ -3385,3 +3385,26 @@ suite under the default job runs once as milestone evidence when a work arc comp
 `quality-gates.md`'s performance section the same day. Recorded alongside: pre-GA the SDK owes no
 consumer backward compatibility; the PublicApi lock stays a deliberate-diff review gate, not a
 compatibility promise.
+
+## Q132: What did Increment 2b land and what did its targeted benchmark show?
+
+**Landed (commit `2d0c1b1`):** the generator emits `StatusVerdict Classify(int status)` on every
+one-shot and stream adapter from the operation's pinned status table; `SuccessStatusCode` and
+`ReadsSuccessBody` are deleted; the planes and the materializer switch on verdicts only; the
+undeclared-success message has one author (`StatusVerdictFailures`); the stream plane's duplicated
+undeclared-2xx author is gone. The noted behavior change shipped with its canon wording: an
+unexpected body on a declared no-content success is drained into the buffer and ignored rather than
+left unread, which frees the pipeline of operation knowledge (`PipelineMessage` lost its
+`NoBodySuccessStatus` member) and keeps buffering one unconditional rule. Doc 20 E5 rode along:
+the error reader's comparer-overload `Enumerable.Contains` became an `Array.IndexOf` scan over the
+generated tag arrays, whose parameters narrowed to `string[]`.
+
+**Targeted short benchmark (first use of the Q131 cadence; Health/NoContent/ErrorChannel families,
+`--job short`, both runtimes, artifacts `C:\bench-artifacts\inc2b-*-short`):** allocation deltas —
+error path −8 B end to end on net10.0 and −10..−54 B on net472 with `ReadTolerantError` itself
+−32 B on net472 (the E5 win); health pipeline rows −8 B on net10.0 (2,112 → 2,104 B — the
+Increment 2 message member given back) and −13..−31 B on net472; the no-content operation pays the
+drain's fixed read machinery, +480 B on net10.0 (1,288 → 1,768 B) and +97 B on net472, on an empty
+body. The bare `HttpClient` control row moved 0 B on both runtimes. Timings are not quoted from a
+short job. Increment 3's pooled read path is where the drain's fixed cost gets rebuilt and
+re-measured.
