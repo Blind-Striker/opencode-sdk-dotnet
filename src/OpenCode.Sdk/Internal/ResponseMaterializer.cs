@@ -39,10 +39,12 @@ internal sealed class ResponseMaterializer
 
     private EncodedResponseBody Decode(PipelineMessage message)
     {
+        var body = message.Body ?? ResponseBody.Empty;
         try
         {
             return _encodingPolicy.Decode(
-                message.Body?.Bytes ?? [],
+                body.Bytes,
+                body.Length,
                 message.Response!.Content?.Headers.ContentType?.CharSet);
         }
         catch (Exception exception) when (FailureClassification.Handles(exception, FailurePhase.ResponseBodyRead))

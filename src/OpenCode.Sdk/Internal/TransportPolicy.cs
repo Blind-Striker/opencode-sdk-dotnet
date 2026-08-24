@@ -39,8 +39,11 @@ internal sealed class TransportPolicy : PipelinePolicy, IDisposable
 #endif
         try
         {
+            // The send runs under the network token — the caller's token with the progress
+            // window linked over it — while classification reads the caller token alone, so
+            // a window expiry during the send reports as the transport timing out.
             message.Response = await _httpClient
-                .SendAsync(message.Request, HttpCompletionOption.ResponseHeadersRead, message.CancellationToken)
+                .SendAsync(message.Request, HttpCompletionOption.ResponseHeadersRead, message.NetworkToken)
                 .ConfigureAwait(false);
         }
         catch (Exception exception) when (FailureClassification.Handles(exception, FailurePhase.Send))
@@ -66,7 +69,12 @@ internal sealed class TransportPolicy : PipelinePolicy, IDisposable
         try
         {
             handler = CreateOwnedHttpHandler(endpoint);
-            var httpClient = new HttpClient(handler, disposeHandler: true);
+            var httpClient = new HttpClient(handler, disposeHandler: true)
+            {
+                // The pipeline owns timeouts through the progress window; two mechanisms
+                // must not race on the owned transport.
+                Timeout = Timeout.InfiniteTimeSpan,
+            };
             handler = null;
             return httpClient;
         }

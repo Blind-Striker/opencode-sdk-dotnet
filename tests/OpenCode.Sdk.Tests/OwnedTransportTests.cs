@@ -49,7 +49,7 @@ public sealed class OwnedTransportTests
     }
 
     [Test]
-    public async Task ExecuteAsync_Should_Timeout_A_Stalled_Real_Handler_Body()
+    public async Task ExecuteAsync_Should_Fail_A_Stalled_Real_Handler_Body_At_The_Progress_Window()
     {
         await using var server = LoopbackHttpServer.Start(static _ => new LoopbackHttpResponse
         {
@@ -59,25 +59,21 @@ public sealed class OwnedTransportTests
             KeepOpen = true,
         });
         using var handler = TransportPolicy.CreateOwnedHttpHandler(server.Endpoint);
-        using var httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromMilliseconds(50) };
-        using var pipeline = Pipeline.Create(httpClient, new OpenCodeClientOptions { Endpoint = server.Endpoint });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(
+            httpClient, endpoint: server.Endpoint, networkTimeout: TimeSpan.FromMilliseconds(250));
 
-        var exception = await Assert
+        // The client's own timeout never guards a post-headers read; the progress window is
+        // the only timer over a real stalled socket, interrupting through the read token on
+        // modern targets and through content disposal on net472.
+        _ = await Assert
             .That(async () => _ = await pipeline.ExecuteAsync(
                 HttpMethod.Get,
                 "/api/health",
                 new RecordingResponseAdapter(),
                 options: null,
-                CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(1)))
+                CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5)))
             .Throws<OpenCodeTransportException>();
-
-        // Two timers guard the same budget until the progress timeout lands: the pipeline's
-        // body wait reports TimeoutException, and the client's own timeout cancels the read
-        // as TaskCanceledException. Whichever wins the race, the contract is the same —
-        // an exhausted transport budget maps to a transport failure (canon).
-        await Assert
-            .That(exception!.InnerException is TimeoutException or OperationCanceledException)
-            .IsTrue();
 #if NET472
         Task[] disconnectTasks = [server.ClientDisconnected];
         await Task.WhenAll(disconnectTasks).WaitAsync(TimeSpan.FromSeconds(1));

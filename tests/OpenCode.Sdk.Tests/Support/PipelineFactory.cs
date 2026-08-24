@@ -1,3 +1,4 @@
+using System.Buffers;
 using OpenCode.Sdk.Internal;
 
 namespace OpenCode.Sdk.Tests.Support;
@@ -14,7 +15,9 @@ internal static class PipelineFactory
         string? password = null,
         string? username = null,
         LocationSelector? location = null,
-        IEventStreamFramer? framer = null)
+        IEventStreamFramer? framer = null,
+        ArrayPool<byte>? bufferPool = null,
+        TimeSpan? networkTimeout = null)
     {
         var options = new OpenCodeClientOptions
         {
@@ -27,6 +30,6 @@ internal static class PipelineFactory
             options.Username = username;
         }
 
-        return new Pipeline(httpClient, ownsHttpClient, options, framer);
+        return new Pipeline(httpClient, ownsHttpClient, options, framer, bufferPool, networkTimeout);
     }
 }

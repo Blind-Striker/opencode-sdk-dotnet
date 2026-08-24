@@ -111,16 +111,16 @@ public sealed class PipelineStreamTests
     }
 
     [Test]
-    public async Task ExecuteStreamAsync_Should_Keep_An_Error_Body_Inside_The_Transport_Timeout()
+    public async Task ExecuteStreamAsync_Should_Fail_A_Stalled_Error_Body_At_The_Progress_Window()
     {
-        using var callerCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var callerCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         using var content = new BlockingContent();
         using var handler = new RecordingHttpHandler(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError)
         {
             Content = content,
         });
-        using var httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromMilliseconds(50) };
-        using var pipeline = PipelineFactory.Create(httpClient);
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(httpClient, networkTimeout: TimeSpan.FromMilliseconds(200));
         var stream = pipeline.ExecuteStreamAsync(
             HttpMethod.Get, "/api/event", new TestStreamAdapter(), callerCancellation.Token);
         await using var enumerator = stream.GetAsyncEnumerator(callerCancellation.Token);
@@ -129,7 +129,7 @@ public sealed class PipelineStreamTests
             .That(async () => _ = await enumerator.MoveNextAsync())
             .Throws<OpenCodeTransportException>();
 
-        await Assert.That(exception!.InnerException).IsTypeOf<TimeoutException>();
+        await Assert.That(exception!.InnerException).IsNotNull();
         await Assert.That(callerCancellation.IsCancellationRequested).IsFalse();
         await content.ReadStarted.WaitAsync(TimeSpan.FromSeconds(1));
         await content.ReadCompleted.WaitAsync(TimeSpan.FromSeconds(1));

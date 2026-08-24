@@ -10,14 +10,25 @@ internal sealed class PipelineMessage : IDisposable
     /// <summary>Gets the decorated request; built by the plane, sent by <see cref="TransportPolicy"/>.</summary>
     public required HttpRequestMessage Request { get; init; }
 
+    /// <summary>The default per-read progress window; internal until M6 surfaces a knob.</summary>
+    internal static readonly TimeSpan DefaultNetworkTimeout = TimeSpan.FromSeconds(100);
+
     /// <summary>Gets the caller's token, inspected first by every failure classification.</summary>
     public CancellationToken CancellationToken { get; init; }
 
     /// <summary>
-    /// Gets the transport budget the body read must fit inside; written by the plane from the
-    /// client's timeout, read by <see cref="ResponseBufferingPolicy"/>.
+    /// Gets the progress window the send and each buffered read must fit inside; read by
+    /// <see cref="ResponseBufferingPolicy"/>, which re-arms it on every read that progresses.
     /// </summary>
-    public TimeSpan NetworkTimeout { get; init; }
+    public TimeSpan NetworkTimeout { get; init; } = DefaultNetworkTimeout;
+
+    /// <summary>
+    /// Gets the token network I/O runs under: the caller's token until
+    /// <see cref="ResponseBufferingPolicy"/> links the progress window over it; read by
+    /// <see cref="TransportPolicy"/>. Failure classification always inspects
+    /// <see cref="CancellationToken"/>, never this.
+    /// </summary>
+    public CancellationToken NetworkToken { get; internal set; }
 
     /// <summary>
     /// Gets whether a success body buffers. The stream plane sets <see langword="false"/> so a
@@ -36,6 +47,7 @@ internal sealed class PipelineMessage : IDisposable
 
     public void Dispose()
     {
+        Body?.Dispose();
         Response?.Dispose();
         Request.Dispose();
     }

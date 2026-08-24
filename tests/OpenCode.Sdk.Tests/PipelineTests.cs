@@ -775,16 +775,16 @@ public sealed class PipelineTests
     }
 
     [Test]
-    public async Task ExecuteAsync_Should_Keep_The_Body_Inside_The_Overall_Transport_Timeout()
+    public async Task ExecuteAsync_Should_Fail_A_Body_That_Stalls_Past_The_Progress_Window()
     {
-        using var callerCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var callerCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         using var content = new BlockingContent();
         using var handler = new RecordingHttpHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = content,
         });
-        using var httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromMilliseconds(50) };
-        using var pipeline = CreatePipeline(httpClient);
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient, networkTimeout: TimeSpan.FromMilliseconds(200));
 
         var exception = await Assert
             .That(async () => _ = await pipeline.ExecuteAsync(
@@ -795,7 +795,11 @@ public sealed class PipelineTests
                 callerCancellation.Token))
             .Throws<OpenCodeTransportException>();
 
-        await Assert.That(exception!.InnerException).IsTypeOf<TimeoutException>();
+        // The window fires as a cancellation the caller never requested, so it maps to a
+        // transport failure while the caller's token stays untouched. The inner exception is
+        // whichever face the interrupt wore first — the classification table pins the exact
+        // type mappings.
+        await Assert.That(exception!.InnerException).IsNotNull();
         await Assert.That(callerCancellation.IsCancellationRequested).IsFalse();
         await content.ReadStarted.WaitAsync(TimeSpan.FromSeconds(1));
         await content.ReadCompleted.WaitAsync(TimeSpan.FromSeconds(1));
@@ -803,16 +807,36 @@ public sealed class PipelineTests
     }
 
     [Test]
-    public async Task ExecuteAsync_Should_Keep_An_Error_Body_Inside_The_Overall_Transport_Timeout_Under_NoThrow()
+    public async Task ExecuteAsync_Should_Keep_A_Trickling_Body_That_Outlives_The_Window()
     {
-        using var callerCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        var payload = Encoding.UTF8.GetBytes("{\"healthy\":true}");
+        using var content = new TricklingContent(payload, chunkCount: 8, gap: TimeSpan.FromMilliseconds(100));
+        using var handler = new RecordingHttpHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = content,
+        });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient, networkTimeout: TimeSpan.FromMilliseconds(700));
+        var adapter = new RecordingResponseAdapter();
+
+        // Eight 100ms gaps outlive the 700ms window as a whole, but every read progresses
+        // well inside it: under progress semantics the slow-but-flowing body survives.
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", adapter, options: null, CancellationToken.None);
+
+        await Assert.That(adapter.AdaptedRawBody).IsEqualTo("{\"healthy\":true}");
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Fail_A_Stalled_Error_Body_At_The_Progress_Window_Under_NoThrow()
+    {
+        using var callerCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         using var content = new BlockingContent();
         using var handler = new RecordingHttpHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized)
         {
             Content = content,
         });
-        using var httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromMilliseconds(50) };
-        using var pipeline = CreatePipeline(httpClient);
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient, networkTimeout: TimeSpan.FromMilliseconds(200));
 
         _ = await Assert
             .That(async () => _ = await pipeline.ExecuteAsync(
@@ -963,6 +987,7 @@ public sealed class PipelineTests
         Uri? endpoint = null,
         string? password = null,
         string? username = null,
-        LocationSelector? location = null) =>
-        PipelineFactory.Create(httpClient, ownsHttpClient, endpoint, password, username, location);
+        LocationSelector? location = null,
+        TimeSpan? networkTimeout = null) =>
+        PipelineFactory.Create(httpClient, ownsHttpClient, endpoint, password, username, location, networkTimeout: networkTimeout);
 }

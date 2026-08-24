@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -26,17 +27,14 @@ internal sealed class Pipeline : IDisposable
 
     private readonly string _endpointBase;
     private readonly IEventStreamFramer _framer;
-
-    /// <summary>Read only for the per-request budget snapshot; its lifetime belongs to <see cref="_transport"/>.</summary>
-    private readonly HttpClient _httpClient;
-
     private readonly ResponseMaterializer _materializer = new();
+    private readonly TimeSpan _networkTimeout;
     private readonly PipelinePolicy[] _policies;
     private readonly TransportPolicy _transport;
     private bool _disposed;
 
     internal Pipeline(HttpClient httpClient, bool ownsHttpClient, IOpenCodeClientOptions options,
-        IEventStreamFramer? framer = null)
+        IEventStreamFramer? framer = null, ArrayPool<byte>? bufferPool = null, TimeSpan? networkTimeout = null)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(options);
@@ -66,9 +64,9 @@ internal sealed class Pipeline : IDisposable
                 nameof(options));
         }
 
-        _httpClient = httpClient;
         _endpointBase = EndpointPolicy.Normalize(endpoint);
         _framer = framer ?? new ServerSentEventFramer();
+        _networkTimeout = networkTimeout ?? PipelineMessage.DefaultNetworkTimeout;
 
         // The options are read exactly once, here: the policies hold an immutable snapshot,
         // so mutating the options object after construction never changes a built client.
@@ -79,7 +77,7 @@ internal sealed class Pipeline : IDisposable
         _policies =
         [
             new RequestDecorationPolicy(authorization, options.Location, UserAgentPolicy.Resolve()),
-            new ResponseBufferingPolicy(),
+            new ResponseBufferingPolicy(bufferPool ?? ArrayPool<byte>.Shared),
             _transport,
         ];
     }
@@ -293,7 +291,8 @@ internal sealed class Pipeline : IDisposable
             {
                 Request = request,
                 CancellationToken = cancellationToken,
-                NetworkTimeout = _httpClient.Timeout,
+                NetworkToken = cancellationToken,
+                NetworkTimeout = _networkTimeout,
             };
         }
         catch
@@ -308,7 +307,8 @@ internal sealed class Pipeline : IDisposable
         {
             Request = new HttpRequestMessage(method, new Uri(_endpointBase + route, UriKind.Absolute)),
             CancellationToken = cancellationToken,
-            NetworkTimeout = _httpClient.Timeout,
+            NetworkToken = cancellationToken,
+            NetworkTimeout = _networkTimeout,
             BufferBody = false,
         };
 

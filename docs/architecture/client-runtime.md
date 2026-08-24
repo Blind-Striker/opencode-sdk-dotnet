@@ -43,10 +43,15 @@ local server launcher. Protocol and generated-model rules live in
   failures on both one-shot and streaming paths (ADR-0007, ADR-0014).
 - Streaming operations return a stream rather than a response envelope and therefore expose no
   per-call request-options parameter. Their failures always throw (ADR-0007).
-- A one-shot operation keeps send, headers, and body consumption inside the `HttpClient.Timeout`
-  budget. An error body returned while opening a stream uses the same remaining budget; a successful
-  SSE body remains live until caller cancellation, server completion, or failure. Caller cancellation
-  still passes through; an exhausted transport budget maps to `OpenCodeTransportException`.
+- Network progress is bounded by an internal per-read window (100 s today): the send and every
+  buffered body read must progress inside it, and each read that progresses re-arms it, so a
+  slow-but-flowing body survives while a stalled one fails. The pipeline owns this timer — the
+  owned transport's `HttpClient.Timeout` is infinite so two mechanisms cannot race, and a
+  caller-supplied client's own timeout bounds only its send. A stalled read no token can reach is
+  interrupted by disposing the content. An error body returned while opening a stream buffers
+  under the same window; a successful SSE body remains live until caller cancellation, server
+  completion, or failure. Caller cancellation still passes through; an exhausted progress window
+  maps to `OpenCodeTransportException`.
   Successful JSON bodies materialize directly from validated UTF-8 bytes when possible. One decoding
   policy applies the modern `HttpContent` charset/BOM and malformed-UTF-8 replacement algorithm on
   every target framework and on both success and error planes. Error bodies stay decoded strings so
