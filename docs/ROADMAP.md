@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-24
+Date: 2026-08-25
 
 Operational state: what is done, what is next, what is open. This file shrinks as work lands.
 `../AGENTS.md` routes to current architecture and engineering canon; decision records live in
@@ -238,14 +238,37 @@ second body-sized allocation, but review exposed another lifecycle race and the 
 needs a holistic design decision (research Q125). The runtime-pipeline design session is complete
 (research Q126–Q129): an internal policy pipeline is sealed with a three-policy day-one roster,
 generated status verdicts on the adapters, a named framer seam, progress-timeout semantics, and R16's
-mechanism re-derived inside the buffering policy. The staged plan is
-`superpowers/plans/2026-08-24-runtime-pipeline-plan.md`: archive the R16 patch, then
-FailureClassification → behavior-preserving pipeline skeleton → generated `Classify` verdicts → pooled
-buffering + progress timeout → encoding hardening. The modern-allocation research legs are complete
-(docs 17/19/20: API survey, feature catalog with verified downlevel codegen, runtime idiom audit) and
-their adoption items are folded into the plan's increments; four downlevel package decisions batch at
-the Increment 3 entry checkpoint. Typed-switch reconsideration — widened into the emitter allocation
-batch — and the M4 plan follow the increments. No M4 source or planning work has begun.**
+mechanism re-derived inside the buffering policy. The modern-allocation research legs are complete
+(docs 17/19/20: API survey, feature catalog with verified downlevel codegen, runtime idiom
+audit).**
+
+**The runtime-pipeline arc is complete.** The staged plan
+`superpowers/plans/2026-08-24-runtime-pipeline-plan.md` is fully executed through Increment 4
+(evidence: research Q130–Q138; composition: ADR-0018) and is a candidate for archival per
+`engineering/documentation.md`, pending the maintainer's decision. Landed: the
+`FailureClassification` phase map, the behavior-preserving internal policy pipeline, generated
+`StatusVerdict Classify` verdicts on the adapters, pooled buffering with the progress timeout, and
+exception-free encoding over `Microsoft.Bcl.Memory`; Increment 0 archived the R16 experiment out of
+tree. The Increment 3 entry checkpoint (Q133) sealed the downlevel package batch:
+`System.Memory`/`System.Buffers` adopted, the `TimeProvider`/clock seam declined with an M6
+trigger, `System.Collections.Immutable` deferred to the emitter allocation batch, and
+`System.Net.ServerSentEvents` deferred to SSE stage-2. Acceptance ran green 2026-08-25 against the
+real v2 server built from the pinned commit (Q136): one-shot, stream (typed `EventLogSynced` plus a
+live SSE hold), and events (live `SessionCreated` dispatch); pagination enumerated an empty session,
+so a non-empty pass waits for a provider-configured session. The arc-milestone benchmark (Q138)
+closed the arc: body-size-proportional allocation is gone from the pipeline (the net10.0 one-shot
+row is flat at 2,112 B at every size; complete large calls drop ~2.15 MB), downlevel calls run
+roughly twice as fast, and every added cost is fixed, small, and named. GitHub Actions is
+billing-blocked (every job dies at startup on the spending-limit annotation), so the final
+CI-hardening commit `9da0ae3` has no three-OS verdict yet — verify when billing restores. Next, in
+maintainer-agreed order: the **spec refresh** (Q137's drift map — wholesale `*Encoded` renames in
+curation's name mappings, collision-artifact fingerprint deletions, no dialect or runtime impact),
+then the **emitter allocation batch** on the refreshed base (backlog: research doc 20's ranked
+table; the `FrozenDictionary` and `System.Collections.Immutable` decisions ride it), then the
+**M4 launcher plan** (1–2 pages, approval before source). When benchmark work next runs, the agreed
+records infrastructure lands first: a git-ignored `.benchmarks/` folder for run artifacts and
+comparison extracts, driven by a file-based C# comparison app replacing the session-scratch extract
+script. No M4 source or planning work has begun.
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family
@@ -349,3 +372,8 @@ is revisited at each milestone boundary.
 
 - **`BuildOs`/`BuildArch`** properties are kept in `Directory.Build.props`; adapt their values to
   opencode's release-asset naming when the binary-download need lands.
+- **Runtime-arc leftovers, none blocking:** documentation items R04/R05/R06/R11 from the Session
+  38/39 review register; net472 pooled rents above the downlevel pool's 1 MB bucket cap still
+  allocate one wire-sized copy on >1 MB bodies (a larger-cap `ArrayPool.Create` is a
+  benchmark-gated follow-up); the committed sandbox's `--paginate` mode exits nonzero on an empty
+  enumeration.
