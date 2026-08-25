@@ -1,0 +1,103 @@
+{
+  "Title": "OpenCode.Sdk.Performance.Tests.Benchmarks.HealthBenchmarks-20260825-001351",
+  "HostEnvironmentInfo": {
+    "BenchmarkDotNetVersion": "0.15.8",
+    "RuntimeVersion": ".NET 10.0.11 (10.0.11, 10.0.1126.37416)",
+    "Architecture": "X64",
+    "Configuration": "RELEASE"
+  },
+  "Benchmarks": [
+    {
+      "DisplayInfo": "HealthBenchmarks.GetHealthAsync: .NET 10.0(Runtime=.NET 10.0, Toolchain=net10.0) [Fixture=health]",
+      "Namespace": "OpenCode.Sdk.Performance.Tests.Benchmarks",
+      "Type": "HealthBenchmarks",
+      "Method": "GetHealthAsync",
+      "MethodTitle": "GetHealthAsync",
+      "Parameters": "Fixture=health",
+      "FullName": "OpenCode.Sdk.Performance.Tests.Benchmarks.HealthBenchmarks.GetHealthAsync(Fixture: health)",
+      "Statistics": {
+        "N": 15,
+        "Median": 1327.6363372802734,
+        "Mean": 1333.1265365600587,
+        "StandardDeviation": 18.75232427
+      },
+      "Memory": {
+        "Gen0Collections": 74,
+        "Gen1Collections": 0,
+        "Gen2Collections": 0,
+        "TotalOperations": 524288,
+        "BytesAllocatedPerOperation": 2376
+      },
+      "Measurements": []
+    },
+    {
+      "DisplayInfo": "HealthBenchmarks.GetHealthAsync: .NET Framework 4.7.2(Runtime=.NET Framework 4.7.2, Toolchain=net472) [Fixture=health]",
+      "Namespace": "OpenCode.Sdk.Performance.Tests.Benchmarks",
+      "Type": "HealthBenchmarks",
+      "Method": "GetHealthAsync",
+      "MethodTitle": "GetHealthAsync",
+      "Parameters": "Fixture=health",
+      "FullName": "OpenCode.Sdk.Performance.Tests.Benchmarks.HealthBenchmarks.GetHealthAsync(Fixture: health)",
+      "Statistics": {
+        "N": 15,
+        "Median": 6030.2154541015625,
+        "Mean": 6072.941125488281,
+        "StandardDeviation": 77.15321912
+      },
+      "Memory": {
+        "Gen0Collections": 758,
+        "Gen1Collections": 0,
+        "Gen2Collections": 0,
+        "TotalOperations": 524288,
+        "BytesAllocatedPerOperation": 4686
+      },
+      "Measurements": []
+    },
+    {
+      "DisplayInfo": "HealthBenchmarks.ExecuteWithoutAdapterAsync: .NET 10.0(Runtime=.NET 10.0, Toolchain=net10.0) [Fixture=health]",
+      "Namespace": "OpenCode.Sdk.Performance.Tests.Benchmarks",
+      "Type": "HealthBenchmarks",
+      "Method": "ExecuteWithoutAdapterAsync",
+      "MethodTitle": "ExecuteWithoutAdapterAsync",
+      "Parameters": "Fixture=health",
+      "FullName": "OpenCode.Sdk.Performance.Tests.Benchmarks.HealthBenchmarks.ExecuteWithoutAdapterAsync(Fixture: health)",
+      "Statistics": {
+        "N": 15,
+        "Median": 894.088077545166,
+        "Mean": 897.5231471761068,
+        "StandardDeviation": 10.11190567
+      },
+      "Memory": {
+        "Gen0Collections": 66,
+        "Gen1Collections": 0,
+        "Gen2Collections": 0,
+        "TotalOperations": 524288,
+        "BytesAllocatedPerOperation": 2112
+      },
+      "Measurements": []
+    },
+    {
+      "DisplayInfo": "HealthBenchmarks.ExecuteWithoutAdapterAsync: .NET Framework 4.7.2(Runtime=.NET Framework 4.7.2, Toolchain=net472) [Fixture=health]",
+      "Namespace": "OpenCode.Sdk.Performance.Tests.Benchmarks",
+      "Type": "HealthBenchmarks",
+      "Method": "ExecuteWithoutAdapterAsync",
+      "MethodTitle": "ExecuteWithoutAdapterAsync",
+      "Parameters": "Fixture=health",
+      "FullName": "OpenCode.Sdk.Performance.Tests.Benchmarks.HealthBenchmarks.ExecuteWithoutAdapterAsync(Fixture: health)",
+      "Statistics": {
+        "N": 15,
+        "Median": 4465.068817138672,
+        "Mean": 4491.882575683594,
+        "StandardDeviation": 55.90232427
+      },
+      "Memory": {
+        "Gen0Collections": 711,
+        "Gen1Collections": 0,
+        "Gen2Collections": 0,
+        "TotalOperations": 524288,
+        "BytesAllocatedPerOperation": 4413
+      },
+      "Measurements": []
+    }
+  ]
+}

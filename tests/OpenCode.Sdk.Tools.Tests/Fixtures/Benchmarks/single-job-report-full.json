@@ -1,0 +1,26 @@
+{
+  "Title": "OpenCode.Sdk.Performance.Tests.Benchmarks.HealthBenchmarks-20260825-001351",
+  "Benchmarks": [
+    {
+      "DisplayInfo": "HealthBenchmarks.GetHealthAsync: DefaultJob [Fixture=health]",
+      "Namespace": "OpenCode.Sdk.Performance.Tests.Benchmarks",
+      "Type": "HealthBenchmarks",
+      "Method": "GetHealthAsync",
+      "MethodTitle": "GetHealthAsync",
+      "Parameters": "Fixture=health",
+      "FullName": "OpenCode.Sdk.Performance.Tests.Benchmarks.HealthBenchmarks.GetHealthAsync(Fixture: health)",
+      "Statistics": {
+        "N": 15,
+        "Median": 1351.6587257385254
+      },
+      "Memory": {
+        "Gen0Collections": 66,
+        "Gen1Collections": 0,
+        "Gen2Collections": 0,
+        "TotalOperations": 524288,
+        "BytesAllocatedPerOperation": 2104
+      },
+      "Measurements": []
+    }
+  ]
+}

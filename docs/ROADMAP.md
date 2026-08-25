@@ -268,10 +268,11 @@ stream-channel claim), and the regression is reported with a verified restore pa
 [anomalyco/opencode#44911](https://github.com/anomalyco/opencode/issues/44911). The queue was
 reordered at the M3 boundary (maintainer, 2026-08-25) for the now-public repository: first the
 **emitter allocation batch** on the current base (backlog: research doc 20's ranked table; the
-`FrozenDictionary` and `System.Collections.Immutable` decisions ride it; the agreed records
-infrastructure lands at its start — a git-ignored `.benchmarks/` folder for run artifacts and
-comparison extracts, driven by a file-based C# comparison app replacing the session-scratch
-extract script, seeded with the existing local artifact history). Then **M5 breadth batches pull
+`FrozenDictionary` and `System.Collections.Immutable` decisions ride it). The agreed records
+infrastructure is in place: the git-ignored `.benchmarks/` store is seeded with the local artifact
+history, and `opencode-tool compare-benchmarks` joins two run folders' full JSON exports on exact
+allocated bytes with an indicative median ratio — replacing the session-scratch extract script and
+reproducing Q138's 72-case arc-milestone comparison from the seeded store. Then **M5 breadth batches pull
 ahead of M4**, grown against the current pin but filtered by Q137/Q139's drift map so
 upstream-removed operation families (the question flow, `projectCopy.*`, `health.stop`,
 `project.directories`) are never selected; the **M4 launcher** rides alongside as a small

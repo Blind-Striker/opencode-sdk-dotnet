@@ -1,0 +1,19 @@
+{
+  "Title": "OpenCode.Sdk.Performance.Tests.Benchmarks.HealthBenchmarks-20260825-001351",
+  "Benchmarks": [
+    {
+      "DisplayInfo": "HealthBenchmarks.GetHealthAsync: .NET 10.0(Runtime=.NET 10.0, Toolchain=net10.0) [Fixture=health]",
+      "Namespace": "OpenCode.Sdk.Performance.Tests.Benchmarks",
+      "Type": "HealthBenchmarks",
+      "Method": "GetHealthAsync",
+      "MethodTitle": "GetHealthAsync",
+      "Parameters": "Fixture=health",
+      "FullName": "OpenCode.Sdk.Performance.Tests.Benchmarks.HealthBenchmarks.GetHealthAsync(Fixture: health)",
+      "Statistics": {
+        "N": 15,
+        "Median": 1327.6363372802734
+      },
+      "Measurements": []
+    }
+  ]
+}

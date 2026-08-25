@@ -1,6 +1,7 @@
 using System.IO.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using OpenCode.Sdk.Tools.Benchmarks;
 using OpenCode.Sdk.Tools.Commands;
 using OpenCode.Sdk.Tools.Generator;
 using OpenCode.Sdk.Tools.Generator.Binding;
@@ -46,6 +47,7 @@ public static class ToolApp
         services.AddSingleton<IProjectFormatter, CliWrapProjectFormatter>();
         services.AddSingleton<IGenerationWriter, GenerationWriter>();
         services.AddSingleton<GenerationCoordinator>();
+        services.AddSingleton<BenchmarkRunReader>();
         services.AddSingleton<ICommandInterceptor, GlobalOptionsInterceptor>();
 
         overrideServices?.Invoke(services);
@@ -63,10 +65,13 @@ public static class ToolApp
     {
         ArgumentNullException.ThrowIfNull(configurator);
 
+        configurator.SetApplicationName("opencode-tool");
         configurator
-            .SetApplicationName("opencode-tool")
             .AddCommand<GenerateCommand>("generate")
             .WithDescription("Regenerate the SDK model layer from spec/openapi.json.");
+        configurator
+            .AddCommand<CompareBenchmarksCommand>("compare-benchmarks")
+            .WithDescription("Compare two BenchmarkDotNet run folders by exact allocated bytes and median time.");
     }
 
     /// <summary>Entry point used by tools/opencode-tool.cs.</summary>
