@@ -48,15 +48,25 @@ public static class OpenCodeServiceCollectionExtensions
         // disposes one client at shutdown.
         _ = services.AddSingleton(static provider => new OpenCodeClient(provider.GetRequiredService<IOptions<OpenCodeClientOptions>>().Value));
         _ = services.AddSingleton(static AgentsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Agents);
+        _ = services.AddSingleton(static CommandsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Commands);
         _ = services.AddSingleton(static CredentialsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Credentials);
+        _ = services.AddSingleton(static DebugClient (provider) => provider.GetRequiredService<OpenCodeClient>().Debug);
         _ = services.AddSingleton(static EventsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Events);
+        _ = services.AddSingleton(static ExperimentalClient (provider) => provider.GetRequiredService<OpenCodeClient>().Experimental);
+        _ = services.AddSingleton(static GenerationClient (provider) => provider.GetRequiredService<OpenCodeClient>().Generation);
         _ = services.AddSingleton(static IntegrationsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Integrations);
+        _ = services.AddSingleton(static LanguageModelsClient (provider) => provider.GetRequiredService<OpenCodeClient>().LanguageModels);
         _ = services.AddSingleton(static McpServersClient (provider) => provider.GetRequiredService<OpenCodeClient>().McpServers);
         _ = services.AddSingleton(static PermissionsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Permissions);
+        _ = services.AddSingleton(static PluginsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Plugins);
+        _ = services.AddSingleton(static ProjectsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Projects);
         _ = services.AddSingleton(static ProvidersClient (provider) => provider.GetRequiredService<OpenCodeClient>().Providers);
         _ = services.AddSingleton(static PtysClient (provider) => provider.GetRequiredService<OpenCodeClient>().Ptys);
+        _ = services.AddSingleton(static ReferencesClient (provider) => provider.GetRequiredService<OpenCodeClient>().References);
         _ = services.AddSingleton(static SessionsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Sessions);
         _ = services.AddSingleton(static ShellsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Shells);
+        _ = services.AddSingleton(static SkillsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Skills);
+        _ = services.AddSingleton(static VcsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Vcs);
         _ = services.AddSingleton(static WebsearchClient (provider) => provider.GetRequiredService<OpenCodeClient>().Websearch);
         return services;
     }

@@ -75,6 +75,56 @@
       "placement": "client",
       "clientName": "Websearch",
       "reason": "Query and provider listing carry no per-id operations; a mass-noun container names the domain."
+    },
+    "command": {
+      "placement": "client",
+      "clientName": "Commands",
+      "reason": "The family carries no per-id operations; a flat container holds its calls (ADR-0019)."
+    },
+    "debug": {
+      "placement": "client",
+      "clientName": "Debug",
+      "reason": "Diagnostic actions carry no per-id operations; a mass-noun container names the surface (ADR-0019)."
+    },
+    "experimental": {
+      "placement": "client",
+      "clientName": "Experimental",
+      "reason": "The experimental surface carries no per-id operations; a mass-noun container flags its stability."
+    },
+    "generate": {
+      "placement": "client",
+      "clientName": "Generation",
+      "reason": "The group name is a verb; 'Generates' is not a reviewed .NET name, the mass noun is (ADR-0019)."
+    },
+    "model": {
+      "placement": "client",
+      "clientName": "LanguageModels",
+      "reason": "The Models folder and namespace belong to the generated model layer; LanguageModels names the provider model catalog without shadowing either (ADR-0019 flat)."
+    },
+    "plugin": {
+      "placement": "client",
+      "clientName": "Plugins",
+      "reason": "The family carries no per-id operations; a flat container holds its calls (ADR-0019)."
+    },
+    "project": {
+      "placement": "client",
+      "clientName": "Projects",
+      "reason": "The family carries no per-id operations; a flat container holds its calls (ADR-0019)."
+    },
+    "reference": {
+      "placement": "client",
+      "clientName": "References",
+      "reason": "The family carries no per-id operations; a flat container holds its calls (ADR-0019)."
+    },
+    "skill": {
+      "placement": "client",
+      "clientName": "Skills",
+      "reason": "The family carries no per-id operations; a flat container holds its calls (ADR-0019)."
+    },
+    "vcs": {
+      "placement": "client",
+      "clientName": "Vcs",
+      "reason": "The initialism does not pluralize; the mass-noun container names the domain (ADR-0019)."
     }
   },
   "operationNames": [
@@ -107,6 +157,21 @@
       "operationId": "v2.websearch.query",
       "methodName": "QueryAsync",
       "reason": "The websearch container already names the domain; the mechanical POST prefix is transport detail, not part of the reviewed surface."
+    },
+    {
+      "operationId": "v2.generate.text",
+      "methodName": "GenerateTextAsync",
+      "reason": "The group name is itself the verb; the mechanical POST prefix is transport detail, not part of the reviewed surface."
+    },
+    {
+      "operationId": "v2.debug.location.evict",
+      "methodName": "EvictLocationAsync",
+      "reason": "The operation's own verb is evict; the mechanical DELETE prefix is transport detail, not part of the reviewed surface."
+    },
+    {
+      "operationId": "v2.experimental.integration.wellknown.add",
+      "methodName": "AddIntegrationWellknownAsync",
+      "reason": "The operation's own verb is add; the mechanical POST prefix is transport detail, not part of the reviewed surface."
     }
   ],
   "schemaNames": [

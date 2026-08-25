@@ -11,15 +11,25 @@ public class OpenCodeClient : IDisposable
 {
     private readonly Pipeline? _pipeline;
     private readonly AgentsClient? _agents;
+    private readonly CommandsClient? _commands;
     private readonly CredentialsClient? _credentials;
+    private readonly DebugClient? _debug;
     private readonly EventsClient? _events;
+    private readonly ExperimentalClient? _experimental;
+    private readonly GenerationClient? _generation;
     private readonly IntegrationsClient? _integrations;
+    private readonly LanguageModelsClient? _languageModels;
     private readonly McpServersClient? _mcpServers;
     private readonly PermissionsClient? _permissions;
+    private readonly PluginsClient? _plugins;
+    private readonly ProjectsClient? _projects;
     private readonly ProvidersClient? _providers;
     private readonly PtysClient? _ptys;
+    private readonly ReferencesClient? _references;
     private readonly SessionsClient? _sessions;
     private readonly ShellsClient? _shells;
+    private readonly SkillsClient? _skills;
+    private readonly VcsClient? _vcs;
     private readonly WebsearchClient? _websearch;
     /// <summary>
     /// Initializes a client that owns its connection to the endpoint.
@@ -29,15 +39,25 @@ public class OpenCodeClient : IDisposable
     {
         _pipeline = Pipeline.Create(options);
         _agents = new AgentsClient(_pipeline);
+        _commands = new CommandsClient(_pipeline);
         _credentials = new CredentialsClient(_pipeline);
+        _debug = new DebugClient(_pipeline);
         _events = new EventsClient(_pipeline);
+        _experimental = new ExperimentalClient(_pipeline);
+        _generation = new GenerationClient(_pipeline);
         _integrations = new IntegrationsClient(_pipeline);
+        _languageModels = new LanguageModelsClient(_pipeline);
         _mcpServers = new McpServersClient(_pipeline);
         _permissions = new PermissionsClient(_pipeline);
+        _plugins = new PluginsClient(_pipeline);
+        _projects = new ProjectsClient(_pipeline);
         _providers = new ProvidersClient(_pipeline);
         _ptys = new PtysClient(_pipeline);
+        _references = new ReferencesClient(_pipeline);
         _sessions = new SessionsClient(_pipeline);
         _shells = new ShellsClient(_pipeline);
+        _skills = new SkillsClient(_pipeline);
+        _vcs = new VcsClient(_pipeline);
         _websearch = new WebsearchClient(_pipeline);
     }
 
@@ -50,15 +70,25 @@ public class OpenCodeClient : IDisposable
     {
         _pipeline = Pipeline.Create(httpClient, options);
         _agents = new AgentsClient(_pipeline);
+        _commands = new CommandsClient(_pipeline);
         _credentials = new CredentialsClient(_pipeline);
+        _debug = new DebugClient(_pipeline);
         _events = new EventsClient(_pipeline);
+        _experimental = new ExperimentalClient(_pipeline);
+        _generation = new GenerationClient(_pipeline);
         _integrations = new IntegrationsClient(_pipeline);
+        _languageModels = new LanguageModelsClient(_pipeline);
         _mcpServers = new McpServersClient(_pipeline);
         _permissions = new PermissionsClient(_pipeline);
+        _plugins = new PluginsClient(_pipeline);
+        _projects = new ProjectsClient(_pipeline);
         _providers = new ProvidersClient(_pipeline);
         _ptys = new PtysClient(_pipeline);
+        _references = new ReferencesClient(_pipeline);
         _sessions = new SessionsClient(_pipeline);
         _shells = new ShellsClient(_pipeline);
+        _skills = new SkillsClient(_pipeline);
+        _vcs = new VcsClient(_pipeline);
         _websearch = new WebsearchClient(_pipeline);
     }
 
@@ -95,17 +125,37 @@ public class OpenCodeClient : IDisposable
     /// </summary>
     public virtual AgentsClient Agents => _agents ?? throw MockSeam.CreateError("OpenCodeClient", "Agents");
     /// <summary>
+    /// Gets the &apos;Commands&apos; collection client.
+    /// </summary>
+    public virtual CommandsClient Commands => _commands ?? throw MockSeam.CreateError("OpenCodeClient", "Commands");
+    /// <summary>
     /// Gets the &apos;Credentials&apos; collection client.
     /// </summary>
     public virtual CredentialsClient Credentials => _credentials ?? throw MockSeam.CreateError("OpenCodeClient", "Credentials");
+    /// <summary>
+    /// Gets the &apos;Debug&apos; collection client.
+    /// </summary>
+    public virtual DebugClient Debug => _debug ?? throw MockSeam.CreateError("OpenCodeClient", "Debug");
     /// <summary>
     /// Gets the &apos;Events&apos; collection client.
     /// </summary>
     public virtual EventsClient Events => _events ?? throw MockSeam.CreateError("OpenCodeClient", "Events");
     /// <summary>
+    /// Gets the &apos;Experimental&apos; collection client.
+    /// </summary>
+    public virtual ExperimentalClient Experimental => _experimental ?? throw MockSeam.CreateError("OpenCodeClient", "Experimental");
+    /// <summary>
+    /// Gets the &apos;Generation&apos; collection client.
+    /// </summary>
+    public virtual GenerationClient Generation => _generation ?? throw MockSeam.CreateError("OpenCodeClient", "Generation");
+    /// <summary>
     /// Gets the &apos;Integrations&apos; collection client.
     /// </summary>
     public virtual IntegrationsClient Integrations => _integrations ?? throw MockSeam.CreateError("OpenCodeClient", "Integrations");
+    /// <summary>
+    /// Gets the &apos;LanguageModels&apos; collection client.
+    /// </summary>
+    public virtual LanguageModelsClient LanguageModels => _languageModels ?? throw MockSeam.CreateError("OpenCodeClient", "LanguageModels");
     /// <summary>
     /// Gets the &apos;McpServers&apos; collection client.
     /// </summary>
@@ -115,6 +165,14 @@ public class OpenCodeClient : IDisposable
     /// </summary>
     public virtual PermissionsClient Permissions => _permissions ?? throw MockSeam.CreateError("OpenCodeClient", "Permissions");
     /// <summary>
+    /// Gets the &apos;Plugins&apos; collection client.
+    /// </summary>
+    public virtual PluginsClient Plugins => _plugins ?? throw MockSeam.CreateError("OpenCodeClient", "Plugins");
+    /// <summary>
+    /// Gets the &apos;Projects&apos; collection client.
+    /// </summary>
+    public virtual ProjectsClient Projects => _projects ?? throw MockSeam.CreateError("OpenCodeClient", "Projects");
+    /// <summary>
     /// Gets the &apos;Providers&apos; collection client.
     /// </summary>
     public virtual ProvidersClient Providers => _providers ?? throw MockSeam.CreateError("OpenCodeClient", "Providers");
@@ -123,6 +181,10 @@ public class OpenCodeClient : IDisposable
     /// </summary>
     public virtual PtysClient Ptys => _ptys ?? throw MockSeam.CreateError("OpenCodeClient", "Ptys");
     /// <summary>
+    /// Gets the &apos;References&apos; collection client.
+    /// </summary>
+    public virtual ReferencesClient References => _references ?? throw MockSeam.CreateError("OpenCodeClient", "References");
+    /// <summary>
     /// Gets the &apos;Sessions&apos; collection client.
     /// </summary>
     public virtual SessionsClient Sessions => _sessions ?? throw MockSeam.CreateError("OpenCodeClient", "Sessions");
@@ -130,6 +192,14 @@ public class OpenCodeClient : IDisposable
     /// Gets the &apos;Shells&apos; collection client.
     /// </summary>
     public virtual ShellsClient Shells => _shells ?? throw MockSeam.CreateError("OpenCodeClient", "Shells");
+    /// <summary>
+    /// Gets the &apos;Skills&apos; collection client.
+    /// </summary>
+    public virtual SkillsClient Skills => _skills ?? throw MockSeam.CreateError("OpenCodeClient", "Skills");
+    /// <summary>
+    /// Gets the &apos;Vcs&apos; collection client.
+    /// </summary>
+    public virtual VcsClient Vcs => _vcs ?? throw MockSeam.CreateError("OpenCodeClient", "Vcs");
     /// <summary>
     /// Gets the &apos;Websearch&apos; collection client.
     /// </summary>

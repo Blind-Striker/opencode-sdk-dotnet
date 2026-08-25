@@ -67,6 +67,34 @@ public static class OpenCodeRoutes
     }
 
     /// <summary>
+    /// Defines the &apos;Commands&apos; routes.
+    /// </summary>
+    public static class Commands
+    {
+        /// <summary>
+        /// The &apos;GET /api/command&apos; route template.
+        /// </summary>
+        public const string ListCommandsTemplate = "/api/command";
+        /// <summary>
+        /// Builds the &apos;/api/command&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ListCommands(CommandListRequest? request = null)
+        {
+            var path = "/api/command";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+    }
+
+    /// <summary>
     /// Defines the &apos;Credentials&apos; routes.
     /// </summary>
     public static class Credentials
@@ -131,6 +159,34 @@ public static class OpenCodeRoutes
     }
 
     /// <summary>
+    /// Defines the &apos;Debug&apos; routes.
+    /// </summary>
+    public static class Debug
+    {
+        /// <summary>
+        /// The &apos;DELETE /api/debug/location&apos; route template.
+        /// </summary>
+        public const string EvictLocationTemplate = "/api/debug/location";
+        /// <summary>
+        /// Builds the &apos;/api/debug/location&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string EvictLocation(DebugLocationEvictDeleteRequest? request = null)
+        {
+            var path = "/api/debug/location";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+    }
+
+    /// <summary>
     /// Defines the &apos;Events&apos; routes.
     /// </summary>
     public static class Events
@@ -139,6 +195,62 @@ public static class OpenCodeRoutes
         /// The &apos;GET /api/event&apos; route.
         /// </summary>
         public const string Subscribe = "/api/event";
+    }
+
+    /// <summary>
+    /// Defines the &apos;Experimental&apos; routes.
+    /// </summary>
+    public static class Experimental
+    {
+        /// <summary>
+        /// The &apos;POST /api/experimental/integration/wellknown&apos; route template.
+        /// </summary>
+        public const string AddIntegrationWellknownTemplate = "/api/experimental/integration/wellknown";
+        /// <summary>
+        /// Builds the &apos;/api/experimental/integration/wellknown&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string AddIntegrationWellknown(ExperimentalIntegrationWellknownAddPostRequest? request = null)
+        {
+            var path = "/api/experimental/integration/wellknown";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+    }
+
+    /// <summary>
+    /// Defines the &apos;Generation&apos; routes.
+    /// </summary>
+    public static class Generation
+    {
+        /// <summary>
+        /// The &apos;POST /api/generate&apos; route template.
+        /// </summary>
+        public const string GenerateTextTemplate = "/api/generate";
+        /// <summary>
+        /// Builds the &apos;/api/generate&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GenerateText(GenerateTextPostRequest? request = null)
+        {
+            var path = "/api/generate";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
     }
 
     /// <summary>
@@ -368,6 +480,34 @@ public static class OpenCodeRoutes
     }
 
     /// <summary>
+    /// Defines the &apos;LanguageModels&apos; routes.
+    /// </summary>
+    public static class LanguageModels
+    {
+        /// <summary>
+        /// The &apos;GET /api/model&apos; route template.
+        /// </summary>
+        public const string ListModelsTemplate = "/api/model";
+        /// <summary>
+        /// Builds the &apos;/api/model&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ListModels(ModelListRequest? request = null)
+        {
+            var path = "/api/model";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+    }
+
+    /// <summary>
     /// Defines the &apos;McpServers&apos; routes.
     /// </summary>
     public static class McpServers
@@ -491,6 +631,62 @@ public static class OpenCodeRoutes
             }
 
             return "/api/permission/saved/" + RouteValuePolicy.Escape(id, nameof(id));
+        }
+    }
+
+    /// <summary>
+    /// Defines the &apos;Plugins&apos; routes.
+    /// </summary>
+    public static class Plugins
+    {
+        /// <summary>
+        /// The &apos;GET /api/plugin&apos; route template.
+        /// </summary>
+        public const string ListPluginsTemplate = "/api/plugin";
+        /// <summary>
+        /// Builds the &apos;/api/plugin&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ListPlugins(PluginListRequest? request = null)
+        {
+            var path = "/api/plugin";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+    }
+
+    /// <summary>
+    /// Defines the &apos;Projects&apos; routes.
+    /// </summary>
+    public static class Projects
+    {
+        /// <summary>
+        /// The &apos;GET /api/project/current&apos; route template.
+        /// </summary>
+        public const string GetCurrentTemplate = "/api/project/current";
+        /// <summary>
+        /// Builds the &apos;/api/project/current&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetCurrent(ProjectCurrentRequest? request = null)
+        {
+            var path = "/api/project/current";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
         }
     }
 
@@ -626,6 +822,34 @@ public static class OpenCodeRoutes
             }
 
             var path = "/api/pty/" + RouteValuePolicy.Escape(ptyId, nameof(ptyId));
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+    }
+
+    /// <summary>
+    /// Defines the &apos;References&apos; routes.
+    /// </summary>
+    public static class References
+    {
+        /// <summary>
+        /// The &apos;GET /api/reference&apos; route template.
+        /// </summary>
+        public const string ListReferencesTemplate = "/api/reference";
+        /// <summary>
+        /// Builds the &apos;/api/reference&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ListReferences(ReferenceListRequest? request = null)
+        {
+            var path = "/api/reference";
             if (request is null)
             {
                 return path;
@@ -1379,6 +1603,62 @@ public static class OpenCodeRoutes
             }
 
             var path = "/api/shell/" + RouteValuePolicy.Escape(id, nameof(id)) + "/timeout";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+    }
+
+    /// <summary>
+    /// Defines the &apos;Skills&apos; routes.
+    /// </summary>
+    public static class Skills
+    {
+        /// <summary>
+        /// The &apos;GET /api/skill&apos; route template.
+        /// </summary>
+        public const string ListSkillsTemplate = "/api/skill";
+        /// <summary>
+        /// Builds the &apos;/api/skill&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ListSkills(SkillListRequest? request = null)
+        {
+            var path = "/api/skill";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+    }
+
+    /// <summary>
+    /// Defines the &apos;Vcs&apos; routes.
+    /// </summary>
+    public static class Vcs
+    {
+        /// <summary>
+        /// The &apos;GET /api/vcs&apos; route template.
+        /// </summary>
+        public const string GetVcsTemplate = "/api/vcs";
+        /// <summary>
+        /// Builds the &apos;/api/vcs&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetVcs(VcsRequest? request = null)
+        {
+            var path = "/api/vcs";
             if (request is null)
             {
                 return path;

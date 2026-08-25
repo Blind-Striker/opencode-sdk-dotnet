@@ -1,12 +1,16 @@
 Generation is incomplete; packages must not be published.
-Selected operations: 57
-Pending operations: 63
+Selected operations: 67
+Pending operations: 53
 Selected:
 - v2.agent.get
 - v2.agent.list
+- v2.command.list
 - v2.credential.remove
 - v2.credential.update
+- v2.debug.location.evict
 - v2.event.subscribe
+- v2.experimental.integration.wellknown.add
+- v2.generate.text
 - v2.health.get
 - v2.integration.command.cancel
 - v2.integration.command.connect
@@ -18,13 +22,17 @@ Selected:
 - v2.mcp.remove
 - v2.mcp.resource.catalog
 - v2.message.list
+- v2.model.list
 - v2.permission.request.list
 - v2.permission.saved.remove
+- v2.plugin.list
+- v2.project.current
 - v2.provider.get
 - v2.provider.list
 - v2.pty.create
 - v2.pty.get
 - v2.pty.remove
+- v2.reference.list
 - v2.session.command
 - v2.session.compact
 - v2.session.create
@@ -57,20 +65,18 @@ Selected:
 - v2.shell.list
 - v2.shell.remove
 - v2.shell.timeout
+- v2.skill.list
+- v2.vcs.get
 - v2.websearch.providers
 - v2.websearch.query
 Pending:
-- v2.command.list
 - v2.config.get
-- v2.debug.location.evict
 - v2.debug.location.list
-- v2.experimental.integration.wellknown.add
 - v2.experimental.migration.v1.status
 - v2.form.request.list
 - v2.fs.find
 - v2.fs.list
 - v2.fs.read
-- v2.generate.text
 - v2.health.stop
 - v2.integration.connect.key
 - v2.integration.get
@@ -81,10 +87,7 @@ Pending:
 - v2.mcp.connect
 - v2.mcp.disconnect
 - v2.model.default
-- v2.model.list
 - v2.permission.saved.list
-- v2.plugin.list
-- v2.project.current
 - v2.project.directories
 - v2.project.list
 - v2.projectCopy.create
@@ -95,7 +98,6 @@ Pending:
 - v2.pty.list
 - v2.pty.update
 - v2.question.request.list
-- v2.reference.list
 - v2.server.get
 - v2.session.active
 - v2.session.background
@@ -119,7 +121,5 @@ Pending:
 - v2.session.revert.commit
 - v2.session.wait
 - v2.shell.output
-- v2.skill.list
 - v2.vcs.diff
-- v2.vcs.get
 - v2.vcs.status
