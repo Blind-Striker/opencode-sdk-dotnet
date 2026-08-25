@@ -320,7 +320,7 @@ $ curl http://127.0.0.1:41999/api/health                       → HTTP 401
 $ curl -u opencode:<password> http://127.0.0.1:41999/api/health → HTTP 200
 {"healthy":true,"version":"0.0.0-next-17403","pid":3829434}
 $ curl -u opencode:<password> "http://127.0.0.1:41999/api/session?limit=2"
-{"data":[{"id":"ses_0706…","title":"…","location":{"directory":"/home/deniz/src/…"}}, …]}
+{"data":[{"id":"ses_0706…","title":"…","location":{"directory":"<redacted>"}}, …]}
 ```
 
 Three facts proven live: auth is enforced (401 without credentials); the health response is the

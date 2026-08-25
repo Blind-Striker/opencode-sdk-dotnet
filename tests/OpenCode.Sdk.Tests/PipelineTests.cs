@@ -209,7 +209,7 @@ public sealed class PipelineTests
         using var httpClient = new HttpClient(handler);
         using var pipeline = CreatePipeline(httpClient, location: new LocationSelector
         {
-            Directory = "/home/deniz/işler",
+            Directory = "/workspace/café",
         });
 
         _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None);
@@ -217,7 +217,7 @@ public sealed class PipelineTests
         // Header values above Latin-1 are unsendable, so the escape is what keeps a
         // non-ASCII path on the wire at all.
         await Assert.That(handler.Requests.Single().Headers["x-opencode-directory"])
-            .IsEqualTo("%2Fhome%2Fdeniz%2Fi%C5%9Fler");
+            .IsEqualTo("%2Fworkspace%2Fcaf%C3%A9");
     }
 
     [Test]

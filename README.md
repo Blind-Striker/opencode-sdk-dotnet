@@ -81,12 +81,6 @@ dotnet test --configuration Release --no-build
 
 See [`AGENTS.md`](AGENTS.md) for repository development conventions.
 
-## Collaboration
-
-Issues, design feedback, and contributions are welcome — and collaboration with the
-upstream opencode team is especially welcome if an official or semi-official .NET SDK
-moves forward.
-
 ## License
 
 [MIT](LICENSE) © Deniz İrgin
