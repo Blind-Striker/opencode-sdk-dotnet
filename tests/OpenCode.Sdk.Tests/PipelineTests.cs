@@ -801,26 +801,29 @@ public sealed class PipelineTests
         // type mappings.
         await Assert.That(exception!.InnerException).IsNotNull();
         await Assert.That(callerCancellation.IsCancellationRequested).IsFalse();
-        await content.ReadStarted.WaitAsync(TimeSpan.FromSeconds(1));
-        await content.ReadCompleted.WaitAsync(TimeSpan.FromSeconds(1));
+        await content.ReadStarted.WaitAsync(TimeSpan.FromSeconds(5));
+        await content.ReadCompleted.WaitAsync(TimeSpan.FromSeconds(5));
         await Assert.That(content.IsDisposed).IsTrue();
     }
 
     [Test]
+    [NotInParallel]
     public async Task ExecuteAsync_Should_Keep_A_Trickling_Body_That_Outlives_The_Window()
     {
         var payload = Encoding.UTF8.GetBytes("{\"healthy\":true}");
-        using var content = new TricklingContent(payload, chunkCount: 8, gap: TimeSpan.FromMilliseconds(100));
+        using var content = new TricklingContent(payload, chunkCount: 12, gap: TimeSpan.FromMilliseconds(250));
         using var handler = new RecordingHttpHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = content,
         });
         using var httpClient = new HttpClient(handler);
-        using var pipeline = CreatePipeline(httpClient, networkTimeout: TimeSpan.FromMilliseconds(700));
+        using var pipeline = CreatePipeline(httpClient, networkTimeout: TimeSpan.FromSeconds(2));
         var adapter = new RecordingResponseAdapter();
 
-        // Eight 100ms gaps outlive the 700ms window as a whole, but every read progresses
-        // well inside it: under progress semantics the slow-but-flowing body survives.
+        // Twelve 250ms gaps outlive the 2s window as a whole, but every read progresses well
+        // inside it: under progress semantics the slow-but-flowing body survives. The gaps
+        // sit far under the window and the test runs alone, so a starved two-core CI
+        // runner's scheduling slop cannot push one gap past the window.
         _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", adapter, options: null, CancellationToken.None);
 
         await Assert.That(adapter.AdaptedRawBody).IsEqualTo("{\"healthy\":true}");
@@ -848,8 +851,8 @@ public sealed class PipelineTests
             .Throws<OpenCodeTransportException>();
 
         await Assert.That(callerCancellation.IsCancellationRequested).IsFalse();
-        await content.ReadStarted.WaitAsync(TimeSpan.FromSeconds(1));
-        await content.ReadCompleted.WaitAsync(TimeSpan.FromSeconds(1));
+        await content.ReadStarted.WaitAsync(TimeSpan.FromSeconds(5));
+        await content.ReadCompleted.WaitAsync(TimeSpan.FromSeconds(5));
         await Assert.That(content.IsDisposed).IsTrue();
     }
 
@@ -871,7 +874,7 @@ public sealed class PipelineTests
             new RecordingResponseAdapter(),
             options: null,
             callerCancellation.Token);
-        await content.ReadStarted.WaitAsync(TimeSpan.FromSeconds(1));
+        await content.ReadStarted.WaitAsync(TimeSpan.FromSeconds(5));
         await callerCancellation.CancelAsync();
 
         OperationCanceledException? cancellation = null;
@@ -885,7 +888,7 @@ public sealed class PipelineTests
         }
 
         await Assert.That(cancellation).IsNotNull();
-        await content.ReadCompleted.WaitAsync(TimeSpan.FromSeconds(1));
+        await content.ReadCompleted.WaitAsync(TimeSpan.FromSeconds(5));
         await Assert.That(content.IsDisposed).IsTrue();
     }
 

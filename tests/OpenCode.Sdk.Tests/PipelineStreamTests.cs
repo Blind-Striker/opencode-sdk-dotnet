@@ -131,8 +131,8 @@ public sealed class PipelineStreamTests
 
         await Assert.That(exception!.InnerException).IsNotNull();
         await Assert.That(callerCancellation.IsCancellationRequested).IsFalse();
-        await content.ReadStarted.WaitAsync(TimeSpan.FromSeconds(1));
-        await content.ReadCompleted.WaitAsync(TimeSpan.FromSeconds(1));
+        await content.ReadStarted.WaitAsync(TimeSpan.FromSeconds(5));
+        await content.ReadCompleted.WaitAsync(TimeSpan.FromSeconds(5));
         await Assert.That(content.IsDisposed).IsTrue();
     }
 
