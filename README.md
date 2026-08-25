@@ -13,7 +13,7 @@ transport runtime.
 Active pre-release development; nothing is published to NuGet yet.
 
 The generator and runtime foundations are implemented and exercised against a real
-opencode v2 server. The generation profile currently selects 67 of the 120 operations
+opencode v2 server. The generation profile currently selects 82 of the 120 operations
 in the pinned document and grows in reviewed family batches; packaging stays blocked
 until the generated surface is ready for release.
 
