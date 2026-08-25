@@ -154,4 +154,6 @@ foreach (var message in messages.Messages)
     Console.WriteLine($"         {message.GetType().Name}");
 }
 
+await SessionActionsWalkthrough.RunAsync(handle).ConfigureAwait(false);
+
 return 0;
