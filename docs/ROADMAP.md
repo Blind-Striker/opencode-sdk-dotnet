@@ -401,7 +401,17 @@ is revisited at each milestone boundary.
   families as flat id-argument methods. Whether those families should additionally
   expose a handle-style convenience door through their parent client is parked here
   by the maintainer (2026-08-25): adding it later is additive and non-breaking, so
-  the evaluation waits until the M5 packaging freeze forces the surface review.
+  the evaluation waits until the M5 packaging freeze forces the surface review. The
+  same review carries the Azure `dotnet-subclient-properties` follow-up: handle
+  clients hold their resource id privately today and exposing it as a property is
+  additive.
+- **SDK folder layout review** (maintainer, 2026-08-25) — the family-folder scheme,
+  the generated model layer, and statically owned directories share one folder and
+  namespace plane guarded only by ad-hoc walls: the `Models` family name was refused
+  by the writer's shadow wall (the family became `LanguageModels`), and the stock
+  `[Dd]ebug/` gitignore pattern silently swallowed the Debug family's source until a
+  narrow negation admitted it. Re-examine the generated layout — folder naming,
+  namespace mapping, and the walls that protect them — before the M5 freeze.
 
 ## Known Gaps
 
