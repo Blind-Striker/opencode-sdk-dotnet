@@ -267,12 +267,17 @@ until upstream restores the payload link — research Q139 owns the evidence (su
 stream-channel claim), and the regression is reported with a verified restore path as
 [anomalyco/opencode#44911](https://github.com/anomalyco/opencode/issues/44911). The queue was
 reordered at the M3 boundary (maintainer, 2026-08-25) for the now-public repository: first the
-**emitter allocation batch** on the current base (backlog: research doc 20's ranked table; the
-`FrozenDictionary` and `System.Collections.Immutable` decisions ride it). The agreed records
-infrastructure is in place: the git-ignored `.benchmarks/` store is seeded with the local artifact
-history, and `opencode-tool compare-benchmarks` joins two run folders' full JSON exports on exact
-allocated bytes with an indicative median ratio — replacing the session-scratch extract script and
-reproducing Q138's 72-case arc-milestone comparison from the seeded store. Then **M5 breadth batches pull
+**emitter allocation batch**, now executed on the `a6a712a3` base (research Q140–Q143). The
+records infrastructure is in place — the git-ignored `.benchmarks/` store seeded with the local
+artifact history, driven by `opencode-tool compare-benchmarks` (exact allocation columns plus an
+indicative median ratio, replacing the session-scratch extract script). The batch landed the
+shared empty-request instance, the frozen tag tables with `System.Collections.Immutable`
+conditioned to the downlevel targets (maintainer-sealed), and the net9.0+ alternate span lookup
+that stops materializing known union tags (net10.0 union rows lose exactly their tag strings;
+downlevel keeps the string path — Polyfill's alternate lookup is an O(n) scan). Route/query
+composition measured as an honest negative behind its own permanent rung. Doc 20's D2/D3 had
+already landed inside the runtime arc. **Outstanding batch evidence:** the closing default-job
+comparison against `arc-milestone-default`, which also carries the frozen-table timing verdict. Then **M5 breadth batches pull
 ahead of M4**, grown against the current pin but filtered by Q137/Q139's drift map so
 upstream-removed operation families (the question flow, `projectCopy.*`, `health.stop`,
 `project.directories`) are never selected; the **M4 launcher** rides alongside as a small

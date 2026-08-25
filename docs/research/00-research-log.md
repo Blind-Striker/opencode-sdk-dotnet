@@ -3723,3 +3723,24 @@ directly, no dispatch) and every non-union row moved 0 B, attributing the change
 net472 deltas stay within jitter (largest +416 B against 6.57 MB), the expected unchanged string
 path. Timings remain indicative at this tier; net10.0 ratios lean favorable (0.62–1.15) and the
 verdict rides the batch-closing default-job run.
+
+## Q143: Is route/query composition worth an emitter rework?
+
+**Method:** a new permanent component rung, `RouteCompositionBenchmarks`, isolates composition
+per request shape — the constant route as the composition-free control, the two-parameter path
+route, and the query-bearing list route (limit + order + cursor) — Dry-validated first, then
+`--job short` on both runtimes; artifacts `.benchmarks/route-{dry,short}`.
+
+**Numbers (exact allocation, indicative timing):** constant 0 B at ~0 ns on both runtimes; path
+184 B / 185 B allocating at 77 ns / 589 ns (net10.0 / net472); full query 824 B / 850 B at
+262 ns / 1,006 ns.
+
+**Verdict (doc 20 D1's own gate):** not visible next to materialization. The deep one-shot
+materializes 12,704 B and a medium list page 314 KB, so composition is at most ~1.2% of the
+smallest parameterized call and far below any list-call payload. Honest negative: the D1 fix
+sketches (pre-escaped names, presized or struct builder, `string.Create` routes) stay unacted,
+and the rung stays in the suite as the standing gate for revisiting. This closes research doc
+20's ranked emitter rows: #12 (Q140), #8 (Q141), #3 (Q142), #10 (this entry); D2/D3 (#7/#9) had
+already landed inside the runtime arc's RequestDecorationPolicy and shared JsonMediaType. The
+batch's remaining evidence step is the closing default-job comparison against
+`arc-milestone-default`, which also carries #8's timing verdict.
