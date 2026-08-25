@@ -39,6 +39,11 @@ internal static class WireBodyData
 
     public const string ShellNotFoundError = "{\"_tag\":\"ShellNotFoundError\",\"id\":\"sh_9\",\"message\":\"gone\"}";
 
+    public const string PermissionNotFoundError =
+        "{\"_tag\":\"PermissionNotFoundError\",\"requestID\":\"req_9\",\"message\":\"gone\"}";
+
+    public const string ConflictError = "{\"_tag\":\"ConflictError\",\"message\":\"already delivered\"}";
+
     public const string ResolvedLocation =
         "{\"directory\":\"/repo\",\"project\":{\"id\":\"prj_1\",\"directory\":\"/repo\",\"canonical\":\"/repo\"}}";
 

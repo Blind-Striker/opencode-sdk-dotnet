@@ -71,4 +71,19 @@ public class SessionsClient
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Sessions.ListSessions(request), SessionListResponseAdapter.Instance, requestOptions, cancellationToken);
     }
+
+    /// <summary>
+    /// Import session. Import a projected session transcript at the requested location.
+    /// </summary>
+    /// <param name = "request">The request body.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;SessionImportPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 409) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<SessionImportPostResponse> PostImportAsync(SessionImportPostRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Sessions.PostImport, request, OpenCodeJsonContext.Default.SessionImportPostRequest, SessionImportPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
 }

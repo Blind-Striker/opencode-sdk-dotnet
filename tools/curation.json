@@ -45,6 +45,11 @@
       "reason": "The v2 prefix identifies the selected transport line and is not part of the reviewed .NET domain name."
     },
     {
+      "schema": "op:v2.session.permission.create#/responses/200/content/application~1json/schema/properties/data",
+      "dotnetName": "SessionPermissionCreateData",
+      "reason": "The promoted inline payload inherits its operation-scoped key's v2 prefix; the prefix identifies the selected transport line and is not part of the reviewed .NET domain name."
+    },
+    {
       "schema": "Form.When1",
       "dotnetName": "FormWhen",
       "reason": "The numeric suffix is an upstream spec-gen collision artifact; the unsuffixed schema is not part of this selected surface."

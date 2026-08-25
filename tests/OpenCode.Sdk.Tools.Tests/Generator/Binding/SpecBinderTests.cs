@@ -13,11 +13,19 @@ public sealed class SpecBinderTests
 {
     private static readonly string[] ExpectedErrorTypeNames =
     [
+        "CommandEvaluationError",
+        "CommandNotFoundError",
+        "ConflictError",
         "InvalidCursorError",
         "InvalidRequestError",
         "MessageNotFoundError",
+        "PermissionNotFoundError",
+        "QuestionNotFoundError",
+        "ServiceUnavailableError",
+        "SessionBusyError",
         "SessionNotFoundError",
         "ShellNotFoundError",
+        "SkillNotFoundError",
         "UnauthorizedError",
         "UnknownError",
     ];

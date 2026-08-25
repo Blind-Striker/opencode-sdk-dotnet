@@ -11,11 +11,19 @@ internal sealed class OpenCodeErrorJsonConverter : JsonConverter<IOpenCodeError>
 {
     private static readonly FrozenDictionary<string, Type> TypesByTag = new Dictionary<string, Type>(StringComparer.Ordinal)
     {
+        ["CommandEvaluationError"] = typeof(CommandEvaluationError),
+        ["CommandNotFoundError"] = typeof(CommandNotFoundError),
+        ["ConflictError"] = typeof(ConflictError),
         ["InvalidCursorError"] = typeof(InvalidCursorError),
         ["InvalidRequestError"] = typeof(InvalidRequestError),
         ["MessageNotFoundError"] = typeof(MessageNotFoundError),
+        ["PermissionNotFoundError"] = typeof(PermissionNotFoundError),
+        ["QuestionNotFoundError"] = typeof(QuestionNotFoundError),
+        ["ServiceUnavailableError"] = typeof(ServiceUnavailableError),
+        ["SessionBusyError"] = typeof(SessionBusyError),
         ["SessionNotFoundError"] = typeof(SessionNotFoundError),
         ["ShellNotFoundError"] = typeof(ShellNotFoundError),
+        ["SkillNotFoundError"] = typeof(SkillNotFoundError),
         ["UnauthorizedError"] = typeof(UnauthorizedError),
         ["UnknownError"] = typeof(UnknownError)
     }.ToFrozenDictionary(StringComparer.Ordinal);

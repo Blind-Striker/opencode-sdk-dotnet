@@ -313,6 +313,122 @@ public sealed class SessionClientContractTests
     }
 
     [Test]
+    public async Task PostForkAsync_Should_Send_The_Tagged_Boundary_Variant()
+    {
+        var payload = new FixtureLoader().LoadJson("Serialization.known-session.json");
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(payload));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PostForkAsync(new SessionForkPostRequest
+        {
+            Boundary = new SessionForkRequestBoundaryBefore { MessageId = "msg_1" },
+        });
+
+        await Assert.That(response.Fork.Id).IsEqualTo("ses_100");
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo(HttpMethod.Post);
+        await Assert.That(request.RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/fork"));
+        await Assert.That(request.Body).IsEqualTo("{\"boundary\":{\"type\":\"before\",\"messageID\":\"msg_1\"}}");
+    }
+
+    [Test]
+    public async Task PostCompactAsync_Should_Send_The_Empty_Body_When_Omitted()
+    {
+        var payload = new FixtureLoader().LoadJson("Serialization.known-inbox-compaction.json");
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(payload));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PostCompactAsync();
+
+        await Assert.That(response.Compact.Id).IsEqualTo("inb_1");
+        await Assert.That(response.Compact.Delivery).IsEqualTo(SessionInboxDelivery.Queue);
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo(HttpMethod.Post);
+        await Assert.That(request.ContentType).IsEqualTo("application/json");
+        await Assert.That(request.Body).IsEqualTo("{}");
+    }
+
+    [Test]
+    public async Task GetExportAsync_Should_Compose_The_Sanitize_Query()
+    {
+        var session = new FixtureLoader().LoadJson("Serialization.known-session.json");
+        using var scenario = ContractScenario.Responding(
+            HttpStatusCode.OK,
+            WireBodyData.Envelope($"{{\"info\":{session},\"messages\":[]}}"));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetExportAsync(new SessionExportRequest
+        {
+            Sanitize = QueryBoolean.True,
+        });
+
+        await Assert.That(response.Export.Info.Id).IsEqualTo("ses_100");
+        await Assert.That(response.Export.Messages).IsEmpty();
+        await Assert.That(scenario.Requests.Single().RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/export?sanitize=true"));
+    }
+
+    [Test]
+    public async Task DeleteInboxCancelAsync_Should_Compose_Both_Path_Parameters_On_The_204()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").DeleteInboxCancelAsync("inb_1");
+
+        await Assert.That(response.Status).IsEqualTo(204);
+        await Assert.That(response.IsError).IsFalse();
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo(HttpMethod.Delete);
+        await Assert.That(request.RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/inbox/inb_1"));
+    }
+
+    [Test]
+    public async Task DeleteInboxCancelAsync_Should_Throw_The_Declared_409_Conflict()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Conflict, WireBodyData.ConflictError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").DeleteInboxCancelAsync("inb_1"))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(409);
+        await Assert.That(exception.Error).IsTypeOf<ConflictError>();
+    }
+
+    [Test]
+    public async Task CreatePermissionAsync_Should_Send_The_Typed_Body_And_Return_The_Effect()
+    {
+        var payload = new FixtureLoader().LoadJson("Serialization.known-permission.json");
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(payload));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").CreatePermissionAsync(
+            new SessionPermissionCreateRequest
+            {
+                Action = "read",
+                Resources = ["file:///repo/a.txt"],
+            });
+
+        await Assert.That(response.Permission.Id).IsEqualTo("perm_1");
+        await Assert.That(response.Permission.Effect).IsEqualTo(PermissionEffect.Allow);
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo(HttpMethod.Post);
+        await Assert.That(request.RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/permission"));
+        await Assert.That(request.Body).IsEqualTo("{\"action\":\"read\",\"resources\":[\"file:///repo/a.txt\"]}");
+    }
+
+    [Test]
+    public async Task GetPermissionAsync_Should_Throw_The_Declared_404_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.PermissionNotFoundError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").GetPermissionAsync("req_9"))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(404);
+        await Assert.That(exception.Error).IsTypeOf<PermissionNotFoundError>();
+    }
+
+    [Test]
     public async Task ListMessagesAsync_Should_Throw_The_Declared_404_Error()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.SessionNotFoundError);

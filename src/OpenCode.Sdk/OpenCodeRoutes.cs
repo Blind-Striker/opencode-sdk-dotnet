@@ -37,9 +37,85 @@ public static class OpenCodeRoutes
     public static class Sessions
     {
         /// <summary>
+        /// The &apos;POST /api/session/{sessionID}/permission&apos; route template.
+        /// </summary>
+        public const string CreatePermissionTemplate = "/api/session/{sessionID}/permission";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/permission&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string CreatePermission(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/permission";
+        }
+
+        /// <summary>
         /// The &apos;POST /api/session&apos; route.
         /// </summary>
         public const string CreateSession = "/api/session";
+        /// <summary>
+        /// The &apos;DELETE /api/session/{sessionID}/inbox/{inboxID}&apos; route template.
+        /// </summary>
+        public const string DeleteInboxCancelTemplate = "/api/session/{sessionID}/inbox/{inboxID}";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/inbox/{inboxID}&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <param name = "inboxId">The &apos;inboxID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string DeleteInboxCancel(string sessionId, string inboxId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            ArgumentException.ThrowIfNullOrWhiteSpace(inboxId);
+            if (inboxId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(inboxId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/inbox/" + RouteValuePolicy.Escape(inboxId, nameof(inboxId));
+        }
+
+        /// <summary>
+        /// The &apos;GET /api/session/{sessionID}/export&apos; route template.
+        /// </summary>
+        public const string GetExportTemplate = "/api/session/{sessionID}/export";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/export&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetExport(string sessionId, SessionExportRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            var path = "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/export";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddBoolean("sanitize", request.Sanitize);
+            return path + query.Value;
+        }
+
         /// <summary>
         /// The &apos;GET /api/experimental/session/{sessionID}/log&apos; route template.
         /// </summary>
@@ -95,6 +171,33 @@ public static class OpenCodeRoutes
             }
 
             return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/message/" + RouteValuePolicy.Escape(messageId, nameof(messageId));
+        }
+
+        /// <summary>
+        /// The &apos;GET /api/session/{sessionID}/permission/{requestID}&apos; route template.
+        /// </summary>
+        public const string GetPermissionTemplate = "/api/session/{sessionID}/permission/{requestID}";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/permission/{requestID}&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <param name = "requestId">The &apos;requestID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetPermission(string sessionId, string requestId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            ArgumentException.ThrowIfNullOrWhiteSpace(requestId);
+            if (requestId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(requestId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/permission/" + RouteValuePolicy.Escape(requestId, nameof(requestId));
         }
 
         /// <summary>
@@ -176,6 +279,331 @@ public static class OpenCodeRoutes
             query.AddText("subpath", request.Subpath);
             query.AddText("cursor", request.Cursor);
             return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/session/{sessionID}/command&apos; route template.
+        /// </summary>
+        public const string PostCommandTemplate = "/api/session/{sessionID}/command";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/command&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostCommand(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/command";
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/session/{sessionID}/compact&apos; route template.
+        /// </summary>
+        public const string PostCompactTemplate = "/api/session/{sessionID}/compact";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/compact&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostCompact(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/compact";
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/session/{sessionID}/fork&apos; route template.
+        /// </summary>
+        public const string PostForkTemplate = "/api/session/{sessionID}/fork";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/fork&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostFork(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/fork";
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/session/{sessionID}/generate&apos; route template.
+        /// </summary>
+        public const string PostGenerateTemplate = "/api/session/{sessionID}/generate";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/generate&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostGenerate(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/generate";
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/session/import&apos; route.
+        /// </summary>
+        public const string PostImport = "/api/session/import";
+        /// <summary>
+        /// The &apos;POST /api/session/{sessionID}/move&apos; route template.
+        /// </summary>
+        public const string PostMoveTemplate = "/api/session/{sessionID}/move";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/move&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostMove(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/move";
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/session/{sessionID}/permission/{requestID}/reply&apos; route template.
+        /// </summary>
+        public const string PostPermissionReplyTemplate = "/api/session/{sessionID}/permission/{requestID}/reply";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/permission/{requestID}/reply&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <param name = "requestId">The &apos;requestID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostPermissionReply(string sessionId, string requestId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            ArgumentException.ThrowIfNullOrWhiteSpace(requestId);
+            if (requestId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(requestId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/permission/" + RouteValuePolicy.Escape(requestId, nameof(requestId)) + "/reply";
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/session/{sessionID}/prompt&apos; route template.
+        /// </summary>
+        public const string PostPromptTemplate = "/api/session/{sessionID}/prompt";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/prompt&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostPrompt(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/prompt";
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/session/{sessionID}/question/{requestID}/reply&apos; route template.
+        /// </summary>
+        public const string PostQuestionReplyTemplate = "/api/session/{sessionID}/question/{requestID}/reply";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/question/{requestID}/reply&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <param name = "requestId">The &apos;requestID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostQuestionReply(string sessionId, string requestId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            ArgumentException.ThrowIfNullOrWhiteSpace(requestId);
+            if (requestId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(requestId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/question/" + RouteValuePolicy.Escape(requestId, nameof(requestId)) + "/reply";
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/session/{sessionID}/revert/stage&apos; route template.
+        /// </summary>
+        public const string PostRevertStageTemplate = "/api/session/{sessionID}/revert/stage";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/revert/stage&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostRevertStage(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/revert/stage";
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/session/{sessionID}/shell&apos; route template.
+        /// </summary>
+        public const string PostShellTemplate = "/api/session/{sessionID}/shell";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/shell&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostShell(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/shell";
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/session/{sessionID}/skill&apos; route template.
+        /// </summary>
+        public const string PostSkillTemplate = "/api/session/{sessionID}/skill";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/skill&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostSkill(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/skill";
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/session/{sessionID}/agent&apos; route template.
+        /// </summary>
+        public const string PostSwitchAgentTemplate = "/api/session/{sessionID}/agent";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/agent&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostSwitchAgent(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/agent";
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/session/{sessionID}/model&apos; route template.
+        /// </summary>
+        public const string PostSwitchModelTemplate = "/api/session/{sessionID}/model";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/model&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostSwitchModel(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/model";
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/session/{sessionID}/synthetic&apos; route template.
+        /// </summary>
+        public const string PostSyntheticTemplate = "/api/session/{sessionID}/synthetic";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/synthetic&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostSynthetic(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/synthetic";
+        }
+
+        /// <summary>
+        /// The &apos;DELETE /api/session/{sessionID}/instructions/entries/{key}&apos; route template.
+        /// </summary>
+        public const string RemoveInstructionsEntryTemplate = "/api/session/{sessionID}/instructions/entries/{key}";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/instructions/entries/{key}&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <param name = "key">The &apos;key&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string RemoveInstructionsEntry(string sessionId, string key)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            ArgumentException.ThrowIfNullOrWhiteSpace(key);
+            if (key is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(key));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/instructions/entries/" + RouteValuePolicy.Escape(key, nameof(key));
         }
 
         /// <summary>

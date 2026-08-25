@@ -72,7 +72,7 @@ public sealed class OperationPlanBinderTests
         await Assert
             .That(sessions
                 .Operations.Select(static operation => operation.MethodName)
-                .SequenceEqual(["CreateSessionAsync", "ListSessionsAsync"], StringComparer.Ordinal))
+                .SequenceEqual(["CreateSessionAsync", "ListSessionsAsync", "PostImportAsync"], StringComparer.Ordinal))
             .IsTrue();
         await Assert.That(sessions.HandleFactory!.MethodName).IsEqualTo("GetSessionClient");
         await Assert.That(sessions.HandleFactory.HandleTypeName).IsEqualTo("SessionClient");
@@ -138,6 +138,35 @@ public sealed class OperationPlanBinderTests
         await Assert.That(listShells.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocationList);
     }
 
+    private static readonly string[] ExpectedSessionClientMethodNames =
+    [
+        "CreatePermissionAsync",
+        "DeleteInboxCancelAsync",
+        "GetExportAsync",
+        "GetLogAsync",
+        "GetMessageAsync",
+        "GetPermissionAsync",
+        "GetSessionAsync",
+        "ListMessagesAsync",
+        "PostCommandAsync",
+        "PostCompactAsync",
+        "PostForkAsync",
+        "PostGenerateAsync",
+        "PostMoveAsync",
+        "PostPermissionReplyAsync",
+        "PostPromptAsync",
+        "PostQuestionReplyAsync",
+        "PostRevertStageAsync",
+        "PostShellAsync",
+        "PostSkillAsync",
+        "PostSwitchAgentAsync",
+        "PostSwitchModelAsync",
+        "PostSyntheticAsync",
+        "RemoveInstructionsEntryAsync",
+        "RemoveSessionAsync",
+        "RenameSessionAsync",
+    ];
+
     [Test]
     public async Task Bind_Should_Create_The_Selected_Pinned_Handle_Plans()
     {
@@ -150,9 +179,7 @@ public sealed class OperationPlanBinderTests
         await Assert
             .That(session
                 .Operations.Select(static operation => operation.MethodName)
-                .SequenceEqual(
-                    ["GetLogAsync", "GetMessageAsync", "GetSessionAsync", "ListMessagesAsync", "RemoveSessionAsync", "RenameSessionAsync"],
-                    StringComparer.Ordinal))
+                .SequenceEqual(ExpectedSessionClientMethodNames, StringComparer.Ordinal))
             .IsTrue();
 
         var remove = session.Operations.Single(static operation => operation.MethodName == "RemoveSessionAsync");

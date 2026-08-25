@@ -814,7 +814,7 @@ dotnet_diagnostic.CA1034.severity = none
 # The pinned OpenAPI schemas declare these wire members as plain strings without
 # format: uri. Winner: the sole protocol input's declared type; CA1056's name
 # inference remains enabled for every other property.
-[src/OpenCode.Sdk/Models/{FormExternalField,PromptFileSourceUri,ToolFileContent}.cs]
+[src/OpenCode.Sdk/Models/{FormExternalField,PromptFileSourceUri,PromptInputFileAttachment,ToolFileContent}.cs]
 dotnet_diagnostic.CA1056.severity = none
 
 # The shipped SDK slices by client family with flat public namespaces:
