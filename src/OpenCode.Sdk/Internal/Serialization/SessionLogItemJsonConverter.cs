@@ -58,8 +58,7 @@ internal sealed class SessionLogItemJsonConverter : JsonConverter<ISessionLogIte
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        var marker = DiscriminatorReader.ReadString(ref reader, "type", "SessionLogItem");
-        if (TypesByTag.TryGetValue(marker, out var targetType))
+        if (DiscriminatorReader.TryFindKnown(ref reader, "type", "SessionLogItem", TypesByTag, out var targetType, out var marker))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for SessionLogItem.");
             return JsonSerializer.Deserialize(ref reader, typeInfo) as ISessionLogItem ?? throw new JsonException("The SessionLogItem payload deserialized to null.");

@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
 namespace OpenCode.Sdk.Internal.Serialization;
@@ -5,22 +7,73 @@ namespace OpenCode.Sdk.Internal.Serialization;
 /// <summary>Reads top-level union markers without materializing the known payload as a JSON DOM.</summary>
 internal sealed class UnionDiscriminatorReader
 {
+#if NET9_0_OR_GREATER
+    /// <summary>Bounds the stack copy used for allocation-free dispatch; every declared tag is
+    /// far shorter, so a longer marker is necessarily unknown and may take the string path.</summary>
+    private const int MaxStackMarkerLength = 128;
+#endif
+
     private readonly JsonTokenType _objectToken = JsonTokenType.StartObject;
 
-    public string ReadString(ref Utf8JsonReader reader, string propertyName, string conceptName)
+    /// <summary>
+    /// Dispatches a string marker against the tag table: a known tag returns its mapped value
+    /// without materializing the marker string (on runtimes with alternate span lookup), while
+    /// an unknown tag materializes the marker for the caller's carrier.
+    /// </summary>
+    public bool TryFindKnown<TValue>(
+        ref Utf8JsonReader reader,
+        string propertyName,
+        string conceptName,
+        FrozenDictionary<string, TValue> typesByTag,
+        [MaybeNullWhen(false)] out TValue type,
+        [NotNullWhen(false)] out string? marker)
     {
-        var marker = Find(ref reader, propertyName, conceptName);
-        if (marker.TokenType is not JsonTokenType.String)
+        ArgumentNullException.ThrowIfNull(typesByTag);
+
+        var markerReader = Find(ref reader, propertyName, conceptName);
+        if (markerReader.TokenType is not JsonTokenType.String)
         {
             throw new JsonException($"The '{propertyName}' marker must be a string.");
         }
 
-        if (marker.GetString() is not { } value || string.IsNullOrWhiteSpace(value))
+#if NET9_0_OR_GREATER
+        // UTF-8 bytes never decode to more chars than bytes, so the byte length bounds the copy.
+        var utf8Length = markerReader.HasValueSequence
+            ? checked((int)markerReader.ValueSequence.Length)
+            : markerReader.ValueSpan.Length;
+        if (utf8Length <= MaxStackMarkerLength)
+        {
+            Span<char> buffer = stackalloc char[MaxStackMarkerLength];
+            var span = buffer[..markerReader.CopyString(buffer)];
+            if (span.IsWhiteSpace())
+            {
+                throw new JsonException($"The '{propertyName}' marker must be a non-empty string.");
+            }
+
+            if (typesByTag.GetAlternateLookup<ReadOnlySpan<char>>().TryGetValue(span, out type!))
+            {
+                marker = null;
+                return true;
+            }
+
+            marker = new string(span);
+            return false;
+        }
+#endif
+
+        if (markerReader.GetString() is not { } value || string.IsNullOrWhiteSpace(value))
         {
             throw new JsonException($"The '{propertyName}' marker must be a non-empty string.");
         }
 
-        return value;
+        if (typesByTag.TryGetValue(value, out type!))
+        {
+            marker = null;
+            return true;
+        }
+
+        marker = value;
+        return false;
     }
 
     public bool ReadBoolean(ref Utf8JsonReader reader, string propertyName, string conceptName)

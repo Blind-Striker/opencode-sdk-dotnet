@@ -3696,3 +3696,30 @@ Timing (indicative only at this tier, never quoted as evidence): after/before ra
 leans faster (0.85 net10.0 / 0.98 net472) while several small-payload rows lean slower on both
 runtimes, uncorrelated with dispatch density — short-job noise. The #8 timing verdict rides the
 batch-closing default-job milestone comparison.
+
+## Q142: What did the alternate span-lookup increment land and what did its targeted benchmark show?
+
+**Landed (doc 20 #3):** `UnionDiscriminatorReader.ReadString` is replaced by the generic
+`TryFindKnown`, which finds the marker with the duplicate-marker last-wins semantics unchanged,
+refuses non-string and whitespace markers exactly as before, and on net9.0+ copies the marker
+into a 128-char stack buffer (`CopyString`) and dispatches through
+`FrozenDictionary.GetAlternateLookup<ReadOnlySpan<char>>` — a known tag never materializes its
+string. The unknown path still allocates the marker because the carrier preserves the wire tag,
+and a marker longer than 128 UTF-8 bytes (necessarily unknown to our tables) takes the string
+path. net8.0 and the downlevel targets keep the string-key lookup — the boundary named by Q140's
+Polyfill O(n) finding. String-marker converters now emit one combined
+`if (DiscriminatorReader.TryFindKnown(...))` dispatch; boolean-marker emission is unchanged, and
+the emitter fails loudly if a string marker reaches the old reader path. A new runtime fixture
+pins the >128-byte unknown marker through a generated converter on all four test TFMs
+(net472/net8/net9/net10 — both `#if` branches execute in the suite).
+
+**Targeted short benchmark (Q131 cadence; the same five families, 86 cases, before =
+`frozen-after-short` at `7af1fac`, after = `alternate-after-short`, joined into
+`alternate-comparison.csv`):** the deltas are surgical. net10.0: every union-dispatching row lost
+exactly its tag strings — −49,152 B on the 1,024-frame EventStream and SessionLogStream rows
+(48 B × 1,024 tags), −168,040 B on large-message materialization, −8,440 B on medium, −320 B on
+the deep fixture, −64 B per error-channel read — while `DeserializeConcreteFrames` (typed
+directly, no dispatch) and every non-union row moved 0 B, attributing the change completely.
+net472 deltas stay within jitter (largest +416 B against 6.57 MB), the expected unchanged string
+path. Timings remain indicative at this tier; net10.0 ratios lean favorable (0.62–1.15) and the
+verdict rides the batch-closing default-job run.

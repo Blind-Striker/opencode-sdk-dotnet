@@ -20,8 +20,7 @@ internal sealed class SessionMessageAssistantContentJsonConverter : JsonConverte
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        var marker = DiscriminatorReader.ReadString(ref reader, "type", "SessionMessageAssistantContent");
-        if (TypesByTag.TryGetValue(marker, out var targetType))
+        if (DiscriminatorReader.TryFindKnown(ref reader, "type", "SessionMessageAssistantContent", TypesByTag, out var targetType, out var marker))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for SessionMessageAssistantContent.");
             return JsonSerializer.Deserialize(ref reader, typeInfo) as ISessionMessageAssistantContent ?? throw new JsonException("The SessionMessageAssistantContent payload deserialized to null.");

@@ -27,8 +27,7 @@ internal sealed class SessionMessageInfoJsonConverter : JsonConverter<ISessionMe
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        var marker = DiscriminatorReader.ReadString(ref reader, "type", "SessionMessageInfo");
-        if (TypesByTag.TryGetValue(marker, out var targetType))
+        if (DiscriminatorReader.TryFindKnown(ref reader, "type", "SessionMessageInfo", TypesByTag, out var targetType, out var marker))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for SessionMessageInfo.");
             return JsonSerializer.Deserialize(ref reader, typeInfo) as ISessionMessageInfo ?? throw new JsonException("The SessionMessageInfo payload deserialized to null.");

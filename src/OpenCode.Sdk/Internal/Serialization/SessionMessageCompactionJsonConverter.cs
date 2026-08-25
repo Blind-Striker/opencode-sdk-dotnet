@@ -21,8 +21,7 @@ internal sealed class SessionMessageCompactionJsonConverter : JsonConverter<ISes
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
         DiscriminatorReader.RequireString(ref reader, "type", "compaction", "SessionMessageCompaction");
-        var marker = DiscriminatorReader.ReadString(ref reader, "status", "SessionMessageCompaction");
-        if (TypesByTag.TryGetValue(marker, out var targetType))
+        if (DiscriminatorReader.TryFindKnown(ref reader, "status", "SessionMessageCompaction", TypesByTag, out var targetType, out var marker))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for SessionMessageCompaction.");
             return JsonSerializer.Deserialize(ref reader, typeInfo) as ISessionMessageCompaction ?? throw new JsonException("The SessionMessageCompaction payload deserialized to null.");

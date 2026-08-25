@@ -23,8 +23,7 @@ internal sealed class FormFieldJsonConverter : JsonConverter<IFormField>
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        var marker = DiscriminatorReader.ReadString(ref reader, "type", "FormField");
-        if (TypesByTag.TryGetValue(marker, out var targetType))
+        if (DiscriminatorReader.TryFindKnown(ref reader, "type", "FormField", TypesByTag, out var targetType, out var marker))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for FormField.");
             return JsonSerializer.Deserialize(ref reader, typeInfo) as IFormField ?? throw new JsonException("The FormField payload deserialized to null.");

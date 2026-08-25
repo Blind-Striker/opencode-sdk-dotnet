@@ -57,8 +57,7 @@ internal sealed class SessionEventDurableJsonConverter : JsonConverter<ISessionE
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        var marker = DiscriminatorReader.ReadString(ref reader, "type", "SessionEventDurable");
-        if (TypesByTag.TryGetValue(marker, out var targetType))
+        if (DiscriminatorReader.TryFindKnown(ref reader, "type", "SessionEventDurable", TypesByTag, out var targetType, out var marker))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for SessionEventDurable.");
             return JsonSerializer.Deserialize(ref reader, typeInfo) as ISessionEventDurable ?? throw new JsonException("The SessionEventDurable payload deserialized to null.");

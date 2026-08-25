@@ -19,8 +19,7 @@ internal sealed class ToolContentJsonConverter : JsonConverter<IToolContent>
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        var marker = DiscriminatorReader.ReadString(ref reader, "type", "ToolContent");
-        if (TypesByTag.TryGetValue(marker, out var targetType))
+        if (DiscriminatorReader.TryFindKnown(ref reader, "type", "ToolContent", TypesByTag, out var targetType, out var marker))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for ToolContent.");
             return JsonSerializer.Deserialize(ref reader, typeInfo) as IToolContent ?? throw new JsonException("The ToolContent payload deserialized to null.");

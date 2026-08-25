@@ -19,8 +19,7 @@ internal sealed class PromptFileSourceJsonConverter : JsonConverter<IPromptFileS
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        var marker = DiscriminatorReader.ReadString(ref reader, "type", "PromptFileSource");
-        if (TypesByTag.TryGetValue(marker, out var targetType))
+        if (DiscriminatorReader.TryFindKnown(ref reader, "type", "PromptFileSource", TypesByTag, out var targetType, out var marker))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for PromptFileSource.");
             return JsonSerializer.Deserialize(ref reader, typeInfo) as IPromptFileSource ?? throw new JsonException("The PromptFileSource payload deserialized to null.");

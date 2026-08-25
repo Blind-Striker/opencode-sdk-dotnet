@@ -435,7 +435,13 @@ internal static class UnionEmitter
         statements.AddRange(EmissionSyntax.ArgumentNullGuard("typeToConvert"));
         statements.AddRange(EmissionSyntax.ArgumentNullGuard("options"));
         statements.AddRange(EmitReaderFixedMarkerCheck(union));
-        statements.Add(EmitReaderMarkerRead(union));
+        // String markers dispatch through the reader's combined lookup, which only
+        // materializes the marker string on the unknown path; other kinds read it first.
+        if (union.MarkerKind is not LiteralKind.String)
+        {
+            statements.Add(EmitReaderMarkerRead(union));
+        }
+
         statements.Add(EmitKnownDispatch(union));
         statements.Add(EmitPayloadDocument());
         statements.Add(Local("payload", EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("document"), "RootElement")));
@@ -507,7 +513,8 @@ internal static class UnionEmitter
     {
         var methodName = union.MarkerKind switch
         {
-            LiteralKind.String => "ReadString",
+            LiteralKind.String => throw new InvalidOperationException(
+                $"Union '{union.ConceptName}' uses a string marker, which dispatches through TryFindKnown."),
             LiteralKind.Boolean => "ReadBoolean",
             LiteralKind.Number or _ => throw new InvalidOperationException(
                 $"Union '{union.ConceptName}' uses a number marker, which has no emission consumer."),
@@ -524,6 +531,13 @@ internal static class UnionEmitter
         SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
             SyntaxKind.StringLiteralExpression,
             SyntaxFactory.Literal(value)));
+
+    private static ArgumentSyntax OutVariableArgument(string name) =>
+        SyntaxFactory
+            .Argument(SyntaxFactory.DeclarationExpression(
+                SyntaxFactory.IdentifierName("var"),
+                SyntaxFactory.SingleVariableDesignation(SyntaxFactory.Identifier(name))))
+            .WithRefKindKeyword(SyntaxFactory.Token(SyntaxKind.OutKeyword));
 
     /// <summary>
     /// A nested union's fixed outer tag is structural identity, not dispatch input: a
@@ -679,14 +693,20 @@ internal static class UnionEmitter
 
     private static IfStatementSyntax EmitKnownDispatch(UnionPlan union)
     {
-        var tryGet = EmissionSyntax.Invocation(
-            EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("TypesByTag"), "TryGetValue"),
-            SyntaxFactory.Argument(SyntaxFactory.IdentifierName("marker")),
-            SyntaxFactory
-                .Argument(SyntaxFactory.DeclarationExpression(
-                    SyntaxFactory.IdentifierName("var"),
-                    SyntaxFactory.SingleVariableDesignation(SyntaxFactory.Identifier("targetType"))))
-                .WithRefKindKeyword(SyntaxFactory.Token(SyntaxKind.OutKeyword)));
+        var tryGet = union.MarkerKind is LiteralKind.String
+            ? EmissionSyntax.Invocation(
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("DiscriminatorReader"), "TryFindKnown"),
+                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("reader"))
+                    .WithRefKindKeyword(SyntaxFactory.Token(SyntaxKind.RefKeyword)),
+                RuntimeStringArgument(union.MarkerWireName),
+                RuntimeStringArgument(union.ConceptName),
+                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("TypesByTag")),
+                OutVariableArgument("targetType"),
+                OutVariableArgument("marker"))
+            : EmissionSyntax.Invocation(
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("TypesByTag"), "TryGetValue"),
+                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("marker")),
+                OutVariableArgument("targetType"));
         var getTypeInfo = EmissionSyntax.Invocation(
             EmissionSyntax.MemberAccess(
                 EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("OpenCodeJsonContext"), "Default"),

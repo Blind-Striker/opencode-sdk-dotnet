@@ -24,8 +24,7 @@ internal sealed class OpenCodeErrorJsonConverter : JsonConverter<IOpenCodeError>
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        var marker = DiscriminatorReader.ReadString(ref reader, "_tag", "OpenCodeError");
-        if (TypesByTag.TryGetValue(marker, out var targetType))
+        if (DiscriminatorReader.TryFindKnown(ref reader, "_tag", "OpenCodeError", TypesByTag, out var targetType, out var marker))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for OpenCodeError.");
             return JsonSerializer.Deserialize(ref reader, typeInfo) as IOpenCodeError ?? throw new JsonException("The OpenCodeError payload deserialized to null.");

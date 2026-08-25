@@ -19,8 +19,7 @@ internal sealed class SessionForkBoundaryJsonConverter : JsonConverter<ISessionF
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        var marker = DiscriminatorReader.ReadString(ref reader, "type", "SessionForkBoundary");
-        if (TypesByTag.TryGetValue(marker, out var targetType))
+        if (DiscriminatorReader.TryFindKnown(ref reader, "type", "SessionForkBoundary", TypesByTag, out var targetType, out var marker))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for SessionForkBoundary.");
             return JsonSerializer.Deserialize(ref reader, typeInfo) as ISessionForkBoundary ?? throw new JsonException("The SessionForkBoundary payload deserialized to null.");

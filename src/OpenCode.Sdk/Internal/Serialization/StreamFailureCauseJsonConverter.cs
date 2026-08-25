@@ -20,8 +20,7 @@ internal sealed class StreamFailureCauseJsonConverter : JsonConverter<IStreamFai
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        var marker = DiscriminatorReader.ReadString(ref reader, "_tag", "StreamFailureCause");
-        if (TypesByTag.TryGetValue(marker, out var targetType))
+        if (DiscriminatorReader.TryFindKnown(ref reader, "_tag", "StreamFailureCause", TypesByTag, out var targetType, out var marker))
         {
             if (targetType is null)
             {

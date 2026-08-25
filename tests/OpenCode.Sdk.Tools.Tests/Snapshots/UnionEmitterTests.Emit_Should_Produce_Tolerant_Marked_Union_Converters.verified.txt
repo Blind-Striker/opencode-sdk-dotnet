@@ -85,8 +85,7 @@ internal sealed class ExampleEventJsonConverter : JsonConverter<IExampleEvent>
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        var marker = DiscriminatorReader.ReadString(ref reader, "type", "ExampleEvent");
-        if (TypesByTag.TryGetValue(marker, out var targetType))
+        if (DiscriminatorReader.TryFindKnown(ref reader, "type", "ExampleEvent", TypesByTag, out var targetType, out var marker))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for ExampleEvent.");
             return JsonSerializer.Deserialize(ref reader, typeInfo) as IExampleEvent ?? throw new JsonException("The ExampleEvent payload deserialized to null.");
@@ -245,8 +244,7 @@ internal sealed class ExamplePhaseJsonConverter : JsonConverter<IExamplePhase>
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
         DiscriminatorReader.RequireString(ref reader, "type", "phase", "ExamplePhase");
-        var marker = DiscriminatorReader.ReadString(ref reader, "status", "ExamplePhase");
-        if (TypesByTag.TryGetValue(marker, out var targetType))
+        if (DiscriminatorReader.TryFindKnown(ref reader, "status", "ExamplePhase", TypesByTag, out var targetType, out var marker))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for ExamplePhase.");
             return JsonSerializer.Deserialize(ref reader, typeInfo) as IExamplePhase ?? throw new JsonException("The ExamplePhase payload deserialized to null.");

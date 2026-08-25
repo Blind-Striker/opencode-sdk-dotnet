@@ -52,6 +52,17 @@ public sealed class OpenCodeJsonContextTests
     }
 
     [Test]
+    public async Task Deserialize_Should_Carry_An_Unknown_Marker_Longer_Than_The_Stack_Copy_Bound()
+    {
+        var json = _fixtures.LoadJson("Serialization.long-unknown-session-message-marker.json");
+
+        var result = _serializer.Deserialize<ISessionMessageInfo>(json);
+
+        await Assert.That(result).IsTypeOf<UnknownSessionMessageInfo>();
+        await Assert.That(((UnknownSessionMessageInfo)result).Type).IsEqualTo("future-" + new string('x', 140));
+    }
+
+    [Test]
     public async Task DeserializeAsyncEnumerable_Should_Dispatch_Unions_From_A_Partial_Reader()
     {
         var json = _fixtures.LoadJson("Serialization.stream-session-messages.json");
