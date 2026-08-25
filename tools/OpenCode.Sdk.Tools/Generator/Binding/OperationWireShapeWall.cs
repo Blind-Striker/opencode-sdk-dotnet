@@ -19,7 +19,8 @@ internal sealed class OperationWireShapeWall(OperationFacetContext context)
         var isPost = string.Equals(operation.Method, "post", StringComparison.Ordinal);
         var isDelete = string.Equals(operation.Method, "delete", StringComparison.Ordinal);
         var isPatch = string.Equals(operation.Method, "patch", StringComparison.Ordinal);
-        if (!isGet && !isPost && !isDelete && !isPatch)
+        var isPut = string.Equals(operation.Method, "put", StringComparison.Ordinal);
+        if (!isGet && !isPost && !isDelete && !isPatch && !isPut)
         {
             _context.Refuse($"HTTP method '{operation.Method}' is not supported");
         }
@@ -39,7 +40,9 @@ internal sealed class OperationWireShapeWall(OperationFacetContext context)
             _context.Refuse($"{operation.Method.ToUpperInvariant()} operations must not carry a request body");
         }
 
-        if ((isPost || isPatch) && operation.RequestBody is null)
+        // The pin demonstrates bodyless POST across twelve operations, so POST admits both
+        // shapes; PATCH and PUT keep the body requirement until the pin shows otherwise.
+        if ((isPatch || isPut) && operation.RequestBody is null)
         {
             _context.Refuse($"{operation.Method.ToUpperInvariant()} operations must carry a request body");
         }

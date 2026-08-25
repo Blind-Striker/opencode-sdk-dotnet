@@ -42,4 +42,20 @@ public sealed class PtysClientContractTests
         await Assert.That(scenario.Requests.Single().RequestUri)
             .IsEqualTo(new Uri("http://localhost:4096/api/pty/pty_9"));
     }
+
+    [Test]
+    public async Task PutUpdateAsync_Should_Send_The_Empty_Body_When_Omitted()
+    {
+        var payload = new FixtureLoader().LoadJson("Serialization.known-pty.json");
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.LocationEnvelope(payload));
+
+        var response = await scenario.Client.Ptys.GetPtyClient("pty_100").PutUpdateAsync();
+
+        await Assert.That(response.Update.Id).IsEqualTo("pty_100");
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo(HttpMethod.Put);
+        await Assert.That(request.RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/pty/pty_100"));
+        await Assert.That(request.ContentType).IsEqualTo("application/json");
+        await Assert.That(request.Body).IsEqualTo("{}");
+    }
 }

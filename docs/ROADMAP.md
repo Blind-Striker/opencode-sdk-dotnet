@@ -288,15 +288,17 @@ singleton decisions). The doc 18 gate is decided on that probe (maintainer, 2026
 single `ReservedNamePolicy` is landed with its reflection coverage tests, B1's facet binders
 are landed ahead of the first mechanism batch, and B3/B4 stay sequenced behind B1. **The A-series is
 complete**: all 52 routine operations landed in four family batches with contract tests,
-Extensions roster growth, and additive-only PublicApi reviews; the profile stands at **67
-selected / 53 pending** across twenty-one client families. ADR-0019 owns handle placement
+Extensions roster growth, and additive-only PublicApi reviews, taking the profile to 67
+selected / 53 pending across twenty-one client families. ADR-0019 owns handle placement
 (working objects keep handles; single-action families take the id as an argument), and every
 group curation row now carries a mandatory reason. The committed sandbox's session-actions
 walkthrough ran live against the pinned server: fork's request-side union accepted on the
 wire, NoThrow carrying a typed 404, and the permission ask → get → reply lifecycle proven end
-to end with a configured agent (research Q145). The **mechanism batches** are next —
-bodyless POST + PUT first (15 operations), then inline promotion, envelope extensions, and the
-query walls, each design-first — and the **M4 launcher** rides alongside as a small
+to end with a configured agent (research Q145). **The B-1 mechanism batch is
+complete** (research Q146): the wire-shape wall admits bodyless POST and body-carrying PUT,
+and its fifteen operations are landed — the profile stands at **82 selected / 38 pending**.
+The remaining mechanism batches follow — inline promotion, envelope extensions, and the query
+walls, each design-first — and the **M4 launcher** rides alongside as a small
 independent arc (1–2 page plan, approval before source). An **early prerelease packaging track**
 accompanies the breadth push: amend the deliberate partial-operation packing wall in
 `Directory.Build.targets` so prerelease packs are allowed while stable packs stay blocked

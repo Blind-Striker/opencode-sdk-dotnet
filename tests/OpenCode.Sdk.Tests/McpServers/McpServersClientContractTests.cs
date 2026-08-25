@@ -37,4 +37,37 @@ public sealed class McpServersClientContractTests
         await Assert.That(request.Method).IsEqualTo(HttpMethod.Delete);
         await Assert.That(request.RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/mcp/docs"));
     }
+
+    [Test]
+    public async Task PostConnectAsync_Should_Send_A_Bodiless_Post()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
+
+        var response = await scenario.Client.McpServers.GetMcpServerClient("docs").PostConnectAsync();
+
+        await Assert.That(response.Status).IsEqualTo(204);
+        await Assert.That(response.IsError).IsFalse();
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo(HttpMethod.Post);
+        await Assert.That(request.RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/mcp/docs/connect"));
+        await Assert.That(request.Body).IsNull();
+        await Assert.That(request.ContentType).IsNull();
+    }
+
+    [Test]
+    public async Task PutAddAsync_Should_Send_The_Typed_Config_On_The_Put()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
+
+        var response = await scenario.Client.McpServers.GetMcpServerClient("docs").PutAddAsync(new McpAddPutRequest
+        {
+            Config = new McpLocalConfig { Command = ["docs-server"] },
+        });
+
+        await Assert.That(response.Status).IsEqualTo(204);
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo(HttpMethod.Put);
+        await Assert.That(request.RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/mcp/docs"));
+        await Assert.That(request.Body).IsEqualTo("{\"config\":{\"type\":\"local\",\"command\":[\"docs-server\"]}}");
+    }
 }

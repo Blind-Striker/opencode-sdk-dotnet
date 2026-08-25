@@ -227,20 +227,30 @@ public sealed class OperationPlanBinderTests
         "GetPermissionAsync",
         "GetSessionAsync",
         "ListMessagesAsync",
+        "PostBackgroundAsync",
         "PostCommandAsync",
         "PostCompactAsync",
         "PostForkAsync",
+        "PostFormCancelAsync",
         "PostGenerateAsync",
+        "PostInboxQueueAsync",
+        "PostInboxSteerAsync",
+        "PostInterruptAsync",
         "PostMoveAsync",
         "PostPermissionReplyAsync",
         "PostPromptAsync",
+        "PostQuestionRejectAsync",
         "PostQuestionReplyAsync",
+        "PostRevertClearAsync",
+        "PostRevertCommitAsync",
         "PostRevertStageAsync",
         "PostShellAsync",
         "PostSkillAsync",
         "PostSwitchAgentAsync",
         "PostSwitchModelAsync",
         "PostSyntheticAsync",
+        "PostWaitAsync",
+        "PutInstructionsEntryAsync",
         "RemoveInstructionsEntryAsync",
         "RemoveSessionAsync",
         "RenameSessionAsync",
@@ -509,29 +519,42 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Refuse_An_Unsupported_Http_Method()
+    public async Task Bind_Should_Bind_A_Bodyless_Post_Operation()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
-            .WithSchema("ItemInfo", schema => schema
+            .WithSchema("WidgetInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.health.reset", method: "put", path: "/api/health-reset", configure: operation => operation
-                .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
+            .WithOperation("v2.widget.create", method: "post", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
 
-        await AssertOperationRefusalAsync(document, "v2.health.reset", "HTTP method");
+        var plan = BindWidgets(document, "v2.widget.create");
+
+        var create = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(create.HttpMethod).IsEqualTo("post");
+        await Assert.That(create.RequestBody).IsNull();
+        await Assert.That(create.Envelope).IsNotNull();
     }
 
     [Test]
-    public async Task Bind_Should_Refuse_A_Post_Without_A_Request_Body()
+    public async Task Bind_Should_Bind_A_Put_Operation_With_A_Request_Body()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
-            .WithSchema("ItemInfo", schema => schema
+            .WithSchema("WidgetInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.health.reset", method: "post", path: "/api/health-reset", configure: operation => operation
-                .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
+            .WithOperation("v2.widget.update", method: "put", path: "/api/widget", configure: operation => operation
+                .RequestBody("application/json", schema => schema
+                    .Type("object")
+                    .Property("title", property => property.Type("string"), required: true), required: true)
+                .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
 
-        await AssertOperationRefusalAsync(document, "v2.health.reset", "must carry a request body");
+        var plan = BindWidgets(document, "v2.widget.update");
+
+        var update = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(update.HttpMethod).IsEqualTo("put");
+        await Assert.That(update.RequestBody).IsNotNull();
+        await Assert.That(update.RequestBody!.TypeName).IsEqualTo("WidgetUpdatePutRequest");
     }
 
     [Test]
@@ -1291,6 +1314,19 @@ public sealed class OperationPlanBinderTests
                 .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
 
         await AssertWidgetRefusalAsync(document, "must carry a request body", "v2.widget.timeout");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Put_Operation_Without_A_Request_Body()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.update", method: "put", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
+
+        await AssertWidgetRefusalAsync(document, "must carry a request body", "v2.widget.update");
     }
 
     [Test]

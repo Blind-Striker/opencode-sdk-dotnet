@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using OpenCode.Sdk.Models;
 using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
@@ -391,6 +392,81 @@ public sealed class SessionClientContractTests
 
         await Assert.That(exception!.Status).IsEqualTo(409);
         await Assert.That(exception.Error).IsTypeOf<ConflictError>();
+    }
+
+    [Test]
+    public async Task PostInterruptAsync_Should_Send_A_Bodiless_Post()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PostInterruptAsync();
+
+        await Assert.That(response.Status).IsEqualTo(204);
+        await Assert.That(response.IsError).IsFalse();
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo(HttpMethod.Post);
+        await Assert.That(request.RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/interrupt"));
+        await Assert.That(request.Body).IsNull();
+        await Assert.That(request.ContentType).IsNull();
+    }
+
+    [Test]
+    public async Task PostFormCancelAsync_Should_Throw_The_Declared_409_Error()
+    {
+        using var scenario = ContractScenario.Responding(
+            HttpStatusCode.Conflict,
+            "{\"_tag\":\"FormAlreadySettledError\",\"id\":\"frm_1\",\"message\":\"settled\"}");
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").PostFormCancelAsync("frm_1"))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(409);
+        await Assert.That(exception.Error).IsTypeOf<FormAlreadySettledError>();
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo(HttpMethod.Post);
+        await Assert.That(request.RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/form/frm_1/cancel"));
+        await Assert.That(request.Body).IsNull();
+    }
+
+    [Test]
+    public async Task PutInstructionsEntryAsync_Should_Send_The_Typed_Body_On_The_Put()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
+        using var value = JsonDocument.Parse("\"be terse\"");
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PutInstructionsEntryAsync(
+            "style",
+            new SessionInstructionsEntryPutRequest { Value = value.RootElement });
+
+        await Assert.That(response.Status).IsEqualTo(204);
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo(HttpMethod.Put);
+        await Assert.That(request.RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/instructions/entries/style"));
+        await Assert.That(request.Body).IsEqualTo("{\"value\":\"be terse\"}");
+    }
+
+    [Test]
+    public async Task PutInstructionsEntryAsync_Should_Throw_The_Declared_413_Error()
+    {
+        using var scenario = ContractScenario.Responding(
+            HttpStatusCode.RequestEntityTooLarge,
+            "{\"_tag\":\"InstructionEntryValueTooLargeError\",\"actualBytes\":2048,\"maxBytes\":1024,\"message\":\"too large\"}");
+        using var value = JsonDocument.Parse("\"be terse\"");
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").PutInstructionsEntryAsync(
+                "style",
+                new SessionInstructionsEntryPutRequest { Value = value.RootElement }))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(413);
+        var error = (InstructionEntryValueTooLargeError)exception.Error!;
+        await Assert.That(error.ActualBytes).IsEqualTo(2048);
+        await Assert.That(error.MaxBytes).IsEqualTo(1024);
     }
 
     [Test]

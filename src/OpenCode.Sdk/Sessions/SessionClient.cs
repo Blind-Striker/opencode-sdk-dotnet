@@ -168,6 +168,19 @@ public class SessionClient
     }
 
     /// <summary>
+    /// Background blocking session tools. Move active foreground backgroundable tools for this session into background observation. Idle requests are a no-op.
+    /// </summary>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;SessionBackgroundPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<SessionBackgroundPostResponse> PostBackgroundAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Sessions.PostBackground(SessionId), SessionBackgroundPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
     /// Run command. Resolve a slash command into prompt input, admit it durably, and schedule execution unless resume is false.
     /// </summary>
     /// <param name = "request">The request body.</param>
@@ -212,6 +225,21 @@ public class SessionClient
     }
 
     /// <summary>
+    /// Cancel form. Cancel a pending form.
+    /// </summary>
+    /// <param name = "formId">The &apos;formID&apos; route value.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;SessionFormCancelPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 409) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<SessionFormCancelPostResponse> PostFormCancelAsync(string formId, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(formId);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Sessions.PostFormCancel(SessionId, formId), SessionFormCancelPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
     /// Generate text from session context. Generate transient text from the current session context without mutating session history.
     /// </summary>
     /// <param name = "request">The request body.</param>
@@ -224,6 +252,50 @@ public class SessionClient
     {
         ArgumentNullException.ThrowIfNull(request);
         return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Sessions.PostGenerate(SessionId), request, OpenCodeJsonContext.Default.SessionGeneratePostRequest, SessionGeneratePostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Queue steered item. Change a steered inbox item to queued delivery.
+    /// </summary>
+    /// <param name = "inboxId">The &apos;inboxID&apos; route value.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;SessionInboxQueuePostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 409) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<SessionInboxQueuePostResponse> PostInboxQueueAsync(string inboxId, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(inboxId);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Sessions.PostInboxQueue(SessionId, inboxId), SessionInboxQueuePostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Steer queued item. Change a queued inbox item to steer delivery and wake session execution.
+    /// </summary>
+    /// <param name = "inboxId">The &apos;inboxID&apos; route value.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;SessionInboxSteerPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 409) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<SessionInboxSteerPostResponse> PostInboxSteerAsync(string inboxId, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(inboxId);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Sessions.PostInboxSteer(SessionId, inboxId), SessionInboxSteerPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Interrupt session execution. Interrupt active execution owned by this OpenCode process. Idle interruption is a no-op. When continue=true, execution resumes if durable inbox work remains after interruption.
+    /// </summary>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;SessionInterruptPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<SessionInterruptPostResponse> PostInterruptAsync(SessionInterruptPostRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Sessions.PostInterrupt(SessionId, request), SessionInterruptPostResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 
     /// <summary>
@@ -274,6 +346,21 @@ public class SessionClient
     }
 
     /// <summary>
+    /// Reject pending question request. Reject a pending question request owned by a session.
+    /// </summary>
+    /// <param name = "requestId">The &apos;requestID&apos; route value.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;SessionQuestionRejectPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<SessionQuestionRejectPostResponse> PostQuestionRejectAsync(string requestId, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(requestId);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Sessions.PostQuestionReject(SessionId, requestId), SessionQuestionRejectPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
     /// Reply to pending question request. Answer a pending question request owned by a session.
     /// </summary>
     /// <param name = "requestId">The &apos;requestID&apos; route value.</param>
@@ -288,6 +375,32 @@ public class SessionClient
         ArgumentException.ThrowIfNullOrEmpty(requestId);
         ArgumentNullException.ThrowIfNull(request);
         return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Sessions.PostQuestionReply(SessionId, requestId), request, OpenCodeJsonContext.Default.SessionQuestionReplyPostRequest, SessionQuestionReplyPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Clear staged revert
+    /// </summary>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;SessionRevertClearPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 409, 500) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<SessionRevertClearPostResponse> PostRevertClearAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Sessions.PostRevertClear(SessionId), SessionRevertClearPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Commit staged revert
+    /// </summary>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;SessionRevertCommitPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 409) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<SessionRevertCommitPostResponse> PostRevertCommitAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Sessions.PostRevertCommit(SessionId), SessionRevertCommitPostResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 
     /// <summary>
@@ -378,6 +491,36 @@ public class SessionClient
     {
         ArgumentNullException.ThrowIfNull(request);
         return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Sessions.PostSynthetic(SessionId), request, OpenCodeJsonContext.Default.SessionSyntheticPostRequest, SessionSyntheticPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Wait for session. Wait for a session agent loop to become idle.
+    /// </summary>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;SessionWaitPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 503) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<SessionWaitPostResponse> PostWaitAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Sessions.PostWait(SessionId), SessionWaitPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Put instruction entry. Attach or replace one durable instruction entry. Changes announce as updates at the next step boundary.
+    /// </summary>
+    /// <param name = "key">The &apos;key&apos; route value.</param>
+    /// <param name = "request">The request body.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;SessionInstructionsEntryPutResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 413) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<SessionInstructionsEntryPutResponse> PutInstructionsEntryAsync(string key, SessionInstructionsEntryPutRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(key);
+        ArgumentNullException.ThrowIfNull(request);
+        return Pipeline.ExecuteAsync(HttpMethod.Put, OpenCodeRoutes.Sessions.PutInstructionsEntry(SessionId, key), request, OpenCodeJsonContext.Default.SessionInstructionsEntryPutRequest, SessionInstructionsEntryPutResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 
     /// <summary>

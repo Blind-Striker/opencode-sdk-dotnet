@@ -1,6 +1,6 @@
 Generation is incomplete; packages must not be published.
-Selected operations: 67
-Pending operations: 53
+Selected operations: 82
+Pending operations: 38
 Selected:
 - v2.agent.get
 - v2.agent.list
@@ -18,6 +18,9 @@ Selected:
 - v2.integration.oauth.cancel
 - v2.integration.oauth.complete
 - v2.integration.oauth.status
+- v2.mcp.add
+- v2.mcp.connect
+- v2.mcp.disconnect
 - v2.mcp.list
 - v2.mcp.remove
 - v2.mcp.resource.catalog
@@ -29,20 +32,28 @@ Selected:
 - v2.project.current
 - v2.provider.get
 - v2.provider.list
+- v2.pty.connect.token
 - v2.pty.create
 - v2.pty.get
 - v2.pty.remove
+- v2.pty.update
 - v2.reference.list
+- v2.session.background
 - v2.session.command
 - v2.session.compact
 - v2.session.create
 - v2.session.export
 - v2.session.fork
+- v2.session.form.cancel
 - v2.session.generate
 - v2.session.get
 - v2.session.import
 - v2.session.inbox.cancel
+- v2.session.inbox.queue
+- v2.session.inbox.steer
+- v2.session.instructions.entry.put
 - v2.session.instructions.entry.remove
+- v2.session.interrupt
 - v2.session.list
 - v2.session.log
 - v2.session.message
@@ -51,15 +62,19 @@ Selected:
 - v2.session.permission.get
 - v2.session.permission.reply
 - v2.session.prompt
+- v2.session.question.reject
 - v2.session.question.reply
 - v2.session.remove
 - v2.session.rename
+- v2.session.revert.clear
+- v2.session.revert.commit
 - v2.session.revert.stage
 - v2.session.shell
 - v2.session.skill
 - v2.session.switchAgent
 - v2.session.switchModel
 - v2.session.synthetic
+- v2.session.wait
 - v2.shell.create
 - v2.shell.get
 - v2.shell.list
@@ -83,9 +98,6 @@ Pending:
 - v2.integration.list
 - v2.integration.oauth.connect
 - v2.location.get
-- v2.mcp.add
-- v2.mcp.connect
-- v2.mcp.disconnect
 - v2.model.default
 - v2.permission.saved.list
 - v2.project.directories
@@ -94,32 +106,20 @@ Pending:
 - v2.projectCopy.refresh
 - v2.projectCopy.remove
 - v2.pty.connect
-- v2.pty.connect.token
 - v2.pty.list
-- v2.pty.update
 - v2.question.request.list
 - v2.server.get
 - v2.session.active
-- v2.session.background
 - v2.session.context
-- v2.session.form.cancel
 - v2.session.form.create
 - v2.session.form.get
 - v2.session.form.list
 - v2.session.form.reply
 - v2.session.form.state
 - v2.session.inbox.list
-- v2.session.inbox.queue
-- v2.session.inbox.steer
 - v2.session.instructions.entry.list
-- v2.session.instructions.entry.put
-- v2.session.interrupt
 - v2.session.permission.list
 - v2.session.question.list
-- v2.session.question.reject
-- v2.session.revert.clear
-- v2.session.revert.commit
-- v2.session.wait
 - v2.shell.output
 - v2.vcs.diff
 - v2.vcs.status

@@ -2,6 +2,8 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Internal.ResponseAdapters;
+using OpenCode.Sdk.Internal.Serialization;
+using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk;
 /// <summary>
@@ -9,6 +11,7 @@ namespace OpenCode.Sdk;
 /// </summary>
 public class PtyClient
 {
+    private static readonly PtyUpdatePutRequest EmptyPtyUpdatePutRequest = new();
     private readonly Pipeline? _pipeline;
     private readonly string? _ptyId;
     internal PtyClient(Pipeline pipeline, string ptyId)
@@ -46,6 +49,34 @@ public class PtyClient
     public virtual Task<PtyResponse> GetPtyAsync(PtyRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Ptys.GetPty(PtyId, request), PtyResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Create PTY WebSocket token. Create a short-lived single-use ticket for opening a PTY WebSocket connection.
+    /// </summary>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;PtyConnectTokenPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 403, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<PtyConnectTokenPostResponse> PostConnectTokenAsync(PtyConnectTokenPostRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Ptys.PostConnectToken(PtyId, request), PtyConnectTokenPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Update PTY session. Update the title or viewport size of one PTY session.
+    /// </summary>
+    /// <param name = "request">The request body; an empty body is sent when omitted.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;PtyUpdatePutResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<PtyUpdatePutResponse> PutUpdateAsync(PtyUpdatePutRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Put, OpenCodeRoutes.Ptys.PutUpdate(PtyId, request), request ?? EmptyPtyUpdatePutRequest, OpenCodeJsonContext.Default.PtyUpdatePutRequest, PtyUpdatePutResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 
     /// <summary>

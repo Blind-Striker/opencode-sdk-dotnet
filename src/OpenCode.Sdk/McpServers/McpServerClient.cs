@@ -2,6 +2,8 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Internal.ResponseAdapters;
+using OpenCode.Sdk.Internal.Serialization;
+using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk;
 /// <summary>
@@ -33,6 +35,49 @@ public class McpServerClient
 
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("McpServerClient", "Pipeline");
     private string Server => _server ?? throw MockSeam.CreateError("McpServerClient", "Server");
+
+    /// <summary>
+    /// Connect MCP server. Connect an MCP server at runtime, overriding a disabled configuration until restart.
+    /// </summary>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;McpConnectPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<McpConnectPostResponse> PostConnectAsync(McpConnectPostRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.McpServers.PostConnect(Server, request), McpConnectPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Disconnect MCP server. Disconnect an MCP server at runtime, removing its tools until reconnected.
+    /// </summary>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;McpDisconnectPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<McpDisconnectPostResponse> PostDisconnectAsync(McpDisconnectPostRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.McpServers.PostDisconnect(Server, request), McpDisconnectPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Add MCP server. Add an MCP server at runtime or replace an existing one, connecting it immediately.
+    /// </summary>
+    /// <param name = "request">The request body.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;McpAddPutResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<McpAddPutResponse> PutAddAsync(McpAddPutRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return Pipeline.ExecuteAsync(HttpMethod.Put, OpenCodeRoutes.McpServers.PutAdd(Server, request), request, OpenCodeJsonContext.Default.McpAddPutRequest, McpAddPutResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
 
     /// <summary>
     /// Remove MCP server. Stop an MCP server and remove it from the runtime set until restart.
