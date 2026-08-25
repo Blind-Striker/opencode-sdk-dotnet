@@ -265,13 +265,22 @@ CI-hardening commit `9da0ae3` has no three-OS verdict yet — verify when billin
 has lost its SSE payload schemas to the effect beta.107 regen, so the pin stays at `a6a712a3`
 until upstream restores the payload link — research Q139 owns the evidence (superseding Q137's
 stream-channel claim), and the regression is reported with a verified restore path as
-[anomalyco/opencode#44911](https://github.com/anomalyco/opencode/issues/44911). Next, in
-maintainer-agreed order: the **emitter allocation batch** on the current base (backlog: research
-doc 20's ranked table; the `FrozenDictionary` and `System.Collections.Immutable` decisions ride
-it), then the **M4 launcher plan** (1–2 pages, approval before source). When benchmark work next runs, the agreed
-records infrastructure lands first: a git-ignored `.benchmarks/` folder for run artifacts and
-comparison extracts, driven by a file-based C# comparison app replacing the session-scratch extract
-script. No M4 source or planning work has begun.
+[anomalyco/opencode#44911](https://github.com/anomalyco/opencode/issues/44911). The queue was
+reordered at the M3 boundary (maintainer, 2026-08-25) for the now-public repository: first the
+**emitter allocation batch** on the current base (backlog: research doc 20's ranked table; the
+`FrozenDictionary` and `System.Collections.Immutable` decisions ride it; the agreed records
+infrastructure lands at its start — a git-ignored `.benchmarks/` folder for run artifacts and
+comparison extracts, driven by a file-based C# comparison app replacing the session-scratch
+extract script, seeded with the existing local artifact history). Then **M5 breadth batches pull
+ahead of M4**, grown against the current pin but filtered by Q137/Q139's drift map so
+upstream-removed operation families (the question flow, `projectCopy.*`, `health.stop`,
+`project.directories`) are never selected; the **M4 launcher** rides alongside as a small
+independent arc (1–2 page plan, approval before source). An **early prerelease packaging track**
+accompanies the breadth push: amend the deliberate partial-operation packing wall in
+`Directory.Build.targets` so prerelease packs are allowed while stable packs stay blocked
+(decision-first; it revises the wall recorded here and rides ADR-0006/#51), then stand up the
+ADR-0006 pipeline — per-merge GitHub Packages CD and the manual NuGet.org lane — whose CI legs
+validate once billing restores. No M4 source or planning work has begun.
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family

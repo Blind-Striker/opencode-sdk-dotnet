@@ -456,3 +456,6 @@ aspire.config.json
 .skills-lock.json
 
 .playwright-mcp
+
+# Local benchmark run artifacts and comparison extracts (never published)
+.benchmarks/
