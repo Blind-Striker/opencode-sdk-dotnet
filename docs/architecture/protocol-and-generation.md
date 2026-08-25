@@ -34,7 +34,8 @@ evidence and may contain superseded positions.
 
 Curation may:
 
-- choose .NET names and placement for represented OpenAPI constructs;
+- choose .NET names and placement for represented OpenAPI constructs — handle placement
+  follows ADR-0019, and every curation row, group rows included, carries its reason;
 - collapse OpenAPI shapes proven structurally equivalent; and
 - fingerprint exclusions already evidenced by the pinned document.
 
