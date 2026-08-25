@@ -3849,3 +3849,41 @@ reasoned rows: verb-owning operations shed transport prefixes (`GenerateTextAsyn
 mass-noun containers cover the groups that do not (`Debug`, `Experimental`, `Generation`,
 `Vcs`, `Websearch`). CI note: billing refilled mid-session — `9da0ae3` green on rerun, every
 push since verified on the hosted three-OS matrix.
+
+## Q146: What did the B-1 mechanism batch land, and what stood behind the walls?
+
+**Method:** B1's facet-binder refactor landed first (`f613866`, behavior-preserving,
+`generate --verify` byte-identical), exactly as the doc 18 gate sealed. The batch itself opened
+with Q144's zero-mutation probe rerun scoped to the fifteen candidates against the relaxed
+wire-shape wall: all fifteen bind and emit green — individually and together — so nothing
+hides behind the primary bodyless-POST and PUT refusals and the batch boundary is exactly the
+Q144 partition.
+
+**The mechanism:** one wall rule in `OperationWireShapeWall`. POST now admits both body
+shapes (the pin demonstrates bodyless POST across twelve operations; the spec is the
+authority), `put` joins the admitted verbs, and PATCH plus PUT keep the body requirement
+fail-closed under the unchanged message template. Emission needed zero changes: a bodyless
+POST rides the same no-content `ExecuteAsync` call a GET emits, and PUT rides the BCL
+`HttpMethod.Put` on every target (only PATCH needs the internal `OpenCodeHttpMethod` spine).
+The binder's unsupported-method refusal became unreachable through ingestion — the two
+allow-lists are now identical — so its red test was removed; `PathItemWallPolicy` owns that
+coverage (`HostWallPolicyTests`), and the binder wall stays as defense in depth.
+
+**Landed:** the fifteen operations (twelve bodyless POSTs including `mcp.connect`/`disconnect`
+and the session action ops, three PUTs — `mcp.add`, `pty.update`,
+`session.instructions.entry.put`); the profile moves 67 selected / 53 pending → **82 / 38**.
+Four error types join `IOpenCodeError` (`ForbiddenError`, `FormAlreadySettledError`,
+`FormNotFoundError`, `InstructionEntryValueTooLargeError`). Two hygiene catches: the pinned
+no-`V2` golden refused `pty.update`'s promoted inline `size` member (`V2PtyUpdateSize`), fixed
+with a reasoned schema-name row (`PtyUpdateSize`); and the CA1056 arbitration glob gained
+`McpOAuthConfig`/`McpRemoteConfig`, whose wire members the pin declares as plain strings.
+`pty.connect.token` is admitted today on the pinned surface; its `x-opencode-ticket` header
+parameter arrives only with the blocked refresh (#56) and will announce itself at the wall.
+
+**Evidence:** binder scenario red/green (bodyless POST binds with a null body slot, PUT binds,
+bodyless PUT and PATCH stay refused); seven contract tests covering the new wire shapes — the
+bodiless POST sends no content (`Body`/`ContentType` both null), PUT carries the verb and the
+typed body, the omitted optional PUT body sends the cached `{}`, and the 409/413 paths
+materialize the new error types; the PublicApi review was additive-only (+336 lines, zero
+removals, all four TFMs byte-identical). The suite grew 2,269 → 2,298 through the full local
+gate chain with the tool smoke and `generate --verify` current at 82/38.
