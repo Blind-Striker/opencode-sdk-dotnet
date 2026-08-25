@@ -3754,3 +3754,64 @@ benchmark file overlaid on both worktrees — Dry-validated then `--job short` o
 artifacts `.benchmarks/empty-request-{dry,before-short,after-short}` joined into
 `empty-request-comparison.csv`: the omitted-body row drops **−56 B (net10.0) / −57 B (net472)**
 — exactly one `SessionCreateRequest` record — while both control rows move 0 B on both runtimes.
+
+## Q144: Which walls actually stand between the current profile and the full pinned surface?
+
+**Method (wall-probe spike, zero worktree mutation):** a scratchpad file-based app compiled with
+`AssemblyName=OpenCode.Sdk.Tools.Tests` (the tools assembly's unsigned `InternalsVisibleTo`
+grants internals access) builds the production container through `ToolApp.CreateServices` minus
+the logger providers, ingests the pin once, and per candidate binds the current 15-operation
+profile plus that one candidate, then runs `SourceEmitter.Emit` — pure in-memory, the writer is
+never invoked. `BindingException` carries every collected `(Category, Subject, Problem)` error,
+so one pass yields each operation's complete refusal set. Round 2 unmasks the walls hiding
+behind missing curation by synthesizing a `groups` row per uncovered family (client placement;
+handle placement when the operation's path carries parameters) through a patched temporary
+curation document. Round 3 binds all individually-green candidates together. The probe also
+discharges doc 18 §8's gate: the drift check found zero commits touching `Generator/Binding`
+since baseline `05cd5d7` (only Emission moved — `2d0c1b1`'s status verdicts and the Q140–Q143
+emitter batch), so the scan's findings stand unrevised and the cost model runs on this
+inventory.
+
+**Numbers:** 120 operations in pin `a6a712a3` − 15 selected − 6 removed upstream per the
+Q137/Q139 drift map (`health.stop`, `project.directories`, `question.request.list`, three
+`projectCopy.*`) = 99 candidates. Round 1 (repo curation as-is): 20/99 bind and emit — all
+`session.*`, riding the existing group row. Round 2 (synthesized rows): **52/99** — 32
+operations' only blocker was the routine curation row. Round 3: 51/52 bind and emit
+**together**; the single cross-operation collision is `v2.provider.get`'s derived
+`ProviderRequest` colliding with another generated type — one naming-curation row. The 52 span
+19 families: session 20, integration 6, mcp 3, pty 3, five two-operation families (agent,
+credential, permission, provider, websearch), and ten singletons.
+
+**The 47 refusals partition exactly by primary wall:** bodyless POST (12 — `mcp.connect`,
+`mcp.disconnect`, `pty.connect.token`, `session.background`, `session.form.cancel`,
+`session.inbox.queue`, `session.inbox.steer`, `session.interrupt`, `session.question.reject`,
+`session.revert.clear`, `session.revert.commit`, `session.wait`; the emitter-side empty-request
+infrastructure from Q140 already exists); inline nominal schema promotion (11 — `config.get`,
+`form.request.list`, four `integration.*`, five `session.form.*`; the same operations' naming
+collisions share this root, e.g. `ConfigModelCost` against `Config.Model#/properties/cost`);
+success payload not a named schema (+4 unique — `project.list`, `server.get`,
+`debug.location.list`, `experimental.migration.v1.status`); location envelope not a named
+reference (+2 — `model.default`, `shell.output`, whose real gap is the inline `data` object:
+its cursor/limit queries are numeric-pattern strings in the pin, so the earlier "integer cursor
+query" note was response-side); list envelope payload not a required named reference (+7 —
+`session.active`, `session.context`, `session.inbox.list`, `session.permission.list`,
+`session.question.list`, `session.instructions.entry.list`, `permission.saved.list`); PUT
+unsupported (3 — `mcp.add`, `pty.update`, `session.instructions.entry.put`); required or
+non-null query walls (+2 — `fs.find`, `vcs.diff`); naive-pluralization refusals (2 — `fs.list`,
+`pty.list`, routine curated names); payload/response-spine collisions (2 — `location.get`,
+`vcs.status`, doc 18 B2's territory); singletons (3 — `config.get`'s structural-union branch
+overlaps in `Config.Info`'s lsp/references maps, `fs.read`'s wildcard path, and `pty.connect`'s
+WebSocket upgrade, an ADR-0008 exclusion-fingerprint candidate). `pty.connect.token` today
+fails only the bodyless-POST wall; its `x-opencode-ticket` header parameter arrives only with
+the blocked refresh (#56).
+
+**Decisions (maintainer, 2026-08-25):** the full-surface breadth push proceeds. The 52 routine
+operations land as family-grouped A-batches with the structure delegated to the session: A-1
+the session twenty on the existing group row, with doc 18 B2 — the single reserved-name owner —
+riding this first generator-touching increment; A-2 integration + mcp + pty; A-3 the five
+pairs, carrying the `ProviderRequest` naming row; A-4 the singletons. Every increment lands its
+curation rows, regenerated source, scaffold-driven contract tests, and the Extensions
+registration roster for new client families together, through the full local gate chain. B1
+(facet binders) lands before the mechanism batches — bodyless POST plus PUT, inline promotion
+(design-first), envelope extensions, and the query walls — exactly the new-shape work doc 18's
+cost model says justifies it; B3/B4 stay sequenced behind B1.
