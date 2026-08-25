@@ -13,13 +13,15 @@ transport runtime.
 Active pre-release development; nothing is published to NuGet yet.
 
 The generator and runtime foundations are implemented and exercised against a real
-opencode v2 server. The currently selected API profile is intentionally incomplete,
-and packaging stays blocked until the generated surface is ready for release.
+opencode v2 server. The generation profile currently selects 47 of the 120 operations
+in the pinned document and grows in reviewed family batches; packaging stays blocked
+until the generated surface is ready for release.
 
 Available today:
 
 - Generated clients, request models, response envelopes, routes, and JSON metadata
-- Health, session, message, shell, and event API slices
+- Health, session, message, shell, event, integration, MCP server, and pty API slices
+- Session actions with typed request unions (prompt, fork, compact, permissions, export, …)
 - Typed API exceptions with per-call `NoThrow` support
 - Global and per-session server-sent event streams
 - Cursor-based asynchronous pagination

@@ -258,9 +258,10 @@ live SSE hold), and events (live `SessionCreated` dispatch); pagination enumerat
 so a non-empty pass waits for a provider-configured session. The arc-milestone benchmark (Q138)
 closed the arc: body-size-proportional allocation is gone from the pipeline (the net10.0 one-shot
 row is flat at 2,112 B at every size; complete large calls drop ~2.15 MB), downlevel calls run
-roughly twice as fast, and every added cost is fixed, small, and named. GitHub Actions is
-billing-blocked (every job dies at startup on the spending-limit annotation), so the final
-CI-hardening commit `9da0ae3` has no three-OS verdict yet — verify when billing restores. The
+roughly twice as fast, and every added cost is fixed, small, and named. GitHub Actions
+execution is restored (billing refilled 2026-08-25): the CI-hardening commit `9da0ae3` passed
+all three OS jobs on its rerun and the subsequent pushes run normally; #50 stays open for
+branch protection and required checks. The
 **spec refresh is blocked upstream**: the 2026-08-25 attempt found the current upstream document
 has lost its SSE payload schemas to the effect beta.107 regen, so the pin stays at `a6a712a3`
 until upstream restores the payload link — research Q139 owns the evidence (superseding Q137's
@@ -277,16 +278,29 @@ that stops materializing known union tags (net10.0 union rows lose exactly their
 downlevel keeps the string path — Polyfill's alternate lookup is an O(n) scan). Route/query
 composition measured as an honest negative behind its own permanent rung. Doc 20's D2/D3 had
 already landed inside the runtime arc. **Outstanding batch evidence:** the closing default-job
-comparison against `arc-milestone-default`, which also carries the frozen-table timing verdict. Then **M5 breadth batches pull
-ahead of M4**, grown against the current pin but filtered by Q137/Q139's drift map so
-upstream-removed operation families (the question flow, `projectCopy.*`, `health.stop`,
-`project.directories`) are never selected; the **M4 launcher** rides alongside as a small
+comparison against `arc-milestone-default`, which also carries the frozen-table timing verdict.
+**M5 breadth batches are pulled ahead of M4 and are landing.** The Q144 wall-probe mapped the
+full pinned surface (99 workable pending operations after Q137/Q139's drift map excludes the
+upstream-removed families — the question flow, `projectCopy.*`, `health.stop`,
+`project.directories`; 52 are routine curation-only admissions, and the 47 refusals partition
+across the bodyless-POST, inline-promotion, envelope-shape, PUT, and query walls plus three
+singleton decisions). The doc 18 gate is decided on that probe (maintainer, 2026-08-25): B2's
+single `ReservedNamePolicy` is landed with its reflection coverage tests, B1's facet binders
+land before the first mechanism batch, and B3/B4 stay sequenced behind B1. The A-series lands
+the routine 52 in family batches — **A-1 (the session twenty) and A-2 (the Integrations,
+McpServers, and Ptys families) are committed** with contract tests, Extensions roster growth,
+and additive PublicApi reviews; the profile stands at 47 selected / 73 pending. The committed
+sandbox's session-actions walkthrough ran live against the pinned server: fork's request-side
+union accepted on the wire, NoThrow carrying a typed 404, and the permission
+ask → get → reply lifecycle proven end to end with a configured agent. A-3 (the five
+two-operation families) and A-4 (the singletons) complete the series; the mechanism batches
+follow, and the **M4 launcher** rides alongside as a small
 independent arc (1–2 page plan, approval before source). An **early prerelease packaging track**
 accompanies the breadth push: amend the deliberate partial-operation packing wall in
 `Directory.Build.targets` so prerelease packs are allowed while stable packs stay blocked
 (decision-first; it revises the wall recorded here and rides ADR-0006/#51), then stand up the
 ADR-0006 pipeline — per-merge GitHub Packages CD and the manual NuGet.org lane — whose CI legs
-validate once billing restores. No M4 source or planning work has begun.
+can now validate against the restored hosted matrix. No M4 source or planning work has begun.
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family
@@ -379,12 +393,10 @@ is revisited at each milestone boundary.
   the transport factory lands first (plan `superpowers/plans/2026-08-24-runtime-pipeline-plan.md`,
   research Q129). Also reopen if the validate-after-owned-transport-construction ordering
   hazard produces a real defect.
-- **Generator binding locality** — improvement item from the 2026-08-24 architecture scan
-  (research Q126; detailed findings, candidates, and the reassessment method are research
-  doc 18): `OperationPlanBinder` facet split, a single reserved-name policy owner, and a
-  scenario-derived `EmitterPlanFixture`. Decision point: before the first M5 breadth
-  batch, using doc 18 §8's drift-check and cost model; the reserved-name owner may ride
-  any earlier generator-touching increment opportunistically.
+- **Generator binding locality** — the doc 18 gate is decided (maintainer, 2026-08-25;
+  evidence research Q144): B2's reserved-name owner is landed; B1's facet binders land
+  before the first mechanism batch, with B3's scenario-derived fixture and B4's
+  error-union extraction sequenced behind B1.
 
 ## Known Gaps
 
