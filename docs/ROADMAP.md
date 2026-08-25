@@ -260,12 +260,15 @@ closed the arc: body-size-proportional allocation is gone from the pipeline (the
 row is flat at 2,112 B at every size; complete large calls drop ~2.15 MB), downlevel calls run
 roughly twice as fast, and every added cost is fixed, small, and named. GitHub Actions is
 billing-blocked (every job dies at startup on the spending-limit annotation), so the final
-CI-hardening commit `9da0ae3` has no three-OS verdict yet — verify when billing restores. Next, in
-maintainer-agreed order: the **spec refresh** (Q137's drift map — wholesale `*Encoded` renames in
-curation's name mappings, collision-artifact fingerprint deletions, no dialect or runtime impact),
-then the **emitter allocation batch** on the refreshed base (backlog: research doc 20's ranked
-table; the `FrozenDictionary` and `System.Collections.Immutable` decisions ride it), then the
-**M4 launcher plan** (1–2 pages, approval before source). When benchmark work next runs, the agreed
+CI-hardening commit `9da0ae3` has no three-OS verdict yet — verify when billing restores. The
+**spec refresh is blocked upstream**: the 2026-08-25 attempt found the current upstream document
+has lost its SSE payload schemas to the effect beta.107 regen, so the pin stays at `a6a712a3`
+until upstream restores the payload link — research Q139 owns the evidence (superseding Q137's
+stream-channel claim), and the regression is reported with a verified restore path as
+[anomalyco/opencode#44911](https://github.com/anomalyco/opencode/issues/44911). Next, in
+maintainer-agreed order: the **emitter allocation batch** on the current base (backlog: research
+doc 20's ranked table; the `FrozenDictionary` and `System.Collections.Immutable` decisions ride
+it), then the **M4 launcher plan** (1–2 pages, approval before source). When benchmark work next runs, the agreed
 records infrastructure lands first: a git-ignored `.benchmarks/` folder for run artifacts and
 comparison extracts, driven by a file-based C# comparison app replacing the session-scratch extract
 script. No M4 source or planning work has begun.

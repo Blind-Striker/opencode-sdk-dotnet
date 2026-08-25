@@ -1,6 +1,6 @@
 # Research log — 2026-08-08
 
-Date: 2026-08-21
+Date: 2026-08-25
 
 > Dated evidence and decision history, not current policy. Follow current canon through
 > `AGENTS.md`; later sessions in this log intentionally supersede some earlier conclusions.
@@ -3561,3 +3561,61 @@ should — the arc never touched them. The one timing regression is the no-conte
 (2.27× net10.0, still sub-microsecond absolute), the measured price of draining under a timer.
 The arc's quotable summary: body-size-proportional allocation is gone from the pipeline, downlevel
 calls are roughly twice as fast, and every cost added is fixed, small, and named.
+
+# Session 42 — 2026-08-25: spec-refresh attempt, upstream SSE payload regression, issue #44911
+
+## Q139: Why did the spec refresh stop, and is the lost stream surface recoverable upstream?
+
+**Method:** executed the `spec/SNAPSHOT.md` refresh procedure toward the `origin/v2` tip
+`8c126e98da` — Q137's mapped `71f81dc0fe` plus a 48-commit tail verified hunk-by-hunk to sit
+entirely outside the selected surface (`session.interrupt` response shape, `generate.text`
+location-parameter removal, new `workspace.*`/pty operations; `location.ts` zero diff). The
+generator's ingestion wall refused the new document with five errors; the refusal was
+root-caused through a submodule bisect, the effect changelog, and effect rc.111 source, then
+tested end to end in a scratch worktree of the submodule at the tip (`bun install
+--frozen-lockfile --ignore-scripts`; `bun run check:generated` first reproduced the committed
+document byte-identically, proving the harness).
+
+**Findings — the regression:** the wall is right. Since upstream `aca42423d3` (2026-08-17,
+`chore: generate` — the first regen under effect beta.107; its parent `d9b81d2233` is the
+`beta.101 → beta.107` bump itself, with `script/generate-openapi.ts` unchanged), the generated
+document no longer declares the SSE payload schemas. The `*JsonString` envelopes
+(`{type: string, contentSchema: {$ref: union}, contentMediaType}`) became bare `*Encoded`
+strings (`{type: string, contentMediaType}`), and with the `contentSchema` link gone the entire
+event model tree — `V2Event`, `SessionLogItem`, every leaf; 74 components, 314 → 240 in that one
+regen — was pruned as unreachable. The wire protocol is unchanged; this is a documentation-only
+regression. The cause chain sits in effect: beta.102
+[#6424](https://github.com/Effect-TS/effect/pull/6424) (encoded-side representation;
+`contentSchema` demoted from structural field to the `Annotations.Augment.contentSchema`
+annotation, which nothing in `HttpApiSchema.StreamSse`'s OpenAPI projection re-attaches),
+beta.103 [#6781](https://github.com/Effect-TS/effect/pull/6781) (prune components unreachable
+from a generated root), and cosmetically beta.103
+[#6782](https://github.com/Effect-TS/effect/pull/6782) (`Encoded` suffix naming). Upstream's own
+TypeScript clients generate from the effect schemas directly, so nothing broke in-repo and the
+regression went unnoticed there.
+
+**This supersedes Q137's stream-channel claim.** Q137's "payload envelopes consolidated under the
+same convention … no dialect or runtime impact" was wrong for the stream payload channel: a
+refresh onto any commit at or after `aca42423d3` erases the protocol source of the typed stream
+surface, exactly the projection-loss class the OpenAPI-projection-fidelity open question
+anticipated (report upstream, never repair through curation — ADR-0013). Q137's one-shot surface
+map, dialect findings, and location-asymmetry verification remain valid.
+
+**Findings — recoverability:** the road back is open at the tip (effect `4.0.0-rc.111`).
+`Schema.toJsonSchemaDocument(OpenCodeEvent)` still compiles the complete union (138 definitions,
+root `$ref: V2Event`); the JSON Schema emitter still treats `contentSchema` as a first-class
+annotation key and emits it when present; merging the compiled definitions into
+`components.schemas` and re-attaching `contentSchema: {$ref: V2Event}` on `V2EventEncoded`
+restores the exact pre-regression envelope shape. Of 46 compiled schemas already present in the
+document, 45 are byte-identical; the restored union carries the current 85 variants (including
+post-regression `session.viewed` and `worktree.*`), and the published snippet was validated
+verbatim — every one of the 953 component `$ref`s in the resulting document resolves. The
+restore is a ~30-line post-processing step in upstream's own generate script.
+
+**Decision (maintainer, 2026-08-25):** refresh deferred; the pin stays at `a6a712a3`. The
+regression was reported upstream with the diagnosis, the verified restore recipe, and a PR offer
+as [anomalyco/opencode#44911](https://github.com/anomalyco/opencode/issues/44911) (deliberately
+free of social-media references). The repository was made public the same day. The emitter
+allocation batch proceeds on the current base. Carried for the next sanctioned refresh:
+`v2.pty.connect.token` introduces a `header` parameter (`x-opencode-ticket`) the ingestion wall
+refuses — an admit-or-exclude decision rides whichever refresh lands first.
