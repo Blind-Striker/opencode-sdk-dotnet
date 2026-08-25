@@ -67,7 +67,7 @@ internal static class OperationMethodEmitter
         if (operation.QueryRequest is { RidesRequestBody: false })
         {
             yield return SyntaxFactory
-                .Parameter(SyntaxFactory.Identifier("request"))
+                .Parameter(SyntaxFactory.Identifier(ReservedNamePolicy.RequestParameter))
                 .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(operation.QueryRequest.TypeName)))
                 .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)));
         }
@@ -75,13 +75,13 @@ internal static class OperationMethodEmitter
         if (operation.Stream is null)
         {
             yield return SyntaxFactory
-                .Parameter(SyntaxFactory.Identifier("requestOptions"))
+                .Parameter(SyntaxFactory.Identifier(ReservedNamePolicy.RequestOptionsParameter))
                 .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed("OpenCodeRequestOptions")))
                 .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)));
         }
 
         yield return SyntaxFactory
-            .Parameter(SyntaxFactory.Identifier("cancellationToken"))
+            .Parameter(SyntaxFactory.Identifier(ReservedNamePolicy.CancellationTokenParameter))
             .WithType(TypeSyntaxEmitter.EmitNamed("CancellationToken"))
             .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.DefaultLiteralExpression)));
     }
@@ -113,10 +113,10 @@ internal static class OperationMethodEmitter
             "Instance")));
         if (operation.Stream is null)
         {
-            arguments.Add(SyntaxFactory.Argument(SyntaxFactory.IdentifierName("requestOptions")));
+            arguments.Add(SyntaxFactory.Argument(SyntaxFactory.IdentifierName(ReservedNamePolicy.RequestOptionsParameter)));
         }
 
-        arguments.Add(SyntaxFactory.Argument(SyntaxFactory.IdentifierName("cancellationToken")));
+        arguments.Add(SyntaxFactory.Argument(SyntaxFactory.IdentifierName(ReservedNamePolicy.CancellationTokenParameter)));
         return EmissionSyntax.Invocation(
             EmissionSyntax.MemberAccess(
                 SyntaxFactory.IdentifierName("Pipeline"),
@@ -163,7 +163,7 @@ internal static class OperationMethodEmitter
             : SyntaxFactory.IdentifierName(parameter.Name))));
         if (operation.QueryRequest is not null)
         {
-            arguments.Add(SyntaxFactory.Argument(SyntaxFactory.IdentifierName("request")));
+            arguments.Add(SyntaxFactory.Argument(SyntaxFactory.IdentifierName(ReservedNamePolicy.RequestParameter)));
         }
 
         return EmissionSyntax.Invocation(member, [.. arguments]);
@@ -185,15 +185,15 @@ internal static class OperationMethodEmitter
 
         if (operation.QueryRequest is { RidesRequestBody: false })
         {
-            parameters.Add(new DocumentedParameter("request", "The request shaping the query."));
+            parameters.Add(new DocumentedParameter(ReservedNamePolicy.RequestParameter, "The request shaping the query."));
         }
 
         if (operation.Stream is null)
         {
-            parameters.Add(new DocumentedParameter("requestOptions", "The per-call options."));
+            parameters.Add(new DocumentedParameter(ReservedNamePolicy.RequestOptionsParameter, "The per-call options."));
         }
 
-        parameters.Add(new DocumentedParameter("cancellationToken", "The cancellation token."));
+        parameters.Add(new DocumentedParameter(ReservedNamePolicy.CancellationTokenParameter, "The cancellation token."));
 
         var exceptions = new List<DocumentedException>();
         if (operation.ErrorMap.Statuses.Count > 0)

@@ -228,12 +228,12 @@ internal static class ClientEmitter
         IReadOnlyList<StatementSyntax> assignments)
     {
         var statements = new List<StatementSyntax>();
-        statements.AddRange(EmissionSyntax.ArgumentNullGuard("pipeline"));
+        statements.AddRange(EmissionSyntax.ArgumentNullGuard(ReservedNamePolicy.PipelineParameter));
         statements.AddRange(assignments);
         yield return SyntaxFactory.ConstructorDeclaration(client.Name)
             .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.InternalKeyword)))
             .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SingletonSeparatedList(
-                SyntaxFactory.Parameter(SyntaxFactory.Identifier("pipeline")).WithType(TypeSyntaxEmitter.EmitNamed("Pipeline")))))
+                SyntaxFactory.Parameter(SyntaxFactory.Identifier(ReservedNamePolicy.PipelineParameter)).WithType(TypeSyntaxEmitter.EmitNamed("Pipeline")))))
             .WithBody(SyntaxFactory.Block(statements));
     }
 
@@ -245,7 +245,7 @@ internal static class ClientEmitter
             SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
                 SyntaxKind.SimpleAssignmentExpression,
                 SyntaxFactory.IdentifierName("_pipeline"),
-                SyntaxFactory.IdentifierName("pipeline"))),
+                SyntaxFactory.IdentifierName(ReservedNamePolicy.PipelineParameter))),
         ];
     }
 
@@ -254,12 +254,12 @@ internal static class ClientEmitter
         var parameter = client.HandleParameter
                         ?? throw new InvalidOperationException($"Handle client '{client.Name}' carries no handle parameter.");
         var statements = new List<StatementSyntax>();
-        statements.AddRange(EmissionSyntax.ArgumentNullGuard("pipeline"));
+        statements.AddRange(EmissionSyntax.ArgumentNullGuard(ReservedNamePolicy.PipelineParameter));
         statements.AddRange(EmissionSyntax.RouteValueGuard(parameter.Name));
         statements.Add(SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
             SyntaxKind.SimpleAssignmentExpression,
             SyntaxFactory.IdentifierName("_pipeline"),
-            SyntaxFactory.IdentifierName("pipeline"))));
+            SyntaxFactory.IdentifierName(ReservedNamePolicy.PipelineParameter))));
         statements.Add(SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
             SyntaxKind.SimpleAssignmentExpression,
             SyntaxFactory.IdentifierName(HandleFieldName(parameter)),
@@ -268,7 +268,7 @@ internal static class ClientEmitter
             .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.InternalKeyword)))
             .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(
             [
-                SyntaxFactory.Parameter(SyntaxFactory.Identifier("pipeline")).WithType(TypeSyntaxEmitter.EmitNamed("Pipeline")),
+                SyntaxFactory.Parameter(SyntaxFactory.Identifier(ReservedNamePolicy.PipelineParameter)).WithType(TypeSyntaxEmitter.EmitNamed("Pipeline")),
                 SyntaxFactory.Parameter(SyntaxFactory.Identifier(parameter.Name))
                     .WithType(TypeSyntaxEmitter.EmitNamed(parameter.TypeName)),
             ])))

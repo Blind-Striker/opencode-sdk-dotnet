@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using OpenCode.Sdk.Tools.Generator.Binding;
 using OpenCode.Sdk.Tools.Generator.Binding.Models;
 
 namespace OpenCode.Sdk.Tools.Generator.Emission;
@@ -107,7 +108,7 @@ internal static class RoutesEmitter
             new DocumentedParameter(parameter.Name, $"The '{parameter.WireName}' route value.")));
         if (operation.QueryRequest is not null)
         {
-            parameters.Add(new DocumentedParameter("request", "The request shaping the query."));
+            parameters.Add(new DocumentedParameter(ReservedNamePolicy.RequestParameter, "The request shaping the query."));
         }
 
         var documentation = EmissionSyntax.MemberDocumentation(
@@ -135,7 +136,7 @@ internal static class RoutesEmitter
 
         if (operation.QueryRequest is not null)
         {
-            yield return SyntaxFactory.Parameter(SyntaxFactory.Identifier("request"))
+            yield return SyntaxFactory.Parameter(SyntaxFactory.Identifier(ReservedNamePolicy.RequestParameter))
                 .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(operation.QueryRequest.TypeName)))
                 .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)));
         }
@@ -150,7 +151,7 @@ internal static class RoutesEmitter
                 .WithInitializer(SyntaxFactory.EqualsValueClause(EmitConcatenation(operation))))));
         yield return SyntaxFactory.IfStatement(
             SyntaxFactory.IsPatternExpression(
-                SyntaxFactory.IdentifierName("request"),
+                SyntaxFactory.IdentifierName(ReservedNamePolicy.RequestParameter),
                 SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
             SyntaxFactory.Block(SyntaxFactory.ReturnStatement(SyntaxFactory.IdentifierName("path"))));
         yield return SyntaxFactory.LocalDeclarationStatement(SyntaxFactory.VariableDeclaration(
@@ -165,7 +166,7 @@ internal static class RoutesEmitter
             {
                 SyntaxFactory.Argument(StringLiteral(property.WireName)),
                 SyntaxFactory.Argument(EmissionSyntax.MemberAccess(
-                    SyntaxFactory.IdentifierName("request"),
+                    SyntaxFactory.IdentifierName(ReservedNamePolicy.RequestParameter),
                     property.PropertyName)),
             };
             yield return SyntaxFactory.ExpressionStatement(EmissionSyntax.Invocation(

@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using OpenCode.Sdk.Tools.Generator.Binding;
 using OpenCode.Sdk.Tools.Generator.Binding.Models;
 
 namespace OpenCode.Sdk.Tools.Generator.Emission;
@@ -17,11 +18,11 @@ internal static class PaginationMethodEmitter
         var delegation = EmissionSyntax.Invocation(
             EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("CursorPaginator"), "EnumerateAsync"),
             SyntaxFactory.Argument(SyntaxFactory.IdentifierName(operation.MethodName)),
-            SyntaxFactory.Argument(SyntaxFactory.IdentifierName("request")),
+            SyntaxFactory.Argument(SyntaxFactory.IdentifierName(ReservedNamePolicy.RequestParameter)),
             SyntaxFactory.Argument(EmissionSyntax.MemberAccess(
                 SyntaxFactory.IdentifierName(operation.Envelope!.AdapterTypeName),
                 "Instance")),
-            SyntaxFactory.Argument(SyntaxFactory.IdentifierName("cancellationToken")));
+            SyntaxFactory.Argument(SyntaxFactory.IdentifierName(ReservedNamePolicy.CancellationTokenParameter)));
         return SyntaxFactory
             .MethodDeclaration(
                 TypeSyntaxEmitter.Generic("IAsyncEnumerable", TypeSyntaxEmitter.EmitNamed(pagination.ItemTypeName)),
@@ -31,10 +32,10 @@ internal static class PaginationMethodEmitter
                 SyntaxFactory.Token(SyntaxKind.VirtualKeyword)))
             .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(
             [
-                SyntaxFactory.Parameter(SyntaxFactory.Identifier("request"))
+                SyntaxFactory.Parameter(SyntaxFactory.Identifier(ReservedNamePolicy.RequestParameter))
                     .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(pagination.RequestTypeName)))
                     .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
-                SyntaxFactory.Parameter(SyntaxFactory.Identifier("cancellationToken"))
+                SyntaxFactory.Parameter(SyntaxFactory.Identifier(ReservedNamePolicy.CancellationTokenParameter))
                     .WithType(TypeSyntaxEmitter.EmitNamed("CancellationToken"))
                     .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.DefaultLiteralExpression))),
             ])))
@@ -68,8 +69,8 @@ internal static class PaginationMethodEmitter
             $"Enumerates the items returned by '{operation.HttpMethod.ToUpperInvariant()} {operation.RouteTemplate}' "
             + "by following each opaque next cursor.",
             [
-                new DocumentedParameter("request", "The request shaping the first page."),
-                new DocumentedParameter("cancellationToken", "The cancellation token."),
+                new DocumentedParameter(ReservedNamePolicy.RequestParameter, "The request shaping the first page."),
+                new DocumentedParameter(ReservedNamePolicy.CancellationTokenParameter, "The cancellation token."),
             ],
             $"The '{pagination.ItemTypeName}' sequence.",
             exceptions);

@@ -10,60 +10,6 @@ internal sealed class OperationPlanBinder
     private const string ClientNamespace = "OpenCode.Sdk";
     private const string RootClientName = "OpenCodeClient";
 
-    /// <summary>Hand-written public spine types in the client namespace; a generated twin would not compile.</summary>
-    private static readonly string[] ReservedSpineTypeNames =
-    [
-        "ErrorBehavior",
-        "IOpenCodeClientOptions",
-        EffectStreamTypeNamePolicy.CauseMarkerInterface,
-        "ListCursor",
-        "ListOrder",
-        "ListRequest",
-        "LocationSelector",
-        "OpenCodeApiException",
-        "OpenCodeClientOptions",
-        "OpenCodeException",
-        "OpenCodeRequestOptions",
-        "OpenCodeResponse",
-        "OpenCodeStreamFailureException",
-        "OpenCodeTransportException",
-        "QueryBoolean",
-        "SessionParentFilter",
-    ];
-
-    /// <summary>Parameter names the emitted method and route-builder signatures append themselves.</summary>
-    private static readonly string[] ReservedParameterNames =
-    [
-        "cancellationToken",
-        "pipeline",
-        "request",
-        "requestOptions",
-    ];
-
-    /// <summary>
-    /// Member names every generated response envelope inherits from the response spine or
-    /// from <see cref="object"/>/record synthesis; a payload landing on one of them needs a
-    /// curated override.
-    /// </summary>
-    private static readonly string[] ReservedPayloadNames =
-    [
-        "Cursor",
-        "Deconstruct",
-        "EqualityContract",
-        "Equals",
-        "Error",
-        "GetHashCode",
-        "GetType",
-        "IsError",
-        "Location",
-        "MemberwiseClone",
-        "PrintMembers",
-        "RawBody",
-        "ReferenceEquals",
-        "Status",
-        "ToString",
-    ];
-
     private readonly StringComparer _comparer = StringComparer.Ordinal;
 
     public IReadOnlyList<ClientPlan> Bind(SpecDocument document, IReadOnlyList<SpecOperation> selected,
@@ -225,9 +171,9 @@ internal sealed class OperationPlanBinder
         // first, each model name individually, because a bulk union would swallow a
         // model/spine duplicate instead of refusing it.
         var owners = new HashSet<string>(_comparer);
-        owners.UnionWith(ReservedSpineTypeNames);
+        owners.UnionWith(ReservedNamePolicy.SpineTypeNames);
         foreach (var entry in typeNames
-                     .Where(entry => !owners.Add(entry.Value) && ReservedSpineTypeNames.Contains(entry.Value, _comparer))
+                     .Where(entry => !owners.Add(entry.Value) && ReservedNamePolicy.SpineTypeNames.Contains(entry.Value))
                      .OrderBy(static entry => entry.Key, StringComparer.Ordinal))
         {
             errors.Add(
@@ -723,7 +669,7 @@ internal sealed class OperationPlanBinder
                 return null;
             }
 
-            if (ReservedPayloadNames.Contains(payloadName, StringComparer.Ordinal)
+            if (ReservedNamePolicy.PayloadNames.Contains(payloadName)
                 || string.Equals(payloadName, responseTypeName, StringComparison.Ordinal))
             {
                 _errors.Add(
@@ -1061,7 +1007,7 @@ internal sealed class OperationPlanBinder
             // landing on one must fail here, never as an emitted compile error.
             var reserved = plans
                 .Select(static plan => plan.Name)
-                .Where(static name => ReservedParameterNames.Contains(name, StringComparer.Ordinal))
+                .Where(static name => ReservedNamePolicy.ParameterNames.Contains(name))
                 .Order(StringComparer.Ordinal)
                 .ToArray();
             if (reserved.Length > 0)
