@@ -241,7 +241,12 @@ internal sealed class OperationPlanBinder
         public required OperationPlan Plan { get; init; }
     }
 
-    /// <summary>Binds one selected operation, batching every wire-contract refusal it finds.</summary>
+    /// <summary>
+    /// Binds one selected operation, batching every wire-contract refusal it finds. The
+    /// per-facet work lives in the facet binders over the shared context; this class owns
+    /// the orchestration order, the names, the body-and-query merge policy, the error map,
+    /// and the path parameters. A new operation shape is one facet file plus one call here.
+    /// </summary>
     private sealed class SingleOperationBinder(
         SpecDocument document,
         SpecOperation operation,
@@ -249,66 +254,63 @@ internal sealed class OperationPlanBinder
         IReadOnlyDictionary<string, string> typeNames,
         BindingErrorCollector errors)
     {
-        private readonly GenerationCuration _curation = curation;
-        private readonly SpecDocument _document = document;
-        private readonly BindingErrorCollector _errors = errors;
-        private readonly SpecOperation _operation = operation;
-        private readonly IReadOnlyDictionary<string, string> _typeNames = typeNames;
+        private readonly OperationFacetContext _context = new(document, operation, curation, typeNames, errors);
 
         public BoundOperation? Bind()
         {
-            var group = _operation.Segments[0];
-            if (!_curation.Groups.TryGetValue(group, out var row))
+            var group = _context.Operation.Segments[0];
+            if (!_context.Curation.Groups.TryGetValue(group, out var row))
             {
                 // The curation validator already reported the missing row.
                 return null;
             }
 
-            if (!CheckWireShape())
+            if (!new OperationWireShapeWall(_context).Check())
             {
                 return null;
             }
 
-            var success = _operation.Responses.Single(static response => response.StatusCode is 200 or 204);
-            var stream = success.IsSse ? BindStream(success) : null;
-            var envelope = success.IsSse ? null : BindEnvelope(success);
-            if (success.IsSse && _operation.RequestBody is not null)
+            var success = _context.Operation.Responses.Single(static response => response.StatusCode is 200 or 204);
+            var stream = success.IsSse ? new StreamFacetBinder(_context).Bind(success) : null;
+            var envelope = success.IsSse ? null : new EnvelopeFacetBinder(_context).Bind(success);
+            if (success.IsSse && _context.Operation.RequestBody is not null)
             {
-                Refuse("streaming operations must not carry a request body");
+                _context.Refuse("streaming operations must not carry a request body");
                 return null;
             }
 
             var errorMap = BindErrorMap();
             var parameters = BindParameters(row);
-            var optionalPlanErrorsBefore = _errors.Count;
+            var optionalPlanErrorsBefore = _context.Errors.Count;
             var (queryRequest, requestBody) = BindRequests();
 
             var (methodName, routeMemberName) = ResolveNames(row);
             if (methodName is null || routeMemberName is null)
             {
-                Refuse("the operation's names cannot be derived mechanically: the group does not pluralize naively");
+                _context.Refuse("the operation's names cannot be derived mechanically: the group does not pluralize naively");
                 return null;
             }
 
-            var pagination = BindPagination(methodName, parameters, queryRequest, requestBody, envelope);
+            var pagination = new PaginationFacetBinder(_context)
+                .Bind(methodName, parameters, queryRequest, requestBody, envelope);
 
             if ((success.IsSse ? stream is null : envelope is null)
-                || errorMap is null || parameters is null || _errors.Count != optionalPlanErrorsBefore)
+                || errorMap is null || parameters is null || _context.Errors.Count != optionalPlanErrorsBefore)
             {
                 return null;
             }
 
             return new BoundOperation
             {
-                OperationId = _operation.OperationId,
+                OperationId = _context.Operation.OperationId,
                 Group = group,
                 Row = row,
                 IsHandleOperation = parameters.Any(static parameter => parameter.IsHandleParameter),
                 Plan = new OperationPlan
                 {
                     MethodName = methodName,
-                    HttpMethod = _operation.Method,
-                    RouteTemplate = _operation.Path,
+                    HttpMethod = _context.Operation.Method,
+                    RouteTemplate = _context.Operation.Path,
                     RouteContainerName = row.ClientName ?? CSharpNamePolicy.ToPascalCase(group),
                     RouteMemberName = routeMemberName,
                     Parameters = parameters,
@@ -318,24 +320,24 @@ internal sealed class OperationPlanBinder
                     Stream = stream,
                     Pagination = pagination,
                     ErrorMap = errorMap,
-                    Summary = _operation.Summary,
-                    Description = _operation.Description,
+                    Summary = _context.Operation.Summary,
+                    Description = _context.Operation.Description,
                 },
             };
         }
 
         private (string? MethodName, string? RouteMemberName) ResolveNames(GroupCuration row)
         {
-            var curatedName = _curation.OperationNames.FirstOrDefault(operationName =>
-                string.Equals(operationName.OperationId, _operation.OperationId, StringComparison.Ordinal));
-            return (OperationNamePolicy.MethodName(_operation, curatedName),
-                OperationNamePolicy.RouteMemberName(_operation, row.Placement, curatedName));
+            var curatedName = _context.Curation.OperationNames.FirstOrDefault(operationName =>
+                string.Equals(operationName.OperationId, _context.Operation.OperationId, StringComparison.Ordinal));
+            return (OperationNamePolicy.MethodName(_context.Operation, curatedName),
+                OperationNamePolicy.RouteMemberName(_context.Operation, row.Placement, curatedName));
         }
 
         private (QueryRequestPlan? Query, RequestBodyPlan? Body) BindRequests()
         {
-            var queryRequest = BindQueryRequest();
-            var requestBody = BindRequestBody();
+            var queryRequest = new QueryRequestFacetBinder(_context).Bind();
+            var requestBody = new RequestBodyFacetBinder(_context).Bind();
             if (queryRequest is null || requestBody is null)
             {
                 return (queryRequest, requestBody);
@@ -345,539 +347,18 @@ internal sealed class OperationPlanBinder
             // channel; every other mix keeps the deliberate wall.
             if (queryRequest.Properties.Any(static property => property.Kind is not QueryValueKind.Location))
             {
-                Refuse("operations mixing a request body and query parameters are supported only for the location selector");
+                _context.Refuse("operations mixing a request body and query parameters are supported only for the location selector");
                 return (queryRequest, requestBody);
             }
 
             return (queryRequest with { RidesRequestBody = true }, requestBody);
         }
 
-        private PaginationPlan? BindPagination(string methodName, IReadOnlyList<OperationParameterPlan>? parameters,
-            QueryRequestPlan? queryRequest, RequestBodyPlan? requestBody, EnvelopePlan? envelope)
-        {
-            if (queryRequest is not { DerivesFromListRequest: true, RidesRequestBody: false }
-                || envelope is not
-                {
-                    Kind: EnvelopeKind.CursorList,
-                    PayloadName: { } payloadName,
-                    PayloadTypeName: { } itemTypeName,
-                })
-            {
-                return null;
-            }
-
-            if (!string.Equals(_operation.Method, "get", StringComparison.Ordinal)
-                || requestBody is not null
-                || parameters is null
-                || parameters.Any(static parameter => !parameter.IsHandleParameter))
-            {
-                return RefuseNull<PaginationPlan>(
-                    "cursor pagination currently requires a GET operation with no body or unbound route parameters");
-            }
-
-            var enumerationMethodName = OperationNamePolicy.EnumerationMethodName(methodName);
-            if (enumerationMethodName is null)
-            {
-                _errors.Add(
-                    BindingErrorCategory.Naming,
-                    _operation.OperationId,
-                    $"cursor-list method '{methodName}' must be an asynchronous List method before its enumeration name can be derived");
-                return null;
-            }
-
-            return new PaginationPlan
-            {
-                MethodName = enumerationMethodName,
-                RequestTypeName = queryRequest.TypeName,
-                ItemTypeName = itemTypeName,
-                PayloadName = payloadName,
-            };
-        }
-
-        private bool CheckWireShape()
-        {
-            var before = _errors.Count;
-            var isGet = string.Equals(_operation.Method, "get", StringComparison.Ordinal);
-            var isPost = string.Equals(_operation.Method, "post", StringComparison.Ordinal);
-            var isDelete = string.Equals(_operation.Method, "delete", StringComparison.Ordinal);
-            var isPatch = string.Equals(_operation.Method, "patch", StringComparison.Ordinal);
-            if (!isGet && !isPost && !isDelete && !isPatch)
-            {
-                Refuse($"HTTP method '{_operation.Method}' is not supported");
-            }
-
-            if (_operation.HasWildcardPath)
-            {
-                Refuse("wildcard paths are not supported in M1");
-            }
-
-            if (_operation.IsWebSocket)
-            {
-                Refuse("WebSocket operations are not supported in M1");
-            }
-
-            if ((isGet || isDelete) && _operation.RequestBody is not null)
-            {
-                Refuse($"{_operation.Method.ToUpperInvariant()} operations must not carry a request body");
-            }
-
-            if ((isPost || isPatch) && _operation.RequestBody is null)
-            {
-                Refuse($"{_operation.Method.ToUpperInvariant()} operations must carry a request body");
-            }
-
-            CheckParameterShapes();
-            CheckStatusShape();
-            return _errors.Count == before;
-        }
-
-        private void CheckParameterShapes()
-        {
-            foreach (var parameter in _operation.Parameters.Where(static parameter => parameter.Location is SpecParameterLocation.Path))
-            {
-                if (parameter is not { IsRequired: true, IsDeepObject: false })
-                {
-                    Refuse($"path parameter '{parameter.Name}' must be required and plainly encoded");
-                    continue;
-                }
-
-                if (Resolve(parameter.Schema) is not PrimitiveNode { Kind: PrimitiveKind.String })
-                {
-                    Refuse($"path parameter '{parameter.Name}' must be a plain string");
-                }
-            }
-        }
-
-        private void CheckStatusShape()
-        {
-            var successes = _operation.Responses.Where(static response => response.StatusCode is >= 200 and < 300).ToArray();
-            if (successes.Length is not 1)
-            {
-                Refuse("operation must declare exactly one success response");
-            }
-            else if (successes[0].StatusCode is not (200 or 204))
-            {
-                Refuse("the success response must use status 200 or a content-free 204");
-            }
-
-            foreach (var response in _operation.Responses
-                         .Where(static response => response.StatusCode is < 200 or (>= 300 and < 400)))
-            {
-                Refuse($"status '{response.StatusCode.ToString(CultureInfo.InvariantCulture)}' must be an error status");
-            }
-        }
-
-        /// <summary>
-        /// Reads a streaming success: the frame profile the contract declares, the payload its
-        /// JSON-encoded data field carries, and the event name that reports a mid-stream failure.
-        /// Every part is required — a stream whose shape is not fully declared is refused.
-        /// </summary>
-        private StreamPlan? BindStream(SpecResponse success)
-        {
-            if (success.ContentType is not { IsEventStream: true } || success.Schema is null)
-            {
-                return RefuseStream("a streaming success must carry a text/event-stream schema");
-            }
-
-            if (success.Schema is not RefNode reference
-                || !_document.Schemas.TryGetValue(reference.Target, out var target)
-                || target is not ObjectNode frame)
-            {
-                return RefuseStream("the event frame must reference a named object schema");
-            }
-
-            var id = frame.Properties.FirstOrDefault(static property => property.Name is "id");
-            var eventName = frame.Properties.FirstOrDefault(static property => property.Name is "event");
-            var data = frame.Properties.FirstOrDefault(static property => property.Name is "data");
-            if (frame.Properties.Count is not 3
-                || frame.Properties.Any(static property => property.Name is not ("id" or "event" or "data"))
-                || frame.Properties.Any(static property => !property.IsRequired)
-                || id is null
-                || eventName is null
-                || data is null)
-            {
-                return RefuseStream("the event frame must require exactly 'id', 'event' and 'data'");
-            }
-
-            if (!IsNullableUnformattedString(id.Schema))
-            {
-                return RefuseStream("the event frame 'id' must be a nullable string");
-            }
-
-            if (Resolve(eventName.Schema) is not PrimitiveNode { Kind: PrimitiveKind.String, Format: null })
-            {
-                return RefuseStream("the event frame 'event' must be a string");
-            }
-
-            var payload = BindFramePayload(data.Schema);
-            var failure = BindEffectStream(success);
-            if (payload is null || failure is null)
-            {
-                return null;
-            }
-
-            var responseTypeName = OperationNamePolicy.ResponseTypeName(_operation);
-            return new StreamPlan
-            {
-                PayloadTypeName = payload,
-                AdapterTypeName = $"{responseTypeName}StreamAdapter",
-                FailureEventName = failure.EventName,
-                CauseTypeName = failure.CauseTypeName,
-            };
-        }
-
-        /// <summary>The frame's data field is a JSON-encoded string; the stream yields what it encodes.</summary>
-        private string? BindFramePayload(SchemaNode schema)
-        {
-            var node = schema is RefNode reference && _document.Schemas.TryGetValue(reference.Target, out var target)
-                ? target
-                : schema;
-            return node is JsonStringNode { Inner: RefNode inner } && _typeNames.TryGetValue(inner.Target, out var name)
-                ? name
-                : RefuseNull("the event frame's data must be a JSON-encoded string over a named schema");
-        }
-
-        private BoundEffectStream? BindEffectStream(SpecResponse success)
-        {
-            if (success.EffectStream is null)
-            {
-                return RefuseNull<BoundEffectStream>("a streaming success must declare 'x-effect-stream'");
-            }
-
-            var extension = success.EffectStream;
-            if (!string.Equals(extension.Encoding, "sse", StringComparison.Ordinal))
-            {
-                return RefuseNull<BoundEffectStream>("'x-effect-stream.encoding' must equal 'sse'");
-            }
-
-            if (extension.FailureEventName is not { Length: > 0 } name)
-            {
-                return RefuseNull<BoundEffectStream>("'x-effect-stream' must declare a non-empty 'failureEvent'");
-            }
-
-            if (string.Equals(name, "message", StringComparison.Ordinal))
-            {
-                return RefuseNull<BoundEffectStream>("'x-effect-stream.failureEvent' must not equal 'message'");
-            }
-
-            if (extension.ErrorSchema is null || Resolve(extension.ErrorSchema) is not NeverNode)
-            {
-                return RefuseNull<BoundEffectStream>("'x-effect-stream.errorSchema' must be the never schema 'not: {}'");
-            }
-
-            if (extension.CauseSchema is not ArrayNode { Item: RefNode item }
-                || !_document.Schemas.TryGetValue(item.Target, out var itemSchema)
-                || itemSchema is not UnionNode { Classification: UnionClassification.Marked }
-                || !_typeNames.TryGetValue(item.Target, out var itemTypeName))
-            {
-                return RefuseNull<BoundEffectStream>(
-                    "'x-effect-stream.causeSchema' must be an array of a named marked union");
-            }
-
-            return new BoundEffectStream(name, $"{itemTypeName}[]");
-        }
-
-        private sealed record BoundEffectStream(string EventName, string CauseTypeName);
-
-        private StreamPlan? RefuseStream(string problem)
-        {
-            Refuse(problem);
-            return null;
-        }
-
-        private EnvelopePlan? BindEnvelope(SpecResponse success)
-        {
-            if (success.StatusCode is 204)
-            {
-                return BindNoContentEnvelope(success);
-            }
-
-            if (success.ContentType is not { IsJson: true } || success.Schema is null)
-            {
-                Refuse("the success response must carry a JSON schema");
-                return null;
-            }
-
-            var payload = success.EnvelopeShape switch
-            {
-                SpecEnvelopeShape.Bare => BindBarePayload(success.Schema),
-                SpecEnvelopeShape.Data => BindDataPayload(success.Schema),
-                SpecEnvelopeShape.CursorData => BindCursorListPayload(success.Schema),
-                SpecEnvelopeShape.DataLocation => BindDataLocationPayload(success.Schema),
-                SpecEnvelopeShape.None or SpecEnvelopeShape.DataHasMore or _ =>
-                    RefuseNull($"envelope shape '{success.EnvelopeShape}' is not supported"),
-            };
-            var locationTypeName = success.EnvelopeShape is SpecEnvelopeShape.DataLocation
-                ? BindLocationSibling(success.Schema)
-                : null;
-            if (success.EnvelopeShape is SpecEnvelopeShape.DataLocation && locationTypeName is null)
-            {
-                return null;
-            }
-
-            if (payload is null)
-            {
-                return null;
-            }
-
-            var responseTypeName = OperationNamePolicy.ResponseTypeName(_operation);
-            var payloadName = DerivePayloadName(responseTypeName);
-            if (payloadName is null)
-            {
-                return null;
-            }
-
-            var kind = success.EnvelopeShape switch
-            {
-                SpecEnvelopeShape.Data => EnvelopeKind.Data,
-                SpecEnvelopeShape.CursorData => EnvelopeKind.CursorList,
-                SpecEnvelopeShape.DataLocation => DataLocationKind(success.Schema),
-                SpecEnvelopeShape.Bare or SpecEnvelopeShape.None
-                    or SpecEnvelopeShape.DataHasMore or _ => EnvelopeKind.Bare,
-            };
-            return new EnvelopePlan
-            {
-                ResponseTypeName = responseTypeName,
-                AdapterTypeName = $"{responseTypeName}Adapter",
-                PayloadName = payloadName,
-                PayloadTypeName = payload,
-                Kind = kind,
-                SuccessStatusCode = 200,
-                EnvelopeDtoTypeName = kind is EnvelopeKind.Bare ? null : $"{responseTypeName}Envelope",
-                LocationTypeName = locationTypeName,
-            };
-        }
-
-        private string? DerivePayloadName(string responseTypeName)
-        {
-            var payloadName = _curation.EnvelopePayloadNames.TryGetValue(_operation.OperationId, out var curated)
-                ? curated
-                : OperationNamePolicy.PayloadName(_operation);
-            if (payloadName is null)
-            {
-                Refuse("the payload name cannot be derived mechanically: the group does not pluralize naively; curate an envelope payload name");
-                return null;
-            }
-
-            // Mechanical names are PascalCase by construction, but the wall covers both origins.
-            if (!CSharpNamePolicy.IsValidIdentifier(payloadName))
-            {
-                _errors.Add(
-                    BindingErrorCategory.Naming,
-                    _operation.OperationId,
-                    $"payload name '{payloadName}' is not a valid C# identifier");
-                return null;
-            }
-
-            if (ReservedNamePolicy.PayloadNames.Contains(payloadName)
-                || string.Equals(payloadName, responseTypeName, StringComparison.Ordinal))
-            {
-                _errors.Add(
-                    BindingErrorCategory.Naming,
-                    _operation.OperationId,
-                    $"payload name '{payloadName}' collides with the response spine of '{responseTypeName}'");
-                return null;
-            }
-
-            return payloadName;
-        }
-
-        private EnvelopePlan? BindNoContentEnvelope(SpecResponse success)
-        {
-            if (success.ContentType is not null || success.Schema is not null)
-            {
-                Refuse("a 204 success must not carry content");
-                return null;
-            }
-
-            var responseTypeName = OperationNamePolicy.ResponseTypeName(_operation);
-            return new EnvelopePlan
-            {
-                ResponseTypeName = responseTypeName,
-                AdapterTypeName = $"{responseTypeName}Adapter",
-                PayloadName = null,
-                PayloadTypeName = null,
-                Kind = EnvelopeKind.NoContent,
-                SuccessStatusCode = 204,
-                EnvelopeDtoTypeName = null,
-            };
-        }
-
-        private string? BindBarePayload(SchemaNode schema)
-        {
-            return schema is RefNode reference && _typeNames.TryGetValue(reference.Target, out var name)
-                ? name
-                : RefuseNull("success payload must reference a named schema");
-        }
-
-        private string? BindDataPayload(SchemaNode schema)
-        {
-            if (schema is RefNode reference
-                && _document.Schemas.TryGetValue(reference.Target, out var target)
-                && target is ObjectNode { Properties: [{ Name: "data", IsRequired: true } data] }
-                && data.Schema is RefNode payload
-                && _typeNames.TryGetValue(payload.Target, out var name))
-            {
-                return name;
-            }
-
-            return RefuseNull("envelope payload must be a required reference to a named schema");
-        }
-
-        private string? BindCursorListPayload(SchemaNode schema)
-        {
-            if (schema is not RefNode reference
-                || !_document.Schemas.TryGetValue(reference.Target, out var target)
-                || target is not ObjectNode wrapper)
-            {
-                return RefuseNull("cursor-list envelope must reference an object schema");
-            }
-
-            var data = wrapper.Properties.FirstOrDefault(static property => property.Name is "data");
-            var cursor = wrapper.Properties.FirstOrDefault(static property => property.Name is "cursor");
-            if (wrapper.Properties.Count is not 2 || data is not { IsRequired: true } || cursor is not { IsRequired: true })
-            {
-                return RefuseNull("cursor-list envelope must require exactly 'data' and 'cursor'");
-            }
-
-            if (!IsListCursorShape(cursor.Schema))
-            {
-                return RefuseNull("cursor-list 'cursor' must be the optional-nullable previous/next cursor object");
-            }
-
-            // Items must reference top-level components: a promoted inline item would take its
-            // name from the excluded response root, so the dialect keeps list items nominal.
-            if (data.Schema is not ArrayNode { Item: RefNode item }
-                || item.Target.Contains('#', StringComparison.Ordinal)
-                || !_typeNames.TryGetValue(item.Target, out var itemName))
-            {
-                return RefuseNull("cursor-list 'data' must be an array of a named component schema");
-            }
-
-            return itemName;
-        }
-
-        private string? BindDataLocationPayload(SchemaNode schema)
-        {
-            var wrapper = ResolveDataLocationWrapper(schema);
-            if (wrapper is null)
-            {
-                return null;
-            }
-
-            var data = wrapper.Properties.Single(static property => property.Name is "data");
-            if (data.Schema is RefNode datum
-                && !datum.Target.Contains('#', StringComparison.Ordinal)
-                && _typeNames.TryGetValue(datum.Target, out var datumName))
-            {
-                return datumName;
-            }
-
-            // Items must reference top-level components: a promoted inline item would take its
-            // name from the excluded response root, so the dialect keeps list items nominal.
-            if (data.Schema is ArrayNode { Item: RefNode item }
-                && !item.Target.Contains('#', StringComparison.Ordinal)
-                && _typeNames.TryGetValue(item.Target, out var itemName))
-            {
-                return itemName;
-            }
-
-            return RefuseNull("location envelope 'data' must reference a named component schema, or be an array of one");
-        }
-
-        /// <summary>
-        /// The payload binder owns the wrapper walls; the sibling and kind readers resolve
-        /// leniently because a malformed wrapper is already refused once.
-        /// </summary>
-        private ObjectNode? ResolveDataLocationWrapper(SchemaNode schema)
-        {
-            if (schema is not RefNode reference
-                || !_document.Schemas.TryGetValue(reference.Target, out var target)
-                || target is not ObjectNode wrapper)
-            {
-                return RefuseNull<ObjectNode>("location envelope must reference an object schema");
-            }
-
-            var data = wrapper.Properties.FirstOrDefault(static property => property.Name is "data");
-            var location = wrapper.Properties.FirstOrDefault(static property => property.Name is "location");
-            if (wrapper.Properties.Count is not 2 || data is not { IsRequired: true } || location is not { IsRequired: true })
-            {
-                return RefuseNull<ObjectNode>("location envelope must require exactly 'data' and 'location'");
-            }
-
-            return wrapper;
-        }
-
-        private string? BindLocationSibling(SchemaNode schema)
-        {
-            if (schema is not RefNode reference
-                || !_document.Schemas.TryGetValue(reference.Target, out var target)
-                || target is not ObjectNode wrapper
-                || wrapper.Properties.FirstOrDefault(static property => property.Name is "location") is not { IsRequired: true } location)
-            {
-                return null;
-            }
-
-            // A promoted inline sibling would take its name from the excluded response root,
-            // so the dialect keeps the location echo nominal.
-            return location.Schema is RefNode sibling
-                   && !sibling.Target.Contains('#', StringComparison.Ordinal)
-                   && _typeNames.TryGetValue(sibling.Target, out var name)
-                ? name
-                : RefuseNull("the location sibling must reference a named component schema");
-        }
-
-        private EnvelopeKind DataLocationKind(SchemaNode schema) =>
-            schema is RefNode reference
-            && _document.Schemas.TryGetValue(reference.Target, out var target)
-            && target is ObjectNode wrapper
-            && wrapper.Properties.FirstOrDefault(static property => property.Name is "data")?.Schema is ArrayNode
-                ? EnvelopeKind.DataLocationList
-                : EnvelopeKind.DataLocation;
-
-        /// <summary>
-        /// Recognizes the dual-channel location selector structurally — exactly the
-        /// optional-nullable string <c>directory</c> and <c>workspace</c> members — so the
-        /// route serializer's fixed member set stays safe.
-        /// </summary>
-        private bool IsLocationSelectorShape(SchemaNode schema)
-        {
-            if (Resolve(schema) is not ObjectNode selector
-                || selector.Format is not null
-                || selector.Properties.Count is not 2
-                || selector.Properties.Select(static property => property.Name).Distinct(StringComparer.Ordinal).Count() is not 2)
-            {
-                return false;
-            }
-
-            return selector.Properties.All(property => property is { IsRequired: false, Name: "directory" or "workspace" }
-                                                       && IsNullableUnformattedString(property.Schema));
-        }
-
-        /// <summary>Recognizes the wire cursor contract: exactly optional-nullable string <c>previous</c> and <c>next</c>.</summary>
-        private bool IsListCursorShape(SchemaNode schema)
-        {
-            if (Resolve(schema) is not ObjectNode cursor
-                || cursor.Format is not null
-                || cursor.Properties.Count is not 2
-                || cursor.Properties.Select(static property => property.Name).Distinct(StringComparer.Ordinal).Count() is not 2)
-            {
-                return false;
-            }
-
-            return cursor.Properties.All(property => property is { IsRequired: false, Name: "previous" or "next" }
-                                                     && IsNullableUnformattedString(property.Schema));
-        }
-
-        private bool IsNullableUnformattedString(SchemaNode schema) =>
-            Resolve(schema) is NullableNode { Format: null, Inner: var inner }
-            && Resolve(inner) is PrimitiveNode { Kind: PrimitiveKind.String, Format: null };
-
         private ErrorMapPlan? BindErrorMap()
         {
             var statuses = new List<ErrorStatusPlan>();
             var complete = true;
-            foreach (var response in _operation.Responses.Where(static response => response.StatusCode is >= 400))
+            foreach (var response in _context.Operation.Responses.Where(static response => response.StatusCode is >= 400))
             {
                 var tags = BindErrorStatus(response);
                 if (tags is null)
@@ -923,9 +404,9 @@ internal sealed class OperationPlanBinder
                     return RefuseNullTags("error responses must reference Effect-tagged error schemas");
                 }
 
-                if (!_typeNames.TryGetValue(key, out var typeName))
+                if (!_context.TypeNames.TryGetValue(key, out var typeName))
                 {
-                    _errors.Add(BindingErrorCategory.Naming, key, "error schema has no unique C# type name");
+                    _context.Errors.Add(BindingErrorCategory.Naming, key, "error schema has no unique C# type name");
                     return null;
                 }
 
@@ -949,7 +430,7 @@ internal sealed class OperationPlanBinder
         /// <summary>Resolves an error response schema into the object schemas carrying its tags.</summary>
         private List<KeyValuePair<string, ObjectNode>>? ResolveErrorTargets(SchemaNode schema)
         {
-            if (schema is not RefNode reference || !_document.Schemas.TryGetValue(reference.Target, out var target))
+            if (schema is not RefNode reference || !_context.Document.Schemas.TryGetValue(reference.Target, out var target))
             {
                 return null;
             }
@@ -963,7 +444,7 @@ internal sealed class OperationPlanBinder
                     foreach (var branch in union.Branches)
                     {
                         if (branch is not RefNode branchReference
-                            || !_document.Schemas.TryGetValue(branchReference.Target, out var branchTarget)
+                            || !_context.Document.Schemas.TryGetValue(branchReference.Target, out var branchTarget)
                             || branchTarget is not ObjectNode branchNode)
                         {
                             return null;
@@ -980,7 +461,7 @@ internal sealed class OperationPlanBinder
 
         private IReadOnlyList<OperationParameterPlan>? BindParameters(GroupCuration row)
         {
-            var plans = _operation
+            var plans = _context.Operation
                 .Parameters
                 .Where(static parameter => parameter.Location is SpecParameterLocation.Path)
                 .Select(parameter => new OperationParameterPlan
@@ -996,9 +477,9 @@ internal sealed class OperationPlanBinder
             var duplicate = plans.GroupBy(static plan => plan.Name, StringComparer.Ordinal).FirstOrDefault(static plan => plan.Skip(1).Any());
             if (duplicate is not null)
             {
-                _errors.Add(
+                _context.Errors.Add(
                     BindingErrorCategory.Naming,
-                    _operation.OperationId,
+                    _context.Operation.OperationId,
                     $"multiple parameters map to C# name '{duplicate.Key}'");
                 return null;
             }
@@ -1014,9 +495,9 @@ internal sealed class OperationPlanBinder
             {
                 foreach (var name in reserved)
                 {
-                    _errors.Add(
+                    _context.Errors.Add(
                         BindingErrorCategory.Naming,
-                        _operation.OperationId,
+                        _context.Operation.OperationId,
                         $"parameter name '{name}' is reserved by the emitted method signature");
                 }
 
@@ -1028,238 +509,15 @@ internal sealed class OperationPlanBinder
 
         private int TemplatePosition(string wireName)
         {
-            var position = _operation.Path.IndexOf($"{{{wireName}}}", StringComparison.Ordinal);
+            var position = _context.Operation.Path.IndexOf($"{{{wireName}}}", StringComparison.Ordinal);
             Debug.Assert(position >= 0, "Ingestion guarantees every path parameter appears in the route template.");
             return position;
         }
 
-        private QueryRequestPlan? BindQueryRequest()
-        {
-            var query = _operation.Parameters.Where(static parameter => parameter.Location is SpecParameterLocation.Query).ToArray();
-            if (query.Length is 0)
-            {
-                return null;
-            }
-
-            var properties = new List<QueryPropertyPlan>(query.Length);
-            foreach (var parameter in query)
-            {
-                if (parameter.IsDeepObject)
-                {
-                    var location = BindLocationSelector(parameter);
-                    if (location is not null)
-                    {
-                        properties.Add(location);
-                    }
-
-                    continue;
-                }
-
-                if (parameter.IsRequired)
-                {
-                    Refuse($"query parameter '{parameter.Name}' must be optional");
-                    continue;
-                }
-
-                if (Resolve(parameter.Schema) is not NullableNode nullable)
-                {
-                    Refuse($"query parameter '{parameter.Name}' must admit null");
-                    continue;
-                }
-
-                var kind = nullable.Format is null ? ResolveQueryValueKind(nullable.Inner) : null;
-                if (kind is null)
-                {
-                    Refuse($"query parameter '{parameter.Name}' has an unsupported schema shape");
-                    continue;
-                }
-
-                properties.Add(new QueryPropertyPlan
-                {
-                    WireName = parameter.Name,
-                    PropertyName = CSharpNamePolicy.ToPascalCase(parameter.Name),
-                    Kind = kind.Value,
-                    Description = nullable.Description ?? Resolve(nullable.Inner).Description,
-                    IsInherited = false,
-                });
-            }
-
-            var duplicate = properties
-                .GroupBy(static property => property.PropertyName, StringComparer.Ordinal)
-                .FirstOrDefault(static property => property.Skip(1).Any());
-            if (duplicate is not null)
-            {
-                _errors.Add(
-                    BindingErrorCategory.Naming,
-                    _operation.OperationId,
-                    $"multiple query parameters map to C# name '{duplicate.Key}'");
-                return null;
-            }
-
-            if (MatchesListRequestProfile(properties))
-            {
-                properties =
-                [
-                    .. properties.Select(static property => property with
-                    {
-                        IsInherited = true
-                    })
-                ];
-            }
-
-            return new QueryRequestPlan
-            {
-                TypeName = OperationNamePolicy.RequestTypeName(_operation),
-                DerivesFromListRequest = properties.Count > 0 && properties[0].IsInherited,
-                Properties = properties,
-            };
-        }
-
-        /// <summary>The one admitted deep-object encoding is the optional nullable location selector.</summary>
-        private QueryPropertyPlan? BindLocationSelector(SpecParameter parameter)
-        {
-            if (parameter.IsRequired
-                || Resolve(parameter.Schema) is not NullableNode nullable
-                || nullable.Format is not null
-                || !IsLocationSelectorShape(nullable.Inner))
-            {
-                Refuse($"query parameter '{parameter.Name}' uses deep-object encoding outside the optional location selector shape");
-                return null;
-            }
-
-            return new QueryPropertyPlan
-            {
-                WireName = parameter.Name,
-                PropertyName = CSharpNamePolicy.ToPascalCase(parameter.Name),
-                Kind = QueryValueKind.Location,
-                Description = parameter.Schema.Description,
-                IsInherited = false,
-            };
-        }
-
-        private RequestBodyPlan? BindRequestBody()
-        {
-            var body = _operation.RequestBody;
-            if (body is null)
-            {
-                return null;
-            }
-
-            if (body.ContentType is not { IsJson: true })
-            {
-                Refuse("the request body must carry a JSON schema");
-                return null;
-            }
-
-            if (!body.IsRequired)
-            {
-                Refuse("the request body must be declared required");
-                return null;
-            }
-
-            if (body.Schema is not RefNode reference || Resolve(body.Schema) is not ObjectNode target)
-            {
-                Refuse("the request body must reference an object schema");
-                return null;
-            }
-
-            if (!_typeNames.TryGetValue(reference.Target, out var typeName))
-            {
-                _errors.Add(BindingErrorCategory.Naming, reference.Target, "request body schema has no unique C# type name");
-                return null;
-            }
-
-            // The name resolver claims every selected body root with the operation-derived
-            // request name; a mismatch means the ownership map and this binding disagree.
-            var expected = OperationNamePolicy.RequestTypeName(_operation);
-            if (!string.Equals(typeName, expected, StringComparison.Ordinal))
-            {
-                _errors.Add(
-                    BindingErrorCategory.Naming,
-                    reference.Target,
-                    $"request body resolved to '{typeName}' instead of the operation-derived '{expected}'");
-                return null;
-            }
-
-            return new RequestBodyPlan
-            {
-                TypeName = typeName,
-                ParameterName = "request",
-                IsOptional = target.Properties.All(static property => !property.IsRequired),
-            };
-        }
-
-        /// <summary>
-        /// The fail-closed profile wall: an operation derives from the <c>ListRequest</c> base
-        /// only when its wire query parameters are exactly the cursor-pagination trio.
-        /// </summary>
-        private static bool MatchesListRequestProfile(List<QueryPropertyPlan> properties) =>
-            properties.Count is 3
-            && properties.Any(static property => property is { WireName: "limit", Kind: QueryValueKind.Text })
-            && properties.Any(static property => property is { WireName: "order", Kind: QueryValueKind.ListOrder })
-            && properties.Any(static property => property is { WireName: "cursor", Kind: QueryValueKind.Text });
-
-        private QueryValueKind? ResolveQueryValueKind(SchemaNode inner)
-        {
-            return Resolve(inner) switch
-            {
-                PrimitiveNode { Kind: PrimitiveKind.String, Format: null } => QueryValueKind.Text,
-                EnumNode { Values: ["asc", "desc"], Format: null } => QueryValueKind.ListOrder,
-                EnumNode { Values: ["true", "false"] or ["false", "true"], Format: null } => QueryValueKind.BooleanText,
-                UnionNode { Classification: UnionClassification.Structural, Format: null, Branches: [var first, var second] }
-                    when IsParentFilterShape(first, second) => QueryValueKind.SessionParentFilter,
-                _ => null,
-            };
-        }
-
-        /// <summary>
-        /// Recognizes the parent-filter wire shape — a patterned identifier string beside the
-        /// literal <c>"null"</c> — structurally, never by parameter name.
-        /// </summary>
-        private bool IsParentFilterShape(SchemaNode first, SchemaNode second)
-        {
-            var left = Resolve(first);
-            var right = Resolve(second);
-            return (IsIdentifierString(left) && IsNullLiteral(right))
-                   || (IsIdentifierString(right) && IsNullLiteral(left));
-        }
-
-        private static bool IsIdentifierString(SchemaNode schema) => schema is PrimitiveNode { Kind: PrimitiveKind.String, Format: null };
-
-        private static bool IsNullLiteral(SchemaNode schema) => schema is LiteralNode { Kind: LiteralKind.String, Value: "null", Format: null };
-
-        private void Refuse(string problem) => _errors.Add(BindingErrorCategory.Operation, _operation.OperationId, problem);
-
-        private string? RefuseNull(string problem)
-        {
-            Refuse(problem);
-            return null;
-        }
-
-        private T? RefuseNull<T>(string problem)
-            where T : class
-        {
-            Refuse(problem);
-            return null;
-        }
-
         private IReadOnlyList<ErrorTagPlan>? RefuseNullTags(string problem)
         {
-            Refuse(problem);
+            _context.Refuse(problem);
             return null;
-        }
-
-        private SchemaNode Resolve(SchemaNode schema)
-        {
-            var visited = new HashSet<string>(StringComparer.Ordinal);
-            var current = schema;
-            while (current is RefNode reference && visited.Add(reference.Target)
-                                                && _document.Schemas.TryGetValue(reference.Target, out var target))
-            {
-                current = target;
-            }
-
-            return current;
         }
     }
 }

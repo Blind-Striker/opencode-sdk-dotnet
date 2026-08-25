@@ -286,7 +286,7 @@ upstream-removed families — the question flow, `projectCopy.*`, `health.stop`,
 across the bodyless-POST, inline-promotion, envelope-shape, PUT, and query walls plus three
 singleton decisions). The doc 18 gate is decided on that probe (maintainer, 2026-08-25): B2's
 single `ReservedNamePolicy` is landed with its reflection coverage tests, B1's facet binders
-land before the first mechanism batch, and B3/B4 stay sequenced behind B1. **The A-series is
+are landed ahead of the first mechanism batch, and B3/B4 stay sequenced behind B1. **The A-series is
 complete**: all 52 routine operations landed in four family batches with contract tests,
 Extensions roster growth, and additive-only PublicApi reviews; the profile stands at **67
 selected / 53 pending** across twenty-one client families. ADR-0019 owns handle placement
@@ -294,7 +294,7 @@ selected / 53 pending** across twenty-one client families. ADR-0019 owns handle 
 group curation row now carries a mandatory reason. The committed sandbox's session-actions
 walkthrough ran live against the pinned server: fork's request-side union accepted on the
 wire, NoThrow carrying a typed 404, and the permission ask → get → reply lifecycle proven end
-to end with a configured agent (research Q145). The **mechanism batches** follow behind B1 —
+to end with a configured agent (research Q145). The **mechanism batches** are next —
 bodyless POST + PUT first (15 operations), then inline promotion, envelope extensions, and the
 query walls, each design-first — and the **M4 launcher** rides alongside as a small
 independent arc (1–2 page plan, approval before source). An **early prerelease packaging track**
@@ -396,9 +396,9 @@ is revisited at each milestone boundary.
   research Q129). Also reopen if the validate-after-owned-transport-construction ordering
   hazard produces a real defect.
 - **Generator binding locality** — the doc 18 gate is decided (maintainer, 2026-08-25;
-  evidence research Q144): B2's reserved-name owner is landed; B1's facet binders land
-  before the first mechanism batch, with B3's scenario-derived fixture and B4's
-  error-union extraction sequenced behind B1.
+  evidence research Q144): B2's reserved-name owner and B1's facet binders are landed,
+  with B3's scenario-derived fixture and B4's error-union extraction sequenced behind
+  them.
 - **Parent-mediated id access for flat families** — ADR-0019 places single-action
   families as flat id-argument methods. Whether those families should additionally
   expose a handle-style convenience door through their parent client is parked here
