@@ -3815,3 +3815,37 @@ registration roster for new client families together, through the full local gat
 (facet binders) lands before the mechanism batches — bodyless POST plus PUT, inline promotion
 (design-first), envelope extensions, and the query walls — exactly the new-shape work doc 18's
 cost model says justifies it; B3/B4 stay sequenced behind B1.
+
+## Q145: What did the A-series land, and which surface decisions sealed it?
+
+**Landed (all four batches, 52 operations, profile 15 → 67 selected / 53 pending):** A-1 the
+session twenty (`faef68b`) with the first request-side union (fork's tagged boundary through the
+generated token-dispatched converter), the omitted-body branch on compact, and eight error
+types; A-2 the Integrations/McpServers/Ptys families (`31b3d11`) with three new tagged unions
+and the curated MCP-server names; A-3 the pair families (`6bb5813`); A-4 the singletons
+(`f573bfb`). Every batch ran the full local gate chain with additive-only PublicApi reviews
+(zero removals across all four); the suite grew 2,186 → 2,269 tests. The committed sandbox's
+new session-actions walkthrough ran live against the pinned server (`c02c0e8`): export,
+permission create with a typed `Deny` effect, compact's queued inbox item, and fork accepting
+the serialized `{"type":"through"}` boundary on the wire, with NoThrow carrying a typed 404.
+The permission lifecycle closed by curl with an `OPENCODE_CONFIG_CONTENT` probe agent:
+create → `ask` → GET 200 pending → reply 204 → GET 404 (consumed) — the earlier 404s were the
+deny path (an agentless session resolves the deny-all fallback ruleset; only `ask` parks a
+pending request), byte-identical between the SDK and curl.
+
+**Decisions (maintainer, 2026-08-25):** ADR-0019 — handle clients only for working objects,
+judged against the complete pinned surface (the mcp near-miss is the recorded motivation);
+Agents/Credentials/Permissions/Providers flattened to id-argument methods before commit, the
+pushed handle families stood. The ADR is anchored to the Azure SDK .NET guidelines with exact
+anchors; the one unadopted guideline (`dotnet-subclient-properties`, the id as a property on
+the handle client) joins the parked freeze-time surface review. Group curation rows now carry
+a **mandatory reason** (validator wall + red test): every placement documents itself where it
+stands. Two structural catches: the `Models` family name refused by the writer's shadow wall
+(the provider catalog is `LanguageModels`), and the stock `[Dd]ebug/` gitignore pattern
+silently swallowing the Debug family's source until a narrow negation admitted it (`ccd2a9f`)
+— both feed the maintainer's parked folder-layout review. Naming principles applied through
+reasoned rows: verb-owning operations shed transport prefixes (`GenerateTextAsync`,
+`EvictLocationAsync`, `UpdateCredentialAsync`, `QueryAsync`), list subjects pluralize, and
+mass-noun containers cover the groups that do not (`Debug`, `Experimental`, `Generation`,
+`Vcs`, `Websearch`). CI note: billing refilled mid-session — `9da0ae3` green on rerun, every
+push since verified on the hosted three-OS matrix.
