@@ -86,13 +86,24 @@ internal sealed class LoopbackHttpServer : IAsyncDisposable
         using (client)
         using (var stream = client.GetStream())
         {
-            var path = await ReadRequestPathAsync(stream);
-            _requestPaths.Enqueue(path);
-            var response = _respond(path);
-            await WriteResponseAsync(stream, response);
-            if (response.KeepOpen)
+            try
             {
-                await WaitForClientDisconnectAsync(stream);
+                var path = await ReadRequestPathAsync(stream);
+                _requestPaths.Enqueue(path);
+                var response = _respond(path);
+                await WriteResponseAsync(stream, response);
+                if (response.KeepOpen)
+                {
+                    await WaitForClientDisconnectAsync(stream);
+                    _ = _clientDisconnected.TrySetResult(null);
+                }
+            }
+            catch (Exception exception) when (exception is IOException or ObjectDisposedException or SocketException)
+            {
+                // The peer aborting mid-exchange, or ReleaseResponses closing the socket under an
+                // in-flight write, is connection teardown rather than a fixture failure; DisposeAsync
+                // awaits this task, so a propagated fault would fail the test from teardown. A torn
+                // connection is also the disconnect signal the kept-open fixtures await.
                 _ = _clientDisconnected.TrySetResult(null);
             }
         }
