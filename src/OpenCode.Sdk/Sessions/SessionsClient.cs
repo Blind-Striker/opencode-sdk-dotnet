@@ -11,6 +11,7 @@ namespace OpenCode.Sdk;
 /// </summary>
 public class SessionsClient
 {
+    private static readonly SessionCreateRequest EmptySessionCreateRequest = new();
     private readonly Pipeline? _pipeline;
     internal SessionsClient(Pipeline pipeline)
     {
@@ -54,7 +55,7 @@ public class SessionsClient
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
     public virtual Task<SessionCreateResponse> CreateSessionAsync(SessionCreateRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
-        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Sessions.CreateSession, request ?? new SessionCreateRequest(), OpenCodeJsonContext.Default.SessionCreateRequest, SessionCreateResponseAdapter.Instance, requestOptions, cancellationToken);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Sessions.CreateSession, request ?? EmptySessionCreateRequest, OpenCodeJsonContext.Default.SessionCreateRequest, SessionCreateResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 
     /// <summary>

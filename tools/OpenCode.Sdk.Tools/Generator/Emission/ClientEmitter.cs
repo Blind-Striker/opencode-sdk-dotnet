@@ -119,6 +119,11 @@ internal static class ClientEmitter
 
     private static IEnumerable<MemberDeclarationSyntax> EmitFields(ClientPlan client)
     {
+        foreach (var typeName in OptionalBodyTypeNames(client))
+        {
+            yield return EmitEmptyBodyField(typeName);
+        }
+
         yield return EmitField("_pipeline", TypeSyntaxEmitter.EmitNamed("Pipeline"));
         if (client.HandleParameter is not null)
         {
@@ -130,6 +135,30 @@ internal static class ClientEmitter
             yield return EmitField(SubClientFieldName(reference), TypeSyntaxEmitter.EmitNamed(reference.TypeName));
         }
     }
+
+    /// <summary>Distinct optional request-body types, in operation order.</summary>
+    private static IEnumerable<string> OptionalBodyTypeNames(ClientPlan client)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var operation in client.Operations)
+        {
+            if (operation.RequestBody is { IsOptional: true } body && seen.Add(body.TypeName))
+            {
+                yield return body.TypeName;
+            }
+        }
+    }
+
+    private static FieldDeclarationSyntax EmitEmptyBodyField(string typeName) =>
+        SyntaxFactory.FieldDeclaration(SyntaxFactory.VariableDeclaration(
+                TypeSyntaxEmitter.EmitNamed(typeName),
+                SyntaxFactory.SingletonSeparatedList(SyntaxFactory
+                    .VariableDeclarator(OperationMethodEmitter.EmptyBodyFieldName(typeName))
+                    .WithInitializer(SyntaxFactory.EqualsValueClause(SyntaxFactory.ImplicitObjectCreationExpression())))))
+            .WithModifiers(SyntaxFactory.TokenList(
+                SyntaxFactory.Token(SyntaxKind.PrivateKeyword),
+                SyntaxFactory.Token(SyntaxKind.StaticKeyword),
+                SyntaxFactory.Token(SyntaxKind.ReadOnlyKeyword)));
 
     private static FieldDeclarationSyntax EmitField(string name, TypeSyntax type) =>
         SyntaxFactory.FieldDeclaration(SyntaxFactory.VariableDeclaration(

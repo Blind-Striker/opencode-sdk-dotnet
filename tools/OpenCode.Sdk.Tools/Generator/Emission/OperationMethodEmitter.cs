@@ -133,13 +133,16 @@ internal static class OperationMethodEmitter
             return parameter;
         }
 
+        // The client caches one empty instance per optional body type; the generated request
+        // records are immutable, so sharing replaces a per-call allocation.
         return SyntaxFactory.BinaryExpression(
             SyntaxKind.CoalesceExpression,
             parameter,
-            SyntaxFactory
-                .ObjectCreationExpression(TypeSyntaxEmitter.EmitNamed(body.TypeName))
-                .WithArgumentList(SyntaxFactory.ArgumentList()));
+            SyntaxFactory.IdentifierName(EmptyBodyFieldName(body.TypeName)));
     }
+
+    /// <summary>Names the client's cached empty instance for an optional request-body type.</summary>
+    internal static string EmptyBodyFieldName(string typeName) => $"Empty{typeName}";
 
     /// <summary>Route arguments come from the method for ordinary parameters and from the bound handle state otherwise.</summary>
     private static ExpressionSyntax EmitRoute(OperationPlan operation)

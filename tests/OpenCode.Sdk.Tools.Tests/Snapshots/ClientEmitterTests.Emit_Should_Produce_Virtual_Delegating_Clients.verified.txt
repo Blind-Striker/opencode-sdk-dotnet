@@ -193,6 +193,7 @@ namespace OpenCode.Sdk;
 /// </summary>
 public class WidgetsClient
 {
+    private static readonly WidgetCreateRequest EmptyWidgetCreateRequest = new();
     private readonly Pipeline? _pipeline;
     internal WidgetsClient(Pipeline pipeline)
     {
@@ -263,7 +264,7 @@ public class WidgetsClient
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
     public virtual Task<WidgetCreateResponse> CreateWidgetAsync(WidgetCreateRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
-        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Widgets.CreateWidget(request), request ?? new WidgetCreateRequest(), OpenCodeJsonContext.Default.WidgetCreateRequest, WidgetCreateResponseAdapter.Instance, requestOptions, cancellationToken);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Widgets.CreateWidget(request), request ?? EmptyWidgetCreateRequest, OpenCodeJsonContext.Default.WidgetCreateRequest, WidgetCreateResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 
     /// <summary>

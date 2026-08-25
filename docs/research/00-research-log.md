@@ -3619,3 +3619,52 @@ free of social-media references). The repository was made public the same day. T
 allocation batch proceeds on the current base. Carried for the next sanctioned refresh:
 `v2.pty.connect.token` introduces a `header` parameter (`x-opencode-ticket`) the ingestion wall
 refuses — an admit-or-exclude decision rides whichever refresh lands first.
+
+# Session 43 — 2026-08-25: emitter allocation batch entry — records tooling, increment 1, sealed decisions
+
+## Q140: What did the emitter allocation batch's entry land, and which doc 20 findings were already closed?
+
+**Records tooling (landed `07c772c`):** `opencode-tool compare-benchmarks <before> <after>
+[--output <csv>]` replaces the session-scratch extract scripts. It reads each run folder's
+`results/*-report-full.json` exports, joins cases on (FullName, runtime leg) — runtime parsed
+from `DisplayInfo`'s `Runtime=` token with a job-name fallback — reports exact
+`BytesAllocatedPerOperation` deltas beside an indicative median ratio, lists one-sided cases
+instead of dropping them, and writes the established
+`"Case","Runtime","AllocBefore","AllocAfter","AllocDelta","TimeRatio"` extract (invariant
+culture). Fail-closed on missing directories, missing exports, missing MemoryDiagnoser data,
+duplicate cases, and zero overlap. Verified by reproducing Q138's 72-case arc-milestone
+comparison from the seeded `.benchmarks/` store byte-for-byte on the quoted rows.
+
+**Batch order (maintainer, 2026-08-25):** (1) decision-free small findings, (2) doc 20 #8
+`FrozenDictionary` tag tables, (3) #3 net9+ alternate span lookup, (4) #10 route/query churn,
+measurement-gated. Sealed alongside: **`System.Collections.Immutable` is adopted as a
+downlevel-conditional package** — only the TFMs without in-box `System.Collections.Frozen`
+(net472/netstandard2.0) take the reference, following the Q133 downlevel-bridge pattern; modern
+TFMs use the in-box types. The canonical `platform-and-packaging.md` sentence rides increment 2
+with maintainer review.
+
+**Polyfill finding (evidence for #3's net9+ gate):** Polyfill 11.0.2 (the pin) does ship
+`GetAlternateLookup`/`DictionaryAlternateLookup` for downlevel TFMs, but its own remarks declare
+the mechanism: O(n) linear key scans via `IAlternateEqualityComparer.Equals` per entry, versus
+the native .NET 9+ O(1) hash-bucket lookup (`TryFindKey` iterates `dictionary.Keys`). Against
+40–87-entry stream-union tag tables that trades a ~24–60 B per-payload string for a full table
+scan per dispatch — a CPU regression on the hottest path, and the polyfill targets `Dictionary`,
+not the frozen tables increment 2 introduces. Doc 14's inventory predates this API; recorded
+here rather than there. Consequence: generated span-lookup dispatch stays `#if NET9_0_OR_GREATER`;
+downlevel keeps string-key O(1) lookups and continues paying the tag-string allocation — a known,
+named boundary.
+
+**Already closed by the runtime arc (verified against current source):** doc 20 D2 (#7) — the
+location-directory escape is hoisted to construction in `RequestDecorationPolicy` (`:31`), exactly
+the "fold into increment-2's RequestDecoration policy" disposition; and D3 (#9) — one shared
+`static readonly MediaTypeHeaderValue JsonMediaType` lives in `Pipeline` (`:26`) under the
+documented no-mutation discipline. Neither needed batch work.
+
+**Increment 1 (#12 / doc 20 D5):** the emitter now caches one static empty request instance per
+distinct optional body type on the owning client (`EmptySessionCreateRequest`) and the omitted-body
+coalesce targets it; generated request records are immutable, so sharing is safe. Regeneration
+touches only `SessionsClient.cs` (one field, one expression); manifest membership and the
+PublicApi baseline are unchanged (private field). No benchmark family exercises the omitted-body
+create path, so no numbers are quoted: the claim is the removed per-call record construction,
+visible in the diff. All base gates plus the tool smoke and `generate --verify` ran green
+(2,182 tests, 0 failed/skipped).
