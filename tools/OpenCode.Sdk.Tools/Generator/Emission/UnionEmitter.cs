@@ -367,6 +367,7 @@ internal static class UnionEmitter
             [
                 "OpenCode.Sdk.Models",
                 "System",
+                "System.Collections.Frozen",
                 "System.Collections.Generic",
                 "System.Text.Json",
                 "System.Text.Json.Serialization",
@@ -405,13 +406,23 @@ internal static class UnionEmitter
             .WithInitializer(SyntaxFactory.InitializerExpression(
                 SyntaxKind.CollectionInitializerExpression,
                 SyntaxFactory.SeparatedList(entries)));
+        // The table is built once and read per payload, so it freezes for lookup speed; the
+        // comparer rides along because ToFrozenDictionary does not inherit the source's.
+        var frozen = EmissionSyntax.Invocation(
+            EmissionSyntax.MemberAccess(initializer, "ToFrozenDictionary"),
+            union.MarkerKind is LiteralKind.String
+                ?
+                [
+                    SyntaxFactory.Argument(EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("StringComparer"), "Ordinal")),
+                ]
+                : []);
         return SyntaxFactory
             .FieldDeclaration(SyntaxFactory
-                .VariableDeclaration(dictionaryType)
+                .VariableDeclaration(TypeSyntaxEmitter.Generic("FrozenDictionary", markerType, valueType))
                 .WithVariables(SyntaxFactory.SingletonSeparatedList(
                     SyntaxFactory
                         .VariableDeclarator("TypesByTag")
-                        .WithInitializer(SyntaxFactory.EqualsValueClause(initializer)))))
+                        .WithInitializer(SyntaxFactory.EqualsValueClause(frozen)))))
             .WithModifiers(SyntaxFactory.TokenList(
                 SyntaxFactory.Token(SyntaxKind.PrivateKeyword),
                 SyntaxFactory.Token(SyntaxKind.StaticKeyword),

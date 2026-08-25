@@ -3668,3 +3668,31 @@ PublicApi baseline are unchanged (private field). No benchmark family exercises 
 create path, so no numbers are quoted: the claim is the removed per-call record construction,
 visible in the diff. All base gates plus the tool smoke and `generate --verify` ran green
 (2,182 tests, 0 failed/skipped).
+
+## Q141: What did the FrozenDictionary increment land and what did its targeted benchmark show?
+
+**Landed (doc 20 #8):** every generated union tag table — 15 converters — now builds its
+`Dictionary` literal once and freezes it: string-marker tables call
+`.ToFrozenDictionary(StringComparer.Ordinal)` (the comparer rides along because
+`ToFrozenDictionary` does not inherit the source's), numeric-marker tables freeze with the
+default comparer, and the field type is `FrozenDictionary`. The converter emitter adds the
+`System.Collections.Frozen` using. `System.Collections.Immutable` 10.0.11 enters
+`Directory.Packages.props` and is conditioned in `OpenCode.Sdk.csproj` to
+net472/netstandard2.0 only — the Q133 downlevel-bridge pattern; net8.0+ uses the inbox types
+(decision sealed in Q140). The five-TFM Release build proves downlevel resolution, the union
+emitter micro-snapshot pins the new table shape, and manifest membership plus the PublicApi
+baseline are unchanged.
+
+**Targeted short benchmark (Q131 cadence):** the five touched families —
+EventStream, SessionLogStream, UnionDeserialization, MessageGet, ErrorChannel — ran as 86
+cases under `--job short` on both runtimes from a clean mirror, before at `a88c445` and after
+with only this increment applied; artifacts `.benchmarks/frozen-{before,after}-short`, joined
+by `compare-benchmarks` into `frozen-comparison.csv`. **Allocation (the evidence axis): every
+net10.0 row shows delta 0**; the only nonzero rows are net472 large-allocation cases within
+±0.01% (largest −499 B against 6.57 MB), measurement jitter — matching the expectation that
+freezing moves cost into one-time static construction and never into the per-payload path.
+Timing (indicative only at this tier, never quoted as evidence): after/before ratios span
+0.61–1.61 with mean 1.09; the dispatch-densest case (1,024-frame `DeserializeConcreteFrames`)
+leans faster (0.85 net10.0 / 0.98 net472) while several small-payload rows lean slower on both
+runtimes, uncorrelated with dispatch density — short-job noise. The #8 timing verdict rides the
+batch-closing default-job milestone comparison.
