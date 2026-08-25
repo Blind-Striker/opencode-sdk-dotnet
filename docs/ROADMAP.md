@@ -244,8 +244,8 @@ audit).**
 
 **The runtime-pipeline arc is complete.** The staged plan
 `superpowers/plans/2026-08-24-runtime-pipeline-plan.md` is fully executed through Increment 4
-(evidence: research Q130–Q138; composition: ADR-0018) and is a candidate for archival per
-`engineering/documentation.md`, pending the maintainer's decision. Landed: the
+(evidence: research Q130–Q138; composition: ADR-0018) and retires with the `superpowers/` sweep
+at M6 (maintainer, 2026-08-25), following the M3-plan precedent. Landed: the
 `FailureClassification` phase map, the behavior-preserving internal policy pipeline, generated
 `StatusVerdict Classify` verdicts on the adapters, pooled buffering with the progress timeout, and
 exception-free encoding over `Microsoft.Bcl.Memory`; Increment 0 archived the R16 experiment out of
