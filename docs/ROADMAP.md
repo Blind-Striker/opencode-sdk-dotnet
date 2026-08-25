@@ -397,6 +397,11 @@ is revisited at each milestone boundary.
   evidence research Q144): B2's reserved-name owner is landed; B1's facet binders land
   before the first mechanism batch, with B3's scenario-derived fixture and B4's
   error-union extraction sequenced behind B1.
+- **Parent-mediated id access for flat families** — ADR-0019 places single-action
+  families as flat id-argument methods. Whether those families should additionally
+  expose a handle-style convenience door through their parent client is parked here
+  by the maintainer (2026-08-25): adding it later is additive and non-breaking, so
+  the evaluation waits until the M5 packaging freeze forces the surface review.
 
 ## Known Gaps
 
