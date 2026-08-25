@@ -155,5 +155,6 @@ foreach (var message in messages.Messages)
 }
 
 await SessionActionsWalkthrough.RunAsync(handle).ConfigureAwait(false);
+await MechanismActionsWalkthrough.RunAsync(client, handle).ConfigureAwait(false);
 
 return 0;

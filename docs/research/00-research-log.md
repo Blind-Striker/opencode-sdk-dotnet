@@ -3886,4 +3886,9 @@ bodiless POST sends no content (`Body`/`ContentType` both null), PUT carries the
 typed body, the omitted optional PUT body sends the cached `{}`, and the 409/413 paths
 materialize the new error types; the PublicApi review was additive-only (+336 lines, zero
 removals, all four TFMs byte-identical). The suite grew 2,269 → 2,298 through the full local
-gate chain with the tool smoke and `generate --verify` current at 82/38.
+gate chain with the tool smoke and `generate --verify` current at 82/38. The committed
+sandbox's mechanism leg then ran the batch live against the pinned server (bun-launched from
+`external/opencode`): interrupt and revert-clear answered 204 to genuinely bodiless POSTs,
+`mcp.add` accepted the `IMcp` union config over PUT, `pty.update`'s PUT round-tripped with the
+server echoing the renamed title, the instructions entry PUT/remove cycled 204, and
+`form.cancel` on a missing form carried a typed `FormNotFoundError` over the NoThrow spine.

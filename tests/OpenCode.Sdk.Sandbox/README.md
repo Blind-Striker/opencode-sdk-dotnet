@@ -46,5 +46,7 @@ consumer can overflow and fail the stream. Ctrl+C exercises the same host cancel
 `--stream` and `--events` are mutually exclusive. Run without either flag to keep driving the
 standing breadth walkthrough: health, session
 create/list/get, message list, export with its sanitize query, the permission
-create/get/reply round trip, and the NoThrow spine over compact and a deliberately bad fork
-boundary, all through the same Extensions registration.
+create/get/reply round trip, the NoThrow spine over compact and a deliberately bad fork
+boundary, and the mechanism leg — the bodyless POSTs (interrupt, revert clear), the PUT
+family (mcp add, pty update, the instructions entry), and a typed `FormNotFoundError` over
+NoThrow — all through the same Extensions registration.
