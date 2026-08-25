@@ -44,6 +44,10 @@ internal static class WireBodyData
 
     public const string ConflictError = "{\"_tag\":\"ConflictError\",\"message\":\"already delivered\"}";
 
+    public const string McpServerNotFoundError = "{\"_tag\":\"McpServerNotFoundError\",\"server\":\"docs\",\"message\":\"gone\"}";
+
+    public const string PtyNotFoundError = "{\"_tag\":\"PtyNotFoundError\",\"ptyID\":\"pty_9\",\"message\":\"gone\"}";
+
     public const string ResolvedLocation =
         "{\"directory\":\"/repo\",\"project\":{\"id\":\"prj_1\",\"directory\":\"/repo\",\"canonical\":\"/repo\"}}";
 

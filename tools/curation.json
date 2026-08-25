@@ -24,6 +24,24 @@
       "clientName": "Shells",
       "handleName": "ShellClient",
       "handleParameter": "id"
+    },
+    "integration": {
+      "placement": "client",
+      "clientName": "Integrations",
+      "handleName": "IntegrationClient",
+      "handleParameter": "integrationID"
+    },
+    "mcp": {
+      "placement": "client",
+      "clientName": "McpServers",
+      "handleName": "McpServerClient",
+      "handleParameter": "server"
+    },
+    "pty": {
+      "placement": "client",
+      "clientName": "Ptys",
+      "handleName": "PtyClient",
+      "handleParameter": "ptyID"
     }
   },
   "operationNames": [
@@ -31,6 +49,16 @@
       "operationId": "v2.event.subscribe",
       "methodName": "SubscribeAsync",
       "reason": "The reviewed public surface names the global event subscription directly."
+    },
+    {
+      "operationId": "v2.mcp.list",
+      "methodName": "ListMcpServersAsync",
+      "reason": "The upstream domain calls these entries MCP servers; the mechanical group plural 'Mcps' is not part of the reviewed .NET domain name."
+    },
+    {
+      "operationId": "v2.mcp.remove",
+      "methodName": "RemoveMcpServerAsync",
+      "reason": "The upstream domain calls these entries MCP servers; the mechanical group singular 'Mcp' is not part of the reviewed .NET domain name."
     }
   ],
   "schemaNames": [
@@ -110,7 +138,9 @@
       "reason": "The numeric suffix is an upstream spec-gen collision artifact; the unsuffixed schema is not part of this selected surface."
     }
   ],
-  "envelopePayloadNames": {},
+  "envelopePayloadNames": {
+    "v2.mcp.list": "McpServers"
+  },
   "schemaAliases": [
     {
       "schema": "op:v2.event.subscribe#/responses/200/content/text~1event-stream/x-effect-stream/causeSchema/items",

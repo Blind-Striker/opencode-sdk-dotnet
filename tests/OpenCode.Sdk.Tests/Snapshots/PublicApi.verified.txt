@@ -23,6 +23,74 @@
         string? Password { get; }
         string Username { get; }
     }
+    public class IntegrationClient
+    {
+        protected IntegrationClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.IntegrationCommandCancelDeleteResponse> DeleteCommandCancelAsync(string attemptId, OpenCode.Sdk.IntegrationCommandCancelDeleteRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.IntegrationOauthCancelDeleteResponse> DeleteOauthCancelAsync(string attemptId, OpenCode.Sdk.IntegrationOauthCancelDeleteRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.IntegrationCommandStatusResponse> GetCommandStatusAsync(string attemptId, OpenCode.Sdk.IntegrationCommandStatusRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.IntegrationOauthStatusResponse> GetOauthStatusAsync(string attemptId, OpenCode.Sdk.IntegrationOauthStatusRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.IntegrationCommandConnectPostResponse> PostCommandConnectAsync(OpenCode.Sdk.Models.IntegrationCommandConnectPostRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.IntegrationOauthCompletePostResponse> PostOauthCompleteAsync(string attemptId, OpenCode.Sdk.Models.IntegrationOauthCompletePostRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class IntegrationCommandCancelDeleteRequest : System.IEquatable<OpenCode.Sdk.IntegrationCommandCancelDeleteRequest>
+    {
+        public IntegrationCommandCancelDeleteRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class IntegrationCommandCancelDeleteResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.IntegrationCommandCancelDeleteResponse>
+    {
+        public IntegrationCommandCancelDeleteResponse() { }
+    }
+    public sealed class IntegrationCommandConnectPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.IntegrationCommandConnectPostResponse>
+    {
+        public IntegrationCommandConnectPostResponse() { }
+        public required OpenCode.Sdk.Models.IntegrationCommandAttempt CommandConnect { get; init; }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class IntegrationCommandStatusRequest : System.IEquatable<OpenCode.Sdk.IntegrationCommandStatusRequest>
+    {
+        public IntegrationCommandStatusRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class IntegrationCommandStatusResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.IntegrationCommandStatusResponse>
+    {
+        public IntegrationCommandStatusResponse() { }
+        public required OpenCode.Sdk.Models.IIntegrationCommandAttemptStatus CommandStatus { get; init; }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class IntegrationOauthCancelDeleteRequest : System.IEquatable<OpenCode.Sdk.IntegrationOauthCancelDeleteRequest>
+    {
+        public IntegrationOauthCancelDeleteRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class IntegrationOauthCancelDeleteResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.IntegrationOauthCancelDeleteResponse>
+    {
+        public IntegrationOauthCancelDeleteResponse() { }
+    }
+    public sealed class IntegrationOauthCompletePostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.IntegrationOauthCompletePostResponse>
+    {
+        public IntegrationOauthCompletePostResponse() { }
+    }
+    public sealed class IntegrationOauthStatusRequest : System.IEquatable<OpenCode.Sdk.IntegrationOauthStatusRequest>
+    {
+        public IntegrationOauthStatusRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class IntegrationOauthStatusResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.IntegrationOauthStatusResponse>
+    {
+        public IntegrationOauthStatusResponse() { }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        public required OpenCode.Sdk.Models.IIntegrationAttemptStatus OauthStatus { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public class IntegrationsClient
+    {
+        protected IntegrationsClient() { }
+        public virtual OpenCode.Sdk.IntegrationClient GetIntegrationClient(string integrationId) { }
+    }
     public sealed class ListCursor : System.IEquatable<OpenCode.Sdk.ListCursor>
     {
         public ListCursor() { }
@@ -48,6 +116,51 @@
         public LocationSelector() { }
         public string? Directory { get; init; }
         public string? Workspace { get; init; }
+    }
+    public sealed class McpListRequest : System.IEquatable<OpenCode.Sdk.McpListRequest>
+    {
+        public McpListRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class McpListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.McpListResponse>
+    {
+        public McpListResponse() { }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.McpServer> McpServers { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class McpRemoveRequest : System.IEquatable<OpenCode.Sdk.McpRemoveRequest>
+    {
+        public McpRemoveRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class McpRemoveResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.McpRemoveResponse>
+    {
+        public McpRemoveResponse() { }
+    }
+    public sealed class McpResourceCatalogRequest : System.IEquatable<OpenCode.Sdk.McpResourceCatalogRequest>
+    {
+        public McpResourceCatalogRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class McpResourceCatalogResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.McpResourceCatalogResponse>
+    {
+        public McpResourceCatalogResponse() { }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        public required OpenCode.Sdk.Models.McpResourceCatalog ResourceCatalog { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public class McpServerClient
+    {
+        protected McpServerClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.McpRemoveResponse> RemoveMcpServerAsync(OpenCode.Sdk.McpRemoveRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public class McpServersClient
+    {
+        protected McpServersClient() { }
+        public virtual OpenCode.Sdk.McpServerClient GetMcpServerClient(string server) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.McpResourceCatalogResponse> GetResourceCatalogAsync(OpenCode.Sdk.McpResourceCatalogRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.McpListResponse> ListMcpServersAsync(OpenCode.Sdk.McpListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class MessageListRequest : OpenCode.Sdk.ListRequest, System.IEquatable<OpenCode.Sdk.MessageListRequest>
     {
@@ -75,6 +188,9 @@
         protected OpenCodeClient() { }
         public OpenCodeClient(OpenCode.Sdk.OpenCodeClientOptions options) { }
         public virtual OpenCode.Sdk.EventsClient Events { get; }
+        public virtual OpenCode.Sdk.IntegrationsClient Integrations { get; }
+        public virtual OpenCode.Sdk.McpServersClient McpServers { get; }
+        public virtual OpenCode.Sdk.PtysClient Ptys { get; }
         public virtual OpenCode.Sdk.SessionsClient Sessions { get; }
         public virtual OpenCode.Sdk.ShellsClient Shells { get; }
         public void Dispose() { }
@@ -118,6 +234,39 @@
         public static class Health
         {
             public const string Get = "/api/health";
+        }
+        public static class Integrations
+        {
+            public const string DeleteCommandCancelTemplate = "/api/integration/{integrationID}/connect/command/{attemptID}";
+            public const string DeleteOauthCancelTemplate = "/api/integration/{integrationID}/connect/oauth/{attemptID}";
+            public const string GetCommandStatusTemplate = "/api/integration/{integrationID}/connect/command/{attemptID}";
+            public const string GetOauthStatusTemplate = "/api/integration/{integrationID}/connect/oauth/{attemptID}";
+            public const string PostCommandConnectTemplate = "/api/integration/{integrationID}/connect/command";
+            public const string PostOauthCompleteTemplate = "/api/integration/{integrationID}/connect/oauth/{attemptID}/complete";
+            public static string DeleteCommandCancel(string integrationId, string attemptId, OpenCode.Sdk.IntegrationCommandCancelDeleteRequest? request = null) { }
+            public static string DeleteOauthCancel(string integrationId, string attemptId, OpenCode.Sdk.IntegrationOauthCancelDeleteRequest? request = null) { }
+            public static string GetCommandStatus(string integrationId, string attemptId, OpenCode.Sdk.IntegrationCommandStatusRequest? request = null) { }
+            public static string GetOauthStatus(string integrationId, string attemptId, OpenCode.Sdk.IntegrationOauthStatusRequest? request = null) { }
+            public static string PostCommandConnect(string integrationId, OpenCode.Sdk.Models.IntegrationCommandConnectPostRequest? request = null) { }
+            public static string PostOauthComplete(string integrationId, string attemptId, OpenCode.Sdk.Models.IntegrationOauthCompletePostRequest? request = null) { }
+        }
+        public static class McpServers
+        {
+            public const string GetResourceCatalogTemplate = "/api/mcp/resource";
+            public const string ListMcpServersTemplate = "/api/mcp";
+            public const string RemoveMcpServerTemplate = "/api/mcp/{server}";
+            public static string GetResourceCatalog(OpenCode.Sdk.McpResourceCatalogRequest? request = null) { }
+            public static string ListMcpServers(OpenCode.Sdk.McpListRequest? request = null) { }
+            public static string RemoveMcpServer(string server, OpenCode.Sdk.McpRemoveRequest? request = null) { }
+        }
+        public static class Ptys
+        {
+            public const string CreatePtyTemplate = "/api/pty";
+            public const string GetPtyTemplate = "/api/pty/{ptyID}";
+            public const string RemovePtyTemplate = "/api/pty/{ptyID}";
+            public static string CreatePty(OpenCode.Sdk.Models.PtyCreateRequest? request = null) { }
+            public static string GetPty(string ptyId, OpenCode.Sdk.PtyRequest? request = null) { }
+            public static string RemovePty(string ptyId, OpenCode.Sdk.PtyRemoveRequest? request = null) { }
         }
         public static class Sessions
         {
@@ -203,6 +352,46 @@
         public OpenCodeTransportException() { }
         public OpenCodeTransportException(string message) { }
         public OpenCodeTransportException(string message, System.Exception innerException) { }
+    }
+    public class PtyClient
+    {
+        protected PtyClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PtyResponse> GetPtyAsync(OpenCode.Sdk.PtyRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PtyRemoveResponse> RemovePtyAsync(OpenCode.Sdk.PtyRemoveRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class PtyCreateResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PtyCreateResponse>
+    {
+        public PtyCreateResponse() { }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        public required OpenCode.Sdk.Models.Pty Pty { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class PtyRemoveRequest : System.IEquatable<OpenCode.Sdk.PtyRemoveRequest>
+    {
+        public PtyRemoveRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class PtyRemoveResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PtyRemoveResponse>
+    {
+        public PtyRemoveResponse() { }
+    }
+    public sealed class PtyRequest : System.IEquatable<OpenCode.Sdk.PtyRequest>
+    {
+        public PtyRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class PtyResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PtyResponse>
+    {
+        public PtyResponse() { }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        public required OpenCode.Sdk.Models.Pty Pty { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public class PtysClient
+    {
+        protected PtysClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PtyCreateResponse> CreatePtyAsync(OpenCode.Sdk.Models.PtyCreateRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual OpenCode.Sdk.PtyClient GetPtyClient(string ptyId) { }
     }
     public enum QueryBoolean
     {
@@ -1035,6 +1224,24 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         string Type { get; }
     }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.IntegrationAttemptStatusJsonConverter))]
+    public interface IIntegrationAttemptStatus
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        string Status { get; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.IntegrationCommandAttemptStatusJsonConverter))]
+    public interface IIntegrationCommandAttemptStatus
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        string Status { get; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.McpStatusJsonConverter))]
+    public interface IMcpStatus
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        string Status { get; }
+    }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.OpenCodeErrorJsonConverter))]
     public interface IOpenCodeError
     {
@@ -1164,6 +1371,186 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required string Version { get; init; }
     }
+    public sealed class IntegrationAttemptStatusComplete : OpenCode.Sdk.Models.IIntegrationAttemptStatus, System.IEquatable<OpenCode.Sdk.Models.IntegrationAttemptStatusComplete>
+    {
+        public IntegrationAttemptStatusComplete() { }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("time")]
+        public required OpenCode.Sdk.Models.IntegrationAttemptStatusCompleteTime Time { get; init; }
+    }
+    public sealed class IntegrationAttemptStatusCompleteTime : System.IEquatable<OpenCode.Sdk.Models.IntegrationAttemptStatusCompleteTime>
+    {
+        public IntegrationAttemptStatusCompleteTime() { }
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("expires")]
+        public required double Expires { get; init; }
+    }
+    public sealed class IntegrationAttemptStatusExpired : OpenCode.Sdk.Models.IIntegrationAttemptStatus, System.IEquatable<OpenCode.Sdk.Models.IntegrationAttemptStatusExpired>
+    {
+        public IntegrationAttemptStatusExpired() { }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("time")]
+        public required OpenCode.Sdk.Models.IntegrationAttemptStatusExpiredTime Time { get; init; }
+    }
+    public sealed class IntegrationAttemptStatusExpiredTime : System.IEquatable<OpenCode.Sdk.Models.IntegrationAttemptStatusExpiredTime>
+    {
+        public IntegrationAttemptStatusExpiredTime() { }
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("expires")]
+        public required double Expires { get; init; }
+    }
+    public sealed class IntegrationAttemptStatusFailed : OpenCode.Sdk.Models.IIntegrationAttemptStatus, System.IEquatable<OpenCode.Sdk.Models.IntegrationAttemptStatusFailed>
+    {
+        public IntegrationAttemptStatusFailed() { }
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public required string Message { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("time")]
+        public required OpenCode.Sdk.Models.IntegrationAttemptStatusFailedTime Time { get; init; }
+    }
+    public sealed class IntegrationAttemptStatusFailedTime : System.IEquatable<OpenCode.Sdk.Models.IntegrationAttemptStatusFailedTime>
+    {
+        public IntegrationAttemptStatusFailedTime() { }
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("expires")]
+        public required double Expires { get; init; }
+    }
+    public sealed class IntegrationAttemptStatusPending : OpenCode.Sdk.Models.IIntegrationAttemptStatus, System.IEquatable<OpenCode.Sdk.Models.IntegrationAttemptStatusPending>
+    {
+        public IntegrationAttemptStatusPending() { }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("time")]
+        public required OpenCode.Sdk.Models.IntegrationAttemptStatusPendingTime Time { get; init; }
+    }
+    public sealed class IntegrationAttemptStatusPendingTime : System.IEquatable<OpenCode.Sdk.Models.IntegrationAttemptStatusPendingTime>
+    {
+        public IntegrationAttemptStatusPendingTime() { }
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("expires")]
+        public required double Expires { get; init; }
+    }
+    public sealed class IntegrationCommandAttempt : System.IEquatable<OpenCode.Sdk.Models.IntegrationCommandAttempt>
+    {
+        public IntegrationCommandAttempt() { }
+        [System.Text.Json.Serialization.JsonPropertyName("attemptID")]
+        public required string AttemptId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("time")]
+        public required OpenCode.Sdk.Models.IntegrationCommandAttemptTime Time { get; init; }
+    }
+    public sealed class IntegrationCommandAttemptStatusComplete : OpenCode.Sdk.Models.IIntegrationCommandAttemptStatus, System.IEquatable<OpenCode.Sdk.Models.IntegrationCommandAttemptStatusComplete>
+    {
+        public IntegrationCommandAttemptStatusComplete() { }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("time")]
+        public required OpenCode.Sdk.Models.IntegrationCommandAttemptStatusCompleteTime Time { get; init; }
+    }
+    public sealed class IntegrationCommandAttemptStatusCompleteTime : System.IEquatable<OpenCode.Sdk.Models.IntegrationCommandAttemptStatusCompleteTime>
+    {
+        public IntegrationCommandAttemptStatusCompleteTime() { }
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("expires")]
+        public required double Expires { get; init; }
+    }
+    public sealed class IntegrationCommandAttemptStatusExpired : OpenCode.Sdk.Models.IIntegrationCommandAttemptStatus, System.IEquatable<OpenCode.Sdk.Models.IntegrationCommandAttemptStatusExpired>
+    {
+        public IntegrationCommandAttemptStatusExpired() { }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("time")]
+        public required OpenCode.Sdk.Models.IntegrationCommandAttemptStatusExpiredTime Time { get; init; }
+    }
+    public sealed class IntegrationCommandAttemptStatusExpiredTime : System.IEquatable<OpenCode.Sdk.Models.IntegrationCommandAttemptStatusExpiredTime>
+    {
+        public IntegrationCommandAttemptStatusExpiredTime() { }
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("expires")]
+        public required double Expires { get; init; }
+    }
+    public sealed class IntegrationCommandAttemptStatusFailed : OpenCode.Sdk.Models.IIntegrationCommandAttemptStatus, System.IEquatable<OpenCode.Sdk.Models.IntegrationCommandAttemptStatusFailed>
+    {
+        public IntegrationCommandAttemptStatusFailed() { }
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public required string Message { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("time")]
+        public required OpenCode.Sdk.Models.IntegrationCommandAttemptStatusFailedTime Time { get; init; }
+    }
+    public sealed class IntegrationCommandAttemptStatusFailedTime : System.IEquatable<OpenCode.Sdk.Models.IntegrationCommandAttemptStatusFailedTime>
+    {
+        public IntegrationCommandAttemptStatusFailedTime() { }
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("expires")]
+        public required double Expires { get; init; }
+    }
+    public sealed class IntegrationCommandAttemptStatusPending : OpenCode.Sdk.Models.IIntegrationCommandAttemptStatus, System.IEquatable<OpenCode.Sdk.Models.IntegrationCommandAttemptStatusPending>
+    {
+        public IntegrationCommandAttemptStatusPending() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public string? Message { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("time")]
+        public required OpenCode.Sdk.Models.IntegrationCommandAttemptStatusPendingTime Time { get; init; }
+    }
+    public sealed class IntegrationCommandAttemptStatusPendingTime : System.IEquatable<OpenCode.Sdk.Models.IntegrationCommandAttemptStatusPendingTime>
+    {
+        public IntegrationCommandAttemptStatusPendingTime() { }
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("expires")]
+        public required double Expires { get; init; }
+    }
+    public sealed class IntegrationCommandAttemptTime : System.IEquatable<OpenCode.Sdk.Models.IntegrationCommandAttemptTime>
+    {
+        public IntegrationCommandAttemptTime() { }
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("expires")]
+        public required double Expires { get; init; }
+    }
+    public sealed class IntegrationCommandConnectPostRequest : System.IEquatable<OpenCode.Sdk.Models.IntegrationCommandConnectPostRequest>
+    {
+        public IntegrationCommandConnectPostRequest() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("label")]
+        public string? Label { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("methodID")]
+        public required string MethodId { get; init; }
+    }
     public sealed class IntegrationConnectionUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.IntegrationConnectionUpdated>
     {
         public IntegrationConnectionUpdated() { }
@@ -1187,6 +1574,15 @@ namespace OpenCode.Sdk.Models
         public IntegrationConnectionUpdatedData() { }
         [System.Text.Json.Serialization.JsonPropertyName("integrationID")]
         public required string IntegrationId { get; init; }
+    }
+    public sealed class IntegrationOauthCompletePostRequest : System.IEquatable<OpenCode.Sdk.Models.IntegrationOauthCompletePostRequest>
+    {
+        public IntegrationOauthCompletePostRequest() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("code")]
+        public string? Code { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
     }
     public sealed class IntegrationUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.IntegrationUpdated>
     {
@@ -1258,6 +1654,46 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("workspaceID")]
         public string? WorkspaceId { get; init; }
     }
+    public sealed class McpResource : System.IEquatable<OpenCode.Sdk.Models.McpResource>
+    {
+        public McpResource() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("mimeType")]
+        public string? MimeType { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public required string Name { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("server")]
+        public required string Server { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("uri")]
+        public required string Uri { get; init; }
+    }
+    public sealed class McpResourceCatalog : System.IEquatable<OpenCode.Sdk.Models.McpResourceCatalog>
+    {
+        public McpResourceCatalog() { }
+        [System.Text.Json.Serialization.JsonPropertyName("resources")]
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.McpResource> Resources { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("templates")]
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.McpResourceTemplate> Templates { get; init; }
+    }
+    public sealed class McpResourceTemplate : System.IEquatable<OpenCode.Sdk.Models.McpResourceTemplate>
+    {
+        public McpResourceTemplate() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("mimeType")]
+        public string? MimeType { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public required string Name { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("server")]
+        public required string Server { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("uriTemplate")]
+        public required string UriTemplate { get; init; }
+    }
     public sealed class McpResourcesChanged : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.McpResourcesChanged>
     {
         public McpResourcesChanged() { }
@@ -1282,6 +1718,27 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("server")]
         public required string Server { get; init; }
     }
+    public sealed class McpServer : System.IEquatable<OpenCode.Sdk.Models.McpServer>
+    {
+        public McpServer() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("integrationID")]
+        public string? IntegrationId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public required string Name { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public required OpenCode.Sdk.Models.IMcpStatus Status { get; init; }
+    }
+    public sealed class McpServerNotFoundError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.McpServerNotFoundError>
+    {
+        public McpServerNotFoundError() { }
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public required string Message { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("server")]
+        public required string Server { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("_tag")]
+        public string Tag { get; }
+    }
     public sealed class McpStatusChanged : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.McpStatusChanged>
     {
         public McpStatusChanged() { }
@@ -1305,6 +1762,38 @@ namespace OpenCode.Sdk.Models
         public McpStatusChangedData() { }
         [System.Text.Json.Serialization.JsonPropertyName("server")]
         public required string Server { get; init; }
+    }
+    public sealed class McpStatusConnected : OpenCode.Sdk.Models.IMcpStatus, System.IEquatable<OpenCode.Sdk.Models.McpStatusConnected>
+    {
+        public McpStatusConnected() { }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; }
+    }
+    public sealed class McpStatusDisabled : OpenCode.Sdk.Models.IMcpStatus, System.IEquatable<OpenCode.Sdk.Models.McpStatusDisabled>
+    {
+        public McpStatusDisabled() { }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; }
+    }
+    public sealed class McpStatusFailed : OpenCode.Sdk.Models.IMcpStatus, System.IEquatable<OpenCode.Sdk.Models.McpStatusFailed>
+    {
+        public McpStatusFailed() { }
+        [System.Text.Json.Serialization.JsonPropertyName("error")]
+        public required string Error { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; }
+    }
+    public sealed class McpStatusNeedsAuth : OpenCode.Sdk.Models.IMcpStatus, System.IEquatable<OpenCode.Sdk.Models.McpStatusNeedsAuth>
+    {
+        public McpStatusNeedsAuth() { }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; }
+    }
+    public sealed class McpStatusPending : OpenCode.Sdk.Models.IMcpStatus, System.IEquatable<OpenCode.Sdk.Models.McpStatusPending>
+    {
+        public McpStatusPending() { }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; }
     }
     public sealed class MessageNotFoundError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.MessageNotFoundError>
     {
@@ -1691,6 +2180,27 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("title")]
         public required string Title { get; init; }
     }
+    public sealed class PtyCreateRequest : System.IEquatable<OpenCode.Sdk.Models.PtyCreateRequest>
+    {
+        public PtyCreateRequest() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("args")]
+        public System.Collections.Generic.IReadOnlyList<string>? Args { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("command")]
+        public string? Command { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("cwd")]
+        public string? Cwd { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("env")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, string>? Env { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("title")]
+        public string? Title { get; init; }
+    }
     public sealed class PtyCreated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.PtyCreated>
     {
         public PtyCreated() { }
@@ -1764,6 +2274,16 @@ namespace OpenCode.Sdk.Models
         public required long ExitCode { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("id")]
         public required string Id { get; init; }
+    }
+    public sealed class PtyNotFoundError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.PtyNotFoundError>
+    {
+        public PtyNotFoundError() { }
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public required string Message { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("ptyID")]
+        public required string PtyId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("_tag")]
+        public string Tag { get; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.PtyStatus>))]
     public enum PtyStatus
@@ -5476,6 +5996,33 @@ namespace OpenCode.Sdk.Models
         public System.Text.Json.JsonElement Payload { get; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownIntegrationAttemptStatusJsonConverter))]
+    public sealed class UnknownIntegrationAttemptStatus : OpenCode.Sdk.Models.IIntegrationAttemptStatus, System.IEquatable<OpenCode.Sdk.Models.UnknownIntegrationAttemptStatus>
+    {
+        [System.Text.Json.Serialization.JsonConstructor]
+        public UnknownIntegrationAttemptStatus(string status, System.Text.Json.JsonElement payload) { }
+        public System.Text.Json.JsonElement Payload { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownIntegrationCommandAttemptStatusJsonConverter))]
+    public sealed class UnknownIntegrationCommandAttemptStatus : OpenCode.Sdk.Models.IIntegrationCommandAttemptStatus, System.IEquatable<OpenCode.Sdk.Models.UnknownIntegrationCommandAttemptStatus>
+    {
+        [System.Text.Json.Serialization.JsonConstructor]
+        public UnknownIntegrationCommandAttemptStatus(string status, System.Text.Json.JsonElement payload) { }
+        public System.Text.Json.JsonElement Payload { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownMcpStatusJsonConverter))]
+    public sealed class UnknownMcpStatus : OpenCode.Sdk.Models.IMcpStatus, System.IEquatable<OpenCode.Sdk.Models.UnknownMcpStatus>
+    {
+        [System.Text.Json.Serialization.JsonConstructor]
+        public UnknownMcpStatus(string status, System.Text.Json.JsonElement payload) { }
+        public System.Text.Json.JsonElement Payload { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownOpenCodeErrorJsonConverter))]
     public sealed class UnknownOpenCodeError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.UnknownOpenCodeError>

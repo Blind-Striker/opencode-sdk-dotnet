@@ -48,6 +48,9 @@ public static class OpenCodeServiceCollectionExtensions
         // disposes one client at shutdown.
         _ = services.AddSingleton(static provider => new OpenCodeClient(provider.GetRequiredService<IOptions<OpenCodeClientOptions>>().Value));
         _ = services.AddSingleton(static EventsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Events);
+        _ = services.AddSingleton(static IntegrationsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Integrations);
+        _ = services.AddSingleton(static McpServersClient (provider) => provider.GetRequiredService<OpenCodeClient>().McpServers);
+        _ = services.AddSingleton(static PtysClient (provider) => provider.GetRequiredService<OpenCodeClient>().Ptys);
         _ = services.AddSingleton(static SessionsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Sessions);
         _ = services.AddSingleton(static ShellsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Shells);
         return services;

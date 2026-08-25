@@ -32,6 +32,386 @@ public static class OpenCodeRoutes
     }
 
     /// <summary>
+    /// Defines the &apos;Integrations&apos; routes.
+    /// </summary>
+    public static class Integrations
+    {
+        /// <summary>
+        /// The &apos;DELETE /api/integration/{integrationID}/connect/command/{attemptID}&apos; route template.
+        /// </summary>
+        public const string DeleteCommandCancelTemplate = "/api/integration/{integrationID}/connect/command/{attemptID}";
+        /// <summary>
+        /// Builds the &apos;/api/integration/{integrationID}/connect/command/{attemptID}&apos; route.
+        /// </summary>
+        /// <param name = "integrationId">The &apos;integrationID&apos; route value.</param>
+        /// <param name = "attemptId">The &apos;attemptID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string DeleteCommandCancel(string integrationId, string attemptId, IntegrationCommandCancelDeleteRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(integrationId);
+            if (integrationId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(integrationId));
+            }
+
+            ArgumentException.ThrowIfNullOrWhiteSpace(attemptId);
+            if (attemptId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(attemptId));
+            }
+
+            var path = "/api/integration/" + RouteValuePolicy.Escape(integrationId, nameof(integrationId)) + "/connect/command/" + RouteValuePolicy.Escape(attemptId, nameof(attemptId));
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;DELETE /api/integration/{integrationID}/connect/oauth/{attemptID}&apos; route template.
+        /// </summary>
+        public const string DeleteOauthCancelTemplate = "/api/integration/{integrationID}/connect/oauth/{attemptID}";
+        /// <summary>
+        /// Builds the &apos;/api/integration/{integrationID}/connect/oauth/{attemptID}&apos; route.
+        /// </summary>
+        /// <param name = "integrationId">The &apos;integrationID&apos; route value.</param>
+        /// <param name = "attemptId">The &apos;attemptID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string DeleteOauthCancel(string integrationId, string attemptId, IntegrationOauthCancelDeleteRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(integrationId);
+            if (integrationId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(integrationId));
+            }
+
+            ArgumentException.ThrowIfNullOrWhiteSpace(attemptId);
+            if (attemptId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(attemptId));
+            }
+
+            var path = "/api/integration/" + RouteValuePolicy.Escape(integrationId, nameof(integrationId)) + "/connect/oauth/" + RouteValuePolicy.Escape(attemptId, nameof(attemptId));
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;GET /api/integration/{integrationID}/connect/command/{attemptID}&apos; route template.
+        /// </summary>
+        public const string GetCommandStatusTemplate = "/api/integration/{integrationID}/connect/command/{attemptID}";
+        /// <summary>
+        /// Builds the &apos;/api/integration/{integrationID}/connect/command/{attemptID}&apos; route.
+        /// </summary>
+        /// <param name = "integrationId">The &apos;integrationID&apos; route value.</param>
+        /// <param name = "attemptId">The &apos;attemptID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetCommandStatus(string integrationId, string attemptId, IntegrationCommandStatusRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(integrationId);
+            if (integrationId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(integrationId));
+            }
+
+            ArgumentException.ThrowIfNullOrWhiteSpace(attemptId);
+            if (attemptId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(attemptId));
+            }
+
+            var path = "/api/integration/" + RouteValuePolicy.Escape(integrationId, nameof(integrationId)) + "/connect/command/" + RouteValuePolicy.Escape(attemptId, nameof(attemptId));
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;GET /api/integration/{integrationID}/connect/oauth/{attemptID}&apos; route template.
+        /// </summary>
+        public const string GetOauthStatusTemplate = "/api/integration/{integrationID}/connect/oauth/{attemptID}";
+        /// <summary>
+        /// Builds the &apos;/api/integration/{integrationID}/connect/oauth/{attemptID}&apos; route.
+        /// </summary>
+        /// <param name = "integrationId">The &apos;integrationID&apos; route value.</param>
+        /// <param name = "attemptId">The &apos;attemptID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetOauthStatus(string integrationId, string attemptId, IntegrationOauthStatusRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(integrationId);
+            if (integrationId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(integrationId));
+            }
+
+            ArgumentException.ThrowIfNullOrWhiteSpace(attemptId);
+            if (attemptId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(attemptId));
+            }
+
+            var path = "/api/integration/" + RouteValuePolicy.Escape(integrationId, nameof(integrationId)) + "/connect/oauth/" + RouteValuePolicy.Escape(attemptId, nameof(attemptId));
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/integration/{integrationID}/connect/command&apos; route template.
+        /// </summary>
+        public const string PostCommandConnectTemplate = "/api/integration/{integrationID}/connect/command";
+        /// <summary>
+        /// Builds the &apos;/api/integration/{integrationID}/connect/command&apos; route.
+        /// </summary>
+        /// <param name = "integrationId">The &apos;integrationID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostCommandConnect(string integrationId, IntegrationCommandConnectPostRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(integrationId);
+            if (integrationId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(integrationId));
+            }
+
+            var path = "/api/integration/" + RouteValuePolicy.Escape(integrationId, nameof(integrationId)) + "/connect/command";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/integration/{integrationID}/connect/oauth/{attemptID}/complete&apos; route template.
+        /// </summary>
+        public const string PostOauthCompleteTemplate = "/api/integration/{integrationID}/connect/oauth/{attemptID}/complete";
+        /// <summary>
+        /// Builds the &apos;/api/integration/{integrationID}/connect/oauth/{attemptID}/complete&apos; route.
+        /// </summary>
+        /// <param name = "integrationId">The &apos;integrationID&apos; route value.</param>
+        /// <param name = "attemptId">The &apos;attemptID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostOauthComplete(string integrationId, string attemptId, IntegrationOauthCompletePostRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(integrationId);
+            if (integrationId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(integrationId));
+            }
+
+            ArgumentException.ThrowIfNullOrWhiteSpace(attemptId);
+            if (attemptId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(attemptId));
+            }
+
+            var path = "/api/integration/" + RouteValuePolicy.Escape(integrationId, nameof(integrationId)) + "/connect/oauth/" + RouteValuePolicy.Escape(attemptId, nameof(attemptId)) + "/complete";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+    }
+
+    /// <summary>
+    /// Defines the &apos;McpServers&apos; routes.
+    /// </summary>
+    public static class McpServers
+    {
+        /// <summary>
+        /// The &apos;GET /api/mcp/resource&apos; route template.
+        /// </summary>
+        public const string GetResourceCatalogTemplate = "/api/mcp/resource";
+        /// <summary>
+        /// Builds the &apos;/api/mcp/resource&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetResourceCatalog(McpResourceCatalogRequest? request = null)
+        {
+            var path = "/api/mcp/resource";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;GET /api/mcp&apos; route template.
+        /// </summary>
+        public const string ListMcpServersTemplate = "/api/mcp";
+        /// <summary>
+        /// Builds the &apos;/api/mcp&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ListMcpServers(McpListRequest? request = null)
+        {
+            var path = "/api/mcp";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;DELETE /api/mcp/{server}&apos; route template.
+        /// </summary>
+        public const string RemoveMcpServerTemplate = "/api/mcp/{server}";
+        /// <summary>
+        /// Builds the &apos;/api/mcp/{server}&apos; route.
+        /// </summary>
+        /// <param name = "server">The &apos;server&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string RemoveMcpServer(string server, McpRemoveRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(server);
+            if (server is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(server));
+            }
+
+            var path = "/api/mcp/" + RouteValuePolicy.Escape(server, nameof(server));
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+    }
+
+    /// <summary>
+    /// Defines the &apos;Ptys&apos; routes.
+    /// </summary>
+    public static class Ptys
+    {
+        /// <summary>
+        /// The &apos;POST /api/pty&apos; route template.
+        /// </summary>
+        public const string CreatePtyTemplate = "/api/pty";
+        /// <summary>
+        /// Builds the &apos;/api/pty&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string CreatePty(PtyCreateRequest? request = null)
+        {
+            var path = "/api/pty";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;GET /api/pty/{ptyID}&apos; route template.
+        /// </summary>
+        public const string GetPtyTemplate = "/api/pty/{ptyID}";
+        /// <summary>
+        /// Builds the &apos;/api/pty/{ptyID}&apos; route.
+        /// </summary>
+        /// <param name = "ptyId">The &apos;ptyID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetPty(string ptyId, PtyRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(ptyId);
+            if (ptyId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(ptyId));
+            }
+
+            var path = "/api/pty/" + RouteValuePolicy.Escape(ptyId, nameof(ptyId));
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;DELETE /api/pty/{ptyID}&apos; route template.
+        /// </summary>
+        public const string RemovePtyTemplate = "/api/pty/{ptyID}";
+        /// <summary>
+        /// Builds the &apos;/api/pty/{ptyID}&apos; route.
+        /// </summary>
+        /// <param name = "ptyId">The &apos;ptyID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string RemovePty(string ptyId, PtyRemoveRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(ptyId);
+            if (ptyId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(ptyId));
+            }
+
+            var path = "/api/pty/" + RouteValuePolicy.Escape(ptyId, nameof(ptyId));
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+    }
+
+    /// <summary>
     /// Defines the &apos;Sessions&apos; routes.
     /// </summary>
     public static class Sessions

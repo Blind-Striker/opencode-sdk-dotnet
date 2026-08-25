@@ -11,6 +11,9 @@ public class OpenCodeClient : IDisposable
 {
     private readonly Pipeline? _pipeline;
     private readonly EventsClient? _events;
+    private readonly IntegrationsClient? _integrations;
+    private readonly McpServersClient? _mcpServers;
+    private readonly PtysClient? _ptys;
     private readonly SessionsClient? _sessions;
     private readonly ShellsClient? _shells;
     /// <summary>
@@ -21,6 +24,9 @@ public class OpenCodeClient : IDisposable
     {
         _pipeline = Pipeline.Create(options);
         _events = new EventsClient(_pipeline);
+        _integrations = new IntegrationsClient(_pipeline);
+        _mcpServers = new McpServersClient(_pipeline);
+        _ptys = new PtysClient(_pipeline);
         _sessions = new SessionsClient(_pipeline);
         _shells = new ShellsClient(_pipeline);
     }
@@ -34,6 +40,9 @@ public class OpenCodeClient : IDisposable
     {
         _pipeline = Pipeline.Create(httpClient, options);
         _events = new EventsClient(_pipeline);
+        _integrations = new IntegrationsClient(_pipeline);
+        _mcpServers = new McpServersClient(_pipeline);
+        _ptys = new PtysClient(_pipeline);
         _sessions = new SessionsClient(_pipeline);
         _shells = new ShellsClient(_pipeline);
     }
@@ -70,6 +79,18 @@ public class OpenCodeClient : IDisposable
     /// Gets the &apos;Events&apos; collection client.
     /// </summary>
     public virtual EventsClient Events => _events ?? throw MockSeam.CreateError("OpenCodeClient", "Events");
+    /// <summary>
+    /// Gets the &apos;Integrations&apos; collection client.
+    /// </summary>
+    public virtual IntegrationsClient Integrations => _integrations ?? throw MockSeam.CreateError("OpenCodeClient", "Integrations");
+    /// <summary>
+    /// Gets the &apos;McpServers&apos; collection client.
+    /// </summary>
+    public virtual McpServersClient McpServers => _mcpServers ?? throw MockSeam.CreateError("OpenCodeClient", "McpServers");
+    /// <summary>
+    /// Gets the &apos;Ptys&apos; collection client.
+    /// </summary>
+    public virtual PtysClient Ptys => _ptys ?? throw MockSeam.CreateError("OpenCodeClient", "Ptys");
     /// <summary>
     /// Gets the &apos;Sessions&apos; collection client.
     /// </summary>

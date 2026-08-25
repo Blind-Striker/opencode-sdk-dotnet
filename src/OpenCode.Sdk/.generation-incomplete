@@ -1,10 +1,22 @@
 Generation is incomplete; packages must not be published.
-Selected operations: 35
-Pending operations: 85
+Selected operations: 47
+Pending operations: 73
 Selected:
 - v2.event.subscribe
 - v2.health.get
+- v2.integration.command.cancel
+- v2.integration.command.connect
+- v2.integration.command.status
+- v2.integration.oauth.cancel
+- v2.integration.oauth.complete
+- v2.integration.oauth.status
+- v2.mcp.list
+- v2.mcp.remove
+- v2.mcp.resource.catalog
 - v2.message.list
+- v2.pty.create
+- v2.pty.get
+- v2.pty.remove
 - v2.session.command
 - v2.session.compact
 - v2.session.create
@@ -54,23 +66,14 @@ Pending:
 - v2.fs.read
 - v2.generate.text
 - v2.health.stop
-- v2.integration.command.cancel
-- v2.integration.command.connect
-- v2.integration.command.status
 - v2.integration.connect.key
 - v2.integration.get
 - v2.integration.list
-- v2.integration.oauth.cancel
-- v2.integration.oauth.complete
 - v2.integration.oauth.connect
-- v2.integration.oauth.status
 - v2.location.get
 - v2.mcp.add
 - v2.mcp.connect
 - v2.mcp.disconnect
-- v2.mcp.list
-- v2.mcp.remove
-- v2.mcp.resource.catalog
 - v2.model.default
 - v2.model.list
 - v2.permission.request.list
@@ -87,10 +90,7 @@ Pending:
 - v2.provider.list
 - v2.pty.connect
 - v2.pty.connect.token
-- v2.pty.create
-- v2.pty.get
 - v2.pty.list
-- v2.pty.remove
 - v2.pty.update
 - v2.question.request.list
 - v2.reference.list
