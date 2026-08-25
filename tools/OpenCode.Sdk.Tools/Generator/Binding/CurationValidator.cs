@@ -114,6 +114,13 @@ internal sealed class CurationValidator
 
         foreach (var (wireName, group) in curation.Groups.OrderBy(static pair => pair.Key, StringComparer.Ordinal))
         {
+            // Placement is an API decision (ADR-0019); like every other curation row it
+            // documents itself or refuses.
+            if (string.IsNullOrWhiteSpace(group.Reason))
+            {
+                errors.Add(BindingErrorCategory.Curation, wireName, "group curation must carry a reason");
+            }
+
             if (!documentGroups.Contains(wireName))
             {
                 errors.Add(BindingErrorCategory.Curation, wireName, "curated group does not exist in the spec");

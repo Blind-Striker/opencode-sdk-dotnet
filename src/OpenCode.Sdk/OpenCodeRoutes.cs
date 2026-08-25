@@ -10,6 +10,127 @@ namespace OpenCode.Sdk;
 public static class OpenCodeRoutes
 {
     /// <summary>
+    /// Defines the &apos;Agents&apos; routes.
+    /// </summary>
+    public static class Agents
+    {
+        /// <summary>
+        /// The &apos;GET /api/agent/{agentID}&apos; route template.
+        /// </summary>
+        public const string GetAgentTemplate = "/api/agent/{agentID}";
+        /// <summary>
+        /// Builds the &apos;/api/agent/{agentID}&apos; route.
+        /// </summary>
+        /// <param name = "agentId">The &apos;agentID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetAgent(string agentId, AgentRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
+            if (agentId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(agentId));
+            }
+
+            var path = "/api/agent/" + RouteValuePolicy.Escape(agentId, nameof(agentId));
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;GET /api/agent&apos; route template.
+        /// </summary>
+        public const string ListAgentsTemplate = "/api/agent";
+        /// <summary>
+        /// Builds the &apos;/api/agent&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ListAgents(AgentListRequest? request = null)
+        {
+            var path = "/api/agent";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+    }
+
+    /// <summary>
+    /// Defines the &apos;Credentials&apos; routes.
+    /// </summary>
+    public static class Credentials
+    {
+        /// <summary>
+        /// The &apos;DELETE /api/credential/{credentialID}&apos; route template.
+        /// </summary>
+        public const string RemoveCredentialTemplate = "/api/credential/{credentialID}";
+        /// <summary>
+        /// Builds the &apos;/api/credential/{credentialID}&apos; route.
+        /// </summary>
+        /// <param name = "credentialId">The &apos;credentialID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string RemoveCredential(string credentialId, CredentialRemoveRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(credentialId);
+            if (credentialId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(credentialId));
+            }
+
+            var path = "/api/credential/" + RouteValuePolicy.Escape(credentialId, nameof(credentialId));
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;PATCH /api/credential/{credentialID}&apos; route template.
+        /// </summary>
+        public const string UpdateCredentialTemplate = "/api/credential/{credentialID}";
+        /// <summary>
+        /// Builds the &apos;/api/credential/{credentialID}&apos; route.
+        /// </summary>
+        /// <param name = "credentialId">The &apos;credentialID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string UpdateCredential(string credentialId, CredentialUpdatePatchRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(credentialId);
+            if (credentialId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(credentialId));
+            }
+
+            var path = "/api/credential/" + RouteValuePolicy.Escape(credentialId, nameof(credentialId));
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+    }
+
+    /// <summary>
     /// Defines the &apos;Events&apos; routes.
     /// </summary>
     public static class Events
@@ -314,6 +435,111 @@ public static class OpenCodeRoutes
             }
 
             var path = "/api/mcp/" + RouteValuePolicy.Escape(server, nameof(server));
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+    }
+
+    /// <summary>
+    /// Defines the &apos;Permissions&apos; routes.
+    /// </summary>
+    public static class Permissions
+    {
+        /// <summary>
+        /// The &apos;GET /api/permission/request&apos; route template.
+        /// </summary>
+        public const string ListRequestsTemplate = "/api/permission/request";
+        /// <summary>
+        /// Builds the &apos;/api/permission/request&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ListRequests(PermissionRequestListRequest? request = null)
+        {
+            var path = "/api/permission/request";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;DELETE /api/permission/saved/{id}&apos; route template.
+        /// </summary>
+        public const string RemoveSavedTemplate = "/api/permission/saved/{id}";
+        /// <summary>
+        /// Builds the &apos;/api/permission/saved/{id}&apos; route.
+        /// </summary>
+        /// <param name = "id">The &apos;id&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string RemoveSaved(string id)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(id);
+            if (id is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(id));
+            }
+
+            return "/api/permission/saved/" + RouteValuePolicy.Escape(id, nameof(id));
+        }
+    }
+
+    /// <summary>
+    /// Defines the &apos;Providers&apos; routes.
+    /// </summary>
+    public static class Providers
+    {
+        /// <summary>
+        /// The &apos;GET /api/provider/{providerID}&apos; route template.
+        /// </summary>
+        public const string GetProviderTemplate = "/api/provider/{providerID}";
+        /// <summary>
+        /// Builds the &apos;/api/provider/{providerID}&apos; route.
+        /// </summary>
+        /// <param name = "providerId">The &apos;providerID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetProvider(string providerId, ProviderRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(providerId);
+            if (providerId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(providerId));
+            }
+
+            var path = "/api/provider/" + RouteValuePolicy.Escape(providerId, nameof(providerId));
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;GET /api/provider&apos; route template.
+        /// </summary>
+        public const string ListProvidersTemplate = "/api/provider";
+        /// <summary>
+        /// Builds the &apos;/api/provider&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ListProviders(ProviderListRequest? request = null)
+        {
+            var path = "/api/provider";
             if (request is null)
             {
                 return path;
@@ -1153,6 +1379,56 @@ public static class OpenCodeRoutes
             }
 
             var path = "/api/shell/" + RouteValuePolicy.Escape(id, nameof(id)) + "/timeout";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+    }
+
+    /// <summary>
+    /// Defines the &apos;Websearch&apos; routes.
+    /// </summary>
+    public static class Websearch
+    {
+        /// <summary>
+        /// The &apos;GET /api/websearch/provider&apos; route template.
+        /// </summary>
+        public const string GetProvidersTemplate = "/api/websearch/provider";
+        /// <summary>
+        /// Builds the &apos;/api/websearch/provider&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetProviders(WebsearchProvidersRequest? request = null)
+        {
+            var path = "/api/websearch/provider";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/websearch&apos; route template.
+        /// </summary>
+        public const string QueryTemplate = "/api/websearch";
+        /// <summary>
+        /// Builds the &apos;/api/websearch&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string Query(WebsearchQueryPostRequest? request = null)
+        {
+            var path = "/api/websearch";
             if (request is null)
             {
                 return path;

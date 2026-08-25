@@ -13,6 +13,7 @@ public sealed class SpecBinderTests
 {
     private static readonly string[] ExpectedErrorTypeNames =
     [
+        "AgentNotFoundError",
         "CommandEvaluationError",
         "CommandNotFoundError",
         "ConflictError",
@@ -21,6 +22,7 @@ public sealed class SpecBinderTests
         "McpServerNotFoundError",
         "MessageNotFoundError",
         "PermissionNotFoundError",
+        "ProviderNotFoundError",
         "PtyNotFoundError",
         "QuestionNotFoundError",
         "ServiceUnavailableError",
@@ -278,6 +280,20 @@ public sealed class SpecBinderTests
         await Assert.That(operation.MethodName).IsEqualTo("SubscribeAsync");
         await Assert.That(operation.RouteContainerName).IsEqualTo("Events");
         await Assert.That(operation.RouteMemberName).IsEqualTo("Subscribe");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Group_Without_A_Reason()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.health.get")));
+        var curation = Curation(Groups("health", RootGroup() with { Reason = " " }));
+
+        var exception = Assert.Throws<BindingException>(
+            () => _ = new BindingTestHost().Bind(document, Selection("v2.health.get"), curation));
+
+        var error = exception.Errors.Single(static error => error.Problem.Contains("reason", StringComparison.Ordinal));
+        await Assert.That(error.Subject).IsEqualTo("health");
     }
 
     [Test]

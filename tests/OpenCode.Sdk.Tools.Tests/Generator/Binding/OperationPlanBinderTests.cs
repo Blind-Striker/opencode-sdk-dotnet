@@ -7,6 +7,57 @@ namespace OpenCode.Sdk.Tools.Tests.Generator.Binding;
 
 public sealed class OperationPlanBinderTests
 {
+    private static readonly string[] ExpectedClientNames =
+    [
+        "OpenCodeClient",
+        "AgentsClient",
+        "CredentialsClient",
+        "EventsClient",
+        "IntegrationClient",
+        "IntegrationsClient",
+        "McpServerClient",
+        "McpServersClient",
+        "PermissionsClient",
+        "ProvidersClient",
+        "PtyClient",
+        "PtysClient",
+        "SessionClient",
+        "SessionsClient",
+        "ShellClient",
+        "ShellsClient",
+        "WebsearchClient",
+    ];
+
+    private static readonly string[] ExpectedSubClientPropertyNames =
+    [
+        "Agents",
+        "Credentials",
+        "Events",
+        "Integrations",
+        "McpServers",
+        "Permissions",
+        "Providers",
+        "Ptys",
+        "Sessions",
+        "Shells",
+        "Websearch",
+    ];
+
+    private static readonly string[] ExpectedSubClientTypeNames =
+    [
+        "AgentsClient",
+        "CredentialsClient",
+        "EventsClient",
+        "IntegrationsClient",
+        "McpServersClient",
+        "PermissionsClient",
+        "ProvidersClient",
+        "PtysClient",
+        "SessionsClient",
+        "ShellsClient",
+        "WebsearchClient",
+    ];
+
     [Test]
     public async Task Bind_Should_Create_The_Selected_Pinned_Root_Client_Plan()
     {
@@ -15,22 +66,7 @@ public sealed class OperationPlanBinderTests
         await Assert
             .That(plan
                 .Clients.Select(static client => client.Name)
-                .SequenceEqual(
-                    [
-                        "OpenCodeClient",
-                        "EventsClient",
-                        "IntegrationClient",
-                        "IntegrationsClient",
-                        "McpServerClient",
-                        "McpServersClient",
-                        "PtyClient",
-                        "PtysClient",
-                        "SessionClient",
-                        "SessionsClient",
-                        "ShellClient",
-                        "ShellsClient",
-                    ],
-                    StringComparer.Ordinal))
+                .SequenceEqual(ExpectedClientNames, StringComparer.Ordinal))
             .IsTrue();
         await Assert.That(plan.Clients.All(static client => client.Namespace == "OpenCode.Sdk")).IsTrue();
 
@@ -39,14 +75,12 @@ public sealed class OperationPlanBinderTests
         await Assert
             .That(root
                 .SubClients.Select(static subClient => subClient.PropertyName)
-                .SequenceEqual(["Events", "Integrations", "McpServers", "Ptys", "Sessions", "Shells"], StringComparer.Ordinal))
+                .SequenceEqual(ExpectedSubClientPropertyNames, StringComparer.Ordinal))
             .IsTrue();
         await Assert
             .That(root
                 .SubClients.Select(static subClient => subClient.TypeName)
-                .SequenceEqual(
-                    ["EventsClient", "IntegrationsClient", "McpServersClient", "PtysClient", "SessionsClient", "ShellsClient"],
-                    StringComparer.Ordinal))
+                .SequenceEqual(ExpectedSubClientTypeNames, StringComparer.Ordinal))
             .IsTrue();
         await Assert.That(root.HandleFactory).IsNull();
         await Assert.That(root.HandleParameter).IsNull();

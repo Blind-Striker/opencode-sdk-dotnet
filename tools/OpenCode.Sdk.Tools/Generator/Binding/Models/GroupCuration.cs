@@ -15,4 +15,8 @@ internal sealed record GroupCuration
 
     [JsonPropertyName("handleParameter")]
     public string? HandleParameter { get; init; }
+
+    /// <summary>Why this family sits where it does; ADR-0019 owns the placement rule.</summary>
+    [JsonPropertyName("reason")]
+    public string? Reason { get; init; }
 }

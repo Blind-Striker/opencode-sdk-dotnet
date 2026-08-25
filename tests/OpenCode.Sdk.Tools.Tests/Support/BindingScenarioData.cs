@@ -60,6 +60,7 @@ internal static class BindingScenarioData
         new()
         {
             Placement = GroupPlacement.Root,
+            Reason = "Scenario places the group on the root client.",
         };
 
     public static GroupCuration ClientGroup(string clientName = "Sessions", string? handleName = "SessionClient",
@@ -70,5 +71,6 @@ internal static class BindingScenarioData
             ClientName = clientName,
             HandleName = handleName,
             HandleParameter = handleParameter,
+            Reason = "Scenario places the group on a family client.",
         };
 }

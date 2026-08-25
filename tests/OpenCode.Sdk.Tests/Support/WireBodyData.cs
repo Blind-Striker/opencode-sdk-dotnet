@@ -48,6 +48,11 @@ internal static class WireBodyData
 
     public const string PtyNotFoundError = "{\"_tag\":\"PtyNotFoundError\",\"ptyID\":\"pty_9\",\"message\":\"gone\"}";
 
+    public const string AgentNotFoundError = "{\"_tag\":\"AgentNotFoundError\",\"agentID\":\"missing\",\"message\":\"gone\"}";
+
+    public const string ProviderNotFoundError =
+        "{\"_tag\":\"ProviderNotFoundError\",\"providerID\":\"prov_9\",\"message\":\"gone\"}";
+
     public const string ResolvedLocation =
         "{\"directory\":\"/repo\",\"project\":{\"id\":\"prj_1\",\"directory\":\"/repo\",\"canonical\":\"/repo\"}}";
 

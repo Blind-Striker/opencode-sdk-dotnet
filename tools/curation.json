@@ -2,46 +2,79 @@
   "groups": {
     "event": {
       "placement": "client",
-      "clientName": "Events"
+      "clientName": "Events",
+      "reason": "The global event bus is its own family surface; no per-id operations exist."
     },
     "health": {
-      "placement": "root"
+      "placement": "root",
+      "reason": "A single health probe belongs on the root client, not behind a one-method container."
     },
     "session": {
       "placement": "client",
       "clientName": "Sessions",
       "handleName": "SessionClient",
-      "handleParameter": "sessionID"
+      "handleParameter": "sessionID",
+      "reason": "The session is the SDK's primary working object: two dozen operations chain on one sessionID (ADR-0019)."
     },
     "message": {
       "placement": "client",
       "clientName": "Sessions",
       "handleName": "SessionClient",
-      "handleParameter": "sessionID"
+      "handleParameter": "sessionID",
+      "reason": "Message operations are session-scoped and ride the session working object (ADR-0019)."
     },
     "shell": {
       "placement": "client",
       "clientName": "Shells",
       "handleName": "ShellClient",
-      "handleParameter": "id"
+      "handleParameter": "id",
+      "reason": "A shell is a live process worked over its id: get, timeout, remove, and the pending output stream (ADR-0019)."
     },
     "integration": {
       "placement": "client",
       "clientName": "Integrations",
       "handleName": "IntegrationClient",
-      "handleParameter": "integrationID"
+      "handleParameter": "integrationID",
+      "reason": "The connect and oauth flows are multi-step conversations with one integration; six operations chain on integrationID (ADR-0019)."
     },
     "mcp": {
       "placement": "client",
       "clientName": "McpServers",
       "handleName": "McpServerClient",
-      "handleParameter": "server"
+      "handleParameter": "server",
+      "reason": "The full pinned surface works one server by name - add, remove, connect, disconnect - a lifecycle, not a lookup (ADR-0019)."
     },
     "pty": {
       "placement": "client",
       "clientName": "Ptys",
       "handleName": "PtyClient",
-      "handleParameter": "ptyID"
+      "handleParameter": "ptyID",
+      "reason": "A pty is a live terminal worked over its id; the pinned surface adds update and connect operations to the trio (ADR-0019)."
+    },
+    "agent": {
+      "placement": "client",
+      "clientName": "Agents",
+      "reason": "agent.get is the family's only per-id operation; a single lookup takes the id as an argument (ADR-0019)."
+    },
+    "credential": {
+      "placement": "client",
+      "clientName": "Credentials",
+      "reason": "Update and remove are single-shot admin actions; the id rides as an argument (ADR-0019)."
+    },
+    "permission": {
+      "placement": "client",
+      "clientName": "Permissions",
+      "reason": "saved.remove is the family's only per-id operation; the pending-request surface lives on sessions (ADR-0019)."
+    },
+    "provider": {
+      "placement": "client",
+      "clientName": "Providers",
+      "reason": "provider.get is the family's only per-id operation; a single lookup takes the id as an argument (ADR-0019)."
+    },
+    "websearch": {
+      "placement": "client",
+      "clientName": "Websearch",
+      "reason": "Query and provider listing carry no per-id operations; a mass-noun container names the domain."
     }
   },
   "operationNames": [
@@ -59,6 +92,21 @@
       "operationId": "v2.mcp.remove",
       "methodName": "RemoveMcpServerAsync",
       "reason": "The upstream domain calls these entries MCP servers; the mechanical group singular 'Mcp' is not part of the reviewed .NET domain name."
+    },
+    {
+      "operationId": "v2.credential.update",
+      "methodName": "UpdateCredentialAsync",
+      "reason": "The operation's own verb is update; the mechanical PATCH prefix is transport detail, not part of the reviewed surface."
+    },
+    {
+      "operationId": "v2.permission.request.list",
+      "methodName": "ListRequestsAsync",
+      "reason": "List methods name their subject in the plural across the reviewed surface; the mechanical singular reads as a different operation."
+    },
+    {
+      "operationId": "v2.websearch.query",
+      "methodName": "QueryAsync",
+      "reason": "The websearch container already names the domain; the mechanical POST prefix is transport detail, not part of the reviewed surface."
     }
   ],
   "schemaNames": [
@@ -76,6 +124,11 @@
       "schema": "op:v2.session.permission.create#/responses/200/content/application~1json/schema/properties/data",
       "dotnetName": "SessionPermissionCreateData",
       "reason": "The promoted inline payload inherits its operation-scoped key's v2 prefix; the prefix identifies the selected transport line and is not part of the reviewed .NET domain name."
+    },
+    {
+      "schema": "Provider.Request",
+      "dotnetName": "ProviderRequestOptions",
+      "reason": "The generated operation request records own the '<Subject>Request' names; this model shapes the outbound provider request (settings, headers, body), so it takes the options suffix instead of colliding with v2.provider.get's request record."
     },
     {
       "schema": "Form.When1",
@@ -139,7 +192,8 @@
     }
   ],
   "envelopePayloadNames": {
-    "v2.mcp.list": "McpServers"
+    "v2.mcp.list": "McpServers",
+    "v2.permission.request.list": "Requests"
   },
   "schemaAliases": [
     {

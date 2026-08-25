@@ -807,14 +807,17 @@ dotnet_diagnostic.CA5399.severity = none
 # The generated route surface deliberately nests one static container per operation
 # group; flattening would erase the grouping the public
 # API promises. Winner: the generated route shape; CA1034 remains enabled for every other
-# file.
+# file. The Permissions container also part-matches the legacy CAS namespace
+# System.Security.Permissions; the protocol's own group name wins over a retired
+# .NET Framework namespace, so CA1724 yields here too.
 [src/OpenCode.Sdk/OpenCodeRoutes.cs]
 dotnet_diagnostic.CA1034.severity = none
+dotnet_diagnostic.CA1724.severity = none
 
 # The pinned OpenAPI schemas declare these wire members as plain strings without
 # format: uri. Winner: the sole protocol input's declared type; CA1056's name
 # inference remains enabled for every other property.
-[src/OpenCode.Sdk/Models/{FormExternalField,McpResource,McpResourceTemplate,PromptFileSourceUri,PromptInputFileAttachment,ToolFileContent}.cs]
+[src/OpenCode.Sdk/Models/{FormExternalField,McpResource,McpResourceTemplate,PromptFileSourceUri,PromptInputFileAttachment,ToolFileContent,WebSearchResult}.cs]
 dotnet_diagnostic.CA1056.severity = none
 
 # The shipped SDK slices by client family with flat public namespaces:
@@ -822,10 +825,10 @@ dotnet_diagnostic.CA1056.severity = none
 # test project mirrors the layout with equally flat test namespaces. Winner: the
 # flat-namespace contract; IDE0130 remains error for every other folder, tools included.
 # A new family folder extends these globs deliberately - curation changes are API reviews.
-[src/OpenCode.Sdk/{Events,Integrations,McpServers,Ptys,Sessions,Health,Pagination,Shells}/**.cs]
+[src/OpenCode.Sdk/{Agents,Credentials,Events,Integrations,McpServers,Permissions,Providers,Ptys,Sessions,Websearch,Health,Pagination,Shells}/**.cs]
 dotnet_diagnostic.IDE0130.severity = none
 
-[tests/OpenCode.Sdk.Tests/{Events,Integrations,McpServers,Ptys,Sessions,Health,Pagination,Shells}/**.cs]
+[tests/OpenCode.Sdk.Tests/{Agents,Credentials,Events,Integrations,McpServers,Permissions,Providers,Ptys,Sessions,Websearch,Health,Pagination,Shells}/**.cs]
 dotnet_diagnostic.IDE0130.severity = none
 
 # DI extension methods live in the Microsoft.Extensions.DependencyInjection namespace so

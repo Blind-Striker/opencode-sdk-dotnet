@@ -19,7 +19,8 @@ internal static class GenerationTestData
                                     {
                                       "groups": {
                                         "health": {
-                                          "placement": "root"
+                                          "placement": "root",
+                                          "reason": "Scenario places the group on the root client."
                                         }
                                       },
                                       "operationNames": [],

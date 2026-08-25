@@ -1,5 +1,54 @@
 ﻿namespace OpenCode.Sdk
 {
+    public sealed class AgentListRequest : System.IEquatable<OpenCode.Sdk.AgentListRequest>
+    {
+        public AgentListRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class AgentListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.AgentListResponse>
+    {
+        public AgentListResponse() { }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.AgentInfo> Agents { get; init; }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class AgentRequest : System.IEquatable<OpenCode.Sdk.AgentRequest>
+    {
+        public AgentRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class AgentResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.AgentResponse>
+    {
+        public AgentResponse() { }
+        public required OpenCode.Sdk.Models.AgentInfo Agent { get; init; }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public class AgentsClient
+    {
+        protected AgentsClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.AgentResponse> GetAgentAsync(string agentId, OpenCode.Sdk.AgentRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.AgentListResponse> ListAgentsAsync(OpenCode.Sdk.AgentListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class CredentialRemoveRequest : System.IEquatable<OpenCode.Sdk.CredentialRemoveRequest>
+    {
+        public CredentialRemoveRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class CredentialRemoveResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.CredentialRemoveResponse>
+    {
+        public CredentialRemoveResponse() { }
+    }
+    public sealed class CredentialUpdatePatchResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.CredentialUpdatePatchResponse>
+    {
+        public CredentialUpdatePatchResponse() { }
+    }
+    public class CredentialsClient
+    {
+        protected CredentialsClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.CredentialRemoveResponse> RemoveCredentialAsync(string credentialId, OpenCode.Sdk.CredentialRemoveRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.CredentialUpdatePatchResponse> UpdateCredentialAsync(string credentialId, OpenCode.Sdk.Models.CredentialUpdatePatchRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
     public enum ErrorBehavior
     {
         Default = 0,
@@ -187,12 +236,17 @@
     {
         protected OpenCodeClient() { }
         public OpenCodeClient(OpenCode.Sdk.OpenCodeClientOptions options) { }
+        public virtual OpenCode.Sdk.AgentsClient Agents { get; }
+        public virtual OpenCode.Sdk.CredentialsClient Credentials { get; }
         public virtual OpenCode.Sdk.EventsClient Events { get; }
         public virtual OpenCode.Sdk.IntegrationsClient Integrations { get; }
         public virtual OpenCode.Sdk.McpServersClient McpServers { get; }
+        public virtual OpenCode.Sdk.PermissionsClient Permissions { get; }
+        public virtual OpenCode.Sdk.ProvidersClient Providers { get; }
         public virtual OpenCode.Sdk.PtysClient Ptys { get; }
         public virtual OpenCode.Sdk.SessionsClient Sessions { get; }
         public virtual OpenCode.Sdk.ShellsClient Shells { get; }
+        public virtual OpenCode.Sdk.WebsearchClient Websearch { get; }
         public void Dispose() { }
         protected virtual void Dispose(bool disposing) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.HealthResponse> GetHealthAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
@@ -227,6 +281,20 @@
     }
     public static class OpenCodeRoutes
     {
+        public static class Agents
+        {
+            public const string GetAgentTemplate = "/api/agent/{agentID}";
+            public const string ListAgentsTemplate = "/api/agent";
+            public static string GetAgent(string agentId, OpenCode.Sdk.AgentRequest? request = null) { }
+            public static string ListAgents(OpenCode.Sdk.AgentListRequest? request = null) { }
+        }
+        public static class Credentials
+        {
+            public const string RemoveCredentialTemplate = "/api/credential/{credentialID}";
+            public const string UpdateCredentialTemplate = "/api/credential/{credentialID}";
+            public static string RemoveCredential(string credentialId, OpenCode.Sdk.CredentialRemoveRequest? request = null) { }
+            public static string UpdateCredential(string credentialId, OpenCode.Sdk.Models.CredentialUpdatePatchRequest? request = null) { }
+        }
         public static class Events
         {
             public const string Subscribe = "/api/event";
@@ -258,6 +326,20 @@
             public static string GetResourceCatalog(OpenCode.Sdk.McpResourceCatalogRequest? request = null) { }
             public static string ListMcpServers(OpenCode.Sdk.McpListRequest? request = null) { }
             public static string RemoveMcpServer(string server, OpenCode.Sdk.McpRemoveRequest? request = null) { }
+        }
+        public static class Permissions
+        {
+            public const string ListRequestsTemplate = "/api/permission/request";
+            public const string RemoveSavedTemplate = "/api/permission/saved/{id}";
+            public static string ListRequests(OpenCode.Sdk.PermissionRequestListRequest? request = null) { }
+            public static string RemoveSaved(string id) { }
+        }
+        public static class Providers
+        {
+            public const string GetProviderTemplate = "/api/provider/{providerID}";
+            public const string ListProvidersTemplate = "/api/provider";
+            public static string GetProvider(string providerId, OpenCode.Sdk.ProviderRequest? request = null) { }
+            public static string ListProviders(OpenCode.Sdk.ProviderListRequest? request = null) { }
         }
         public static class Ptys
         {
@@ -338,6 +420,13 @@
             public static string RemoveShell(string id, OpenCode.Sdk.ShellRemoveRequest? request = null) { }
             public static string TimeoutShell(string id, OpenCode.Sdk.Models.ShellTimeoutRequest? request = null) { }
         }
+        public static class Websearch
+        {
+            public const string GetProvidersTemplate = "/api/websearch/provider";
+            public const string QueryTemplate = "/api/websearch";
+            public static string GetProviders(OpenCode.Sdk.WebsearchProvidersRequest? request = null) { }
+            public static string Query(OpenCode.Sdk.Models.WebsearchQueryPostRequest? request = null) { }
+        }
     }
     public sealed class OpenCodeStreamFailureException : OpenCode.Sdk.OpenCodeTransportException
     {
@@ -352,6 +441,58 @@
         public OpenCodeTransportException() { }
         public OpenCodeTransportException(string message) { }
         public OpenCodeTransportException(string message, System.Exception innerException) { }
+    }
+    public sealed class PermissionRequestListRequest : System.IEquatable<OpenCode.Sdk.PermissionRequestListRequest>
+    {
+        public PermissionRequestListRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class PermissionRequestListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PermissionRequestListResponse>
+    {
+        public PermissionRequestListResponse() { }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.PermissionRequest> Requests { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class PermissionSavedRemoveResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PermissionSavedRemoveResponse>
+    {
+        public PermissionSavedRemoveResponse() { }
+    }
+    public class PermissionsClient
+    {
+        protected PermissionsClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PermissionRequestListResponse> ListRequestsAsync(OpenCode.Sdk.PermissionRequestListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PermissionSavedRemoveResponse> RemoveSavedAsync(string id, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class ProviderListRequest : System.IEquatable<OpenCode.Sdk.ProviderListRequest>
+    {
+        public ProviderListRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class ProviderListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ProviderListResponse>
+    {
+        public ProviderListResponse() { }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.ProviderInfo> Providers { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class ProviderRequest : System.IEquatable<OpenCode.Sdk.ProviderRequest>
+    {
+        public ProviderRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class ProviderResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ProviderResponse>
+    {
+        public ProviderResponse() { }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        public required OpenCode.Sdk.Models.ProviderInfo Provider { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public class ProvidersClient
+    {
+        protected ProvidersClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ProviderResponse> GetProviderAsync(string providerId, OpenCode.Sdk.ProviderRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ProviderListResponse> ListProvidersAsync(OpenCode.Sdk.ProviderListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public class PtyClient
     {
@@ -661,9 +802,85 @@
         public virtual OpenCode.Sdk.ShellClient GetShellClient(string id) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ShellListResponse> ListShellsAsync(OpenCode.Sdk.ShellListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
+    public class WebsearchClient
+    {
+        protected WebsearchClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.WebsearchProvidersResponse> GetProvidersAsync(OpenCode.Sdk.WebsearchProvidersRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.WebsearchQueryPostResponse> QueryAsync(OpenCode.Sdk.Models.WebsearchQueryPostRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class WebsearchProvidersRequest : System.IEquatable<OpenCode.Sdk.WebsearchProvidersRequest>
+    {
+        public WebsearchProvidersRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class WebsearchProvidersResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.WebsearchProvidersResponse>
+    {
+        public WebsearchProvidersResponse() { }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.WebSearchProvider> Providers { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class WebsearchQueryPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.WebsearchQueryPostResponse>
+    {
+        public WebsearchQueryPostResponse() { }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        public required OpenCode.Sdk.Models.WebSearchResponse Query { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
 }
 namespace OpenCode.Sdk.Models
 {
+    public sealed class AgentInfo : System.IEquatable<OpenCode.Sdk.Models.AgentInfo>
+    {
+        public AgentInfo() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("color")]
+        public string? Color { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("hidden")]
+        public required bool Hidden { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("mode")]
+        public required OpenCode.Sdk.Models.AgentInfoMode Mode { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("model")]
+        public OpenCode.Sdk.Models.ModelRef? Model { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public required string Name { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("permissions")]
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.PermissionRule> Permissions { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("request")]
+        public required OpenCode.Sdk.Models.ProviderRequestOptions Request { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("steps")]
+        public long? Steps { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("system")]
+        public string? System { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.AgentInfoMode>))]
+    public enum AgentInfoMode
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("subagent")]
+        Subagent = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("primary")]
+        Primary = 1,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("all")]
+        All = 2,
+    }
+    public sealed class AgentNotFoundError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.AgentNotFoundError>
+    {
+        public AgentNotFoundError() { }
+        [System.Text.Json.Serialization.JsonPropertyName("agentID")]
+        public required string AgentId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public required string Message { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("_tag")]
+        public string Tag { get; }
+    }
     public sealed class AgentUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.AgentUpdated>
     {
         public AgentUpdated() { }
@@ -766,6 +983,14 @@ namespace OpenCode.Sdk.Models
         public string? Resource { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("_tag")]
         public string Tag { get; }
+    }
+    public sealed class CredentialUpdatePatchRequest : System.IEquatable<OpenCode.Sdk.Models.CredentialUpdatePatchRequest>
+    {
+        public CredentialUpdatePatchRequest() { }
+        [System.Text.Json.Serialization.JsonPropertyName("label")]
+        public required string Label { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
     }
     public sealed class EventLogSynced : OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.EventLogSynced>
     {
@@ -1954,6 +2179,16 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("source")]
         public OpenCode.Sdk.Models.PermissionSourceTool? Source { get; init; }
     }
+    public sealed class PermissionRule : System.IEquatable<OpenCode.Sdk.Models.PermissionRule>
+    {
+        public PermissionRule() { }
+        [System.Text.Json.Serialization.JsonPropertyName("action")]
+        public required string Action { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("effect")]
+        public required OpenCode.Sdk.Models.PermissionEffect Effect { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("resource")]
+        public required string Resource { get; init; }
+    }
     public sealed class PermissionSourceTool : System.IEquatable<OpenCode.Sdk.Models.PermissionSourceTool>
     {
         public PermissionSourceTool() { }
@@ -2158,6 +2393,51 @@ namespace OpenCode.Sdk.Models
         public required string Name { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("text")]
         public required string Text { get; init; }
+    }
+    public sealed class ProviderInfo : System.IEquatable<OpenCode.Sdk.Models.ProviderInfo>
+    {
+        public ProviderInfo() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("body")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Body { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("disabled")]
+        public bool? Disabled { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("headers")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("integrationID")]
+        public string? IntegrationId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public required string Name { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("package")]
+        public required string Package { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("settings")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Settings { get; init; }
+    }
+    public sealed class ProviderNotFoundError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.ProviderNotFoundError>
+    {
+        public ProviderNotFoundError() { }
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public required string Message { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("providerID")]
+        public required string ProviderId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("_tag")]
+        public string Tag { get; }
+    }
+    public sealed class ProviderRequestOptions : System.IEquatable<OpenCode.Sdk.Models.ProviderRequestOptions>
+    {
+        public ProviderRequestOptions() { }
+        [System.Text.Json.Serialization.JsonPropertyName("body")]
+        public required System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> Body { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("headers")]
+        public required System.Collections.Generic.IReadOnlyDictionary<string, string> Headers { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("settings")]
+        public required System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> Settings { get; init; }
     }
     public sealed class Pty : System.IEquatable<OpenCode.Sdk.Models.Pty>
     {
@@ -6176,6 +6456,54 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("branch")]
         public string? Branch { get; init; }
+    }
+    public sealed class WebSearchProvider : System.IEquatable<OpenCode.Sdk.Models.WebSearchProvider>
+    {
+        public WebSearchProvider() { }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public required string Name { get; init; }
+    }
+    public sealed class WebSearchResponse : System.IEquatable<OpenCode.Sdk.Models.WebSearchResponse>
+    {
+        public WebSearchResponse() { }
+        [System.Text.Json.Serialization.JsonPropertyName("providerID")]
+        public required string ProviderId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("results")]
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.WebSearchResult> Results { get; init; }
+    }
+    public sealed class WebSearchResult : System.IEquatable<OpenCode.Sdk.Models.WebSearchResult>
+    {
+        public WebSearchResult() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("content")]
+        public string? Content { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("time")]
+        public required OpenCode.Sdk.Models.WebSearchResultTime Time { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("title")]
+        public string? Title { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("url")]
+        public required string Url { get; init; }
+    }
+    public sealed class WebSearchResultTime : System.IEquatable<OpenCode.Sdk.Models.WebSearchResultTime>
+    {
+        public WebSearchResultTime() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("published")]
+        public double? Published { get; init; }
+    }
+    public sealed class WebsearchQueryPostRequest : System.IEquatable<OpenCode.Sdk.Models.WebsearchQueryPostRequest>
+    {
+        public WebsearchQueryPostRequest() { }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("providerID")]
+        public string? ProviderId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("query")]
+        public required string Query { get; init; }
     }
     public sealed class WebsearchUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.WebsearchUpdated>
     {
