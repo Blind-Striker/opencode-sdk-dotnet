@@ -3744,3 +3744,13 @@ and the rung stays in the suite as the standing gate for revisiting. This closes
 already landed inside the runtime arc's RequestDecorationPolicy and shared JsonMediaType. The
 batch's remaining evidence step is the closing default-job comparison against
 `arc-milestone-default`, which also carries #8's timing verdict.
+
+**Q140 measurement addendum (2026-08-25, later the same day):** the omitted-body path is now
+measured instead of argued from the diff. `SessionCreateBenchmarks` gained a permanent
+`CreateSessionOmittedBodyAsync` row (the parameterless call that takes the
+`request ?? EmptySessionCreateRequest` branch; the body-carrying row and `SerializeRequest`
+stay as controls). Isolated legs — before at `07c772c`, after at `a88c445`, the identical
+benchmark file overlaid on both worktrees — Dry-validated then `--job short` on both runtimes,
+artifacts `.benchmarks/empty-request-{dry,before-short,after-short}` joined into
+`empty-request-comparison.csv`: the omitted-body row drops **−56 B (net10.0) / −57 B (net472)**
+— exactly one `SessionCreateRequest` record — while both control rows move 0 B on both runtimes.

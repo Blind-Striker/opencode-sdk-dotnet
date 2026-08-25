@@ -56,6 +56,10 @@ public class SessionCreateBenchmarks : IDisposable
     [Benchmark]
     public Task<SessionCreateResponse> CreateSessionAsync() => _client!.Sessions.CreateSessionAsync(Request);
 
+    /// <summary>The same operation with the body omitted: the generated empty-request path.</summary>
+    [Benchmark]
+    public Task<SessionCreateResponse> CreateSessionOmittedBodyAsync() => _client!.Sessions.CreateSessionAsync();
+
     /// <summary>Request-body serialization alone, exactly as the pipeline produces the JSON content bytes.</summary>
     [Benchmark]
     public byte[] SerializeRequest() => JsonSerializer.SerializeToUtf8Bytes(Request, OpenCodeJsonContext.Default.SessionCreateRequest);
