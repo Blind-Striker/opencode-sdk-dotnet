@@ -50,7 +50,8 @@ touching ingestion, union analysis, or surface filtering.
 
 The emission engine is a library behind a thin file-based `.cs` entry, bound to the repo build
 rules; output is committed into the SDK project and CI regen-verifies; the same tool owns spec
-refresh (submodule pin bump, `spec/` copy, `SNAPSHOT.md` stamp). The Roslyn
+refresh through the receipt-governed snapshot process (ADR-0020) rather than copy-only
+mechanics. The Roslyn
 incremental-source-generator shape is structurally blocked, not merely costed: Roslyn
 generators never see each other's output, so a compile-time-emitted `[JsonSerializable]`
 registry would be invisible to the System.Text.Json source generator and the AOT commitment

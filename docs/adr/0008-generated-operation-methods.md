@@ -1,6 +1,6 @@
 # All operation methods are generated; excluded operations are fingerprint-pinned
 
-Date: 2026-08-17
+Date: 2026-08-26
 
 Every operation method on the generated surface is generator-emitted
 as a one-line delegation into the hand-written behavior core; behavior (retry, error
@@ -9,13 +9,18 @@ sit outside CI regen-verify and go silently stale as upstream moves — generate
 turn every spec drift into a loud diff or a broken build (research doc 06 §1's earlier
 hand-written-surface position was overturned by the maintainer on this argument).
 Hand-written remains the identity core: transport pipeline, SSE engine, launcher,
-exception hierarchy, envelope base, options types, DI extensions.
+exception hierarchy, envelope base, options types, DI extensions. One recorded
+family-ownership exception exists: the normal PTY family's public doors are hand-written
+over generated internals (ADR-0021).
 
 **Streaming operations are generated on the same rule.** An SSE endpoint is an ordinary
 HTTP response the client reads incrementally, and the pinned contract declares it in
 full — `text/event-stream` content, the `{id, event, data}` frame as the *decoded* envelope
 (the wire omits `event:` and `id:` for an ordinary payload), and `data`'s payload through
-`contentSchema`/`contentMediaType`. So the drift argument applies unchanged: the
+`contentSchema`/`contentMediaType`. That completeness is a property of the accepted
+snapshot, not of every upstream document — upstream's projection has demonstrably lost the
+SSE payload links (research doc 21 T1), and snapshot production repairs such loss under
+ADR-0020 rather than weakening this rule. So the drift argument applies unchanged: the
 stream *engine* is behavior and stays in the core, while stream *endpoints* emit as
 one-line delegations into it, exactly like the one-shot surface. A stream yields
 `IAsyncEnumerable<T>` rather than a response envelope, which is why its signature carries

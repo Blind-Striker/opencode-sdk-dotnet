@@ -53,7 +53,9 @@ One project-directory context inside a Server process, selected per request via 
 targeting; a Server process hosts many.
 
 **Directory targeting**:
-Per-request project targeting via `location[...]` query parameters (the v2 convention).
+Per-request project targeting via `location[...]` query parameters, with the
+`x-opencode-directory`/`x-opencode-workspace` headers as the ambient channel the server resolves
+per member after any query value.
 
 **PTY**:
 A pseudo-terminal session managed through the API.
@@ -68,8 +70,39 @@ _Avoid_: v2, V2 (in public naming); legacy (the retired 1.x dual-surface vocabul
 **Launcher**:
 The in-core component that starts, monitors, and stops a local `opencode serve` process.
 
-**Spec pin**:
-The committed copy of upstream's `openapi.json` under `spec/`, provenance in `SNAPSHOT.md`.
+**Accepted snapshot**:
+The reviewed protocol identity the SDK builds against: an exact upstream commit, the committed
+`spec/openapi.json` digest, an ordered snapshot recipe, a sorted operation-set digest, and the
+matching submodule gitlink. Provenance in `spec/SNAPSHOT.md`.
+_Avoid_: spec pin (retired term)
+
+**Snapshot recipe**:
+The ordered procedure producing the accepted document from the exact upstream commit; its patch
+list is normally empty, making production an identity transform.
+
+**Snapshot receipt**:
+The immutable record of one prepared snapshot candidate — inputs, hashes, patches, invariants —
+reviewed by a human before it is applied.
+
+**Restore patch**:
+A temporary, hash-verified snapshot-production patch recovering contract content upstream's
+projection lost; carries an upstream report and a retirement predicate.
+
+**Contract inventory**:
+The complete operation set of the accepted document, each operation carrying its admission state
+(selected, pending, or transport-owned).
+
+**Target surface**:
+The operations required to be callable; defaults to the complete contract inventory.
+
+**Transport-owned operation**:
+An operation whose transport the HTTP pipeline cannot carry (a WebSocket upgrade);
+generator-owned as inventory and exclusion fingerprint, callable only through a hand-written
+door.
+
+**Operation-identity row**:
+A reason-bearing curation row admitting and naming an operation whose upstream identity violates
+upstream's own conventions; carries the upstream report and retires when the fix lands.
 
 **Model layer**:
 The generated types and serializer registry shipped inside `OpenCode.Sdk`.

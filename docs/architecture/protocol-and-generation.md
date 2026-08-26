@@ -1,6 +1,6 @@
 # Protocol and Generation Architecture
 
-Date: 2026-08-20
+Date: 2026-08-26
 
 Canonical current rules for the protocol surface, generator, generated models, and runtime
 materialization boundary. ADRs record why these decisions were made; dated research records the
@@ -8,9 +8,10 @@ evidence and may contain superseded positions.
 
 ## Protocol authority and surface
 
-- The sole protocol-semantic input is the pinned `spec/openapi.json`, copied from upstream's
-  `packages/protocol/openapi.json` on the active `v2` branch. `spec/SNAPSHOT.md` owns its exact
-  provenance and refresh procedure (ADR-0005, ADR-0013).
+- The sole protocol-semantic input is the pinned `spec/openapi.json`, produced from an exact
+  commit of upstream's `packages/protocol/openapi.json` on the active `v2` branch. Snapshot
+  production and refresh policy are receipt-governed (ADR-0020); `spec/SNAPSHOT.md` owns the
+  exact identity and the current procedure (ADR-0005, ADR-0013, ADR-0020).
 - Upstream implementation source is provenance and diagnostic evidence only. It never supplies a
   missing wire type, constraint, format, status, media type, or validation rule (ADR-0013).
 - The public SDK covers the v2 protocol surface only. Public identifiers strip the `v2.` operation
@@ -36,8 +37,11 @@ Curation may:
 
 - choose .NET names and placement for represented OpenAPI constructs — handle placement
   follows ADR-0019, and every curation row, group rows included, carries its reason;
-- collapse OpenAPI shapes proven structurally equivalent; and
-- fingerprint exclusions already evidenced by the pinned document.
+- collapse OpenAPI shapes proven structurally equivalent;
+- fingerprint exclusions already evidenced by the pinned document; and
+- map an operation whose upstream identity violates upstream's own conventions onto its intended
+  identity through a reason-bearing operation-identity row carrying the upstream report; the row
+  retires when upstream's fix makes it stale (ADR-0013).
 
 Curation may not add a wire type, format, constraint, cross-field rule, or runtime validation
 absent from the pin. Descriptions generate documentation, not executable semantics. Projection

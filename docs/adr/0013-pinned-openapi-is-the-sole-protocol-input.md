@@ -1,6 +1,6 @@
 # Pinned OpenAPI is the sole protocol-semantic input
 
-Date: 2026-08-17
+Date: 2026-08-26
 
 The generator derives wire types, constraints, statuses, schemas, media types, and protocol
 extensions exclusively from the pinned `spec/openapi.json`. Upstream TypeScript and Effect schema
@@ -8,9 +8,14 @@ source is provenance and diagnostic evidence, never a generation input: consumin
 a second contract, require executing or reimplementing upstream's schema runtime, and make an
 internal refactor look like HTTP drift. A construct the OpenAPI projection cannot represent stays
 faithful to the document or fails closed; it is not silently repaired from implementation source.
+The pinned document itself is produced through the receipt-governed snapshot process (ADR-0020);
+this record governs what generation consumes from it.
 
-Curation may choose .NET names and placement, collapse OpenAPI shapes proven equivalent, and
-fingerprint exclusions already evidenced by the document. It may not add a wire type, format,
+Curation may choose .NET names and placement, collapse OpenAPI shapes proven equivalent,
+fingerprint exclusions already evidenced by the document, and map an operation whose upstream
+identity violates upstream's own conventions onto its intended identity through a reason-bearing
+operation-identity row that carries the upstream report and retires when the fix lands. It may
+not add a wire type, format,
 range, cross-field rule, or runtime validation absent from the pinned artifact. Descriptions remain
 documentation, not executable constraints. A projection discrepancy is rechecked against current
 upstream, recorded as research, and reported upstream rather than becoming a hidden local override.

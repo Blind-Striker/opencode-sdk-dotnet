@@ -28,5 +28,5 @@ log session 17; prior dated evidence: docs 09/10.
   server (`opencode2`; npm `@opencode-ai/cli@next`) — accepted: the M-series timeline runs
   alongside upstream's stabilization, and the pinned-snapshot + fail-closed refresh
   machinery exists for exactly this churn.
-- The spec pin is a snapshot of a moving branch: refreshes stay deliberate (M2 boundary and
-  later), never HEAD-tracking.
+- The spec pin is a snapshot of a moving branch: refreshes stay deliberate and
+  receipt-governed (ADR-0020), never HEAD-tracking.

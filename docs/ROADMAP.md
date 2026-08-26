@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-25
+Date: 2026-08-27
 
 Operational state: what is done, what is next, what is open. This file shrinks as work lands.
 `../AGENTS.md` routes to current architecture and engineering canon; decision records live in
@@ -263,10 +263,11 @@ execution is restored (billing refilled 2026-08-25): the CI-hardening commit `9d
 all three OS jobs on its rerun and the subsequent pushes run normally; #50 stays open for
 branch protection and required checks. The
 **spec refresh is blocked upstream**: the 2026-08-25 attempt found the current upstream document
-has lost its SSE payload schemas to the effect beta.107 regen, so the pin stays at `a6a712a3`
-until upstream restores the payload link — research Q139 owns the evidence (superseding Q137's
-stream-channel claim), and the regression is reported with a verified restore path as
-[anomalyco/opencode#44911](https://github.com/anomalyco/opencode/issues/44911). The queue was
+has lost its SSE payload schemas to the effect beta.107 regen, so the pin stayed at `a6a712a3` —
+research Q139 owns the evidence (superseding Q137's stream-channel claim), and the regression is
+reported with a verified restore path as
+[anomalyco/opencode#44911](https://github.com/anomalyco/opencode/issues/44911). ADR-0020 has
+since converted that wait into a Restore-patch path (see the program paragraph below). The queue was
 reordered at the M3 boundary (maintainer, 2026-08-25) for the now-public repository: first the
 **emitter allocation batch**, now executed on the `a6a712a3` base (research Q140–Q143). The
 records infrastructure is in place — the git-ignored `.benchmarks/` store seeded with the local
@@ -319,6 +320,26 @@ v0.0.0-next-17403 (shell create → get → timeout → remove and session renam
 its inline data object and integer cursor query params each need a mechanism of their
 own.
 
+**The continuous protocol coverage program is sealed** (maintainer, 2026-08-26; design:
+`superpowers/specs/2026-08-26-continuous-protocol-coverage-program-design.md`; decisions and
+fact-finding: research log Q148, re-measurement Q149). ADR-0020/0021/0022 record the decision
+set; ADR-0003/0005/0007/0008/0013, `spec/SNAPSHOT.md`, `CONTEXT.md`, and the
+protocol-and-generation canon are revised in place. The upstream SSE restore is offered as
+[anomalyco/opencode#45182](https://github.com/anomalyco/opencode/pull/45182) (open,
+`needs:issue`); #56's pin hold converts into a Restore patch, so the refresh no longer waits on
+upstream. Re-measured at tip `6170221e` (98 commits past the doc 21 re-check): `contentSchema`
+is still 0, the same 31 operations refuse, the two operations upstream added both bind green,
+and the restore step still works (326 components). The location design is sealed — ambient plus
+typed per-call `LocationSelector`, member-by-member merge — closing #37. ExperimentalDeferred
+was dropped; persistentPty is ordinary target surface. The reordered queue: (1) the minimal
+`refresh-spec` synchronizer and the first accepted (Restore-patched) refresh — the M5 opener;
+(2) the typed per-call location plus normal-PTY ownership lane (ADR-0021); (3) envelope
+completion; (4) the operation inventory and assurance ledger; (5) M4's launcher/fixture arc
+with the deterministic simulated-model session workflow (ADR-0022). The B3/B4 refactors, the
+deferred default-job benchmark, and the prerelease packaging track ride alongside unchanged.
+Canon-mechanics text (synchronizer internals, location runtime semantics, the assurance
+architecture document, quality-gate additions) lands with its implementing increments.
+
 ## Milestones
 
 Deliverable-first: every milestone ends in something callable or demonstrable. The next
@@ -350,25 +371,27 @@ is revisited at each milestone boundary.
    owned-transport/net472 GA gate (#43 plus #32) are complete. The union single-pass deserialization
    and streaming adapter-boundary redesign (#23), #29's surviving success-body cost, #33's carrier
    refusal, and the generated collection comparison completed in Arc 6 at `fa6124d`. M3 is complete.
-4. **M4 — Launcher.** `OpenCodeServer.StartAsync` with three-OS acceptance (ADR-0001)
-   over `opencode2 serve`; demo: the SDK starts the server itself and calls health. The
-   net472 stdout/tree-kill items land here. (`serve --stdio`'s stdin leash and the
-   background service's discovery file are candidate mechanisms — decided in the M4 plan;
-   platform detail: research doc 15.)
-5. **M5 — Full surface.** Complete generation profile over the protocol surface,
-   exclusion fingerprints (ADR-0008), remaining ingestion/binding walls (#52/#53), and
-   package/API/TFM assurance (#51), packaging unblocked. The **ambient location
-   header decision (#37)** lands here and is decision-first: packaging unblocking
-   freezes the public surface, so this is the last free moment to drop
-   `OpenCodeClientOptions.Location` (option B) or fold it into the query channel
-   (option C). The batch admitting `project.list` / `permission.saved.*` /
-   `session.form.*` answers whether the header is those operations' only addressing
-   channel.
-6. **M6 — Operational closure.** `refresh-spec`, retry/telemetry/hooks, quarantine
-   lane, nightly canary (the performance suite joins it); durable decisions distill
-   into ADRs and the remaining `superpowers/` documents retire. Any
-   hygiene-sweep leftovers (#24) are resolved here — nothing from the review queue
-   survives the M series.
+4. **M4 — Launcher and process truth.** `OpenCodeServer.StartAsync` with three-OS acceptance
+   (ADR-0001) over the measured stdio contract: `serve --stdio --port 0`, JSON readiness,
+   caller-supplied lease credential via `OPENCODE_PASSWORD`, stdin-EOF ownership, and bounded
+   tree termination (research log Q148). Carries the TUnit exact-pin server fixture, the
+   deterministic simulated-model session workflow with its repository-owned C# controller
+   (ADR-0022), and the net472 stdout/tree-kill items. Demo: the SDK starts the server itself
+   and calls health.
+5. **M5 — Full surface.** Opens with the minimal `refresh-spec` synchronizer and the first
+   accepted (Restore-patched) refresh to the current tip (ADR-0020). Then complete target
+   admission over the refreshed surface: the typed per-call location plus normal-PTY ownership
+   lane (ADR-0021), envelope completion, the operation-identity rows and the header/base64
+   ingestion shapes, the remaining mechanism batches, persistentPty's HTTP batch, exclusion
+   fingerprints (ADR-0008), the operation inventory and assurance ledger, remaining
+   ingestion/binding walls (#52/#53), and package/API/TFM assurance (#51), packaging unblocked.
+   The location design is sealed (#37 closed — ambient plus per-call, research log Q148), so
+   the freeze review inherits a settled surface.
+6. **M6 — Operational closure.** The observation lanes' automation (tip detector, candidate
+   refresh), retry/telemetry/hooks, quarantine lane, the nightly source-run canary (ADR-0022;
+   the performance suite joins it), and Restore-patch retirement; durable decisions distill
+   into ADRs and the remaining `superpowers/` documents retire. Any hygiene-sweep leftovers
+   (#24) are resolved here — nothing from the review queue survives the M series.
 
 ## Open Questions
 
@@ -380,12 +403,10 @@ is revisited at each milestone boundary.
   ADR-0013 forbids importing that hidden type through curation. Keep the generated surface
   faithful and use the projection-fidelity audit below to seek an upstream contract fix;
   retention/replay guarantees also remain unestablished (research doc 02).
-- **Spec refresh cadence** — the `refresh-spec` tool lands in M6; the cadence policy stays
-  open.
-- **OpenAPI projection fidelity** — at the next sanctioned refresh and before M5 public-surface
-  freeze, independent read-only passes compare current upstream Effect schemas, generated OpenAPI,
-  and first-party generated clients. Reproduce and report confirmed losses upstream; seed cases
-  are numeric `limit`/`after` decode targets emitted only as strings. Reports are diagnostic and
+- **OpenAPI projection fidelity** — measured 2026-08-26 (research doc 21) and re-verified at tip
+  `6170221e` (research log Q149); the candidate-refresh lane owns the continuing comparison once
+  automated (ADR-0020). Confirmed losses are reported upstream (#44911 / PR #45182); seed cases
+  are numeric `limit`/`after` decode targets emitted only as strings. Reports stay diagnostic and
   never feed generation or curation (ADR-0013, research Q107/Q108).
 - **Release mechanics** — decided parts live in ADR-0006 (independent semver, per-merge
   GitHub Packages CD, manual NuGet.org releases). Pre-1.0 numbering, `VersionPrefix`,

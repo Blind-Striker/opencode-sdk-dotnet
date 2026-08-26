@@ -1,6 +1,6 @@
 # Research log — 2026-08-08
 
-Date: 2026-08-25
+Date: 2026-08-27
 
 > Dated evidence and decision history, not current policy. Follow current canon through
 > `AGENTS.md`; later sessions in this log intentionally supersede some earlier conclusions.
@@ -3929,3 +3929,93 @@ upstream deleted. Three new ingestion walls arrive with it (eight `persistentPty
 without the `v2.` prefix, a base64 `contentEncoding` shape, the `x-opencode-ticket` header). The
 document also asserts `security: []` on all 131 operations while the server requires
 authentication — the same class of gap as #44911, and worth reporting.
+
+## Q148: What did the coverage-program grilling seal, and what did its fact-finding measure?
+
+**Method:** the maintainer-approved program design
+(`superpowers/specs/2026-08-26-continuous-protocol-coverage-program-design.md`) went through a
+full design-tree grilling (2026-08-26); four read-only lookups grounded the contested branches —
+the `serve` process contract at the pin, the simulation backend, persistentPty's marking at a tip
+worktree, and the server's location resolution. The design document was amended in place where a
+lookup contradicted it.
+
+**Process truth (pin):** `serve --stdio --port 0` exists (the reference client's exact argv);
+readiness is one JSON stdout line `{"url"}` printed only after full boot; stdin is the ownership
+lease (EOF → scoped teardown; upstream regression-tests it by SIGKILLing the owner); auth is
+always-on HTTP Basic with hard-coded user `opencode`, `/api/health` included. In stdio mode the
+password is never printed and the env copy is scrubbed, so the caller must generate the credential
+and inject `OPENCODE_PASSWORD` at spawn — the design's readiness-supplies-credential sentence was
+backwards and is corrected. Reference teardown: SIGTERM, 3-second force-kill, group kill
+(`taskkill /T /F` on Windows). No JWT and no second auth system exist; the PTY connect flow mints
+a short-lived query-carried value through the normally-authenticated token endpoint because a
+browser WebSocket upgrade cannot carry the Basic header.
+
+**Simulation (pin):** `OPENCODE_SIMULATE=1` plus `OPENCODE_DRIVE=1` (both required) plus a
+provider block via `OPENCODE_CONFIG_CONTENT` switch the server's HTTP client to a deny-by-default
+route table; a WebSocket JSON-RPC controller scripts chunked completions while everything below
+the response bytes is the real pipeline (SSE decode, session runner, Bus events, SQLite).
+Constraints: only the bun-built/source-run server bundles the package (the Node build excludes
+it); the control endpoint needs explicit ports (`DRIVE_REGISTRY_DIR` manifest); an unattached
+controller hangs prompting; scripted tool calls execute real tools unless synthetic tools are
+registered. Decision: a repository-owned C# controller in the shared test infrastructure.
+
+**persistentPty (tip):** no machine-readable stability flag exists — the "experimental" status is
+the `server.experimental` group id (whose leak into 8 of 9 operationIds *is* doc 21's T3), the
+over-selecting `/api/experimental/` path prefix, and a `"Prototype persistent PTY routes."` tag
+description; `v2.persistentPty.connect` breaks every pattern (`x-websocket`, excluded by
+upstream's own clients). Upstream's production CLI already calls `persistentPty.shutdown`,
+violating the design's no-first-party-consumer criterion — so ExperimentalDeferred was dropped
+entirely and persistentPty is ordinary target surface: the eight HTTP operations land as a normal
+batch after the refresh, the WebSocket door after the normal-PTY session machinery, with
+daemon-gated 503 exemptions where CI lacks `opencode-pty`.
+
+**Location (pin = tip, byte-identical resolver):** the server resolves each member independently —
+directory: query → percent-decoded header → cwd; workspace: query → raw header → unset. Upstream
+clients have no client-level location and no merge code anywhere; `/api/session/{id}/*`
+middlewares ignore location inputs entirely (session-row derived), with `form/global` the one
+header-driven escape hatch. Sealed: member-by-member client-side merge between per-call and
+ambient (per-call wins, null inherits, no per-call clearing), uniform header injection with the
+session-route no-op documented, encoding asymmetry mirrored (directory percent-encoded, workspace
+raw and omitted when absent). Naming trap for tests: the query member is `workspace`; the
+`session.create`/`import` body member is `workspaceID`.
+
+**Decision register (maintainer, 2026-08-26):** accepted-snapshot vocabulary replaces "spec pin"
+(recipe/receipt/normalized defined; admission states Selected/Pending/TransportOwned; the
+operation inventory subsumes `generation-profile.txt`); Restore is the only snapshot patch class
+and identity defects ride operation-identity curation rows instead (ADR-0013/0020) — the design's
+Stabilize class was dropped; refresh cadence is per-session once prepare/verify/apply exists;
+every observation lane runs upstream from git source at resolved SHAs (pinned bun, install
+scripts disabled, no npm artifacts) — the canary's install-channel identity was replaced
+accordingly; location per the design's §5 with #37 closed; declared-nullable envelope payloads
+materialize as typed null successes while the non-nullable `{"data":null}` refusal stands; normal
+PTY's public family is hand-written over generated internals (ADR-0021; split-ownership partials
+rejected); deterministic evidence gates releases (ADR-0022); the assurance ledger is
+hand-authored under `tests/` with an `opencode-tool` verifier; M4 = launcher/fixture plus the
+simulated-model session workflow, M5 = surface and inventory opening with the first patched
+refresh, M6 = automation, canary, and patch retirement. The SSE restore was sent upstream and is
+open ([anomalyco/opencode#45182](https://github.com/anomalyco/opencode/pull/45182),
+`needs:issue`). ADR shape per `docs/adr/README.md`: three new records (ADR-0020/0021/0022), four
+in-place revisions (0003 relay, 0007, 0008, 0013), relay touches to 0005 and `spec/SNAPSHOT.md`;
+coverage-ledger and assurance-lane mechanics are conventions that land with their implementing
+increments.
+
+## Q149: Do doc 21's findings survive at the current tip?
+
+**Method:** the doc 21 apparatus rerun on 2026-08-26/27 against tip `6170221e2189` (98 commits
+past the `a5829431b0` re-check), calibrated first by reproducing doc 21's TIP numbers exactly on
+the baseline document; the submodule checkout never left the pin.
+
+**Headline:** everything survives in substance. `contentSchema` is still 0 — the #56 unblock
+criterion is not met and the refresh remains blocked solely on the SSE regression. The restore
+step still applies cleanly (TIP+RESTORE 316 → 326 components). Operations 131 → 133: upstream
+added `v2.session.messageUpdate` (PATCH) and `v2.credential.activate` (POST), and both bind green
+through our generator — the probe moves 123/92/31 → 125/94/31 with a byte-identical refused set
+and refusal-class histogram. T2 (`security: []` everywhere) and T3 (the same eight off-convention
+operationIds) persist; the `Form.*` family stays converged; upstream's committed document is
+still stale against its own generator, now missing four member-level drifts
+(`Integration.metadata`, `Model.requireReasoning`, the `Project.Vcs` enum→pattern change, and
+`session.step.streamed`). One correction to doc 21 §4's table: the
+`DELETE-with-body` refusal (`v2.worktree.remove`) exists at the baseline too — it was absorbed by
+the ten-class regrouping, not introduced by the tip. Artifacts:
+`.scratchpad/openapi-v2-tip-6170221e*.json`, `.scratchpad/measure-doc.ts`; the oc-restore
+worktree sits detached at `6170221e`.

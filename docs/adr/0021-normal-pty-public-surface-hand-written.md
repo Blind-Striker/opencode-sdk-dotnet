@@ -1,0 +1,32 @@
+# Normal PTY's public surface is hand-written over generated internals
+
+Date: 2026-08-26
+
+The PTY family's center of gravity is a live WebSocket session — a transport ADR-0008 already
+excludes from generation — and a token handshake whose fixed `x-opencode-ticket` value exists only
+in upstream implementation source, which ADR-0013 forbids importing into generation; the generated
+public `PostConnectTokenAsync` shipped unusable as a result (research doc 21 O2, live-verified 403
+without the header and 200 with it). Decision: every public door of the normal PTY family is
+hand-written — `PtysClient`, `PtyClient`, the token door, and the `PtySession` working object owning
+the WebSocket connection — while the generator retains the internal raw clients, operation
+descriptors, routes, query shapers, response adapters, and status verdicts plus the public wire
+models, envelopes, and serializer metadata, so route, status, and schema drift still breaks
+compilation locally. The ticket constant is applied internally and never supplied by a caller; the
+family may not bypass the generic envelope machinery for represented responses. This is a bounded
+family-ownership exception to ADR-0008's generated-surface rule, not a reversal of it.
+
+## Considered options
+
+- Split ownership through partial classes (generated CRUD public; hand-written session and token
+  door) — rejected: it needs the same member-suppression machinery, splits the freeze review across
+  two idioms inside one small family, and the generation saved is smaller than the coherence lost.
+- Keep the generated token door — rejected: it ships a public method that cannot succeed.
+
+## Consequences
+
+- The first non-additive PublicApi review since the lock (accepted pre-1.0).
+- The generator gains a curation-declared internal-raw emission mode; the emitted internal layer
+  stays manifest-tracked and regen-verified like all generated output.
+- ADR-0019 placement is unchanged: PTYs remain working objects with handles.
+
+Evidence: research doc 21 §3.1/§5; research log Q146–Q148.

@@ -2,9 +2,12 @@
 
 Date: 2026-08-13
 
-`openapi.json` is a pinned copy of the upstream opencode OpenAPI 3.1 document — the v2
+`openapi.json` is the accepted snapshot of the upstream opencode OpenAPI 3.1 document — the v2
 protocol surface (ADR-0005). The SDK is built against this snapshot, never against a live
-branch; the `v2` branch moves daily and refreshes are deliberate (milestone boundaries).
+branch; the `v2` branch moves daily. Refresh policy is receipt-governed (ADR-0020): a refresh
+consumes an exact commit, normally with an empty patch list, and temporary Restore patches may
+repair upstream projection loss under review receipts. The manual procedure below remains
+current until the `refresh-spec` synchronizer lands.
 
 | Fact | Value |
 |---|---|
