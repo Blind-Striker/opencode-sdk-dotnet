@@ -3892,3 +3892,40 @@ sandbox's mechanism leg then ran the batch live against the pinned server (bun-l
 `mcp.add` accepted the `IMcp` union config over PUT, `pty.update`'s PUT round-tripped with the
 server echoing the renamed title, the instructions entry PUT/remove cycled 204, and
 `form.cancel` on a missing form carried a typed `FormNotFoundError` over the NoThrow spine.
+
+## Q147: What does the OpenAPI document fail to carry, at the pin and at the tip?
+
+**Method:** a git worktree of the submodule at the `v2` tip with `bun install --frozen-lockfile`,
+upstream's own generator, the #44911 restore step executed for real, our generator run against
+the result, and a four-way parallel source audit of the Effect contract, the schema layer, the
+server package, and the per-endpoint channels. The submodule checkout never left the pin. Full
+findings, the two reference points, and the choice space: `21-openapi-projection-fidelity.md`.
+
+**Headline:** endpoint parity is exact (131 contract endpoints, 131 operations, zero drift in
+both directions, mechanism verified) and declared channels project faithfully (zero parameter or
+status mismatches). The loss is in type information and in server behaviour the contract never
+declares.
+
+**Closed questions:** the duplicated `Form.*` generation is an upstream artifact — verified by
+reading the pinned source, where every `Form.*` identifier is defined exactly once and the
+`form.created` event reuses the same `Info` object — and the tip has already converged it, because
+the effect upgrade that broke the streams also unified the divergent `Schema.Number` rendering
+that produced it. Running the restore step against the tip leaves the `Form.*` name set
+byte-identical, with one benign conflict. So the refresh does resolve the form class; the earlier
+claim to that effect was correct but had been asserted from inference, and is now measured.
+
+**Our defects surfaced:** the SDK has no per-request header channel, which makes the B-1 batch's
+`PostConnectTokenAsync` unusable (live: 403 without `x-opencode-ticket: "1"`, 200 with it) and
+also blocks the `x-opencode-directory` multi-project targeting recorded in doc 01 §4; the envelope
+binder accepts only `data: $ref`, which is 18 of 31 refusals at the restored tip; error unions are
+not deduplicated (47 operations); the "inline nominal schema was not promoted" diagnostic actually
+fires on a missing *name*, which is what misframed an entire batch; and the alias guard cannot
+separate semantically distinct types that project identically (`Money.USD` vs
+`Money.USDPerMillionTokens`).
+
+**The refresh's price and prize:** at the restored tip our generator ingests 123 operations, binds
+92, refuses 31 — and refuses none of what we ship today, losing only the two question operations
+upstream deleted. Three new ingestion walls arrive with it (eight `persistentPty.*` operationIds
+without the `v2.` prefix, a base64 `contentEncoding` shape, the `x-opencode-ticket` header). The
+document also asserts `security: []` on all 131 operations while the server requires
+authentication — the same class of gap as #44911, and worth reporting.
