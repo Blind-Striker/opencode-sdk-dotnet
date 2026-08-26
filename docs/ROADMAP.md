@@ -34,8 +34,8 @@ through their final generated surface — uniform `*Request` operation inputs (Q
 query records riding the `ListRequest` seam, `SessionCreateRequest` bodies through the
 pipeline's JSON path, cursor-list envelopes with the shared `ListCursor`, query-composing
 routes, the `Session.Info` model closure, and the first 5xx arm. Riders #19 (carrier converters), #21 (fail-closed walls + P2 single-pass
-envelopes; the standing baselines live in the M3 plan and are measured against
-wire-shaped payloads),
+envelopes; the interim baselines that guarded the M3 arcs have since retired with the M3 plan in
+favor of the permanent suite),
 and #22 (List/Create verb rules + C17–C20) landed with it; upstream's `InvalidRequestError1`
 duplicate collapses through the new `schemaAliases` curation. Demonstrated live 2026-08-14
 against `opencode2 serve` v0.0.0-next-17403 (create → list → get → messages, wire cursor
@@ -61,7 +61,7 @@ and Extensions test projects, and the previously unobserved object-envelope
 `{"data":null}` refusal pinned by test (the support pair under `tests/Shared` is consumed
 by the SDK test project; the Extensions tests are registration-topology only).
 
-**M3 is complete** (plan: `superpowers/plans/2026-08-15-m3-plan.md`; decisions: research log
+**M3 is complete** (plan retired 2026-08-27; decisions: research log
 Sessions 24–37). Q92's simplicity-first construction (ADR-0010) is landed — Arc 1 complete:
 the transport constructor is internal friend-assembly test surface, Extensions registers
 a factory-less singleton client family with a roster contract test, and the Q91 guard
@@ -161,7 +161,8 @@ single emitted source-generated registry, and fresh compilation. Runtime evidenc
 two of 40 durable branches, the `log.synced` watermark, and unknown-carrier behavior. Hosted run
 `32192213328` is green on Linux, Windows, and macOS. Arc 3b now completes the deferred plural-interface
 closure without inventing a 40/87-payload corpus. The six interim allocation
-baselines remain the comparison guards; master protection and direct-push policy remain open under
+baselines served as comparison guards until the permanent per-operation suite and the
+`.benchmarks/` store replaced them; master protection and direct-push policy remain open under
 #50. #53's typed stream failure-cause M3 subset is complete at `28d09e1`: the pinned cause contract
 survives ingestion, binding, model/union planning, registry emission, source generation, and
 compilation; `not: {}` remains never, its uninhabitable `Fail` branch is a known protocol refusal,
@@ -242,10 +243,9 @@ mechanism re-derived inside the buffering policy. The modern-allocation research
 (docs 17/19/20: API survey, feature catalog with verified downlevel codegen, runtime idiom
 audit).**
 
-**The runtime-pipeline arc is complete.** The staged plan
-`superpowers/plans/2026-08-24-runtime-pipeline-plan.md` is fully executed through Increment 4
-(evidence: research Q130–Q138; composition: ADR-0018) and retires with the `superpowers/` sweep
-at M6 (maintainer, 2026-08-25), following the M3-plan precedent. Landed: the
+**The runtime-pipeline arc is complete.** Its staged plan was fully executed through Increment 4
+(evidence: research Q130–Q138; composition: ADR-0018) and is retired together with the M3 plan
+(maintainer, 2026-08-27 — consumed plans delete when their work ships). Landed: the
 `FailureClassification` phase map, the behavior-preserving internal policy pipeline, generated
 `StatusVerdict Classify` verdicts on the adapters, pooled buffering with the progress timeout, and
 exception-free encoding over `Microsoft.Bcl.Memory`; Increment 0 archived the R16 experiment out of
@@ -359,7 +359,7 @@ is revisited at each milestone boundary.
    review rider resolved (#19–#22, #20, #25), and so is the alignment batch (uniform
    `*Request`, feature-slice layout, Extensions bring-up — research log Q83–Q85). The
    Extensions package grows in parallel with the remaining batches.
-3. **M3 — Streams.** Plan: `superpowers/plans/2026-08-15-m3-plan.md`. The Q92
+3. **M3 — Streams.** The Q92
    construction reshape (ADR-0010) opens the runway as its own PR. The **location +
    merged-Request design session** (sealed proactive 2026-08-14, research log Session 22;
    census in research doc 15 §5a/§6) seals the marshalling surface. Then the SSE engine
@@ -388,7 +388,9 @@ is revisited at each milestone boundary.
    The location design is sealed (#37 closed — ambient plus per-call, research log Q148), so
    the freeze review inherits a settled surface.
 6. **M6 — Operational closure.** The observation lanes' automation (tip detector, candidate
-   refresh), retry/telemetry/hooks, quarantine lane, the nightly source-run canary (ADR-0022;
+   refresh), retry/telemetry/hooks with the public network-timeout knob and optional
+   total-budget mode decisions (research Q129/Q133), quarantine lane, the nightly source-run
+   canary (ADR-0022;
    the performance suite joins it), and Restore-patch retirement; durable decisions distill
    into ADRs and the remaining `superpowers/` documents retire. Any hygiene-sweep leftovers
    (#24) are resolved here — nothing from the review queue survives the M series.
@@ -415,8 +417,7 @@ is revisited at each milestone boundary.
 - **A6 configuration/transport split** — deferred with a trigger: when M6 attaches
   telemetry/hook handlers to the transport, or when Extensions gains a concrete
   `IHttpClientFactory`/named-client need, the split of validated client configuration from
-  the transport factory lands first (plan `superpowers/plans/2026-08-24-runtime-pipeline-plan.md`,
-  research Q129). Also reopen if the validate-after-owned-transport-construction ordering
+  the transport factory lands first (research Q129). Also reopen if the validate-after-owned-transport-construction ordering
   hazard produces a real defect.
 - **Generator binding locality** — the doc 18 gate is decided (maintainer, 2026-08-25;
   evidence research Q144): B2's reserved-name owner and B1's facet binders are landed,
