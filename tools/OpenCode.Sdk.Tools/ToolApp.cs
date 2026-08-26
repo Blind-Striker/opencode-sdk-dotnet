@@ -8,6 +8,8 @@ using OpenCode.Sdk.Tools.Generator.Binding;
 using OpenCode.Sdk.Tools.Generator.Binding.Abstractions;
 using OpenCode.Sdk.Tools.Generator.Ingestion;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Abstractions;
+using OpenCode.Sdk.Tools.Generator.Refresh;
+using OpenCode.Sdk.Tools.Generator.Refresh.Abstractions;
 using OpenCode.Sdk.Tools.Infrastructure;
 using OpenCode.Sdk.Tools.Infrastructure.Logging;
 using OpenCode.Sdk.Tools.Output;
@@ -47,6 +49,9 @@ public static class ToolApp
         services.AddSingleton<IProjectFormatter, CliWrapProjectFormatter>();
         services.AddSingleton<IGenerationWriter, GenerationWriter>();
         services.AddSingleton<GenerationCoordinator>();
+        services.AddSingleton<IProcessRunner, CliWrapProcessRunner>();
+        services.AddSingleton<PatchSetLoader>();
+        services.AddSingleton<SnapshotSynchronizer>();
         services.AddSingleton<BenchmarkRunReader>();
         services.AddSingleton<ICommandInterceptor, GlobalOptionsInterceptor>();
 
@@ -72,6 +77,9 @@ public static class ToolApp
         configurator
             .AddCommand<CompareBenchmarksCommand>("compare-benchmarks")
             .WithDescription("Compare two BenchmarkDotNet run folders by exact allocated bytes and median time.");
+        configurator
+            .AddCommand<RefreshSpecCommand>("refresh-spec")
+            .WithDescription("Prepare, verify, or apply a receipt-governed snapshot refresh (ADR-0020).");
     }
 
     /// <summary>Entry point used by tools/opencode-tool.cs.</summary>

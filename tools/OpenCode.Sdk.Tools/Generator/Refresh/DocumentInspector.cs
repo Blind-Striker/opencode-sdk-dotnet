@@ -1,0 +1,134 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+
+namespace OpenCode.Sdk.Tools.Generator.Refresh;
+
+/// <summary>
+/// Pure, read-only probes over an OpenAPI document's bytes: the operation set, its digest, the
+/// component count, the <c>contentSchema</c> signal, and the patch predicates' keyword checks.
+/// The synchronizer never interprets documents beyond these invariants — semantic understanding
+/// stays with ingestion.
+/// </summary>
+internal static class DocumentInspector
+{
+    public static string Sha256Hex(ReadOnlySpan<byte> content) => Convert.ToHexStringLower(SHA256.HashData(content));
+
+    public static DocumentStats Inspect(byte[] documentBytes)
+    {
+        ArgumentNullException.ThrowIfNull(documentBytes);
+
+        using var document = Parse(documentBytes);
+        var root = document.RootElement;
+        var operationIds = ReadOperationIds(root);
+        var componentCount = 0;
+        if (root.TryGetProperty("components", out var components)
+            && components.ValueKind is JsonValueKind.Object
+            && components.TryGetProperty("schemas", out var schemas)
+            && schemas.ValueKind is JsonValueKind.Object)
+        {
+            componentCount = schemas.EnumerateObject().Count();
+        }
+
+        return new DocumentStats
+        {
+            OperationIds = operationIds,
+            OperationSetDigest = Sha256Hex(Encoding.UTF8.GetBytes(string.Join('\n', operationIds))),
+            ComponentCount = componentCount,
+            ContentSchemaCount = CountPropertyOccurrences(root, "contentSchema"),
+        };
+    }
+
+    public static KeywordPresence CheckComponentKeyword(byte[] documentBytes, string component, string keyword)
+    {
+        ArgumentNullException.ThrowIfNull(documentBytes);
+        ArgumentException.ThrowIfNullOrWhiteSpace(component);
+        ArgumentException.ThrowIfNullOrWhiteSpace(keyword);
+
+        using var document = Parse(documentBytes);
+        if (!document.RootElement.TryGetProperty("components", out var components)
+            || components.ValueKind is not JsonValueKind.Object
+            || !components.TryGetProperty("schemas", out var schemas)
+            || schemas.ValueKind is not JsonValueKind.Object
+            || !schemas.TryGetProperty(component, out var schema)
+            || schema.ValueKind is not JsonValueKind.Object)
+        {
+            return KeywordPresence.ComponentMissing;
+        }
+
+        return schema.TryGetProperty(keyword, out _) ? KeywordPresence.Carries : KeywordPresence.Lacks;
+    }
+
+    private static JsonDocument Parse(byte[] documentBytes)
+    {
+        try
+        {
+            return JsonDocument.Parse(documentBytes);
+        }
+        catch (JsonException exception)
+        {
+            throw new SnapshotRefreshException($"the document is not valid JSON: {exception.Message}", exception);
+        }
+    }
+
+    private static List<string> ReadOperationIds(JsonElement root)
+    {
+        var operationIds = new List<string>();
+        if (!root.TryGetProperty("paths", out var paths) || paths.ValueKind is not JsonValueKind.Object)
+        {
+            return operationIds;
+        }
+
+        foreach (var operation in paths.EnumerateObject()
+                     .Where(static path => path.Value.ValueKind is JsonValueKind.Object)
+                     .SelectMany(static path => path.Value.EnumerateObject())
+                     .Select(static member => member.Value)
+                     .Where(static value => value.ValueKind is JsonValueKind.Object))
+        {
+            if (operation.TryGetProperty("operationId", out var operationId) && operationId.ValueKind is JsonValueKind.String)
+            {
+                operationIds.Add(operationId.GetString()!);
+            }
+        }
+
+        operationIds.Sort(StringComparer.Ordinal);
+        return operationIds;
+    }
+
+    private static int CountPropertyOccurrences(JsonElement element, string propertyName)
+    {
+        var count = 0;
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                foreach (var property in element.EnumerateObject())
+                {
+                    if (string.Equals(property.Name, propertyName, StringComparison.Ordinal))
+                    {
+                        count++;
+                    }
+
+                    count += CountPropertyOccurrences(property.Value, propertyName);
+                }
+
+                break;
+            case JsonValueKind.Array:
+                foreach (var item in element.EnumerateArray())
+                {
+                    count += CountPropertyOccurrences(item, propertyName);
+                }
+
+                break;
+            case JsonValueKind.Undefined:
+            case JsonValueKind.String:
+            case JsonValueKind.Number:
+            case JsonValueKind.True:
+            case JsonValueKind.False:
+            case JsonValueKind.Null:
+            default:
+                break;
+        }
+
+        return count;
+    }
+}

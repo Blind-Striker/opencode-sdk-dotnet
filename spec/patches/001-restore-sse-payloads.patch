@@ -1,0 +1,69 @@
+diff --git a/packages/protocol/script/generate-openapi.ts b/packages/protocol/script/generate-openapi.ts
+index 61c4ddecd1..799ce56e43 100644
+--- a/packages/protocol/script/generate-openapi.ts
++++ b/packages/protocol/script/generate-openapi.ts
+@@ -1,10 +1,38 @@
+-import { OpenApi } from "effect/unstable/httpapi"
++import { SchemaAST } from "effect"
++import { HttpApi, OpenApi } from "effect/unstable/httpapi"
+ import { format } from "prettier"
+ import { fileURLToPath } from "url"
+ import { ClientApi } from "../src/client.js"
++import { OpenCodeEvent } from "../src/groups/event.js"
++import { SessionLogItem } from "../src/groups/session.js"
+ import { stabilizeOpenApi } from "./openapi-stabilize.js"
+ 
+-const document = await format(JSON.stringify(stabilizeOpenApi(OpenApi.fromApi(ClientApi)), null, 2), {
++// Effect omits StreamSse data payloads from contentSchema; remove this bridge when it emits the links again.
++const payloads = [OpenCodeEvent, SessionLogItem]
++const source = stabilizeOpenApi(OpenApi.fromApi(ClientApi.annotate(HttpApi.AdditionalSchemas, payloads)))
++payloads.forEach((payload) => {
++  const identifier = SchemaAST.resolveIdentifier(payload.ast)
++  if (identifier === undefined) throw new Error("SSE payload schema is missing an identifier")
++  const envelopeName = `${identifier}Encoded`
++  const envelope = source.components.schemas[envelopeName]
++  if (
++    typeof envelope !== "object" ||
++    envelope === null ||
++    Array.isArray(envelope) ||
++    !("type" in envelope) ||
++    envelope.type !== "string" ||
++    !("contentMediaType" in envelope) ||
++    envelope.contentMediaType !== "application/json"
++  ) {
++    throw new Error(`Missing encoded OpenAPI component: ${envelopeName}`)
++  }
++  if ("contentSchema" in envelope) return
++  source.components.schemas[envelopeName] = {
++    ...envelope,
++    contentSchema: { $ref: `#/components/schemas/${identifier}` },
++  }
++})
++const document = await format(JSON.stringify(source, null, 2), {
+   parser: "json",
+   printWidth: 120,
+ })
+diff --git a/packages/protocol/src/groups/session.ts b/packages/protocol/src/groups/session.ts
+index f0f2b46e8e..426c77fadf 100644
+--- a/packages/protocol/src/groups/session.ts
++++ b/packages/protocol/src/groups/session.ts
+@@ -31,6 +31,10 @@ import { Location } from "@opencode-ai/schema/location"
+ import { SessionEvent } from "@opencode-ai/schema/session-event"
+ import { EventLog } from "@opencode-ai/schema/event-log"
+ 
++export const SessionLogItem = Schema.Union([SessionEvent.Durable, EventLog.Synced]).annotate({
++  identifier: "SessionLogItem",
++})
++
+ const ParentIDFilter = Schema.Union([
+   Session.ID,
+   Schema.Null.pipe(
+@@ -648,7 +652,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
+           follow: BooleanFromString.pipe(Schema.optional),
+         },
+         success: HttpApiSchema.StreamSse({
+-          data: Schema.Union([SessionEvent.Durable, EventLog.Synced]).annotate({ identifier: "SessionLogItem" }),
++          data: SessionLogItem,
+         }),
+         error: SessionNotFoundError,
+       }).annotateMerge(

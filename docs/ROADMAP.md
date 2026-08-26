@@ -410,6 +410,11 @@ is revisited at each milestone boundary.
   automated (ADR-0020). Confirmed losses are reported upstream (#44911 / PR #45182); seed cases
   are numeric `limit`/`after` decode targets emitted only as strings. Reports stay diagnostic and
   never feed generation or curation (ADR-0013, research Q107/Q108).
+- **Parked upstream reports (doc 21 C4)** — filed when the maintainer chooses, not on a schedule:
+  the eight off-convention `persistentPty.*` operationIds (T3 — draft ready under
+  `.scratchpad/upstream-issue-drafts/`), the missing `HttpApiSecurity` declaration behind
+  `security: []` (T2), the 25 lost `Config.Info` descriptions (T6), the stale committed document
+  (T7), and the undeclared `x-opencode-ticket` value.
 - **Release mechanics** — decided parts live in ADR-0006 (independent semver, per-merge
   GitHub Packages CD, manual NuGet.org releases). Pre-1.0 numbering, `VersionPrefix`,
   RELEASE_NOTES flow, and the concrete workflows are scheduled when the first publishable

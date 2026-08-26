@@ -86,8 +86,10 @@ evaluation are pure and unit-tested.
 
 ### Increment 1 — ingestion pre-work
 
-- [ ] File the upstream T3 report (eight off-convention operationIds, with the one-line
-      identifier-annotation fix) — the identity rows' reason field references it.
+- [x] The upstream T3 report is drafted and parked (maintainer, 2026-08-27): it files when the
+      maintainer chooses, alongside the other doc 21 C4 reports — the ROADMAP owns the parked
+      list, the draft sits in `.scratchpad/upstream-issue-drafts/`. Identity rows cite doc 21
+      T3 until the issue exists, then gain the number.
 - [x] Header-parameter and `contentEncoding` ingestion, red-first; binder wall for selected
       header-parameter operations. `contentEncoding` projects as a distinct `EncodedStringNode`
       so every plain-string expectation and the binder's default arm refuse it fail-closed.
@@ -98,11 +100,13 @@ evaluation are pure and unit-tested.
 
 ### Increment 2 — minimal synchronizer
 
-- [ ] `refresh-spec` prepare/verify/apply with receipt, patch, hash, predicate, TOCTOU, and
-      rollback machinery; `spec/patches/001-restore-sse-payloads.patch` authored and
-      hash-pinned.
-- [ ] Pure-logic unit tests; one local end-to-end prepare run against the current tip, its
-      receipt kept as the Increment 3 candidate.
+- [x] `refresh-spec` prepare/verify/apply with receipt, patch, hash, predicate, TOCTOU, and
+      rollback machinery; `spec/patches/001-restore-sse-payloads.patch` authored from the
+      source-only subset of PR #45182 and hash-pinned beside its manifest.
+- [x] Pure-logic unit tests (18; ScriptedProcessRunner seam, no bun/git in CI); one local
+      end-to-end prepare run against tip `954cdc7b` succeeded — 133 operations (+22/−9 vs the
+      pin), 336 components, `contentSchema` back at 2, both preimages recorded — its receipt
+      under `.scratchpad/refresh/954cdc7b…/` is the Increment 3 candidate.
 
 ### Increment 3 — the first accepted refresh (maintainer act)
 
