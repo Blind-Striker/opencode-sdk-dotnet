@@ -80,7 +80,10 @@ public sealed class SpecIngestionTests
             .BuildServiceProvider();
 
         var ingestion = provider.GetRequiredService<ISpecIngestion>();
-        var document = await ingestion.IngestAsync(context.SpecPath, CancellationToken.None);
+        var document = await ingestion.IngestAsync(
+            context.SpecPath,
+            new Dictionary<string, string>(StringComparer.Ordinal),
+            CancellationToken.None);
 
         await Assert.That(provider.GetRequiredService<IFileSystem>()).IsSameReferenceAs(context.FileSystem);
         await Assert.That(document.Operations).IsEmpty();

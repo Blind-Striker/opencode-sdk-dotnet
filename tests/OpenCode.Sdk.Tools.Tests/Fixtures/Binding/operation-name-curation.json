@@ -5,6 +5,7 @@
       "clientName": "Events"
     }
   },
+  "operationIdentities": [],
   "operationNames": [
     {
       "operationId": "v2.event.subscribe",

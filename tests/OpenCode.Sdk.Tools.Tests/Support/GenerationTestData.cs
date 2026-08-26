@@ -23,6 +23,7 @@ internal static class GenerationTestData
                                           "reason": "Scenario places the group on the root client."
                                         }
                                       },
+                                      "operationIdentities": [],
                                       "operationNames": [],
                                       "schemaNames": [],
                                       "envelopePayloadNames": {},

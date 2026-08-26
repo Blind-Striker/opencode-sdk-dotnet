@@ -26,9 +26,12 @@ internal sealed class GenerationCoordinator(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var document = await _ingestion.IngestAsync(request.SpecPath, cancellationToken).ConfigureAwait(false);
-        var selection = await _selectionLoader.LoadAsync(request.ProfilePath, cancellationToken).ConfigureAwait(false);
+        // Curation loads first: its operation-identity rows are an ingestion input (ADR-0013),
+        // so their static validity is checked before the document is read.
         var curation = await _curationLoader.LoadAsync(request.CurationPath, cancellationToken).ConfigureAwait(false);
+        var operationIdentities = OperationIdentityPolicy.BuildMap(curation);
+        var document = await _ingestion.IngestAsync(request.SpecPath, operationIdentities, cancellationToken).ConfigureAwait(false);
+        var selection = await _selectionLoader.LoadAsync(request.ProfilePath, cancellationToken).ConfigureAwait(false);
 
         var plan = _binder.Bind(document, selection, curation);
 

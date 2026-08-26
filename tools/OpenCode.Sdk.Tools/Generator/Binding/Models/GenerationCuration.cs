@@ -16,6 +16,17 @@ internal sealed record GenerationCuration
         }
     } = new ReadOnlyDictionary<string, GroupCuration>(new Dictionary<string, GroupCuration>(StringComparer.Ordinal));
 
+    [JsonPropertyName("operationIdentities")]
+    public required IReadOnlyList<OperationIdentityCuration> OperationIdentities
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<OperationIdentityCuration>());
+
     [JsonPropertyName("operationNames")]
     public required IReadOnlyList<OperationNameCuration> OperationNames
     {

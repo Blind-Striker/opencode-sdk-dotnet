@@ -159,6 +159,21 @@ public sealed class OperationProjectorTests
     }
 
     [Test]
+    public async Task Project_Should_Project_Header_Parameter()
+    {
+        var host = new OperationProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.pty.token", configure: operation => operation
+            .Parameter("x-opencode-ticket", "header", schema => schema.Type("string"), required: true)));
+
+        var result = await host.ProjectAsync(scenario);
+
+        var parameter = result.Operations[0].Parameters[0];
+        await Assert.That(parameter.Location).IsEqualTo(SpecParameterLocation.Header);
+        await Assert.That(parameter.Name).IsEqualTo("x-opencode-ticket");
+        await Assert.That(parameter.IsRequired).IsTrue();
+    }
+
+    [Test]
     public async Task Project_Should_Preserve_Parameter_Order_And_Bracketed_Name()
     {
         var host = new OperationProjectionTestHost();

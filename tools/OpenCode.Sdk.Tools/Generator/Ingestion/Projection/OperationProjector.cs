@@ -7,7 +7,6 @@ namespace OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
 
 internal sealed class OperationProjector
 {
-    private readonly OperationIdentityParser _identityParser = new();
     private readonly GraphKeyBuilder _keys;
     private readonly ParameterProjector _parameters;
     private readonly PathTemplateValidator _pathTemplates = new();
@@ -24,10 +23,12 @@ internal sealed class OperationProjector
         _responses = new ResponseProjector(schemaProjector, keys, new EnvelopeClassifier());
     }
 
-    public IReadOnlyList<SpecOperation> Project(LoadedSpec loaded, ProjectionState state)
+    public IReadOnlyList<SpecOperation> Project(LoadedSpec loaded, ProjectionState state,
+        IReadOnlyDictionary<string, string> operationIdentities)
     {
         ArgumentNullException.ThrowIfNull(loaded);
         ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(operationIdentities);
 
         if (loaded.Raw is not JsonObject rawDocument || rawDocument["paths"] is not JsonObject rawPaths)
         {
@@ -35,10 +36,15 @@ internal sealed class OperationProjector
             return Array.AsReadOnly(Array.Empty<SpecOperation>());
         }
 
-        var context = new OperationProjectionContext(rawPaths, state);
+        var context = new OperationProjectionContext(rawPaths, state, operationIdentities);
         foreach (var (path, pathItem) in loaded.Document.Paths)
         {
             ProjectPath(path, pathItem, context);
+        }
+
+        foreach (var subject in context.UnconsumedIdentitySubjects())
+        {
+            state.Errors.Add(subject, "operation identity curation subject does not exist in the document; retire the row");
         }
 
         return context.Snapshot();
@@ -97,7 +103,20 @@ internal sealed class OperationProjector
             return;
         }
 
-        var identity = _identityParser.Parse(operationId, path, location, context.State.Errors);
+        // An operation-identity row maps an upstream identity defect onto its intended
+        // identity (ADR-0013); every downstream consumer sees only the intended identity,
+        // and the mapped identity claims the same uniqueness space as ordinary ids.
+        if (context.TryMapIdentity(operationId, out var intendedIdentity))
+        {
+            operationId = intendedIdentity;
+            if (!context.TryRegisterOperationId(operationId))
+            {
+                context.State.Errors.Add(location, $"operation identity '{operationId}' collides with another operation");
+                return;
+            }
+        }
+
+        var identity = OperationIdentityParser.Parse(operationId, path, location, context.State.Errors);
         if (identity is null)
         {
             return;

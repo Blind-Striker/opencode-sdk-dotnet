@@ -8,21 +8,24 @@ internal sealed class OperationProjectionTestHost
 {
     private readonly GraphKeyBuilder _keys = new();
 
-    public async Task<OperationProjectionResult> ProjectAsync(SpecScenario scenario)
+    public async Task<OperationProjectionResult> ProjectAsync(SpecScenario scenario,
+        IReadOnlyDictionary<string, string>? operationIdentities = null)
     {
-        var result = await ProjectCoreAsync(scenario);
+        var result = await ProjectCoreAsync(scenario, operationIdentities);
         return result.Refusal is not null
             ? throw new InvalidOperationException("The operation projection was unexpectedly refused.", result.Refusal)
             : result;
     }
 
-    public async Task<IngestionException> ProjectExpectingRefusalAsync(SpecScenario scenario)
+    public async Task<IngestionException> ProjectExpectingRefusalAsync(SpecScenario scenario,
+        IReadOnlyDictionary<string, string>? operationIdentities = null)
     {
-        var result = await ProjectCoreAsync(scenario);
+        var result = await ProjectCoreAsync(scenario, operationIdentities);
         return result.Refusal ?? throw new InvalidOperationException("The operation projection was expected to be refused.");
     }
 
-    private async Task<OperationProjectionResult> ProjectCoreAsync(SpecScenario scenario)
+    private async Task<OperationProjectionResult> ProjectCoreAsync(SpecScenario scenario,
+        IReadOnlyDictionary<string, string>? operationIdentities)
     {
         ArgumentNullException.ThrowIfNull(scenario);
 
@@ -33,7 +36,8 @@ internal sealed class OperationProjectionTestHost
             var loaded = await new SpecReader(context.FileSystem).LoadAsync(context.SpecPath, errors, CancellationToken.None);
             var schemaProjector = new SchemaProjector(_keys);
             var state = new ProjectionState(errors, loaded.Document);
-            var operations = new OperationProjector(schemaProjector, _keys).Project(loaded, state);
+            var operations = new OperationProjector(schemaProjector, _keys)
+                .Project(loaded, state, operationIdentities ?? new Dictionary<string, string>(StringComparer.Ordinal));
 
             if (loaded.Document.Components?.Schemas is not null)
             {

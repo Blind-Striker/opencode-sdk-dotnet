@@ -301,6 +301,43 @@ public sealed class SpecBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Refuse_A_Selected_Operation_With_A_Header_Parameter()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Parameter("x-opencode-ticket", "header", schema => schema.Type("string"), required: true))));
+        var curation = Curation(Groups("health", RootGroup()));
+
+        var exception = Assert.Throws<BindingException>(
+            () => _ = new BindingTestHost().Bind(document, Selection("v2.health.get"), curation));
+
+        var error = exception.Errors.Single(static error => error.Problem.Contains("header parameter", StringComparison.Ordinal));
+        await Assert.That(error.Problem).Contains("x-opencode-ticket");
+        await Assert.That(error.Problem).Contains("no runtime channel");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Selected_Operation_With_An_Encoded_String_Member()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("Snapshot", schema => schema
+                .Type("object")
+                .Property(
+                    "checkpoint",
+                    property => property.Type("string").Format("byte").Raw("contentEncoding", "\"base64\""),
+                    required: true))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("Snapshot")))));
+        var curation = Curation(Groups("health", RootGroup()));
+
+        var exception = Assert.Throws<BindingException>(
+            () => _ = new BindingTestHost().Bind(document, Selection("v2.health.get"), curation));
+
+        var error = exception.Errors.Single(static error => error.Problem.Contains("EncodedStringNode", StringComparison.Ordinal));
+        await Assert.That(error.Problem).Contains("not supported");
+    }
+
+    [Test]
     public async Task Bind_Should_Refuse_Orphaned_And_Duplicated_Operation_Name_Rows()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec

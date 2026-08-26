@@ -62,6 +62,7 @@ internal sealed class SchemaShapeClassifier
             (Constraint.Type | Constraint.Items | Constraint.PrefixItems, JsonSchemaType.Array) => CoreSchemaShape.Tuple,
             (Constraint.Type | Constraint.ContentSchema, JsonSchemaType.String) => CoreSchemaShape.JsonString,
             (Constraint.Type | Constraint.ContentMediaType | Constraint.ContentSchema, JsonSchemaType.String) => CoreSchemaShape.JsonString,
+            (Constraint.Type | Constraint.ContentEncoding, JsonSchemaType.String) => CoreSchemaShape.EncodedString,
             (Constraint.Not, _) => CoreSchemaShape.Never,
             (Constraint.Type, JsonSchemaType.Array) => CoreSchemaShape.Array,
             (Constraint.Type | Constraint.Items, JsonSchemaType.Array) => CoreSchemaShape.Array,

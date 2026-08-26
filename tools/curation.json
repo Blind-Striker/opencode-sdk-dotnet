@@ -127,6 +127,7 @@
       "reason": "The initialism does not pluralize; the mass-noun container names the domain (ADR-0019)."
     }
   },
+  "operationIdentities": [],
   "operationNames": [
     {
       "operationId": "v2.event.subscribe",

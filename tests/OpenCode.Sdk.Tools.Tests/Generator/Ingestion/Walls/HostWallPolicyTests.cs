@@ -28,15 +28,15 @@ public sealed class HostWallPolicyTests
     }
 
     [Test]
-    public async Task Project_Should_Refuse_Header_Parameter()
+    public async Task Project_Should_Refuse_Cookie_Parameter()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.header", configure: operation => operation
-            .Parameter("x-test", "header", schema => schema.Type("string"))));
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.cookie", configure: operation => operation
+            .Parameter("session", "cookie", schema => schema.Type("string"))));
 
         var ex = await host.ProjectExpectingRefusalAsync(scenario);
 
-        await Assert.That(ex.Message).Contains("header");
+        await Assert.That(ex.Message).Contains("cookie");
         await Assert.That(ex.Message).Contains("parameters/0");
     }
 

@@ -88,12 +88,13 @@ evaluation are pure and unit-tested.
 
 - [ ] File the upstream T3 report (eight off-convention operationIds, with the one-line
       identifier-annotation fix) — the identity rows' reason field references it.
-- [ ] Header-parameter and `contentEncoding` ingestion, red-first; binder wall for selected
-      header-parameter operations.
-- [ ] Operation-identity row type + validator + ingestion gate, red-first, exercised through
-      synthetic documents. `generate --verify` stays byte-identical at the old pin (the rows
-      referencing tip-only ids land with Increment 3, or the validator would refuse unknown
-      subjects).
+- [x] Header-parameter and `contentEncoding` ingestion, red-first; binder wall for selected
+      header-parameter operations. `contentEncoding` projects as a distinct `EncodedStringNode`
+      so every plain-string expectation and the binder's default arm refuse it fail-closed.
+- [x] Operation-identity row type + validator + ingestion gate, exercised through synthetic
+      documents. `generate --verify` stays byte-identical at the old pin (82/38 unchanged; the
+      rows referencing tip-only ids land with Increment 3, or the validator would refuse
+      unknown subjects).
 
 ### Increment 2 — minimal synchronizer
 

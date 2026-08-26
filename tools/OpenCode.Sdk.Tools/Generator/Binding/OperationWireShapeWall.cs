@@ -54,6 +54,13 @@ internal sealed class OperationWireShapeWall(OperationFacetContext context)
 
     private void CheckParameterShapes()
     {
+        // Header parameters ingest faithfully but no runtime channel carries them yet; a
+        // selected operation refuses here until the location/PTY arc gives headers an owner.
+        foreach (var parameter in _context.Operation.Parameters.Where(static parameter => parameter.Location is SpecParameterLocation.Header))
+        {
+            _context.Refuse($"header parameter '{parameter.Name}' has no runtime channel");
+        }
+
         foreach (var parameter in _context.Operation.Parameters.Where(static parameter => parameter.Location is SpecParameterLocation.Path))
         {
             if (parameter is not { IsRequired: true, IsDeepObject: false })

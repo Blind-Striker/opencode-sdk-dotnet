@@ -56,6 +56,36 @@ public sealed class SchemaProjectorTests
     }
 
     [Test]
+    public async Task Project_Should_Produce_Encoded_String_Node()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema("Checkpoint", schema => schema
+            .Type("string")
+            .Format("byte")
+            .Raw("contentEncoding", "\"base64\"")));
+
+        var result = await host.ProjectAsync(scenario);
+
+        var node = (EncodedStringNode)result.Schemas["Checkpoint"];
+        await Assert.That(node.ContentEncoding).IsEqualTo("base64");
+        await Assert.That(node.Format).IsEqualTo("byte");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_Content_Encoding_On_A_Non_String()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema("Checkpoint", schema => schema
+            .Type("integer")
+            .Raw("contentEncoding", "\"base64\"")));
+
+        var ex = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(ex.Message).Contains("contentEncoding");
+        await Assert.That(ex.Message).Contains("do not form a supported core shape");
+    }
+
+    [Test]
     public async Task Project_Should_Record_Format()
     {
         var host = new SchemaProjectionTestHost();

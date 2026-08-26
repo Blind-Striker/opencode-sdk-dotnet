@@ -8,4 +8,7 @@ public enum SpecParameterLocation
 
     /// <summary>The parameter is carried in the query string.</summary>
     Query = 1,
+
+    /// <summary>The parameter is carried as a request header.</summary>
+    Header = 2,
 }

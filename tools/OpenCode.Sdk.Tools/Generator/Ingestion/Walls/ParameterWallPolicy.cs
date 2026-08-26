@@ -20,7 +20,9 @@ internal static class ParameterWallPolicy
 
         // Every check here guards request serialization: a mislocated, content-encoded,
         // or differently styled parameter would produce a wrong request on the wire.
-        if (concrete.In is not ParameterLocation.Path and not ParameterLocation.Query)
+        // Header parameters ingest faithfully; whether a selected operation may carry one
+        // is the binder's wall, not ingestion's.
+        if (concrete.In is not ParameterLocation.Path and not ParameterLocation.Query and not ParameterLocation.Header)
         {
             errors.Add(location, $"parameter location '{GetLocationName(concrete.In)}' is not supported");
         }

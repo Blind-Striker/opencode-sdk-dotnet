@@ -4,8 +4,15 @@ using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 
 namespace OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
 
-internal sealed class OperationProjectionContext(JsonNode rawPaths, ProjectionState state)
+internal sealed class OperationProjectionContext(
+    JsonNode rawPaths,
+    ProjectionState state,
+    IReadOnlyDictionary<string, string> operationIdentities)
 {
+    private readonly HashSet<string> _consumedIdentitySubjects = new(StringComparer.Ordinal);
+    private readonly IReadOnlyDictionary<string, string> _operationIdentities =
+        operationIdentities ?? throw new ArgumentNullException(nameof(operationIdentities));
+
     private readonly HashSet<string> _operationIds = new(StringComparer.Ordinal);
     private readonly List<SpecOperation> _operations = [];
     private readonly JsonNode _rawPaths = rawPaths ?? throw new ArgumentNullException(nameof(rawPaths));
@@ -37,6 +44,25 @@ internal sealed class OperationProjectionContext(JsonNode rawPaths, ProjectionSt
         ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
         return _operationIds.Add(operationId);
     }
+
+    public bool TryMapIdentity(string operationId, [NotNullWhen(true)] out string? intendedIdentity)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
+
+        if (_operationIdentities.TryGetValue(operationId, out intendedIdentity))
+        {
+            _ = _consumedIdentitySubjects.Add(operationId);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Reports identity-row subjects no document operation consumed, forcing stale rows to retire.</summary>
+    public IEnumerable<string> UnconsumedIdentitySubjects() => _operationIdentities
+        .Keys
+        .Where(subject => !_consumedIdentitySubjects.Contains(subject))
+        .Order(StringComparer.Ordinal);
 
     public IReadOnlyList<SpecOperation> Snapshot() => Array.AsReadOnly([.. _operations]);
 }

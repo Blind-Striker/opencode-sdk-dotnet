@@ -84,6 +84,7 @@ internal sealed class SchemaProjector
             (CoreSchemaShape.Null, _) => RefuseStandaloneNull(location, state),
             (CoreSchemaShape.Tuple, _) => _prefixItemsAdapter.Project(schema, root, pointer, location, state),
             (CoreSchemaShape.JsonString, _) => _jsonStringProjector.Project(schema, root, pointer, location, state),
+            (CoreSchemaShape.EncodedString, _) => CreateEncodedString(schema),
             (CoreSchemaShape.Unrestricted, _) => CreateUnrestricted(schema),
             (CoreSchemaShape.Never, _) => new NeverNode(),
             _ => null,
@@ -115,6 +116,14 @@ internal sealed class SchemaProjector
                 Item = item,
             };
     }
+
+    private static EncodedStringNode CreateEncodedString(OpenApiSchema schema) =>
+        new()
+        {
+            Description = schema.Description,
+            Format = schema.Format,
+            ContentEncoding = schema.ContentEncoding!,
+        };
 
     private static PrimitiveNode CreatePrimitive(OpenApiSchema schema, PrimitiveKind kind) =>
         new()

@@ -14,14 +14,25 @@ internal static class BindingScenarioData
         IReadOnlyDictionary<string, string>? envelopePayloadNames = null,
         IReadOnlyList<SchemaAlias>? schemaAliases = null,
         IReadOnlyList<OperationNameCuration>? operationNames = null,
-        IReadOnlyList<SchemaNameCuration>? schemaNames = null) =>
+        IReadOnlyList<SchemaNameCuration>? schemaNames = null,
+        IReadOnlyList<OperationIdentityCuration>? operationIdentities = null) =>
         new()
         {
             Groups = groups,
+            OperationIdentities = operationIdentities ?? [],
             OperationNames = operationNames ?? [],
             SchemaNames = schemaNames ?? [],
             EnvelopePayloadNames = envelopePayloadNames ?? new Dictionary<string, string>(StringComparer.Ordinal),
             SchemaAliases = schemaAliases ?? [],
+        };
+
+    public static OperationIdentityCuration OperationIdentity(string operationId, string identity,
+        string reason = "Upstream emits the operationId without the protocol prefix (reported upstream).") =>
+        new()
+        {
+            OperationId = operationId,
+            Identity = identity,
+            Reason = reason,
         };
 
     public static SchemaAlias Alias(string schema, string aliasOf, string reason = "The upstream spec emits a duplicate component.") =>

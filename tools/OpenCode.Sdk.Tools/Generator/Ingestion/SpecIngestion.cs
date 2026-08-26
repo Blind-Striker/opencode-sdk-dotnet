@@ -17,10 +17,16 @@ public sealed class SpecIngestion : ISpecIngestion
         _reader = new SpecReader(fileSystem);
     }
 
+    /// <summary>Ingests without operation-identity repairs; the production path supplies curation's map.</summary>
+    public Task<SpecDocument> IngestAsync(string specPath, CancellationToken cancellationToken) =>
+        IngestAsync(specPath, new Dictionary<string, string>(StringComparer.Ordinal), cancellationToken);
+
     /// <inheritdoc/>
-    public async Task<SpecDocument> IngestAsync(string specPath, CancellationToken cancellationToken)
+    public async Task<SpecDocument> IngestAsync(string specPath, IReadOnlyDictionary<string, string> operationIdentities,
+        CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(specPath);
+        ArgumentNullException.ThrowIfNull(operationIdentities);
 
         var errors = new IngestionErrorCollector();
         var loaded = await _reader.LoadAsync(specPath, errors, cancellationToken).ConfigureAwait(false);
@@ -30,7 +36,7 @@ public sealed class SpecIngestion : ISpecIngestion
         var state = new ProjectionState(errors, loaded.Document);
         var operationProjector = new OperationProjector(schemaProjector, keys);
 
-        var operations = operationProjector.Project(loaded, state);
+        var operations = operationProjector.Project(loaded, state, operationIdentities);
         if (loaded.Document.Components?.Schemas is { } namedSchemas)
         {
             foreach (var (name, schema) in namedSchemas)

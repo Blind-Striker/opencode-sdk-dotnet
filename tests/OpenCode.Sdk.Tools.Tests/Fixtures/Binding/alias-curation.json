@@ -4,6 +4,7 @@
       "placement": "root"
     }
   },
+  "operationIdentities": [],
   "operationNames": [],
   "schemaNames": [],
   "envelopePayloadNames": {},

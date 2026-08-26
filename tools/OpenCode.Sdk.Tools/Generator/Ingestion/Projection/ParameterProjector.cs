@@ -54,7 +54,7 @@ internal sealed class ParameterProjector
                 state.Errors.Add(location, "parameter name is required");
             }
 
-            if (parameter.In is not ParameterLocation.Path and not ParameterLocation.Query)
+            if (parameter.In is not ParameterLocation.Path and not ParameterLocation.Query and not ParameterLocation.Header)
             {
                 continue;
             }
@@ -79,7 +79,15 @@ internal sealed class ParameterProjector
             projected.Add(new SpecParameter
             {
                 Name = parameter.Name!,
-                Location = parameter.In is ParameterLocation.Path ? SpecParameterLocation.Path : SpecParameterLocation.Query,
+                Location = parameter.In.Value switch
+                {
+                    ParameterLocation.Path => SpecParameterLocation.Path,
+                    ParameterLocation.Query => SpecParameterLocation.Query,
+                    ParameterLocation.Header => SpecParameterLocation.Header,
+                    ParameterLocation.Cookie or ParameterLocation.QueryString =>
+                        throw new InvalidOperationException($"Unreachable parameter location '{parameter.In}'."),
+                    _ => throw new InvalidOperationException($"Unreachable parameter location '{parameter.In}'."),
+                },
                 Schema = schema,
                 IsRequired = parameter.Required,
                 IsDeepObject = isDeepObject,

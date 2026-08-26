@@ -20,6 +20,7 @@ public sealed class CurationLoaderTests
         var curation = await new CurationLoader(fileSystem).LoadAsync(CurationPath, CancellationToken.None);
 
         await Assert.That(curation.Groups["health"].Placement).IsEqualTo(GroupPlacement.Root);
+        await Assert.That(curation.OperationIdentities).IsEmpty();
         await Assert.That(curation.OperationNames).IsEmpty();
         await Assert.That(curation.SchemaNames).IsEmpty();
         await Assert.That(curation.EnvelopePayloadNames).IsEmpty();
@@ -38,7 +39,7 @@ public sealed class CurationLoaderTests
         await Assert
             .That(sections)
             .IsEquivalentTo(
-                ["envelopePayloadNames", "groups", "operationNames", "schemaAliases", "schemaNames"]);
+                ["envelopePayloadNames", "groups", "operationIdentities", "operationNames", "schemaAliases", "schemaNames"]);
     }
 
     [Test]

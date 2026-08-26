@@ -1,23 +1,32 @@
 namespace OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
 
-internal sealed class OperationIdentityParser
+internal static class OperationIdentityParser
 {
-    private readonly string _protocolPrefix = "v2.";
+    private const string ProtocolPrefix = "v2.";
 
-    public OperationIdentity? Parse(string operationId, string path, string location, IngestionErrorCollector errors)
+    /// <summary>Checks whether an operation identity satisfies the protocol-prefix convention.</summary>
+    public static bool IsWellFormed(string operationId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
+
+        return operationId.StartsWith(ProtocolPrefix, StringComparison.Ordinal)
+               && !operationId[ProtocolPrefix.Length..].Split('.').Any(string.IsNullOrWhiteSpace);
+    }
+
+    public static OperationIdentity? Parse(string operationId, string path, string location, IngestionErrorCollector errors)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         ArgumentException.ThrowIfNullOrWhiteSpace(location);
         ArgumentNullException.ThrowIfNull(errors);
 
-        if (!operationId.StartsWith(_protocolPrefix, StringComparison.Ordinal))
+        if (!operationId.StartsWith(ProtocolPrefix, StringComparison.Ordinal))
         {
-            errors.Add(location, $"operationId '{operationId}' does not carry the '{_protocolPrefix}' protocol prefix");
+            errors.Add(location, $"operationId '{operationId}' does not carry the '{ProtocolPrefix}' protocol prefix");
             return null;
         }
 
-        var segments = operationId[_protocolPrefix.Length..].Split('.');
+        var segments = operationId[ProtocolPrefix.Length..].Split('.');
         if (segments.Any(string.IsNullOrWhiteSpace))
         {
             errors.Add(location, $"operationId '{operationId}' contains an empty segment");
