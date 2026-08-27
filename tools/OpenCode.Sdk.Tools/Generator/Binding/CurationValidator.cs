@@ -134,14 +134,17 @@ internal sealed class CurationValidator
             ValidateGroupEmission(wireName, group, selected, errors);
         }
 
-        // Groups sharing a client name merge into one client family, so their handle
-        // declarations must agree exactly — a divergent row would fork the family.
+        // Groups sharing a client name merge into one client family whose configuration is
+        // taken from a single row, so every row's family declarations must agree exactly. A
+        // divergent handle row would fork the family; a divergent emission row is worse, since
+        // one row's accessibility would silently govern another row's operations — including a
+        // header parameter admitted per-row landing on a public client.
         foreach (var clientName in curation
                      .Groups
                      .Where(static pair => pair.Value is { Placement: GroupPlacement.Client, ClientName: not null })
                      .GroupBy(static pair => pair.Value.ClientName!, StringComparer.Ordinal)
                      .Where(static family => family
-                         .Select(static pair => (pair.Value.HandleName, pair.Value.HandleParameter))
+                         .Select(static pair => (pair.Value.HandleName, pair.Value.HandleParameter, pair.Value.Emission))
                          .Distinct()
                          .Skip(1)
                          .Any())
@@ -151,7 +154,7 @@ internal sealed class CurationValidator
             errors.Add(
                 BindingErrorCategory.Curation,
                 clientName,
-                $"groups sharing client '{clientName}' must declare identical handle configuration");
+                $"groups sharing client '{clientName}' must declare identical handle and emission configuration");
         }
     }
 

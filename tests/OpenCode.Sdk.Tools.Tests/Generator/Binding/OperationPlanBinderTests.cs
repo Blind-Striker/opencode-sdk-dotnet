@@ -1040,12 +1040,7 @@ public sealed class OperationPlanBinderTests
     [Test]
     public async Task Bind_Should_Merge_Groups_Sharing_A_Client_Name()
     {
-        var document = await BindingTestHost.IngestAsync(GadgetScenario(spec => spec
-            .WithOperation("v2.gizmo.list", path: "/api/gadget/{gadgetID}/gizmo", configure: operation => operation
-                .Parameter("gadgetID", "path", schema => schema.Type("string"), required: true)
-                .Response(200, "application/json", schema => schema
-                    .Type("object")
-                    .Property("data", property => property.Ref("GadgetPart"), required: true)))));
+        var document = await BindingTestHost.IngestAsync(MergedGadgetScenario());
 
         var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
         {
@@ -1075,12 +1070,7 @@ public sealed class OperationPlanBinderTests
     [Test]
     public async Task Bind_Should_Refuse_Merged_Groups_With_Diverging_Handles()
     {
-        var document = await BindingTestHost.IngestAsync(GadgetScenario(spec => spec
-            .WithOperation("v2.gizmo.list", path: "/api/gadget/{gadgetID}/gizmo", configure: operation => operation
-                .Parameter("gadgetID", "path", schema => schema.Type("string"), required: true)
-                .Response(200, "application/json", schema => schema
-                    .Type("object")
-                    .Property("data", property => property.Ref("GadgetPart"), required: true)))));
+        var document = await BindingTestHost.IngestAsync(MergedGadgetScenario());
 
         var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
         {
@@ -1097,6 +1087,78 @@ public sealed class OperationPlanBinderTests
             .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
                                                        && error.Problem.Contains("identical handle", StringComparison.Ordinal)))
             .IsTrue();
+    }
+
+    /// <summary>
+    /// A merged family takes its emission from one row but the header wall reads each
+    /// operation's own row, so a divergent pair would emit one row's accessibility over the
+    /// other's operations — an admitted header could land on a public client.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Refuse_Merged_Groups_With_Diverging_Emission()
+    {
+        var document = await BindingTestHost.IngestAsync(MergedGadgetScenario(gizmoDeclaresHeader: true));
+
+        // 'gadget' sorts first, so an unrefused family would take its public emission while
+        // 'gizmo' contributes the header its own internalRaw row admitted.
+        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+        {
+            ["gadget"] = ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID"),
+            ["gizmo"] = ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID",
+                emission: EmissionMode.InternalRaw),
+        };
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.gadget.part", "v2.gizmo.list"),
+            Curation(groups)));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+                                                       && error.Problem.Contains(
+                                                           "identical handle and emission",
+                                                           StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Merge_Agreeing_Internal_Raw_Groups_Into_One_Raw_Family()
+    {
+        var document = await BindingTestHost.IngestAsync(MergedGadgetScenario(gizmoDeclaresHeader: true));
+
+        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+        {
+            ["gadget"] = ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID",
+                emission: EmissionMode.InternalRaw),
+            ["gizmo"] = ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID",
+                emission: EmissionMode.InternalRaw),
+        };
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.gadget.part", "v2.gizmo.list"),
+            Curation(groups));
+
+        var root = plan.Clients.Single(static client => client.Role == ClientRole.Root);
+        await Assert.That(root.SubClients.Single().TypeName).IsEqualTo("GadgetsClient");
+        var collection = plan.Clients.Single(static client => client.Role == ClientRole.Collection);
+        await Assert.That(collection.Name).IsEqualTo("GadgetsRawClient");
+        await Assert.That(collection.Emission).IsEqualTo(EmissionMode.InternalRaw);
+        var handle = plan.Clients.Single(static client => client.Role == ClientRole.Handle);
+        await Assert.That(handle.Name).IsEqualTo("GadgetRawClient");
+        await Assert.That(handle.Emission).IsEqualTo(EmissionMode.InternalRaw);
+        await Assert
+            .That(handle
+                .Operations.Select(static operation => operation.MethodName)
+                .Order(StringComparer.Ordinal)
+                .SequenceEqual(["GetPartAsync", "ListGizmosAsync"], StringComparer.Ordinal))
+            .IsTrue();
+        await Assert
+            .That(handle
+                .Operations.Single(static operation => operation.MethodName == "ListGizmosAsync")
+                .DeclaredHeaders.Single()
+                .Name)
+            .IsEqualTo("xOpencodeTicket");
     }
 
     [Test]
@@ -2073,6 +2135,26 @@ public sealed class OperationPlanBinderTests
                     .WithoutResponse(200)
                     .Response(204);
                 configure?.Invoke(operation);
+            }));
+
+    /// <summary>
+    /// Two wire groups whose handle-scoped operations merge into one curated client family.
+    /// The later-sorting group optionally declares a header, so a family whose emission is
+    /// taken from the earlier-sorting row can be caught carrying it.
+    /// </summary>
+    private static SpecScenario MergedGadgetScenario(bool gizmoDeclaresHeader = false) =>
+        GadgetScenario(spec => spec
+            .WithOperation("v2.gizmo.list", path: "/api/gadget/{gadgetID}/gizmo", configure: operation =>
+            {
+                _ = operation.Parameter("gadgetID", "path", static schema => schema.Type("string"), required: true);
+                if (gizmoDeclaresHeader)
+                {
+                    _ = operation.Parameter("x-opencode-ticket", "header", QueryScenarioData.NullableString);
+                }
+
+                _ = operation.Response(200, "application/json", static schema => schema
+                    .Type("object")
+                    .Property("data", static property => property.Ref("GadgetPart"), required: true));
             }));
 
     /// <summary>The header-bearing family shape: a handle group whose connect-token call declares a wire header.</summary>
