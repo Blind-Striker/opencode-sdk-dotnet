@@ -846,6 +846,20 @@ dotnet_diagnostic.IDE0130.severity = none
 [tests/OpenCode.Sdk.Tests/Support/BlockingStream.cs]
 dotnet_diagnostic.CA1844.severity = none
 
+# Each scripted socket is handed to the PtySession under test, which owns and disposes it - and
+# that ownership transfer is part of what these tests assert, through the fake's own dispose
+# counter. An analyzer cannot see the transfer through the constructor. Winner: the
+# ownership-transfer test; CA2000 remains enabled for every other file.
+[tests/OpenCode.Sdk.Tests/Ptys/PtySessionTests.cs]
+dotnet_diagnostic.CA2000.severity = none
+
+# ScriptedPtyWebSocket parks on TaskCompletionSource handles the test itself completes; that
+# externally-owned completion is exactly the mechanism that makes a dispose-versus-read or
+# cancellation-versus-read race deterministic without waiting on wall-clock time. Winner: the
+# scripted test double; VSTHRD003 remains enabled for every other file.
+[tests/OpenCode.Sdk.Tests/Support/ScriptedPtyWebSocket.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
 # Sandbox application's purpose is primarly for testing
 [tests/OpenCode.Sdk.Sandbox/**.cs]
 dotnet_diagnostic.MA0076.severity = none

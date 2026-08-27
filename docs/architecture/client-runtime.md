@@ -86,6 +86,60 @@ local server launcher. Protocol and generated-model rules live in
   only generated internal-raw methods feed it, and only a parameter the pinned document declares
   ever becomes an entry.
 
+### PTY WebSocket session
+
+- `PtyClient.ConnectAsync` opens `PtySession`, the family's live working object: `ReadAsync`
+  enumerates `PtyFrame` values, `WriteAsync` sends input, and `DisposeAsync` closes. The session
+  owns its socket, so disposing it is the only way to end the connection.
+- **Transport divergence.** This is the one SDK door that does not ride the HTTP pipeline. The
+  upgrade builds its own `ClientWebSocket`, so a caller-supplied `HttpClient`, its proxy, its
+  handler chain, the redirect policy, the pooled-connection lifetime, and the pipeline's progress
+  window **do not apply** to a PTY session. What the session does inherit is the construction-time
+  `ConnectionSnapshot` the pipeline publishes: the normalized endpoint, the Basic credential, and
+  the ambient location.
+- **Authentication.** The Basic credential rides the upgrade request's `Authorization` header. The
+  API's authentication middleware skips credentials only for a URL carrying a non-empty `ticket`
+  query, so a header-authenticated upgrade is the designed non-browser path. The SDK never mints a
+  ticket for its own connection — a single-use 60-second credential in a URL that reaches logs is
+  strictly worse than the header the client already holds. `CreateConnectTokenAsync` stays the
+  public door for handing a browser one, and `PtyConnectOptions` deliberately has no ticket member.
+- **Address.** `http`/`https` become `ws`/`wss`; the path is `/api/pty/{ptyID}/connect`. The query
+  carries the merged location as `location[directory]`/`location[workspace]` plus `cursor` when
+  set, built through the same `QueryStringBuilder` every generated route uses. The connect scope
+  must resolve identically to the scope the token door resolved.
+- **Location merge.** `PtyConnectOptions.Location` merges over the ambient location member by
+  member, with exactly the sealed semantics `RequestDecorationPolicy` applies on the header
+  channel: per-call wins, null inherits, no clearing. `LocationMerge` states that rule once for
+  the query channel; the policy keeps the equivalent fused form so the ambient directory's escape
+  stays computed once.
+- **Cursor.** Omitted replays the full retained buffer, `-1` attaches live-only, and a value at or
+  above zero resumes from that absolute output cursor. The server accepts only JavaScript safe
+  integers at or above `-1` and silently coerces anything else to omitted, so `PtyConnectOptions`
+  refuses an out-of-range value rather than letting a resume become a full replay.
+- **Failed upgrade.** A missing PTY answers plain HTTP 404 before upgrading; a rejected credential
+  or origin answers 401/403. A failed upgrade has no response spine, so it cannot ride ADR-0007's
+  envelope machinery: the transport plane is the honest channel and every case throws
+  `OpenCodeTransportException` naming the PTY and the cause. Modern targets read the status from
+  `ClientWebSocket.HttpStatusCode` (enabled by `CollectHttpResponseDetails`); net472 cannot report
+  it, so the failure names the connect context instead of guessing a status.
+- **Frames.** Server output rides text frames and decodes as `PtyOutputFrame`. The one binary
+  control frame is a `0x00` marker byte followed by UTF-8 JSON `{"cursor": n}`, sent once after
+  replay, and decodes as `PtyCursorFrame`; a control body that is not a JSON object carrying an
+  integer `cursor` is a protocol failure. A binary message that does not start with the marker is
+  ordinary output. Output is decoded with **replacement**, never fatally: the server chunks its
+  replay at 64Ki UTF-16 code units, so a chunk boundary can split a surrogate pair.
+- **Close.** 1000 ends the enumeration normally — the process exit code is not on this wire, so a
+  reader that needs it calls `GetPtyAsync`. 4404 means the session was not found or had already
+  exited and throws with the reason; because an exited PTY still upgrades cleanly, that failure
+  surfaces on the first read rather than on connect. Any other close is an abnormal close, and a
+  socket fault maps through `FailureClassification`'s PTY WebSocket phases.
+- **Concurrency and disposal.** One session carries one active read enumeration — message
+  reassembly cannot be shared — and a second concurrent enumeration is refused with
+  `InvalidOperationException`. Sends are serialized behind a semaphore because the socket allows
+  one outstanding send. Caller cancellation stays `OperationCanceledException`. Disposal closes
+  gracefully under a bounded wait, then tears the socket down; it is idempotent, and a dispose
+  racing a pending read completes that read as a normal end rather than a fault.
+
 ## Error channels
 
 - API failures throw through `OpenCodeException` -> `OpenCodeApiException` by default. Tagged

@@ -12,12 +12,17 @@ namespace OpenCode.Sdk;
 /// </summary>
 public class PtysClient
 {
+    private readonly ConnectionSnapshot? _connection;
     private readonly PtysRawClient? _raw;
 
     internal PtysClient(Pipeline pipeline)
     {
         ArgumentNullException.ThrowIfNull(pipeline);
         _raw = new PtysRawClient(pipeline);
+
+        // The WebSocket door cannot ride the pipeline's policies, so the family carries the
+        // connection facts down to the bound handle that opens the session.
+        _connection = pipeline.Connection;
     }
 
     /// <summary>
@@ -40,7 +45,7 @@ public class PtysClient
             throw new ArgumentException("Route values must not be dot segments.", nameof(ptyId));
         }
 
-        return new PtyClient(Raw.GetPtyRawClient(ptyId));
+        return new PtyClient(Raw.GetPtyRawClient(ptyId), Connection, ptyId);
     }
 
     /// <summary>
@@ -68,6 +73,8 @@ public class PtysClient
     public virtual Task<PtyListResponse> ListPtysAsync(PtyListRequest? request = null,
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
         Raw.ListPtysAsync(request, requestOptions, cancellationToken);
+
+    private ConnectionSnapshot Connection => _connection ?? throw MockSeam.CreateError("PtysClient", "Pipeline");
 
     private PtysRawClient Raw => _raw ?? throw MockSeam.CreateError("PtysClient", "Pipeline");
 }

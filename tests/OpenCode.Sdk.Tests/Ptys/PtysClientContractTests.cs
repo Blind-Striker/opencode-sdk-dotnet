@@ -239,9 +239,11 @@ public sealed class PtysClientContractTests
 
         var collection = await Assert.That(async () => _ = await ptys.ListPtysAsync()).Throws<InvalidOperationException>();
         var handle = await Assert.That(async () => _ = await pty.CreateConnectTokenAsync()).Throws<InvalidOperationException>();
+        var session = await Assert.That(async () => _ = await pty.ConnectAsync()).Throws<InvalidOperationException>();
 
         await Assert.That(collection!.Message).Contains("mocking constructor");
         await Assert.That(handle!.Message).Contains("mocking constructor");
+        await Assert.That(session!.Message).Contains("mocking constructor");
     }
 
     private sealed class MockPtysClient : PtysClient

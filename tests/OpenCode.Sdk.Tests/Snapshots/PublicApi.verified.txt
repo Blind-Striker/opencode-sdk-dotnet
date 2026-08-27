@@ -711,10 +711,17 @@
     public class PtyClient
     {
         protected PtyClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PtySession> ConnectAsync(OpenCode.Sdk.PtyConnectOptions? options = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PtyConnectTokenPostResponse> CreateConnectTokenAsync(OpenCode.Sdk.PtyConnectTokenPostRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PtyResponse> GetPtyAsync(OpenCode.Sdk.PtyRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PtyUpdatePutResponse> PutUpdateAsync(OpenCode.Sdk.Models.PtyUpdatePutRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PtyRemoveResponse> RemovePtyAsync(OpenCode.Sdk.PtyRemoveRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class PtyConnectOptions : System.IEquatable<OpenCode.Sdk.PtyConnectOptions>
+    {
+        public PtyConnectOptions() { }
+        public long? Cursor { get; init; }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
     }
     public sealed class PtyConnectTokenPostRequest : System.IEquatable<OpenCode.Sdk.PtyConnectTokenPostRequest>
     {
@@ -735,6 +742,11 @@
         public required OpenCode.Sdk.Models.Pty Pty { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
+    public sealed class PtyCursorFrame : OpenCode.Sdk.PtyFrame
+    {
+        public long Cursor { get; }
+    }
+    public abstract class PtyFrame { }
     public sealed class PtyListRequest : System.IEquatable<OpenCode.Sdk.PtyListRequest>
     {
         public PtyListRequest() { }
@@ -746,6 +758,10 @@
         public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
         public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.Pty> Ptys { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class PtyOutputFrame : OpenCode.Sdk.PtyFrame
+    {
+        public string Text { get; }
     }
     public sealed class PtyRemoveRequest : System.IEquatable<OpenCode.Sdk.PtyRemoveRequest>
     {
@@ -767,6 +783,13 @@
         public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
         public required OpenCode.Sdk.Models.Pty Pty { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public class PtySession : System.IAsyncDisposable
+    {
+        protected PtySession() { }
+        public virtual System.Threading.Tasks.ValueTask DisposeAsync() { }
+        public virtual System.Collections.Generic.IAsyncEnumerable<OpenCode.Sdk.PtyFrame> ReadAsync(System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task WriteAsync(string input, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class PtyUpdatePutResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PtyUpdatePutResponse>
     {

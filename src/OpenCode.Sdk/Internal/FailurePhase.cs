@@ -11,4 +11,10 @@ internal enum FailurePhase
 
     /// <summary>Opening or reading a live event-stream body.</summary>
     EventStreamRead,
+
+    /// <summary>Receiving a message on a live PTY WebSocket.</summary>
+    PtyWebSocketRead,
+
+    /// <summary>Sending a message on, or closing, a live PTY WebSocket.</summary>
+    PtyWebSocketWrite,
 }

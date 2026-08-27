@@ -79,7 +79,15 @@ internal sealed class Pipeline : IDisposable
             new ResponseBufferingPolicy(bufferPool ?? ArrayPool<byte>.Shared),
             _transport,
         ];
+
+        // The same snapshot, published for the one door that cannot ride these policies: a PTY
+        // WebSocket upgrade builds its own socket and therefore needs the endpoint, the
+        // credential, and the ambient location the policies keep to themselves.
+        Connection = new ConnectionSnapshot(_endpointBase, authorization, options.Location);
     }
+
+    /// <summary>Gets the construction-time connection facts a non-HTTP door addresses the server with.</summary>
+    public ConnectionSnapshot Connection { get; }
 
     public static Pipeline Create(OpenCodeClientOptions options)
     {

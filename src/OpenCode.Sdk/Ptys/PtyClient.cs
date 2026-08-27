@@ -18,12 +18,19 @@ public class PtyClient
     /// </summary>
     private const string PtyTicketSentinel = "1";
 
+    private readonly ConnectionSnapshot? _connection;
+    private readonly string? _ptyId;
     private readonly PtyRawClient? _raw;
 
-    internal PtyClient(PtyRawClient raw)
+    internal PtyClient(PtyRawClient raw, ConnectionSnapshot connection, string ptyId)
     {
         ArgumentNullException.ThrowIfNull(raw);
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentException.ThrowIfNullOrWhiteSpace(ptyId);
+
         _raw = raw;
+        _connection = connection;
+        _ptyId = ptyId;
     }
 
     /// <summary>
@@ -87,6 +94,42 @@ public class PtyClient
     public virtual Task<PtyConnectTokenPostResponse> CreateConnectTokenAsync(PtyConnectTokenPostRequest? request = null,
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
         Raw.PostConnectTokenAsync(request, xOpencodeTicket: PtyTicketSentinel, requestOptions, cancellationToken);
+
+    /// <summary>
+    /// Opens the PTY's live WebSocket session. The upgrade is the SDK's one transport
+    /// divergence: it builds its own socket, so a caller-supplied <see cref="HttpClient"/>, its
+    /// proxy, and its handler chain do not apply. The client's Basic credential rides the upgrade
+    /// request's <c>Authorization</c> header — the designed non-browser path — and the SDK never
+    /// mints a ticket for its own connection; <see cref="CreateConnectTokenAsync"/> stays the door
+    /// for handing a browser one. A missing PTY is refused before the upgrade, while an existing
+    /// but already-exited PTY upgrades and then closes, so that failure surfaces on the first read.
+    /// </summary>
+    /// <param name="options">The connect options: the replay cursor and the per-call location.</param>
+    /// <param name="cancellationToken">The cancellation token bounding the upgrade.</param>
+    /// <returns>The live session; the caller owns its disposal.</returns>
+    /// <exception cref="OpenCodeTransportException">The upgrade was refused or never completed.</exception>
+    public virtual async Task<PtySession> ConnectAsync(PtyConnectOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        var connection = Connection;
+        var ptyId = PtyId;
+        var address = PtyConnectUriBuilder.Build(connection, ptyId, options);
+        var socket = new ClientPtyWebSocket(connection.Authorization);
+        try
+        {
+            await socket.ConnectAsync(address, ptyId, cancellationToken).ConfigureAwait(false);
+            return new PtySession(socket);
+        }
+        catch
+        {
+            socket.Dispose();
+            throw;
+        }
+    }
+
+    private ConnectionSnapshot Connection => _connection ?? throw MockSeam.CreateError("PtyClient", "Pipeline");
+
+    private string PtyId => _ptyId ?? throw MockSeam.CreateError("PtyClient", "PtyId");
 
     private PtyRawClient Raw => _raw ?? throw MockSeam.CreateError("PtyClient", "Pipeline");
 }

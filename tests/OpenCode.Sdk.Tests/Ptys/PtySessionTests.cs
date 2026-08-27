@@ -1,0 +1,343 @@
+using System.Net.WebSockets;
+using System.Text;
+using OpenCode.Sdk.Tests.Support;
+
+namespace OpenCode.Sdk.Tests;
+
+public sealed class PtySessionTests
+{
+    private const string SessionNotFoundReason = "session exited";
+
+    private const WebSocketCloseStatus SessionNotFound = (WebSocketCloseStatus)4404;
+
+    public static IEnumerable<Func<string>> MalformedControlBodies() =>
+    [
+        static () => PtyFrameData.TruncatedControlJson,
+        static () => PtyFrameData.CursorlessControlJson,
+        static () => PtyFrameData.NonNumericCursorControlJson,
+        static () => string.Empty,
+    ];
+
+    [Test]
+    public async Task ReadAsync_Should_Yield_The_Replay_Chunks_In_Order()
+    {
+        var socket = new ScriptedPtyWebSocket()
+            .Text("chunk-one")
+            .Text("chunk-two")
+            .Text("chunk-three")
+            .Closing(WebSocketCloseStatus.NormalClosure);
+        await using var session = new PtySession(socket);
+
+        var frames = await ReadAllAsync(session);
+
+        await Assert.That(frames.OfType<PtyOutputFrame>().Select(static frame => frame.Text).ToArray())
+            .IsEquivalentTo(["chunk-one", "chunk-two", "chunk-three"]);
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Read_The_Control_Frame_As_The_Exact_Cursor()
+    {
+        var socket = new ScriptedPtyWebSocket()
+            .Text("replayed")
+            .Binary(PtyFrameData.ControlFrame(PtyFrameData.CursorControlJson))
+            .Closing(WebSocketCloseStatus.NormalClosure);
+        await using var session = new PtySession(socket);
+
+        var frames = await ReadAllAsync(session);
+
+        await Assert.That(frames.Count).IsEqualTo(2);
+        await Assert.That(((PtyOutputFrame)frames[0]).Text).IsEqualTo("replayed");
+        await Assert.That(((PtyCursorFrame)frames[1]).Cursor).IsEqualTo(PtyFrameData.CursorValue);
+    }
+
+    [Test]
+    [MethodDataSource(nameof(MalformedControlBodies))]
+    public async Task ReadAsync_Should_Refuse_A_Malformed_Control_Frame(string body)
+    {
+        var socket = new ScriptedPtyWebSocket().Binary(PtyFrameData.ControlFrame(body));
+        await using var session = new PtySession(socket);
+
+        var failure = await Assert.That(async () => _ = await ReadAllAsync(session))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(failure!.Message).Contains("control frame");
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Assemble_A_Fragmented_Text_Message_Once()
+    {
+        var socket = new ScriptedPtyWebSocket()
+            .TextFragments("frag-", "men", "ted")
+            .Closing(WebSocketCloseStatus.NormalClosure);
+        await using var session = new PtySession(socket);
+
+        var frames = await ReadAllAsync(session);
+
+        await Assert.That(frames.Count).IsEqualTo(1);
+        await Assert.That(((PtyOutputFrame)frames[0]).Text).IsEqualTo("frag-mented");
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Assemble_A_Fragmented_Control_Frame_Once()
+    {
+        var frame = PtyFrameData.ControlFrame(PtyFrameData.CursorControlJson);
+        var socket = new ScriptedPtyWebSocket()
+            .BinaryFragments(frame, splitAt: 4)
+            .Closing(WebSocketCloseStatus.NormalClosure);
+        await using var session = new PtySession(socket);
+
+        var frames = await ReadAllAsync(session);
+
+        await Assert.That(frames.Count).IsEqualTo(1);
+        await Assert.That(((PtyCursorFrame)frames[0]).Cursor).IsEqualTo(PtyFrameData.CursorValue);
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Decode_A_Broken_Surrogate_With_Replacement()
+    {
+        var socket = new ScriptedPtyWebSocket()
+            .Binary(PtyFrameData.UnpairedSurrogate)
+            .Closing(WebSocketCloseStatus.NormalClosure);
+        await using var session = new PtySession(socket);
+
+        var frames = await ReadAllAsync(session);
+
+        var output = (PtyOutputFrame)frames.Single();
+        await Assert.That(output.Text.Length).IsGreaterThan(0);
+        await Assert.That(output.Text.All(static character => character is '�')).IsTrue();
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Read_A_Binary_Message_Without_The_Marker_As_Output()
+    {
+        var socket = new ScriptedPtyWebSocket()
+            .Binary(Encoding.UTF8.GetBytes("raw-output"))
+            .Closing(WebSocketCloseStatus.NormalClosure);
+        await using var session = new PtySession(socket);
+
+        var frames = await ReadAllAsync(session);
+
+        await Assert.That(((PtyOutputFrame)frames.Single()).Text).IsEqualTo("raw-output");
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_End_The_Enumeration_On_A_Normal_Close()
+    {
+        var socket = new ScriptedPtyWebSocket()
+            .Text("last")
+            .Closing(WebSocketCloseStatus.NormalClosure);
+        await using var session = new PtySession(socket);
+
+        var frames = await ReadAllAsync(session);
+
+        await Assert.That(frames.Count).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Refuse_A_Session_Not_Found_Close()
+    {
+        var socket = new ScriptedPtyWebSocket().Closing(SessionNotFound, SessionNotFoundReason);
+        await using var session = new PtySession(socket);
+
+        var failure = await Assert.That(async () => _ = await ReadAllAsync(session))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(failure!.Message).Contains("4404");
+        await Assert.That(failure.Message).Contains(SessionNotFoundReason);
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Refuse_An_Abnormal_Close()
+    {
+        var socket = new ScriptedPtyWebSocket().Closing(WebSocketCloseStatus.ProtocolError);
+        await using var session = new PtySession(socket);
+
+        var failure = await Assert.That(async () => _ = await ReadAllAsync(session))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(failure!.Message).Contains("1002");
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Refuse_A_Second_Concurrent_Enumeration()
+    {
+        var socket = new ScriptedPtyWebSocket().Text("first").Parking();
+        await using var session = new PtySession(socket);
+        var first = session.ReadAsync().GetAsyncEnumerator(CancellationToken.None);
+        await using var enumeration = first.ConfigureAwait(false);
+        await Assert.That(await first.MoveNextAsync()).IsTrue();
+
+        var second = session.ReadAsync().GetAsyncEnumerator(CancellationToken.None);
+
+        _ = await Assert.That(async () => _ = await second.MoveNextAsync()).Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Allow_A_Second_Enumeration_After_The_First_Ended()
+    {
+        var socket = new ScriptedPtyWebSocket()
+            .Text("first")
+            .Closing(WebSocketCloseStatus.NormalClosure)
+            .Text("second")
+            .Closing(WebSocketCloseStatus.NormalClosure);
+        await using var session = new PtySession(socket);
+
+        var first = await ReadAllAsync(session);
+        var second = await ReadAllAsync(session);
+
+        await Assert.That(((PtyOutputFrame)first.Single()).Text).IsEqualTo("first");
+        await Assert.That(((PtyOutputFrame)second.Single()).Text).IsEqualTo("second");
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Report_A_Caller_Cancellation_As_Cancellation()
+    {
+        var socket = new ScriptedPtyWebSocket().Parking();
+        await using var session = new PtySession(socket);
+        using var cancellation = new CancellationTokenSource();
+        var enumerator = session.ReadAsync(cancellation.Token).GetAsyncEnumerator(cancellation.Token);
+        var pending = enumerator.MoveNextAsync();
+        await socket.Parked;
+
+        await cancellation.CancelAsync();
+
+        _ = await Assert.That(async () => _ = await pending).Throws<OperationCanceledException>();
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Report_A_Socket_Fault_As_A_Transport_Failure()
+    {
+        var socket = new ScriptedPtyWebSocket().Faulting(new WebSocketException("connection reset"));
+        await using var session = new PtySession(socket);
+
+        var failure = await Assert.That(async () => _ = await ReadAllAsync(session))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(failure!.Message).Contains("PTY WebSocket");
+    }
+
+    [Test]
+    public async Task DisposeAsync_Should_End_A_Pending_Read_As_A_Normal_End()
+    {
+        var socket = new ScriptedPtyWebSocket().Text("live").Parking();
+        var session = new PtySession(socket);
+        var enumerator = session.ReadAsync().GetAsyncEnumerator(CancellationToken.None);
+        await using var enumeration = enumerator.ConfigureAwait(false);
+        await Assert.That(await enumerator.MoveNextAsync()).IsTrue();
+        var pending = enumerator.MoveNextAsync();
+        await socket.Parked;
+
+        await session.DisposeAsync();
+
+        await Assert.That(await pending).IsFalse();
+    }
+
+    [Test]
+    public async Task WriteAsync_Should_Encode_The_Input_As_Utf8()
+    {
+        var socket = new ScriptedPtyWebSocket();
+        await using var session = new PtySession(socket);
+
+        await session.WriteAsync("héllo→\n");
+
+        await Assert.That(socket.SentText).IsEquivalentTo(["héllo→\n"]);
+        await Assert.That(socket.SentMessages.Single().Length).IsEqualTo(Encoding.UTF8.GetByteCount("héllo→\n"));
+    }
+
+    [Test]
+    public async Task WriteAsync_Should_Serialize_Concurrent_Sends()
+    {
+        var socket = new ScriptedPtyWebSocket().GatingSends();
+        await using var session = new PtySession(socket);
+
+        var first = session.WriteAsync("first");
+        await socket.SendEntered;
+        var second = session.WriteAsync("second");
+        await Assert.That(socket.SentMessages.Count).IsEqualTo(1);
+
+        socket.ReleaseSends();
+        await Task.WhenAll(first, second);
+
+        await Assert.That(socket.MaxConcurrentSends).IsEqualTo(1);
+        await Assert.That(socket.SentText).IsEquivalentTo(["first", "second"]);
+    }
+
+    [Test]
+    public async Task WriteAsync_Should_Refuse_A_Null_Input()
+    {
+        var socket = new ScriptedPtyWebSocket();
+        await using var session = new PtySession(socket);
+
+        _ = await Assert.That(async () => await session.WriteAsync(null!)).Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task WriteAsync_Should_Refuse_A_Write_After_Disposal()
+    {
+        var socket = new ScriptedPtyWebSocket();
+        var session = new PtySession(socket);
+        await session.DisposeAsync();
+
+        _ = await Assert.That(async () => await session.WriteAsync("late")).Throws<ObjectDisposedException>();
+    }
+
+    [Test]
+    public async Task DisposeAsync_Should_Close_Gracefully_And_Stay_Idempotent()
+    {
+        var socket = new ScriptedPtyWebSocket();
+        var session = new PtySession(socket);
+
+        await session.DisposeAsync();
+        await session.DisposeAsync();
+
+        await Assert.That(socket.CloseOutputCalls).IsEqualTo(1);
+        await Assert.That(socket.DisposeCalls).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Session_Mock_Seam_Should_Stay_Overridable()
+    {
+        await using var session = new MockPtySession();
+
+        var frames = await ReadAllAsync(session);
+
+        await Assert.That(((PtyOutputFrame)frames.Single()).Text).IsEqualTo("mocked");
+    }
+
+    [Test]
+    public async Task Session_Mock_Seam_Should_Fail_Instructively_Without_An_Override()
+    {
+        await using var session = new UnoverriddenPtySession();
+
+        var failure = await Assert.That(async () => _ = await ReadAllAsync(session)).Throws<InvalidOperationException>();
+
+        await Assert.That(failure!.Message).Contains("mocking constructor");
+    }
+
+    private static async Task<IReadOnlyList<PtyFrame>> ReadAllAsync(PtySession session)
+    {
+        var frames = new List<PtyFrame>();
+        await foreach (var frame in session.ReadAsync())
+        {
+            frames.Add(frame);
+        }
+
+        return frames;
+    }
+
+    private sealed class MockPtySession : PtySession
+    {
+        public override IAsyncEnumerable<PtyFrame> ReadAsync(CancellationToken cancellationToken = default) =>
+            Mocked();
+
+        private static async IAsyncEnumerable<PtyFrame> Mocked()
+        {
+            await Task.Yield();
+            yield return new PtyOutputFrame("mocked");
+        }
+    }
+
+    private sealed class UnoverriddenPtySession : PtySession
+    {
+    }
+}

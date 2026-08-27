@@ -21,6 +21,20 @@ Modern C# on downlevel targets is deliberate and supported inside this repositor
 source-only Polyfill package. Exact package versions belong to `Directory.Packages.props`, not this
 document.
 
+### WebSocket support
+
+`ClientWebSocket` backs the PTY session door (`client-runtime.md`). It resolves on
+`netstandard2.0` and on `net472` from the platform's own reference set, so **no package reference
+is added for it** on any target — the dependency rule below is satisfied without a new dependency.
+
+`net472` is the constrained leg: its `ClientWebSocket` is a thin wrapper over the operating
+system's WebSocket stack and therefore requires **Windows 8 / Windows Server 2012 or later**. A
+PTY session on an older Windows fails at connect rather than degrading. CI's Windows leg covers
+that target. The downlevel legs also use the `ArraySegment` receive and send overloads; the
+`Memory`-based overloads and `ClientWebSocketOptions.CollectHttpResponseDetails` — which is how a
+refused upgrade's HTTP status is recovered — exist only from .NET 7 on, so `net472` and
+`netstandard2.0` report a failed upgrade without its status.
+
 ## Packages
 
 - `OpenCode.Sdk` is the core typed client. The local server launcher belongs in this package when

@@ -1,3 +1,4 @@
+using System.Net.WebSockets;
 using OpenCode.Sdk.Internal;
 
 namespace OpenCode.Sdk.Tests;
@@ -11,6 +12,9 @@ public sealed class FailureClassificationTests
     private const string ResponseBodyCanceledMessage = "The opencode response body read was canceled.";
     private const string EventStreamFaultMessage = "The opencode event stream could not be read.";
     private const string EventStreamCanceledMessage = "The opencode event stream read was canceled.";
+    private const string PtyWebSocketReadFaultMessage = "The opencode PTY WebSocket could not be read.";
+    private const string PtyWebSocketWriteFaultMessage = "The opencode PTY WebSocket could not be written to.";
+    private const string PtyWebSocketReadCanceledMessage = "The opencode PTY WebSocket read was canceled.";
 
     public static IEnumerable<Func<Exception>> SendFaults() =>
     [
@@ -32,6 +36,24 @@ public sealed class FailureClassificationTests
         static () => new HttpRequestException("connection reset"),
         static () => new IOException("connection reset"),
         static () => new ObjectDisposedException("body"),
+    ];
+
+    public static IEnumerable<Func<Exception>> PtyWebSocketFaults() =>
+    [
+        static () => new WebSocketException("connection reset"),
+        static () => new IOException("connection reset"),
+        static () => new ObjectDisposedException("socket"),
+    ];
+
+    public static IEnumerable<Func<(Exception Fault, bool Handled)>> PtyWebSocketOwnershipCases() =>
+    [
+        static () => (new WebSocketException("connection reset"), true),
+        static () => (new IOException("connection reset"), true),
+        static () => (new ObjectDisposedException("socket"), true),
+        static () => (new TaskCanceledException(), true),
+        static () => (new HttpRequestException("wrong plane"), false),
+        static () => (new InvalidOperationException("caller bug"), false),
+        static () => (new FormatException("caller bug"), false),
     ];
 
     public static IEnumerable<Func<(Exception Fault, bool Handled)>> SendOwnershipCases() =>
@@ -207,11 +229,54 @@ public sealed class FailureClassificationTests
     }
 
     [Test]
+    [MethodDataSource(nameof(PtyWebSocketOwnershipCases))]
+    public async Task Handles_Should_Own_Exactly_The_Pty_WebSocket_Fault_Set(Exception fault, bool handled)
+    {
+        await Assert.That(FailureClassification.Handles(fault, FailurePhase.PtyWebSocketRead)).IsEqualTo(handled);
+        await Assert.That(FailureClassification.Handles(fault, FailurePhase.PtyWebSocketWrite)).IsEqualTo(handled);
+    }
+
+    [Test]
+    [MethodDataSource(nameof(PtyWebSocketFaults))]
+    public async Task Map_Should_Wrap_A_Pty_WebSocket_Fault_As_A_Transport_Failure(Exception fault)
+    {
+        var read = FailureClassification.Map(fault, FailurePhase.PtyWebSocketRead, CancellationToken.None);
+        var write = FailureClassification.Map(fault, FailurePhase.PtyWebSocketWrite, CancellationToken.None);
+
+        await Assert.That(read).IsTypeOf<OpenCodeTransportException>();
+        await Assert.That(read.Message).IsEqualTo(PtyWebSocketReadFaultMessage);
+        await Assert.That(write.Message).IsEqualTo(PtyWebSocketWriteFaultMessage);
+        await Assert.That(read.InnerException).IsSameReferenceAs(fault);
+    }
+
+    [Test]
+    [MethodDataSource(nameof(PtyWebSocketFaults))]
+    public async Task Map_Should_Read_A_Pty_WebSocket_Fault_As_Cancellation_When_The_Caller_Canceled(Exception fault)
+    {
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        var mapped = FailureClassification.Map(fault, FailurePhase.PtyWebSocketRead, cancellation.Token);
+
+        await Assert.That(mapped).IsTypeOf<OperationCanceledException>();
+        var canceled = (OperationCanceledException)mapped;
+        await Assert.That(canceled.Message).IsEqualTo(PtyWebSocketReadCanceledMessage);
+        await Assert.That(canceled.CancellationToken).IsEqualTo(cancellation.Token);
+    }
+
+    [Test]
     public async Task Map_Should_Pass_A_Caller_Cancellation_Through_In_Every_Phase()
     {
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
-        FailurePhase[] phases = [FailurePhase.Send, FailurePhase.ResponseBodyRead, FailurePhase.EventStreamRead];
+        FailurePhase[] phases =
+        [
+            FailurePhase.Send,
+            FailurePhase.ResponseBodyRead,
+            FailurePhase.EventStreamRead,
+            FailurePhase.PtyWebSocketRead,
+            FailurePhase.PtyWebSocketWrite,
+        ];
 
         foreach (var phase in phases)
         {

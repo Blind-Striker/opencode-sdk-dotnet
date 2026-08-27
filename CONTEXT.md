@@ -60,6 +60,18 @@ per member after any query value.
 **PTY**:
 A pseudo-terminal session managed through the API.
 
+**PTY connection**:
+The live WebSocket attached to one PTY, carrying replayed and live output out and input in.
+Distinct from the PTY itself, which outlives any connection to it.
+
+**Replay cursor**:
+The absolute position in a PTY's retained output. A connection omitting it replays the whole
+retained buffer, `-1` attaches live-only, and a value at or above zero resumes from there.
+
+**Connect ticket**:
+The short-lived, single-use credential the token door mints for handing a PTY connection to a
+browser. The SDK never mints one for its own connection.
+
 ### This project's language
 
 **Protocol surface** (historically "modern surface" in dated research docs):
@@ -114,6 +126,18 @@ payload properties.
 **Bound handle**:
 A sub-client bound to one resource id (e.g. a session) — partial application over the
 shared pipeline; never caches server state.
+
+**PTY session** (`PtySession`):
+The working object over one PTY connection: read frames, write input, dispose to close. The one
+door that builds its own transport instead of riding the HTTP pipeline.
+
+**PTY frame**:
+One message read from a PTY connection — either output text or the single cursor control frame
+the server sends once the retained buffer has been replayed.
+
+**Connection snapshot**:
+The construction-time endpoint, credential, and ambient location the pipeline publishes for a
+door that cannot ride its policies.
 
 **Curation config**:
 The generator's declarative, fail-closed input mapping spec constructs to public names and

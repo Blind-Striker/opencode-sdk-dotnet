@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net.WebSockets;
 
 namespace OpenCode.Sdk.Internal;
 
@@ -32,6 +33,11 @@ internal static class FailureClassification
                 or InvalidOperationException or TimeoutException,
 
             FailurePhase.EventStreamRead => exception is HttpRequestException or IOException or ObjectDisposedException,
+
+            // A WebSocket fault arrives as WebSocketException; a torn-down socket as
+            // ObjectDisposedException, and the underlying stream dying as IOException.
+            FailurePhase.PtyWebSocketRead or FailurePhase.PtyWebSocketWrite => exception
+                is WebSocketException or IOException or ObjectDisposedException,
             _ => throw new ArgumentOutOfRangeException(nameof(phase), phase, "Unknown failure phase."),
         };
     }
@@ -60,6 +66,8 @@ internal static class FailureClassification
         FailurePhase.Send => "The opencode server could not be reached.",
         FailurePhase.ResponseBodyRead => "The opencode response body could not be read.",
         FailurePhase.EventStreamRead => "The opencode event stream could not be read.",
+        FailurePhase.PtyWebSocketRead => "The opencode PTY WebSocket could not be read.",
+        FailurePhase.PtyWebSocketWrite => "The opencode PTY WebSocket could not be written to.",
         _ => throw new ArgumentOutOfRangeException(nameof(phase), phase, "Unknown failure phase."),
     };
 
@@ -73,6 +81,8 @@ internal static class FailureClassification
         FailurePhase.Send => "The opencode request was canceled.",
         FailurePhase.ResponseBodyRead => "The opencode response body read was canceled.",
         FailurePhase.EventStreamRead => "The opencode event stream read was canceled.",
+        FailurePhase.PtyWebSocketRead => "The opencode PTY WebSocket read was canceled.",
+        FailurePhase.PtyWebSocketWrite => "The opencode PTY WebSocket write was canceled.",
         _ => throw new ArgumentOutOfRangeException(nameof(phase), phase, "Unknown failure phase."),
     };
 }
