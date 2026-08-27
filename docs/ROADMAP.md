@@ -340,9 +340,8 @@ deferred default-job benchmark, and the prerelease packaging track ride alongsid
 Canon-mechanics text (synchronizer internals, location runtime semantics, the assurance
 architecture document, quality-gate additions) lands with its implementing increments.
 
-**The synchronizer and the first accepted refresh are complete** (plan:
-`superpowers/plans/2026-08-27-synchronizer-and-first-refresh-plan.md`; decisions and evidence:
-research log Q150). Increment 1 landed the ingestion pre-work — header parameters ingest with a
+**The synchronizer and the first accepted refresh are complete** (plan fully executed and
+retired 2026-08-27; decisions and evidence: research log Q150). Increment 1 landed the ingestion pre-work — header parameters ingest with a
 selected-operation binder wall, `contentEncoding` strings project as the fail-closed
 `EncodedStringNode`, and reason-bearing `operationIdentities` curation rows map upstream identity
 defects at ingestion with stale-row retirement. Increment 2 landed the minimal `refresh-spec`
