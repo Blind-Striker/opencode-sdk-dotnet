@@ -4070,3 +4070,89 @@ fork 400, and the full mechanism leg all answered as declared, with `interrupt`'
 observed on the wire. Pinned-fixture tests now ingest through the production identity-map path
 (`BindingTestHost.LoadPinnedInputsAsync`), and the smoke-test landmarks moved with the document
 (`Config.InfoEncoded#/properties/formatter`, `WorktreeErrorEncoded`/`UnauthorizedErrorEncoded`).
+
+## Q151: What did the typed-location + PTY family arc land, and what did the live proof show?
+
+**Method:** the 2026-08-27 arc plan executed through its six tasks on master, each with red/green
+tests and a green gate. Task 6 ran the committed sandbox's standing walkthrough — extended with a
+new PTY leg — against a server built from the pinned submodule (`bun src/index.ts serve --hostname
+127.0.0.1 --port 4137` from `external/opencode/packages/cli`, bun 1.4.0, Windows 11), and probed
+the same two doors with raw `curl` requests so the wire facts do not depend on SDK code. The
+submodule checkout never left the pin and gained no tracked change.
+
+**What landed.** The arc opened with a document-identical refresh moving the accepted snapshot
+`954cdc7b` → `803ead32` (the surface is unchanged; only the identity moved). Then, in order:
+`OpenCodeRequestOptions.Location`, merged member by member over the ambient location inside
+`RequestDecorationPolicy` so a per-call scope reaches every route without route branching; a
+curation-declared **internal-raw emission mode** in the generator (internal clients and adapters,
+public wire models and envelopes, no public methods) together with the internal header channel
+that carries document-declared header parameters to the wire — reachable only from generated
+internal-raw methods and hand-written doors, and deliberately general because
+`server.experimental.persistentPty.connectToken` declares the same header; the hand-written
+`PtysClient`/`PtyClient` over those internal raw clients (ADR-0021); a curated `transportOwned`
+SHA-256 fingerprint over `v2.pty.connect`'s ingested subtree, the only generation-time check that
+a refresh reshaping the never-selected WebSocket operation fails loudly; and `PtySession`, the
+family's live working object. The profile stands at **81 selected / 52 pending** (`pty.list` and
+`pty.connect.token` joined it), and the full local gate is green at **2,714 tests**.
+
+**The ticket-less Basic upgrade, confirmed on the wire.** Upstream's authorization middleware
+skips the credential check only for a URL carrying a connect ticket — the exemption exists because
+browsers cannot set headers on a WebSocket upgrade — so a non-browser client should be able to
+upgrade with the ordinary `Authorization` header and no ticket at all. Both design reviews settled
+this from source; this is the measurement. The same upgrade request, twice:
+
+```text
+$ curl -i -m 3 http://127.0.0.1:4137/api/pty/<id>/connect \
+    -H "Connection: Upgrade" -H "Upgrade: websocket" \
+    -H "Sec-WebSocket-Version: 13" -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ=="
+HTTP/1.1 401 Unauthorized
+www-authenticate: Basic realm="Secure Area"
+
+$ curl -i -m 3 -u opencode:<password> http://127.0.0.1:4137/api/pty/<id>/connect  … (same headers)
+HTTP/1.1 101 Switching Protocols
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=
+```
+
+The SDK therefore never mints a ticket for its own connection, and `CreateConnectTokenAsync` stays
+the door for handing a browser one. The token door's own header requirement was measured the same
+way: `POST /api/pty/<id>/connect-token` answers **403** without `x-opencode-ticket` and **200**
+with `x-opencode-ticket: 1` (a 36-character ticket, `expires_in: 60`) — the internal header
+channel, proven end to end without a public header facility.
+
+**The observed frame sequence.** One walkthrough run, verbatim (`chars` counts decoded UTF-16
+units; `cursor` is the absolute output cursor the server reports):
+
+```text
+pty-create:  status=200 command=C:\Program Files\PowerShell\7\pwsh.EXE state=Running pid=75516
+pty-token:   status=200 ticket=<redacted, 36 chars> expiresIn=60
+pty-connect: upgrade answered 101 — ticket-less, Basic credential on the upgrade request
+pty-replay:  outputFrames=1 chars=16   cursorFrames=1 cursor=16   end=Target
+pty-write:   sent echo hello\r
+pty-echo:    outputFrames=8 chars=1688 cursorFrames=0 cursor=<none> end=Target
+pty-output:  outputFrames=3 chars=441  cursorFrames=0 cursor=<none> end=Target
+pty-resume:  from=16   outputFrames=1 chars=2129 cursorFrames=1 cursor=2145 end=Target
+pty-remove:  status=204 isError=False
+pty-close:   from=2145 outputFrames=0 chars=0    cursorFrames=1 cursor=2145 end=ServerClose
+```
+
+Exactly one cursor frame ends the replay and none follows it: the eight and three live frames
+after the write carry no control frame, so a reader that stores the one cursor has stored
+everything the resume contract needs. The arithmetic closes: `16 + 1688 + 441 = 2145`, and
+reconnecting at cursor 16 replayed `2145 − 16 = 2129` characters — the delta only, never a
+second full replay — while reconnecting at 2145 replayed nothing and still received its cursor
+frame.
+Replay arrives as **one** frame where the same bytes arrived live as eleven, which is the server's
+64Ki replay chunking seen from the other side. Removing the PTY while a read was in flight ended
+the enumeration normally rather than faulting it, as the close-status policy intends.
+
+**Unexpected: a line feed is not Enter.** The first live attempt wrote `"echo hello\n"`. The
+terminal echoed the characters and then waited forever: a terminal's Enter key is **CR**, and
+PowerShell's line editor treats LF as an insert, not an accept. `"echo hello\r"` executes. Two
+consequences: the walkthrough sends CR, and any future PTY test writing a command must do the
+same. A second, smaller finding rides along — PSReadLine's rendering is not stable across runs
+(history prediction rewrites the line, and the screen is repainted with absolute cursor moves), so
+matching a marker on the command's *result* is unreliable where matching the terminal's echo is
+not. The leg therefore reads until the echo appears and then drains the stream for a bounded
+window, reporting whatever the terminal produced instead of asserting a shape.

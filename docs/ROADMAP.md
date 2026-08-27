@@ -331,40 +331,55 @@ upstream. Re-measured at tip `6170221e` (98 commits past the doc 21 re-check): `
 is still 0, the same 31 operations refuse, the two operations upstream added both bind green,
 and the restore step still works (326 components). The location design is sealed — ambient plus
 typed per-call `LocationSelector`, member-by-member merge — closing #37. ExperimentalDeferred
-was dropped; persistentPty is ordinary target surface. The reordered queue: (1) the minimal
+was dropped; persistentPty is ordinary target surface. The reordered queue was (1) the minimal
 `refresh-spec` synchronizer and the first accepted (Restore-patched) refresh — the M5 opener;
 (2) the typed per-call location plus normal-PTY ownership lane (ADR-0021); (3) envelope
 completion; (4) the operation inventory and assurance ledger; (5) M4's launcher/fixture arc
-with the deterministic simulated-model session workflow (ADR-0022). The B3/B4 refactors, the
+with the deterministic simulated-model session workflow (ADR-0022). **Lanes (1) and (2) have
+landed, so the queue now opens at envelope completion.** The B3/B4 refactors, the
 deferred default-job benchmark, and the prerelease packaging track ride alongside unchanged.
 Canon-mechanics text (synchronizer internals, location runtime semantics, the assurance
 architecture document, quality-gate additions) lands with its implementing increments.
 
 **The synchronizer and the first accepted refresh are complete** (plan fully executed and
-retired 2026-08-27; decisions and evidence: research log Q150). Increment 1 landed the ingestion pre-work — header parameters ingest with a
-selected-operation binder wall, `contentEncoding` strings project as the fail-closed
-`EncodedStringNode`, and reason-bearing `operationIdentities` curation rows map upstream identity
-defects at ingestion with stale-row retirement. Increment 2 landed the minimal `refresh-spec`
-synchronizer (prepare/verify/apply over receipts) and the hash-pinned SSE Restore patch authored
-from PR #45182's source-only subset. Increment 3 applied the first receipt: **the accepted
-snapshot is now `954cdc7b`** (133 operations, 336 components, `contentSchema` restored at 2), the
-question family and its two shipped operations are gone, `pty.connect.token` was deselected on
-that refresh (its new header parameter announced itself at the Increment 1 wall, exactly as Q146
-predicted) and is selected again now that the family is hand-written under ADR-0021, the eight
-`persistentPty.*` identity rows map the
-leaked group id, the pin-era `…1` duplicate rows retired and the restored event tree's `_N`
-duplicates collapsed through structurally validated aliases — with the `ProviderState→Form.Metadata`
+retired 2026-08-27; decisions and evidence: research log Q150). The ingestion pre-work landed
+first — header parameters ingest behind a selected-operation binder wall, `contentEncoding`
+strings project as the fail-closed `EncodedStringNode`, and reason-bearing `operationIdentities`
+curation rows map upstream identity defects at ingestion with stale-row retirement — then the
+minimal `refresh-spec` synchronizer (prepare/verify/apply over receipts) with the hash-pinned SSE
+Restore patch authored from PR #45182's source-only subset. Applying the first receipt took the
+accepted snapshot to `954cdc7b`: the question family and its two shipped operations left the
+surface, `pty.connect.token` deselected (its new header parameter announced itself at the binder
+wall, exactly as Q146 predicted), the eight `persistentPty.*` identity rows mapped the leaked
+group id, the pin-era `…1` duplicate rows retired, and the restored event tree's `_N` duplicates
+collapsed through structurally validated aliases — with the `ProviderState→Form.Metadata`
 structural coincidence refused by hand as doc 21 O6 warned. Derived names now strip Effect's
 encode-side `*Encoded` artifact through `ProjectionArtifactNamePolicy` (maintainer-sealed), so the
 PublicApi diff shrank to the real drift; the removal-bearing baseline was reviewed and accepted.
-**The profile stands at 81 selected / 52 pending** — `pty.list` and `pty.connect.token` joined it
-with the hand-written PTY family. The full gate is green (2,442 tests),
-`refresh-spec --verify` reproduces the committed receipt, and the committed sandbox's standing
-walkthrough ran live against a server built from the new pin — 24 operations answering as
-declared, including `session.interrupt`'s new typed 200 observed on the wire. `v2.pty.connect`
-itself is never selected — its WebSocket door is hand-written directly over its URL/query
-construction (ADR-0021) — so a curated `transportOwned` SHA-256 fingerprint over its ingested
-subtree is the only generation-time check that a spec refresh reshaping it fails loudly.
+The committed sandbox's standing walkthrough ran live against a server built from the new pin —
+24 operations answering as declared, including `session.interrupt`'s new typed 200 on the wire.
+
+**The typed per-call location and hand-written PTY family arc is complete** (plan fully executed
+2026-08-27; decisions and live evidence: research log Q151). The arc opened with a
+document-identical refresh moving **the accepted snapshot to `803ead32`**, then landed, in order:
+`OpenCodeRequestOptions.Location`, merged member by member over the ambient location in
+`RequestDecorationPolicy` so a per-call scope reaches every route uniformly (#37's implementation);
+a curation-declared **internal-raw emission mode** in the generator plus the internal
+document-bounded header channel that carries declared header parameters to the wire — no public
+header facility, and the already-queued persistentPty HTTP batch inherits the same mechanism; the
+hand-written `PtysClient`/`PtyClient` over those internal raw clients (ADR-0021), whose token door
+applies `x-opencode-ticket: 1` internally and never as a caller's argument; a curated
+`transportOwned` SHA-256 fingerprint over `v2.pty.connect`'s ingested subtree, since that operation
+is never selected — its WebSocket door is hand-written directly over its URL/query construction, so
+the fingerprint is the only generation-time check that a refresh reshaping it fails loudly; and
+`PtySession`, the family's live working object (`ReadAsync` over `PtyOutputFrame`/`PtyCursorFrame`,
+`WriteAsync`, graceful disposal) reached through `PtyClient.ConnectAsync(PtyConnectOptions)` with
+its replay cursor and per-call location. **The profile stands at 81 selected / 52 pending** —
+`pty.list` and `pty.connect.token` joined it with the family. The full gate is green (2,714 tests),
+and the sandbox walkthrough's new PTY leg proved the designed path live: the ticket-less upgrade
+carrying only the Basic credential answered `101 Switching Protocols`, exactly one cursor frame
+closed the replay, reconnecting at that cursor replayed only what followed it, the latest cursor
+replayed nothing at all, and removing the PTY ended the read as a normal close.
 
 ## Milestones
 
@@ -404,13 +419,14 @@ is revisited at each milestone boundary.
    deterministic simulated-model session workflow with its repository-owned C# controller
    (ADR-0022), and the net472 stdout/tree-kill items. Demo: the SDK starts the server itself
    and calls health.
-5. **M5 — Full surface.** Opens with the minimal `refresh-spec` synchronizer and the first
-   accepted (Restore-patched) refresh to the current tip (ADR-0020). Then complete target
-   admission over the refreshed surface: the typed per-call location plus normal-PTY ownership
-   lane (ADR-0021), envelope completion, the operation-identity rows and the header/base64
-   ingestion shapes, the remaining mechanism batches, persistentPty's HTTP batch, exclusion
-   fingerprints (ADR-0008), the operation inventory and assurance ledger, remaining
-   ingestion/binding walls (#52/#53), and package/API/TFM assurance (#51), packaging unblocked.
+5. **M5 — Full surface.** Opened with the minimal `refresh-spec` synchronizer and the first
+   accepted (Restore-patched) refresh to the current tip (ADR-0020), then the typed per-call
+   location plus normal-PTY ownership lane (ADR-0021) — both landed, with the operation-identity
+   rows and the header/base64 ingestion shapes riding along. What remains is the rest of target
+   admission over the refreshed surface: envelope completion, the remaining mechanism batches,
+   persistentPty's HTTP batch, exclusion fingerprints (ADR-0008), the operation inventory and
+   assurance ledger, remaining ingestion/binding walls (#52/#53), and package/API/TFM assurance
+   (#51), packaging unblocked.
    The location design is sealed (#37 closed — ambient plus per-call, research log Q148), so
    the freeze review inherits a settled surface.
 6. **M6 — Operational closure.** The observation lanes' automation (tip detector, candidate
