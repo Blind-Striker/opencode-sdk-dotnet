@@ -1,0 +1,19 @@
+{
+  "groups": {
+    "health": {
+      "placement": "root"
+    }
+  },
+  "operationIdentities": [],
+  "operationNames": [],
+  "schemaNames": [],
+  "envelopePayloadNames": {},
+  "schemaAliases": [],
+  "transportOwned": [
+    {
+      "operationId": "v2.pty.connect",
+      "subtreeSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "reason": "The WebSocket door is hand-written; the profile never selects this operation."
+    }
+  ]
+}

@@ -25,6 +25,7 @@ internal sealed class CurationValidator
         ValidateSchemaNames(document, reachable, curation, errors);
         ValidateEnvelopeNames(selectedIds, documentIds, curation, errors);
         ValidateSchemaAliases(document, reachable, curation, errors);
+        ValidateTransportOwned(document, curation, errors);
     }
 
     private static void ValidateSchemaNames(SpecDocument document, ReachableSchemaSet reachable,
@@ -371,6 +372,57 @@ internal sealed class CurationValidator
             errors.Add(BindingErrorCategory.Curation, alias.Schema, "schema aliases cannot chain");
         }
     }
+
+    /// <summary>
+    /// A transport-owned row pins a fingerprint over an operation the profile never selects
+    /// (ADR-0021's hand-written doors depend on its shape without the compiler ever seeing it),
+    /// so this checks against <paramref name="document"/>'s full ingested operation set, not the
+    /// selected subset every other curation row is validated against.
+    /// </summary>
+    private static void ValidateTransportOwned(SpecDocument document, GenerationCuration curation, BindingErrorCollector errors)
+    {
+        var operationsById = document.Operations.ToDictionary(static operation => operation.OperationId, StringComparer.Ordinal);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var row in curation.TransportOwned)
+        {
+            if (!seen.Add(row.OperationId))
+            {
+                errors.Add(BindingErrorCategory.Curation, row.OperationId, "transport-owned curation is duplicated");
+            }
+
+            if (string.IsNullOrWhiteSpace(row.Reason))
+            {
+                errors.Add(BindingErrorCategory.Curation, row.OperationId, "transport-owned curation must declare a reason");
+            }
+
+            if (!IsSha256Hex(row.SubtreeSha256))
+            {
+                errors.Add(
+                    BindingErrorCategory.Curation,
+                    row.OperationId,
+                    "transport-owned curation must declare subtreeSha256 as 64 lowercase hex characters");
+            }
+
+            if (!operationsById.TryGetValue(row.OperationId, out var operation))
+            {
+                errors.Add(BindingErrorCategory.Curation, row.OperationId, "curated operation does not exist in the spec");
+                continue;
+            }
+
+            var computed = TransportOwnedFingerprint.ComputeSha256(operation);
+            if (!string.Equals(computed, row.SubtreeSha256, StringComparison.Ordinal))
+            {
+                errors.Add(
+                    BindingErrorCategory.Curation,
+                    row.OperationId,
+                    "transport-owned operation subtree no longer matches the committed subtreeSha256 "
+                    + $"(declared '{row.SubtreeSha256}', computed '{computed}'); review the reshaped operation and repin");
+            }
+        }
+    }
+
+    private static bool IsSha256Hex(string? candidate) =>
+        candidate is { Length: 64 } && candidate.All(static character => character is (>= '0' and <= '9') or (>= 'a' and <= 'f'));
 
     private static string GetGroup(SpecOperation operation) => operation.Segments[0];
 }

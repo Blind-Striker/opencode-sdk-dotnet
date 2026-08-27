@@ -1,4 +1,5 @@
 using System.Text.Json;
+using OpenCode.Sdk.Tools.Generator.Binding;
 using OpenCode.Sdk.Tools.Generator.Binding.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
@@ -1262,6 +1263,140 @@ public sealed class SpecBinderTests
                                                            StringComparison.Ordinal)))
             .IsTrue();
     }
+
+    [Test]
+    public async Task Bind_Should_Accept_A_Matching_Transport_Owned_Fingerprint()
+    {
+        var document = await IngestAsync(TransportOwnedScenario());
+        var operation = document.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
+        var hash = TransportOwnedFingerprint.ComputeSha256(operation);
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(Groups("health", RootGroup()), transportOwned: [TransportOwned("v2.pty.connect", hash)]));
+
+        await Assert.That(plan.SelectedOperationIds.Single()).IsEqualTo("v2.health.get");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Transport_Owned_Fingerprint_Mismatch()
+    {
+        var baseline = await IngestAsync(TransportOwnedScenario());
+        var baselineOperation = baseline.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
+        var staleHash = TransportOwnedFingerprint.ComputeSha256(baselineOperation);
+
+        var reshaped = await IngestAsync(TransportOwnedScenario(operation => operation
+            .Parameter("newParam", "query", schema => schema.Type("string"))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            reshaped,
+            Selection("v2.health.get"),
+            Curation(Groups("health", RootGroup()), transportOwned: [TransportOwned("v2.pty.connect", staleHash)])));
+
+        await Assert
+            .That(exception.Errors.Any(error => error.Category == BindingErrorCategory.Curation
+                                               && error.Subject == "v2.pty.connect"
+                                               && error.Problem.Contains("no longer matches", StringComparison.Ordinal)
+                                               && error.Problem.Contains(staleHash, StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Transport_Owned_Row_For_An_Unknown_Operation()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec.WithOperation("v2.health.get")));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(Groups("health", RootGroup()), transportOwned: [TransportOwned("v2.pty.connect", new string('0', 64))])));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+                                                       && error.Subject == "v2.pty.connect"
+                                                       && error.Problem.Contains("does not exist in the spec", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Transport_Owned_Row_Without_A_Reason()
+    {
+        var document = await IngestAsync(TransportOwnedScenario());
+        var operation = document.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
+        var hash = TransportOwnedFingerprint.ComputeSha256(operation);
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(Groups("health", RootGroup()), transportOwned: [TransportOwned("v2.pty.connect", hash, reason: " ")])));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+                                                       && error.Subject == "v2.pty.connect"
+                                                       && error.Problem.Contains("must declare a reason", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Transport_Owned_Row_With_A_Malformed_Hash()
+    {
+        var document = await IngestAsync(TransportOwnedScenario());
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(Groups("health", RootGroup()), transportOwned: [TransportOwned("v2.pty.connect", "not-a-hash")])));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+                                                       && error.Subject == "v2.pty.connect"
+                                                       && error.Problem.Contains("64 lowercase hex", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Duplicated_Transport_Owned_Row()
+    {
+        var document = await IngestAsync(TransportOwnedScenario());
+        var operation = document.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
+        var hash = TransportOwnedFingerprint.ComputeSha256(operation);
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(
+                Groups("health", RootGroup()),
+                transportOwned: [TransportOwned("v2.pty.connect", hash), TransportOwned("v2.pty.connect", hash)])));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+                                                       && error.Subject == "v2.pty.connect"
+                                                       && error.Problem.Contains("duplicated", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    /// <summary>A miniature stand-in for <c>v2.pty.connect</c>'s real shape (Task 4 brief): a path
+    /// parameter plus four query parameters, WebSocket-marked, alongside a selected root operation
+    /// so <see cref="OperationSelection"/> is never empty.</summary>
+    private static SpecScenario TransportOwnedScenario(Action<OperationBuilder>? mutate = null) =>
+        SpecScenario.Define(spec => spec
+            .WithSchema("TransportOwnedScenarioHealth", schema => schema
+                .Type("object")
+                .Property("healthy", property => property.Type("boolean"), required: true))
+            .WithOperation("v2.pty.connect", path: "/api/pty/{ptyID}/connect", configure: operation =>
+            {
+                operation
+                    .Parameter("ptyID", "path", schema => schema.Type("string"), required: true)
+                    .Parameter("location[directory]", "query", schema => schema.Type("string"))
+                    .Parameter("location[workspace]", "query", schema => schema.Type("string"))
+                    .Parameter("cursor", "query", schema => schema.Type("string"))
+                    .Parameter("ticket", "query", schema => schema.Type("string"))
+                    .Extension("x-websocket", "true");
+                mutate?.Invoke(operation);
+            })
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("TransportOwnedScenarioHealth"))));
 
     [Test]
     public async Task Ingest_Should_Refuse_A_Repeated_Path_Token()

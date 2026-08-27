@@ -15,7 +15,8 @@ internal static class BindingScenarioData
         IReadOnlyList<SchemaAlias>? schemaAliases = null,
         IReadOnlyList<OperationNameCuration>? operationNames = null,
         IReadOnlyList<SchemaNameCuration>? schemaNames = null,
-        IReadOnlyList<OperationIdentityCuration>? operationIdentities = null) =>
+        IReadOnlyList<OperationIdentityCuration>? operationIdentities = null,
+        IReadOnlyList<TransportOwnedCuration>? transportOwned = null) =>
         new()
         {
             Groups = groups,
@@ -24,6 +25,16 @@ internal static class BindingScenarioData
             SchemaNames = schemaNames ?? [],
             EnvelopePayloadNames = envelopePayloadNames ?? new Dictionary<string, string>(StringComparer.Ordinal),
             SchemaAliases = schemaAliases ?? [],
+            TransportOwned = transportOwned ?? [],
+        };
+
+    public static TransportOwnedCuration TransportOwned(string operationId, string subtreeSha256,
+        string reason = "The operation is transport-owned; a hand-written door depends on its shape (ADR-0021).") =>
+        new()
+        {
+            OperationId = operationId,
+            SubtreeSha256 = subtreeSha256,
+            Reason = reason,
         };
 
     public static OperationIdentityCuration OperationIdentity(string operationId, string identity,

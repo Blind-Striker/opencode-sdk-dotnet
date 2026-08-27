@@ -13,5 +13,6 @@
   "operationNames": [],
   "schemaNames": [],
   "envelopePayloadNames": {},
-  "schemaAliases": []
+  "schemaAliases": [],
+  "transportOwned": []
 }

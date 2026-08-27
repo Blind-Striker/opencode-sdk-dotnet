@@ -14,5 +14,6 @@
       "aliasOf": "InvalidRequestError",
       "reason": "Upstream spec-gen emits a structurally identical duplicate carrying the same _tag."
     }
-  ]
+  ],
+  "transportOwned": []
 }

@@ -249,6 +249,13 @@
       "reason": "The generated operation request records own the '<Subject>Request' names; this model shapes the outbound provider request (settings, headers, body), so it takes the options suffix instead of colliding with v2.provider.get's request record."
     }
   ],
+  "transportOwned": [
+    {
+      "operationId": "v2.pty.connect",
+      "subtreeSha256": "467add4eb0b2979b5095fa071b2bc775453af06d86086822560e6e081f7063b2",
+      "reason": "The WebSocket session door is hand-written over its own URL/query construction (ADR-0021 Task 5); the operation is never selected into the generation profile, so this fingerprint is the only generation-time check that a spec refresh reshaping method, path, parameters, the x-websocket marker, or declared responses fails loudly instead of drifting silently under the hand-written door."
+    }
+  ],
   "envelopePayloadNames": {
     "v2.mcp.list": "McpServers",
     "v2.permission.request.list": "Requests",

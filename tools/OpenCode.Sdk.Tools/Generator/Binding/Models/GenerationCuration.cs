@@ -70,4 +70,16 @@ internal sealed record GenerationCuration
             field = Array.AsReadOnly([.. value]);
         }
     } = Array.AsReadOnly(Array.Empty<SchemaAlias>());
+
+    /// <summary>Fingerprints for operations that are never selected but that hand-written code depends on (ADR-0021).</summary>
+    [JsonPropertyName("transportOwned")]
+    public required IReadOnlyList<TransportOwnedCuration> TransportOwned
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<TransportOwnedCuration>());
 }

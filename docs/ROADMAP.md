@@ -358,10 +358,13 @@ structural coincidence refused by hand as doc 21 O6 warned. Derived names now st
 encode-side `*Encoded` artifact through `ProjectionArtifactNamePolicy` (maintainer-sealed), so the
 PublicApi diff shrank to the real drift; the removal-bearing baseline was reviewed and accepted.
 **The profile stands at 81 selected / 52 pending** — `pty.list` and `pty.connect.token` joined it
-with the hand-written PTY family. The full gate is green (2,431 tests),
+with the hand-written PTY family. The full gate is green (2,442 tests),
 `refresh-spec --verify` reproduces the committed receipt, and the committed sandbox's standing
 walkthrough ran live against a server built from the new pin — 24 operations answering as
-declared, including `session.interrupt`'s new typed 200 observed on the wire.
+declared, including `session.interrupt`'s new typed 200 observed on the wire. `v2.pty.connect`
+itself is never selected — its WebSocket door is hand-written directly over its URL/query
+construction (ADR-0021) — so a curated `transportOwned` SHA-256 fingerprint over its ingested
+subtree is the only generation-time check that a spec refresh reshaping it fails loudly.
 
 ## Milestones
 

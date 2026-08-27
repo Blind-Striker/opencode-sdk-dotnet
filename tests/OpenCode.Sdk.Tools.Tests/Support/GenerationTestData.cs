@@ -27,7 +27,8 @@ internal static class GenerationTestData
                                       "operationNames": [],
                                       "schemaNames": [],
                                       "envelopePayloadNames": {},
-                                      "schemaAliases": []
+                                      "schemaAliases": [],
+                                      "transportOwned": []
                                     }
                                     """;
 

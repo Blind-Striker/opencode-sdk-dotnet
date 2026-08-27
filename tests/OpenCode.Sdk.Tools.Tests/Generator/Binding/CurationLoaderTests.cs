@@ -26,6 +26,7 @@ public sealed class CurationLoaderTests
         await Assert.That(curation.SchemaNames).IsEmpty();
         await Assert.That(curation.EnvelopePayloadNames).IsEmpty();
         await Assert.That(curation.SchemaAliases).IsEmpty();
+        await Assert.That(curation.TransportOwned).IsEmpty();
     }
 
     [Test]
@@ -40,7 +41,7 @@ public sealed class CurationLoaderTests
         await Assert
             .That(sections)
             .IsEquivalentTo(
-                ["envelopePayloadNames", "groups", "operationIdentities", "operationNames", "schemaAliases", "schemaNames"]);
+                ["envelopePayloadNames", "groups", "operationIdentities", "operationNames", "schemaAliases", "schemaNames", "transportOwned"]);
     }
 
     [Test]
@@ -82,6 +83,19 @@ public sealed class CurationLoaderTests
 
         await Assert.That(curation.Groups["pty"].Emission).IsEqualTo(EmissionMode.InternalRaw);
         await Assert.That(curation.Groups["pty"].ClientName).IsEqualTo("Ptys");
+    }
+
+    [Test]
+    public async Task LoadAsync_Should_Read_Transport_Owned_Rows()
+    {
+        var fileSystem = CreateFileSystem("Binding.transport-owned-curation.json");
+
+        var curation = await new CurationLoader(fileSystem).LoadAsync(CurationPath, CancellationToken.None);
+
+        var row = curation.TransportOwned.Single();
+        await Assert.That(row.OperationId).IsEqualTo("v2.pty.connect");
+        await Assert.That(row.SubtreeSha256.Length).IsEqualTo(64);
+        await Assert.That(row.Reason).Contains("hand-written");
     }
 
     [Test]
