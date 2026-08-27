@@ -14,7 +14,7 @@ their hash-pinned manifests.
 |---|---|
 | Upstream file | `packages/protocol/openapi.json` |
 | Upstream branch | `v2` (active successor line; no release tags yet) |
-| Commit | `954cdc7bc81fcb285d008c0ad08827ab13435cce` |
+| Commit | `803ead32e733e32f94bfeb29248def8b9781a3be` |
 | Upstream product channel | `opencode2` — npm `@opencode-ai/cli@next` (pre-release) |
 
 Platform evidence for the v2 line: `docs/research/15-opencode-v2-platform.md`.
