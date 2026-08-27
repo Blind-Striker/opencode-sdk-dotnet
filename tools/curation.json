@@ -49,7 +49,8 @@
       "clientName": "Ptys",
       "handleName": "PtyClient",
       "handleParameter": "ptyID",
-      "reason": "A pty is a live terminal worked over its id; the pinned surface adds update and connect operations to the trio (ADR-0019)."
+      "emission": "internalRaw",
+      "reason": "A pty is a live terminal worked over its id; the pinned surface adds update and connect operations to the trio (ADR-0019). Every public door of the family is hand-written over these raw clients because the WebSocket session and the connect-token handshake need knowledge generation may not import (ADR-0021)."
     },
     "agent": {
       "placement": "client",
@@ -196,6 +197,11 @@
       "reason": "List methods name their subject in the plural across the reviewed surface; the mechanical singular reads as a different operation."
     },
     {
+      "operationId": "v2.pty.list",
+      "methodName": "ListPtysAsync",
+      "reason": "The group singular 'pty' does not pluralize naively; the reviewed .NET domain name for a set of pseudo-terminals is 'Ptys'."
+    },
+    {
       "operationId": "v2.websearch.query",
       "methodName": "QueryAsync",
       "reason": "The websearch container already names the domain; the mechanical POST prefix is transport detail, not part of the reviewed surface."
@@ -245,7 +251,8 @@
   ],
   "envelopePayloadNames": {
     "v2.mcp.list": "McpServers",
-    "v2.permission.request.list": "Requests"
+    "v2.permission.request.list": "Requests",
+    "v2.pty.list": "Ptys"
   },
   "schemaAliases": [
     {

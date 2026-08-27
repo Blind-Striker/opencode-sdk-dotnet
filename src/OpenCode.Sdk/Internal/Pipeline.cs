@@ -122,7 +122,22 @@ internal sealed class Pipeline : IDisposable
     public Task<TResponse> ExecuteAsync<TResponse>(HttpMethod method, string route, ResponseAdapter<TResponse> adapter,
         OpenCodeRequestOptions? options, CancellationToken cancellationToken)
         where TResponse : OpenCodeResponse =>
-        ExecuteCoreAsync<object, TResponse>(method, route, body: null, bodyTypeInfo: null, adapter, options, cancellationToken);
+        ExecuteCoreAsync<object, TResponse>(method, route, body: null, bodyTypeInfo: null, adapter, options,
+            declaredHeaders: null, cancellationToken);
+
+    /// <summary>
+    /// The bodiless overload a generated internal-raw method calls when its operation declares
+    /// header parameters. The headers ride the message rather than the route or the body, so the
+    /// decoration policy applies them without learning anything about the operation. Only the two
+    /// pinned connect-token operations declare a header and neither carries a body, so no
+    /// body-bearing counterpart exists; one would surface as a generated-code compile failure
+    /// rather than silently dropping the headers.
+    /// </summary>
+    public Task<TResponse> ExecuteAsync<TResponse>(HttpMethod method, string route, ResponseAdapter<TResponse> adapter,
+        OpenCodeRequestOptions? options, IReadOnlyList<DeclaredHeader>? declaredHeaders, CancellationToken cancellationToken)
+        where TResponse : OpenCodeResponse =>
+        ExecuteCoreAsync<object, TResponse>(method, route, body: null, bodyTypeInfo: null, adapter, options,
+            declaredHeaders, cancellationToken);
 
     public Task<TResponse> ExecuteAsync<TBody, TResponse>(HttpMethod method, string route, TBody body,
         JsonTypeInfo<TBody> bodyTypeInfo, ResponseAdapter<TResponse> adapter, OpenCodeRequestOptions? options,
@@ -132,7 +147,7 @@ internal sealed class Pipeline : IDisposable
     {
         ArgumentNullException.ThrowIfNull(body);
         ArgumentNullException.ThrowIfNull(bodyTypeInfo);
-        return ExecuteCoreAsync(method, route, body, bodyTypeInfo, adapter, options, cancellationToken);
+        return ExecuteCoreAsync(method, route, body, bodyTypeInfo, adapter, options, declaredHeaders: null, cancellationToken);
     }
 
     /// <summary>
@@ -171,7 +186,7 @@ internal sealed class Pipeline : IDisposable
 
     private async Task<TResponse> ExecuteCoreAsync<TBody, TResponse>(HttpMethod method, string route, TBody? body,
         JsonTypeInfo<TBody>? bodyTypeInfo, ResponseAdapter<TResponse> adapter, OpenCodeRequestOptions? options,
-        CancellationToken cancellationToken)
+        IReadOnlyList<DeclaredHeader>? declaredHeaders, CancellationToken cancellationToken)
         where TBody : class
         where TResponse : OpenCodeResponse
     {
@@ -193,7 +208,7 @@ internal sealed class Pipeline : IDisposable
         }
 
         TResponse adapted;
-        using (var message = CreateMessage(method, route, body, bodyTypeInfo, options?.Location, cancellationToken))
+        using (var message = CreateMessage(method, route, body, bodyTypeInfo, options?.Location, declaredHeaders, cancellationToken))
         {
             await SendThroughPoliciesAsync(message).ConfigureAwait(false);
             adapted = ResponseMaterializer.Materialize(message, adapter);
@@ -275,7 +290,8 @@ internal sealed class Pipeline : IDisposable
         _policies[0].ProcessAsync(message, _policies.AsMemory(1));
 
     private PipelineMessage CreateMessage<TBody>(HttpMethod method, string route, TBody? body,
-        JsonTypeInfo<TBody>? bodyTypeInfo, LocationSelector? perCallLocation, CancellationToken cancellationToken)
+        JsonTypeInfo<TBody>? bodyTypeInfo, LocationSelector? perCallLocation,
+        IReadOnlyList<DeclaredHeader>? declaredHeaders, CancellationToken cancellationToken)
         where TBody : class
     {
         var request = new HttpRequestMessage(method, new Uri(_endpointBase + route, UriKind.Absolute));
@@ -293,6 +309,7 @@ internal sealed class Pipeline : IDisposable
                 NetworkToken = cancellationToken,
                 NetworkTimeout = _networkTimeout,
                 PerCallLocation = perCallLocation,
+                DeclaredHeaders = declaredHeaders,
             };
         }
         catch

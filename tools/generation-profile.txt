@@ -28,8 +28,10 @@ v2.plugin.list
 v2.project.current
 v2.provider.get
 v2.provider.list
+v2.pty.connect.token
 v2.pty.create
 v2.pty.get
+v2.pty.list
 v2.pty.remove
 v2.pty.update
 v2.reference.list

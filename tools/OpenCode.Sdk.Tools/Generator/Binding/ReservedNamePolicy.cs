@@ -25,7 +25,11 @@ internal static class ReservedNamePolicy
     /// <summary>Parameter name emitted methods append for per-call options.</summary>
     public const string RequestOptionsParameter = "requestOptions";
 
-    /// <summary>Hand-written public spine types in the generated namespaces; a generated twin would not compile.</summary>
+    /// <summary>
+    /// Hand-written public spine types in the generated namespaces; a generated twin would not
+    /// compile. The PTY family's two public doors are here because ADR-0021 gives the family's
+    /// public surface to hand-written code while the generator keeps its raw twins.
+    /// </summary>
     public static readonly FrozenSet<string> SpineTypeNames = FrozenSet.ToFrozenSet(
         [
             "ErrorBehavior",
@@ -42,6 +46,8 @@ internal static class ReservedNamePolicy
             "OpenCodeResponse",
             "OpenCodeStreamFailureException",
             "OpenCodeTransportException",
+            "PtyClient",
+            "PtysClient",
             "QueryBoolean",
             "SessionParentFilter",
         ],

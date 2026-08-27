@@ -15,6 +15,7 @@ public sealed class SpecBinderTests
         "CommandExecutionError",
         "CommandNotFoundError",
         "ConflictError",
+        "ForbiddenError",
         "FormAlreadySettledError",
         "FormNotFoundError",
         "InstructionEntryValueTooLargeError",

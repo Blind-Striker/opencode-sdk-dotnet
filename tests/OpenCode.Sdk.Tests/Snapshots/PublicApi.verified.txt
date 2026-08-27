@@ -489,10 +489,14 @@
         {
             public const string CreatePtyTemplate = "/api/pty";
             public const string GetPtyTemplate = "/api/pty/{ptyID}";
+            public const string ListPtysTemplate = "/api/pty";
+            public const string PostConnectTokenTemplate = "/api/pty/{ptyID}/connect-token";
             public const string PutUpdateTemplate = "/api/pty/{ptyID}";
             public const string RemovePtyTemplate = "/api/pty/{ptyID}";
             public static string CreatePty(OpenCode.Sdk.Models.PtyCreateRequest? request = null) { }
             public static string GetPty(string ptyId, OpenCode.Sdk.PtyRequest? request = null) { }
+            public static string ListPtys(OpenCode.Sdk.PtyListRequest? request = null) { }
+            public static string PostConnectToken(string ptyId, OpenCode.Sdk.PtyConnectTokenPostRequest? request = null) { }
             public static string PutUpdate(string ptyId, OpenCode.Sdk.Models.PtyUpdatePutRequest? request = null) { }
             public static string RemovePty(string ptyId, OpenCode.Sdk.PtyRemoveRequest? request = null) { }
         }
@@ -707,15 +711,40 @@
     public class PtyClient
     {
         protected PtyClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PtyConnectTokenPostResponse> CreateConnectTokenAsync(OpenCode.Sdk.PtyConnectTokenPostRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PtyResponse> GetPtyAsync(OpenCode.Sdk.PtyRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PtyUpdatePutResponse> PutUpdateAsync(OpenCode.Sdk.Models.PtyUpdatePutRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PtyRemoveResponse> RemovePtyAsync(OpenCode.Sdk.PtyRemoveRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class PtyConnectTokenPostRequest : System.IEquatable<OpenCode.Sdk.PtyConnectTokenPostRequest>
+    {
+        public PtyConnectTokenPostRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class PtyConnectTokenPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PtyConnectTokenPostResponse>
+    {
+        public PtyConnectTokenPostResponse() { }
+        public required OpenCode.Sdk.Models.PtyTicketConnectToken ConnectToken { get; init; }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class PtyCreateResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PtyCreateResponse>
     {
         public PtyCreateResponse() { }
         public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
         public required OpenCode.Sdk.Models.Pty Pty { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class PtyListRequest : System.IEquatable<OpenCode.Sdk.PtyListRequest>
+    {
+        public PtyListRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class PtyListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PtyListResponse>
+    {
+        public PtyListResponse() { }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.Pty> Ptys { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class PtyRemoveRequest : System.IEquatable<OpenCode.Sdk.PtyRemoveRequest>
@@ -751,6 +780,7 @@
         protected PtysClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PtyCreateResponse> CreatePtyAsync(OpenCode.Sdk.Models.PtyCreateRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual OpenCode.Sdk.PtyClient GetPtyClient(string ptyId) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PtyListResponse> ListPtysAsync(OpenCode.Sdk.PtyListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public enum QueryBoolean
     {
@@ -1453,6 +1483,14 @@ namespace OpenCode.Sdk.Models
         Change = 1,
         [System.Text.Json.Serialization.JsonStringEnumMemberName("unlink")]
         Unlink = 2,
+    }
+    public sealed class ForbiddenError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.ForbiddenError>
+    {
+        public ForbiddenError() { }
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public required string Message { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("_tag")]
+        public string Tag { get; }
     }
     public sealed class FormAlreadySettledError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.FormAlreadySettledError>
     {
@@ -3478,6 +3516,14 @@ namespace OpenCode.Sdk.Models
         Running = 0,
         [System.Text.Json.Serialization.JsonStringEnumMemberName("exited")]
         Exited = 1,
+    }
+    public sealed class PtyTicketConnectToken : System.IEquatable<OpenCode.Sdk.Models.PtyTicketConnectToken>
+    {
+        public PtyTicketConnectToken() { }
+        [System.Text.Json.Serialization.JsonPropertyName("expires_in")]
+        public required long ExpiresIn { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("ticket")]
+        public required string Ticket { get; init; }
     }
     public sealed class PtyUpdatePutRequest : System.IEquatable<OpenCode.Sdk.Models.PtyUpdatePutRequest>
     {

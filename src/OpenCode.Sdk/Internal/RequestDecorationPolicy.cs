@@ -11,7 +11,10 @@ namespace OpenCode.Sdk.Internal;
 /// clear an ambient member for one call. Both members ride the same header channel — this is
 /// uniform injection, not the query-string per-request channel some operations declare;
 /// session routes resolve location from the session and ignore these headers server-side, so
-/// sending them there is a harmless no-op.
+/// sending them there is a harmless no-op. The message may also carry
+/// <see cref="PipelineMessage.DeclaredHeaders"/> — headers the pinned document declares as
+/// parameters of one operation. Those are applied uniformly, entry by entry: this policy never
+/// learns which family or header name it is writing, so no operation's knowledge leaks here.
 /// </summary>
 internal sealed class RequestDecorationPolicy : PipelinePolicy
 {
@@ -42,11 +45,11 @@ internal sealed class RequestDecorationPolicy : PipelinePolicy
 
     public override async ValueTask ProcessAsync(PipelineMessage message, ReadOnlyMemory<PipelinePolicy> remaining)
     {
-        Decorate(message.Request, message.PerCallLocation);
+        Decorate(message.Request, message.PerCallLocation, message.DeclaredHeaders);
         await ProcessNextAsync(message, remaining).ConfigureAwait(false);
     }
 
-    private void Decorate(HttpRequestMessage request, LocationSelector? perCall)
+    private void Decorate(HttpRequestMessage request, LocationSelector? perCall, IReadOnlyList<DeclaredHeader>? declaredHeaders)
     {
         if (_authorization is not null)
         {
@@ -66,6 +69,17 @@ internal sealed class RequestDecorationPolicy : PipelinePolicy
         if (workspace is not null)
         {
             _ = request.Headers.TryAddWithoutValidation("x-opencode-workspace", workspace);
+        }
+
+        // The document already fixed each name and the raw method already dropped the omitted
+        // ones, so the values ride unvalidated exactly as the location headers do.
+        if (declaredHeaders is not null)
+        {
+            for (var index = 0; index < declaredHeaders.Count; index++)
+            {
+                var header = declaredHeaders[index];
+                _ = request.Headers.TryAddWithoutValidation(header.Name, header.Value);
+            }
         }
 
         request.Headers.UserAgent.Add(_userAgent);

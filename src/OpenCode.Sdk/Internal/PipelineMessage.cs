@@ -44,6 +44,14 @@ internal sealed class PipelineMessage : IDisposable
     /// </summary>
     public LocationSelector? PerCallLocation { get; init; }
 
+    /// <summary>
+    /// Gets the headers this operation declares in the pinned document, or <see langword="null"/>
+    /// when it declares none; written by <see cref="Pipeline"/> from the value a generated
+    /// internal-raw method collected, read by <see cref="RequestDecorationPolicy"/>, which adds
+    /// each entry without knowing which family or header name it carries.
+    /// </summary>
+    public IReadOnlyList<DeclaredHeader>? DeclaredHeaders { get; init; }
+
     /// <summary>Gets the response; written by <see cref="TransportPolicy"/> after a classified send.</summary>
     public HttpResponseMessage? Response { get; internal set; }
 

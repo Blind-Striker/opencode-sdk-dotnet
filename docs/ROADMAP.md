@@ -348,15 +348,17 @@ defects at ingestion with stale-row retirement. Increment 2 landed the minimal `
 synchronizer (prepare/verify/apply over receipts) and the hash-pinned SSE Restore patch authored
 from PR #45182's source-only subset. Increment 3 applied the first receipt: **the accepted
 snapshot is now `954cdc7b`** (133 operations, 336 components, `contentSchema` restored at 2), the
-question family and its two shipped operations are gone, `pty.connect.token` is deselected (its
-new header parameter announced itself at the Increment 1 wall, exactly as Q146 predicted; the
-family goes hand-written under ADR-0021 next), the eight `persistentPty.*` identity rows map the
+question family and its two shipped operations are gone, `pty.connect.token` was deselected on
+that refresh (its new header parameter announced itself at the Increment 1 wall, exactly as Q146
+predicted) and is selected again now that the family is hand-written under ADR-0021, the eight
+`persistentPty.*` identity rows map the
 leaked group id, the pin-era `…1` duplicate rows retired and the restored event tree's `_N`
 duplicates collapsed through structurally validated aliases — with the `ProviderState→Form.Metadata`
 structural coincidence refused by hand as doc 21 O6 warned. Derived names now strip Effect's
 encode-side `*Encoded` artifact through `ProjectionArtifactNamePolicy` (maintainer-sealed), so the
 PublicApi diff shrank to the real drift; the removal-bearing baseline was reviewed and accepted.
-**The profile stands at 79 selected / 54 pending.** The full gate is green (2,333 tests),
+**The profile stands at 81 selected / 52 pending** — `pty.list` and `pty.connect.token` joined it
+with the hand-written PTY family. The full gate is green (2,431 tests),
 `refresh-spec --verify` reproduces the committed receipt, and the committed sandbox's standing
 walkthrough ran live against a server built from the new pin — 24 operations answering as
 declared, including `session.interrupt`'s new typed 200 observed on the wire.

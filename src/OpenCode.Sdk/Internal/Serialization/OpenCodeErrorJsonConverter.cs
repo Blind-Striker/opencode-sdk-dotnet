@@ -15,6 +15,7 @@ internal sealed class OpenCodeErrorJsonConverter : JsonConverter<IOpenCodeError>
         ["CommandExecutionError"] = typeof(CommandExecutionError),
         ["CommandNotFoundError"] = typeof(CommandNotFoundError),
         ["ConflictError"] = typeof(ConflictError),
+        ["ForbiddenError"] = typeof(ForbiddenError),
         ["FormAlreadySettledError"] = typeof(FormAlreadySettledError),
         ["FormNotFoundError"] = typeof(FormNotFoundError),
         ["InstructionEntryValueTooLargeError"] = typeof(InstructionEntryValueTooLargeError),

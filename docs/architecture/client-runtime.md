@@ -60,6 +60,32 @@ local server launcher. Protocol and generated-model rules live in
   to a session route is therefore a harmless no-op, not an error — the SDK does not attempt to
   suppress or validate it per route.
 
+## PTY family ownership
+
+- The normal PTY family is the one family whose **public** surface is hand-written:
+  `PtysClient` and `PtyClient` live in `src/OpenCode.Sdk/Ptys/` as ordinary hand-written code,
+  and the generator emits `PtysRawClient`/`PtyRawClient` internally beside them under the
+  `internalRaw` curation emission. Everything else the family needs — routes, query shapers,
+  response adapters, status verdicts, wire models, envelopes, and serializer metadata — stays
+  generated, so route, status, and schema drift still breaks compilation locally (ADR-0021).
+- The hand-written doors keep the generated family's shape: the protected mocking constructor,
+  `virtual` members, and the `MockSeam` guard. Each door delegates once into its raw twin and
+  adds nothing but the knowledge generation may not import.
+- `CreateConnectTokenAsync` is that knowledge. The server's connect-token handler requires a
+  fixed `x-opencode-ticket` value that exists only in upstream implementation source, which
+  ADR-0013 forbids importing into generation; the constant therefore lives in the hand-written
+  door alone and is never a caller's argument, never in curation, and never in generated output.
+  The request's `location` query — not the ambient header pair — fixes the scope the ticket is
+  minted for.
+- **Declared headers are the runtime channel that carries it.** An operation's document-declared
+  header parameters ride `PipelineMessage.DeclaredHeaders` (`IReadOnlyList<DeclaredHeader>?`),
+  written by `Pipeline` from the value the generated raw method collected and read by
+  `RequestDecorationPolicy`, which adds each entry with `TryAddWithoutValidation` exactly as it
+  adds the location pair. The policy never learns a family or a header name, so no operation's
+  knowledge leaks into it. This is not a general header facility: the channel is assembly-internal,
+  only generated internal-raw methods feed it, and only a parameter the pinned document declares
+  ever becomes an entry.
+
 ## Error channels
 
 - API failures throw through `OpenCodeException` -> `OpenCodeApiException` by default. Tagged

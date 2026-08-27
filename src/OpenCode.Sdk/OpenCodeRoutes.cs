@@ -874,6 +874,57 @@ public static class OpenCodeRoutes
         }
 
         /// <summary>
+        /// The &apos;GET /api/pty&apos; route template.
+        /// </summary>
+        public const string ListPtysTemplate = "/api/pty";
+        /// <summary>
+        /// Builds the &apos;/api/pty&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ListPtys(PtyListRequest? request = null)
+        {
+            var path = "/api/pty";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/pty/{ptyID}/connect-token&apos; route template.
+        /// </summary>
+        public const string PostConnectTokenTemplate = "/api/pty/{ptyID}/connect-token";
+        /// <summary>
+        /// Builds the &apos;/api/pty/{ptyID}/connect-token&apos; route.
+        /// </summary>
+        /// <param name = "ptyId">The &apos;ptyID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostConnectToken(string ptyId, PtyConnectTokenPostRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(ptyId);
+            if (ptyId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(ptyId));
+            }
+
+            var path = "/api/pty/" + RouteValuePolicy.Escape(ptyId, nameof(ptyId)) + "/connect-token";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
         /// The &apos;PUT /api/pty/{ptyID}&apos; route template.
         /// </summary>
         public const string PutUpdateTemplate = "/api/pty/{ptyID}";
