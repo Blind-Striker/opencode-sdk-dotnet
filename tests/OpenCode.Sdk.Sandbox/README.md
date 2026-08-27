@@ -47,6 +47,15 @@ consumer can overflow and fail the stream. Ctrl+C exercises the same host cancel
 standing breadth walkthrough: health, session
 create/list/get, message list, export with its sanitize query, the permission
 create/get/reply round trip, the NoThrow spine over compact and a deliberately bad fork
-boundary, and the mechanism leg — the bodyless POSTs (interrupt, revert clear), the PUT
+boundary, the mechanism leg — the bodyless POSTs (interrupt, revert clear), the PUT
 family (mcp add, pty update, the instructions entry), and a typed `FormNotFoundError` over
-NoThrow — all through the same Extensions registration.
+NoThrow — and the PTY leg, all through the same Extensions registration.
+
+The PTY leg (`PtySessionWalkthrough`) is the hand-written family's live proof (ADR-0021). It
+creates a PTY, lists the family, mints a connect ticket through the token door — whose
+`x-opencode-ticket` header the SDK applies internally — and then opens the WebSocket session
+**ticket-less**, carrying the client's Basic credential on the upgrade request, which is the
+designed non-browser path. It records the replay frames and the single cursor frame that ends
+the replay, writes `echo hello`, reads until the terminal echoes it, reconnects at the observed
+cursor to show that a resume replays only what came after it, and finally removes the PTY while a
+read is in flight so the normal close ends the enumeration rather than faulting it.
