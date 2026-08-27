@@ -17,6 +17,7 @@ internal sealed class ScriptedPtyWebSocket : IPtyWebSocket
     private readonly List<byte[]> _sent = [];
     private readonly TaskCompletionSource<bool> _sendEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int _activeSends;
+    private Exception? _closeFault;
     private TaskCompletionSource<bool>? _sendGate;
 
     /// <summary>Gets the close status the scripted close step reported.</summary>
@@ -114,6 +115,15 @@ internal sealed class ScriptedPtyWebSocket : IPtyWebSocket
         return this;
     }
 
+    /// <summary>Makes the graceful close fail with the given fault, after recording the call.</summary>
+    public ScriptedPtyWebSocket FailingCloseWith(Exception fault)
+    {
+        ArgumentNullException.ThrowIfNull(fault);
+
+        _closeFault = fault;
+        return this;
+    }
+
     /// <summary>Releases every send the gate is holding.</summary>
     public void ReleaseSends() => _sendGate?.TrySetResult(true);
 
@@ -174,11 +184,30 @@ internal sealed class ScriptedPtyWebSocket : IPtyWebSocket
         }
     }
 
-    /// <summary>Records the graceful close the session asks for.</summary>
+    /// <summary>
+    /// Records the graceful close the session asks for. A close-output frame is a send, so the
+    /// fake holds it to the same one-outstanding-send rule <see cref="ClientWebSocket"/> enforces:
+    /// closing while a send is in flight is a failure here, not a silent pass.
+    /// </summary>
     public Task CloseOutputAsync(CancellationToken cancellationToken)
     {
-        CloseOutputCalls++;
-        return Task.CompletedTask;
+        var active = Interlocked.Increment(ref _activeSends);
+        try
+        {
+            MaxConcurrentSends = Math.Max(MaxConcurrentSends, active);
+            CloseOutputCalls++;
+            if (active > 1)
+            {
+                return Task.FromException(
+                    new InvalidOperationException("The scripted PTY WebSocket saw a close while a send was outstanding."));
+            }
+
+            return _closeFault is null ? Task.CompletedTask : Task.FromException(_closeFault);
+        }
+        finally
+        {
+            _ = Interlocked.Decrement(ref _activeSends);
+        }
     }
 
     /// <summary>Records the hard teardown and releases anything parked on the socket.</summary>

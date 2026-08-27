@@ -1,6 +1,6 @@
 # Platform and Packaging Architecture
 
-Date: 2026-08-18
+Date: 2026-08-27
 
 Canonical current rules for target frameworks, package boundaries, repository shape, versioning,
 distribution, dependencies, and licensing.
@@ -30,10 +30,16 @@ is added for it** on any target — the dependency rule below is satisfied witho
 `net472` is the constrained leg: its `ClientWebSocket` is a thin wrapper over the operating
 system's WebSocket stack and therefore requires **Windows 8 / Windows Server 2012 or later**. A
 PTY session on an older Windows fails at connect rather than degrading. CI's Windows leg covers
-that target. The downlevel legs also use the `ArraySegment` receive and send overloads; the
-`Memory`-based overloads and `ClientWebSocketOptions.CollectHttpResponseDetails` — which is how a
-refused upgrade's HTTP status is recovered — exist only from .NET 7 on, so `net472` and
-`netstandard2.0` report a failed upgrade without its status.
+that target.
+
+Two separate API vintages shape the downlevel legs, and conflating them would misdate both:
+
+- The `Memory`-based receive and send overloads arrived with .NET Core 2.1 and are absent from
+  `netstandard2.0` and `net472`, so those legs use the `ArraySegment` overloads. This is a
+  buffer-shape difference only.
+- `ClientWebSocketOptions.CollectHttpResponseDetails` and `ClientWebSocket.HttpStatusCode` — the
+  pair that recovers a refused upgrade's HTTP status — are .NET 7 and later. Both downlevel legs
+  therefore report a failed upgrade without its status (`client-runtime.md`).
 
 ## Packages
 

@@ -76,13 +76,20 @@ public class PtySession : IAsyncDisposable
         await _sendGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            // Re-checked behind the gate: a dispose can land while a queued send waits.
+            // Re-checked behind the gate: a disposal can land while a queued send waits. It sits
+            // outside the mapping block deliberately — ObjectDisposedException is in the write
+            // phase's fault set, so a refusal raised inside it would be remapped into a transport
+            // failure instead of reaching the caller as the misuse it is.
             ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) is 1, this);
-            await socket.SendAsync(payload, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception exception) when (FailureClassification.Handles(exception, FailurePhase.PtyWebSocketWrite))
-        {
-            throw FailureClassification.Map(exception, FailurePhase.PtyWebSocketWrite, cancellationToken);
+
+            try
+            {
+                await socket.SendAsync(payload, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception exception) when (FailureClassification.Handles(exception, FailurePhase.PtyWebSocketWrite))
+            {
+                throw FailureClassification.Map(exception, FailurePhase.PtyWebSocketWrite, cancellationToken);
+            }
         }
         finally
         {
@@ -103,29 +110,59 @@ public class PtySession : IAsyncDisposable
             return;
         }
 
-        if (_socket is not null)
+        GC.SuppressFinalize(this);
+        if (_socket is null)
+        {
+            return;
+        }
+
+        try
         {
             _ = await TryCloseAsync(_socket).ConfigureAwait(false);
+        }
+        finally
+        {
+            // Unconditional: whatever the graceful close does, a disposal that has already
+            // latched _disposed must never leave the socket alive behind it.
             _socket.Dispose();
         }
 
-        _sendGate.Dispose();
-        GC.SuppressFinalize(this);
+        // _sendGate is deliberately not disposed. SemaphoreSlim only needs disposal once
+        // AvailableWaitHandle has been read, which this class never does, and disposing it here
+        // would break the two things disposal must not break: an in-flight write's Release would
+        // throw over its own mapped failure, and a queued writer would never be released at all,
+        // because Dispose does not complete pending async waiters.
     }
 
-    private static async Task<bool> TryCloseAsync(IPtyWebSocket socket)
+    private async Task<bool> TryCloseAsync(IPtyWebSocket socket)
     {
+        // A close-output frame is a send, and the socket allows one outstanding send, so the
+        // graceful close takes the same gate every write takes instead of racing an in-flight
+        // one. The wait is bounded so a stuck send cannot stall a disposal indefinitely.
+        if (!await _sendGate.WaitAsync(GracefulCloseTimeout).ConfigureAwait(false))
+        {
+            return false;
+        }
+
         using var timeout = new CancellationTokenSource(GracefulCloseTimeout);
         try
         {
             await socket.CloseOutputAsync(timeout.Token).ConfigureAwait(false);
             return true;
         }
-        catch (Exception exception) when (FailureClassification.Handles(exception, FailurePhase.PtyWebSocketWrite))
+        catch (Exception exception) when (
+            FailureClassification.Handles(exception, FailurePhase.PtyWebSocketWrite) ||
+            exception is InvalidOperationException)
         {
-            // Best effort: the hard teardown follows unconditionally, and a caller disposing a
+            // Best effort, and deliberately wider than the write plane's fault set: a socket that
+            // refuses a close for a state reason it reports as InvalidOperationException must not
+            // escape a disposal. The hard teardown follows unconditionally, and a caller closing a
             // connection has nothing left to do about a close frame that never left.
             return false;
+        }
+        finally
+        {
+            _ = _sendGate.Release();
         }
     }
 

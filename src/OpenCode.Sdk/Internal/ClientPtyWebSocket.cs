@@ -53,8 +53,9 @@ internal sealed class ClientPtyWebSocket : IPtyWebSocket
             var status = (int)_socket.HttpStatusCode;
             throw PtyUpgradeFailurePolicy.Map(exception, status is 0 ? null : status, ptyId);
 #else
-            // .NET Framework's OS-backed ClientWebSocket does not surface the response status of
-            // a refused upgrade; the failure names the connect context instead of guessing one.
+            // CollectHttpResponseDetails and ClientWebSocket.HttpStatusCode are .NET 7 and later,
+            // so neither downlevel leg can surface a refused upgrade's response status; the
+            // failure names the connect context instead of guessing one.
             throw PtyUpgradeFailurePolicy.Map(exception, status: null, ptyId);
 #endif
         }

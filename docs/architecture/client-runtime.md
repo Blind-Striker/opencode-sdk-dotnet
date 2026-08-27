@@ -1,6 +1,6 @@
 # Client Runtime Architecture
 
-Date: 2026-08-20
+Date: 2026-08-27
 
 Canonical current rules for client construction, transport ownership, API errors, streams, and the
 local server launcher. Protocol and generated-model rules live in
@@ -120,8 +120,9 @@ local server launcher. Protocol and generated-model rules live in
   or origin answers 401/403. A failed upgrade has no response spine, so it cannot ride ADR-0007's
   envelope machinery: the transport plane is the honest channel and every case throws
   `OpenCodeTransportException` naming the PTY and the cause. Modern targets read the status from
-  `ClientWebSocket.HttpStatusCode` (enabled by `CollectHttpResponseDetails`); net472 cannot report
-  it, so the failure names the connect context instead of guessing a status.
+  `ClientWebSocket.HttpStatusCode` (enabled by `CollectHttpResponseDetails`); `net472` and
+  `netstandard2.0` cannot report it, so the failure names the connect context instead of guessing
+  a status. `platform-and-packaging.md` owns the target-framework detail.
 - **Frames.** Server output rides text frames and decodes as `PtyOutputFrame`. The one binary
   control frame is a `0x00` marker byte followed by UTF-8 JSON `{"cursor": n}`, sent once after
   replay, and decodes as `PtyCursorFrame`; a control body that is not a JSON object carrying an

@@ -282,6 +282,91 @@ public sealed class PtySessionTests
     }
 
     [Test]
+    public async Task DisposeAsync_Should_Let_An_In_Flight_Write_Finish_Cleanly()
+    {
+        var socket = new ScriptedPtyWebSocket().GatingSends();
+        var session = new PtySession(socket);
+        var write = session.WriteAsync("in-flight");
+        await socket.SendEntered;
+
+        var dispose = session.DisposeAsync();
+        socket.ReleaseSends();
+        await write;
+        await dispose;
+
+        // The write owned the gate when disposal began: it must complete on its own terms rather
+        // than fail on a semaphore the disposal tore down under it.
+        await Assert.That(socket.SentText).IsEquivalentTo(["in-flight"]);
+        await Assert.That(socket.CloseOutputCalls).IsEqualTo(1);
+        await Assert.That(socket.DisposeCalls).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task DisposeAsync_Should_Refuse_A_Queued_Write_Rather_Than_Strand_It()
+    {
+        var socket = new ScriptedPtyWebSocket().GatingSends();
+        var session = new PtySession(socket);
+        var first = session.WriteAsync("first");
+        await socket.SendEntered;
+        var queued = session.WriteAsync("queued");
+
+        var dispose = session.DisposeAsync();
+        socket.ReleaseSends();
+        await first;
+        await dispose;
+
+        // The queued writer was parked on the send gate when disposal landed; it has to wake and
+        // be refused, because a disposed semaphore never releases a pending async waiter. Awaited
+        // directly rather than through an assertion lambda so the wait stays in this context.
+        ObjectDisposedException? refusal = null;
+        try
+        {
+            await queued;
+        }
+        catch (ObjectDisposedException exception)
+        {
+            refusal = exception;
+        }
+
+        await Assert.That(refusal).IsNotNull();
+        await Assert.That(socket.SentText).IsEquivalentTo(["first"]);
+        await Assert.That(socket.DisposeCalls).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task DisposeAsync_Should_Not_Close_While_A_Send_Is_Outstanding()
+    {
+        var socket = new ScriptedPtyWebSocket().GatingSends();
+        var session = new PtySession(socket);
+        var write = session.WriteAsync("in-flight");
+        await socket.SendEntered;
+
+        var dispose = session.DisposeAsync();
+
+        // A close-output frame is a send, and the socket allows one outstanding send: the close
+        // must wait behind the write rather than race it.
+        await Assert.That(socket.CloseOutputCalls).IsEqualTo(0);
+        socket.ReleaseSends();
+        await write;
+        await dispose;
+        await Assert.That(socket.CloseOutputCalls).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task DisposeAsync_Should_Tear_The_Socket_Down_When_The_Graceful_Close_Fails()
+    {
+        var socket = new ScriptedPtyWebSocket().FailingCloseWith(new InvalidOperationException("wrong state"));
+        var session = new PtySession(socket);
+
+        await session.DisposeAsync();
+
+        // A close that fails in a way the write plane does not own must still not escape disposal
+        // with the socket left alive.
+        await Assert.That(socket.CloseOutputCalls).IsEqualTo(1);
+        await Assert.That(socket.DisposeCalls).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task DisposeAsync_Should_Close_Gracefully_And_Stay_Idempotent()
     {
         var socket = new ScriptedPtyWebSocket();
