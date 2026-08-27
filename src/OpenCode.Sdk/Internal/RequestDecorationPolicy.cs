@@ -31,9 +31,11 @@ internal sealed class RequestDecorationPolicy : PipelinePolicy
         // travel differently: the server percent-decodes the directory header but reads the
         // workspace one verbatim, so the escaping mirrors that asymmetry exactly — computed
         // once, because the snapshot never changes after construction. Escaping also keeps a
-        // non-ASCII path sendable, since header values cannot carry it raw. The server
-        // resolves any explicit per-request location query first, so no client-side merge
-        // exists.
+        // non-ASCII path sendable, since header values cannot carry it raw. This snapshot is
+        // header-only and never merges with an operation's own query-string location channel —
+        // those remain unrelated. The client-side merge this class performs (Decorate, below)
+        // is entirely within the header channel, resolving a per-call PerCallLocation over this
+        // snapshot member by member.
         _escapedDirectory = location?.Directory is { } directory ? Uri.EscapeDataString(directory) : null;
         _workspace = location?.Workspace;
     }
