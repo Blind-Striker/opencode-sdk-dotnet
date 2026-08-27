@@ -29,6 +29,37 @@ local server launcher. Protocol and generated-model rules live in
 - Client options are snapshotted at construction. The SDK does not read process environment
   variables to discover endpoint or credentials; consumers resolve their own configuration.
 
+### Location
+
+- `OpenCodeClientOptions.Location` is the ambient location, snapshotted at construction into a
+  precomputed `x-opencode-directory` / `x-opencode-workspace` header pair — the fast path for
+  every call that does not override it.
+- `OpenCodeRequestOptions.Location` is the per-call override. `RequestDecorationPolicy` merges
+  it over the ambient snapshot **member by member**: a set `Directory` or `Workspace` always
+  wins over its ambient counterpart; an unset (`null`) member inherits the ambient value
+  unchanged. There is no client-side concept of "both locations set the same member" producing
+  anything other than the per-call value — per-call always wins when set.
+- Because `LocationSelector` refuses blank (`""`/whitespace) members at construction, `null` is
+  the only spelling of "leave this member alone." There is no way to clear an ambient member for
+  one call — only to leave it inherited or replace it with a different non-blank value.
+- **Encoding asymmetry**: the directory member is percent-encoded with `Uri.EscapeDataString`
+  before it rides the header (the server percent-decodes it), while the workspace member rides
+  the header verbatim (the server reads it as-is). This asymmetry applies identically to the
+  ambient snapshot and to a per-call override — encoding is a property of which member is being
+  sent, not of which channel set it.
+- **Uniform injection, not a query channel.** Both the ambient and the per-call location travel
+  on the same `x-opencode-directory` / `x-opencode-workspace` header pair; the SDK performs the
+  member-by-member merge itself before sending. This is a deliberate simplification, not the
+  per-operation `location[directory]` / `location[workspace]` query-string channel some
+  operations declare independently (`QueryStringBuilder.AddLocation`). The two channels are
+  unrelated: an operation that accepts an explicit `location` query parameter is unaffected by
+  this header merge.
+- **Session-route no-op.** The server honors these headers only on the operations whose group
+  resolves location from the request; operations that resolve location from a session instead
+  (or that do not resolve it at all) ignore both headers server-side. Sending a per-call location
+  to a session route is therefore a harmless no-op, not an error — the SDK does not attempt to
+  suppress or validate it per route.
+
 ## Error channels
 
 - API failures throw through `OpenCodeException` -> `OpenCodeApiException` by default. Tagged

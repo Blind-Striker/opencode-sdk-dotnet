@@ -372,6 +372,7 @@
     {
         public OpenCodeRequestOptions() { }
         public OpenCode.Sdk.ErrorBehavior ErrorBehavior { get; init; }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
         public static OpenCode.Sdk.OpenCodeRequestOptions NoThrow { get; }
     }
     public abstract class OpenCodeResponse : System.IEquatable<OpenCode.Sdk.OpenCodeResponse>

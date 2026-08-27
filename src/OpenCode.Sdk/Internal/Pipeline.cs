@@ -193,7 +193,7 @@ internal sealed class Pipeline : IDisposable
         }
 
         TResponse adapted;
-        using (var message = CreateMessage(method, route, body, bodyTypeInfo, cancellationToken))
+        using (var message = CreateMessage(method, route, body, bodyTypeInfo, options?.Location, cancellationToken))
         {
             await SendThroughPoliciesAsync(message).ConfigureAwait(false);
             adapted = ResponseMaterializer.Materialize(message, adapter);
@@ -275,7 +275,7 @@ internal sealed class Pipeline : IDisposable
         _policies[0].ProcessAsync(message, _policies.AsMemory(1));
 
     private PipelineMessage CreateMessage<TBody>(HttpMethod method, string route, TBody? body,
-        JsonTypeInfo<TBody>? bodyTypeInfo, CancellationToken cancellationToken)
+        JsonTypeInfo<TBody>? bodyTypeInfo, LocationSelector? perCallLocation, CancellationToken cancellationToken)
         where TBody : class
     {
         var request = new HttpRequestMessage(method, new Uri(_endpointBase + route, UriKind.Absolute));
@@ -292,6 +292,7 @@ internal sealed class Pipeline : IDisposable
                 CancellationToken = cancellationToken,
                 NetworkToken = cancellationToken,
                 NetworkTimeout = _networkTimeout,
+                PerCallLocation = perCallLocation,
             };
         }
         catch

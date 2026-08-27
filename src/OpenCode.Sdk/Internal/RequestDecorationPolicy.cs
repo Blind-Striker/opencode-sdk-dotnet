@@ -5,7 +5,13 @@ namespace OpenCode.Sdk.Internal;
 /// <summary>
 /// Decorates every request with the construction-time header snapshot: authorization, the
 /// ambient location, and the user agent. Knowledge source: upstream-observed — the location
-/// headers mirror the middleware's decoding asymmetry, re-verified at every spec refresh.
+/// headers mirror the middleware's decoding asymmetry, re-verified at every spec refresh. A
+/// per-call <see cref="PipelineMessage.PerCallLocation"/> merges over that snapshot member by
+/// member: a set member wins, an unset one inherits the ambient value, and there is no way to
+/// clear an ambient member for one call. Both members ride the same header channel — this is
+/// uniform injection, not the query-string per-request channel some operations declare;
+/// session routes resolve location from the session and ignore these headers server-side, so
+/// sending them there is a harmless no-op.
 /// </summary>
 internal sealed class RequestDecorationPolicy : PipelinePolicy
 {
@@ -34,25 +40,30 @@ internal sealed class RequestDecorationPolicy : PipelinePolicy
 
     public override async ValueTask ProcessAsync(PipelineMessage message, ReadOnlyMemory<PipelinePolicy> remaining)
     {
-        Decorate(message.Request);
+        Decorate(message.Request, message.PerCallLocation);
         await ProcessNextAsync(message, remaining).ConfigureAwait(false);
     }
 
-    private void Decorate(HttpRequestMessage request)
+    private void Decorate(HttpRequestMessage request, LocationSelector? perCall)
     {
         if (_authorization is not null)
         {
             request.Headers.Authorization = _authorization;
         }
 
-        if (_escapedDirectory is not null)
+        var escapedDirectory = perCall?.Directory is { } directory
+            ? Uri.EscapeDataString(directory)
+            : _escapedDirectory;
+        var workspace = perCall?.Workspace ?? _workspace;
+
+        if (escapedDirectory is not null)
         {
-            _ = request.Headers.TryAddWithoutValidation("x-opencode-directory", _escapedDirectory);
+            _ = request.Headers.TryAddWithoutValidation("x-opencode-directory", escapedDirectory);
         }
 
-        if (_workspace is not null)
+        if (workspace is not null)
         {
-            _ = request.Headers.TryAddWithoutValidation("x-opencode-workspace", _workspace);
+            _ = request.Headers.TryAddWithoutValidation("x-opencode-workspace", workspace);
         }
 
         request.Headers.UserAgent.Add(_userAgent);

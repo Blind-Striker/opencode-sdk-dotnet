@@ -36,6 +36,14 @@ internal sealed class PipelineMessage : IDisposable
     /// </summary>
     public bool BufferBody { get; init; } = true;
 
+    /// <summary>
+    /// Gets the caller's per-call location override, or <see langword="null"/> for none;
+    /// written by <see cref="Pipeline"/> from <see cref="OpenCodeRequestOptions.Location"/>,
+    /// read by <see cref="RequestDecorationPolicy"/> to merge over the ambient snapshot member
+    /// by member.
+    /// </summary>
+    public LocationSelector? PerCallLocation { get; init; }
+
     /// <summary>Gets the response; written by <see cref="TransportPolicy"/> after a classified send.</summary>
     public HttpResponseMessage? Response { get; internal set; }
 
