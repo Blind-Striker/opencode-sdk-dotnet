@@ -24,7 +24,8 @@ family-ownership exception to ADR-0008's generated-surface rule, not a reversal 
 
 ## Consequences
 
-- The first non-additive PublicApi review since the lock (accepted pre-1.0).
+- A non-additive PublicApi review (accepted pre-1.0; the first accepted refresh's question-family
+  removals preceded it).
 - The generator gains a curation-declared internal-raw emission mode; the emitted internal layer
   stays manifest-tracked and regen-verified like all generated output.
 - ADR-0019 placement is unchanged: PTYs remain working objects with handles.

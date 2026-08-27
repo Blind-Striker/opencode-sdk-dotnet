@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 public sealed record TuiSessionSelectData
 {
     /// <summary>
-    /// Gets the session id value.
+    /// Session ID to navigate to
     /// </summary>
     [JsonPropertyName("sessionID")]
     public required string SessionId { get; init; }

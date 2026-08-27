@@ -26,7 +26,7 @@ public class PluginsClient
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("PluginsClient", "Pipeline");
 
     /// <summary>
-    /// List plugins. Retrieve currently loaded plugins.
+    /// List plugins. Retrieve enabled server plugins and their current status.
     /// </summary>
     /// <param name = "request">The request shaping the query.</param>
     /// <param name = "requestOptions">The per-call options.</param>

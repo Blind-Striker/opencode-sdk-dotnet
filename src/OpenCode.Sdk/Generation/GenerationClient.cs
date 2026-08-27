@@ -28,7 +28,7 @@ public class GenerationClient
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("GenerationClient", "Pipeline");
 
     /// <summary>
-    /// Generate text. Run one stateless model generation at the requested location and return the assistant text. Uses the location&apos;s default model when none is specified.
+    /// Generate text. Run one stateless model generation using the server&apos;s base configuration and return the assistant text. Uses the base configuration&apos;s default model when none is specified.
     /// </summary>
     /// <param name = "request">The request body.</param>
     /// <param name = "requestOptions">The per-call options.</param>
@@ -39,6 +39,6 @@ public class GenerationClient
     public virtual Task<GenerateTextPostResponse> GenerateTextAsync(GenerateTextPostRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Generation.GenerateText(request), request, OpenCodeJsonContext.Default.GenerateTextPostRequest, GenerateTextPostResponseAdapter.Instance, requestOptions, cancellationToken);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Generation.GenerateText, request, OpenCodeJsonContext.Default.GenerateTextPostRequest, GenerateTextPostResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }

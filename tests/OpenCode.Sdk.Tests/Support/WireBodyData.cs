@@ -44,6 +44,8 @@ internal static class WireBodyData
 
     public const string ConflictError = "{\"_tag\":\"ConflictError\",\"message\":\"already delivered\"}";
 
+    public const string SessionInterrupted = "{\"interrupted\":true}";
+
     public const string McpServerNotFoundError = "{\"_tag\":\"McpServerNotFoundError\",\"server\":\"docs\",\"message\":\"gone\"}";
 
     public const string PtyNotFoundError = "{\"_tag\":\"PtyNotFoundError\",\"ptyID\":\"pty_9\",\"message\":\"gone\"}";

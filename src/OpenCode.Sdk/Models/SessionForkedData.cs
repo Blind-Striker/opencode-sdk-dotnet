@@ -32,4 +32,11 @@ public sealed record SessionForkedData
     [JsonPropertyName("instructions")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyDictionary<string, string>? Instructions { get; init; }
+
+    /// <summary>
+    /// Gets the instruction entries value.
+    /// </summary>
+    [JsonPropertyName("instructionEntries")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<InstructionEntrySnapshot>? InstructionEntries { get; init; }
 }

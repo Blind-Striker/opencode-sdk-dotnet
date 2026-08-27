@@ -127,7 +127,48 @@
       "reason": "The initialism does not pluralize; the mass-noun container names the domain (ADR-0019)."
     }
   },
-  "operationIdentities": [],
+  "operationIdentities": [
+    {
+      "operationId": "server.experimental.persistentPty.connectToken",
+      "identity": "v2.persistentPty.connectToken",
+      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
+    },
+    {
+      "operationId": "server.experimental.persistentPty.create",
+      "identity": "v2.persistentPty.create",
+      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
+    },
+    {
+      "operationId": "server.experimental.persistentPty.get",
+      "identity": "v2.persistentPty.get",
+      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
+    },
+    {
+      "operationId": "server.experimental.persistentPty.list",
+      "identity": "v2.persistentPty.list",
+      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
+    },
+    {
+      "operationId": "server.experimental.persistentPty.remove",
+      "identity": "v2.persistentPty.remove",
+      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
+    },
+    {
+      "operationId": "server.experimental.persistentPty.shutdown",
+      "identity": "v2.persistentPty.shutdown",
+      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
+    },
+    {
+      "operationId": "server.experimental.persistentPty.snapshot",
+      "identity": "v2.persistentPty.snapshot",
+      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
+    },
+    {
+      "operationId": "server.experimental.persistentPty.update",
+      "identity": "v2.persistentPty.update",
+      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
+    }
+  ],
   "operationNames": [
     {
       "operationId": "v2.event.subscribe",
@@ -200,66 +241,6 @@
       "schema": "Provider.Request",
       "dotnetName": "ProviderRequestOptions",
       "reason": "The generated operation request records own the '<Subject>Request' names; this model shapes the outbound provider request (settings, headers, body), so it takes the options suffix instead of colliding with v2.provider.get's request record."
-    },
-    {
-      "schema": "Form.When1",
-      "dotnetName": "FormWhen",
-      "reason": "The numeric suffix is an upstream spec-gen collision artifact; the unsuffixed schema is not part of this selected surface."
-    },
-    {
-      "schema": "Form.When1#/properties/op",
-      "dotnetName": "FormWhenOp",
-      "reason": "The owner schema's numeric suffix is an upstream spec-gen collision artifact."
-    },
-    {
-      "schema": "Form.When1#/properties/value",
-      "dotnetName": "FormWhenValue",
-      "reason": "The owner schema's numeric suffix is an upstream spec-gen collision artifact."
-    },
-    {
-      "schema": "Form.StringField1",
-      "dotnetName": "FormStringField",
-      "reason": "The numeric suffix is an upstream spec-gen collision artifact; the unsuffixed schema is not part of this selected surface."
-    },
-    {
-      "schema": "Form.StringField1#/properties/format",
-      "dotnetName": "FormStringFieldFormat",
-      "reason": "The owner schema's numeric suffix is an upstream spec-gen collision artifact."
-    },
-    {
-      "schema": "Form.NumberField1",
-      "dotnetName": "FormNumberField",
-      "reason": "The numeric suffix is an upstream spec-gen collision artifact; the unsuffixed schema is not part of this selected surface."
-    },
-    {
-      "schema": "Form.IntegerField1",
-      "dotnetName": "FormIntegerField",
-      "reason": "The numeric suffix is an upstream spec-gen collision artifact; the unsuffixed schema is not part of this selected surface."
-    },
-    {
-      "schema": "Form.BooleanField1",
-      "dotnetName": "FormBooleanField",
-      "reason": "The numeric suffix is an upstream spec-gen collision artifact; the unsuffixed schema is not part of this selected surface."
-    },
-    {
-      "schema": "Form.MultiselectField1",
-      "dotnetName": "FormMultiselectField",
-      "reason": "The numeric suffix is an upstream spec-gen collision artifact; the unsuffixed schema is not part of this selected surface."
-    },
-    {
-      "schema": "Form.Field1",
-      "dotnetName": "IFormField",
-      "reason": "The numeric suffix is an upstream spec-gen collision artifact; the unsuffixed schema is not part of this selected surface."
-    },
-    {
-      "schema": "Form.Info1",
-      "dotnetName": "FormInfo",
-      "reason": "The numeric suffix is an upstream spec-gen collision artifact; the unsuffixed schema is not part of this selected surface."
-    },
-    {
-      "schema": "Form.Value1",
-      "dotnetName": "FormValue",
-      "reason": "The numeric suffix is an upstream spec-gen collision artifact; the unsuffixed schema is not part of this selected surface."
     }
   ],
   "envelopePayloadNames": {
@@ -273,39 +254,119 @@
       "reason": "The pinned stream declarations promote structurally identical inline Effect cause unions under operation-scoped graph keys."
     },
     {
-      "schema": "Form.Metadata1",
-      "aliasOf": "Form.Metadata",
-      "reason": "Upstream spec-gen emits a structurally identical duplicate of the form metadata schema."
+      "schema": "Session.Message.Assistant.Tool_1",
+      "aliasOf": "Session.Message.Assistant.Tool",
+      "reason": "The restored event tree re-emits the operation-side schema as a structurally identical duplicate (upstream stabilize suffixing); collapsing keeps stream payloads and one-shot models one type."
     },
     {
-      "schema": "InvalidRequestError1",
-      "aliasOf": "InvalidRequestError",
-      "reason": "Upstream spec-gen emits a structurally identical duplicate carrying the same _tag."
+      "schema": "Session.Message.Assistant.Text_1",
+      "aliasOf": "Session.Message.Assistant.Text",
+      "reason": "The restored event tree re-emits the operation-side schema as a structurally identical duplicate (upstream stabilize suffixing); collapsing keeps stream payloads and one-shot models one type."
     },
     {
-      "schema": "Session.Inbox.SyntheticPayload1",
-      "aliasOf": "Session.Inbox.SyntheticPayload",
-      "reason": "Upstream spec-gen emits a structurally identical duplicate of the session inbox synthetic payload schema."
+      "schema": "Session.Message.Assistant.Reasoning_1",
+      "aliasOf": "Session.Message.Assistant.Reasoning",
+      "reason": "The restored event tree re-emits the operation-side schema as a structurally identical duplicate (upstream stabilize suffixing); collapsing keeps stream payloads and one-shot models one type."
     },
     {
-      "schema": "Session.Inbox.UserPayload1",
-      "aliasOf": "Session.Inbox.UserPayload",
-      "reason": "Upstream spec-gen emits a structurally identical duplicate of the session inbox user payload schema."
+      "schema": "Session.Message.ToolState.Completed_1",
+      "aliasOf": "Session.Message.ToolState.Completed",
+      "reason": "The restored event tree re-emits the operation-side schema as a structurally identical duplicate (upstream stabilize suffixing); collapsing keeps stream payloads and one-shot models one type."
     },
     {
-      "schema": "Shell.Info1",
-      "aliasOf": "Shell.Info",
-      "reason": "Upstream spec-gen emits a structurally identical duplicate of the shell info schema."
+      "schema": "Session.Message.ToolState.Error_1",
+      "aliasOf": "Session.Message.ToolState.Error",
+      "reason": "The restored event tree re-emits the operation-side schema as a structurally identical duplicate (upstream stabilize suffixing); collapsing keeps stream payloads and one-shot models one type."
     },
     {
-      "schema": "Tool.Content1",
-      "aliasOf": "Tool.Content",
-      "reason": "Collapsing the duplicated file content makes this union identical to its twin."
+      "schema": "Session.StructuredError_1",
+      "aliasOf": "Session.StructuredError",
+      "reason": "The restored event tree re-emits the operation-side schema as a structurally identical duplicate (upstream stabilize suffixing); collapsing keeps stream payloads and one-shot models one type."
     },
     {
-      "schema": "Tool.FileContent1",
-      "aliasOf": "Tool.FileContent",
-      "reason": "Upstream spec-gen emits a structurally identical duplicate of the tool file content schema."
+      "schema": "Form.Fields_2",
+      "aliasOf": "Form.Fields",
+      "reason": "Upstream stabilize emits structurally identical duplicates of the form fields record within the form family."
+    },
+    {
+      "schema": "Session.Message.ProviderState_1",
+      "aliasOf": "Session.Message.ProviderState",
+      "reason": "Upstream stabilize emits per-site structurally identical duplicates of the provider-state record; every site belongs to the same provider-state family."
+    },
+    {
+      "schema": "Session.Message.ProviderState_2",
+      "aliasOf": "Session.Message.ProviderState",
+      "reason": "Upstream stabilize emits per-site structurally identical duplicates of the provider-state record; every site belongs to the same provider-state family."
+    },
+    {
+      "schema": "Session.Message.ProviderState_3",
+      "aliasOf": "Session.Message.ProviderState",
+      "reason": "Upstream stabilize emits per-site structurally identical duplicates of the provider-state record; every site belongs to the same provider-state family."
+    },
+    {
+      "schema": "Session.Message.ProviderState_4",
+      "aliasOf": "Session.Message.ProviderState",
+      "reason": "Upstream stabilize emits per-site structurally identical duplicates of the provider-state record; every site belongs to the same provider-state family."
+    },
+    {
+      "schema": "Session.Message.ProviderState_5",
+      "aliasOf": "Session.Message.ProviderState",
+      "reason": "Upstream stabilize emits per-site structurally identical duplicates of the provider-state record; every site belongs to the same provider-state family."
+    },
+    {
+      "schema": "Session.Message.ProviderState_6",
+      "aliasOf": "Session.Message.ProviderState",
+      "reason": "Upstream stabilize emits per-site structurally identical duplicates of the provider-state record; every site belongs to the same provider-state family."
+    },
+    {
+      "schema": "Session.Message.ProviderState_7",
+      "aliasOf": "Session.Message.ProviderState",
+      "reason": "Upstream stabilize emits per-site structurally identical duplicates of the provider-state record; every site belongs to the same provider-state family."
+    },
+    {
+      "schema": "Session.Message.ProviderState_8",
+      "aliasOf": "Session.Message.ProviderState",
+      "reason": "Upstream stabilize emits per-site structurally identical duplicates of the provider-state record; every site belongs to the same provider-state family."
+    },
+    {
+      "schema": "Session.Message.ProviderState_9",
+      "aliasOf": "Session.Message.ProviderState",
+      "reason": "Upstream stabilize emits per-site structurally identical duplicates of the provider-state record; every site belongs to the same provider-state family."
+    },
+    {
+      "schema": "Session.Message.ProviderState_10",
+      "aliasOf": "Session.Message.ProviderState",
+      "reason": "Upstream stabilize emits per-site structurally identical duplicates of the provider-state record; every site belongs to the same provider-state family."
+    },
+    {
+      "schema": "Session.Message.ProviderState_11",
+      "aliasOf": "Session.Message.ProviderState",
+      "reason": "Upstream stabilize emits per-site structurally identical duplicates of the provider-state record; every site belongs to the same provider-state family."
+    },
+    {
+      "schema": "Session.Message.ProviderState_12",
+      "aliasOf": "Session.Message.ProviderState",
+      "reason": "Upstream stabilize emits per-site structurally identical duplicates of the provider-state record; every site belongs to the same provider-state family."
+    },
+    {
+      "schema": "Session.Message.ProviderState_13",
+      "aliasOf": "Session.Message.ProviderState",
+      "reason": "Upstream stabilize emits per-site structurally identical duplicates of the provider-state record; every site belongs to the same provider-state family."
+    },
+    {
+      "schema": "Session.Message.ProviderState_14",
+      "aliasOf": "Session.Message.ProviderState",
+      "reason": "Upstream stabilize emits per-site structurally identical duplicates of the provider-state record; every site belongs to the same provider-state family."
+    },
+    {
+      "schema": "Session.Message.ProviderState_15",
+      "aliasOf": "Session.Message.ProviderState",
+      "reason": "Upstream stabilize emits per-site structurally identical duplicates of the provider-state record; every site belongs to the same provider-state family."
+    },
+    {
+      "schema": "Session.Message.ProviderState_16",
+      "aliasOf": "Session.Message.ProviderState",
+      "reason": "Upstream stabilize emits per-site structurally identical duplicates of the provider-state record; every site belongs to the same provider-state family."
     }
   ]
 }

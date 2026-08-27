@@ -9,38 +9,16 @@ namespace OpenCode.Sdk.Models;
 public sealed record SessionCommandPostRequest
 {
     /// <summary>
-    /// Gets the id value.
-    /// </summary>
-    [JsonPropertyName("id")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Id { get; init; }
-
-    /// <summary>
     /// Gets the command value.
     /// </summary>
     [JsonPropertyName("command")]
     public required string Command { get; init; }
 
     /// <summary>
-    /// Gets the arguments value.
+    /// Gets the text value.
     /// </summary>
-    [JsonPropertyName("arguments")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Arguments { get; init; }
-
-    /// <summary>
-    /// Gets the agent value.
-    /// </summary>
-    [JsonPropertyName("agent")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Agent { get; init; }
-
-    /// <summary>
-    /// Gets the model value.
-    /// </summary>
-    [JsonPropertyName("model")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public ModelRef? Model { get; init; }
+    [JsonPropertyName("text")]
+    public required string Text { get; init; }
 
     /// <summary>
     /// Gets the files value.
@@ -69,11 +47,4 @@ public sealed record SessionCommandPostRequest
     [JsonPropertyName("delivery")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public SessionInboxDelivery? Delivery { get; init; }
-
-    /// <summary>
-    /// Gets the resume value.
-    /// </summary>
-    [JsonPropertyName("resume")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public bool? Resume { get; init; }
 }

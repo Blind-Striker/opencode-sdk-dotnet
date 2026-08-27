@@ -157,7 +157,7 @@ public sealed class SnapshotSynchronizerTests
             ToolJsonContext.Default.SnapshotReceipt);
         await Assert.That(committed!.NormalizedDocumentPath).IsNull();
         var snapshotMarkdown = await fileSystem.File.ReadAllTextAsync(SnapshotPaths.SnapshotMarkdown, CancellationToken.None);
-        await Assert.That(snapshotMarkdown).Contains($"| Commit | {RefreshScenarioData.Commit} |");
+        await Assert.That(snapshotMarkdown).Contains($"| Commit | `{RefreshScenarioData.Commit}` |");
         await Assert.That(snapshotMarkdown).DoesNotContain("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
         await Assert.That(snapshotMarkdown).DoesNotContain("Date: 2026-08-13");
         await Assert

@@ -25,4 +25,11 @@ public sealed record ModelCapabilities
     /// </summary>
     [JsonPropertyName("output")]
     public required IReadOnlyList<string> Output { get; init; }
+
+    /// <summary>
+    /// Gets the responses websockets value.
+    /// </summary>
+    [JsonPropertyName("responsesWebsockets")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? ResponsesWebsockets { get; init; }
 }

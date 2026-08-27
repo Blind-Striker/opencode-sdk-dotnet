@@ -21,6 +21,20 @@ public sealed record SessionInfoTime
     public required double Updated { get; init; }
 
     /// <summary>
+    /// Gets the idle value.
+    /// </summary>
+    [JsonPropertyName("idle")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? Idle { get; init; }
+
+    /// <summary>
+    /// Gets the viewed value.
+    /// </summary>
+    [JsonPropertyName("viewed")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? Viewed { get; init; }
+
+    /// <summary>
     /// Gets the archived value.
     /// </summary>
     [JsonPropertyName("archived")]

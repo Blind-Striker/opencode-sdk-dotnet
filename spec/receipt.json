@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "upstreamCommit": "954cdc7bc81fcb285d008c0ad08827ab13435cce",
+  "rawDocumentSha256": "f1fc46f2758fb7ef1ebd4c7854c415c9e87899a0fd5d59dabe1f07774403da8f",
+  "generatedBaselineSha256": "dec831386cb7f45e887ecd0b52ed433519f616e3ead97d1b1b1008d5cda91fe1",
+  "patches": [
+    {
+      "manifest": "001-restore-sse-payloads.json",
+      "patchSha256": "aecd1686bc9b5e70a619e579fd87c6659fa299df53bb7b1fec17d7e8802cef10",
+      "preimages": [
+        {
+          "path": "packages/protocol/script/generate-openapi.ts",
+          "sha256": "0b750f4a0762d8835815b92b2bb9d292fe5f1889b8cda9188ca6e421d3d6a61d"
+        },
+        {
+          "path": "packages/protocol/src/groups/session.ts",
+          "sha256": "9b7115e0beba57bed4edc7214739460fdea79760c47f206d42b51431563dbad9"
+        }
+      ]
+    }
+  ],
+  "normalizedDocumentSha256": "7168332b805fc13cde74136d69ee64de6cd3586884ce2d07d9f7917957b7623e",
+  "normalizedDocumentPath": null,
+  "operationSetDigest": "774012eb2a4364d7f776d50ec325387e368ca61c34320ec04f029d509a3360f1",
+  "operationCount": 133,
+  "addedOperations": [
+    "server.experimental.persistentPty.connectToken",
+    "server.experimental.persistentPty.create",
+    "server.experimental.persistentPty.get",
+    "server.experimental.persistentPty.list",
+    "server.experimental.persistentPty.remove",
+    "server.experimental.persistentPty.shutdown",
+    "server.experimental.persistentPty.snapshot",
+    "server.experimental.persistentPty.update",
+    "v2.credential.activate",
+    "v2.persistentPty.connect",
+    "v2.project.update",
+    "v2.session.environment",
+    "v2.session.messageUpdate",
+    "v2.session.stats",
+    "v2.session.view",
+    "v2.vcs.branches",
+    "v2.workspace.create",
+    "v2.workspace.destroy",
+    "v2.worktree.create",
+    "v2.worktree.list",
+    "v2.worktree.refresh",
+    "v2.worktree.remove"
+  ],
+  "removedOperations": [
+    "v2.health.stop",
+    "v2.project.directories",
+    "v2.projectCopy.create",
+    "v2.projectCopy.refresh",
+    "v2.projectCopy.remove",
+    "v2.question.request.list",
+    "v2.session.question.list",
+    "v2.session.question.reject",
+    "v2.session.question.reply"
+  ],
+  "componentCount": 336,
+  "contentSchemaCount": 2
+}

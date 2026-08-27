@@ -61,6 +61,13 @@ public sealed record SessionInfo
     public required TokenUsageInfo Tokens { get; init; }
 
     /// <summary>
+    /// Gets the outcome value.
+    /// </summary>
+    [JsonPropertyName("outcome")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SessionInfoOutcome? Outcome { get; init; }
+
+    /// <summary>
     /// Gets the time value.
     /// </summary>
     [JsonPropertyName("time")]

@@ -28,7 +28,6 @@ v2.plugin.list
 v2.project.current
 v2.provider.get
 v2.provider.list
-v2.pty.connect.token
 v2.pty.create
 v2.pty.get
 v2.pty.remove
@@ -58,8 +57,6 @@ v2.session.permission.create
 v2.session.permission.get
 v2.session.permission.reply
 v2.session.prompt
-v2.session.question.reject
-v2.session.question.reply
 v2.session.remove
 v2.session.rename
 v2.session.revert.clear

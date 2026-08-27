@@ -20,6 +20,7 @@ internal sealed class SchemaNameResolver
         var responseRoots = reachable.ResponseRootKeys.ToHashSet(_comparer);
         var requestRoots = ResolveRequestBodyRootNames(selected, errors);
         var effectStreamTypes = ResolveEffectStreamTypeNames(document, selected);
+        var artifacts = new ProjectionArtifactNamePolicy(document.Schemas.Keys);
         var curatedNames = curation
             .SchemaNames
             .DistinctBy(static row => row.Schema, StringComparer.Ordinal)
@@ -52,9 +53,9 @@ internal sealed class SchemaNameResolver
                 name = schema switch
                 {
                     UnionNode { Classification: UnionClassification.Marked } union =>
-                        CSharpNamePolicy.ToUnionInterfaceName(ResolveUnionName(key, union, document.Schemas)),
-                    UnionNode union => ResolveUnionName(key, union, document.Schemas),
-                    _ => ResolveDefault(key),
+                        CSharpNamePolicy.ToUnionInterfaceName(ResolveUnionName(key, union, document.Schemas, artifacts)),
+                    UnionNode union => ResolveUnionName(key, union, document.Schemas, artifacts),
+                    _ => ResolveDefault(key, artifacts),
                 };
             }
 
@@ -157,22 +158,23 @@ internal sealed class SchemaNameResolver
         return names;
     }
 
-    private string ResolveUnionName(string key, UnionNode union, IReadOnlyDictionary<string, SchemaNode> graph)
+    private string ResolveUnionName(string key, UnionNode union, IReadOnlyDictionary<string, SchemaNode> graph,
+        ProjectionArtifactNamePolicy artifacts)
     {
         if (!key.Contains('#', StringComparison.Ordinal))
         {
-            return ResolveDefault(key);
+            return ResolveDefault(key, artifacts);
         }
 
         var branchNames = union
             .Branches
             .OfType<RefNode>()
             .Where(reference => graph.ContainsKey(reference.Target))
-            .Select(reference => ResolveDefault(reference.Target))
+            .Select(reference => ResolveDefault(reference.Target, artifacts))
             .ToArray();
         if (branchNames.Length != union.Branches.Count)
         {
-            return ResolveDefault(key);
+            return ResolveDefault(key, artifacts);
         }
 
         var commonWords = CSharpNamePolicy.SplitWords(branchNames[0]).ToArray();
@@ -193,13 +195,13 @@ internal sealed class SchemaNameResolver
         var common = string.Concat(commonWords.Select(CSharpNamePolicy.ToPascalCase));
         return common.Length > 0 && !_comparer.Equals(common, owner)
             ? common
-            : ResolveDefault(key);
+            : ResolveDefault(key, artifacts);
     }
 
-    private static string ResolveDefault(string key)
+    private static string ResolveDefault(string key, ProjectionArtifactNamePolicy artifacts)
     {
         var root = GetRoot(key);
-        var result = new System.Text.StringBuilder(CSharpNamePolicy.ToPascalCase(NormalizeRoot(root)));
+        var result = new System.Text.StringBuilder(CSharpNamePolicy.ToPascalCase(NormalizeRoot(root, artifacts)));
         var hash = key.IndexOf('#', StringComparison.Ordinal);
         if (hash < 0)
         {
@@ -243,7 +245,12 @@ internal sealed class SchemaNameResolver
         return hash < 0 ? key : key[..hash];
     }
 
-    private static string NormalizeRoot(string root) => root.StartsWith("op:", StringComparison.Ordinal) ? root[3..] : root;
+    /// <summary>
+    /// Operation-scoped roots carry no component identity, so artifact suffixes apply only to
+    /// component roots.
+    /// </summary>
+    private static string NormalizeRoot(string root, ProjectionArtifactNamePolicy artifacts) =>
+        root.StartsWith("op:", StringComparison.Ordinal) ? root[3..] : artifacts.Normalize(root);
 
     private static string DecodePointer(string segment) => segment
         .Replace("~1", "/", StringComparison.Ordinal)

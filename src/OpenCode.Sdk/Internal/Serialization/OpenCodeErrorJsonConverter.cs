@@ -12,10 +12,9 @@ internal sealed class OpenCodeErrorJsonConverter : JsonConverter<IOpenCodeError>
     private static readonly FrozenDictionary<string, Type> TypesByTag = new Dictionary<string, Type>(StringComparer.Ordinal)
     {
         ["AgentNotFoundError"] = typeof(AgentNotFoundError),
-        ["CommandEvaluationError"] = typeof(CommandEvaluationError),
+        ["CommandExecutionError"] = typeof(CommandExecutionError),
         ["CommandNotFoundError"] = typeof(CommandNotFoundError),
         ["ConflictError"] = typeof(ConflictError),
-        ["ForbiddenError"] = typeof(ForbiddenError),
         ["FormAlreadySettledError"] = typeof(FormAlreadySettledError),
         ["FormNotFoundError"] = typeof(FormNotFoundError),
         ["InstructionEntryValueTooLargeError"] = typeof(InstructionEntryValueTooLargeError),
@@ -26,7 +25,6 @@ internal sealed class OpenCodeErrorJsonConverter : JsonConverter<IOpenCodeError>
         ["PermissionNotFoundError"] = typeof(PermissionNotFoundError),
         ["ProviderNotFoundError"] = typeof(ProviderNotFoundError),
         ["PtyNotFoundError"] = typeof(PtyNotFoundError),
-        ["QuestionNotFoundError"] = typeof(QuestionNotFoundError),
         ["ServiceUnavailableError"] = typeof(ServiceUnavailableError),
         ["SessionBusyError"] = typeof(SessionBusyError),
         ["SessionNotFoundError"] = typeof(SessionNotFoundError),

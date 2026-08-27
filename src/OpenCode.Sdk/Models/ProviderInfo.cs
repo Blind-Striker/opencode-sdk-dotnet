@@ -29,11 +29,10 @@ public sealed record ProviderInfo
     public required string Name { get; init; }
 
     /// <summary>
-    /// Gets the disabled value.
+    /// Gets the activation value.
     /// </summary>
-    [JsonPropertyName("disabled")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public bool? Disabled { get; init; }
+    [JsonPropertyName("activation")]
+    public required ProviderInfoActivation Activation { get; init; }
 
     /// <summary>
     /// Gets the package value.

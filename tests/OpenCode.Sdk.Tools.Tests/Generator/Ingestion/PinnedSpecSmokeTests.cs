@@ -1,6 +1,5 @@
-using OpenCode.Sdk.Tools.Generator.Ingestion;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
-using Testably.Abstractions;
+using OpenCode.Sdk.Tools.Tests.Support;
 
 namespace OpenCode.Sdk.Tools.Tests.Generator.Ingestion;
 
@@ -57,7 +56,7 @@ public sealed class PinnedSpecSmokeTests
         var compaction = (UnionNode)document.Schemas["Session.Message.Compaction"];
         await Assert.That(compaction.Classification).IsEqualTo(UnionClassification.Marked);
 
-        var formatter = (UnionNode)document.Schemas["Config.Info#/properties/formatter"];
+        var formatter = (UnionNode)document.Schemas["Config.InfoEncoded#/properties/formatter"];
         await Assert.That(formatter.Classification).IsEqualTo(UnionClassification.Structural);
 
         var fields = (ArrayNode)document.Schemas["Form.Fields"];
@@ -121,8 +120,8 @@ public sealed class PinnedSpecSmokeTests
     {
         var document = await IngestPinnedSpecAsync();
 
-        await Assert.That(((ObjectNode)document.Schemas["ProjectCopyError"]).ErrorStyle).IsEqualTo(ErrorStyle.NameData);
-        await Assert.That(((ObjectNode)document.Schemas["UnauthorizedError"]).ErrorStyle).IsEqualTo(ErrorStyle.EffectTag);
+        await Assert.That(((ObjectNode)document.Schemas["WorktreeErrorEncoded"]).ErrorStyle).IsEqualTo(ErrorStyle.NameData);
+        await Assert.That(((ObjectNode)document.Schemas["UnauthorizedErrorEncoded"]).ErrorStyle).IsEqualTo(ErrorStyle.EffectTag);
     }
 
     [Test]
@@ -164,10 +163,5 @@ public sealed class PinnedSpecSmokeTests
         return (ObjectNode)document.Schemas[reference.Target];
     }
 
-    private static Task<SpecDocument> IngestPinnedSpecAsync()
-    {
-        var fileSystem = new RealFileSystem();
-        var specPath = fileSystem.Path.Combine(AppContext.BaseDirectory, "Fixtures", "openapi.json");
-        return new SpecIngestion(fileSystem).IngestAsync(specPath, CancellationToken.None);
-    }
+    private static Task<SpecDocument> IngestPinnedSpecAsync() => BindingTestHost.IngestPinnedAsync();
 }

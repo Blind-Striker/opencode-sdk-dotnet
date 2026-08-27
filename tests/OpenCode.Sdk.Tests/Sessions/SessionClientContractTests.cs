@@ -397,12 +397,13 @@ public sealed class SessionClientContractTests
     [Test]
     public async Task PostInterruptAsync_Should_Send_A_Bodiless_Post()
     {
-        using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.SessionInterrupted);
 
         var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PostInterruptAsync();
 
-        await Assert.That(response.Status).IsEqualTo(204);
+        await Assert.That(response.Status).IsEqualTo(200);
         await Assert.That(response.IsError).IsFalse();
+        await Assert.That(response.Interrupt.Interrupted).IsTrue();
         var request = scenario.Requests.Single();
         await Assert.That(request.Method).IsEqualTo(HttpMethod.Post);
         await Assert.That(request.RequestUri)

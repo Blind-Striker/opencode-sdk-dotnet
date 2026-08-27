@@ -15,36 +15,9 @@ public sealed record CommandInfo
     public required string Name { get; init; }
 
     /// <summary>
-    /// Gets the template value.
-    /// </summary>
-    [JsonPropertyName("template")]
-    public required string Template { get; init; }
-
-    /// <summary>
     /// Gets the description value.
     /// </summary>
     [JsonPropertyName("description")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Description { get; init; }
-
-    /// <summary>
-    /// Gets the agent value.
-    /// </summary>
-    [JsonPropertyName("agent")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Agent { get; init; }
-
-    /// <summary>
-    /// Gets the model value.
-    /// </summary>
-    [JsonPropertyName("model")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public ModelRef? Model { get; init; }
-
-    /// <summary>
-    /// Gets the subtask value.
-    /// </summary>
-    [JsonPropertyName("subtask")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public bool? Subtask { get; init; }
 }

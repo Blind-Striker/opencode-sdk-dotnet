@@ -67,6 +67,20 @@ public sealed record SessionMessageAssistant : ISessionMessageInfo
     public SessionMessageAssistantFinish? Finish { get; init; }
 
     /// <summary>
+    /// Gets the raw finish value.
+    /// </summary>
+    [JsonPropertyName("rawFinish")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? RawFinish { get; init; }
+
+    /// <summary>
+    /// Gets the provider state value.
+    /// </summary>
+    [JsonPropertyName("providerState")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string, JsonElement>? ProviderState { get; init; }
+
+    /// <summary>
     /// Gets the cost value.
     /// </summary>
     [JsonPropertyName("cost")]

@@ -377,7 +377,7 @@ internal sealed partial class SnapshotSynchronizer(
                 $"'{SnapshotPaths.SnapshotMarkdown}' no longer carries exactly one commit row and one date line; update it by hand");
         }
 
-        text = CommitRowRegex().Replace(text, $"| Commit | {commit} |", 1);
+        text = CommitRowRegex().Replace(text, $"| Commit | `{commit}` |", 1);
         text = DateLineRegex()
             .Replace(text, $"Date: {DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}", 1);
         await _fileSystem.File.WriteAllTextAsync(SnapshotPaths.SnapshotMarkdown, text, cancellationToken).ConfigureAwait(false);

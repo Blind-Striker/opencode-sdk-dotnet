@@ -10,7 +10,7 @@ namespace OpenCode.Sdk;
 /// </summary>
 public sealed record PluginListResponse : OpenCodeResponse
 {
-    private readonly IReadOnlyList<PluginInfo>? _plugins;
+    private readonly IReadOnlyList<IPluginInfo>? _plugins;
     private readonly LocationInfo? _location;
     /// <summary>
     /// Initializes a success instance of the &apos;PluginListResponse&apos; envelope.
@@ -36,7 +36,7 @@ public sealed record PluginListResponse : OpenCodeResponse
     /// <summary>
     /// Gets the Plugins payload; guarded on the error path.
     /// </summary>
-    public required IReadOnlyList<PluginInfo> Plugins { get => _plugins ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Plugins."); init => _plugins = value; }
+    public required IReadOnlyList<IPluginInfo> Plugins { get => _plugins ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Plugins."); init => _plugins = value; }
     /// <summary>
     /// Gets the location the server resolved for the request; guarded on the error path.
     /// </summary>

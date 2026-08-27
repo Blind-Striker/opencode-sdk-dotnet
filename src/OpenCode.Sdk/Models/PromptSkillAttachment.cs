@@ -24,7 +24,8 @@ public sealed record PromptSkillAttachment
     /// Gets the text value.
     /// </summary>
     [JsonPropertyName("text")]
-    public required string Text { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Text { get; init; }
 
     /// <summary>
     /// Gets the mention value.

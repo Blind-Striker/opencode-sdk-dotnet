@@ -16,6 +16,13 @@ public sealed record ModelCompatibility
     public string? ReasoningField { get; init; }
 
     /// <summary>
+    /// Gets the require reasoning value.
+    /// </summary>
+    [JsonPropertyName("requireReasoning")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? RequireReasoning { get; init; }
+
+    /// <summary>
     /// Gets the max tokens field value.
     /// </summary>
     [JsonPropertyName("maxTokensField")]
@@ -28,4 +35,11 @@ public sealed record ModelCompatibility
     [JsonPropertyName("requireFinishReason")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? RequireFinishReason { get; init; }
+
+    /// <summary>
+    /// Gets the require assistant after tool value.
+    /// </summary>
+    [JsonPropertyName("requireAssistantAfterTool")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? RequireAssistantAfterTool { get; init; }
 }

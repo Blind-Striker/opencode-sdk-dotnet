@@ -15,6 +15,13 @@ public sealed record SessionMessageAssistantTime
     public required double Created { get; init; }
 
     /// <summary>
+    /// Gets the streamed value.
+    /// </summary>
+    [JsonPropertyName("streamed")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? Streamed { get; init; }
+
+    /// <summary>
     /// Gets the completed value.
     /// </summary>
     [JsonPropertyName("completed")]

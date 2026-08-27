@@ -53,4 +53,11 @@ public sealed record PermissionAskedData
     [JsonPropertyName("source")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public PermissionSourceTool? Source { get; init; }
+
+    /// <summary>
+    /// Gets the message value.
+    /// </summary>
+    [JsonPropertyName("message")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Message { get; init; }
 }

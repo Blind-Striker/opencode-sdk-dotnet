@@ -1,6 +1,6 @@
 Generation is incomplete; packages must not be published.
-Selected operations: 82
-Pending operations: 38
+Selected operations: 79
+Pending operations: 54
 Selected:
 - v2.agent.get
 - v2.agent.list
@@ -32,7 +32,6 @@ Selected:
 - v2.project.current
 - v2.provider.get
 - v2.provider.list
-- v2.pty.connect.token
 - v2.pty.create
 - v2.pty.get
 - v2.pty.remove
@@ -62,8 +61,6 @@ Selected:
 - v2.session.permission.get
 - v2.session.permission.reply
 - v2.session.prompt
-- v2.session.question.reject
-- v2.session.question.reply
 - v2.session.remove
 - v2.session.rename
 - v2.session.revert.clear
@@ -86,13 +83,13 @@ Selected:
 - v2.websearch.query
 Pending:
 - v2.config.get
+- v2.credential.activate
 - v2.debug.location.list
 - v2.experimental.migration.v1.status
 - v2.form.request.list
 - v2.fs.find
 - v2.fs.list
 - v2.fs.read
-- v2.health.stop
 - v2.integration.connect.key
 - v2.integration.get
 - v2.integration.list
@@ -100,17 +97,24 @@ Pending:
 - v2.location.get
 - v2.model.default
 - v2.permission.saved.list
-- v2.project.directories
+- v2.persistentPty.connect
+- v2.persistentPty.connectToken
+- v2.persistentPty.create
+- v2.persistentPty.get
+- v2.persistentPty.list
+- v2.persistentPty.remove
+- v2.persistentPty.shutdown
+- v2.persistentPty.snapshot
+- v2.persistentPty.update
 - v2.project.list
-- v2.projectCopy.create
-- v2.projectCopy.refresh
-- v2.projectCopy.remove
+- v2.project.update
 - v2.pty.connect
+- v2.pty.connect.token
 - v2.pty.list
-- v2.question.request.list
 - v2.server.get
 - v2.session.active
 - v2.session.context
+- v2.session.environment
 - v2.session.form.create
 - v2.session.form.get
 - v2.session.form.list
@@ -118,8 +122,17 @@ Pending:
 - v2.session.form.state
 - v2.session.inbox.list
 - v2.session.instructions.entry.list
+- v2.session.messageUpdate
 - v2.session.permission.list
-- v2.session.question.list
+- v2.session.stats
+- v2.session.view
 - v2.shell.output
+- v2.vcs.branches
 - v2.vcs.diff
 - v2.vcs.status
+- v2.workspace.create
+- v2.workspace.destroy
+- v2.worktree.create
+- v2.worktree.list
+- v2.worktree.refresh
+- v2.worktree.remove

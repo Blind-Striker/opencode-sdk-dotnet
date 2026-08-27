@@ -36,14 +36,34 @@ internal sealed class BindingTestHost
 
     public async Task<EmitPlan> BindPinnedAsync(CancellationToken cancellationToken = default)
     {
+        var (document, selection, curation) = await LoadPinnedInputsAsync(cancellationToken);
+        return Bind(document, selection, curation);
+    }
+
+    /// <summary>
+    /// Loads the pinned fixture inputs the way the production coordinator does: the fixture
+    /// curation's operation-identity map is an ingestion input, never an afterthought.
+    /// </summary>
+    public static async Task<(SpecDocument Document, OperationSelection Selection, GenerationCuration Curation)> LoadPinnedInputsAsync(
+        CancellationToken cancellationToken = default)
+    {
         var fileSystem = new RealFileSystem();
         var fixtureRoot = fileSystem.Path.Combine(AppContext.BaseDirectory, "Fixtures");
-        var document = await new SpecIngestion(fileSystem)
-            .IngestAsync(fileSystem.Path.Combine(fixtureRoot, "openapi.json"), cancellationToken);
-        var selection = await new OperationSelectionLoader(fileSystem)
-            .LoadAsync(fileSystem.Path.Combine(fixtureRoot, "generation-profile.txt"), cancellationToken);
         var curation = await new CurationLoader(fileSystem)
             .LoadAsync(fileSystem.Path.Combine(fixtureRoot, "curation.json"), cancellationToken);
-        return Bind(document, selection, curation);
+        var document = await new SpecIngestion(fileSystem)
+            .IngestAsync(
+                fileSystem.Path.Combine(fixtureRoot, "openapi.json"),
+                OperationIdentityPolicy.BuildMap(curation),
+                cancellationToken);
+        var selection = await new OperationSelectionLoader(fileSystem)
+            .LoadAsync(fileSystem.Path.Combine(fixtureRoot, "generation-profile.txt"), cancellationToken);
+        return (document, selection, curation);
+    }
+
+    public static async Task<SpecDocument> IngestPinnedAsync(CancellationToken cancellationToken = default)
+    {
+        var (document, _, _) = await LoadPinnedInputsAsync(cancellationToken);
+        return document;
     }
 }

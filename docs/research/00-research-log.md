@@ -4019,3 +4019,54 @@ still stale against its own generator, now missing four member-level drifts
 the ten-class regrouping, not introduced by the tip. Artifacts:
 `.scratchpad/openapi-v2-tip-6170221e*.json`, `.scratchpad/measure-doc.ts`; the oc-restore
 worktree sits detached at `6170221e`.
+
+## Q150: What did the first receipt-governed refresh land, and what did its walls catch?
+
+**Method:** the 2026-08-27 synchronizer plan executed through its four increments on master.
+Increment 1 (ingestion pre-work) and Increment 2 (the minimal `refresh-spec` synchronizer plus
+the SSE Restore patch cut from PR #45182's source-only subset) landed with red/green tests and a
+byte-identical `generate --verify` at the old pin. Prepare then ran live against the resolved
+`v2` tip and its receipt was maintainer-reviewed before apply.
+
+**The refresh:** the accepted snapshot moved `a6a712a3` → `954cdc7b` through the receipt — 133
+operations (+22/−9 vs the pin), 336 components, `contentSchema` restored at 2 by the patch, both
+touched-file preimages recorded, and the receipt's `rawSha ≠ baselineSha` surfacing doc 21 T7
+(upstream's committed document stale against its own generator) mechanically on every prepare.
+The nine removals were the Q137/Q139 drift set plus the fully deleted question family, including
+the two shipped operations; the profile moved 82 → 79 selected / 54 pending after
+`pty.connect.token` deselected — its new `x-opencode-ticket` header parameter refused at the
+Increment 1 binder wall exactly as Q146 predicted, and ADR-0021's hand-written family owns it
+next. The eight `persistentPty.*` operations entered as pending through reason-bearing identity
+rows; the family also gained session-scoped terminal routes upstream since Q149's measurement.
+
+**What the walls caught, and the decisions they forced (maintainer, 2026-08-27):**
+(1) the pin-era `…1` duplicate class (twelve `Form.*1` name rows, seven aliases) went stale and
+retired; the restored event tree instead carries `_N`-suffixed near-duplicates of the
+operation-side message models, collapsed through structurally validated aliases so stream
+payloads and one-shot models stay one C# type — while the structural-equivalence probe's
+`ProviderState_N → Form.Metadata` coincidence was refused by hand: sixteen provider-state
+records alias within their own family onto the unsuffixed component, never across the semantic
+boundary (doc 21 O6's blind spot, exercised for real). (2) Effect's beta.103 `*Encoded`
+fallback rename leaked encode-side names into ~60 public models; sealed as a mechanical dialect
+rule — `ProjectionArtifactNamePolicy` strips the suffix from derived names unless the unsuffixed
+component exists (the guard keeps `V2Event`/`V2EventEncoded` distinct), the same class of rule
+as the `v2.` prefix strip and deliberately reusable for future artifacts; if upstream stops
+emitting the artifact the rule goes quietly dead. (3) `Session.Message.Assistant.Tool_1`'s
+promoted state member collided with its twin — resolved by the alias family, not a naming row.
+
+**Surface drift absorbed:** `CommandEvaluationError` → `CommandExecutionError` (genuine upstream
+rename), `ForbiddenError` and `QuestionNotFoundError` gone, `PluginInfo` restructured into the
+`IPluginInfo`/`IPluginSource` unions, `session.interrupt` upgraded from a 204 to a typed 200
+`SessionInterruptResponse`, and the restored event closure added `PersistentPty*`,
+`CredentialSwitched`/`CredentialUpdated`, and `InstructionEntrySnapshot` models. The
+removal-bearing PublicApi baseline was reviewed and accepted with all four TFMs byte-identical;
+`ProjectIcon.Url` joined the established CA1056 plain-wire-string arbitration.
+
+**Evidence:** the full local gate is green at 2,333 tests; `generate --verify` is current at
+79/54; `refresh-spec --verify` reproduces the committed receipt (`spec/receipt.json`); and the
+committed sandbox's standing walkthrough ran live against a server built from `954cdc7b` —
+health, the session breadth set, the permission round trip, compact's inbox item, the deliberate
+fork 400, and the full mechanism leg all answered as declared, with `interrupt`'s new typed 200
+observed on the wire. Pinned-fixture tests now ingest through the production identity-map path
+(`BindingTestHost.LoadPinnedInputsAsync`), and the smoke-test landmarks moved with the document
+(`Config.InfoEncoded#/properties/formatter`, `WorktreeErrorEncoded`/`UnauthorizedErrorEncoded`).

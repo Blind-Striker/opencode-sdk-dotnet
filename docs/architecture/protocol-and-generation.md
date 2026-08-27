@@ -1,6 +1,6 @@
 # Protocol and Generation Architecture
 
-Date: 2026-08-26
+Date: 2026-08-27
 
 Canonical current rules for the protocol surface, generator, generated models, and runtime
 materialization boundary. ADRs record why these decisions were made; dated research records the
@@ -16,6 +16,27 @@ evidence and may contain superseded positions.
   missing wire type, constraint, format, status, media type, or validation rule (ADR-0013).
 - The public SDK covers the v2 protocol surface only. Public identifiers strip the `v2.` operation
   ID prefix; `V2` never appears merely because upstream used that transport prefix (ADR-0005).
+- Derived model names strip Effect's encode-side `*Encoded` component suffix unless the unsuffixed
+  component itself exists in the document — a mechanical projection-artifact rule beside the `v2.`
+  strip, owned by `ProjectionArtifactNamePolicy`, never a per-row curation act (maintainer-sealed
+  2026-08-27, research log Q150).
+
+## Snapshot production
+
+- The accepted snapshot is produced by the `refresh-spec` synchronizer (ADR-0020): prepare
+  resolves a moving reference once to a full SHA and writes only scratch artifacts with a
+  reviewed receipt; verify reproduces the committed identity observationally; apply is a human
+  act over one reviewed receipt that refuses time-of-check/time-of-use drift, updates only
+  `spec/openapi.json`, `spec/SNAPSHOT.md`, `spec/receipt.json`, and the submodule checkout, and
+  never stages, commits, or pushes.
+- With an empty patch list, production is an identity transform over upstream's committed
+  artifact; upstream generation is never run merely to copy the document. Restore patches —
+  ordered and hash-pinned under `spec/patches/` with a manifest carrying the upstream report,
+  touched files, repair predicate, and retirement condition — run through the exact pinned
+  upstream generator, and prepare refuses a patch whose repair predicate raw upstream already
+  satisfies, forcing an empty-patch retirement refresh.
+- The committed receipt records the exact inputs, hashes, patch preimages, operation-set digest,
+  and operation delta of the accepted snapshot; `refresh-spec --verify` is its standing check.
 
 ## Construction pipeline
 

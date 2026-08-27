@@ -27,6 +27,7 @@ internal sealed class SessionEventDurableJsonConverter : JsonConverter<ISessionE
         ["session.inbox.delivery.changed"] = typeof(SessionInboxDeliveryChanged),
         ["session.inbox.enqueued"] = typeof(SessionInboxEnqueued),
         ["session.instructions.updated"] = typeof(SessionInstructionsUpdated),
+        ["session.message.content.updated"] = typeof(SessionMessageContentUpdated),
         ["session.model.selected"] = typeof(SessionModelSelected),
         ["session.moved"] = typeof(SessionMoved),
         ["session.reasoning.ended"] = typeof(SessionReasoningEnded),
@@ -42,6 +43,7 @@ internal sealed class SessionEventDurableJsonConverter : JsonConverter<ISessionE
         ["session.step.ended"] = typeof(SessionStepEnded),
         ["session.step.failed"] = typeof(SessionStepFailed),
         ["session.step.started"] = typeof(SessionStepStarted),
+        ["session.step.streamed"] = typeof(SessionStepStreamed),
         ["session.synthetic"] = typeof(SessionSynthetic),
         ["session.text.ended"] = typeof(SessionTextEnded),
         ["session.text.started"] = typeof(SessionTextStarted),
@@ -50,7 +52,8 @@ internal sealed class SessionEventDurableJsonConverter : JsonConverter<ISessionE
         ["session.tool.input.ended"] = typeof(SessionToolInputEnded),
         ["session.tool.input.started"] = typeof(SessionToolInputStarted),
         ["session.tool.success"] = typeof(SessionToolSuccess),
-        ["session.usage.recorded"] = typeof(SessionUsageRecorded)
+        ["session.usage.recorded"] = typeof(SessionUsageRecorded),
+        ["session.viewed"] = typeof(SessionViewed)
     }.ToFrozenDictionary(StringComparer.Ordinal);
     private static readonly UnionDiscriminatorReader DiscriminatorReader = new();
     public override ISessionEventDurable Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)

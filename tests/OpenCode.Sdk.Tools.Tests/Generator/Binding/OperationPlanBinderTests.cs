@@ -239,8 +239,6 @@ public sealed class OperationPlanBinderTests
         "PostMoveAsync",
         "PostPermissionReplyAsync",
         "PostPromptAsync",
-        "PostQuestionRejectAsync",
-        "PostQuestionReplyAsync",
         "PostRevertClearAsync",
         "PostRevertCommitAsync",
         "PostRevertStageAsync",

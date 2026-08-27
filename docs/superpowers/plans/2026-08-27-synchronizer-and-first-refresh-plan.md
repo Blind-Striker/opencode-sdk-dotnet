@@ -110,19 +110,26 @@ evaluation are pure and unit-tested.
 
 ### Increment 3 — the first accepted refresh (maintainer act)
 
-- [ ] Maintainer reviews the prepared receipt; `--apply` updates `spec/`, `SNAPSHOT.md`
-      (identity, recipe, procedure rewritten from manual copy to synchronizer usage), and the
-      submodule gitlink.
-- [ ] Curation batch in the same change: question-operation rows removed, identity rows added,
-      drift-set leftovers deleted; regenerate; PublicApi removal review; contract-test cleanup.
-- [ ] Live sanity: the committed sandbox's mechanism leg against a server built from the new
-      pinned commit (bun-launched from the submodule) — bounded smoke, not the full walkthrough.
-- [ ] ROADMAP status + profile counts updated in the same change.
+- [x] Maintainer reviewed the prepared receipt (2026-08-27); `--apply` updated `spec/`,
+      `SNAPSHOT.md` (identity + procedure rewritten around the synchronizer), and the
+      submodule checkout to `954cdc7b`.
+- [x] Curation batch in the same change: the two question operations left the profile, the
+      eight identity rows landed, the pin-era `…1` rows retired, the restored event tree's
+      `_N` duplicates collapsed through validated aliases (the `ProviderState → Form.Metadata`
+      structural coincidence refused by hand — doc 21 O6 exercised), `pty.connect.token`
+      deselected at the Increment 1 header wall, and the maintainer-sealed
+      `ProjectionArtifactNamePolicy` strips Effect's `*Encoded` artifact from derived names;
+      regenerate green at 79/54; the removal-bearing PublicApi baseline reviewed and accepted.
+- [x] Live sanity exceeded the bounded plan: the full standing walkthrough ran against a
+      server built from `954cdc7b` — 24 operations as declared, `interrupt`'s new typed 200
+      observed live.
+- [x] ROADMAP status + profile counts updated in the same change.
 
 ### Increment 4 — closure
 
-- [ ] `refresh-spec --verify` green on the committed state; three-OS hosted run green; research
-      log entry recording the refresh identity, delta, and receipt digest.
+- [x] `refresh-spec --verify` reproduces the committed receipt; research log Q150 records the
+      refresh identity, delta, walls, and decisions. Remaining: the three-OS hosted run rides
+      the next push (maintainer's push mark).
 
 ## Canon edits (inside their increments, never ahead)
 

@@ -1,10 +1,8 @@
 using System.Text.Json;
-using OpenCode.Sdk.Tools.Generator.Binding;
 using OpenCode.Sdk.Tools.Generator.Binding.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 using OpenCode.Sdk.Tools.Tests.Support;
-using Testably.Abstractions;
 using static OpenCode.Sdk.Tools.Tests.Support.BindingScenarioData;
 
 namespace OpenCode.Sdk.Tools.Tests.Generator.Binding;
@@ -14,10 +12,9 @@ public sealed class SpecBinderTests
     private static readonly string[] ExpectedErrorTypeNames =
     [
         "AgentNotFoundError",
-        "CommandEvaluationError",
+        "CommandExecutionError",
         "CommandNotFoundError",
         "ConflictError",
-        "ForbiddenError",
         "FormAlreadySettledError",
         "FormNotFoundError",
         "InstructionEntryValueTooLargeError",
@@ -28,7 +25,6 @@ public sealed class SpecBinderTests
         "PermissionNotFoundError",
         "ProviderNotFoundError",
         "PtyNotFoundError",
-        "QuestionNotFoundError",
         "ServiceUnavailableError",
         "SessionBusyError",
         "SessionNotFoundError",
@@ -298,6 +294,47 @@ public sealed class SpecBinderTests
 
         var error = exception.Errors.Single(static error => error.Problem.Contains("reason", StringComparison.Ordinal));
         await Assert.That(error.Subject).IsEqualTo("health");
+    }
+
+    [Test]
+    public async Task Bind_Should_Strip_The_Encoded_Projection_Artifact_From_Derived_Names()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ThingEncoded", schema => schema
+                .Type("object")
+                .Property("value", property => property.Type("string"), required: true))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("ThingEncoded")))));
+        var curation = Curation(Groups("health", RootGroup()));
+
+        var plan = new BindingTestHost().Bind(document, Selection("v2.health.get"), curation);
+
+        await Assert.That(plan.Models.Any(static model => model.Name == "Thing")).IsTrue();
+        await Assert.That(plan.Models.Any(static model => model.Name == "ThingEncoded")).IsFalse();
+    }
+
+    [Test]
+    public async Task Bind_Should_Keep_The_Encoded_Suffix_When_The_Unsuffixed_Component_Exists()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("Thing", schema => schema
+                .Type("object")
+                .Property("value", property => property.Type("string"), required: true))
+            .WithSchema("ThingEncoded", schema => schema
+                .Type("object")
+                .Property("raw", property => property.Type("string"), required: true))
+            .WithSchema("Pair", schema => schema
+                .Type("object")
+                .Property("decoded", property => property.Ref("Thing"), required: true)
+                .Property("encoded", property => property.Ref("ThingEncoded"), required: true))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("Pair")))));
+        var curation = Curation(Groups("health", RootGroup()));
+
+        var plan = new BindingTestHost().Bind(document, Selection("v2.health.get"), curation);
+
+        await Assert.That(plan.Models.Any(static model => model.Name == "Thing")).IsTrue();
+        await Assert.That(plan.Models.Any(static model => model.Name == "ThingEncoded")).IsTrue();
     }
 
     [Test]
@@ -1354,18 +1391,8 @@ public sealed class SpecBinderTests
             Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: null, handleParameter: null)),
             schemaAliases: aliases);
 
-    private static async Task<(SpecDocument Document, OperationSelection Selection, GenerationCuration Curation)> LoadPinnedInputsAsync()
-    {
-        var fileSystem = new RealFileSystem();
-        var fixtureRoot = fileSystem.Path.Combine(AppContext.BaseDirectory, "Fixtures");
-        var document = await new SpecIngestion(fileSystem)
-            .IngestAsync(fileSystem.Path.Combine(fixtureRoot, "openapi.json"), CancellationToken.None);
-        var selection = await new OperationSelectionLoader(fileSystem)
-            .LoadAsync(fileSystem.Path.Combine(fixtureRoot, "generation-profile.txt"), CancellationToken.None);
-        var curation = await new CurationLoader(fileSystem)
-            .LoadAsync(fileSystem.Path.Combine(fixtureRoot, "curation.json"), CancellationToken.None);
-        return (document, selection, curation);
-    }
+    private static Task<(SpecDocument Document, OperationSelection Selection, GenerationCuration Curation)> LoadPinnedInputsAsync() =>
+        BindingTestHost.LoadPinnedInputsAsync();
 
     private static async Task<SpecDocument> IngestAsync(SpecScenario scenario)
     {

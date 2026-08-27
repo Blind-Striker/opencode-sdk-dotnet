@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message assistant text value.
 /// </summary>
-public sealed record SessionMessageAssistantText : ISessionMessageAssistantContent
+public sealed record SessionMessageAssistantText : ISessionMessageAssistantContent, ISessionMessageAssistantContentEncoded
 {
     /// <summary>
     /// Gets the type value.

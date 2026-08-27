@@ -10,7 +10,7 @@ namespace OpenCode.Sdk.Internal.Serialization;
 internal sealed record PluginListResponseEnvelope
 {
     [JsonPropertyName("data")]
-    public required IReadOnlyList<PluginInfo> Data { get; init; }
+    public required IReadOnlyList<IPluginInfo> Data { get; init; }
 
     [JsonPropertyName("location")]
     public required LocationInfo Location { get; init; }
