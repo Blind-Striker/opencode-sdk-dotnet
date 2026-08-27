@@ -129,6 +129,9 @@ local server launcher. Protocol and generated-model rules live in
   integer `cursor` is a protocol failure. A binary message that does not start with the marker is
   ordinary output. Output is decoded with **replacement**, never fatally: the server chunks its
   replay at 64Ki UTF-16 code units, so a chunk boundary can split a surrogate pair.
+- **Input.** A terminal's Enter key is carriage return (`\r`); `WriteAsync` sends exactly the
+  bytes it is given, so a caller submitting a command must end the line with `\r` — `\n` renders
+  the text but never submits it (research log Q151).
 - **Close.** 1000 ends the enumeration normally — the process exit code is not on this wire, so a
   reader that needs it calls `GetPtyAsync`. 4404 means the session was not found or had already
   exited and throws with the reason; because an exited PTY still upgrades cleanly, that failure

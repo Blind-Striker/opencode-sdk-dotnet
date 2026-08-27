@@ -478,6 +478,11 @@ is revisited at each milestone boundary.
   same review carries the Azure `dotnet-subclient-properties` follow-up: handle
   clients hold their resource id privately today and exposing it as a property is
   additive.
+- **`PtySession.SubmitAsync(string command)` convenience door** — parked (maintainer,
+  2026-08-27) until the first real consumer, expected to be this repo's own MCP server
+  work: it would type the text and press Enter by explicitly appending `\r` (research
+  log Q151: a terminal's Enter key is CR; `\n` alone renders a line without submitting
+  it). Adding it later is additive.
 - **SDK folder layout review** (maintainer, 2026-08-25) — the family-folder scheme,
   the generated model layer, and statically owned directories share one folder and
   namespace plane guarded only by ad-hoc walls: the `Models` family name was refused
