@@ -301,7 +301,33 @@ public sealed class PtySessionTests
 
         var frames = await ReadAllAsync(session);
 
-        await Assert.That(((PtyOutputFrame)frames.Single()).Text).IsEqualTo("mocked");
+        await Assert.That(frames.Count).IsEqualTo(2);
+        await Assert.That(((PtyOutputFrame)frames[0]).Text).IsEqualTo("mocked");
+        await Assert.That(((PtyCursorFrame)frames[1]).Cursor).IsEqualTo(PtyFrameData.CursorValue);
+    }
+
+    /// <summary>
+    /// The mocking seam is only usable if the frames an override yields can be built from outside
+    /// this assembly. This test project is a friend, so the compiler cannot tell an internal
+    /// constructor from a public one — reflection is what pins the accessibility an external
+    /// consumer actually depends on.
+    /// </summary>
+    [Test]
+    public async Task Frame_Constructors_Should_Be_Reachable_Without_Friend_Access()
+    {
+        var output = typeof(PtyOutputFrame).GetConstructor([typeof(string)]);
+        var cursor = typeof(PtyCursorFrame).GetConstructor([typeof(long)]);
+
+        await Assert.That(output!.IsPublic).IsTrue();
+        await Assert.That(cursor!.IsPublic).IsTrue();
+    }
+
+    [Test]
+    public async Task PtyOutputFrame_Should_Refuse_A_Null_Text()
+    {
+        _ = Assert.Throws<ArgumentNullException>(() => _ = new PtyOutputFrame(null!));
+
+        await Task.CompletedTask;
     }
 
     [Test]
@@ -330,10 +356,15 @@ public sealed class PtySessionTests
         public override IAsyncEnumerable<PtyFrame> ReadAsync(CancellationToken cancellationToken = default) =>
             Mocked();
 
+        /// <summary>
+        /// Builds both frame kinds through their public doors, exactly as a consumer outside this
+        /// assembly would write the same override.
+        /// </summary>
         private static async IAsyncEnumerable<PtyFrame> Mocked()
         {
             await Task.Yield();
             yield return new PtyOutputFrame("mocked");
+            yield return new PtyCursorFrame(PtyFrameData.CursorValue);
         }
     }
 

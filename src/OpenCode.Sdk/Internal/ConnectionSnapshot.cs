@@ -10,10 +10,30 @@ namespace OpenCode.Sdk.Internal;
 /// policies' own snapshot is, so mutating the options object afterwards never changes a built
 /// client.
 /// </summary>
-/// <param name="EndpointBase">The normalized request base: scheme, authority, and path prefix without a trailing slash.</param>
-/// <param name="Authorization">The Basic credential every request carries, or null for a server without authentication.</param>
-/// <param name="Location">The ambient location a per-call selector merges over member by member.</param>
-internal sealed record ConnectionSnapshot(
-    string EndpointBase,
-    AuthenticationHeaderValue? Authorization,
-    LocationSelector? Location);
+/// <remarks>
+/// Deliberately a class, not a record: a record synthesizes a member-printing
+/// <see cref="object.ToString"/>, which would render the <c>Authorization</c> header value. Basic
+/// authentication is reversible base64 — that is the password in plaintext, one interpolation away
+/// from a log line or an exception message. Nothing here needs value equality, so the type carries
+/// no rendering to redact.
+/// </remarks>
+internal sealed class ConnectionSnapshot
+{
+    public ConnectionSnapshot(string endpointBase, AuthenticationHeaderValue? authorization, LocationSelector? location)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(endpointBase);
+
+        EndpointBase = endpointBase;
+        Authorization = authorization;
+        Location = location;
+    }
+
+    /// <summary>Gets the Basic credential every request carries, or null for a server without authentication.</summary>
+    public AuthenticationHeaderValue? Authorization { get; }
+
+    /// <summary>Gets the normalized request base: scheme, authority, and path prefix without a trailing slash.</summary>
+    public string EndpointBase { get; }
+
+    /// <summary>Gets the ambient location a per-call selector merges over member by member.</summary>
+    public LocationSelector? Location { get; }
+}

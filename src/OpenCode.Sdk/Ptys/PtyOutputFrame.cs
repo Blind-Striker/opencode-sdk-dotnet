@@ -8,8 +8,15 @@ namespace OpenCode.Sdk;
 /// </summary>
 public sealed class PtyOutputFrame : PtyFrame
 {
-    internal PtyOutputFrame(string text)
+    /// <summary>
+    /// Initializes an output frame. Public so a consumer substituting <see cref="PtySession"/>
+    /// can script the frames its override yields; the SDK's own reader uses the same door.
+    /// </summary>
+    /// <param name="text">The output the frame carries.</param>
+    public PtyOutputFrame(string text)
     {
+        ArgumentNullException.ThrowIfNull(text);
+
         Text = text;
     }
 

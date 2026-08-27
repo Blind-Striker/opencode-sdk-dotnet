@@ -7,7 +7,12 @@ namespace OpenCode.Sdk;
 /// </summary>
 public sealed class PtyCursorFrame : PtyFrame
 {
-    internal PtyCursorFrame(long cursor)
+    /// <summary>
+    /// Initializes a cursor frame. Public so a consumer substituting <see cref="PtySession"/>
+    /// can script the frames its override yields; the SDK's own reader uses the same door.
+    /// </summary>
+    /// <param name="cursor">The absolute output cursor the replay ended at.</param>
+    public PtyCursorFrame(long cursor)
     {
         Cursor = cursor;
     }

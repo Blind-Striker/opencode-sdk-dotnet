@@ -744,6 +744,7 @@
     }
     public sealed class PtyCursorFrame : OpenCode.Sdk.PtyFrame
     {
+        public PtyCursorFrame(long cursor) { }
         public long Cursor { get; }
     }
     public abstract class PtyFrame { }
@@ -761,6 +762,7 @@
     }
     public sealed class PtyOutputFrame : OpenCode.Sdk.PtyFrame
     {
+        public PtyOutputFrame(string text) { }
         public string Text { get; }
     }
     public sealed class PtyRemoveRequest : System.IEquatable<OpenCode.Sdk.PtyRemoveRequest>
