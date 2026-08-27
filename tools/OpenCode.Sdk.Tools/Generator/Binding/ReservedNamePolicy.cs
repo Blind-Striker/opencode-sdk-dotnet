@@ -13,6 +13,9 @@ internal static class ReservedNamePolicy
     /// <summary>Parameter name every emitted operation method appends for cancellation.</summary>
     public const string CancellationTokenParameter = "cancellationToken";
 
+    /// <summary>Local and argument name an emitted operation method uses for its declared headers.</summary>
+    public const string DeclaredHeadersParameter = "declaredHeaders";
+
     /// <summary>Parameter name emitted constructors take for the shared pipeline spine.</summary>
     public const string PipelineParameter = "pipeline";
 
@@ -48,6 +51,7 @@ internal static class ReservedNamePolicy
     public static readonly FrozenSet<string> ParameterNames = FrozenSet.ToFrozenSet(
         [
             CancellationTokenParameter,
+            DeclaredHeadersParameter,
             PipelineParameter,
             RequestParameter,
             RequestOptionsParameter,

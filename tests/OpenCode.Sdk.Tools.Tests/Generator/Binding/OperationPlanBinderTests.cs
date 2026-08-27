@@ -1100,6 +1100,118 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Name_An_Internal_Raw_Family_Beside_Its_Public_Family_Accessor()
+    {
+        var document = await BindingTestHost.IngestAsync(PtyScenario());
+
+        var plan = BindPtys(document, EmissionMode.InternalRaw);
+
+        var root = plan.Clients.Single(static client => client.Role == ClientRole.Root);
+        await Assert.That(root.Emission).IsEqualTo(EmissionMode.Public);
+        await Assert.That(root.SubClients.Single().PropertyName).IsEqualTo("Ptys");
+        await Assert.That(root.SubClients.Single().TypeName).IsEqualTo("PtysClient");
+
+        var collection = plan.Clients.Single(static client => client.Role == ClientRole.Collection);
+        await Assert.That(collection.Name).IsEqualTo("PtysRawClient");
+        await Assert.That(collection.Emission).IsEqualTo(EmissionMode.InternalRaw);
+        await Assert.That(collection.ContainerName).IsEqualTo("Ptys");
+        await Assert.That(collection.HandleFactory!.HandleTypeName).IsEqualTo("PtyRawClient");
+        await Assert.That(collection.HandleFactory.MethodName).IsEqualTo("GetPtyRawClient");
+
+        var handle = plan.Clients.Single(static client => client.Role == ClientRole.Handle);
+        await Assert.That(handle.Name).IsEqualTo("PtyRawClient");
+        await Assert.That(handle.Emission).IsEqualTo(EmissionMode.InternalRaw);
+        await Assert.That(handle.ContainerName).IsEqualTo("Ptys");
+        await Assert.That(handle.Operations.All(static operation => operation.RouteContainerName == "Ptys")).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Carry_A_Declared_Header_On_An_Internal_Raw_Operation()
+    {
+        var document = await BindingTestHost.IngestAsync(PtyScenario());
+
+        var plan = BindPtys(document, EmissionMode.InternalRaw);
+
+        var handle = plan.Clients.Single(static client => client.Role == ClientRole.Handle);
+        var token = handle.Operations.Single(static operation => operation.MethodName == "PostConnectTokenAsync");
+        var header = token.DeclaredHeaders.Single();
+        await Assert.That(header.WireName).IsEqualTo("x-opencode-ticket");
+        await Assert.That(header.Name).IsEqualTo("xOpencodeTicket");
+        await Assert
+            .That(handle.Operations.Single(static operation => operation.MethodName == "GetPtyAsync").DeclaredHeaders)
+            .IsEmpty();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Header_Parameter_On_A_Public_Family()
+    {
+        var document = await BindingTestHost.IngestAsync(PtyScenario());
+
+        var exception = Assert.Throws<BindingException>(() => _ = BindPtys(document, EmissionMode.Public));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Operation
+                                                       && error.Problem.Contains(
+                                                           "header parameter 'x-opencode-ticket' has no runtime channel",
+                                                           StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Required_Header_Parameter_On_An_Internal_Raw_Family()
+    {
+        var document = await BindingTestHost.IngestAsync(PtyScenario(headerRequired: true));
+
+        var exception = Assert.Throws<BindingException>(() => _ = BindPtys(document, EmissionMode.InternalRaw));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Operation
+                                                       && error.Problem.Contains(
+                                                           "must be an optional plainly encoded string",
+                                                           StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_Cursor_Pagination_On_An_Operation_Declaring_A_Header()
+    {
+        var document = await BindingTestHost.IngestAsync(CursorListScenario(configure: static operation => operation
+            .Parameter("limit", "query", QueryScenarioData.NullableString)
+            .Parameter("order", "query", QueryScenarioData.NullableOrderEnum)
+            .Parameter("cursor", "query", QueryScenarioData.NullableString)
+            .Parameter("x-opencode-ticket", "header", QueryScenarioData.NullableString)));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.list"),
+            Curation(Groups(
+                "widget",
+                ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null, emission: EmissionMode.InternalRaw)))));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Operation
+                                                       && error.Problem.Contains(
+                                                           "cursor pagination cannot carry a declared header",
+                                                           StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Header_Parameter_Landing_On_A_Reserved_Emitted_Name()
+    {
+        var document = await BindingTestHost.IngestAsync(PtyScenario(headerName: "declared-headers"));
+
+        var exception = Assert.Throws<BindingException>(() => _ = BindPtys(document, EmissionMode.InternalRaw));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
+                                                       && error.Problem.Contains(
+                                                           "'declaredHeaders' is reserved",
+                                                           StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
     public async Task Bind_Should_Bind_A_500_Error_Arm()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
@@ -1962,6 +2074,36 @@ public sealed class OperationPlanBinderTests
                     .Response(204);
                 configure?.Invoke(operation);
             }));
+
+    /// <summary>The header-bearing family shape: a handle group whose connect-token call declares a wire header.</summary>
+    private static SpecScenario PtyScenario(bool headerRequired = false, string headerName = "x-opencode-ticket") =>
+        SpecScenario.Define(spec => spec
+            .WithSchema("PtyInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("PtyTicket", schema => schema
+                .Type("object")
+                .Property("token", property => property.Type("string"), required: true))
+            .WithOperation("v2.pty.get", path: "/api/pty/{ptyID}", configure: operation => operation
+                .Parameter("ptyID", "path", schema => schema.Type("string"), required: true)
+                .Response(200, "application/json", schema => schema.Ref("PtyInfo")))
+            .WithOperation("v2.pty.connect.token", method: "post", path: "/api/pty/{ptyID}/connect-token",
+                configure: operation => operation
+                    .Parameter("ptyID", "path", schema => schema.Type("string"), required: true)
+                    .Parameter(
+                        headerName,
+                        "header",
+                        headerRequired ? static schema => schema.Type("string") : QueryScenarioData.NullableString,
+                        required: headerRequired)
+                    .Response(200, "application/json", schema => schema.Ref("PtyTicket"))));
+
+    private static EmitPlan BindPtys(SpecDocument document, EmissionMode emission) =>
+        new BindingTestHost().Bind(
+            document,
+            Selection("v2.pty.get", "v2.pty.connect.token"),
+            Curation(Groups(
+                "pty",
+                ClientGroup(clientName: "Ptys", handleName: "PtyClient", handleParameter: "ptyID", emission: emission))));
 
     private static EmitPlan BindWidgets(SpecDocument document, string operationId = "v2.widget.list") =>
         new BindingTestHost().Bind(

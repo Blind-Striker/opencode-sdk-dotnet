@@ -1183,6 +1183,86 @@ public sealed class SpecBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Refuse_An_Unrecognized_Group_Emission()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema
+                    .Type("object")
+                    .Property("data", property => property.Type("string"), required: true)))));
+        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+        {
+            ["health"] = RootGroup() with
+            {
+                Emission = (EmissionMode)7,
+            },
+        };
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(groups)));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+                                                       && error.Problem.Contains("not a recognized group emission", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_Internal_Raw_Emission_On_A_Root_Group()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec.WithOperation("v2.health.get")));
+        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+        {
+            ["health"] = RootGroup() with
+            {
+                Emission = EmissionMode.InternalRaw,
+            },
+        };
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(groups)));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+                                                       && error.Problem.Contains(
+                                                           "root group cannot declare internalRaw emission",
+                                                           StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_Internal_Raw_Emission_On_A_Group_Without_Selected_Operations()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.health.get")
+            .WithOperation("v2.pty.get", path: "/api/pty/{ptyID}", configure: operation => operation
+                .Parameter("ptyID", "path", schema => schema.Type("string"), required: true))));
+        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+        {
+            ["health"] = RootGroup(),
+            ["pty"] = ClientGroup(clientName: "Ptys", handleName: "PtyClient", handleParameter: "ptyID",
+                emission: EmissionMode.InternalRaw),
+        };
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(groups)));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+                                                       && error.Subject == "pty"
+                                                       && error.Problem.Contains(
+                                                           "internalRaw emission requires at least one selected operation",
+                                                           StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
     public async Task Ingest_Should_Refuse_A_Repeated_Path_Token()
     {
         var scenario = SpecScenario.Define(spec => spec

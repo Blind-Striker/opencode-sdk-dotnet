@@ -26,6 +26,20 @@ internal sealed record OperationPlan
         }
     } = Array.AsReadOnly(Array.Empty<OperationParameterPlan>());
 
+    /// <summary>
+    /// Gets the document-declared request headers, in declaration order. Only an internal-raw
+    /// family may declare one, because its hand-written door owns the value (ADR-0021).
+    /// </summary>
+    public IReadOnlyList<DeclaredHeaderPlan> DeclaredHeaders
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<DeclaredHeaderPlan>());
+
     /// <summary>Gets the query-request record plan, or <see langword="null"/> when the operation has no query parameters.</summary>
     public QueryRequestPlan? QueryRequest { get; init; }
 

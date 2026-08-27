@@ -11,9 +11,11 @@ internal sealed class PaginationFacetBinder(OperationFacetContext context)
     private readonly OperationFacetContext _context = context ?? throw new ArgumentNullException(nameof(context));
 
     public PaginationPlan? Bind(string methodName, IReadOnlyList<OperationParameterPlan>? parameters,
-        QueryRequestPlan? queryRequest, RequestBodyPlan? requestBody, EnvelopePlan? envelope)
+        IReadOnlyList<DeclaredHeaderPlan> declaredHeaders, QueryRequestPlan? queryRequest, RequestBodyPlan? requestBody,
+        EnvelopePlan? envelope)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(methodName);
+        ArgumentNullException.ThrowIfNull(declaredHeaders);
 
         if (queryRequest is not { DerivesFromListRequest: true, RidesRequestBody: false }
             || envelope is not
@@ -33,6 +35,13 @@ internal sealed class PaginationFacetBinder(OperationFacetContext context)
         {
             return _context.RefuseNull<PaginationPlan>(
                 "cursor pagination currently requires a GET operation with no body or unbound route parameters");
+        }
+
+        // The traversal core takes the one-page method as a fixed three-argument delegate,
+        // so an extra emitted parameter would break the method-group conversion.
+        if (declaredHeaders.Count > 0)
+        {
+            return _context.RefuseNull<PaginationPlan>("cursor pagination cannot carry a declared header parameter");
         }
 
         var enumerationMethodName = OperationNamePolicy.EnumerationMethodName(methodName);

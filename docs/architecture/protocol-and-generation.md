@@ -58,6 +58,8 @@ Curation may:
 
 - choose .NET names and placement for represented OpenAPI constructs — handle placement
   follows ADR-0019, and every curation row, group rows included, carries its reason;
+- declare that a family emits an internal raw layer rather than a public surface, where
+  hand-written code owns that family's public doors (ADR-0021);
 - collapse OpenAPI shapes proven structurally equivalent;
 - fingerprint exclusions already evidenced by the pinned document; and
 - map an operation whose upstream identity violates upstream's own conventions onto its intended
@@ -131,6 +133,13 @@ dispatch instead of routing it through ADR-0009's unknown carrier (ADR-0015).
 
 - Every HTTP operation method, including streaming operations, is generated as a short delegation
   into the hand-written behavior core (ADR-0008).
+- An internal-raw family emits its clients sealed and internal — internal operation methods and
+  handle factory, no mocking constructor — under raw type names, while the root client keeps the
+  public family accessor its hand-written door answers. Only such a family may carry a
+  document-declared request header: it emits as an optional trailing method parameter and travels
+  the declared-header channel into the pipeline. The header value stays a caller concern and never
+  enters curation or generated code, and a header-bearing operation forgoes the cursor-enumeration
+  companion (ADR-0013, ADR-0021).
 - A cursor-list operation emits an additive `Enumerate*Async` companion only when binding proves the
   admitted `ListRequest` query, `ListCursor` response, item collection, and operation signature.
   Generated response adapters project page items, the opaque next cursor, and the continuation

@@ -119,6 +119,125 @@ internal static class EmitterPlanFixture
         },
     ];
 
+    /// <summary>
+    /// The internal-raw family shape (ADR-0021): the generated layer emits internal while the
+    /// root client keeps the public accessor its hand-written family door will answer.
+    /// </summary>
+    public static IReadOnlyList<ClientPlan> CreateInternalRawClientPlans() =>
+    [
+        new ClientPlan
+        {
+            Name = "OpenCodeClient",
+            Namespace = "OpenCode.Sdk",
+            Role = ClientRole.Root,
+            SubClients =
+            [
+                new ClientReferencePlan
+                {
+                    PropertyName = "Ptys",
+                    TypeName = "PtysClient",
+                },
+            ],
+            Operations = [],
+        },
+        new ClientPlan
+        {
+            Name = "PtyRawClient",
+            Namespace = "OpenCode.Sdk",
+            Role = ClientRole.Handle,
+            ContainerName = "Ptys",
+            Emission = EmissionMode.InternalRaw,
+            SubClients = [],
+            HandleParameter = CreatePtyParameter(),
+            Operations = [CreatePtyConnectTokenOperation()],
+        },
+        new ClientPlan
+        {
+            Name = "PtysRawClient",
+            Namespace = "OpenCode.Sdk",
+            Role = ClientRole.Collection,
+            ContainerName = "Ptys",
+            Emission = EmissionMode.InternalRaw,
+            SubClients = [],
+            HandleFactory = new HandleFactoryPlan
+            {
+                MethodName = "GetPtyRawClient",
+                HandleTypeName = "PtyRawClient",
+                Parameter = CreatePtyParameter(),
+            },
+            Operations = [CreatePtyListOperation()],
+        },
+    ];
+
+    private static OperationParameterPlan CreatePtyParameter() =>
+        new()
+        {
+            WireName = "ptyID",
+            Name = "ptyId",
+            TypeName = "string",
+            IsHandleParameter = true,
+        };
+
+    private static OperationPlan CreatePtyConnectTokenOperation() =>
+        new()
+        {
+            MethodName = "PostConnectTokenAsync",
+            HttpMethod = "post",
+            RouteTemplate = "/api/pty/{ptyID}/connect-token",
+            RouteContainerName = "Ptys",
+            RouteMemberName = "PostConnectToken",
+            Parameters = [CreatePtyParameter()],
+            DeclaredHeaders =
+            [
+                new DeclaredHeaderPlan
+                {
+                    WireName = "x-opencode-ticket",
+                    Name = "xOpencodeTicket",
+                },
+            ],
+            Envelope = new EnvelopePlan
+            {
+                ResponseTypeName = "PtyConnectTokenPostResponse",
+                AdapterTypeName = "PtyConnectTokenPostResponseAdapter",
+                PayloadName = "ConnectToken",
+                PayloadTypeName = "ExampleItem",
+                Kind = EnvelopeKind.Bare,
+                SuccessStatusCode = 200,
+            },
+            ErrorMap = new ErrorMapPlan
+            {
+                Statuses = [],
+            },
+            Summary = "Mint one pty connect token",
+            Description = null,
+        };
+
+    private static OperationPlan CreatePtyListOperation() =>
+        new()
+        {
+            MethodName = "ListPtysAsync",
+            HttpMethod = "get",
+            RouteTemplate = "/api/pty",
+            RouteContainerName = "Ptys",
+            RouteMemberName = "ListPtys",
+            Parameters = [],
+            Envelope = new EnvelopePlan
+            {
+                ResponseTypeName = "PtyListResponse",
+                AdapterTypeName = "PtyListResponseAdapter",
+                PayloadName = "Ptys",
+                PayloadTypeName = "ExampleItem",
+                Kind = EnvelopeKind.Bare,
+                SuccessStatusCode = 200,
+            },
+            ErrorMap = new ErrorMapPlan
+            {
+                Statuses = [],
+            },
+            Summary = "List the ptys",
+            Description = null,
+        };
+
     private static OperationPlan CreatePingOperation() =>
         new()
         {

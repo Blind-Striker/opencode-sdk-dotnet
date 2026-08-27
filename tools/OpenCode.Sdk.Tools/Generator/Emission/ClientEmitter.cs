@@ -26,7 +26,13 @@ internal static class ClientEmitter
             ClientRole.Handle => EmitHandleConstructor(client),
             _ => throw new InvalidOperationException($"Unknown client role '{client.Role}'."),
         });
-        members.Add(EmitMockConstructor(client));
+
+        // A sealed internal client has no derivable seam, so it takes no mocking constructor.
+        if (client.Emission is not EmissionMode.InternalRaw)
+        {
+            members.Add(EmitMockConstructor(client));
+        }
+
         if (client.Role is ClientRole.Root)
         {
             members.AddRange(EmitDispose());
@@ -48,10 +54,10 @@ internal static class ClientEmitter
                 HandleFieldName(client.HandleParameter)));
         }
 
-        members.AddRange(EmitOperationMembers(client.Operations));
+        members.AddRange(EmitOperationMembers(client));
 
         var declaration = SyntaxFactory.ClassDeclaration(client.Name)
-            .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
+            .WithModifiers(EmissionModifiers.Type(client.Emission))
             .WithMembers(SyntaxFactory.List(members))
             .WithLeadingTrivia(EmissionSyntax.Documentation(Summary(client)));
         if (client.Role is ClientRole.Root)
@@ -60,7 +66,15 @@ internal static class ClientEmitter
                 SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.EmitNamed("IDisposable")))));
         }
 
-        // Adapter namespaces exist only where the corresponding operation kind emitted one.
+        var unit = EmissionSyntax.CompilationUnit(client.Namespace, EmitUsings(client), [declaration]);
+        return EmissionSyntax.CreateSource(
+            client.ContainerName is null ? $"{client.Name}.cs" : $"{client.ContainerName}/{client.Name}.cs",
+            unit);
+    }
+
+    /// <summary>Adapter and collection namespaces exist only where an operation kind needs one.</summary>
+    private static List<string> EmitUsings(ClientPlan client)
+    {
         var usings = new List<string>
         {
             "System",
@@ -74,7 +88,8 @@ internal static class ClientEmitter
             usings.Add("OpenCode.Sdk.Internal.ResponseAdapters");
         }
 
-        if (client.Operations.Any(static operation => operation.Stream is not null || operation.Pagination is not null))
+        if (client.Operations.Any(static operation =>
+                operation.Stream is not null || operation.Pagination is not null || operation.DeclaredHeaders.Count > 0))
         {
             usings.Add("System.Collections.Generic");
         }
@@ -91,10 +106,7 @@ internal static class ClientEmitter
 
         usings.Add("OpenCode.Sdk.Internal.Serialization");
         usings.Add("OpenCode.Sdk.Models");
-        var unit = EmissionSyntax.CompilationUnit(client.Namespace, usings, [declaration]);
-        return EmissionSyntax.CreateSource(
-            client.ContainerName is null ? $"{client.Name}.cs" : $"{client.ContainerName}/{client.Name}.cs",
-            unit);
+        return usings;
     }
 
     private static string Summary(ClientPlan client) => client.Role switch
@@ -105,14 +117,14 @@ internal static class ClientEmitter
         _ => throw new InvalidOperationException($"Unknown client role '{client.Role}'."),
     };
 
-    private static IEnumerable<MemberDeclarationSyntax> EmitOperationMembers(IReadOnlyList<OperationPlan> operations)
+    private static IEnumerable<MemberDeclarationSyntax> EmitOperationMembers(ClientPlan client)
     {
-        foreach (var operation in operations)
+        foreach (var operation in client.Operations)
         {
-            yield return OperationMethodEmitter.Emit(operation);
+            yield return OperationMethodEmitter.Emit(operation, client.Emission);
             if (operation.Pagination is not null)
             {
-                yield return PaginationMethodEmitter.Emit(operation);
+                yield return PaginationMethodEmitter.Emit(operation, client.Emission);
             }
         }
     }
@@ -337,11 +349,8 @@ internal static class ClientEmitter
                 SyntaxFactory.Argument(SyntaxFactory.IdentifierName("Pipeline")),
                 SyntaxFactory.Argument(SyntaxFactory.IdentifierName(factory.Parameter.Name)),
             ])))));
-        _ = client;
         return SyntaxFactory.MethodDeclaration(TypeSyntaxEmitter.EmitNamed(factory.HandleTypeName), factory.MethodName)
-            .WithModifiers(SyntaxFactory.TokenList(
-                SyntaxFactory.Token(SyntaxKind.PublicKeyword),
-                SyntaxFactory.Token(SyntaxKind.VirtualKeyword)))
+            .WithModifiers(EmissionModifiers.Member(client.Emission))
             .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SingletonSeparatedList(
                 SyntaxFactory.Parameter(SyntaxFactory.Identifier(factory.Parameter.Name))
                     .WithType(TypeSyntaxEmitter.EmitNamed(factory.Parameter.TypeName)))))

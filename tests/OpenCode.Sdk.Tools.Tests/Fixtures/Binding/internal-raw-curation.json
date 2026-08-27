@@ -1,0 +1,17 @@
+{
+  "groups": {
+    "pty": {
+      "placement": "client",
+      "clientName": "Ptys",
+      "handleName": "PtyClient",
+      "handleParameter": "ptyID",
+      "emission": "internalRaw",
+      "reason": "The family's public doors are hand-written over the generated internal layer (ADR-0021)."
+    }
+  },
+  "operationIdentities": [],
+  "operationNames": [],
+  "schemaNames": [],
+  "envelopePayloadNames": {},
+  "schemaAliases": []
+}

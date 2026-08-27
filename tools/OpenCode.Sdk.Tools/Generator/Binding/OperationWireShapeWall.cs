@@ -1,15 +1,18 @@
 using System.Globalization;
+using OpenCode.Sdk.Tools.Generator.Binding.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 
 namespace OpenCode.Sdk.Tools.Generator.Binding;
 
 /// <summary>
-/// The fail-closed wire-shape wall: HTTP method, path, body presence, path-parameter and
-/// status shapes are refused up front so every facet binder reads a known-good operation.
+/// The fail-closed wire-shape wall: HTTP method, path, body presence, parameter and status
+/// shapes are refused up front so every facet binder reads a known-good operation. The
+/// owning group's emission mode decides which header parameters the wall admits.
 /// </summary>
-internal sealed class OperationWireShapeWall(OperationFacetContext context)
+internal sealed class OperationWireShapeWall(OperationFacetContext context, EmissionMode emission)
 {
     private readonly OperationFacetContext _context = context ?? throw new ArgumentNullException(nameof(context));
+    private readonly EmissionMode _emission = emission;
 
     public bool Check()
     {
@@ -54,11 +57,9 @@ internal sealed class OperationWireShapeWall(OperationFacetContext context)
 
     private void CheckParameterShapes()
     {
-        // Header parameters ingest faithfully but no runtime channel carries them yet; a
-        // selected operation refuses here until the location/PTY arc gives headers an owner.
         foreach (var parameter in _context.Operation.Parameters.Where(static parameter => parameter.Location is SpecParameterLocation.Header))
         {
-            _context.Refuse($"header parameter '{parameter.Name}' has no runtime channel");
+            CheckHeaderShape(parameter);
         }
 
         foreach (var parameter in _context.Operation.Parameters.Where(static parameter => parameter.Location is SpecParameterLocation.Path))
@@ -73,6 +74,29 @@ internal sealed class OperationWireShapeWall(OperationFacetContext context)
             {
                 _context.Refuse($"path parameter '{parameter.Name}' must be a plain string");
             }
+        }
+    }
+
+    /// <summary>
+    /// A header value is never curated and never emitted (ADR-0013), so only an internal-raw
+    /// family — whose hand-written door supplies the value — can own one; a public family
+    /// keeps the refusal. The admitted shape is the optional plain string the emitted
+    /// signature carries, so an unrepresentable header fails here rather than silently
+    /// emitting an omittable required header.
+    /// </summary>
+    private void CheckHeaderShape(SpecParameter parameter)
+    {
+        if (_emission is not EmissionMode.InternalRaw)
+        {
+            _context.Refuse($"header parameter '{parameter.Name}' has no runtime channel");
+            return;
+        }
+
+        if (parameter is not { IsRequired: false, IsDeepObject: false }
+            || _context.Resolve(parameter.Schema) is not NullableNode { Format: null } nullable
+            || _context.Resolve(nullable.Inner) is not PrimitiveNode { Kind: PrimitiveKind.String, Format: null })
+        {
+            _context.Refuse($"header parameter '{parameter.Name}' must be an optional plainly encoded string");
         }
     }
 

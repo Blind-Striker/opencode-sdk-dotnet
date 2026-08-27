@@ -20,6 +20,7 @@ public sealed class CurationLoaderTests
         var curation = await new CurationLoader(fileSystem).LoadAsync(CurationPath, CancellationToken.None);
 
         await Assert.That(curation.Groups["health"].Placement).IsEqualTo(GroupPlacement.Root);
+        await Assert.That(curation.Groups["health"].Emission).IsEqualTo(EmissionMode.Public);
         await Assert.That(curation.OperationIdentities).IsEmpty();
         await Assert.That(curation.OperationNames).IsEmpty();
         await Assert.That(curation.SchemaNames).IsEmpty();
@@ -70,6 +71,30 @@ public sealed class CurationLoaderTests
         await Assert.That(alias.Schema).IsEqualTo("InvalidRequestError1");
         await Assert.That(alias.AliasOf).IsEqualTo("InvalidRequestError");
         await Assert.That(alias.Reason).Contains("duplicate");
+    }
+
+    [Test]
+    public async Task LoadAsync_Should_Read_The_Internal_Raw_Emission_Row()
+    {
+        var fileSystem = CreateFileSystem("Binding.internal-raw-curation.json");
+
+        var curation = await new CurationLoader(fileSystem).LoadAsync(CurationPath, CancellationToken.None);
+
+        await Assert.That(curation.Groups["pty"].Emission).IsEqualTo(EmissionMode.InternalRaw);
+        await Assert.That(curation.Groups["pty"].ClientName).IsEqualTo("Ptys");
+    }
+
+    [Test]
+    public async Task LoadAsync_Should_Refuse_An_Unknown_Emission_Value()
+    {
+        var fileSystem = CreateFileSystem("Binding.unknown-emission-curation.json");
+
+        var exception = await Assert
+            .That(async () => _ = await new CurationLoader(fileSystem).LoadAsync(CurationPath, CancellationToken.None))
+            .Throws<BindingException>();
+
+        await Assert.That(exception!.Errors.Single().Category).IsEqualTo(BindingErrorCategory.Curation);
+        await Assert.That(exception.Errors.Single().Problem).Contains("emission");
     }
 
     [Test]

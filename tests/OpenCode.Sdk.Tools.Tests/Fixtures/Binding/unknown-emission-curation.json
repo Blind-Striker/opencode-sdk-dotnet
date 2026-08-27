@@ -1,0 +1,14 @@
+{
+  "groups": {
+    "health": {
+      "placement": "root",
+      "emission": "bogus",
+      "reason": "The scenario declares an emission mode the generator does not recognize."
+    }
+  },
+  "operationIdentities": [],
+  "operationNames": [],
+  "schemaNames": [],
+  "envelopePayloadNames": {},
+  "schemaAliases": []
+}

@@ -131,6 +131,7 @@ internal sealed class CurationValidator
             }
 
             ValidateGroupShape(wireName, group, selected, errors);
+            ValidateGroupEmission(wireName, group, selected, errors);
         }
 
         // Groups sharing a client name merge into one client family, so their handle
@@ -202,6 +203,41 @@ internal sealed class CurationValidator
         }
 
         ValidateHandleParameterCoverage(wireName, group, selected, errors);
+    }
+
+    /// <summary>
+    /// The internal-raw mode hands a family's public surface to hand-written code (ADR-0021),
+    /// so it only means something on a client-placed group that actually emits operations;
+    /// every other spelling would be a silently inert row.
+    /// </summary>
+    private static void ValidateGroupEmission(string wireName, GroupCuration group, IReadOnlyList<SpecOperation> selected,
+        BindingErrorCollector errors)
+    {
+        if (group.Emission is not (EmissionMode.Public or EmissionMode.InternalRaw))
+        {
+            // System.Text.Json admits numeric enum spellings even under the string
+            // converter, so an out-of-range emission must fail here, not drop silently.
+            errors.Add(
+                BindingErrorCategory.Curation,
+                wireName,
+                $"emission value '{((int)group.Emission).ToString(System.Globalization.CultureInfo.InvariantCulture)}' is not a recognized group emission");
+            return;
+        }
+
+        if (group.Emission is not EmissionMode.InternalRaw)
+        {
+            return;
+        }
+
+        if (group.Placement is GroupPlacement.Root)
+        {
+            errors.Add(BindingErrorCategory.Curation, wireName, "root group cannot declare internalRaw emission");
+        }
+
+        if (!selected.Any(operation => string.Equals(GetGroup(operation), wireName, StringComparison.Ordinal)))
+        {
+            errors.Add(BindingErrorCategory.Curation, wireName, "internalRaw emission requires at least one selected operation");
+        }
     }
 
     /// <summary>

@@ -34,6 +34,21 @@ internal static class CSharpNamePolicy
         return string.Concat(char.ToLowerInvariant(pascal[0]), pascal[1..]);
     }
 
+    /// <summary>
+    /// Names an internal-raw client after its public family name (ADR-0021). The family's
+    /// public name stays free for the hand-written door, so <c>PtysClient</c> becomes
+    /// <c>PtysRawClient</c>; a curated name not ending in <c>Client</c> takes the suffix.
+    /// </summary>
+    public static string ToRawClientName(string clientName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(clientName);
+
+        const string suffix = "Client";
+        return clientName.EndsWith(suffix, StringComparison.Ordinal)
+            ? string.Concat(clientName.AsSpan(0, clientName.Length - suffix.Length), "Raw", suffix)
+            : string.Concat(clientName, "Raw");
+    }
+
     /// <summary>Names a union's emitted interface; unions are interfaces because a schema can
     /// belong to more than one of them (ADR-0011).</summary>
     public static string ToUnionInterfaceName(string conceptName)

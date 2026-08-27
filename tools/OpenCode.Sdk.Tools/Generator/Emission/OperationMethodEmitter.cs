@@ -7,10 +7,10 @@ using OpenCode.Sdk.Tools.Generator.Binding.Models;
 
 namespace OpenCode.Sdk.Tools.Generator.Emission;
 
-/// <summary>Emits one virtual operation method delegating once into the pipeline.</summary>
+/// <summary>Emits one operation method delegating once into the pipeline.</summary>
 internal static class OperationMethodEmitter
 {
-    public static MethodDeclarationSyntax Emit(OperationPlan operation)
+    public static MethodDeclarationSyntax Emit(OperationPlan operation, EmissionMode emission)
     {
         ArgumentNullException.ThrowIfNull(operation);
 
@@ -29,18 +29,61 @@ internal static class OperationMethodEmitter
             statements.AddRange(EmissionSyntax.ArgumentNullGuard(requiredBody.ParameterName));
         }
 
+        statements.AddRange(EmitDeclaredHeaderCollection(operation));
         statements.Add(SyntaxFactory.ReturnStatement(EmitDelegation(operation)));
         var returnType = operation.Stream is { } streaming
             ? TypeSyntaxEmitter.Generic("IAsyncEnumerable", TypeSyntaxEmitter.EmitNamed(streaming.PayloadTypeName))
             : TypeSyntaxEmitter.Generic("Task", TypeSyntaxEmitter.EmitNamed(operation.Envelope!.ResponseTypeName));
         return SyntaxFactory
             .MethodDeclaration(returnType, operation.MethodName)
-            .WithModifiers(SyntaxFactory.TokenList(
-                SyntaxFactory.Token(SyntaxKind.PublicKeyword),
-                SyntaxFactory.Token(SyntaxKind.VirtualKeyword)))
+            .WithModifiers(EmissionModifiers.Member(emission))
             .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(EmitParameters(operation, methodParameters))))
             .WithBody(SyntaxFactory.Block(statements))
             .WithLeadingTrivia(EmitDocumentation(operation, methodParameters));
+    }
+
+    /// <summary>
+    /// Collects the supplied declared headers into the value the pipeline sends. A header is
+    /// optional on the wire, so an omitted one contributes nothing rather than an empty value.
+    /// </summary>
+    private static IEnumerable<StatementSyntax> EmitDeclaredHeaderCollection(OperationPlan operation)
+    {
+        if (operation.DeclaredHeaders.Count is 0)
+        {
+            yield break;
+        }
+
+        var local = SyntaxFactory.IdentifierName(ReservedNamePolicy.DeclaredHeadersParameter);
+        yield return SyntaxFactory.LocalDeclarationStatement(SyntaxFactory.VariableDeclaration(
+            SyntaxFactory.IdentifierName("var"),
+            SyntaxFactory.SingletonSeparatedList(SyntaxFactory
+                .VariableDeclarator(ReservedNamePolicy.DeclaredHeadersParameter)
+                .WithInitializer(SyntaxFactory.EqualsValueClause(SyntaxFactory
+                    .ObjectCreationExpression(TypeSyntaxEmitter.Generic("List", TypeSyntaxEmitter.EmitNamed("DeclaredHeader")))
+                    .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(
+                        SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
+                            SyntaxKind.NumericLiteralExpression,
+                            SyntaxFactory.Literal(operation.DeclaredHeaders.Count)))))))))));
+        foreach (var header in operation.DeclaredHeaders)
+        {
+            var value = SyntaxFactory.IdentifierName(header.Name);
+            yield return SyntaxFactory.IfStatement(
+                SyntaxFactory.IsPatternExpression(
+                    value,
+                    SyntaxFactory.UnaryPattern(SyntaxFactory.ConstantPattern(
+                        SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)))),
+                SyntaxFactory.Block(SyntaxFactory.ExpressionStatement(EmissionSyntax.Invocation(
+                    EmissionSyntax.MemberAccess(local, "Add"),
+                    SyntaxFactory.Argument(SyntaxFactory
+                        .ObjectCreationExpression(TypeSyntaxEmitter.EmitNamed("DeclaredHeader"))
+                        .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(
+                        [
+                            SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
+                                SyntaxKind.StringLiteralExpression,
+                                SyntaxFactory.Literal(header.WireName))),
+                            SyntaxFactory.Argument(value),
+                        ]))))))));
+        }
     }
 
     private static IEnumerable<ParameterSyntax> EmitParameters(OperationPlan operation,
@@ -69,6 +112,15 @@ internal static class OperationMethodEmitter
             yield return SyntaxFactory
                 .Parameter(SyntaxFactory.Identifier(ReservedNamePolicy.RequestParameter))
                 .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(operation.QueryRequest.TypeName)))
+                .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)));
+        }
+
+        // Declared headers close the wire inputs, ahead of the SDK's own per-call knobs.
+        foreach (var header in operation.DeclaredHeaders)
+        {
+            yield return SyntaxFactory
+                .Parameter(SyntaxFactory.Identifier(header.Name))
+                .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed("string")))
                 .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)));
         }
 
@@ -114,6 +166,15 @@ internal static class OperationMethodEmitter
         if (operation.Stream is null)
         {
             arguments.Add(SyntaxFactory.Argument(SyntaxFactory.IdentifierName(ReservedNamePolicy.RequestOptionsParameter)));
+        }
+
+        // The collected headers are named so the overload reads at the call site and so the
+        // channel cannot bind silently to the wrong pipeline parameter.
+        if (operation.DeclaredHeaders.Count > 0)
+        {
+            arguments.Add(SyntaxFactory
+                .Argument(SyntaxFactory.IdentifierName(ReservedNamePolicy.DeclaredHeadersParameter))
+                .WithNameColon(SyntaxFactory.NameColon(ReservedNamePolicy.DeclaredHeadersParameter)));
         }
 
         arguments.Add(SyntaxFactory.Argument(SyntaxFactory.IdentifierName(ReservedNamePolicy.CancellationTokenParameter)));
@@ -187,6 +248,9 @@ internal static class OperationMethodEmitter
         {
             parameters.Add(new DocumentedParameter(ReservedNamePolicy.RequestParameter, "The request shaping the query."));
         }
+
+        parameters.AddRange(operation.DeclaredHeaders.Select(static header =>
+            new DocumentedParameter(header.Name, $"The '{header.WireName}' request header; omitted when null.")));
 
         if (operation.Stream is null)
         {

@@ -87,6 +87,11 @@ internal sealed class OperationPlanBinder
         ];
     }
 
+    /// <summary>
+    /// Builds a family's clients. An internal-raw family takes raw type names throughout
+    /// (ADR-0021): the public family name belongs to the hand-written door the root client
+    /// keeps pointing at, so nothing generated may claim it.
+    /// </summary>
     private IEnumerable<ClientPlan> CreateGroupClients(IReadOnlyList<BoundOperation> group, GroupCuration row, string collectionName)
     {
         var handleOperations = group.Where(static operation => operation.IsHandleOperation).ToArray();
@@ -99,20 +104,23 @@ internal sealed class OperationPlanBinder
             .OrderBy(static operation => operation.Plan.MethodName, _comparer)
             .SelectMany(static operation => operation.Plan.Parameters)
             .FirstOrDefault(static parameter => parameter.IsHandleParameter);
+        var collectionTypeName = ClientTypeName(collectionName, row.Emission);
+        var handleTypeName = row.HandleName is null ? null : ClientTypeName(row.HandleName, row.Emission);
 
         yield return new ClientPlan
         {
-            Name = collectionName,
+            Name = collectionTypeName,
             Namespace = ClientNamespace,
             Role = ClientRole.Collection,
+            Emission = row.Emission,
             ContainerName = row.ClientName,
             SubClients = [],
             HandleFactory = handleParameter is null
                 ? null
                 : new HandleFactoryPlan
                 {
-                    MethodName = $"Get{row.HandleName}",
-                    HandleTypeName = row.HandleName!,
+                    MethodName = $"Get{handleTypeName}",
+                    HandleTypeName = handleTypeName!,
                     Parameter = handleParameter,
                 },
             Operations = collectionOperations,
@@ -122,9 +130,10 @@ internal sealed class OperationPlanBinder
         {
             yield return new ClientPlan
             {
-                Name = row.HandleName!,
+                Name = handleTypeName!,
                 Namespace = ClientNamespace,
                 Role = ClientRole.Handle,
+                Emission = row.Emission,
                 ContainerName = row.ClientName,
                 SubClients = [],
                 HandleParameter = handleParameter,
@@ -137,6 +146,9 @@ internal sealed class OperationPlanBinder
             };
         }
     }
+
+    private static string ClientTypeName(string familyName, EmissionMode emission) =>
+        emission is EmissionMode.InternalRaw ? CSharpNamePolicy.ToRawClientName(familyName) : familyName;
 
     private void CheckMemberCollisions(List<ClientPlan> clients, BindingErrorCollector errors)
     {
@@ -265,7 +277,7 @@ internal sealed class OperationPlanBinder
                 return null;
             }
 
-            if (!new OperationWireShapeWall(_context).Check())
+            if (!new OperationWireShapeWall(_context, row.Emission).Check())
             {
                 return null;
             }
@@ -280,7 +292,8 @@ internal sealed class OperationPlanBinder
             }
 
             var errorMap = BindErrorMap();
-            var parameters = BindParameters(row);
+            var declaredHeaders = BindDeclaredHeaders();
+            var parameters = BindParameters(row, declaredHeaders);
             var optionalPlanErrorsBefore = _context.Errors.Count;
             var (queryRequest, requestBody) = BindRequests();
 
@@ -292,7 +305,7 @@ internal sealed class OperationPlanBinder
             }
 
             var pagination = new PaginationFacetBinder(_context)
-                .Bind(methodName, parameters, queryRequest, requestBody, envelope);
+                .Bind(methodName, parameters, declaredHeaders, queryRequest, requestBody, envelope);
 
             if ((success.IsSse ? stream is null : envelope is null)
                 || errorMap is null || parameters is null || _context.Errors.Count != optionalPlanErrorsBefore)
@@ -314,6 +327,7 @@ internal sealed class OperationPlanBinder
                     RouteContainerName = row.ClientName ?? CSharpNamePolicy.ToPascalCase(group),
                     RouteMemberName = routeMemberName,
                     Parameters = parameters,
+                    DeclaredHeaders = declaredHeaders,
                     QueryRequest = queryRequest,
                     RequestBody = requestBody,
                     Envelope = envelope,
@@ -459,7 +473,25 @@ internal sealed class OperationPlanBinder
             }
         }
 
-        private IReadOnlyList<OperationParameterPlan>? BindParameters(GroupCuration row)
+        /// <summary>
+        /// Binds the declared request headers. The wire-shape wall has already refused a
+        /// header the emitted signature could not carry, and refused every header outside an
+        /// internal-raw family, so the declaration order carries straight into the plan.
+        /// </summary>
+        private IReadOnlyList<DeclaredHeaderPlan> BindDeclaredHeaders() =>
+        [
+            .. _context.Operation
+                .Parameters
+                .Where(static parameter => parameter.Location is SpecParameterLocation.Header)
+                .Select(static parameter => new DeclaredHeaderPlan
+                {
+                    WireName = parameter.Name,
+                    Name = CSharpNamePolicy.ToCamelCase(parameter.Name),
+                }),
+        ];
+
+        private IReadOnlyList<OperationParameterPlan>? BindParameters(GroupCuration row,
+            IReadOnlyList<DeclaredHeaderPlan> declaredHeaders)
         {
             var plans = _context.Operation
                 .Parameters
@@ -474,7 +506,13 @@ internal sealed class OperationPlanBinder
                 })
                 .ToList();
 
-            var duplicate = plans.GroupBy(static plan => plan.Name, StringComparer.Ordinal).FirstOrDefault(static plan => plan.Skip(1).Any());
+            // Route values and declared headers share one emitted signature, so they are
+            // checked against one another rather than each within its own location.
+            var names = plans
+                .Select(static plan => plan.Name)
+                .Concat(declaredHeaders.Select(static header => header.Name))
+                .ToArray();
+            var duplicate = names.GroupBy(static name => name, StringComparer.Ordinal).FirstOrDefault(static name => name.Skip(1).Any());
             if (duplicate is not null)
             {
                 _context.Errors.Add(
@@ -486,8 +524,7 @@ internal sealed class OperationPlanBinder
 
             // Emitted signatures append these names after bind-time checks; a wire parameter
             // landing on one must fail here, never as an emitted compile error.
-            var reserved = plans
-                .Select(static plan => plan.Name)
+            var reserved = names
                 .Where(static name => ReservedNamePolicy.ParameterNames.Contains(name))
                 .Order(StringComparer.Ordinal)
                 .ToArray();
