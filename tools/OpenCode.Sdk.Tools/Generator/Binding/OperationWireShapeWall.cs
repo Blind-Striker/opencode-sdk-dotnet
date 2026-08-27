@@ -96,7 +96,7 @@ internal sealed class OperationWireShapeWall(OperationFacetContext context, Emis
             || _context.Resolve(parameter.Schema) is not NullableNode { Format: null } nullable
             || _context.Resolve(nullable.Inner) is not PrimitiveNode { Kind: PrimitiveKind.String, Format: null })
         {
-            _context.Refuse($"header parameter '{parameter.Name}' must be an optional plainly encoded string");
+            _context.Refuse($"header parameter '{parameter.Name}' must be optional, not deep-object, and declare a nullable string schema");
         }
     }
 

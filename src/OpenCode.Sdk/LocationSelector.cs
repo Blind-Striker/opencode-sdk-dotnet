@@ -6,6 +6,9 @@ namespace OpenCode.Sdk;
 /// <c>location[directory]</c> and <c>location[workspace]</c> query keys; as the client
 /// options' ambient default it rides the <c>x-opencode-directory</c> and
 /// <c>x-opencode-workspace</c> headers, which the server resolves after any query value.
+/// The per-call channel — <see cref="OpenCodeRequestOptions.Location"/> and
+/// <see cref="PtyConnectOptions.Location"/> — merges over the ambient selector member by
+/// member: a set member always wins, and an unset (null) member inherits the ambient value.
 /// </summary>
 public sealed record LocationSelector
 {

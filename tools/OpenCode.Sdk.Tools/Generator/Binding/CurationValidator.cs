@@ -401,6 +401,7 @@ internal sealed class CurationValidator
                     BindingErrorCategory.Curation,
                     row.OperationId,
                     "transport-owned curation must declare subtreeSha256 as 64 lowercase hex characters");
+                continue;
             }
 
             if (!operationsById.TryGetValue(row.OperationId, out var operation))

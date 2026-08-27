@@ -22,10 +22,14 @@ internal static class GeneratedSourceCompiler
     /// Hand-written sources sitting <em>above</em> generated output instead of under it: the
     /// PTY family's public doors delegate to generated raw clients (ADR-0021), so unlike the
     /// behavior core they cannot compile against a plan that never emitted their twin. Each
-    /// rides along only when the plan under test emitted the raw client it delegates to — the
-    /// pinned plan does, a synthetic emitter fixture does not.
+    /// rides along only when the plan under test emitted the raw client it delegates to —
+    /// today's pinned plan does, and a dedicated test asserts it keeps doing so
+    /// (<c>SourceEmitterTests.Emit_Should_Produce_Every_GeneratedSurfaceConsumers_RequiredEmission</c>),
+    /// so a renamed or dropped raw client fails that assertion loudly instead of silently
+    /// vanishing from this probe's coverage. A synthetic emitter fixture is free to omit the
+    /// twin, in which case its consumer is skipped here rather than failing to compile.
     /// </summary>
-    private static readonly (string Consumer, string RequiredEmission)[] GeneratedSurfaceConsumers =
+    internal static readonly (string Consumer, string RequiredEmission)[] GeneratedSurfaceConsumers =
     [
         ("Ptys/PtyClient.cs", "Ptys/PtyRawClient.cs"),
         ("Ptys/PtysClient.cs", "Ptys/PtysRawClient.cs"),

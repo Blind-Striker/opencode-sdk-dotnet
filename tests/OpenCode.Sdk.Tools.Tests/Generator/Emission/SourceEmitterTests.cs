@@ -97,6 +97,26 @@ public sealed class SourceEmitterTests
         await Assert.That(diagnostics).IsEmpty();
     }
 
+    /// <summary>
+    /// Guards <see cref="GeneratedSourceCompiler.GeneratedSurfaceConsumers"/>'s skip logic: the
+    /// pinned plan must actually emit every entry's <c>RequiredEmission</c> twin, so a renamed or
+    /// dropped raw client fails this assertion loudly instead of silently dropping its
+    /// hand-written consumer out of <see cref="GeneratedSourceCompiler.CompileWithSdkCoreAsync"/>'s
+    /// coverage.
+    /// </summary>
+    [Test]
+    public async Task Emit_Should_Produce_Every_GeneratedSurfaceConsumers_RequiredEmission()
+    {
+        var plan = await new BindingTestHost().BindPinnedAsync();
+        var sources = SourceEmitter.Emit(plan);
+        var emittedPaths = sources.Select(static source => source.RelativePath).ToHashSet(StringComparer.Ordinal);
+
+        foreach (var consumer in GeneratedSourceCompiler.GeneratedSurfaceConsumers)
+        {
+            await Assert.That(emittedPaths).Contains(consumer.RequiredEmission);
+        }
+    }
+
     [Test]
     public async Task Emit_Should_Deserialize_A_Shared_Pinned_Leaf_Through_Both_Stream_Interfaces()
     {

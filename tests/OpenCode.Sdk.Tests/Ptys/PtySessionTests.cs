@@ -147,6 +147,21 @@ public sealed class PtySessionTests
     }
 
     [Test]
+    public async Task ReadAsync_Should_Refuse_A_Session_Not_Found_Close_With_An_Empty_Reason()
+    {
+        // A real ClientWebSocket reports an empty description, not null, when the peer sent no
+        // reason text; the policy must treat both the same rather than rendering a hollow "4404 ()".
+        var socket = new ScriptedPtyWebSocket().Closing(SessionNotFound, string.Empty);
+        await using var session = new PtySession(socket);
+
+        var failure = await Assert.That(async () => _ = await ReadAllAsync(session))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(failure!.Message).Contains("4404");
+        await Assert.That(failure.Message.Contains("()", StringComparison.Ordinal)).IsFalse();
+    }
+
+    [Test]
     public async Task ReadAsync_Should_Refuse_An_Abnormal_Close()
     {
         var socket = new ScriptedPtyWebSocket().Closing(WebSocketCloseStatus.ProtocolError);

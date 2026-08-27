@@ -50,6 +50,8 @@ internal static class WireBodyData
 
     public const string PtyNotFoundError = "{\"_tag\":\"PtyNotFoundError\",\"ptyID\":\"pty_9\",\"message\":\"gone\"}";
 
+    public const string ForbiddenError = "{\"_tag\":\"ForbiddenError\",\"message\":\"not allowed\"}";
+
     public const string AgentNotFoundError = "{\"_tag\":\"AgentNotFoundError\",\"agentID\":\"missing\",\"message\":\"gone\"}";
 
     public const string ProviderNotFoundError =

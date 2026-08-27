@@ -1229,7 +1229,7 @@ public sealed class OperationPlanBinderTests
         await Assert
             .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Operation
                                                        && error.Problem.Contains(
-                                                           "must be an optional plainly encoded string",
+                                                           "must be optional, not deep-object, and declare a nullable string schema",
                                                            StringComparison.Ordinal)))
             .IsTrue();
     }

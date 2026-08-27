@@ -1348,11 +1348,14 @@ public sealed class SpecBinderTests
             Selection("v2.health.get"),
             Curation(Groups("health", RootGroup()), transportOwned: [TransportOwned("v2.pty.connect", "not-a-hash")])));
 
-        await Assert
-            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
-                                                       && error.Subject == "v2.pty.connect"
-                                                       && error.Problem.Contains("64 lowercase hex", StringComparison.Ordinal)))
-            .IsTrue();
+        // A malformed hash must yield exactly one error: the hex-shape refusal, not a second
+        // spurious "no longer matches" error from comparing the malformed value against a
+        // freshly computed fingerprint.
+        var errors = exception.Errors
+            .Where(error => error.Category == BindingErrorCategory.Curation && error.Subject == "v2.pty.connect")
+            .ToArray();
+        await Assert.That(errors.Length).IsEqualTo(1);
+        await Assert.That(errors[0].Problem).Contains("64 lowercase hex", StringComparison.Ordinal);
     }
 
     [Test]

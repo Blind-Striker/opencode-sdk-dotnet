@@ -112,6 +112,8 @@ public sealed class PtysClientContractTests
         await Assert.That(request.RequestUri)
             .IsEqualTo(new Uri("http://localhost:4096/api/pty/pty_100/connect-token"));
         await Assert.That(request.Headers[TicketHeader]).IsEqualTo("1");
+        await Assert.That(request.Body).IsNull();
+        await Assert.That(request.ContentType).IsNull();
     }
 
     [Test]
@@ -208,6 +210,19 @@ public sealed class PtysClientContractTests
 
         await Assert.That(exception!.Status).IsEqualTo(404);
         await Assert.That(exception.Error).IsTypeOf<PtyNotFoundError>();
+    }
+
+    [Test]
+    public async Task CreateConnectTokenAsync_Should_Throw_The_Declared_403_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Forbidden, WireBodyData.ForbiddenError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Ptys.GetPtyClient("pty_9").CreateConnectTokenAsync())
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(403);
+        await Assert.That(exception.Error).IsTypeOf<ForbiddenError>();
     }
 
     [Test]

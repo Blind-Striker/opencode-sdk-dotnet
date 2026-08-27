@@ -74,7 +74,7 @@ public class PtysClient
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
         Raw.ListPtysAsync(request, requestOptions, cancellationToken);
 
-    private ConnectionSnapshot Connection => _connection ?? throw MockSeam.CreateError("PtysClient", "Pipeline");
+    private ConnectionSnapshot Connection => _connection ?? throw MockSeam.CreateError("PtysClient", "Snapshot");
 
-    private PtysRawClient Raw => _raw ?? throw MockSeam.CreateError("PtysClient", "Pipeline");
+    private PtysRawClient Raw => _raw ?? throw MockSeam.CreateError("PtysClient", "RawClient");
 }

@@ -46,7 +46,8 @@ public class PtySession : IAsyncDisposable
     /// <summary>
     /// Reads the frames the server sends until it closes the connection normally. One session
     /// carries one active enumeration: message reassembly cannot be shared, so a second
-    /// concurrent enumeration is refused.
+    /// concurrent enumeration is refused. Reading after disposal is not an error: unlike
+    /// <see cref="WriteAsync"/>, which throws once disposed, the enumeration simply ends empty.
     /// </summary>
     /// <param name="cancellationToken">The cancellation token ending the read.</param>
     /// <returns>The frames, in the order the server sent them.</returns>
@@ -58,7 +59,10 @@ public class PtySession : IAsyncDisposable
     /// <summary>
     /// Writes input to the pseudo-terminal as one UTF-8 text message. Sends are serialized: the
     /// socket allows one outstanding send, so concurrent callers queue rather than corrupt the
-    /// stream.
+    /// stream. A terminal's Enter key is carriage return (<c>\r</c>); to submit a command, end
+    /// the line with <c>\r</c> — <c>\n</c> renders the text but never submits it. Unlike
+    /// <see cref="ReadAsync"/>, which yields an empty enumeration after disposal, a write after
+    /// disposal throws rather than doing nothing.
     /// </summary>
     /// <param name="input">The input to send; never null.</param>
     /// <param name="cancellationToken">The cancellation token.</param>

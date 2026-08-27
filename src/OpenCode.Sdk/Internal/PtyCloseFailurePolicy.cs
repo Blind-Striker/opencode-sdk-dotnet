@@ -28,7 +28,7 @@ internal static class PtyCloseFailurePolicy
         if (status is SessionNotFound)
         {
             return new OpenCodeTransportException(
-                $"The opencode server closed the PTY WebSocket with status 4404 ({description ?? "session not found"}); the PTY session was not found or had already exited.");
+                $"The opencode server closed the PTY WebSocket with status 4404{FormatReason(description)}; the PTY session was not found or had already exited.");
         }
 
         var code = status is null

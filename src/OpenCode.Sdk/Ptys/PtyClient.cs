@@ -4,10 +4,11 @@ using OpenCode.Sdk.Models;
 namespace OpenCode.Sdk;
 
 /// <summary>
-/// A bound 'PtyClient' handle; it holds an immutable identifier and the shared pipeline. The
-/// handle's public doors are hand-written over the generated <see cref="PtyRawClient"/>
-/// (ADR-0021) because the connect-token handshake needs a value the pinned document does not
-/// carry; every represented response still rides the generic envelope machinery.
+/// A bound 'PtyClient' handle; it holds a <see cref="PtyRawClient"/> and the
+/// <see cref="ConnectionSnapshot"/> the WebSocket door needs. The handle's public doors are
+/// hand-written over the generated <see cref="PtyRawClient"/> (ADR-0021) because the
+/// connect-token handshake needs a value the pinned document does not carry; every represented
+/// response still rides the generic envelope machinery.
 /// </summary>
 public class PtyClient
 {
@@ -107,14 +108,29 @@ public class PtyClient
     /// <param name="options">The connect options: the replay cursor and the per-call location.</param>
     /// <param name="cancellationToken">The cancellation token bounding the upgrade.</param>
     /// <returns>The live session; the caller owns its disposal.</returns>
-    /// <exception cref="OpenCodeTransportException">The upgrade was refused or never completed.</exception>
+    /// <exception cref="OpenCodeTransportException">
+    /// The upgrade was refused or never completed. A platform that cannot construct the
+    /// underlying <see cref="System.Net.WebSockets.ClientWebSocket"/> (pre-Windows-8) maps here
+    /// too, naming the platform as the cause, rather than escaping as a raw
+    /// <see cref="PlatformNotSupportedException"/>.
+    /// </exception>
     public virtual async Task<PtySession> ConnectAsync(PtyConnectOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         var connection = Connection;
         var ptyId = PtyId;
         var address = PtyConnectUriBuilder.Build(connection, ptyId, options);
-        var socket = new ClientPtyWebSocket(connection.Authorization);
+        ClientPtyWebSocket socket;
+        try
+        {
+            socket = new ClientPtyWebSocket(connection.Authorization);
+        }
+        catch (PlatformNotSupportedException exception)
+        {
+            throw new OpenCodeTransportException(
+                $"The opencode PTY '{ptyId}' WebSocket could not be constructed on this platform.", exception);
+        }
+
         try
         {
             await socket.ConnectAsync(address, ptyId, cancellationToken).ConfigureAwait(false);
@@ -127,9 +143,9 @@ public class PtyClient
         }
     }
 
-    private ConnectionSnapshot Connection => _connection ?? throw MockSeam.CreateError("PtyClient", "Pipeline");
+    private ConnectionSnapshot Connection => _connection ?? throw MockSeam.CreateError("PtyClient", "Snapshot");
 
     private string PtyId => _ptyId ?? throw MockSeam.CreateError("PtyClient", "PtyId");
 
-    private PtyRawClient Raw => _raw ?? throw MockSeam.CreateError("PtyClient", "Pipeline");
+    private PtyRawClient Raw => _raw ?? throw MockSeam.CreateError("PtyClient", "RawClient");
 }
