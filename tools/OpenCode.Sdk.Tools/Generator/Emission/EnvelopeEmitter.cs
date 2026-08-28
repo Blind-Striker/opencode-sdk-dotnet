@@ -62,9 +62,16 @@ internal static class EnvelopeEmitter
         var payloadName = RequirePayloadName(envelope);
         var fieldName = $"_{CSharpNamePolicy.ToCamelCase(payloadName)}";
         var payloadType = PayloadType(envelope);
+
+        // The field is always exactly one level nullable (it doubles as the error-path
+        // sentinel). For a nullable payload, PayloadType(envelope) already carries the plan's
+        // own '?' (TypeSyntaxEmitter.Emit), so EmitBackingField's wrap needs the non-nullable
+        // syntax underneath it to avoid stacking a second '?'; for a non-nullable payload this
+        // is the same syntax as payloadType, so the emission is unaffected.
+        var payloadFieldType = TypeSyntaxEmitter.Emit(envelope.PayloadType! with { IsNullable = false });
         var members = new List<MemberDeclarationSyntax>
         {
-            EmitBackingField(fieldName, payloadType),
+            EmitBackingField(fieldName, payloadFieldType),
         };
         if (envelope.Kind is EnvelopeKind.CursorList)
         {
@@ -89,7 +96,7 @@ internal static class EnvelopeEmitter
             members.Add(EmitLocationProperty(envelope.LocationTypeName));
         }
 
-        members.Add(EmitPrintMembers(payloadName, fieldName));
+        members.Add(EmitPrintMembers(envelope, payloadName, fieldName));
         return members;
     }
 
@@ -127,12 +134,17 @@ internal static class EnvelopeEmitter
         };
 
         // The payload assignment is the SDK's single null-forgiveness: the guarded getter
-        // makes the null unobservable. A no-content envelope has no payload to forgive.
+        // makes the null unobservable. A no-content envelope has no payload to forgive. A
+        // nullable payload's property is already typed to accept null, so no suppression is
+        // needed there — the response-state guard, not the field, is what makes it unobservable.
         if (envelope.PayloadName is not null)
         {
-            assignments.Add(Assign(envelope.PayloadName, SyntaxFactory.PostfixUnaryExpression(
-                SyntaxKind.SuppressNullableWarningExpression,
-                SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))));
+            ExpressionSyntax nullValue = envelope.PayloadType!.IsNullable
+                ? SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)
+                : SyntaxFactory.PostfixUnaryExpression(
+                    SyntaxKind.SuppressNullableWarningExpression,
+                    SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression));
+            assignments.Add(Assign(envelope.PayloadName, nullValue));
         }
 
         if (envelope.Kind is EnvelopeKind.CursorList)
@@ -168,12 +180,15 @@ internal static class EnvelopeEmitter
     private static PropertyDeclarationSyntax EmitPayloadProperty(EnvelopePlan envelope, TypeSyntax payloadType, string fieldName)
     {
         var payloadName = RequirePayloadName(envelope);
-        return EmitGuardedProperty(
-            payloadType,
-            payloadName,
-            fieldName,
-            SyntaxFactory.IdentifierName("value"),
-            $"Gets the {payloadName} payload; guarded on the error path.");
+        var documentation = $"Gets the {payloadName} payload; guarded on the error path.";
+        return envelope.PayloadType!.IsNullable
+            ? EmitResponseStateGuardedProperty(payloadType, payloadName, fieldName, documentation)
+            : EmitGuardedProperty(
+                payloadType,
+                payloadName,
+                fieldName,
+                SyntaxFactory.IdentifierName("value"),
+                documentation);
     }
 
     private static PropertyDeclarationSyntax EmitCursorProperty() =>
@@ -195,18 +210,49 @@ internal static class EnvelopeEmitter
     private static PropertyDeclarationSyntax EmitGuardedProperty(TypeSyntax propertyType, string propertyName,
         string fieldName, ExpressionSyntax initValue, string documentation)
     {
-        var guardMessage = $"The response is an error; check IsError before accessing {propertyName}.";
         var getter = SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
             .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(SyntaxFactory.BinaryExpression(
                 SyntaxKind.CoalesceExpression,
                 SyntaxFactory.IdentifierName(fieldName),
-                SyntaxFactory.ThrowExpression(SyntaxFactory.ObjectCreationExpression(
-                        TypeSyntaxEmitter.EmitNamed("InvalidOperationException"))
-                    .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(
-                        SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
-                            SyntaxKind.StringLiteralExpression,
-                            SyntaxFactory.Literal(guardMessage))))))))))
+                ThrowGuardExpression(propertyName))))
             .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+        return BuildGuardedProperty(propertyType, propertyName, fieldName, initValue, documentation, getter);
+    }
+
+    /// <summary>
+    /// A nullable payload's wire null is a legitimate success value that the backing field
+    /// cannot distinguish from the error path's forced null (both leave the field null), so
+    /// this getter checks <c>IsError</c> directly instead of coalescing on the field.
+    /// <see cref="EmitGuardedProperty"/> stays untouched for every non-nullable member —
+    /// payload, cursor, and location alike — so their emission is unaffected.
+    /// </summary>
+    private static PropertyDeclarationSyntax EmitResponseStateGuardedProperty(TypeSyntax propertyType,
+        string propertyName, string fieldName, string documentation)
+    {
+        var getter = SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+            .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(SyntaxFactory.ConditionalExpression(
+                SyntaxFactory.PrefixUnaryExpression(SyntaxKind.LogicalNotExpression, SyntaxFactory.IdentifierName("IsError")),
+                SyntaxFactory.IdentifierName(fieldName),
+                ThrowGuardExpression(propertyName))))
+            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+        return BuildGuardedProperty(
+            propertyType, propertyName, fieldName, SyntaxFactory.IdentifierName("value"), documentation, getter);
+    }
+
+    private static ThrowExpressionSyntax ThrowGuardExpression(string propertyName)
+    {
+        var guardMessage = $"The response is an error; check IsError before accessing {propertyName}.";
+        return SyntaxFactory.ThrowExpression(SyntaxFactory.ObjectCreationExpression(
+                TypeSyntaxEmitter.EmitNamed("InvalidOperationException"))
+            .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(
+                SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
+                    SyntaxKind.StringLiteralExpression,
+                    SyntaxFactory.Literal(guardMessage)))))));
+    }
+
+    private static PropertyDeclarationSyntax BuildGuardedProperty(TypeSyntax propertyType, string propertyName,
+        string fieldName, ExpressionSyntax initValue, string documentation, AccessorDeclarationSyntax getter)
+    {
         var setter = SyntaxFactory.AccessorDeclaration(SyntaxKind.InitAccessorDeclaration)
             .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(SyntaxFactory.AssignmentExpression(
                 SyntaxKind.SimpleAssignmentExpression,
@@ -221,7 +267,7 @@ internal static class EnvelopeEmitter
             .WithLeadingTrivia(EmissionSyntax.Documentation(documentation));
     }
 
-    private static MethodDeclarationSyntax EmitPrintMembers(string payloadName, string fieldName)
+    private static MethodDeclarationSyntax EmitPrintMembers(EnvelopePlan envelope, string payloadName, string fieldName)
     {
         var payloadField = SyntaxFactory.IdentifierName(fieldName);
         var builder = SyntaxFactory.IdentifierName("builder");
@@ -233,10 +279,19 @@ internal static class EnvelopeEmitter
                 .WithInitializer(SyntaxFactory.EqualsValueClause(EmissionSyntax.Invocation(
                     EmissionSyntax.MemberAccess(SyntaxFactory.BaseExpression(), "PrintMembers"),
                     SyntaxFactory.Argument(builder))))))));
-        statements.Add(SyntaxFactory.IfStatement(
-            SyntaxFactory.IsPatternExpression(
+
+        // A non-nullable payload's field is null only on the error path, so "field is null"
+        // is the right skip test. A nullable payload's field is also null on its own success
+        // path (a legitimate wire null), so the skip has to key off IsError instead — the
+        // field-null success case must still print "Widget = " with an empty rendering,
+        // matching the record's default null rendering.
+        ExpressionSyntax skipCondition = envelope.PayloadType!.IsNullable
+            ? SyntaxFactory.IdentifierName("IsError")
+            : SyntaxFactory.IsPatternExpression(
                 payloadField,
-                SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
+                SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)));
+        statements.Add(SyntaxFactory.IfStatement(
+            skipCondition,
             SyntaxFactory.Block(SyntaxFactory.ReturnStatement(SyntaxFactory.IdentifierName("printed")))));
         statements.Add(SyntaxFactory.IfStatement(
             SyntaxFactory.IdentifierName("printed"),

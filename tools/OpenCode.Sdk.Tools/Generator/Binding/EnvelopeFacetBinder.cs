@@ -149,8 +149,19 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
             return Named(name);
         }
 
-        return _context.Types.Bind(_context.Operation.OperationId, "payload", schema)
-               ?? _context.RefuseNull<TypeReferencePlan>("success payload does not bind to a supported type plan");
+        var bound = _context.Types.Bind(_context.Operation.OperationId, "payload", schema);
+        if (bound is null)
+        {
+            return _context.RefuseNull<TypeReferencePlan>("success payload does not bind to a supported type plan");
+        }
+
+        // A bare body has no wrapper to carry a null/absent distinction and no registered
+        // context accessor for a nullable root (SerializerTypeNamePolicy.ContextPropertyName
+        // throws on one); unlike a Data/DataLocation wrapper's 'data' member, nullable stays
+        // refused here rather than resurfacing as a late generation-time throw.
+        return bound.IsNullable
+            ? _context.RefuseNull<TypeReferencePlan>("a bare success body cannot represent null")
+            : bound;
     }
 
     private TypeReferencePlan? BindDataPayload(SchemaNode schema)

@@ -463,6 +463,87 @@ public sealed class ModelMaterializationMatrixTests
         await Assert.That(GetProperty(GetProperty(wrapper, "Handoff")!, "Id")).IsEqualTo("a");
     }
 
+    /// <summary>
+    /// Task 6's response-state guard: a nullable Data payload's success path lets a wire
+    /// <c>null</c> flow through as CLR null while <c>IsError</c> stays
+    /// false, a present value still round-trips, and the error path still throws the guard —
+    /// distinct from the field-null coalesce the non-nullable shape keeps using.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Materialize_A_Nullable_Data_Envelope_Payload_By_Response_State()
+    {
+        var (plan, operation) = await CreateNullableDataEnvelopePlanAsync();
+        await Assert.That(operation.Envelope!.PayloadType!.IsNullable).IsTrue();
+
+        var assembly = await GeneratedSourceCompiler.CompileAndLoadWithSdkCoreAsync(SourceEmitter.Emit(plan));
+
+        var present = AdaptSuccess(assembly, operation.Envelope, """{"data":{"id":"a"}}""");
+        var presentPayload = GetProperty(present, operation.Envelope.PayloadName!)
+                             ?? throw new InvalidOperationException("Expected a present payload.");
+        await Assert.That(GetProperty(presentPayload, "Id")).IsEqualTo("a");
+
+        var nullSuccess = AdaptSuccess(assembly, operation.Envelope, """{"data":null}""");
+        await Assert.That((bool)GetProperty(nullSuccess, "IsError")!).IsFalse();
+        await Assert.That(GetProperty(nullSuccess, operation.Envelope.PayloadName!)).IsNull();
+        var nullSuccessText = nullSuccess.ToString()
+                              ?? throw new InvalidOperationException("ToString returned null.");
+        await Assert.That(nullSuccessText).Contains($"{operation.Envelope.PayloadName} = ");
+        await Assert.That(nullSuccessText).DoesNotContain($"{operation.Envelope.PayloadName} = null");
+
+        var (adapter, adapt) = ResolveAdapter(assembly, operation.Envelope);
+        var error = adapt.Invoke(adapter, [400, """{"_tag":"WidgetError","message":"bad"}"""])
+                    ?? throw new InvalidOperationException("Adapt returned null for the error path.");
+        await Assert.That((bool)GetProperty(error, "IsError")!).IsTrue();
+        var exception = Assert.Throws<TargetInvocationException>(
+            () => GetProperty(error, operation.Envelope.PayloadName!));
+        await Assert.That(exception.InnerException).IsTypeOf<InvalidOperationException>();
+        await Assert.That(exception.InnerException!.Message).Contains("IsError");
+    }
+
+    /// <summary>
+    /// The non-nullable wall next to the nullable path it sits beside: Task 6 only changes the
+    /// guard shape a nullable-typed payload uses, so a non-nullable payload's wire null still
+    /// fails materialization behind <c>RespectNullableAnnotations</c>, exactly as before.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Still_Fail_To_Materialize_A_Wire_Null_For_A_Non_Nullable_Data_Envelope_Payload()
+    {
+        var (plan, operations) = await CreateContainerEnvelopePlanAsync();
+        var assembly = await GeneratedSourceCompiler.CompileAndLoadWithSdkCoreAsync(SourceEmitter.Emit(plan));
+
+        await AssertMissingDataFailsAsync(assembly, operations.DataList.Envelope!, """{"data":null}""");
+    }
+
+    private static async Task<(EmitPlan Plan, OperationPlan Operation)> CreateNullableDataEnvelopePlanAsync()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("WidgetError", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("_tag", property => property.Type("string").Enum("WidgetError"), required: true)
+                .Property("message", property => property.Type("string"), required: true))
+            .WithSchema("WidgetResponse", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("data", property => property.AnyOf(
+                    static branch => branch.Ref("WidgetInfo"),
+                    static branch => branch.Type("null")), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetResponse"))
+                .Response(400, "application/json", schema => schema.Ref("WidgetError")))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.list"),
+            Curation(Groups("widget", RootGroup())));
+
+        var operation = plan.Clients.SelectMany(static client => client.Operations).Single();
+        return (plan, operation);
+    }
+
     private static async Task<(EmitPlan Plan, OperationPlan Stats, OperationPlan Handoff)> CreatePromotedInlinePlanAsync()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec

@@ -1274,6 +1274,46 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Bind_A_Data_Envelope_Whose_Payload_Is_Nullable()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("WidgetResponse", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("data", property => property.AnyOf(
+                    static branch => branch.Ref("WidgetInfo"),
+                    static branch => branch.Type("null")), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetResponse")))));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.Data);
+        await Assert.That(list.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(list.Envelope.PayloadType!.IsNullable).IsTrue();
+        await Assert.That(((NamedTypeReferencePlan)list.Envelope.PayloadType).Name).IsEqualTo("WidgetInfo");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Bare_Envelope_Whose_Payload_Is_Nullable()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.AnyOf(
+                    static branch => branch.Ref("WidgetInfo"),
+                    static branch => branch.Type("null"))))));
+
+        await AssertWidgetRefusalAsync(document, "a bare success body cannot represent null");
+    }
+
+    [Test]
     public async Task Bind_Should_Refuse_A_Cursor_List_With_A_Malformed_Cursor()
     {
         var document = await BindingTestHost.IngestAsync(CursorListScenario(cursor => cursor
