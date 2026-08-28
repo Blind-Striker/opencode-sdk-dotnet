@@ -1391,6 +1391,40 @@ public sealed class OperationPlanBinderTests
         await AssertWidgetRefusalAsync(document, "a bare success body cannot represent null");
     }
 
+    /// <summary>
+    /// A promoted payload's operation-scoped stem (Task 5) is a concept name, not a surfaced
+    /// type name outright: when the promoted schema is itself a Marked union, the stem must
+    /// still route through <c>ToUnionInterfaceName</c> so it gets the same <c>I</c> prefix
+    /// every other Marked union interface carries (ADR-0011), rather than surfacing bare.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Promote_A_Bare_Marked_Union_Payload_With_An_I_Prefixed_Name()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.widget.condition", path: "/api/widget-condition", configure: operation => operation
+                .Response(200, "application/json", schema => schema.AnyOf(
+                    static branch => branch
+                        .Type("object")
+                        .AdditionalPropertiesFalse()
+                        .Property("_tag", static inner => inner.Type("string").Enum("Alpha"), required: true)
+                        .Property("value", static inner => inner.Type("string"), required: true),
+                    static branch => branch
+                        .Type("object")
+                        .AdditionalPropertiesFalse()
+                        .Property("_tag", static inner => inner.Type("string").Enum("Beta"), required: true))))));
+
+        var plan = BindWidgets(document, "v2.widget.condition");
+
+        var condition = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(condition.Envelope!.Kind).IsEqualTo(EnvelopeKind.Bare);
+        await Assert.That(condition.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        var payloadTypeName = ((NamedTypeReferencePlan)condition.Envelope.PayloadType!).Name;
+        await Assert.That(payloadTypeName).IsEqualTo("IWidgetConditionData");
+        await Assert
+            .That(plan.Unions.Any(union => union.Name == "IWidgetConditionData" && union.ConceptName == "WidgetConditionData"))
+            .IsTrue();
+    }
+
     [Test]
     public async Task Bind_Should_Refuse_A_Cursor_List_With_A_Malformed_Cursor()
     {

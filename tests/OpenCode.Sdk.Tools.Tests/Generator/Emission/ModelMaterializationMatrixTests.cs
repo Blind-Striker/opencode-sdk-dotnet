@@ -490,6 +490,11 @@ public sealed class ModelMaterializationMatrixTests
         await Assert.That(nullSuccessText).Contains($"{operation.Envelope.PayloadName} = ");
         await Assert.That(nullSuccessText).DoesNotContain($"{operation.Envelope.PayloadName} = null");
 
+        // A nullable payload accepts an explicit wire null, but the DTO's 'data' member stays
+        // `required` — an absent 'data' key is still a materialization failure, not a second
+        // spelling of null.
+        await AssertMissingDataFailsAsync(assembly, operation.Envelope, "{}");
+
         var (adapter, adapt) = ResolveAdapter(assembly, operation.Envelope);
         var error = adapt.Invoke(adapter, [400, """{"_tag":"WidgetError","message":"bad"}"""])
                     ?? throw new InvalidOperationException("Adapt returned null for the error path.");

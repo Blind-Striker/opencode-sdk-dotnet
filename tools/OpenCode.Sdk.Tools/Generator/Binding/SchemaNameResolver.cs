@@ -51,7 +51,13 @@ internal sealed class SchemaNameResolver
             }
             else if (payloadRoots.TryGetValue(key, out var payloadName))
             {
-                name = payloadName;
+                // A promoted payload that happens to be a Marked union still carries the same
+                // interface-name convention every other Marked union does (ADR-0011); the
+                // operation-scoped stem is the concept name that convention wraps, not the
+                // surfaced type name itself.
+                name = schema is UnionNode { Classification: UnionClassification.Marked }
+                    ? CSharpNamePolicy.ToUnionInterfaceName(payloadName)
+                    : payloadName;
             }
             else
             {
