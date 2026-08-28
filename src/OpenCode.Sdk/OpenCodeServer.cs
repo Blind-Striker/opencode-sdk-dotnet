@@ -113,7 +113,7 @@ public class OpenCodeServer : IAsyncDisposable
                 process, readyLine, readinessTimeout, stderrGate, stderrTail, cancellationToken).ConfigureAwait(false);
             if (!ServerReadyLine.TryParse(line, out var endpoint))
             {
-                await EndStartupFailureAsync(process).ConfigureAwait(false);
+                _ = await EndStartupFailureAsync(process).ConfigureAwait(false);
                 throw new OpenCodeServerException(
                     $"The server's first stdout line is not the JSON readiness contract: '{line}'.{DescribeStderr(stderrGate, stderrTail)}");
             }
@@ -271,7 +271,7 @@ public class OpenCodeServer : IAsyncDisposable
         }
         catch (OperationCanceledException exception)
         {
-            await EndStartupFailureAsync(process).ConfigureAwait(false);
+            _ = await EndStartupFailureAsync(process).ConfigureAwait(false);
             if (cancellationToken.IsCancellationRequested)
             {
                 throw new OperationCanceledException("The server start was canceled.", exception, cancellationToken);
@@ -291,10 +291,11 @@ public class OpenCodeServer : IAsyncDisposable
         // The root already exited on its own, but a launcher shim (a .cmd/bun wrapper that
         // spawns the real server and exits) can leave live grandchildren holding the redirected
         // pipe handles open — which would make the drain below wait for an EOF that never comes.
-        // Killing the tree first (best-effort, already swallowed by ProcessTreeTerminator) closes
-        // that gap before the bounded drain runs.
-        ProcessTreeTerminator.Kill(process);
-        await FlushOutputDrainAsync(process).ConfigureAwait(false);
+        // Killing the tree first closes that gap before the bounded drain runs; whether there was
+        // still a tree to end, and whether the drain reached EOF inside its bound, change nothing
+        // about what this failure reports.
+        _ = ProcessTreeTerminator.TryKill(process);
+        _ = await FlushOutputDrainAsync(process).ConfigureAwait(false);
         throw new OpenCodeServerException(
             $"The server exited with code {exitCode.ToString(CultureInfo.InvariantCulture)} before reporting readiness.{DescribeStderr(stderrGate, stderrTail)}");
     }
@@ -307,42 +308,68 @@ public class OpenCodeServer : IAsyncDisposable
         }
 
         // Stdin EOF ends the scoped server lifetime (server-process.ts:167-171); closing the
-        // redirected writer is the lease release.
+        // redirected writer is the lease release. A lease that was already gone means the child
+        // is already leaving, so the bounded wait below covers both outcomes.
+        _ = TryReleaseStdinLease(process);
+
+        if (await WaitForExitWithinAsync(process, grace).ConfigureAwait(false))
+        {
+            return;
+        }
+
+        _ = ProcessTreeTerminator.TryKill(process);
+
+        // Bounded on purpose: the kill was issued, and a disposal never hangs the caller, so a
+        // child the operating system has not reaped inside this window is left to it.
+        _ = await WaitForExitWithinAsync(process, ForcedExitTimeout).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Releases the ownership lease by closing the redirected stdin writer.
+    /// </summary>
+    /// <returns>
+    /// True when this call closed the writer; false when the pipe was already gone, which reports
+    /// the child leaving rather than a failure to end it.
+    /// </returns>
+    private static bool TryReleaseStdinLease(Process process)
+    {
         try
         {
             process.StandardInput.Close();
+            return true;
         }
         catch (InvalidOperationException)
         {
-            // The pipe is already gone with the process.
+            // The redirected writer went with the process; the lease is released either way.
+            return false;
         }
         catch (IOException)
         {
             // A broken pipe reports the same fact: the child is already leaving.
+            return false;
         }
+    }
 
-        using (var graceWindow = new CancellationTokenSource(grace))
-        {
-            try
-            {
-                await process.WaitForExitAsync(graceWindow.Token).ConfigureAwait(false);
-                return;
-            }
-            catch (OperationCanceledException)
-            {
-                // The grace expired; escalate below.
-            }
-        }
-
-        ProcessTreeTerminator.Kill(process);
-        using var forcedWindow = new CancellationTokenSource(ForcedExitTimeout);
+    /// <summary>
+    /// Waits for the child inside a window of its own, so no wait on a launched process is ever
+    /// unbounded.
+    /// </summary>
+    /// <returns>
+    /// True when the child exited inside the window; false when the window expired with the child
+    /// still running, which is what every caller escalates on.
+    /// </returns>
+    private static async Task<bool> WaitForExitWithinAsync(Process process, TimeSpan window)
+    {
+        using var bound = new CancellationTokenSource(window);
         try
         {
-            await process.WaitForExitAsync(forcedWindow.Token).ConfigureAwait(false);
+            await process.WaitForExitAsync(bound.Token).ConfigureAwait(false);
+            return true;
         }
         catch (OperationCanceledException)
         {
-            // Bounded on purpose: the kill was issued, and a disposal never hangs the caller.
+            // The window expired with the child still alive; the caller decides what follows.
+            return false;
         }
     }
 
@@ -362,27 +389,40 @@ public class OpenCodeServer : IAsyncDisposable
         }
     }
 
-    private static async Task EndStartupFailureAsync(Process process)
+    /// <summary>
+    /// Ends a child that failed to reach readiness and drains its redirected output, so the stderr
+    /// tail the caller is about to quote is as complete as the bound allows.
+    /// </summary>
+    /// <returns>
+    /// True when the drain ran to completion; false when it could not run at all. Either way the
+    /// startup failure reaches the caller as its own exception rather than as a teardown fault,
+    /// which is why every call site discards this: an incomplete tail is still the best evidence
+    /// available, and there is no second attempt worth making on a process being abandoned.
+    /// </returns>
+    private static async Task<bool> EndStartupFailureAsync(Process process)
     {
-        ProcessTreeTerminator.Kill(process);
+        _ = ProcessTreeTerminator.TryKill(process);
         try
         {
-            using var exitWindow = new CancellationTokenSource(ForcedExitTimeout);
-            await process.WaitForExitAsync(exitWindow.Token).ConfigureAwait(false);
-            await FlushOutputDrainAsync(process).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            // The bounded exit wait expired without the process ending; skip the drain rather
-            // than wait on a process that may still be alive and writing.
+            if (!await WaitForExitWithinAsync(process, ForcedExitTimeout).ConfigureAwait(false))
+            {
+                // The bounded exit wait expired without the process ending; skip the drain rather
+                // than wait on a process that may still be alive and writing.
+                return false;
+            }
+
+            return await FlushOutputDrainAsync(process).ConfigureAwait(false);
         }
         catch (InvalidOperationException)
         {
-            // Already gone.
+            // No process is associated with the object any more: there is nothing left to wait
+            // for, and nothing left holding the redirected pipes open either.
+            return false;
         }
         catch (Win32Exception)
         {
-            // Already gone or inaccessible; the outer disposal releases the handles either way.
+            // The handle is gone or inaccessible; the outer disposal releases what remains.
+            return false;
         }
     }
 
@@ -397,22 +437,30 @@ public class OpenCodeServer : IAsyncDisposable
     /// open, which would make an unbounded call here hang forever. The bound below is the
     /// guarantee instead; diagnostics are best-effort and never outrank returning to the caller.
     /// </summary>
-    private static Task FlushOutputDrainAsync(Process process) =>
+    /// <returns>True when the drain reached EOF inside its bound; false when it did not.</returns>
+    private static Task<bool> FlushOutputDrainAsync(Process process) =>
         BoundedDrain.RunAsync(() => WaitForExitBestEffort(process), DrainTimeout);
 
-    private static void WaitForExitBestEffort(Process process)
+    /// <summary>
+    /// The blocking half of the drain. Reports whether the redirected readers actually reached
+    /// EOF, so a caller quoting the captured tail knows whether it is complete.
+    /// </summary>
+    private static bool WaitForExitBestEffort(Process process)
     {
         try
         {
             process.WaitForExit();
+            return true;
         }
         catch (InvalidOperationException)
         {
-            // No process handle left to drain.
+            // No process handle left to drain; nothing this call can still flush.
+            return false;
         }
         catch (Win32Exception)
         {
-            // Best-effort diagnostics flushing only.
+            // The handle is gone or inaccessible, so the readers were never drained here.
+            return false;
         }
     }
 

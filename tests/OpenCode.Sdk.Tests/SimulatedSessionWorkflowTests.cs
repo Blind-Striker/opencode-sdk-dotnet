@@ -129,7 +129,9 @@ public sealed class SimulatedSessionWorkflowTests(SimulatedDriveServerFixture se
 
         // Interrupting the consumer removes the invocation server-side
         // (simulated-provider.ts:291 acquireRelease/close); removal is asynchronous, so poll
-        // bounded.
+        // bounded. Polling is the condition wait here, not a stand-in for one: the drive protocol
+        // has exactly one notification, llm.request (simulated-provider.ts:334), so nothing
+        // announces a removal and llm.pending is the only way to observe it.
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
         var pending = int.MaxValue;
         while (DateTime.UtcNow < deadline)

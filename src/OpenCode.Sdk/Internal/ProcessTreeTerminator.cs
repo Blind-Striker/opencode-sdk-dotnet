@@ -17,7 +17,12 @@ namespace OpenCode.Sdk.Internal;
 /// </summary>
 internal static class ProcessTreeTerminator
 {
-    public static void Kill(Process process)
+    /// <summary>Ends the process tree.</summary>
+    /// <returns>
+    /// True when the kill was issued; false when there was nothing left to end — the child had
+    /// already exited, or its handle is no longer accessible to this process.
+    /// </returns>
+    public static bool TryKill(Process process)
     {
         try
         {
@@ -38,20 +43,26 @@ internal static class ProcessTreeTerminator
                     UseShellExecute = false,
                     CreateNoWindow = true,
                 });
-                _ = killer?.WaitForExit(10_000);
-                return;
+                // taskkill's own exit is the confirmation that the tree kill was issued; a
+                // taskkill that could not even be started never issued one.
+                return killer?.WaitForExit(10_000) is true;
             }
 
             process.Kill();
 #endif
+            return true;
         }
         catch (InvalidOperationException)
         {
-            // Already exited; nothing left to end.
+            // Already exited (or never started): there is no tree left to end, which is the same
+            // end state the kill was asking for.
+            return false;
         }
         catch (Win32Exception)
         {
-            // Exited between the check and the kill, or the tree is already dying.
+            // Exited between the check and the kill, or the tree is already dying and its handle
+            // is no longer accessible; either way this process has nothing further to issue.
+            return false;
         }
     }
 }

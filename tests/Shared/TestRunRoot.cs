@@ -28,17 +28,9 @@ internal sealed class TestRunRoot : IDisposable
 
     public void Dispose()
     {
-        try
-        {
-            _fileSystem.Directory.Delete(Path, recursive: true);
-        }
-        catch (IOException)
-        {
-            // A straggling child handle wins; the OS temp cleaner owns the leftovers.
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // Same: retention is harmless, hanging a test run is not.
-        }
+        // Discarded deliberately: a straggling child handle winning the race is the one outcome
+        // this root has no answer for, and retention is harmless where failing a whole test run
+        // over a temp directory is not. The OS temp cleaner owns whatever is left.
+        _ = BestEffortDelete.TryDeleteTree(_fileSystem, Path);
     }
 }

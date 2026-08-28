@@ -16,6 +16,9 @@ internal sealed class DriveController : IAsyncDisposable
 {
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
 
+    /// <summary>The bound on the graceful close frame, and on the receive loop's unwind after it.</summary>
+    private static readonly TimeSpan TeardownTimeout = TimeSpan.FromSeconds(5);
+
     private readonly ClientWebSocket _socket;
     private readonly ConcurrentDictionary<long, TaskCompletionSource<JsonDocument>> _responses = new();
     private readonly ConcurrentQueue<DriveInvocation> _invocations = new();
@@ -25,6 +28,13 @@ internal sealed class DriveController : IAsyncDisposable
     private readonly Task _receiveLoop;
     private long _nextId;
     private int _disposed;
+
+    /// <summary>
+    /// What became of the receive loop, recorded the moment it stops reading. Without it a socket
+    /// that died mid-run reports only as "the backend did not answer", which sends a reader to the
+    /// backend when the connection is what broke; the bounded waits below quote this instead.
+    /// </summary>
+    private string? _loopState;
 
     /// <summary>
     /// The receive loop is started here, from the instance constructor, rather than from the
@@ -85,7 +95,7 @@ internal sealed class DriveController : IAsyncDisposable
         if (!await _invocationSignal.WaitAsync(timeout, _lifetime.Token))
         {
             throw new TimeoutException(
-                $"No llm.request arrived within {timeout.TotalSeconds.ToString("F0", CultureInfo.InvariantCulture)}s.");
+                $"No llm.request arrived within {timeout.TotalSeconds.ToString("F0", CultureInfo.InvariantCulture)}s.{DescribeLoopState()}");
         }
 
         return _invocations.TryDequeue(out var invocation)
@@ -137,27 +147,7 @@ internal sealed class DriveController : IAsyncDisposable
         }
 
         await _lifetime.CancelAsync();
-        try
-        {
-            using var closeTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            await _socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "done", closeTimeout.Token);
-        }
-        catch (WebSocketException)
-        {
-            // The socket may already be gone; the hard dispose below is unconditional.
-        }
-        catch (OperationCanceledException)
-        {
-            // The close timeout or an already-cancelled lifetime; the hard dispose still runs.
-        }
-        catch (ObjectDisposedException)
-        {
-            // A concurrent teardown path already disposed the socket.
-        }
-        catch (InvalidOperationException)
-        {
-            // Close before connect completes reports state, not failure.
-        }
+        _ = await TryCloseOutputAsync(_socket);
 
         // Read into a local before awaiting: awaiting the field expression directly reads to the
         // analyzer as awaiting a foreign task, the same defensive copy LoopbackHttpServer's
@@ -165,12 +155,63 @@ internal sealed class DriveController : IAsyncDisposable
         var receiveLoop = _receiveLoop;
 
         // CancellationToken.None deliberately: the lifetime token above is already cancelled, so
-        // tying this grace delay to it would resolve WhenAny immediately and give the receive
-        // loop no window at all to notice the cancellation and unwind.
-        _ = await Task.WhenAny(receiveLoop, Task.Delay(TimeSpan.FromSeconds(5), CancellationToken.None));
+        // tying this wait to it would resolve immediately and give the receive loop no window at
+        // all to notice the cancellation and unwind. The bound is the only limit that belongs here.
+        try
+        {
+            await receiveLoop.WaitAsync(TeardownTimeout, CancellationToken.None);
+        }
+        catch (TimeoutException)
+        {
+            // The hard dispose below is what stops a loop that will not unwind, and a fixture
+            // teardown must not wait on it any longer than this. Recorded rather than ignored: a
+            // caller whose in-flight wait is racing this teardown reads the state below.
+            RecordLoopState("still unwinding when disposal stopped waiting for it");
+        }
 
         _socket.Dispose();
         _lifetime.Dispose();
+    }
+
+    /// <summary>
+    /// Closes the socket's output side, bounded so an unresponsive peer cannot stall a fixture
+    /// teardown. Mirrors <c>PtySession.TryCloseAsync</c> (src/OpenCode.Sdk/Ptys/PtySession.cs),
+    /// including its deliberately wide fault set: a socket refusing a close for a state reason
+    /// must not escape a disposal.
+    /// </summary>
+    /// <returns>
+    /// True when the close frame left; false when it did not. Discarded at the call site because
+    /// the hard dispose that follows is unconditional, and a caller closing a connection has
+    /// nothing left to do about a close frame that never went out.
+    /// </returns>
+    private static async Task<bool> TryCloseOutputAsync(ClientWebSocket socket)
+    {
+        using var closeTimeout = new CancellationTokenSource(TeardownTimeout);
+        try
+        {
+            await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "done", closeTimeout.Token);
+            return true;
+        }
+        catch (WebSocketException)
+        {
+            // The socket may already be gone.
+            return false;
+        }
+        catch (OperationCanceledException)
+        {
+            // The close timeout, or an already-cancelled lifetime.
+            return false;
+        }
+        catch (ObjectDisposedException)
+        {
+            // A concurrent teardown path already disposed the socket.
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            // Close before connect completes reports state, not failure.
+            return false;
+        }
     }
 
     /// <summary>
@@ -217,15 +258,23 @@ internal sealed class DriveController : IAsyncDisposable
             _ = _sendGate.Release();
         }
 
-        var completed = await Task.WhenAny(waiter.Task, Task.Delay(RequestTimeout, _lifetime.Token));
-        if (completed != waiter.Task)
+        // The answer arriving is the condition; the timeout and the controller's lifetime are only
+        // the two bounds on waiting for it. Both bounds mean the same thing to a caller - no
+        // answer came - so both are reported as the one timeout the WhenAny race this replaces
+        // also reported.
+        JsonDocument response;
+        try
+        {
+            response = await waiter.Task.WaitAsync(RequestTimeout, _lifetime.Token);
+        }
+        catch (Exception exception) when (exception is TimeoutException or OperationCanceledException)
         {
             _ = _responses.TryRemove(id, out _);
             throw new TimeoutException(
-                $"The drive backend did not answer {method} (request {id.ToString(CultureInfo.InvariantCulture)}) within {RequestTimeout.TotalSeconds.ToString("F0", CultureInfo.InvariantCulture)}s.");
+                $"The drive backend did not answer {method} (request {id.ToString(CultureInfo.InvariantCulture)}) within {RequestTimeout.TotalSeconds.ToString("F0", CultureInfo.InvariantCulture)}s.{DescribeLoopState()}",
+                exception);
         }
 
-        var response = await waiter.Task;
         if (response.RootElement.TryGetProperty("error", out var error))
         {
             var message = error.GetProperty("message").GetString();
@@ -251,6 +300,7 @@ internal sealed class DriveController : IAsyncDisposable
                     received = await _socket.ReceiveAsync(new ArraySegment<byte>(buffer), _lifetime.Token);
                     if (received.MessageType == WebSocketMessageType.Close)
                     {
+                        RecordLoopState("the backend closed the connection");
                         return;
                     }
 
@@ -267,16 +317,34 @@ internal sealed class DriveController : IAsyncDisposable
         }
         catch (OperationCanceledException)
         {
-            // Disposal ended the loop.
+            // Disposal ended the loop. Recorded rather than rethrown: the loop's task is awaited
+            // by that same disposal, which must not be handed back the cancellation it asked for.
+            RecordLoopState("the controller was disposed");
         }
-        catch (WebSocketException)
+        catch (WebSocketException exception)
         {
-            // Teardown races are the disposal's business, not the loop's.
+            // Teardown races are the disposal's business, not the loop's - but a socket that
+            // faulted mid-run is exactly what a later timeout needs to be able to name.
+            RecordLoopState($"the WebSocket faulted ({exception.WebSocketErrorCode})");
         }
         catch (ObjectDisposedException)
         {
             // Disposal already tore the socket down; the loop simply stops.
+            RecordLoopState("the socket was already disposed");
         }
+    }
+
+    /// <summary>Records what became of the receive loop, for the bounded waits to quote.</summary>
+    private void RecordLoopState(string reason) => Volatile.Write(ref _loopState, reason);
+
+    /// <summary>
+    /// Names what became of the receive loop, as a sentence a timeout message can append. A wait
+    /// that expires while the loop is still reading normally says nothing extra.
+    /// </summary>
+    private string DescribeLoopState()
+    {
+        var reason = Volatile.Read(ref _loopState);
+        return reason is null ? string.Empty : $" Receive loop: {reason}.";
     }
 
     private void Dispatch(JsonDocument document)

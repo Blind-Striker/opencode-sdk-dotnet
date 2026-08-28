@@ -188,29 +188,50 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
         _ = _stdinLease.TrySetResult(null);
         if (_execution is not null)
         {
-            var graceful = await Task.WhenAny(_execution, Task.Delay(_gracefulShutdownTimeout, CancellationToken.None));
-            if (graceful != _execution)
+            // The grace is a bounded wait on the execution itself rather than a race against a
+            // timer: the child exiting on its own is the condition, and the bound is only what
+            // stops disposal waiting forever for it.
+            if (!await TryAwaitExitAsync(_execution, _gracefulShutdownTimeout))
             {
                 await _forceKill.CancelAsync();
             }
 
-            try
-            {
-                // Bounded the same way as the graceful wait above: the kill was issued, but
-                // CliWrap's own tree-kill confirming it is not guaranteed prompt, so this second
-                // wait gets its own bound rather than trusting it unconditionally
-                // (OpenCodeServer.EndOwnedChildAsync's double-layered escalation, mirrored here).
-                using var forcedWindow = new CancellationTokenSource(ForcedExitTimeout);
-                await _execution.WaitAsync(forcedWindow.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                // Either the forced teardown reporting through the cancellation it was given, or
-                // the bound above expiring first; disposal proceeds either way.
-            }
+            // Bounded the same way as the graceful wait above: the kill was issued, but CliWrap's
+            // own tree-kill confirming it is not guaranteed prompt, so this second wait gets its
+            // own bound rather than trusting it unconditionally
+            // (OpenCodeServer.EndOwnedChildAsync's double-layered escalation, mirrored here).
+            _ = await TryAwaitExitAsync(_execution, ForcedExitTimeout);
         }
 
         _forceKill.Dispose();
+    }
+
+    /// <summary>
+    /// Waits for the execution to finish inside a bound of its own.
+    /// </summary>
+    /// <returns>
+    /// True when the child exited inside the bound; false when the bound expired with it still
+    /// running, or when the execution reported the forced cancellation it was handed. The second
+    /// wait discards this because there is no third escalation to reach for: the tree kill has
+    /// already been issued, and a disposal must return to its caller regardless.
+    /// </returns>
+    private static async Task<bool> TryAwaitExitAsync(Task execution, TimeSpan bound)
+    {
+        try
+        {
+            await execution.WaitAsync(bound);
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            // The bound expired with the child still running.
+            return false;
+        }
+        catch (OperationCanceledException)
+        {
+            // The forced teardown reporting through the cancellation token it was given.
+            return false;
+        }
     }
 
     private void OnOutputLine(string line)

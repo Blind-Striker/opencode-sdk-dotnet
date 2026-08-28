@@ -20,17 +20,8 @@ public sealed class TestWorkspace : IDisposable
 
     public void Dispose()
     {
-        try
-        {
-            _fileSystem.Directory.Delete(Path, recursive: true);
-        }
-        catch (IOException)
-        {
-            // Best effort; the run root's own cleanup owns the leftovers.
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // Same.
-        }
+        // Discarded deliberately: this workspace lives under the run root, so a tree a straggling
+        // child handle keeps alive here is swept again when that root is disposed.
+        _ = BestEffortDelete.TryDeleteTree(_fileSystem, Path);
     }
 }
