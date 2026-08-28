@@ -4271,16 +4271,16 @@ wrapper-named payload models renamed via deliberate regeneration, `GenerateTextR
 Marked-union payload roots claimed by this naming route now resolve through
 `CSharpNamePolicy.ToUnionInterfaceName`, so a promoted union payload carries the `I` prefix like
 every other union interface — a Task 5 minor promoted to a pre-Task-7 requirement once Task 6's
-review showed it reachable. Represented-nullable payloads (a wire `null` that is a legitimate
-success value, not an error) ride a parallel `EmitResponseStateGuardedProperty` path keyed on
-`!IsError`, replacing the ordinary `field ?? throw` guard that would otherwise misreport a null
-success as an error (Task 6, `111235e`). The same task's addendum extends `DataLocationList`
-array-position inline items to promote under the same operation-scoped naming (`46771f5`,
-prefix fix `9477e0d`). A closing micro-task extended the location-envelope `data` ref resolution
-to follow a `RefNode` to its target and, when that target is itself an `ArrayNode`, apply the
-existing array-item logic — the shape `vcs.branches` needed, whose `data` member is
-`{"$ref": ".../Vcs.BranchList"}` and `Vcs.BranchList` is a named array-of-string component
-(`d963653`/`6b0c662`).
+review showed it reachable (fix round `9477e0d`). Represented-nullable payloads (a wire `null`
+that is a legitimate success value, not an error) ride a parallel
+`EmitResponseStateGuardedProperty` path keyed on `!IsError`, replacing the ordinary
+`field ?? throw` guard that would otherwise misreport a null success as an error (Task 6,
+`111235e`). The same task's addendum extends `DataLocationList` array-position inline items to
+promote under the same operation-scoped naming (`46771f5`). A closing micro-task extended the
+location-envelope `data` ref resolution to follow a `RefNode` to its target and, when that target
+is itself an `ArrayNode`, apply the existing array-item logic — the shape `vcs.branches` needed,
+whose `data` member is `{"$ref": ".../Vcs.BranchList"}` and `Vcs.BranchList` is a named
+array-of-string component (`d963653`/`6b0c662`).
 
 **Selection outcome:** 17 operations were selected — the `server`, `workspace`, and `worktree`
 families (new to the surface), `vcs` (`status` and `branches`), `location` (`get`), `session`
@@ -4327,6 +4327,7 @@ post-arc routine sweep batch, to land with the `.generation-incomplete` bindabil
 (`[bindable]`/`[refused: …]` marks) as the bridge until the inventory/assurance-ledger lane
 standardizes pending-operation tracking.
 
-**Evidence:** the full gate is green at every landing commit; the arc's last full run (Task 7d,
-commit `9cff200`) reports 3,282/3,282 tests, `generate --verify` current at 98/36, and slopwatch
-at exactly the two ledgered SW004 residuals with zero new findings.
+**Evidence:** the full gate is green at every landing commit. The arc's last full run (Task 7d,
+commit `9cff200`, which touched no generator/spec code) reports 3,282/3,282 tests and slopwatch at
+exactly the two ledgered SW004 residuals with zero new findings; `generate --verify` was last run,
+and last applicable, at the `vcs.branches` fix-round commit `142d6fa`, current at 98/36.
