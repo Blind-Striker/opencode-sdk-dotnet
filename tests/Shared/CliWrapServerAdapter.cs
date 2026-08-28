@@ -17,7 +17,20 @@ namespace OpenCode.Sdk.TestSupport;
 /// </summary>
 internal sealed class CliWrapServerAdapter : IAsyncDisposable
 {
-    private static readonly TimeSpan GracefulShutdownTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan DefaultGracefulShutdownTimeout = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// Mirrors OpenCodeServer's own ForcedExitTimeout: the bound the escalation itself gets, so a
+    /// tree-kill CliWrap cannot confirm promptly never turns disposal into an unbounded hang.
+    /// </summary>
+    private static readonly TimeSpan ForcedExitTimeout = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// Bounded well above the 40-line exception tail (<see cref="DescribeLogs"/>): the
+    /// failure-path log write wants enough context to diagnose without letting a chatty
+    /// PerTestSession-lifetime server grow these files unbounded.
+    /// </summary>
+    private const int RetainedLogLines = 500;
 
     private readonly TaskCompletionSource<object?> _stdinLease =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -25,8 +38,9 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
         new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly CancellationTokenSource _forceKill = new();
     private readonly Lock _logGate = new();
-    private readonly List<string> _stdout = [];
-    private readonly List<string> _stderr = [];
+    private readonly Queue<string> _stdout = new();
+    private readonly Queue<string> _stderr = new();
+    private TimeSpan _gracefulShutdownTimeout = DefaultGracefulShutdownTimeout;
     private Task? _execution;
     private Uri? _endpoint;
     private string? _password;
@@ -42,16 +56,30 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
 
     public int ProcessId => _processId;
 
+    /// <summary>
+    /// Starts the adapter and waits for readiness. <paramref name="onConstructed"/> runs
+    /// synchronously the instant the adapter object exists - before the process is even spawned -
+    /// so a caller can retain the reference regardless of whether this method later throws. That
+    /// is what lets <see cref="PinnedOpenCodeServerFixture"/> write out the captured stdout/stderr
+    /// on a startup failure: every failure path below still disposes the adapter itself before
+    /// throwing (the child is always ended), but the object - and its log buffers - survive for
+    /// the caller to inspect.
+    /// </summary>
     public static async Task<CliWrapServerAdapter> StartAsync(
         IReadOnlyList<string> command,
         IReadOnlyDictionary<string, string> environment,
         string workingDirectory,
-        TimeSpan readinessTimeout)
+        TimeSpan readinessTimeout,
+        TimeSpan? gracefulShutdownTimeout = null,
+        Action<CliWrapServerAdapter>? onConstructed = null,
+        CancellationToken cancellationToken = default)
     {
         var adapter = new CliWrapServerAdapter
         {
             _password = GeneratePassword(),
+            _gracefulShutdownTimeout = gracefulShutdownTimeout ?? DefaultGracefulShutdownTimeout,
         };
+        onConstructed?.Invoke(adapter);
         var cli = Cli.Wrap(command[0])
             .WithArguments([.. command.Skip(1), "--stdio", "--port", "0"])
             .WithWorkingDirectory(workingDirectory)
@@ -81,14 +109,24 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
         var execution = cli.ExecuteAsync(adapter._forceKill.Token);
         adapter._processId = execution.ProcessId;
         adapter._execution = execution.Task;
-        using var timeout = new CancellationTokenSource(readinessTimeout);
+
+        // Linked so a caller-supplied cancellation (e.g. a test's own [Timeout]) and the internal
+        // readiness bound both reach the same wait, distinguished below exactly as
+        // OpenCodeServer.WaitForReadyLineAsync distinguishes the same two sources.
+        using var readiness = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        readiness.CancelAfter(readinessTimeout);
         try
         {
-            _ = await Task.WhenAny(adapter._firstLine.Task, execution.Task).WaitAsync(timeout.Token);
+            _ = await Task.WhenAny(adapter._firstLine.Task, execution.Task).WaitAsync(readiness.Token);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException exception)
         {
             await adapter.DisposeAsync();
+            if (cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException("The adapter start was canceled.", exception, cancellationToken);
+            }
+
             throw new InvalidOperationException(
                 $"The pinned server did not report readiness within {readinessTimeout.TotalSeconds.ToString("F0", CultureInfo.InvariantCulture)}s.{adapter.DescribeLogs()}");
         }
@@ -138,7 +176,7 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
         _ = _stdinLease.TrySetResult(null);
         if (_execution is not null)
         {
-            var graceful = await Task.WhenAny(_execution, Task.Delay(GracefulShutdownTimeout, CancellationToken.None));
+            var graceful = await Task.WhenAny(_execution, Task.Delay(_gracefulShutdownTimeout, CancellationToken.None));
             if (graceful != _execution)
             {
                 await _forceKill.CancelAsync();
@@ -146,11 +184,17 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
 
             try
             {
-                await _execution;
+                // Bounded the same way as the graceful wait above: the kill was issued, but
+                // CliWrap's own tree-kill confirming it is not guaranteed prompt, so this second
+                // wait gets its own bound rather than trusting it unconditionally
+                // (OpenCodeServer.EndOwnedChildAsync's double-layered escalation, mirrored here).
+                using var forcedWindow = new CancellationTokenSource(ForcedExitTimeout);
+                await _execution.WaitAsync(forcedWindow.Token);
             }
             catch (OperationCanceledException)
             {
-                // The forced teardown reports through the cancellation it was given.
+                // Either the forced teardown reporting through the cancellation it was given, or
+                // the bound above expiring first; disposal proceeds either way.
             }
         }
 
@@ -162,7 +206,11 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
         _ = _firstLine.TrySetResult(line);
         lock (_logGate)
         {
-            _stdout.Add(line);
+            _stdout.Enqueue(line);
+            if (_stdout.Count > RetainedLogLines)
+            {
+                _ = _stdout.Dequeue();
+            }
         }
     }
 
@@ -170,7 +218,11 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
     {
         lock (_logGate)
         {
-            _stderr.Add(line);
+            _stderr.Enqueue(line);
+            if (_stderr.Count > RetainedLogLines)
+            {
+                _ = _stderr.Dequeue();
+            }
         }
     }
 
