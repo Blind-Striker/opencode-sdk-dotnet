@@ -22,7 +22,7 @@ internal sealed class PaginationFacetBinder(OperationFacetContext context)
             {
                 Kind: EnvelopeKind.CursorList,
                 PayloadName: { } payloadName,
-                PayloadTypeName: { } itemTypeName,
+                PayloadType: ListTypeReferencePlan { ElementType: NamedTypeReferencePlan { Name: { } itemTypeName } },
             })
         {
             return null;

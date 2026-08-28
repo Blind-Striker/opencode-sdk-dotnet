@@ -97,14 +97,7 @@ internal static class EnvelopeEmitter
         envelope.PayloadName
         ?? throw new InvalidOperationException($"Envelope '{envelope.ResponseTypeName}' has no payload.");
 
-    private static TypeSyntax PayloadType(EnvelopePlan envelope)
-    {
-        var payloadTypeName = envelope.PayloadTypeName
-                              ?? throw new InvalidOperationException($"Envelope '{envelope.ResponseTypeName}' has no payload.");
-        return envelope.Kind is EnvelopeKind.CursorList or EnvelopeKind.DataLocationList
-            ? TypeSyntaxEmitter.Generic("IReadOnlyList", TypeSyntaxEmitter.EmitNamed(payloadTypeName))
-            : TypeSyntaxEmitter.EmitNamed(payloadTypeName);
-    }
+    private static TypeSyntax PayloadType(EnvelopePlan envelope) => TypeSyntaxEmitter.Emit(envelope.PayloadType!);
 
     private static FieldDeclarationSyntax EmitBackingField(string fieldName, TypeSyntax payloadType) =>
         SyntaxFactory.FieldDeclaration(SyntaxFactory.VariableDeclaration(

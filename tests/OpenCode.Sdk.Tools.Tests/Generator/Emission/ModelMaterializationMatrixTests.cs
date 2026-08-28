@@ -400,7 +400,7 @@ public sealed class ModelMaterializationMatrixTests
     private static async Task AssertRootUnionNullFailsAsync(Assembly assembly, EmitPlan plan)
     {
         var operation = plan.Clients.SelectMany(static client => client.Operations)
-            .Single(static candidate => candidate.Envelope?.PayloadTypeName == "IMatrixChoice");
+            .Single(static candidate => candidate.Envelope?.PayloadType is NamedTypeReferencePlan { Name: "IMatrixChoice" });
         var adapterType = assembly.GetType(
             $"OpenCode.Sdk.Internal.ResponseAdapters.{operation.Envelope!.AdapterTypeName}",
             throwOnError: true)!;

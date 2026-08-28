@@ -30,9 +30,7 @@ internal static class EnvelopeDtoEmitter
 
     private static GeneratedSource EmitDto(EnvelopePlan envelope)
     {
-        var payloadTypeName = envelope.PayloadTypeName
-                              ?? throw new InvalidOperationException($"Envelope '{envelope.ResponseTypeName}' has no payload.");
-        var data = EmitProperty("data", "Data", EmitDataType(envelope.Kind, payloadTypeName));
+        var data = EmitProperty("data", "Data", TypeSyntaxEmitter.Emit(envelope.PayloadType!));
         var members = new List<MemberDeclarationSyntax> { data, };
         if (envelope.Kind is EnvelopeKind.CursorList)
         {
@@ -63,14 +61,6 @@ internal static class EnvelopeDtoEmitter
             [declaration]);
         return EmissionSyntax.CreateSource($"Internal/Serialization/{envelope.EnvelopeDtoTypeName}.cs", unit);
     }
-
-    private static TypeSyntax EmitDataType(EnvelopeKind kind, string payloadTypeName) => kind switch
-    {
-        EnvelopeKind.Data or EnvelopeKind.DataLocation => TypeSyntaxEmitter.EmitNamed(payloadTypeName),
-        EnvelopeKind.CursorList or EnvelopeKind.DataLocationList =>
-            TypeSyntaxEmitter.Generic("IReadOnlyList", TypeSyntaxEmitter.EmitNamed(payloadTypeName)),
-        EnvelopeKind.Bare or EnvelopeKind.NoContent or _ => throw new InvalidOperationException($"Envelope kind '{kind}' has no DTO."),
-    };
 
     private static PropertyDeclarationSyntax EmitProperty(string wireName, string name, TypeSyntax type) =>
         SyntaxFactory.PropertyDeclaration(type, name)

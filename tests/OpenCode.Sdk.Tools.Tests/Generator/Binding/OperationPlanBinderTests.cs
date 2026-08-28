@@ -127,7 +127,8 @@ public sealed class OperationPlanBinderTests
         await Assert.That(health.Envelope!.ResponseTypeName).IsEqualTo("HealthResponse");
         await Assert.That(health.Envelope.AdapterTypeName).IsEqualTo("HealthResponseAdapter");
         await Assert.That(health.Envelope.PayloadName).IsEqualTo("Health");
-        await Assert.That(health.Envelope.PayloadTypeName).IsEqualTo("ServiceHealth");
+        await Assert.That(health.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(((NamedTypeReferencePlan)health.Envelope.PayloadType!).Name).IsEqualTo("ServiceHealth");
         await Assert.That(health.Envelope.Kind).IsEqualTo(EnvelopeKind.Bare);
         await Assert
             .That(health
@@ -171,7 +172,11 @@ public sealed class OperationPlanBinderTests
             .IsTrue();
         await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.CursorList);
         await Assert.That(list.Envelope.PayloadName).IsEqualTo("Sessions");
-        await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("SessionInfo");
+        await Assert.That(list.Envelope.PayloadType).IsTypeOf<ListTypeReferencePlan>();
+        await Assert.That(((ListTypeReferencePlan)list.Envelope.PayloadType!).ElementType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert
+            .That(((NamedTypeReferencePlan)((ListTypeReferencePlan)list.Envelope.PayloadType).ElementType).Name)
+            .IsEqualTo("SessionInfo");
         await Assert
             .That(list
                 .ErrorMap.Statuses[0]
@@ -207,7 +212,8 @@ public sealed class OperationPlanBinderTests
         await Assert.That(createShell.QueryRequest!.RidesRequestBody).IsTrue();
         await Assert.That(createShell.QueryRequest.TypeName).IsEqualTo("ShellCreateRequest");
         await Assert.That(createShell.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocation);
-        await Assert.That(createShell.Envelope.PayloadTypeName).IsEqualTo("ShellInfo");
+        await Assert.That(createShell.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(((NamedTypeReferencePlan)createShell.Envelope.PayloadType!).Name).IsEqualTo("ShellInfo");
         await Assert.That(createShell.Envelope.LocationTypeName).IsEqualTo("LocationInfo");
 
         var listShells = shells.Operations.Single(static operation => operation.MethodName == "ListShellsAsync");
@@ -320,7 +326,8 @@ public sealed class OperationPlanBinderTests
         await Assert.That(message.Envelope!.ResponseTypeName).IsEqualTo("SessionMessageResponse");
         await Assert.That(message.Envelope.AdapterTypeName).IsEqualTo("SessionMessageResponseAdapter");
         await Assert.That(message.Envelope.PayloadName).IsEqualTo("Message");
-        await Assert.That(message.Envelope.PayloadTypeName).IsEqualTo("ISessionMessageInfo");
+        await Assert.That(message.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(((NamedTypeReferencePlan)message.Envelope.PayloadType!).Name).IsEqualTo("ISessionMessageInfo");
         await Assert.That(message.Envelope.Kind).IsEqualTo(EnvelopeKind.Data);
         await Assert
             .That(message
@@ -426,7 +433,8 @@ public sealed class OperationPlanBinderTests
         await Assert.That(part.Envelope!.ResponseTypeName).IsEqualTo("GadgetPartResponse");
         await Assert.That(part.Envelope.AdapterTypeName).IsEqualTo("GadgetPartResponseAdapter");
         await Assert.That(part.Envelope.PayloadName).IsEqualTo("Part");
-        await Assert.That(part.Envelope.PayloadTypeName).IsEqualTo("GadgetPart");
+        await Assert.That(part.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(((NamedTypeReferencePlan)part.Envelope.PayloadType!).Name).IsEqualTo("GadgetPart");
         await Assert.That(part.Envelope.Kind).IsEqualTo(EnvelopeKind.Data);
         await Assert.That(part.ErrorMap.Statuses.Single().StatusCode).IsEqualTo(404);
         await Assert.That(part.ErrorMap.Statuses.Single().Tags.Single().TypeName).IsEqualTo("GadgetMissingError");
@@ -779,7 +787,11 @@ public sealed class OperationPlanBinderTests
 
         var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.CursorList);
-        await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("WidgetInfo");
+        await Assert.That(list.Envelope.PayloadType).IsTypeOf<ListTypeReferencePlan>();
+        await Assert.That(((ListTypeReferencePlan)list.Envelope.PayloadType!).ElementType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert
+            .That(((NamedTypeReferencePlan)((ListTypeReferencePlan)list.Envelope.PayloadType).ElementType).Name)
+            .IsEqualTo("WidgetInfo");
         await Assert.That(list.Envelope.EnvelopeDtoTypeName).IsEqualTo("WidgetListResponseEnvelope");
         await Assert
             .That(plan
@@ -825,7 +837,8 @@ public sealed class OperationPlanBinderTests
 
         var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocation);
-        await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("WidgetInfo");
+        await Assert.That(list.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(((NamedTypeReferencePlan)list.Envelope.PayloadType!).Name).IsEqualTo("WidgetInfo");
         await Assert.That(list.Envelope.LocationTypeName).IsEqualTo("PlaceInfo");
         await Assert.That(list.Envelope.EnvelopeDtoTypeName).IsEqualTo("WidgetListResponseEnvelope");
         await Assert
@@ -846,7 +859,11 @@ public sealed class OperationPlanBinderTests
 
         var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocationList);
-        await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("WidgetInfo");
+        await Assert.That(list.Envelope.PayloadType).IsTypeOf<ListTypeReferencePlan>();
+        await Assert.That(((ListTypeReferencePlan)list.Envelope.PayloadType!).ElementType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert
+            .That(((NamedTypeReferencePlan)((ListTypeReferencePlan)list.Envelope.PayloadType).ElementType).Name)
+            .IsEqualTo("WidgetInfo");
         await Assert.That(list.Envelope.LocationTypeName).IsEqualTo("PlaceInfo");
     }
 
@@ -1003,7 +1020,8 @@ public sealed class OperationPlanBinderTests
 
         var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.Data);
-        await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("WidgetInfo");
+        await Assert.That(list.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(((NamedTypeReferencePlan)list.Envelope.PayloadType!).Name).IsEqualTo("WidgetInfo");
         await Assert
             .That(plan
                 .Models.Select(static model => model.Name)
@@ -1557,7 +1575,7 @@ public sealed class OperationPlanBinderTests
         await Assert.That(create.Envelope.SuccessStatusCode).IsEqualTo(204);
         await Assert.That(create.Envelope.ResponseTypeName).IsEqualTo("WidgetCreateResponse");
         await Assert.That(create.Envelope.PayloadName).IsNull();
-        await Assert.That(create.Envelope.PayloadTypeName).IsNull();
+        await Assert.That(create.Envelope.PayloadType).IsNull();
         await Assert.That(create.Envelope.EnvelopeDtoTypeName).IsNull();
         await Assert.That(plan.Registry.TypeNames.Contains("WidgetCreateResponseEnvelope", StringComparer.Ordinal)).IsFalse();
     }
