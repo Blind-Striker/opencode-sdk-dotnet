@@ -89,7 +89,7 @@ jobs:
 
       - name: Detect slop
         if: runner.os == 'Linux'
-        run: dotnet tool run slopwatch analyze --fail-on warning
+        run: dotnet tool run slopwatch analyze --exclude ".scratchpad/**,external/**" --fail-on warning
 
       - name: Build
         run: dotnet build --configuration Release
