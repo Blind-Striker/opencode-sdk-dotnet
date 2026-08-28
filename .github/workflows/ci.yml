@@ -44,6 +44,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          submodules: true
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v5
@@ -54,6 +56,24 @@ jobs:
           dotnet-version: |
             8.0.x
             9.0.x
+
+      - name: Setup Bun (pinned server runtime)
+        uses: oven-sh/setup-bun@v2
+        with:
+          # The pin's own packageManager row (external/opencode/package.json).
+          bun-version: 1.3.14
+
+      - name: Cache bun install
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('external/opencode/bun.lock') }}
+
+      # --ignore-scripts skips the root postinstall (a node-pty fixup); M4's scenarios create
+      # no pty, and skipping scripts keeps the install deterministic and fast.
+      - name: Install pinned server dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+        working-directory: external/opencode
 
       - name: Cache NuGet packages
         uses: actions/cache@v6
