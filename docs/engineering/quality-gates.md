@@ -49,6 +49,10 @@ back the policy globally. `.editorconfig` contains the established pattern.
   so build mechanically owns enabled warning/error diagnostics from every third-party analyzer.
 - Product code uses `ConfigureAwait(false)`, triple-enforced by CA2007, MA0004 in `Always` mode,
   and VSTHRD111. Tests are exempt from all three rules.
+- `CA1502` attributes local functions declared in top-level statements to the compiler-generated
+  `Main`, so a top-level `Program.cs` accumulates every mode's dispatch complexity onto one
+  method. Split the dispatch into a named class instead of arbitrating the rule;
+  `tests/OpenCode.Sdk.Sandbox/SandboxRunner.cs` records the precedent.
 
 Research doc 07 records the claim verification, community comparison, and rule arbitration behind
 this policy.

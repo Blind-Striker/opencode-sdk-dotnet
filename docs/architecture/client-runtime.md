@@ -257,7 +257,7 @@ torn down.
 Launcher acceptance is real-process and three-OS. Platform-specific behavior is tested on the
 platform it represents; a successful compile is not a lifecycle proof.
 
-### Connection modes
+## Connection modes
 
 The SDK targets all three upstream connection modes, named after upstream's own verbs — no
 invented method names, and every variation rides options arguments rather than a new door.
