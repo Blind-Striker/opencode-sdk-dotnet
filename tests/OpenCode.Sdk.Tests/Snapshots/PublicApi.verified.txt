@@ -534,12 +534,18 @@
             public const string CreatePermissionTemplate = "/api/session/{sessionID}/permission";
             public const string CreateSession = "/api/session";
             public const string DeleteInboxCancelTemplate = "/api/session/{sessionID}/inbox/{inboxID}";
+            public const string GetActive = "/api/session/active";
+            public const string GetContextTemplate = "/api/session/{sessionID}/context";
             public const string GetExportTemplate = "/api/session/{sessionID}/export";
             public const string GetLogTemplate = "/api/experimental/session/{sessionID}/log";
             public const string GetMessageTemplate = "/api/session/{sessionID}/message/{messageID}";
             public const string GetPermissionTemplate = "/api/session/{sessionID}/permission/{requestID}";
             public const string GetSessionTemplate = "/api/session/{sessionID}";
+            public const string ListFormsTemplate = "/api/session/{sessionID}/form";
+            public const string ListInboxTemplate = "/api/session/{sessionID}/inbox";
+            public const string ListInstructionsEntryTemplate = "/api/session/{sessionID}/instructions/entries";
             public const string ListMessagesTemplate = "/api/session/{sessionID}/message";
+            public const string ListRequestsTemplate = "/api/session/{sessionID}/permission";
             public const string ListSessionsTemplate = "/api/session";
             public const string PostBackgroundTemplate = "/api/session/{sessionID}/background";
             public const string PostCommandTemplate = "/api/session/{sessionID}/command";
@@ -569,12 +575,17 @@
             public const string RenameSessionTemplate = "/api/session/{sessionID}/rename";
             public static string CreatePermission(string sessionId) { }
             public static string DeleteInboxCancel(string sessionId, string inboxId) { }
+            public static string GetContext(string sessionId) { }
             public static string GetExport(string sessionId, OpenCode.Sdk.SessionExportRequest? request = null) { }
             public static string GetLog(string sessionId, OpenCode.Sdk.SessionLogRequest? request = null) { }
             public static string GetMessage(string sessionId, string messageId) { }
             public static string GetPermission(string sessionId, string requestId) { }
             public static string GetSession(string sessionId) { }
+            public static string ListForms(string sessionId) { }
+            public static string ListInbox(string sessionId) { }
+            public static string ListInstructionsEntry(string sessionId) { }
             public static string ListMessages(string sessionId, OpenCode.Sdk.MessageListRequest? request = null) { }
+            public static string ListRequests(string sessionId) { }
             public static string ListSessions(OpenCode.Sdk.SessionListRequest? request = null) { }
             public static string PostBackground(string sessionId) { }
             public static string PostCommand(string sessionId) { }
@@ -880,6 +891,12 @@
         public required OpenCode.Sdk.Models.ServerData Server { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
+    public sealed class SessionActiveResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionActiveResponse>
+    {
+        public SessionActiveResponse() { }
+        public required System.Collections.Generic.IReadOnlyDictionary<string, OpenCode.Sdk.Models.SessionActive> Active { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
     public sealed class SessionBackgroundPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionBackgroundPostResponse>
     {
         public SessionBackgroundPostResponse() { }
@@ -890,12 +907,17 @@
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionPermissionCreateResponse> CreatePermissionAsync(OpenCode.Sdk.Models.SessionPermissionCreateRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionInboxCancelDeleteResponse> DeleteInboxCancelAsync(string inboxId, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Collections.Generic.IAsyncEnumerable<OpenCode.Sdk.Models.ISessionMessageInfo> EnumerateMessagesAsync(OpenCode.Sdk.MessageListRequest? request = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionContextResponse> GetContextAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionExportResponse> GetExportAsync(OpenCode.Sdk.SessionExportRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Collections.Generic.IAsyncEnumerable<OpenCode.Sdk.Models.ISessionLogItem> GetLogAsync(OpenCode.Sdk.SessionLogRequest? request = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionMessageResponse> GetMessageAsync(string messageId, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionPermissionResponse> GetPermissionAsync(string requestId, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionResponse> GetSessionAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionFormListResponse> ListFormsAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionInboxListResponse> ListInboxAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionInstructionsEntryListResponse> ListInstructionsEntryAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.MessageListResponse> ListMessagesAsync(OpenCode.Sdk.MessageListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionPermissionListResponse> ListRequestsAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionBackgroundPostResponse> PostBackgroundAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionCommandPostResponse> PostCommandAsync(OpenCode.Sdk.Models.SessionCommandPostRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionCompactPostResponse> PostCompactAsync(OpenCode.Sdk.Models.SessionCompactPostRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
@@ -932,6 +954,12 @@
         public required OpenCode.Sdk.Models.SessionInboxCompaction Compact { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
+    public sealed class SessionContextResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionContextResponse>
+    {
+        public SessionContextResponse() { }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.ISessionMessageInfo> Context { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
     public sealed class SessionCreateResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionCreateResponse>
     {
         public SessionCreateResponse() { }
@@ -959,6 +987,12 @@
     {
         public SessionFormCancelPostResponse() { }
     }
+    public sealed class SessionFormListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionFormListResponse>
+    {
+        public SessionFormListResponse() { }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.FormInfo> Forms { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
     public sealed class SessionGeneratePostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionGeneratePostResponse>
     {
         public SessionGeneratePostResponse() { }
@@ -975,6 +1009,12 @@
     {
         public SessionInboxCancelDeleteResponse() { }
     }
+    public sealed class SessionInboxListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionInboxListResponse>
+    {
+        public SessionInboxListResponse() { }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.ISessionInboxInfo> Inbox { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
     public sealed class SessionInboxQueuePostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionInboxQueuePostResponse>
     {
         public SessionInboxQueuePostResponse() { }
@@ -982,6 +1022,12 @@
     public sealed class SessionInboxSteerPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionInboxSteerPostResponse>
     {
         public SessionInboxSteerPostResponse() { }
+    }
+    public sealed class SessionInstructionsEntryListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionInstructionsEntryListResponse>
+    {
+        public SessionInstructionsEntryListResponse() { }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.InstructionEntryInfo> InstructionsEntry { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class SessionInstructionsEntryPutResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionInstructionsEntryPutResponse>
     {
@@ -1047,6 +1093,12 @@
     {
         public SessionPermissionCreateResponse() { }
         public required OpenCode.Sdk.Models.SessionPermissionCreateData Permission { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class SessionPermissionListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionPermissionListResponse>
+    {
+        public SessionPermissionListResponse() { }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.PermissionRequest> Requests { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class SessionPermissionReplyPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionPermissionReplyPostResponse>
@@ -1123,6 +1175,7 @@
     {
         protected SessionsClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionCreateResponse> CreateSessionAsync(OpenCode.Sdk.Models.SessionCreateRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionActiveResponse> GetActiveAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual OpenCode.Sdk.SessionClient GetSessionClient(string sessionId) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionListResponse> ListSessionsAsync(OpenCode.Sdk.SessionListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionImportPostResponse> PostImportAsync(OpenCode.Sdk.Models.SessionImportPostRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2077,6 +2130,12 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         string Type { get; }
     }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.SessionInboxInfoJsonConverter))]
+    public interface ISessionInboxInfo
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        string Type { get; }
+    }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.SessionInboxItemJsonConverter))]
     public interface ISessionInboxItem
     {
@@ -2184,6 +2243,14 @@ namespace OpenCode.Sdk.Models
         public InstallationUpdatedData() { }
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required string Version { get; init; }
+    }
+    public sealed class InstructionEntryInfo : System.IEquatable<OpenCode.Sdk.Models.InstructionEntryInfo>
+    {
+        public InstructionEntryInfo() { }
+        [System.Text.Json.Serialization.JsonPropertyName("key")]
+        public required string Key { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("value")]
+        public required System.Text.Json.JsonElement Value { get; init; }
     }
     public sealed class InstructionEntrySnapshot : System.IEquatable<OpenCode.Sdk.Models.InstructionEntrySnapshot>
     {
@@ -3772,6 +3839,12 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("_tag")]
         public string Tag { get; }
     }
+    public sealed class SessionActive : System.IEquatable<OpenCode.Sdk.Models.SessionActive>
+    {
+        public SessionActive() { }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public required string Type { get; init; }
+    }
     public sealed class SessionAgentSelected : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionAgentSelected>
     {
         public SessionAgentSelected() { }
@@ -4476,7 +4549,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
-    public sealed class SessionInboxCompaction : System.IEquatable<OpenCode.Sdk.Models.SessionInboxCompaction>
+    public sealed class SessionInboxCompaction : OpenCode.Sdk.Models.ISessionInboxInfo, System.IEquatable<OpenCode.Sdk.Models.SessionInboxCompaction>
     {
         public SessionInboxCompaction() { }
         [System.Text.Json.Serialization.JsonPropertyName("delivery")]
@@ -4490,7 +4563,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("timeCreated")]
         public required double TimeCreated { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
-        public required string Type { get; init; }
+        public string Type { get; }
     }
     public sealed class SessionInboxDelivered : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionInboxDelivered>
     {
@@ -4658,6 +4731,22 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
     }
+    public sealed class SessionInboxMove : OpenCode.Sdk.Models.ISessionInboxInfo, System.IEquatable<OpenCode.Sdk.Models.SessionInboxMove>
+    {
+        public SessionInboxMove() { }
+        [System.Text.Json.Serialization.JsonPropertyName("delivery")]
+        public required OpenCode.Sdk.Models.SessionInboxDelivery Delivery { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("payload")]
+        public required OpenCode.Sdk.Models.SessionInboxMovePayload Payload { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        public required string SessionId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("timeCreated")]
+        public required double TimeCreated { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
     public sealed class SessionInboxMovePayload : System.IEquatable<OpenCode.Sdk.Models.SessionInboxMovePayload>
     {
         public SessionInboxMovePayload() { }
@@ -4669,7 +4758,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("subpath")]
         public string? Subpath { get; init; }
     }
-    public sealed class SessionInboxSynthetic : System.IEquatable<OpenCode.Sdk.Models.SessionInboxSynthetic>
+    public sealed class SessionInboxSynthetic : OpenCode.Sdk.Models.ISessionInboxInfo, System.IEquatable<OpenCode.Sdk.Models.SessionInboxSynthetic>
     {
         public SessionInboxSynthetic() { }
         [System.Text.Json.Serialization.JsonPropertyName("delivery")]
@@ -4683,7 +4772,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("timeCreated")]
         public required double TimeCreated { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
-        public required string Type { get; init; }
+        public string Type { get; }
     }
     public sealed class SessionInboxSyntheticPayload : System.IEquatable<OpenCode.Sdk.Models.SessionInboxSyntheticPayload>
     {
@@ -4697,7 +4786,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("text")]
         public required string Text { get; init; }
     }
-    public sealed class SessionInboxUser : System.IEquatable<OpenCode.Sdk.Models.SessionInboxUser>
+    public sealed class SessionInboxUser : OpenCode.Sdk.Models.ISessionInboxInfo, System.IEquatable<OpenCode.Sdk.Models.SessionInboxUser>
     {
         public SessionInboxUser() { }
         [System.Text.Json.Serialization.JsonPropertyName("delivery")]
@@ -4711,7 +4800,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("timeCreated")]
         public required double TimeCreated { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
-        public required string Type { get; init; }
+        public string Type { get; }
     }
     public sealed class SessionInboxUserPayload : System.IEquatable<OpenCode.Sdk.Models.SessionInboxUserPayload>
     {
@@ -7575,6 +7664,15 @@ namespace OpenCode.Sdk.Models
     {
         [System.Text.Json.Serialization.JsonConstructor]
         public UnknownSessionForkRequestBoundary(string type, System.Text.Json.JsonElement payload) { }
+        public System.Text.Json.JsonElement Payload { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownSessionInboxInfoJsonConverter))]
+    public sealed class UnknownSessionInboxInfo : OpenCode.Sdk.Models.ISessionInboxInfo, System.IEquatable<OpenCode.Sdk.Models.UnknownSessionInboxInfo>
+    {
+        [System.Text.Json.Serialization.JsonConstructor]
+        public UnknownSessionInboxInfo(string type, System.Text.Json.JsonElement payload) { }
         public System.Text.Json.JsonElement Payload { get; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }

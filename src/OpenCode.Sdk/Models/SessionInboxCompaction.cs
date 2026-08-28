@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session inbox compaction value.
 /// </summary>
-public sealed record SessionInboxCompaction
+public sealed record SessionInboxCompaction : ISessionInboxInfo
 {
     /// <summary>
     /// Gets the id value.
@@ -31,7 +31,7 @@ public sealed record SessionInboxCompaction
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public required string Type { get; init; }
+    public string Type => "compaction";
 
     /// <summary>
     /// Gets the payload value.

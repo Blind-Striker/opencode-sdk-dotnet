@@ -4,9 +4,9 @@ using System.Text.Json.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a session inbox user value.
+/// Represents a session inbox move value.
 /// </summary>
-public sealed record SessionInboxUser : ISessionInboxInfo
+public sealed record SessionInboxMove : ISessionInboxInfo
 {
     /// <summary>
     /// Gets the id value.
@@ -30,13 +30,13 @@ public sealed record SessionInboxUser : ISessionInboxInfo
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public string Type => "user";
+    public string Type => "move";
 
     /// <summary>
     /// Gets the payload value.
     /// </summary>
     [JsonPropertyName("payload")]
-    public required SessionInboxUserPayload Payload { get; init; }
+    public required SessionInboxMovePayload Payload { get; init; }
 
     /// <summary>
     /// Gets the delivery value.

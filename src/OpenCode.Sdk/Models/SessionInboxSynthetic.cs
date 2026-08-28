@@ -6,7 +6,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session inbox synthetic value.
 /// </summary>
-public sealed record SessionInboxSynthetic
+public sealed record SessionInboxSynthetic : ISessionInboxInfo
 {
     /// <summary>
     /// Gets the id value.
@@ -30,7 +30,7 @@ public sealed record SessionInboxSynthetic
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public required string Type { get; init; }
+    public string Type => "synthetic";
 
     /// <summary>
     /// Gets the payload value.

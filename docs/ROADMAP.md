@@ -404,7 +404,7 @@ of the six named operations; `v2.vcs.branches` was probed and refused rather tha
 (`BindDataLocationPayload`'s ref-vs-array wall does not admit a named ref to an unnamed
 array-of-string component). Full mechanism detail, the two generator-tooling fixes it surfaced,
 and the reviewed naming/placement/handle decisions live in the task's own report, feeding the
-dated research log at Task 8. The profile stands at **86 selected / 48 pending**.
+dated research log at Task 8. The profile stands at **92 selected / 42 pending**.
 
 ## Milestones
 

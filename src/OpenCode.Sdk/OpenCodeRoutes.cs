@@ -1107,6 +1107,30 @@ public static class OpenCodeRoutes
         }
 
         /// <summary>
+        /// The &apos;GET /api/session/active&apos; route.
+        /// </summary>
+        public const string GetActive = "/api/session/active";
+        /// <summary>
+        /// The &apos;GET /api/session/{sessionID}/context&apos; route template.
+        /// </summary>
+        public const string GetContextTemplate = "/api/session/{sessionID}/context";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/context&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetContext(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/context";
+        }
+
+        /// <summary>
         /// The &apos;GET /api/session/{sessionID}/export&apos; route template.
         /// </summary>
         public const string GetExportTemplate = "/api/session/{sessionID}/export";
@@ -1240,6 +1264,66 @@ public static class OpenCodeRoutes
         }
 
         /// <summary>
+        /// The &apos;GET /api/session/{sessionID}/form&apos; route template.
+        /// </summary>
+        public const string ListFormsTemplate = "/api/session/{sessionID}/form";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/form&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ListForms(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/form";
+        }
+
+        /// <summary>
+        /// The &apos;GET /api/session/{sessionID}/inbox&apos; route template.
+        /// </summary>
+        public const string ListInboxTemplate = "/api/session/{sessionID}/inbox";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/inbox&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ListInbox(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/inbox";
+        }
+
+        /// <summary>
+        /// The &apos;GET /api/session/{sessionID}/instructions/entries&apos; route template.
+        /// </summary>
+        public const string ListInstructionsEntryTemplate = "/api/session/{sessionID}/instructions/entries";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/instructions/entries&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ListInstructionsEntry(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/instructions/entries";
+        }
+
+        /// <summary>
         /// The &apos;GET /api/session/{sessionID}/message&apos; route template.
         /// </summary>
         public const string ListMessagesTemplate = "/api/session/{sessionID}/message";
@@ -1268,6 +1352,26 @@ public static class OpenCodeRoutes
             query.AddOrder("order", request.Order);
             query.AddText("cursor", request.Cursor);
             return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;GET /api/session/{sessionID}/permission&apos; route template.
+        /// </summary>
+        public const string ListRequestsTemplate = "/api/session/{sessionID}/permission";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/permission&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ListRequests(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/permission";
         }
 
         /// <summary>

@@ -183,7 +183,7 @@ public sealed class OperationPlanBinderTests
         await Assert
             .That(sessions
                 .Operations.Select(static operation => operation.MethodName)
-                .SequenceEqual(["CreateSessionAsync", "ListSessionsAsync", "PostImportAsync"], StringComparer.Ordinal))
+                .SequenceEqual(["CreateSessionAsync", "GetActiveAsync", "ListSessionsAsync", "PostImportAsync"], StringComparer.Ordinal))
             .IsTrue();
         await Assert.That(sessions.HandleFactory!.MethodName).IsEqualTo("GetSessionClient");
         await Assert.That(sessions.HandleFactory.HandleTypeName).IsEqualTo("SessionClient");
@@ -258,12 +258,17 @@ public sealed class OperationPlanBinderTests
     [
         "CreatePermissionAsync",
         "DeleteInboxCancelAsync",
+        "GetContextAsync",
         "GetExportAsync",
         "GetLogAsync",
         "GetMessageAsync",
         "GetPermissionAsync",
         "GetSessionAsync",
+        "ListFormsAsync",
+        "ListInboxAsync",
+        "ListInstructionsEntryAsync",
         "ListMessagesAsync",
+        "ListRequestsAsync",
         "PostBackgroundAsync",
         "PostCommandAsync",
         "PostCompactAsync",

@@ -246,6 +246,16 @@
       "operationId": "v2.experimental.integration.wellknown.add",
       "methodName": "AddIntegrationWellknownAsync",
       "reason": "The operation's own verb is add; the mechanical POST prefix is transport detail, not part of the reviewed surface."
+    },
+    {
+      "operationId": "v2.session.form.list",
+      "methodName": "ListFormsAsync",
+      "reason": "List methods name their subject in the plural across the reviewed surface; the mechanical singular 'Form' also already names SessionFormCreateResponse's single-object payload in this same client family, so it would misleadingly read as returning one form instead of the session's pending forms."
+    },
+    {
+      "operationId": "v2.session.permission.list",
+      "methodName": "ListRequestsAsync",
+      "reason": "List methods name their subject in the plural across the reviewed surface, exactly like v2.permission.request.list; the mechanical singular 'Permission' also already names SessionPermissionCreateResponse's single-object payload in this same client family, so it would misleadingly read as returning one permission instead of the session's pending permission requests."
     }
   ],
   "schemaNames": [
@@ -287,7 +297,9 @@
     "v2.permission.request.list": "Requests",
     "v2.pty.list": "Ptys",
     "v2.vcs.status": "Changes",
-    "v2.location.get": "ResolvedLocation"
+    "v2.location.get": "ResolvedLocation",
+    "v2.session.form.list": "Forms",
+    "v2.session.permission.list": "Requests"
   },
   "schemaAliases": [
     {

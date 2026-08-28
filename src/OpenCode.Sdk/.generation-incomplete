@@ -1,6 +1,6 @@
 Generation is incomplete; packages must not be published.
-Selected operations: 86
-Pending operations: 48
+Selected operations: 92
+Pending operations: 42
 Selected:
 - v2.agent.get
 - v2.agent.list
@@ -41,19 +41,24 @@ Selected:
 - v2.pty.update
 - v2.reference.list
 - v2.server.get
+- v2.session.active
 - v2.session.background
 - v2.session.command
 - v2.session.compact
+- v2.session.context
 - v2.session.create
 - v2.session.export
 - v2.session.fork
 - v2.session.form.cancel
+- v2.session.form.list
 - v2.session.generate
 - v2.session.get
 - v2.session.import
 - v2.session.inbox.cancel
+- v2.session.inbox.list
 - v2.session.inbox.queue
 - v2.session.inbox.steer
+- v2.session.instructions.entry.list
 - v2.session.instructions.entry.put
 - v2.session.instructions.entry.remove
 - v2.session.interrupt
@@ -63,6 +68,7 @@ Selected:
 - v2.session.move
 - v2.session.permission.create
 - v2.session.permission.get
+- v2.session.permission.list
 - v2.session.permission.reply
 - v2.session.prompt
 - v2.session.remove
@@ -116,18 +122,12 @@ Pending:
 - v2.project.list
 - v2.project.update
 - v2.pty.connect
-- v2.session.active
-- v2.session.context
 - v2.session.environment
 - v2.session.form.create
 - v2.session.form.get
-- v2.session.form.list
 - v2.session.form.reply
 - v2.session.form.state
-- v2.session.inbox.list
-- v2.session.instructions.entry.list
 - v2.session.messageUpdate
-- v2.session.permission.list
 - v2.session.stats
 - v2.session.view
 - v2.shell.output

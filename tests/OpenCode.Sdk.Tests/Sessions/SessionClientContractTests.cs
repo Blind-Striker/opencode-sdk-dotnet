@@ -516,4 +516,261 @@ public sealed class SessionClientContractTests
 
         await Assert.That(exception!.Error).IsTypeOf<SessionNotFoundError>();
     }
+
+    [Test]
+    public async Task GetContextAsync_Should_Return_The_Typed_Context_Messages()
+    {
+        var payload = new FixtureLoader().LoadJson("Serialization.known-session-message.json");
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope($"[{payload}]"));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetContextAsync();
+
+        await Assert.That(response.Context.Single()).IsTypeOf<SessionMessageUser>();
+        await Assert.That(scenario.Requests.Single().RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/context"));
+    }
+
+    [Test]
+    public async Task GetContextAsync_Should_Return_An_Empty_List()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope("[]"));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetContextAsync();
+
+        await Assert.That(response.Context).IsEmpty();
+    }
+
+    [Test]
+    public async Task GetContextAsync_Should_Throw_The_Declared_404_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.SessionNotFoundError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").GetContextAsync())
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(404);
+        await Assert.That(exception.Error).IsTypeOf<SessionNotFoundError>();
+    }
+
+    [Test]
+    public async Task GetContextAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetContextAsync(OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
+
+    [Test]
+    public async Task ListFormsAsync_Should_Return_The_Typed_Forms()
+    {
+        const string forms = "[{\"id\":\"frm_1\",\"sessionID\":\"ses_100\",\"title\":\"Pick a name\",\"fields\":[]},"
+            + "{\"id\":\"frm_2\",\"sessionID\":\"ses_100\",\"title\":\"Approve deploy\",\"fields\":[]}]";
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(forms));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ListFormsAsync();
+
+        await Assert.That(response.Forms.Count).IsEqualTo(2);
+        await Assert.That(response.Forms[0].Id).IsEqualTo("frm_1");
+        await Assert.That(response.Forms[0].Title).IsEqualTo("Pick a name");
+        await Assert.That(response.Forms[1].Id).IsEqualTo("frm_2");
+        await Assert.That(scenario.Requests.Single().RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/form"));
+    }
+
+    [Test]
+    public async Task ListFormsAsync_Should_Return_An_Empty_List()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope("[]"));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ListFormsAsync();
+
+        await Assert.That(response.Forms).IsEmpty();
+    }
+
+    [Test]
+    public async Task ListFormsAsync_Should_Throw_The_Declared_404_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.SessionNotFoundError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").ListFormsAsync())
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(404);
+        await Assert.That(exception.Error).IsTypeOf<SessionNotFoundError>();
+    }
+
+    [Test]
+    public async Task ListFormsAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ListFormsAsync(OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
+
+    [Test]
+    public async Task ListInboxAsync_Should_Return_The_Typed_Inbox_Items()
+    {
+        const string items = "[{\"id\":\"msg_1\",\"sessionID\":\"ses_100\",\"timeCreated\":1,\"type\":\"user\","
+            + "\"payload\":{\"text\":\"hello\"},\"delivery\":\"queue\"},"
+            + "{\"id\":\"msg_2\",\"sessionID\":\"ses_100\",\"timeCreated\":2,\"type\":\"compaction\","
+            + "\"payload\":{},\"delivery\":\"steer\"}]";
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(items));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ListInboxAsync();
+
+        await Assert.That(response.Inbox.Count).IsEqualTo(2);
+        var user = (SessionInboxUser)response.Inbox[0];
+        await Assert.That(user.Payload.Text).IsEqualTo("hello");
+        await Assert.That(user.Delivery).IsEqualTo(SessionInboxDelivery.Queue);
+        var compaction = (SessionInboxCompaction)response.Inbox[1];
+        await Assert.That(compaction.Delivery).IsEqualTo(SessionInboxDelivery.Steer);
+        await Assert.That(scenario.Requests.Single().RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/inbox"));
+    }
+
+    [Test]
+    public async Task ListInboxAsync_Should_Return_An_Empty_List()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope("[]"));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ListInboxAsync();
+
+        await Assert.That(response.Inbox).IsEmpty();
+    }
+
+    [Test]
+    public async Task ListInboxAsync_Should_Throw_The_Declared_404_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.SessionNotFoundError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").ListInboxAsync())
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(404);
+        await Assert.That(exception.Error).IsTypeOf<SessionNotFoundError>();
+    }
+
+    [Test]
+    public async Task ListInboxAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ListInboxAsync(OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
+
+    [Test]
+    public async Task ListInstructionsEntryAsync_Should_Return_The_Typed_Entries()
+    {
+        const string entries = "[{\"key\":\"style\",\"value\":\"be terse\"},{\"key\":\"tone\",\"value\":\"friendly\"}]";
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(entries));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ListInstructionsEntryAsync();
+
+        await Assert.That(response.InstructionsEntry.Count).IsEqualTo(2);
+        await Assert.That(response.InstructionsEntry[0].Key).IsEqualTo("style");
+        await Assert.That(response.InstructionsEntry[0].Value.GetString()).IsEqualTo("be terse");
+        await Assert.That(response.InstructionsEntry[1].Key).IsEqualTo("tone");
+        await Assert.That(scenario.Requests.Single().RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/instructions/entries"));
+    }
+
+    [Test]
+    public async Task ListInstructionsEntryAsync_Should_Return_An_Empty_List()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope("[]"));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ListInstructionsEntryAsync();
+
+        await Assert.That(response.InstructionsEntry).IsEmpty();
+    }
+
+    [Test]
+    public async Task ListInstructionsEntryAsync_Should_Throw_The_Declared_404_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.SessionNotFoundError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").ListInstructionsEntryAsync())
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(404);
+        await Assert.That(exception.Error).IsTypeOf<SessionNotFoundError>();
+    }
+
+    [Test]
+    public async Task ListInstructionsEntryAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ListInstructionsEntryAsync(OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
+
+    [Test]
+    public async Task ListRequestsAsync_Should_Return_The_Typed_Permission_Requests()
+    {
+        var payload = new FixtureLoader().LoadJson("Serialization.known-permission-request.json");
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope($"[{payload}]"));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ListRequestsAsync();
+
+        var request = response.Requests.Single();
+        await Assert.That(request.Id).IsEqualTo("per_1");
+        await Assert.That(request.Action).IsEqualTo("read");
+        await Assert.That(scenario.Requests.Single().RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/permission"));
+    }
+
+    [Test]
+    public async Task ListRequestsAsync_Should_Return_An_Empty_List()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope("[]"));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ListRequestsAsync();
+
+        await Assert.That(response.Requests).IsEmpty();
+    }
+
+    [Test]
+    public async Task ListRequestsAsync_Should_Throw_The_Declared_404_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.SessionNotFoundError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").ListRequestsAsync())
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(404);
+        await Assert.That(exception.Error).IsTypeOf<SessionNotFoundError>();
+    }
+
+    [Test]
+    public async Task ListRequestsAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ListRequestsAsync(OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
 }
