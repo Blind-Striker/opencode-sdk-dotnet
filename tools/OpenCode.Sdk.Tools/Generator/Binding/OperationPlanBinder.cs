@@ -21,10 +21,11 @@ internal sealed class OperationPlanBinder
         ArgumentNullException.ThrowIfNull(typeNames);
         ArgumentNullException.ThrowIfNull(errors);
 
+        var typeBinder = new TypePlanBinder(document.Schemas, typeNames, errors);
         var bound = new List<BoundOperation>(selected.Count);
         foreach (var operation in selected.OrderBy(static operation => operation.OperationId, _comparer))
         {
-            var operationPlan = new SingleOperationBinder(document, operation, curation, typeNames, errors).Bind();
+            var operationPlan = new SingleOperationBinder(document, operation, curation, typeNames, errors, typeBinder).Bind();
             if (operationPlan is not null)
             {
                 bound.Add(operationPlan);
@@ -264,9 +265,10 @@ internal sealed class OperationPlanBinder
         SpecOperation operation,
         GenerationCuration curation,
         IReadOnlyDictionary<string, string> typeNames,
-        BindingErrorCollector errors)
+        BindingErrorCollector errors,
+        TypePlanBinder types)
     {
-        private readonly OperationFacetContext _context = new(document, operation, curation, typeNames, errors);
+        private readonly OperationFacetContext _context = new(document, operation, curation, typeNames, errors, types);
 
         public BoundOperation? Bind()
         {

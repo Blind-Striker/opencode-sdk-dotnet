@@ -142,25 +142,33 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
         };
     }
 
-    private NamedTypeReferencePlan? BindBarePayload(SchemaNode schema)
+    private TypeReferencePlan? BindBarePayload(SchemaNode schema)
     {
-        return schema is RefNode reference && _context.TypeNames.TryGetValue(reference.Target, out var name)
-            ? Named(name)
-            : _context.RefuseNull<NamedTypeReferencePlan>("success payload must reference a named schema");
-    }
-
-    private NamedTypeReferencePlan? BindDataPayload(SchemaNode schema)
-    {
-        if (schema is RefNode reference
-            && _context.Document.Schemas.TryGetValue(reference.Target, out var target)
-            && target is ObjectNode { Properties: [{ Name: "data", IsRequired: true } data] }
-            && data.Schema is RefNode payload
-            && _context.TypeNames.TryGetValue(payload.Target, out var name))
+        if (schema is RefNode reference && _context.TypeNames.TryGetValue(reference.Target, out var name))
         {
             return Named(name);
         }
 
-        return _context.RefuseNull<NamedTypeReferencePlan>("envelope payload must be a required reference to a named schema");
+        return _context.Types.Bind(_context.Operation.OperationId, "payload", schema)
+               ?? _context.RefuseNull<TypeReferencePlan>("success payload does not bind to a supported type plan");
+    }
+
+    private TypeReferencePlan? BindDataPayload(SchemaNode schema)
+    {
+        if (schema is not RefNode reference
+            || !_context.Document.Schemas.TryGetValue(reference.Target, out var target)
+            || target is not ObjectNode { Properties: [{ Name: "data", IsRequired: true } data] })
+        {
+            return _context.RefuseNull<TypeReferencePlan>("envelope payload must be a required reference to a named schema");
+        }
+
+        if (data.Schema is RefNode payload && _context.TypeNames.TryGetValue(payload.Target, out var name))
+        {
+            return Named(name);
+        }
+
+        return _context.Types.Bind(reference.Target, "data", data.Schema)
+               ?? _context.RefuseNull<TypeReferencePlan>("success payload does not bind to a supported type plan");
     }
 
     private ListTypeReferencePlan? BindCursorListPayload(SchemaNode schema)
@@ -222,8 +230,18 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
             return ListOf(Named(itemName));
         }
 
-        return _context.RefuseNull<TypeReferencePlan>(
-            "location envelope 'data' must reference a named component schema, or be an array of one");
+        // A RefNode or ArrayNode that reached here already failed the nominal checks above
+        // (an unnamed or promoted-inline target); the dialect keeps refusing those exactly as
+        // before instead of letting the type machinery resurrect a mechanically-derived name.
+        // Every other shape (a dictionary, for one) delegates to the type machinery.
+        if (data.Schema is RefNode or ArrayNode)
+        {
+            return _context.RefuseNull<TypeReferencePlan>(
+                "location envelope 'data' must reference a named component schema, or be an array of one");
+        }
+
+        return _context.Types.Bind(_context.Operation.OperationId, "data", data.Schema)
+               ?? _context.RefuseNull<TypeReferencePlan>("success payload does not bind to a supported type plan");
     }
 
     /// <summary>
