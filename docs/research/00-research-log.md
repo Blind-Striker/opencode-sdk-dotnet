@@ -4315,7 +4315,9 @@ session-context: status=200 messages=1
 ```
 `vcs-branches` exercises the ref-to-array shape (a 50-item list read off the DTO with no
 bare-container registry entry needed); `location` exercises the payload-naming row; `session-active`
-exercises the dictionary/bare-container shape; `server` exercises the promoted-inline payload
+exercises the Data-wrapped dictionary shape (no live leg exercises the bare-container registry
+channel; the three bare lists are contract-test-proven through the real `OpenCodeJsonContext`
+accessors instead); `server` exercises the promoted-inline payload
 (`payload=ServerData` names the promoted type at runtime); `session-context` exercises a
 session-scoped handle read. All five returned `status=200` on the first run; the existing legs
 (export, permission, compact/fork's `NoThrow` spine, PTY) were unaffected.
