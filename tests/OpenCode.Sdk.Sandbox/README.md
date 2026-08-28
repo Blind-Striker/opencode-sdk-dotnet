@@ -49,7 +49,9 @@ create/list/get, message list, export with its sanitize query, the permission
 create/get/reply round trip, the NoThrow spine over compact and a deliberately bad fork
 boundary, the mechanism leg — the bodyless POSTs (interrupt, revert clear), the PUT
 family (mcp add, pty update, the instructions entry), and a typed `FormNotFoundError` over
-NoThrow — and the PTY leg, all through the same Extensions registration.
+NoThrow — the envelope-completion leg (vcs branches' ref-to-array shape, the location sibling,
+the session-active dictionary, the server response's promoted-inline `ServerData`, and a
+session's context read), and the PTY leg, all through the same Extensions registration.
 
 The PTY leg (`PtySessionWalkthrough`) is the hand-written family's live proof (ADR-0021). It
 creates a PTY, lists the family, mints a connect ticket through the token door — whose

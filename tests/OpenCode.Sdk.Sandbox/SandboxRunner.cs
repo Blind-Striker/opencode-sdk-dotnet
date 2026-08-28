@@ -141,7 +141,8 @@ internal static class SandboxRunner
 
     /// <summary>
     /// The default mode: health, session create/list/get, message list, and the remaining
-    /// walkthrough legs (mechanism actions, session actions, PTY), all through one client.
+    /// walkthrough legs (mechanism actions, session actions, envelope completion, PTY), all
+    /// through one client.
     /// </summary>
     private static async Task<int> RunBreadthWalkthroughAsync(IHost host, OpenCodeClient client)
     {
@@ -190,6 +191,7 @@ internal static class SandboxRunner
 
         await SessionActionsWalkthrough.RunAsync(handle).ConfigureAwait(false);
         await MechanismActionsWalkthrough.RunAsync(client, handle).ConfigureAwait(false);
+        await EnvelopeCompletionWalkthrough.RunAsync(client, handle).ConfigureAwait(false);
         await PtySessionWalkthrough.RunAsync(client).ConfigureAwait(false);
 
         return 0;
