@@ -583,6 +583,7 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(VcsBranch))]
 [JsonSerializable(typeof(VcsBranchUpdated))]
 [JsonSerializable(typeof(VcsBranchUpdatedData))]
+[JsonSerializable(typeof(VcsBranchesResponseEnvelope))]
 [JsonSerializable(typeof(VcsFileStatus))]
 [JsonSerializable(typeof(VcsFileStatusStatus))]
 [JsonSerializable(typeof(VcsInfo))]

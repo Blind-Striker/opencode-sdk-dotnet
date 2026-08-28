@@ -89,6 +89,7 @@ v2.shell.list
 v2.shell.remove
 v2.shell.timeout
 v2.skill.list
+v2.vcs.branches
 v2.vcs.get
 v2.vcs.status
 v2.websearch.providers

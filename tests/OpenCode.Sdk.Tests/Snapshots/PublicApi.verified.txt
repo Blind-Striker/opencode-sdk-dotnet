@@ -674,8 +674,10 @@
         }
         public static class Vcs
         {
+            public const string GetBranchesTemplate = "/api/vcs/branches";
             public const string GetStatusTemplate = "/api/vcs/status";
             public const string GetVcsTemplate = "/api/vcs";
+            public static string GetBranches(OpenCode.Sdk.VcsBranchesRequest? request = null) { }
             public static string GetStatus(OpenCode.Sdk.VcsStatusRequest? request = null) { }
             public static string GetVcs(OpenCode.Sdk.VcsRequest? request = null) { }
         }
@@ -1344,9 +1346,24 @@
         protected SkillsClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SkillListResponse> ListSkillsAsync(OpenCode.Sdk.SkillListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
+    public sealed class VcsBranchesRequest : System.IEquatable<OpenCode.Sdk.VcsBranchesRequest>
+    {
+        public VcsBranchesRequest() { }
+        public string? Limit { get; init; }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+        public string? Search { get; init; }
+    }
+    public sealed class VcsBranchesResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.VcsBranchesResponse>
+    {
+        public VcsBranchesResponse() { }
+        public required System.Collections.Generic.IReadOnlyList<string> Branches { get; init; }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
     public class VcsClient
     {
         protected VcsClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.VcsBranchesResponse> GetBranchesAsync(OpenCode.Sdk.VcsBranchesRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.VcsStatusResponse> GetStatusAsync(OpenCode.Sdk.VcsStatusRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.VcsResponse> GetVcsAsync(OpenCode.Sdk.VcsRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }

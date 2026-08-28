@@ -51,4 +51,56 @@ public sealed class VcsClientContractTests
         await Assert.That(response.Status).IsEqualTo(401);
         await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
     }
+
+    [Test]
+    public async Task GetBranchesAsync_Should_Return_The_Typed_Branches_With_Their_Location()
+    {
+        using var scenario = ContractScenario.Responding(
+            HttpStatusCode.OK, WireBodyData.LocationEnvelope("[\"main\",\"dev\"]"));
+
+        var response = await scenario.Client.Vcs.GetBranchesAsync();
+
+        await Assert.That(response.Branches.Count).IsEqualTo(2);
+        await Assert.That(response.Branches[0]).IsEqualTo("main");
+        await Assert.That(response.Branches[1]).IsEqualTo("dev");
+        await Assert.That(response.Location.Project.Id).IsEqualTo("prj_1");
+        await Assert.That(scenario.Requests.Single().RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/vcs/branches"));
+    }
+
+    [Test]
+    public async Task GetBranchesAsync_Should_Return_An_Empty_List_With_Its_Location()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.LocationEnvelope("[]"));
+
+        var response = await scenario.Client.Vcs.GetBranchesAsync();
+
+        await Assert.That(response.Branches.Count).IsEqualTo(0);
+        await Assert.That(response.Location.Project.Id).IsEqualTo("prj_1");
+    }
+
+    [Test]
+    public async Task GetBranchesAsync_Should_Throw_The_Declared_400_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.InvalidRequestError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Vcs.GetBranchesAsync())
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(400);
+        await Assert.That(exception.Error).IsTypeOf<InvalidRequestError>();
+    }
+
+    [Test]
+    public async Task GetBranchesAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Vcs.GetBranchesAsync(requestOptions: OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
 }

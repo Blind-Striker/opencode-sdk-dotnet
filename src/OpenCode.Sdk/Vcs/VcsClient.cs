@@ -26,6 +26,20 @@ public class VcsClient
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("VcsClient", "Pipeline");
 
     /// <summary>
+    /// VCS branches. List local and remote branches available at the requested location.
+    /// </summary>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;VcsBranchesResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<VcsBranchesResponse> GetBranchesAsync(VcsBranchesRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Vcs.GetBranches(request), VcsBranchesResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
     /// VCS status. List uncommitted working-copy changes relative to the requested location.
     /// </summary>
     /// <param name = "request">The request shaping the query.</param>

@@ -404,7 +404,18 @@ of the six named operations; `v2.vcs.branches` was probed and refused rather tha
 (`BindDataLocationPayload`'s ref-vs-array wall does not admit a named ref to an unnamed
 array-of-string component). Full mechanism detail, the two generator-tooling fixes it surfaced,
 and the reviewed naming/placement/handle decisions live in the task's own report, feeding the
-dated research log at Task 8. The profile stands at **97 selected / 37 pending**.
+dated research log at Task 8.
+
+**The vcs.branches micro-task is complete** (2026-08-28). `BindDataLocationPayload`'s array arm
+now also resolves a RefNode 'data' member through the ref graph (`OperationFacetContext.Resolve`):
+when the resolved target is itself an ArrayNode, the same named-item fast path applies, and every
+other item shape falls through to `TypePlanBinder` unchanged — vcs.branches' named array component
+(`Vcs.BranchList`, an array of bare strings) binds without widening the guard for a RefNode
+resolving to a nominal object/enum/union with a failed name lookup, which still refuses exactly as
+before. `v2.vcs.branches` joins the existing `vcs` group: `VcsClient.GetBranchesAsync` returns a
+`VcsBranchesResponse` whose `Branches` is `IReadOnlyList<string>` riding the DTO transitively (no
+bare-container registry entry), alongside the `Location` sibling. The profile stands at
+**98 selected / 36 pending**.
 
 **M4's launcher arc is code-complete and integrated** (2026-08-28; evidence: research log Q153;
 plan executed task-by-task with independent reviews and a clean final whole-branch review).

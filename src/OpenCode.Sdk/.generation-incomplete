@@ -1,6 +1,6 @@
 Generation is incomplete; packages must not be published.
-Selected operations: 97
-Pending operations: 37
+Selected operations: 98
+Pending operations: 36
 Selected:
 - v2.agent.get
 - v2.agent.list
@@ -93,6 +93,7 @@ Selected:
 - v2.shell.remove
 - v2.shell.timeout
 - v2.skill.list
+- v2.vcs.branches
 - v2.vcs.get
 - v2.vcs.status
 - v2.websearch.providers
@@ -131,7 +132,6 @@ Pending:
 - v2.session.stats
 - v2.session.view
 - v2.shell.output
-- v2.vcs.branches
 - v2.vcs.diff
 - v2.workspace.destroy
 - v2.worktree.create
