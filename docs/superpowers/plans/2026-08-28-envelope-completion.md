@@ -469,6 +469,19 @@ public required WidgetInfo? Widget
 - [ ] **Step 5: Full gate + `generate --verify`.**
 - [ ] **Step 6: Commit** — `feat(tools): represent nullable envelope payloads by response state`
 
+M**Addendum (maintainer-approved 2026-08-28): DataLocationList inline-item promotion.** The
+mechanism-symmetry extension accepted for `vcs.branches`: `BindDataLocationPayload`'s array arm
+admits an inline-object item by promoting it with the same operation-scoped name Task 5 built
+(`{ResponseTypeName stem}Data` — the item model). Task 4's guard originally existed to stop
+pointer-derived names leaking; Task 5 dissolved that reason, so the guard's array arm narrows:
+a `RefNode` item that fails the nominal lookup still refuses (no resurrection), an inline
+`ObjectNode` item flows through promotion + `TypePlanBinder`. ADR-0017's cursor-list nominal rule
+is untouched. Steps mirror Task 5's: failing binding test (location envelope with array-of-inline
+`data` binds; `PayloadType` is `ListTypeReferencePlan` whose element is the promoted named plan) →
+red → implement → matrix leg (compile + round-trip `{"data":[{…}],"location":{…}}`) → collision
+negative reuses Task 5's wall → gate. Commit (second commit of this task):
+`feat(tools): promote inline location-envelope list items` (no trailers).
+
 ### Task 7: Selection batches for the approved inventory (instantiated from Task 1)
 
 **Files (per family batch):**
