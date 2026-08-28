@@ -869,6 +869,23 @@ dotnet_diagnostic.CA2000.severity = none
 [tests/OpenCode.Sdk.Tests/Support/ScriptedPtyWebSocket.cs]
 dotnet_diagnostic.VSTHRD003.severity = none
 
+# CliWrapServerAdapter parks on TaskCompletionSource handles the adapter itself completes — the
+# stdin lease that holds the child's ownership pipe open until disposal, and the first stdout
+# line that carries the readiness contract — plus the CliWrap execution task it started. That
+# externally-completed lease is the stdio ownership mechanism itself, not a foreign task with
+# unknown context. Winner: the stdio-lease control adapter; VSTHRD003 remains enabled for every
+# other file.
+# StartAsync disposes the adapter on every readiness-failure branch before it throws, and returns
+# it undisposed only on the success path where the caller becomes the owner - the same
+# ownership-transfer shape OpenCodeServer.StartAsync uses for its Process local. CA2000's flow
+# analysis does not resolve that transfer through this method's mix of nested try/catch and a
+# CliWrap fluent builder capturing the local by reference on the net472 leg only; the other three
+# TFMs verify the same method clean. Winner: the readiness-failure disposal already in the method
+# body; CA2000 remains enabled for every other file.
+[tests/Shared/CliWrapServerAdapter.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+dotnet_diagnostic.CA2000.severity = none
+
 # Sandbox application's purpose is primarly for testing
 [tests/OpenCode.Sdk.Sandbox/**.cs]
 dotnet_diagnostic.MA0076.severity = none

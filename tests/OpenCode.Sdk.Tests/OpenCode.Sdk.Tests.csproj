@@ -16,6 +16,7 @@
     <PackageReference Include="PublicApiGenerator"/>
     <PackageReference Include="Verify.TUnit"/>
     <PackageReference Include="Testably.Abstractions"/>
+    <PackageReference Include="CliWrap"/>
     <PackageReference Include="NSubstitute.Analyzers.CSharp">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
