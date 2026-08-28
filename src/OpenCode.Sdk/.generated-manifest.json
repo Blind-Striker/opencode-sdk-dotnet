@@ -115,6 +115,7 @@
     "Internal/ResponseAdapters/VcsStatusResponseAdapter.cs",
     "Internal/ResponseAdapters/WebsearchProvidersResponseAdapter.cs",
     "Internal/ResponseAdapters/WebsearchQueryPostResponseAdapter.cs",
+    "Internal/ResponseAdapters/WorkspaceCreateResponseAdapter.cs",
     "Internal/Serialization/AgentListResponseEnvelope.cs",
     "Internal/Serialization/AgentResponseEnvelope.cs",
     "Internal/Serialization/CommandListResponseEnvelope.cs",
@@ -211,6 +212,7 @@
     "Internal/Serialization/VcsStatusResponseEnvelope.cs",
     "Internal/Serialization/WebsearchProvidersResponseEnvelope.cs",
     "Internal/Serialization/WebsearchQueryPostResponseEnvelope.cs",
+    "Internal/Serialization/WorkspaceCreateResponseEnvelope.cs",
     "Internal/StreamAdapters/EventSubscribeResponseStreamAdapter.cs",
     "Internal/StreamAdapters/SessionLogResponseStreamAdapter.cs",
     "LanguageModels/LanguageModelsClient.cs",
@@ -751,6 +753,7 @@
     "Models/WebSearchResultTime.cs",
     "Models/WebsearchQueryPostRequest.cs",
     "Models/WebsearchUpdated.cs",
+    "Models/WorkspaceCreateRequest.cs",
     "Models/WorktreeResolved.cs",
     "Models/WorktreeResolvedData.cs",
     "Models/WorktreeResolvedDurable.cs",
@@ -853,6 +856,8 @@
     "Websearch/WebsearchClient.cs",
     "Websearch/WebsearchProvidersRequest.cs",
     "Websearch/WebsearchProvidersResponse.cs",
-    "Websearch/WebsearchQueryPostResponse.cs"
+    "Websearch/WebsearchQueryPostResponse.cs",
+    "Workspaces/WorkspaceCreateResponse.cs",
+    "Workspaces/WorkspacesClient.cs"
   ]
 }

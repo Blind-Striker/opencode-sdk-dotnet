@@ -428,7 +428,12 @@ it with no handle (ADR-0019, one operation). Landing a new family also means upd
 existing reflective inventories that assume the current roster rather than discovering it: the
 Extensions package's explicit per-family `AddSingleton` registration list, and the generator's own
 pinned-plan test fixture data (`OperationPlanBinderTests`' expected client/sub-client name lists).
-The profile stands at **84 selected / 50 pending**.
+`v2.workspace.create` follows next: its own family only carries two full-surface operations
+(create, and the still-pending destroy), a shape that stays flat rather than earning a handle
+(ADR-0019, matching credential's update/remove precedent) — `WorkspacesClient.CreateWorkspaceAsync`
+takes the request body directly, no id argument yet. Its `{"data": "wrk..."}` success body binds
+as a plain `string` (a scalar payload needs no promotion), and its 400/401/404/409 error map lands
+exactly as declared. The profile stands at **85 selected / 49 pending**.
 
 ## Milestones
 

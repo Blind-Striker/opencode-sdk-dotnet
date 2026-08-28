@@ -569,6 +569,8 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(WebsearchQueryPostRequest))]
 [JsonSerializable(typeof(WebsearchQueryPostResponseEnvelope))]
 [JsonSerializable(typeof(WebsearchUpdated))]
+[JsonSerializable(typeof(WorkspaceCreateRequest))]
+[JsonSerializable(typeof(WorkspaceCreateResponseEnvelope))]
 [JsonSerializable(typeof(WorktreeResolved))]
 [JsonSerializable(typeof(WorktreeResolvedData))]
 [JsonSerializable(typeof(WorktreeResolvedDurable))]

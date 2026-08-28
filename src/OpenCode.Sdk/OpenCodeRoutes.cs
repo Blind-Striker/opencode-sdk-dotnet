@@ -2120,4 +2120,15 @@ public static class OpenCodeRoutes
             return path + query.Value;
         }
     }
+
+    /// <summary>
+    /// Defines the &apos;Workspaces&apos; routes.
+    /// </summary>
+    public static class Workspaces
+    {
+        /// <summary>
+        /// The &apos;POST /api/workspace&apos; route.
+        /// </summary>
+        public const string CreateWorkspace = "/api/workspace";
+    }
 }

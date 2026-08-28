@@ -32,6 +32,7 @@ public class OpenCodeClient : IDisposable
     private readonly SkillsClient? _skills;
     private readonly VcsClient? _vcs;
     private readonly WebsearchClient? _websearch;
+    private readonly WorkspacesClient? _workspaces;
     /// <summary>
     /// Initializes a client that owns its connection to the endpoint.
     /// </summary>
@@ -61,6 +62,7 @@ public class OpenCodeClient : IDisposable
         _skills = new SkillsClient(_pipeline);
         _vcs = new VcsClient(_pipeline);
         _websearch = new WebsearchClient(_pipeline);
+        _workspaces = new WorkspacesClient(_pipeline);
     }
 
     /// <summary>
@@ -93,6 +95,7 @@ public class OpenCodeClient : IDisposable
         _skills = new SkillsClient(_pipeline);
         _vcs = new VcsClient(_pipeline);
         _websearch = new WebsearchClient(_pipeline);
+        _workspaces = new WorkspacesClient(_pipeline);
     }
 
     /// <summary>
@@ -211,6 +214,10 @@ public class OpenCodeClient : IDisposable
     /// Gets the &apos;Websearch&apos; collection client.
     /// </summary>
     public virtual WebsearchClient Websearch => _websearch ?? throw MockSeam.CreateError("OpenCodeClient", "Websearch");
+    /// <summary>
+    /// Gets the &apos;Workspaces&apos; collection client.
+    /// </summary>
+    public virtual WorkspacesClient Workspaces => _workspaces ?? throw MockSeam.CreateError("OpenCodeClient", "Workspaces");
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("OpenCodeClient", "Pipeline");
 
     /// <summary>

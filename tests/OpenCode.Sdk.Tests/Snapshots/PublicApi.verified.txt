@@ -362,6 +362,7 @@
         public virtual OpenCode.Sdk.SkillsClient Skills { get; }
         public virtual OpenCode.Sdk.VcsClient Vcs { get; }
         public virtual OpenCode.Sdk.WebsearchClient Websearch { get; }
+        public virtual OpenCode.Sdk.WorkspacesClient Workspaces { get; }
         public void Dispose() { }
         protected virtual void Dispose(bool disposing) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.HealthResponse> GetHealthAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
@@ -631,6 +632,10 @@
             public const string QueryTemplate = "/api/websearch";
             public static string GetProviders(OpenCode.Sdk.WebsearchProvidersRequest? request = null) { }
             public static string Query(OpenCode.Sdk.Models.WebsearchQueryPostRequest? request = null) { }
+        }
+        public static class Workspaces
+        {
+            public const string CreateWorkspace = "/api/workspace";
         }
     }
     public sealed class OpenCodeStreamFailureException : OpenCode.Sdk.OpenCodeTransportException
@@ -1243,6 +1248,17 @@
         public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
         public required OpenCode.Sdk.Models.WebSearchResponse Query { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class WorkspaceCreateResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.WorkspaceCreateResponse>
+    {
+        public WorkspaceCreateResponse() { }
+        public required string Workspace { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public class WorkspacesClient
+    {
+        protected WorkspacesClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.WorkspaceCreateResponse> CreateWorkspaceAsync(OpenCode.Sdk.Models.WorkspaceCreateRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
 }
 namespace OpenCode.Sdk.Models
@@ -7761,6 +7777,15 @@ namespace OpenCode.Sdk.Models
         public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
+    }
+    public sealed class WorkspaceCreateRequest : System.IEquatable<OpenCode.Sdk.Models.WorkspaceCreateRequest>
+    {
+        public WorkspaceCreateRequest() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public string? Id { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("provider")]
+        public required string Provider { get; init; }
     }
     public sealed class WorktreeResolved : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.WorktreeResolved>
     {

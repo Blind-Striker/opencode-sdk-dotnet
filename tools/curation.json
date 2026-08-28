@@ -135,6 +135,11 @@
       "placement": "client",
       "clientName": "Server",
       "reason": "v2.server.get is the family's only operation and names one server process, not a collection; a flat singular-noun client holds it with no handle (ADR-0019)."
+    },
+    "workspace": {
+      "placement": "client",
+      "clientName": "Workspaces",
+      "reason": "Create and the still-pending destroy are two single-shot admin actions on a workspace id, not a chained working object; the id will ride as an argument once destroy is selected, exactly like credential (ADR-0019)."
     }
   },
   "operationIdentities": [

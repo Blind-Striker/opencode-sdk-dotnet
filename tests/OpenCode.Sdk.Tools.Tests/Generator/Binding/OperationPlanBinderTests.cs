@@ -37,6 +37,7 @@ public sealed class OperationPlanBinderTests
         "SkillsClient",
         "VcsClient",
         "WebsearchClient",
+        "WorkspacesClient",
     ];
 
     private static readonly string[] ExpectedSubClientPropertyNames =
@@ -63,6 +64,7 @@ public sealed class OperationPlanBinderTests
         "Skills",
         "Vcs",
         "Websearch",
+        "Workspaces",
     ];
 
     private static readonly string[] ExpectedSubClientTypeNames =
@@ -89,6 +91,7 @@ public sealed class OperationPlanBinderTests
         "SkillsClient",
         "VcsClient",
         "WebsearchClient",
+        "WorkspacesClient",
     ];
 
     [Test]
