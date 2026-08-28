@@ -978,6 +978,66 @@ public sealed class OperationPlanBinderTests
         await AssertWidgetRefusalAsync(document, "named component schema");
     }
 
+    /// <summary>
+    /// The array-ref extension: 'data' can name an ARRAY component directly (vcs.branches'
+    /// exact shape — a $ref to a named array-of-string component) rather than wrapping the
+    /// array inline. The resolved target's item is a primitive, which the type machinery binds
+    /// through its ordinary RefNode -&gt; ArrayNode -&gt; primitive path once the guard stops
+    /// refusing the ref.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Bind_A_Data_Location_List_Envelope_Whose_Data_Refs_A_Named_Array_Component()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("PlaceInfo", schema => schema
+                .Type("object")
+                .Property("directory", property => property.Type("string"), required: true))
+            .WithSchema("WidgetNameList", schema => schema
+                .Type("array")
+                .Items(static item => item.Type("string")))
+            .WithSchema("WidgetEnvelope", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("location", property => property.Ref("PlaceInfo"), required: true)
+                .Property("data", property => property.Ref("WidgetNameList"), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetEnvelope")))));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocationList);
+        await Assert.That(list.Envelope.PayloadType).IsTypeOf<ListTypeReferencePlan>();
+        var elementType = (NamedTypeReferencePlan)((ListTypeReferencePlan)list.Envelope.PayloadType!).ElementType;
+        await Assert.That(elementType.Name).IsEqualTo("string");
+        await Assert.That(list.Envelope.LocationTypeName).IsEqualTo("PlaceInfo");
+    }
+
+    /// <summary>
+    /// The array-ref extension narrows the guard by shape (ref resolving to an array), it does
+    /// not widen it for every RefNode: a 'data' ref resolving to a NOMINAL (object) target
+    /// excluded from naming — here, the wrapper's own response root, referenced from within
+    /// itself — still falls through to the unchanged refusal below. No resurrection for a
+    /// non-array ref, exactly as the original guard intended.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Refuse_A_Data_Location_Ref_Resolving_To_A_Nominal_Object_With_No_Name()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("PlaceInfo", schema => schema
+                .Type("object")
+                .Property("directory", property => property.Type("string"), required: true))
+            .WithSchema("WidgetEnvelope", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("location", property => property.Ref("PlaceInfo"), required: true)
+                .Property("data", property => property.Ref("WidgetEnvelope"), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetEnvelope")))));
+
+        await AssertWidgetRefusalAsync(document, "named component schema");
+    }
+
     /// <summary>Reuses Task 5's double-claim wall for the array arm's promoted item.</summary>
     [Test]
     public async Task Bind_Should_Refuse_A_Promoted_Data_Location_List_Item_Claimed_By_Two_Operations()

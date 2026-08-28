@@ -605,6 +605,67 @@ public sealed class ModelMaterializationMatrixTests
         return (plan, operation);
     }
 
+    /// <summary>
+    /// The mechanism extension: a location envelope's 'data' member is a RefNode naming an
+    /// ARRAY component directly (vcs.branches' exact shape, Vcs.BranchList =
+    /// {"type":"array","items":{"type":"string"}}) rather than wrapping the array inline. The
+    /// item is a primitive string, which the type machinery binds through its ordinary
+    /// RefNode -&gt; ArrayNode -&gt; primitive path once the guard stops refusing the ref; the DTO
+    /// carries the payload, so no bare-container registry entry is needed.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Compile_And_Roundtrip_A_Data_Location_List_Ref_To_A_Named_Array_Component()
+    {
+        var (plan, operation) = await CreateRefToNamedArrayDataLocationListPlanAsync();
+        await Assert.That(operation.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocationList);
+        var elementType = (NamedTypeReferencePlan)((ListTypeReferencePlan)operation.Envelope.PayloadType!).ElementType;
+        await Assert.That(elementType.Name).IsEqualTo("string");
+        await Assert.That(plan.Registry.PayloadEntries.Count).IsEqualTo(0);
+
+        var assembly = await GeneratedSourceCompiler.CompileAndLoadWithSdkCoreAsync(SourceEmitter.Emit(plan));
+
+        var result = AdaptSuccess(assembly, operation.Envelope, """{"data":["main","dev"],"location":{"directory":"widget-place"}}""");
+        var items = (IList)GetProperty(result, operation.Envelope.PayloadName!)!;
+        await Assert.That(items.Count).IsEqualTo(2);
+        await Assert.That((string?)items[0]).IsEqualTo("main");
+        await Assert.That((string?)items[1]).IsEqualTo("dev");
+        var location = GetProperty(result, "Location")
+                       ?? throw new InvalidOperationException("Expected a present location.");
+        await Assert.That(GetProperty(location, "Directory")).IsEqualTo("widget-place");
+    }
+
+    private static async Task<(EmitPlan Plan, OperationPlan Operation)> CreateRefToNamedArrayDataLocationListPlanAsync()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("PlaceInfo", schema => schema
+                .Type("object")
+                .Property("directory", property => property.Type("string"), required: true))
+            .WithSchema("WidgetError", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("_tag", property => property.Type("string").Enum("WidgetError"), required: true)
+                .Property("message", property => property.Type("string"), required: true))
+            .WithSchema("WidgetNameList", schema => schema
+                .Type("array")
+                .Items(static item => item.Type("string")))
+            .WithSchema("WidgetEnvelope", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("location", property => property.Ref("PlaceInfo"), required: true)
+                .Property("data", property => property.Ref("WidgetNameList"), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetEnvelope"))
+                .Response(400, "application/json", schema => schema.Ref("WidgetError")))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.list"),
+            Curation(Groups("widget", RootGroup())));
+
+        var operation = plan.Clients.SelectMany(static client => client.Operations).Single();
+        return (plan, operation);
+    }
+
     private static async Task<(EmitPlan Plan, OperationPlan Stats, OperationPlan Handoff)> CreatePromotedInlinePlanAsync()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
