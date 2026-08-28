@@ -63,6 +63,7 @@ public static class OpenCodeServiceCollectionExtensions
         _ = services.AddSingleton(static ProvidersClient (provider) => provider.GetRequiredService<OpenCodeClient>().Providers);
         _ = services.AddSingleton(static PtysClient (provider) => provider.GetRequiredService<OpenCodeClient>().Ptys);
         _ = services.AddSingleton(static ReferencesClient (provider) => provider.GetRequiredService<OpenCodeClient>().References);
+        _ = services.AddSingleton(static ServerClient (provider) => provider.GetRequiredService<OpenCodeClient>().Server);
         _ = services.AddSingleton(static SessionsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Sessions);
         _ = services.AddSingleton(static ShellsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Shells);
         _ = services.AddSingleton(static SkillsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Skills);

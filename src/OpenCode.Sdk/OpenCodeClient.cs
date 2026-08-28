@@ -26,6 +26,7 @@ public class OpenCodeClient : IDisposable
     private readonly ProvidersClient? _providers;
     private readonly PtysClient? _ptys;
     private readonly ReferencesClient? _references;
+    private readonly ServerClient? _server;
     private readonly SessionsClient? _sessions;
     private readonly ShellsClient? _shells;
     private readonly SkillsClient? _skills;
@@ -54,6 +55,7 @@ public class OpenCodeClient : IDisposable
         _providers = new ProvidersClient(_pipeline);
         _ptys = new PtysClient(_pipeline);
         _references = new ReferencesClient(_pipeline);
+        _server = new ServerClient(_pipeline);
         _sessions = new SessionsClient(_pipeline);
         _shells = new ShellsClient(_pipeline);
         _skills = new SkillsClient(_pipeline);
@@ -85,6 +87,7 @@ public class OpenCodeClient : IDisposable
         _providers = new ProvidersClient(_pipeline);
         _ptys = new PtysClient(_pipeline);
         _references = new ReferencesClient(_pipeline);
+        _server = new ServerClient(_pipeline);
         _sessions = new SessionsClient(_pipeline);
         _shells = new ShellsClient(_pipeline);
         _skills = new SkillsClient(_pipeline);
@@ -184,6 +187,10 @@ public class OpenCodeClient : IDisposable
     /// Gets the &apos;References&apos; collection client.
     /// </summary>
     public virtual ReferencesClient References => _references ?? throw MockSeam.CreateError("OpenCodeClient", "References");
+    /// <summary>
+    /// Gets the &apos;Server&apos; collection client.
+    /// </summary>
+    public virtual ServerClient Server => _server ?? throw MockSeam.CreateError("OpenCodeClient", "Server");
     /// <summary>
     /// Gets the &apos;Sessions&apos; collection client.
     /// </summary>

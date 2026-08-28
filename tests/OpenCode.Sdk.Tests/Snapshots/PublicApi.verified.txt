@@ -356,6 +356,7 @@
         public virtual OpenCode.Sdk.ProvidersClient Providers { get; }
         public virtual OpenCode.Sdk.PtysClient Ptys { get; }
         public virtual OpenCode.Sdk.ReferencesClient References { get; }
+        public virtual OpenCode.Sdk.ServerClient Server { get; }
         public virtual OpenCode.Sdk.SessionsClient Sessions { get; }
         public virtual OpenCode.Sdk.ShellsClient Shells { get; }
         public virtual OpenCode.Sdk.SkillsClient Skills { get; }
@@ -521,6 +522,10 @@
         {
             public const string ListReferencesTemplate = "/api/reference";
             public static string ListReferences(OpenCode.Sdk.ReferenceListRequest? request = null) { }
+        }
+        public static class Server
+        {
+            public const string GetServer = "/api/server";
         }
         public static class Sessions
         {
@@ -847,6 +852,17 @@
     {
         protected ReferencesClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ReferenceListResponse> ListReferencesAsync(OpenCode.Sdk.ReferenceListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public class ServerClient
+    {
+        protected ServerClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ServerResponse> GetServerAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class ServerResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ServerResponse>
+    {
+        public ServerResponse() { }
+        public required OpenCode.Sdk.Models.ServerData Server { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class SessionBackgroundPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionBackgroundPostResponse>
     {
@@ -3690,6 +3706,12 @@ namespace OpenCode.Sdk.Models
         public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
+    }
+    public sealed class ServerData : System.IEquatable<OpenCode.Sdk.Models.ServerData>
+    {
+        public ServerData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("urls")]
+        public required System.Collections.Generic.IReadOnlyList<string> Urls { get; init; }
     }
     public sealed class ServiceHealth : System.IEquatable<OpenCode.Sdk.Models.ServiceHealth>
     {

@@ -1,6 +1,6 @@
 Generation is incomplete; packages must not be published.
-Selected operations: 83
-Pending operations: 51
+Selected operations: 84
+Pending operations: 50
 Selected:
 - v2.agent.get
 - v2.agent.list
@@ -40,6 +40,7 @@ Selected:
 - v2.pty.remove
 - v2.pty.update
 - v2.reference.list
+- v2.server.get
 - v2.session.background
 - v2.session.command
 - v2.session.compact
@@ -113,7 +114,6 @@ Pending:
 - v2.project.list
 - v2.project.update
 - v2.pty.connect
-- v2.server.get
 - v2.session.active
 - v2.session.context
 - v2.session.environment

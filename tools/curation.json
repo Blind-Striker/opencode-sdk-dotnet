@@ -130,6 +130,11 @@
     "location": {
       "placement": "root",
       "reason": "A single location-resolution probe belongs on the root client, not behind a one-method container, mirroring health (ADR-0019)."
+    },
+    "server": {
+      "placement": "client",
+      "clientName": "Server",
+      "reason": "v2.server.get is the family's only operation and names one server process, not a collection; a flat singular-noun client holds it with no handle (ADR-0019)."
     }
   },
   "operationIdentities": [

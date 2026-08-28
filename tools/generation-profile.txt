@@ -36,6 +36,7 @@ v2.pty.list
 v2.pty.remove
 v2.pty.update
 v2.reference.list
+v2.server.get
 v2.session.background
 v2.session.command
 v2.session.compact

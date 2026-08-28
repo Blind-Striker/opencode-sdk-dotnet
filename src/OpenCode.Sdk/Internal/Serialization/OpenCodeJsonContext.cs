@@ -231,6 +231,7 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(ReferenceListResponseEnvelope))]
 [JsonSerializable(typeof(ReferenceLocalSource))]
 [JsonSerializable(typeof(ReferenceUpdated))]
+[JsonSerializable(typeof(ServerData))]
 [JsonSerializable(typeof(ServiceHealth))]
 [JsonSerializable(typeof(ServiceUnavailableError))]
 [JsonSerializable(typeof(SessionAgentSelected))]

@@ -1040,6 +1040,17 @@ public static class OpenCodeRoutes
     }
 
     /// <summary>
+    /// Defines the &apos;Server&apos; routes.
+    /// </summary>
+    public static class Server
+    {
+        /// <summary>
+        /// The &apos;GET /api/server&apos; route.
+        /// </summary>
+        public const string GetServer = "/api/server";
+    }
+
+    /// <summary>
     /// Defines the &apos;Sessions&apos; routes.
     /// </summary>
     public static class Sessions

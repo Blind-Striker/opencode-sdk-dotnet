@@ -420,8 +420,15 @@ crashes the formatter outright (`NotSupportedException: Changing document proper
 supported`, from Roslyn's namespace-sync code fix attempting a workspace change `MSBuildWorkspace`
 cannot apply) rather than merely reporting a style diagnostic; `.editorconfig`'s own comment already
 prescribes the fix ("a new family folder extends these globs deliberately"), so `Location` (and each
-later new family folder) is added to both glob lists in the same commit that introduces it. The
-profile stands at **83 selected / 51 pending**.
+later new family folder) is added to both glob lists in the same commit that introduces it.
+`v2.server.get` follows as the first new public client family born in this batch: its bare
+`{"urls": [...]}` payload is an inline object promoted with Task 5's operation-scoped naming
+(`ServerData`, no `Response`/`Envelope` leakage), and the flat singular-noun `ServerClient` carries
+it with no handle (ADR-0019, one operation). Landing a new family also means updating the two
+existing reflective inventories that assume the current roster rather than discovering it: the
+Extensions package's explicit per-family `AddSingleton` registration list, and the generator's own
+pinned-plan test fixture data (`OperationPlanBinderTests`' expected client/sub-client name lists).
+The profile stands at **84 selected / 50 pending**.
 
 ## Milestones
 
