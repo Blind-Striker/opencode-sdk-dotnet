@@ -397,25 +397,12 @@ patch still applies with byte-identical preimages; PR #45182 remains open. The p
 **81 selected / 53 pending**, the full gate is green at 2,767 tests, and the PublicApi baseline
 accepted its three additive `Metadata` properties.
 
-**Envelope completion's first selection batch (7a) is complete** (2026-08-28; plan:
-`docs/superpowers/plans/2026-08-28-envelope-completion.md`). Five family commits select
-`vcs.status`, `location.get`, and the new `server`, `workspace`, and `worktree` families — five
-of the six named operations; `v2.vcs.branches` was probed and refused rather than forced
-(`BindDataLocationPayload`'s ref-vs-array wall does not admit a named ref to an unnamed
-array-of-string component). Full mechanism detail, the two generator-tooling fixes it surfaced,
-and the reviewed naming/placement/handle decisions live in the task's own report, feeding the
-dated research log at Task 8.
-
-**The vcs.branches micro-task is complete** (2026-08-28). `BindDataLocationPayload`'s array arm
-now also resolves a RefNode 'data' member through the ref graph (`OperationFacetContext.Resolve`):
-when the resolved target is itself an ArrayNode, the same named-item fast path applies, and every
-other item shape falls through to `TypePlanBinder` unchanged — vcs.branches' named array component
-(`Vcs.BranchList`, an array of bare strings) binds without widening the guard for a RefNode
-resolving to a nominal object/enum/union with a failed name lookup, which still refuses exactly as
-before. `v2.vcs.branches` joins the existing `vcs` group: `VcsClient.GetBranchesAsync` returns a
-`VcsBranchesResponse` whose `Branches` is `IReadOnlyList<string>` riding the DTO transitively (no
-bare-container registry entry), alongside the `Location` sibling. The profile stands at
-**98 selected / 36 pending**.
+**Envelope completion (C2) is code-complete and closing** (2026-08-28; plan:
+`docs/superpowers/plans/2026-08-28-envelope-completion.md`; full mechanism, selection, and live
+evidence: research log Q154). The profile stands at **98 selected / 36 pending** of 134; final
+whole-branch review is pending. The queue now advances to the held maintainer sitting (SW004
+adjudication, canon wording, push), the approved no-wall sweep batch, the benchmark coverage
+batch, the release track, and the service-parity follow-up — all already recorded above.
 
 **M4's launcher arc is code-complete and integrated** (2026-08-28; evidence: research log Q153;
 plan executed task-by-task with independent reviews and a clean final whole-branch review).

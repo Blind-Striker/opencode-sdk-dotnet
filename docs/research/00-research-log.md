@@ -4244,3 +4244,89 @@ bun legs and `FileShare.None` on Unix is the named risk), the queued service-par
 consolidation across the two tests/Shared fixtures, `OpenCodeServer` post-dispose guards, three
 cheap contract tests (composer backslash-before-quote, negative grace timeout, non-object
 readiness root), and `Dispatch`'s malformed-notification hardening at the next controller touch.
+
+## Q154: What did the envelope-completion arc land, and what did the live sandbox prove?
+
+**Method (2026-08-28):** the arc ran as a maintainer-approved plan
+(`docs/superpowers/plans/2026-08-28-envelope-completion.md`) directly on master — the repository's
+agreed development loop — with a fresh implementer per task, an independent review per task, and
+scoped re-reviews per fix round. Task 1's refusal probe at the third refresh's accepted pin
+(`d2ee536c`, 134 operations, 81 selected) accounted all 53 pending operations into five buckets:
+16 envelope-wall-only candidates, 2 mixed-wall (a second, non-envelope wall also refuses), 10
+persistentPty-family operations (excluded regardless — its own queued batch), 11 other-wall
+operations (no envelope wall touched at all), and 14 that already bind standalone with no wall.
+Tasks 2–6 landed the mechanism batch; Task 7 (split 7a/7b/7c for dispatch-budget reasons) plus a
+maintainer-directed micro-task landed the selection; Task 7d proved five representative shapes
+live.
+
+**Mechanisms landed:** `EnvelopePlan.PayloadType` now carries a `TypeReferencePlan` in place of a
+bare name, so every payload shape flows through one typed representation (Task 2, `cc7708a`).
+List and dictionary container payloads bind by delegating to the shared `TypePlanBinder` (Tasks
+3–4, `4d5a34a`/`7457811`), and bare containers register their own `OpenCodeJsonContext` entry
+with a pinned `TypeInfoPropertyName` accessor instead of a derived name. Inline (non-`$ref`)
+payloads promote under an operation-scoped `{ResponseTypeName stem}Data` name (Task 5, `249518c`)
+— uniform, after the maintainer overruled an initial grandfathering plan: the two already-selected
+wrapper-named payload models renamed via deliberate regeneration, `GenerateTextResponseData` →
+`GenerateTextPostData` and `SessionGenerateResponseData` → `SessionGeneratePostData` (`2452aef`).
+Marked-union payload roots claimed by this naming route now resolve through
+`CSharpNamePolicy.ToUnionInterfaceName`, so a promoted union payload carries the `I` prefix like
+every other union interface — a Task 5 minor promoted to a pre-Task-7 requirement once Task 6's
+review showed it reachable. Represented-nullable payloads (a wire `null` that is a legitimate
+success value, not an error) ride a parallel `EmitResponseStateGuardedProperty` path keyed on
+`!IsError`, replacing the ordinary `field ?? throw` guard that would otherwise misreport a null
+success as an error (Task 6, `111235e`). The same task's addendum extends `DataLocationList`
+array-position inline items to promote under the same operation-scoped naming (`46771f5`,
+prefix fix `9477e0d`). A closing micro-task extended the location-envelope `data` ref resolution
+to follow a `RefNode` to its target and, when that target is itself an `ArrayNode`, apply the
+existing array-item logic — the shape `vcs.branches` needed, whose `data` member is
+`{"$ref": ".../Vcs.BranchList"}` and `Vcs.BranchList` is a named array-of-string component
+(`d963653`/`6b0c662`).
+
+**Selection outcome:** 17 operations were selected — the `server`, `workspace`, and `worktree`
+families (new to the surface), `vcs` (`status` and `branches`), `location` (`get`), `session`
+(six reads: `active`, `context`, `form.list`, `inbox.list`, `instructions.entry.list`,
+`permission.list`), `debug` (`location.list`), `integration` (`get`), `model` (`default`),
+`permission` (`saved.list`), and `project` (`list`) — moving the profile
+**81 selected / 53 pending → 98 selected / 36 pending of 134** (verified against
+`tools/generation-profile.txt` and the committed `.generation-incomplete`). The maintainer's
+initial checkpoint approval named 18 operations (the 16 envelope-wall-only candidates plus
+`location.get`/`vcs.status` via reasoned `envelopePayloadNames` rows); one of those 16,
+`experimental.migration.v1.status`, turned out to sit behind the pre-existing structural-union
+wall as well as the envelope wall — a mixed-wall operation, not envelope-wall-only — so it dropped
+out and the approved scope became 17, exactly matching the profile delta. Task 7a landed
+`server.get`, `workspace.create`, `worktree.list`, `vcs.status`, and `location.get` (`vcs.branches`
+was probed and refused there — a ref-to-named-array shape neither Task 4's guard nor Task 6's
+addendum covered — deferred to the closing micro-task); its review also caught and fixed a
+misdescriptive handle name, `WorktreeClient` → `ProjectWorktreesClient` (the handle names the
+`projectID` key it holds). Task 7b landed the six-operation session read family. Task 7c landed
+the five remaining singles. The `vcs.branches` micro-task landed last, completing the approved
+scope.
+
+**Live sandbox evidence (7d):** a new walkthrough leg
+(`tests/OpenCode.Sdk.Sandbox/EnvelopeCompletionWalkthrough.cs`) ran the five representative shapes
+live against the pinned-built server (`bun src/index.ts serve`, cwd
+`external/opencode/packages/cli`). Representative output lines:
+```
+vcs-branches: status=200 branches=50 location=E:\repos\my-projects\opencode-sdk-dotnet\external\opencode\packages\cli
+location: status=200 directory=E:\repos\my-projects\opencode-sdk-dotnet\external\opencode\packages\cli project=012780c4098d08caa4ea8c479ed0a4690489f38d
+session-active: status=200 active=0
+server: status=200 urls=1 payload=ServerData
+session-context: status=200 messages=1
+```
+`vcs-branches` exercises the ref-to-array shape (a 50-item list read off the DTO with no
+bare-container registry entry needed); `location` exercises the payload-naming row; `session-active`
+exercises the dictionary/bare-container shape; `server` exercises the promoted-inline payload
+(`payload=ServerData` names the promoted type at runtime); `session-context` exercises a
+session-scoped handle read. All five returned `status=200` on the first run; the existing legs
+(export, permission, compact/fork's `NoThrow` spine, PTY) were unaffected.
+
+**Scope rulings carried forward:** `experimental.migration.v1.status` stays pending behind the
+structural-union wall — option (a), a future design-first mechanism batch, not folded into this
+arc. The 14 no-wall pending operations from Task 1's bucket (e) are the maintainer-approved
+post-arc routine sweep batch, to land with the `.generation-incomplete` bindability telltale
+(`[bindable]`/`[refused: …]` marks) as the bridge until the inventory/assurance-ledger lane
+standardizes pending-operation tracking.
+
+**Evidence:** the full gate is green at every landing commit; the arc's last full run (Task 7d,
+commit `9cff200`) reports 3,282/3,282 tests, `generate --verify` current at 98/36, and slopwatch
+at exactly the two ledgered SW004 residuals with zero new findings.
