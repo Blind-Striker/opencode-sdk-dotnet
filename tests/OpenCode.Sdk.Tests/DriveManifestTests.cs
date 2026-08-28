@@ -61,5 +61,11 @@ public sealed class DriveManifestTests
 
         await Assert.That(manifest.BackendEndpoint.Host).IsEqualTo("127.0.0.1");
         await Assert.That(manifest.BackendEndpoint.Port).IsNotEqualTo(manifest.UiEndpoint.Port);
+
+        // The upstream endpoint filter also requires an explicit, non-zero port
+        // (manifest.ts:17): a reservation that handed back 0 would write a manifest the server
+        // rejects at startup. Construction happens to guarantee it today; this asserts it.
+        await Assert.That(manifest.BackendEndpoint.Port).IsGreaterThanOrEqualTo(1);
+        await Assert.That(manifest.UiEndpoint.Port).IsGreaterThanOrEqualTo(1);
     }
 }
