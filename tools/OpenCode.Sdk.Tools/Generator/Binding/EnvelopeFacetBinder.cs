@@ -254,7 +254,12 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
         // guard below: the guard exists to stop a RefNode resolving to a NOMINAL
         // (object/enum/union) target with a failed name lookup from resurrecting a
         // mechanically-derived name, and that refusal is unchanged — only a ref resolving to an
-        // ARRAY gains this path, keyed on shape (ref -> array), never on operation id.
+        // ARRAY gains this path, keyed on shape (ref -> array), never on operation id. Resolve
+        // only follows RefNode chains — it does not unwrap a NullableNode, and its own visited
+        // set stops a ref alias cycle by handing back the cycling RefNode — so a nullable-wrapped
+        // array or a cycling ref falls through this arm unmatched and reaches the same guard,
+        // refusing exactly as before; intentional, since this dialect has no NullableNode-
+        // unwrapping step of its own yet.
         if (data.Schema is RefNode arrayReference && _context.Resolve(arrayReference) is ArrayNode resolvedArray)
         {
             if (resolvedArray.Item is RefNode resolvedItem

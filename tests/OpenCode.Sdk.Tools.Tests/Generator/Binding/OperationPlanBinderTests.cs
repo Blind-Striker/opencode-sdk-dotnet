@@ -1038,6 +1038,35 @@ public sealed class OperationPlanBinderTests
         await AssertWidgetRefusalAsync(document, "named component schema");
     }
 
+    /// <summary>
+    /// <c>OperationFacetContext.Resolve</c> only follows RefNode chains: it does not
+    /// unwrap a NullableNode. A ref resolving to a NULLABLE array (an in-band optional wrapping
+    /// the array shape, not the array itself) therefore does not match the array-ref arm's
+    /// pattern and falls through unmatched to the unchanged guard below, refusing exactly as
+    /// before — this dialect has no NullableNode-unwrapping step of its own yet (unlike
+    /// QueryRequestFacetBinder/SpineShapePolicy, which unwrap it as an explicit separate step).
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Refuse_A_Data_Location_Ref_Resolving_To_A_Nullable_Array()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("PlaceInfo", schema => schema
+                .Type("object")
+                .Property("directory", property => property.Type("string"), required: true))
+            .WithSchema("NullableWidgetNameList", schema => schema.AnyOf(
+                static branch => branch.Type("array").Items(static item => item.Type("string")),
+                static branch => branch.Type("null")))
+            .WithSchema("WidgetEnvelope", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("location", property => property.Ref("PlaceInfo"), required: true)
+                .Property("data", property => property.Ref("NullableWidgetNameList"), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetEnvelope")))));
+
+        await AssertWidgetRefusalAsync(document, "named component schema");
+    }
+
     /// <summary>Reuses Task 5's double-claim wall for the array arm's promoted item.</summary>
     [Test]
     public async Task Bind_Should_Refuse_A_Promoted_Data_Location_List_Item_Claimed_By_Two_Operations()
