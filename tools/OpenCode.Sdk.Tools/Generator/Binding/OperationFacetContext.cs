@@ -14,7 +14,8 @@ internal sealed class OperationFacetContext(
     SpecOperation operation,
     GenerationCuration curation,
     IReadOnlyDictionary<string, string> typeNames,
-    BindingErrorCollector errors)
+    BindingErrorCollector errors,
+    TypePlanBinder types)
 {
     public GenerationCuration Curation { get; } = curation ?? throw new ArgumentNullException(nameof(curation));
 
@@ -25,6 +26,9 @@ internal sealed class OperationFacetContext(
     public SpecOperation Operation { get; } = operation ?? throw new ArgumentNullException(nameof(operation));
 
     public IReadOnlyDictionary<string, string> TypeNames { get; } = typeNames ?? throw new ArgumentNullException(nameof(typeNames));
+
+    /// <summary>The general type machinery a facet falls through to once its own nominal fast path fails.</summary>
+    public TypePlanBinder Types { get; } = types ?? throw new ArgumentNullException(nameof(types));
 
     public void Refuse(string problem) => Errors.Add(BindingErrorCategory.Operation, Operation.OperationId, problem);
 

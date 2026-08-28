@@ -10,10 +10,10 @@ internal sealed record EnvelopePlan
     public required string? PayloadName { get; init; }
 
     /// <summary>
-    /// Gets the payload type name — for cursor lists, the element type of the <c>data</c>
-    /// array — or <see langword="null"/> for a no-content success.
+    /// Gets the payload type plan — for cursor lists and location lists the full list plan
+    /// whose element is the item — or <see langword="null"/> for a no-content success.
     /// </summary>
-    public required string? PayloadTypeName { get; init; }
+    public required TypeReferencePlan? PayloadType { get; init; }
 
     public required EnvelopeKind Kind { get; init; }
 

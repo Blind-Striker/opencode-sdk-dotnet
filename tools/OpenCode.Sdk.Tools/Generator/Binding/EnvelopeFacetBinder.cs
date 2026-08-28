@@ -30,7 +30,7 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
             SpecEnvelopeShape.CursorData => BindCursorListPayload(success.Schema),
             SpecEnvelopeShape.DataLocation => BindDataLocationPayload(success.Schema),
             SpecEnvelopeShape.None or SpecEnvelopeShape.DataHasMore or _ =>
-                _context.RefuseNull($"envelope shape '{success.EnvelopeShape}' is not supported"),
+                _context.RefuseNull<TypeReferencePlan>($"envelope shape '{success.EnvelopeShape}' is not supported"),
         };
         var locationTypeName = success.EnvelopeShape is SpecEnvelopeShape.DataLocation
             ? BindLocationSibling(success.Schema)
@@ -65,13 +65,27 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
             ResponseTypeName = responseTypeName,
             AdapterTypeName = $"{responseTypeName}Adapter",
             PayloadName = payloadName,
-            PayloadTypeName = payload,
+            PayloadType = payload,
             Kind = kind,
             SuccessStatusCode = 200,
             EnvelopeDtoTypeName = kind is EnvelopeKind.Bare ? null : $"{responseTypeName}Envelope",
             LocationTypeName = locationTypeName,
         };
     }
+
+    private static NamedTypeReferencePlan Named(string name) => new()
+    {
+        Name = name,
+        IsNullable = false,
+        JsonNullRepresentation = JsonNullRepresentation.ClrNull,
+    };
+
+    private static ListTypeReferencePlan ListOf(TypeReferencePlan element) => new()
+    {
+        ElementType = element,
+        IsNullable = false,
+        JsonNullRepresentation = JsonNullRepresentation.ClrNull,
+    };
 
     private string? DerivePayloadName(string responseTypeName)
     {
@@ -121,53 +135,73 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
             ResponseTypeName = responseTypeName,
             AdapterTypeName = $"{responseTypeName}Adapter",
             PayloadName = null,
-            PayloadTypeName = null,
+            PayloadType = null,
             Kind = EnvelopeKind.NoContent,
             SuccessStatusCode = 204,
             EnvelopeDtoTypeName = null,
         };
     }
 
-    private string? BindBarePayload(SchemaNode schema)
+    private TypeReferencePlan? BindBarePayload(SchemaNode schema)
     {
-        return schema is RefNode reference && _context.TypeNames.TryGetValue(reference.Target, out var name)
-            ? name
-            : _context.RefuseNull("success payload must reference a named schema");
-    }
-
-    private string? BindDataPayload(SchemaNode schema)
-    {
-        if (schema is RefNode reference
-            && _context.Document.Schemas.TryGetValue(reference.Target, out var target)
-            && target is ObjectNode { Properties: [{ Name: "data", IsRequired: true } data] }
-            && data.Schema is RefNode payload
-            && _context.TypeNames.TryGetValue(payload.Target, out var name))
+        if (schema is RefNode reference && _context.TypeNames.TryGetValue(reference.Target, out var name))
         {
-            return name;
+            return Named(name);
         }
 
-        return _context.RefuseNull("envelope payload must be a required reference to a named schema");
+        var bound = _context.Types.Bind(_context.Operation.OperationId, "payload", schema);
+        if (bound is null)
+        {
+            return _context.RefuseNull<TypeReferencePlan>("success payload does not bind to a supported type plan");
+        }
+
+        // A bare body has no wrapper to carry a null/absent distinction and no registered
+        // context accessor for a nullable root (SerializerTypeNamePolicy.ContextPropertyName
+        // throws on one); unlike a Data/DataLocation wrapper's 'data' member, nullable stays
+        // refused here rather than resurfacing as a late generation-time throw.
+        return bound.IsNullable
+            ? _context.RefuseNull<TypeReferencePlan>("a bare success body cannot represent null")
+            : bound;
     }
 
-    private string? BindCursorListPayload(SchemaNode schema)
+    private TypeReferencePlan? BindDataPayload(SchemaNode schema)
+    {
+        if (schema is not RefNode reference
+            || !_context.Document.Schemas.TryGetValue(reference.Target, out var target)
+            || target is not ObjectNode { Properties: [{ Name: "data", IsRequired: true } data] })
+        {
+            return _context.RefuseNull<TypeReferencePlan>("envelope payload must be a required reference to a named schema");
+        }
+
+        if (data.Schema is RefNode payload && _context.TypeNames.TryGetValue(payload.Target, out var name))
+        {
+            return Named(name);
+        }
+
+        return _context.Types.Bind(reference.Target, "data", data.Schema)
+               ?? _context.RefuseNull<TypeReferencePlan>("success payload does not bind to a supported type plan");
+    }
+
+    private ListTypeReferencePlan? BindCursorListPayload(SchemaNode schema)
     {
         if (schema is not RefNode reference
             || !_context.Document.Schemas.TryGetValue(reference.Target, out var target)
             || target is not ObjectNode wrapper)
         {
-            return _context.RefuseNull("cursor-list envelope must reference an object schema");
+            return _context.RefuseNull<ListTypeReferencePlan>("cursor-list envelope must reference an object schema");
         }
 
         var data = wrapper.Properties.FirstOrDefault(static property => property.Name is "data");
         var cursor = wrapper.Properties.FirstOrDefault(static property => property.Name is "cursor");
         if (wrapper.Properties.Count is not 2 || data is not { IsRequired: true } || cursor is not { IsRequired: true })
         {
-            return _context.RefuseNull("cursor-list envelope must require exactly 'data' and 'cursor'");
+            return _context.RefuseNull<ListTypeReferencePlan>("cursor-list envelope must require exactly 'data' and 'cursor'");
         }
 
         if (!SpineShapePolicy.IsListCursorShape(_context, cursor.Schema))
         {
-            return _context.RefuseNull("cursor-list 'cursor' must be the optional-nullable previous/next cursor object");
+            return _context.RefuseNull<ListTypeReferencePlan>(
+                "cursor-list 'cursor' must be the optional-nullable previous/next cursor object");
         }
 
         // Items must reference top-level components: a promoted inline item would take its
@@ -176,13 +210,13 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
             || item.Target.Contains('#', StringComparison.Ordinal)
             || !_context.TypeNames.TryGetValue(item.Target, out var itemName))
         {
-            return _context.RefuseNull("cursor-list 'data' must be an array of a named component schema");
+            return _context.RefuseNull<ListTypeReferencePlan>("cursor-list 'data' must be an array of a named component schema");
         }
 
-        return itemName;
+        return ListOf(Named(itemName));
     }
 
-    private string? BindDataLocationPayload(SchemaNode schema)
+    private TypeReferencePlan? BindDataLocationPayload(SchemaNode schema)
     {
         var wrapper = ResolveDataLocationWrapper(schema);
         if (wrapper is null)
@@ -195,19 +229,33 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
             && !datum.Target.Contains('#', StringComparison.Ordinal)
             && _context.TypeNames.TryGetValue(datum.Target, out var datumName))
         {
-            return datumName;
+            return Named(datumName);
         }
 
-        // Items must reference top-level components: a promoted inline item would take its
-        // name from the excluded response root, so the dialect keeps list items nominal.
+        // A named top-level component item keeps its own identity. An inline item ingestion
+        // promoted into the graph reaches the same lookup once SchemaNameResolver's
+        // DataLocationList arm claims it under the operation-scoped payload name (mirroring
+        // the Data shape's single-object promotion); a RefNode item claimed by neither path
+        // still falls through and refuses below — no resurrection via the type machinery's
+        // mechanical fallback name.
         if (data.Schema is ArrayNode { Item: RefNode item }
-            && !item.Target.Contains('#', StringComparison.Ordinal)
             && _context.TypeNames.TryGetValue(item.Target, out var itemName))
         {
-            return itemName;
+            return ListOf(Named(itemName));
         }
 
-        return _context.RefuseNull("location envelope 'data' must reference a named component schema, or be an array of one");
+        // A RefNode or ArrayNode that reached here already failed the nominal checks above
+        // (an unnamed or promoted-inline target); the dialect keeps refusing those exactly as
+        // before instead of letting the type machinery resurrect a mechanically-derived name.
+        // Every other shape (a dictionary, for one) delegates to the type machinery.
+        if (data.Schema is RefNode or ArrayNode)
+        {
+            return _context.RefuseNull<TypeReferencePlan>(
+                "location envelope 'data' must reference a named component schema, or be an array of one");
+        }
+
+        return _context.Types.Bind(_context.Operation.OperationId, "data", data.Schema)
+               ?? _context.RefuseNull<TypeReferencePlan>("success payload does not bind to a supported type plan");
     }
 
     /// <summary>

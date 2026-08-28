@@ -26,11 +26,14 @@ public class OpenCodeClient : IDisposable
     private readonly ProvidersClient? _providers;
     private readonly PtysClient? _ptys;
     private readonly ReferencesClient? _references;
+    private readonly ServerClient? _server;
     private readonly SessionsClient? _sessions;
     private readonly ShellsClient? _shells;
     private readonly SkillsClient? _skills;
     private readonly VcsClient? _vcs;
     private readonly WebsearchClient? _websearch;
+    private readonly WorkspacesClient? _workspaces;
+    private readonly WorktreesClient? _worktrees;
     /// <summary>
     /// Initializes a client that owns its connection to the endpoint.
     /// </summary>
@@ -54,11 +57,14 @@ public class OpenCodeClient : IDisposable
         _providers = new ProvidersClient(_pipeline);
         _ptys = new PtysClient(_pipeline);
         _references = new ReferencesClient(_pipeline);
+        _server = new ServerClient(_pipeline);
         _sessions = new SessionsClient(_pipeline);
         _shells = new ShellsClient(_pipeline);
         _skills = new SkillsClient(_pipeline);
         _vcs = new VcsClient(_pipeline);
         _websearch = new WebsearchClient(_pipeline);
+        _workspaces = new WorkspacesClient(_pipeline);
+        _worktrees = new WorktreesClient(_pipeline);
     }
 
     /// <summary>
@@ -85,11 +91,14 @@ public class OpenCodeClient : IDisposable
         _providers = new ProvidersClient(_pipeline);
         _ptys = new PtysClient(_pipeline);
         _references = new ReferencesClient(_pipeline);
+        _server = new ServerClient(_pipeline);
         _sessions = new SessionsClient(_pipeline);
         _shells = new ShellsClient(_pipeline);
         _skills = new SkillsClient(_pipeline);
         _vcs = new VcsClient(_pipeline);
         _websearch = new WebsearchClient(_pipeline);
+        _workspaces = new WorkspacesClient(_pipeline);
+        _worktrees = new WorktreesClient(_pipeline);
     }
 
     /// <summary>
@@ -185,6 +194,10 @@ public class OpenCodeClient : IDisposable
     /// </summary>
     public virtual ReferencesClient References => _references ?? throw MockSeam.CreateError("OpenCodeClient", "References");
     /// <summary>
+    /// Gets the &apos;Server&apos; collection client.
+    /// </summary>
+    public virtual ServerClient Server => _server ?? throw MockSeam.CreateError("OpenCodeClient", "Server");
+    /// <summary>
     /// Gets the &apos;Sessions&apos; collection client.
     /// </summary>
     public virtual SessionsClient Sessions => _sessions ?? throw MockSeam.CreateError("OpenCodeClient", "Sessions");
@@ -204,6 +217,14 @@ public class OpenCodeClient : IDisposable
     /// Gets the &apos;Websearch&apos; collection client.
     /// </summary>
     public virtual WebsearchClient Websearch => _websearch ?? throw MockSeam.CreateError("OpenCodeClient", "Websearch");
+    /// <summary>
+    /// Gets the &apos;Workspaces&apos; collection client.
+    /// </summary>
+    public virtual WorkspacesClient Workspaces => _workspaces ?? throw MockSeam.CreateError("OpenCodeClient", "Workspaces");
+    /// <summary>
+    /// Gets the &apos;Worktrees&apos; collection client.
+    /// </summary>
+    public virtual WorktreesClient Worktrees => _worktrees ?? throw MockSeam.CreateError("OpenCodeClient", "Worktrees");
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("OpenCodeClient", "Pipeline");
 
     /// <summary>
@@ -217,5 +238,19 @@ public class OpenCodeClient : IDisposable
     public virtual Task<HealthResponse> GetHealthAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Health.Get, HealthResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Get location. Resolve the requested location or the server default location.
+    /// </summary>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;LocationResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<LocationResponse> GetLocationAsync(LocationRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Location.Get(request), LocationResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }

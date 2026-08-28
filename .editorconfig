@@ -860,10 +860,10 @@ dotnet_diagnostic.CA1056.severity = none
 # test project mirrors the layout with equally flat test namespaces. Winner: the
 # flat-namespace contract; IDE0130 remains error for every other folder, tools included.
 # A new family folder extends these globs deliberately - curation changes are API reviews.
-[src/OpenCode.Sdk/{Agents,Commands,Credentials,Debug,Events,Experimental,Generation,Integrations,LanguageModels,McpServers,Permissions,Plugins,Projects,Providers,Ptys,References,Sessions,Skills,Vcs,Websearch,Health,Pagination,Shells}/**.cs]
+[src/OpenCode.Sdk/{Agents,Commands,Credentials,Debug,Events,Experimental,Generation,Integrations,LanguageModels,Location,McpServers,Permissions,Plugins,Projects,Providers,Ptys,References,Server,Sessions,Skills,Vcs,Websearch,Health,Pagination,Shells,Workspaces,Worktrees}/**.cs]
 dotnet_diagnostic.IDE0130.severity = none
 
-[tests/OpenCode.Sdk.Tests/{Agents,Commands,Credentials,Debug,Events,Experimental,Generation,Integrations,LanguageModels,McpServers,Permissions,Plugins,Projects,Providers,Ptys,References,Sessions,Skills,Vcs,Websearch,Health,Pagination,Shells}/**.cs]
+[tests/OpenCode.Sdk.Tests/{Agents,Commands,Credentials,Debug,Events,Experimental,Generation,Integrations,LanguageModels,Location,McpServers,Permissions,Plugins,Projects,Providers,Ptys,References,Server,Sessions,Skills,Vcs,Websearch,Health,Pagination,Shells,Workspaces,Worktrees}/**.cs]
 dotnet_diagnostic.IDE0130.severity = none
 
 # DI extension methods live in the Microsoft.Extensions.DependencyInjection namespace so
@@ -921,7 +921,7 @@ dotnet_diagnostic.MA0076.severity = none
 # externally-owned task lifetime for VSTHRD003 to protect against, the same shape already
 # arbitrated for ScriptedPtyWebSocket's TaskCompletionSource handles. Winner: the event-to-async
 # bridge for the readiness signal; VSTHRD003 remains enabled for every other file.
-# FlushOutputDrain must call the parameterless WaitForExit(), not WaitForExitAsync(): Polyfill's
+# WaitForExitBestEffort must call the parameterless WaitForExit(), not WaitForExitAsync(): Polyfill's
 # downlevel WaitForExitAsync is Exited-event-only and never waits for the async output readers to
 # reach EOF, while .NET Framework's synchronous WaitForExit() does drain them before returning.
 # Every startup-failure path calls this after the child has already exited, so it returns

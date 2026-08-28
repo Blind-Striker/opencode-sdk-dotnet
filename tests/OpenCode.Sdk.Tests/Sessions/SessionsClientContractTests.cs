@@ -149,4 +149,52 @@ public sealed class SessionsClientContractTests
 
         await Assert.That(exception!.Error).IsTypeOf<InvalidRequestError>();
     }
+
+    [Test]
+    public async Task GetActiveAsync_Should_Return_The_Typed_Active_Sessions()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope("{\"ses_100\":{\"type\":\"running\"}}"));
+
+        var response = await scenario.Client.Sessions.GetActiveAsync();
+
+        await Assert.That(response.Active.Count).IsEqualTo(1);
+        await Assert.That(response.Active["ses_100"].Type).IsEqualTo("running");
+        await Assert.That(scenario.Requests.Single().RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/active"));
+    }
+
+    [Test]
+    public async Task GetActiveAsync_Should_Return_An_Empty_Map_When_No_Sessions_Are_Active()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope("{}"));
+
+        var response = await scenario.Client.Sessions.GetActiveAsync();
+
+        await Assert.That(response.Active).IsEmpty();
+    }
+
+    [Test]
+    public async Task GetActiveAsync_Should_Throw_The_Declared_400_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.InvalidRequestError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetActiveAsync())
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(400);
+        await Assert.That(exception.Error).IsTypeOf<InvalidRequestError>();
+    }
+
+    [Test]
+    public async Task GetActiveAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Sessions.GetActiveAsync(OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
 }

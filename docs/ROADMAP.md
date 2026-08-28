@@ -280,6 +280,13 @@ downlevel keeps the string path — Polyfill's alternate lookup is an O(n) scan)
 composition measured as an honest negative behind its own permanent rung. Doc 20's D2/D3 had
 already landed inside the runtime arc. **Outstanding batch evidence:** the closing default-job
 comparison against `arc-milestone-default`, which also carries the frozen-table timing verdict.
+A **benchmark coverage batch** precedes that run (maintainer, 2026-08-28): a `PtySession`
+read-path ladder (shipped 08-27, currently unmeasured), a location-merge case on the
+route-composition rung, a dictionary-envelope rung once envelope completion selects one (with
+reasoned skip notes for Data-list and bare-container shapes, covered by the MessageList/Health
+ladders), and the `compare-benchmarks` completeness fix — the comparison CSV currently drops
+before-only/after-only cases that the console reports, so new rungs must enter the CSV with
+their exact allocation columns instead of vanishing from the durable artifact.
 **M5 breadth batches are pulled ahead of M4 and are landing.** The Q144 wall-probe mapped the
 full pinned surface (99 workable pending operations after Q137/Q139's drift map excludes the
 upstream-removed families — the question flow, `projectCopy.*`, `health.stop`,
@@ -381,6 +388,24 @@ carrying only the Basic credential answered `101 Switching Protocols`, exactly o
 closed the replay, reconnecting at that cursor replayed only what followed it, the latest cursor
 replayed nothing at all, and removing the PTY ended the read as a normal close.
 
+**The third receipt-governed refresh is complete** (2026-08-28; evidence: research log Q152). The
+accepted snapshot is **`d2ee536c`** — upstream force-updated `v2` past `803ead32`, and the first
+non-identical candidate added one operation (`server.experimental.persistentPty.handoff`, pending
+through a ninth T3 identity row) and three components (`Session.Metadata` on the session models, a
+404 arm on `session.import`, one more stabilize duplicate collapsed by alias). The SSE Restore
+patch still applies with byte-identical preimages; PR #45182 remains open. The profile stands at
+**81 selected / 53 pending**, the full gate is green at 2,767 tests, and the PublicApi baseline
+accepted its three additive `Metadata` properties.
+
+**Envelope completion's first selection batch (7a) is complete** (2026-08-28; plan:
+`docs/superpowers/plans/2026-08-28-envelope-completion.md`). Five family commits select
+`vcs.status`, `location.get`, and the new `server`, `workspace`, and `worktree` families — five
+of the six named operations; `v2.vcs.branches` was probed and refused rather than forced
+(`BindDataLocationPayload`'s ref-vs-array wall does not admit a named ref to an unnamed
+array-of-string component). Full mechanism detail, the two generator-tooling fixes it surfaced,
+and the reviewed naming/placement/handle decisions live in the task's own report, feeding the
+dated research log at Task 8. The profile stands at **92 selected / 42 pending**.
+
 ## Milestones
 
 Deliverable-first: every milestone ends in something callable or demonstrable. The next
@@ -412,21 +437,37 @@ is revisited at each milestone boundary.
    owned-transport/net472 GA gate (#43 plus #32) are complete. The union single-pass deserialization
    and streaming adapter-boundary redesign (#23), #29's surviving success-body cost, #33's carrier
    refusal, and the generated collection comparison completed in Arc 6 at `fa6124d`. M3 is complete.
-4. **M4 — Launcher and process truth.** `OpenCodeServer.StartAsync` with three-OS acceptance
-   (ADR-0001) over the measured stdio contract: `serve --stdio --port 0`, JSON readiness,
-   caller-supplied lease credential via `OPENCODE_PASSWORD`, stdin-EOF ownership, and bounded
-   tree termination (research log Q148). Carries the TUnit exact-pin server fixture, the
-   deterministic simulated-model session workflow with its repository-owned C# controller
-   (ADR-0022), and the net472 stdout/tree-kill items. Demo: the SDK starts the server itself
-   and calls health.
+4. **M4 — Launcher and process truth.** The SDK targets full parity with upstream's three
+   connection modes under upstream's own vocabulary (maintainer, 2026-08-28): standalone start,
+   explicit endpoint, and the registration-file background service
+   (`Service.discover/ensure/stop`). M4 itself lands the standalone door —
+   `OpenCodeServer.StartAsync` with three-OS acceptance (ADR-0001) over the measured stdio
+   contract: `serve --stdio --port 0`, JSON readiness, caller-supplied lease credential via
+   `OPENCODE_PASSWORD`, stdin-EOF ownership, and bounded tree termination (research log Q148) —
+   plus the explicit-endpoint health/version validation option. Ownership is structural: only
+   the started server's working object can end a process, and only its own. Carries the TUnit
+   exact-pin server fixture, the deterministic simulated-model session workflow with its
+   repository-owned C# controller (ADR-0022), and the net472 stdout/tree-kill items. Demo: the
+   SDK starts the server itself and calls health. **The background-service parity follow-up**
+   (`OpenCodeService.DiscoverAsync/EnsureAsync/StopAsync` over the registration file — an
+   upstream-observed contract outside the OpenAPI pin, canary-guarded) **is its own queued arc
+   after M4**; whether read-only discovery rides M4 is decided at the M4 plan review.
 5. **M5 — Full surface.** Opened with the minimal `refresh-spec` synchronizer and the first
    accepted (Restore-patched) refresh to the current tip (ADR-0020), then the typed per-call
    location plus normal-PTY ownership lane (ADR-0021) — both landed, with the operation-identity
    rows and the header/base64 ingestion shapes riding along. What remains is the rest of target
-   admission over the refreshed surface: envelope completion, the remaining mechanism batches,
-   persistentPty's HTTP batch, exclusion fingerprints (ADR-0008), the operation inventory and
-   assurance ledger, remaining ingestion/binding walls (#52/#53), and package/API/TFM assurance
-   (#51), packaging unblocked.
+   admission over the refreshed surface: envelope completion, then a one-commit routine sweep of
+   the no-wall pending operations the C2 probe surfaced (maintainer, 2026-08-28: 14 operations
+   bind with no wall today — refreshes and mechanism batches grow this pool silently; the sweep
+   also lands the interim bindability telltale: `generate` marks each pending operation
+   `[bindable]`/`[refused: …]` in the committed `.generation-incomplete`, bridging until the
+   inventory lane's standardized tracking), the
+   remaining mechanism batches, persistentPty's HTTP batch, exclusion fingerprints (ADR-0008),
+   the operation inventory and assurance ledger — whose design also standardizes
+   pending-operation bindability tracking, so a wall-free pending operation surfaces as a
+   committed-artifact diff at every generate/refresh instead of accumulating unseen (maintainer
+   requirement, 2026-08-28) — remaining ingestion/binding walls (#52/#53), and package/API/TFM
+   assurance (#51), packaging unblocked.
    The location design is sealed (#37 closed — ambient plus per-call, research log Q148), so
    the freeze review inherits a settled surface.
 6. **M6 — Operational closure.** The observation lanes' automation (tip detector, candidate

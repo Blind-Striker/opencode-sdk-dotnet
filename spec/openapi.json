@@ -790,6 +790,16 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "metadata": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/Session.Metadata"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "additionalProperties": false
@@ -977,6 +987,16 @@
               }
             }
           },
+          "404": {
+            "description": "SessionNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionNotFoundErrorEncoded"
+                }
+              }
+            }
+          },
           "409": {
             "description": "ConflictError",
             "content": {
@@ -988,7 +1008,7 @@
             }
           }
         },
-        "description": "Import a projected session transcript at the requested location.",
+        "description": "Import a projected session transcript at the requested location. If parentID is supplied, the parent session must already exist; import parents before children.",
         "summary": "Import session",
         "requestBody": {
           "content": {
@@ -10074,6 +10094,70 @@
         }
       }
     },
+    "/api/experimental/persistent-pty/handoff": {
+      "post": {
+        "tags": ["persistentPty"],
+        "operationId": "server.experimental.persistentPty.handoff",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "handoff": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/PersistentPty.Handoff"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["handoff"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestErrorEncoded"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorEncoded"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/experimental/persistent-pty/{ptyID}": {
       "get": {
         "tags": ["persistentPty"],
@@ -15914,7 +15998,34 @@
             "additionalProperties": false
           }
         },
-        "required": ["command", "args", "cwd", "title", "env"],
+        "required": ["args", "title", "env"],
+        "additionalProperties": false
+      },
+      "PersistentPty.Handoff": {
+        "type": "object",
+        "properties": {
+          "directory": {
+            "type": "string"
+          },
+          "instanceID": {
+            "type": "string"
+          },
+          "ticket": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity", "-Infinity", "NaN"]
+              }
+            ]
+          }
+        },
+        "required": ["directory", "instanceID", "ticket", "expiresAt"],
         "additionalProperties": false
       },
       "PersistentPty.Info": {
@@ -17232,6 +17343,9 @@
           "subpath": {
             "type": "string"
           },
+          "metadata": {
+            "$ref": "#/components/schemas/Session.Metadata"
+          },
           "revert": {
             "$ref": "#/components/schemas/Session.Revert"
           }
@@ -17566,7 +17680,7 @@
                 "$ref": "#/components/schemas/Session.Message.ToolState.Streaming"
               },
               {
-                "$ref": "#/components/schemas/Session.Message.ToolState.Running"
+                "$ref": "#/components/schemas/Session.Message.ToolState.Running_1"
               },
               {
                 "$ref": "#/components/schemas/Session.Message.ToolState.Completed_1"
@@ -18235,6 +18349,23 @@
         "required": ["status", "input", "metadata"],
         "additionalProperties": false
       },
+      "Session.Message.ToolState.Running_1": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["running"]
+          },
+          "input": {
+            "type": "object"
+          },
+          "metadata": {
+            "type": "object"
+          }
+        },
+        "required": ["status", "input", "metadata"],
+        "additionalProperties": false
+      },
       "Session.Message.ToolState.Streaming": {
         "type": "object",
         "properties": {
@@ -18297,6 +18428,9 @@
         },
         "required": ["id", "time", "text", "type"],
         "additionalProperties": false
+      },
+      "Session.Metadata": {
+        "type": "object"
       },
       "Session.Revert": {
         "type": "object",
@@ -21014,6 +21148,9 @@
               },
               "model": {
                 "$ref": "#/components/schemas/Model.Ref"
+              },
+              "metadata": {
+                "$ref": "#/components/schemas/Session.Metadata"
               },
               "version": {
                 "type": "string"

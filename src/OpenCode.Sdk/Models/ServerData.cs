@@ -4,13 +4,13 @@ using System.Text.Json.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a generate text response data value.
+/// Represents a server data value.
 /// </summary>
-public sealed record GenerateTextResponseData
+public sealed record ServerData
 {
     /// <summary>
-    /// Gets the text value.
+    /// Gets the urls value.
     /// </summary>
-    [JsonPropertyName("text")]
-    public required string Text { get; init; }
+    [JsonPropertyName("urls")]
+    public required IReadOnlyList<string> Urls { get; init; }
 }

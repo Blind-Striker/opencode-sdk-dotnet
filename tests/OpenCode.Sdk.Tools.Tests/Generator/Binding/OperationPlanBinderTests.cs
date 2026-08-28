@@ -24,11 +24,13 @@ public sealed class OperationPlanBinderTests
         "McpServersClient",
         "PermissionsClient",
         "PluginsClient",
+        "ProjectWorktreesClient",
         "ProjectsClient",
         "ProvidersClient",
         "PtyRawClient",
         "PtysRawClient",
         "ReferencesClient",
+        "ServerClient",
         "SessionClient",
         "SessionsClient",
         "ShellClient",
@@ -36,6 +38,8 @@ public sealed class OperationPlanBinderTests
         "SkillsClient",
         "VcsClient",
         "WebsearchClient",
+        "WorkspacesClient",
+        "WorktreesClient",
     ];
 
     private static readonly string[] ExpectedSubClientPropertyNames =
@@ -56,11 +60,14 @@ public sealed class OperationPlanBinderTests
         "Providers",
         "Ptys",
         "References",
+        "Server",
         "Sessions",
         "Shells",
         "Skills",
         "Vcs",
         "Websearch",
+        "Workspaces",
+        "Worktrees",
     ];
 
     private static readonly string[] ExpectedSubClientTypeNames =
@@ -81,11 +88,14 @@ public sealed class OperationPlanBinderTests
         "ProvidersClient",
         "PtysClient",
         "ReferencesClient",
+        "ServerClient",
         "SessionsClient",
         "ShellsClient",
         "SkillsClient",
         "VcsClient",
         "WebsearchClient",
+        "WorkspacesClient",
+        "WorktreesClient",
     ];
 
     [Test]
@@ -115,7 +125,7 @@ public sealed class OperationPlanBinderTests
         await Assert.That(root.HandleFactory).IsNull();
         await Assert.That(root.HandleParameter).IsNull();
 
-        var health = root.Operations.Single();
+        var health = root.Operations.Single(static operation => operation.MethodName == "GetHealthAsync");
         await Assert.That(health.MethodName).IsEqualTo("GetHealthAsync");
         await Assert.That(health.HttpMethod).IsEqualTo("get");
         await Assert.That(health.RouteTemplate).IsEqualTo("/api/health");
@@ -127,7 +137,8 @@ public sealed class OperationPlanBinderTests
         await Assert.That(health.Envelope!.ResponseTypeName).IsEqualTo("HealthResponse");
         await Assert.That(health.Envelope.AdapterTypeName).IsEqualTo("HealthResponseAdapter");
         await Assert.That(health.Envelope.PayloadName).IsEqualTo("Health");
-        await Assert.That(health.Envelope.PayloadTypeName).IsEqualTo("ServiceHealth");
+        await Assert.That(health.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(((NamedTypeReferencePlan)health.Envelope.PayloadType!).Name).IsEqualTo("ServiceHealth");
         await Assert.That(health.Envelope.Kind).IsEqualTo(EnvelopeKind.Bare);
         await Assert
             .That(health
@@ -138,6 +149,27 @@ public sealed class OperationPlanBinderTests
         await Assert.That(health.ErrorMap.Statuses[0].Tags.Single().TypeName).IsEqualTo("InvalidRequestError");
         await Assert.That(health.ErrorMap.Statuses[1].Tags.Single().Tag).IsEqualTo("UnauthorizedError");
 
+        var location = root.Operations.Single(static operation => operation.MethodName == "GetLocationAsync");
+        await Assert.That(location.HttpMethod).IsEqualTo("get");
+        await Assert.That(location.RouteTemplate).IsEqualTo("/api/location");
+        await Assert.That(location.RouteContainerName).IsEqualTo("Location");
+        await Assert.That(location.RouteMemberName).IsEqualTo("Get");
+        await Assert.That(location.Parameters).IsEmpty();
+        await Assert.That(location.Envelope!.ResponseTypeName).IsEqualTo("LocationResponse");
+        await Assert.That(location.Envelope.AdapterTypeName).IsEqualTo("LocationResponseAdapter");
+        await Assert.That(location.Envelope.PayloadName).IsEqualTo("ResolvedLocation");
+        await Assert.That(location.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(((NamedTypeReferencePlan)location.Envelope.PayloadType!).Name).IsEqualTo("LocationInfo");
+        await Assert.That(location.Envelope.Kind).IsEqualTo(EnvelopeKind.Bare);
+        await Assert
+            .That(location
+                .ErrorMap.Statuses.Select(static status => status.StatusCode)
+                .SequenceEqual([400, 401]))
+            .IsTrue();
+        await Assert.That(location.ErrorMap.Statuses[0].Tags.Single().Tag).IsEqualTo("InvalidRequestError");
+        await Assert.That(location.ErrorMap.Statuses[1].Tags.Single().Tag).IsEqualTo("UnauthorizedError");
+
+        await Assert.That(root.Operations.Count).IsEqualTo(2);
         await Assert.That(root.ContainerName).IsNull();
     }
 
@@ -151,7 +183,7 @@ public sealed class OperationPlanBinderTests
         await Assert
             .That(sessions
                 .Operations.Select(static operation => operation.MethodName)
-                .SequenceEqual(["CreateSessionAsync", "ListSessionsAsync", "PostImportAsync"], StringComparer.Ordinal))
+                .SequenceEqual(["CreateSessionAsync", "GetActiveAsync", "ListSessionsAsync", "PostImportAsync"], StringComparer.Ordinal))
             .IsTrue();
         await Assert.That(sessions.HandleFactory!.MethodName).IsEqualTo("GetSessionClient");
         await Assert.That(sessions.HandleFactory.HandleTypeName).IsEqualTo("SessionClient");
@@ -171,7 +203,11 @@ public sealed class OperationPlanBinderTests
             .IsTrue();
         await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.CursorList);
         await Assert.That(list.Envelope.PayloadName).IsEqualTo("Sessions");
-        await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("SessionInfo");
+        await Assert.That(list.Envelope.PayloadType).IsTypeOf<ListTypeReferencePlan>();
+        await Assert.That(((ListTypeReferencePlan)list.Envelope.PayloadType!).ElementType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert
+            .That(((NamedTypeReferencePlan)((ListTypeReferencePlan)list.Envelope.PayloadType).ElementType).Name)
+            .IsEqualTo("SessionInfo");
         await Assert
             .That(list
                 .ErrorMap.Statuses[0]
@@ -207,7 +243,8 @@ public sealed class OperationPlanBinderTests
         await Assert.That(createShell.QueryRequest!.RidesRequestBody).IsTrue();
         await Assert.That(createShell.QueryRequest.TypeName).IsEqualTo("ShellCreateRequest");
         await Assert.That(createShell.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocation);
-        await Assert.That(createShell.Envelope.PayloadTypeName).IsEqualTo("ShellInfo");
+        await Assert.That(createShell.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(((NamedTypeReferencePlan)createShell.Envelope.PayloadType!).Name).IsEqualTo("ShellInfo");
         await Assert.That(createShell.Envelope.LocationTypeName).IsEqualTo("LocationInfo");
 
         var listShells = shells.Operations.Single(static operation => operation.MethodName == "ListShellsAsync");
@@ -221,12 +258,17 @@ public sealed class OperationPlanBinderTests
     [
         "CreatePermissionAsync",
         "DeleteInboxCancelAsync",
+        "GetContextAsync",
         "GetExportAsync",
         "GetLogAsync",
         "GetMessageAsync",
         "GetPermissionAsync",
         "GetSessionAsync",
+        "ListFormsAsync",
+        "ListInboxAsync",
+        "ListInstructionsEntryAsync",
         "ListMessagesAsync",
+        "ListRequestsAsync",
         "PostBackgroundAsync",
         "PostCommandAsync",
         "PostCompactAsync",
@@ -320,7 +362,8 @@ public sealed class OperationPlanBinderTests
         await Assert.That(message.Envelope!.ResponseTypeName).IsEqualTo("SessionMessageResponse");
         await Assert.That(message.Envelope.AdapterTypeName).IsEqualTo("SessionMessageResponseAdapter");
         await Assert.That(message.Envelope.PayloadName).IsEqualTo("Message");
-        await Assert.That(message.Envelope.PayloadTypeName).IsEqualTo("ISessionMessageInfo");
+        await Assert.That(message.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(((NamedTypeReferencePlan)message.Envelope.PayloadType!).Name).IsEqualTo("ISessionMessageInfo");
         await Assert.That(message.Envelope.Kind).IsEqualTo(EnvelopeKind.Data);
         await Assert
             .That(message
@@ -426,7 +469,8 @@ public sealed class OperationPlanBinderTests
         await Assert.That(part.Envelope!.ResponseTypeName).IsEqualTo("GadgetPartResponse");
         await Assert.That(part.Envelope.AdapterTypeName).IsEqualTo("GadgetPartResponseAdapter");
         await Assert.That(part.Envelope.PayloadName).IsEqualTo("Part");
-        await Assert.That(part.Envelope.PayloadTypeName).IsEqualTo("GadgetPart");
+        await Assert.That(part.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(((NamedTypeReferencePlan)part.Envelope.PayloadType!).Name).IsEqualTo("GadgetPart");
         await Assert.That(part.Envelope.Kind).IsEqualTo(EnvelopeKind.Data);
         await Assert.That(part.ErrorMap.Statuses.Single().StatusCode).IsEqualTo(404);
         await Assert.That(part.ErrorMap.Statuses.Single().Tags.Single().TypeName).IsEqualTo("GadgetMissingError");
@@ -779,7 +823,11 @@ public sealed class OperationPlanBinderTests
 
         var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.CursorList);
-        await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("WidgetInfo");
+        await Assert.That(list.Envelope.PayloadType).IsTypeOf<ListTypeReferencePlan>();
+        await Assert.That(((ListTypeReferencePlan)list.Envelope.PayloadType!).ElementType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert
+            .That(((NamedTypeReferencePlan)((ListTypeReferencePlan)list.Envelope.PayloadType).ElementType).Name)
+            .IsEqualTo("WidgetInfo");
         await Assert.That(list.Envelope.EnvelopeDtoTypeName).IsEqualTo("WidgetListResponseEnvelope");
         await Assert
             .That(plan
@@ -825,7 +873,8 @@ public sealed class OperationPlanBinderTests
 
         var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocation);
-        await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("WidgetInfo");
+        await Assert.That(list.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(((NamedTypeReferencePlan)list.Envelope.PayloadType!).Name).IsEqualTo("WidgetInfo");
         await Assert.That(list.Envelope.LocationTypeName).IsEqualTo("PlaceInfo");
         await Assert.That(list.Envelope.EnvelopeDtoTypeName).IsEqualTo("WidgetListResponseEnvelope");
         await Assert
@@ -846,7 +895,11 @@ public sealed class OperationPlanBinderTests
 
         var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocationList);
-        await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("WidgetInfo");
+        await Assert.That(list.Envelope.PayloadType).IsTypeOf<ListTypeReferencePlan>();
+        await Assert.That(((ListTypeReferencePlan)list.Envelope.PayloadType!).ElementType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert
+            .That(((NamedTypeReferencePlan)((ListTypeReferencePlan)list.Envelope.PayloadType).ElementType).Name)
+            .IsEqualTo("WidgetInfo");
         await Assert.That(list.Envelope.LocationTypeName).IsEqualTo("PlaceInfo");
     }
 
@@ -869,8 +922,14 @@ public sealed class OperationPlanBinderTests
         await AssertWidgetRefusalAsync(document, "location sibling");
     }
 
+    /// <summary>
+    /// The addendum's array arm: an inline-object list item promotes with the same
+    /// operation-scoped name Task 5 built for a single-object 'data' payload (the guard
+    /// Task 4 added existed to stop a pointer-derived name leaking, not to forbid promotion
+    /// outright once one is registered).
+    /// </summary>
     [Test]
-    public async Task Bind_Should_Refuse_A_Data_Location_List_Of_Promoted_Inline_Items()
+    public async Task Bind_Should_Promote_A_Data_Location_List_Of_Inline_Items_Under_An_Operation_Scoped_Name()
     {
         var document = await BindingTestHost.IngestAsync(DataLocationScenario(
             data: static property => property
@@ -879,7 +938,79 @@ public sealed class OperationPlanBinderTests
                     .Type("object")
                     .Property("id", static inner => inner.Type("string"), required: true))));
 
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocationList);
+        await Assert.That(list.Envelope.PayloadType).IsTypeOf<ListTypeReferencePlan>();
+        var elementType = (NamedTypeReferencePlan)((ListTypeReferencePlan)list.Envelope.PayloadType!).ElementType;
+        await Assert.That(elementType.Name).IsEqualTo("WidgetListData");
+        await Assert.That(plan.Models.Any(static model => string.Equals(model.Name, "WidgetListData", StringComparison.Ordinal)))
+            .IsTrue();
+
+        // The wrapper component's own spelling never reaches the surface.
+        await Assert.That(plan.Models.Any(static model => model.Name.Contains("Response", StringComparison.Ordinal))).IsFalse();
+    }
+
+    /// <summary>
+    /// A RefNode item that resolves to a non-nominal target (a primitive alias, here) is
+    /// claimed by neither the nominal-component lookup nor the promotion resolver: it still
+    /// refuses exactly as before — the addendum narrows the guard, it does not resurrect a
+    /// mechanically-derived name for every RefNode.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Refuse_A_Data_Location_List_Item_Referencing_A_Non_Nominal_Component()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetAlias", schema => schema.Type("string"))
+            .WithSchema("PlaceInfo", schema => schema
+                .Type("object")
+                .Property("directory", property => property.Type("string"), required: true))
+            .WithSchema("WidgetEnvelope", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("location", property => property.Ref("PlaceInfo"), required: true)
+                .Property("data", property => property.Type("array").Items(static item => item.Ref("WidgetAlias")),
+                    required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetEnvelope")))));
+
         await AssertWidgetRefusalAsync(document, "named component schema");
+    }
+
+    /// <summary>Reuses Task 5's double-claim wall for the array arm's promoted item.</summary>
+    [Test]
+    public async Task Bind_Should_Refuse_A_Promoted_Data_Location_List_Item_Claimed_By_Two_Operations()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("PlaceInfo", schema => schema
+                .Type("object")
+                .Property("directory", property => property.Type("string"), required: true))
+            .WithSchema("WidgetsEnvelope", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("location", property => property.Ref("PlaceInfo"), required: true)
+                .Property("data", property => property
+                    .Type("array")
+                    .Items(static item => item
+                        .Type("object")
+                        .Property("id", static inner => inner.Type("string"), required: true)), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetsEnvelope")))
+            .WithOperation("v2.widget.summary", path: "/api/widget-summary", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetsEnvelope")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.list", "v2.widget.summary"),
+            Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)))));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
+                                                       && error.Problem.Contains(
+                                                           "claimed as both 'WidgetListData' and 'WidgetSummaryData'",
+                                                           StringComparison.Ordinal)))
+            .IsTrue();
     }
 
     [Test]
@@ -1003,11 +1134,330 @@ public sealed class OperationPlanBinderTests
 
         var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.Data);
-        await Assert.That(list.Envelope.PayloadTypeName).IsEqualTo("WidgetInfo");
+        await Assert.That(list.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(((NamedTypeReferencePlan)list.Envelope.PayloadType!).Name).IsEqualTo("WidgetInfo");
         await Assert
             .That(plan
                 .Models.Select(static model => model.Name)
                 .SequenceEqual(["WidgetInfo"], StringComparer.Ordinal))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Accept_A_Data_Envelope_Wrapping_A_List_Of_Named_Models()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("WidgetListEnvelope", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("data", property => property.Type("array").Items(item => item.Ref("WidgetInfo")), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetListEnvelope")))));
+
+        var plan = BindWidgets(document, "v2.widget.list");
+
+        var operation = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(operation.Envelope!.Kind).IsEqualTo(EnvelopeKind.Data);
+        await Assert.That(operation.Envelope.PayloadType).IsTypeOf<ListTypeReferencePlan>();
+        await Assert.That(((ListTypeReferencePlan)operation.Envelope.PayloadType!).ElementType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert
+            .That(((NamedTypeReferencePlan)((ListTypeReferencePlan)operation.Envelope.PayloadType).ElementType).Name)
+            .IsEqualTo("WidgetInfo");
+    }
+
+    [Test]
+    public async Task Bind_Should_Accept_A_Data_Envelope_Wrapping_A_Dictionary_Of_Named_Models()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("WidgetMapEnvelope", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("data", property => property.Type("object").AdditionalProperties(value => value.Ref("WidgetInfo")),
+                    required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetMapEnvelope")))));
+
+        var plan = BindWidgets(document, "v2.widget.list");
+
+        var operation = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(operation.Envelope!.Kind).IsEqualTo(EnvelopeKind.Data);
+        await Assert.That(operation.Envelope.PayloadType).IsTypeOf<DictionaryTypeReferencePlan>();
+        await Assert.That(((DictionaryTypeReferencePlan)operation.Envelope.PayloadType!).ValueType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert
+            .That(((NamedTypeReferencePlan)((DictionaryTypeReferencePlan)operation.Envelope.PayloadType).ValueType).Name)
+            .IsEqualTo("WidgetInfo");
+    }
+
+    [Test]
+    public async Task Bind_Should_Accept_A_Bare_Envelope_That_Is_A_List_Of_Named_Models()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Type("array").Items(item => item.Ref("WidgetInfo"))))));
+
+        var plan = BindWidgets(document, "v2.widget.list");
+
+        var operation = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(operation.Envelope!.Kind).IsEqualTo(EnvelopeKind.Bare);
+        await Assert.That(operation.Envelope.PayloadType).IsTypeOf<ListTypeReferencePlan>();
+        await Assert.That(((ListTypeReferencePlan)operation.Envelope.PayloadType!).ElementType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert
+            .That(((NamedTypeReferencePlan)((ListTypeReferencePlan)operation.Envelope.PayloadType).ElementType).Name)
+            .IsEqualTo("WidgetInfo");
+    }
+
+    [Test]
+    public async Task Bind_Should_Accept_A_Bare_Envelope_That_Is_A_Dictionary_Of_Named_Models()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Type("object").AdditionalProperties(value => value.Ref("WidgetInfo"))))));
+
+        var plan = BindWidgets(document, "v2.widget.list");
+
+        var operation = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(operation.Envelope!.Kind).IsEqualTo(EnvelopeKind.Bare);
+        await Assert.That(operation.Envelope.PayloadType).IsTypeOf<DictionaryTypeReferencePlan>();
+        await Assert.That(((DictionaryTypeReferencePlan)operation.Envelope.PayloadType!).ValueType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert
+            .That(((NamedTypeReferencePlan)((DictionaryTypeReferencePlan)operation.Envelope.PayloadType).ValueType).Name)
+            .IsEqualTo("WidgetInfo");
+    }
+
+    [Test]
+    public async Task Bind_Should_Promote_An_Inline_Object_Bare_Payload_Under_An_Operation_Scoped_Name()
+    {
+        var document = await BindingTestHost.IngestAsync(InlinePayloadScenario(static schema => schema
+            .Property("count", static property => property.Type("integer"), required: true)));
+
+        var plan = BindWidgets(document, "v2.widget.stats");
+
+        var stats = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(stats.Envelope!.Kind).IsEqualTo(EnvelopeKind.Bare);
+        await Assert.That(stats.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(((NamedTypeReferencePlan)stats.Envelope.PayloadType!).Name).IsEqualTo("WidgetStatsData");
+        await Assert.That(plan.Models.Any(static model => string.Equals(model.Name, "WidgetStatsData", StringComparison.Ordinal)))
+            .IsTrue();
+        await Assert.That(plan.Registry.TypeNames.Contains("WidgetStatsData", StringComparer.Ordinal)).IsTrue();
+        await Assert.That(plan.Registry.PayloadEntries.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task Bind_Should_Promote_A_Bare_Single_Property_Wrapper_As_The_Payload_Model()
+    {
+        var document = await BindingTestHost.IngestAsync(InlinePayloadScenario(static schema => schema
+            .Property("handoff", static property => property.AnyOf(
+                static branch => branch.Ref("WidgetInfo"),
+                static branch => branch.Type("null")), required: true)));
+
+        var plan = BindWidgets(document, "v2.widget.stats");
+
+        var stats = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(((NamedTypeReferencePlan)stats.Envelope!.PayloadType!).Name).IsEqualTo("WidgetStatsData");
+        var model = plan.Models.OfType<ObjectModelPlan>()
+            .Single(static candidate => string.Equals(candidate.Name, "WidgetStatsData", StringComparison.Ordinal));
+        var handoff = model.Properties.Single();
+        await Assert.That(handoff.WireName).IsEqualTo("handoff");
+        await Assert.That(handoff.Type.IsNullable).IsTrue();
+        await Assert.That(((NamedTypeReferencePlan)handoff.Type).Name).IsEqualTo("WidgetInfo");
+    }
+
+    [Test]
+    public async Task Bind_Should_Name_A_Data_Envelope_Promoted_Payload_From_The_Operation()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetStatsEnvelope", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("data", property => property
+                    .Type("object")
+                    .AdditionalPropertiesFalse()
+                    .Property("count", inner => inner.Type("integer"), required: true), required: true))
+            .WithOperation("v2.widget.stats", path: "/api/widget/stats", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetStatsEnvelope")))));
+
+        var plan = BindWidgets(document, "v2.widget.stats");
+
+        var stats = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(stats.Envelope!.Kind).IsEqualTo(EnvelopeKind.Data);
+        await Assert.That(((NamedTypeReferencePlan)stats.Envelope.PayloadType!).Name).IsEqualTo("WidgetStatsData");
+        await Assert.That(plan.Models.Any(static model => string.Equals(model.Name, "WidgetStatsData", StringComparison.Ordinal)))
+            .IsTrue();
+
+        // The wrapper component's own spelling never reaches the surface.
+        await Assert.That(plan.Models.Any(static model => model.Name.Contains("Envelope", StringComparison.Ordinal))).IsFalse();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Promoted_Payload_Claimed_By_Two_Operations()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetStatsEnvelope", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("data", property => property
+                    .Type("object")
+                    .AdditionalPropertiesFalse()
+                    .Property("count", inner => inner.Type("integer"), required: true), required: true))
+            .WithOperation("v2.widget.stats", path: "/api/widget/stats", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetStatsEnvelope")))
+            .WithOperation("v2.widget.summary", path: "/api/widget/summary", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetStatsEnvelope")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.stats", "v2.widget.summary"),
+            Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)))));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
+                                                       && error.Problem.Contains(
+                                                           "claimed as both 'WidgetStatsData' and 'WidgetSummaryData'",
+                                                           StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Promoted_Payload_Whose_Name_Collides_With_A_Component()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetStatsData", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.stats", path: "/api/widget/stats", configure: operation => operation
+                .Response(200, "application/json", schema => schema
+                    .Type("object")
+                    .Property("related", property => property.Ref("WidgetStatsData"), required: true)))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = BindWidgets(document, "v2.widget.stats"));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
+                                                       && error.Problem.Contains(
+                                                           "C# type name 'WidgetStatsData' collides with schema",
+                                                           StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Accept_A_Data_Location_Envelope_Whose_Data_Is_A_Dictionary()
+    {
+        var document = await BindingTestHost.IngestAsync(DataLocationScenario(
+            data: static property => property.Type("object").AdditionalProperties(value => value.Ref("WidgetInfo"))));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocation);
+        await Assert.That(list.Envelope.PayloadType).IsTypeOf<DictionaryTypeReferencePlan>();
+        await Assert.That(((DictionaryTypeReferencePlan)list.Envelope.PayloadType!).ValueType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert
+            .That(((NamedTypeReferencePlan)((DictionaryTypeReferencePlan)list.Envelope.PayloadType).ValueType).Name)
+            .IsEqualTo("WidgetInfo");
+        await Assert.That(list.Envelope.LocationTypeName).IsEqualTo("PlaceInfo");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Data_Envelope_Whose_Payload_Is_An_Unsupported_Node()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetTupleEnvelope", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("data", property => property
+                    .Type("array")
+                    .PrefixItems(item => item.Type("string"))
+                    .MinItems(1)
+                    .MaxItems(1), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetTupleEnvelope")))));
+
+        await AssertWidgetRefusalAsync(document, "does not bind to a supported type plan");
+    }
+
+    [Test]
+    public async Task Bind_Should_Bind_A_Data_Envelope_Whose_Payload_Is_Nullable()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("WidgetResponse", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("data", property => property.AnyOf(
+                    static branch => branch.Ref("WidgetInfo"),
+                    static branch => branch.Type("null")), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetResponse")))));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.Data);
+        await Assert.That(list.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(list.Envelope.PayloadType!.IsNullable).IsTrue();
+        await Assert.That(((NamedTypeReferencePlan)list.Envelope.PayloadType).Name).IsEqualTo("WidgetInfo");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Bare_Envelope_Whose_Payload_Is_Nullable()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.AnyOf(
+                    static branch => branch.Ref("WidgetInfo"),
+                    static branch => branch.Type("null"))))));
+
+        await AssertWidgetRefusalAsync(document, "a bare success body cannot represent null");
+    }
+
+    /// <summary>
+    /// A promoted payload's operation-scoped stem (Task 5) is a concept name, not a surfaced
+    /// type name outright: when the promoted schema is itself a Marked union, the stem must
+    /// still route through <c>ToUnionInterfaceName</c> so it gets the same <c>I</c> prefix
+    /// every other Marked union interface carries (ADR-0011), rather than surfacing bare.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Promote_A_Bare_Marked_Union_Payload_With_An_I_Prefixed_Name()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("v2.widget.condition", path: "/api/widget-condition", configure: operation => operation
+                .Response(200, "application/json", schema => schema.AnyOf(
+                    static branch => branch
+                        .Type("object")
+                        .AdditionalPropertiesFalse()
+                        .Property("_tag", static inner => inner.Type("string").Enum("Alpha"), required: true)
+                        .Property("value", static inner => inner.Type("string"), required: true),
+                    static branch => branch
+                        .Type("object")
+                        .AdditionalPropertiesFalse()
+                        .Property("_tag", static inner => inner.Type("string").Enum("Beta"), required: true))))));
+
+        var plan = BindWidgets(document, "v2.widget.condition");
+
+        var condition = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(condition.Envelope!.Kind).IsEqualTo(EnvelopeKind.Bare);
+        await Assert.That(condition.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        var payloadTypeName = ((NamedTypeReferencePlan)condition.Envelope.PayloadType!).Name;
+        await Assert.That(payloadTypeName).IsEqualTo("IWidgetConditionData");
+        await Assert
+            .That(plan.Unions.Any(union => union.Name == "IWidgetConditionData" && union.ConceptName == "WidgetConditionData"))
             .IsTrue();
     }
 
@@ -1557,7 +2007,7 @@ public sealed class OperationPlanBinderTests
         await Assert.That(create.Envelope.SuccessStatusCode).IsEqualTo(204);
         await Assert.That(create.Envelope.ResponseTypeName).IsEqualTo("WidgetCreateResponse");
         await Assert.That(create.Envelope.PayloadName).IsNull();
-        await Assert.That(create.Envelope.PayloadTypeName).IsNull();
+        await Assert.That(create.Envelope.PayloadType).IsNull();
         await Assert.That(create.Envelope.EnvelopeDtoTypeName).IsNull();
         await Assert.That(plan.Registry.TypeNames.Contains("WidgetCreateResponseEnvelope", StringComparer.Ordinal)).IsFalse();
     }
@@ -1611,15 +2061,18 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Refuse_A_Bare_Success_Without_A_Named_Schema()
+    public async Task Bind_Should_Refuse_A_Bare_Success_That_Does_Not_Bind_To_A_Type_Plan()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
             .WithOperation("v2.health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema
-                    .Type("object")
-                    .Property("value", property => property.Type("string"), required: true)))));
+                    .Type("string")
+                    .ContentSchema("application/json", inner => inner.Ref("ItemInfo"))))));
 
-        await AssertOperationRefusalAsync(document, "v2.health.get", "named schema");
+        await AssertOperationRefusalAsync(document, "v2.health.get", "does not bind to a supported type plan");
     }
 
     [Test]
@@ -2123,6 +2576,22 @@ public sealed class OperationPlanBinderTests
                 .Property("data", data ?? (static property => property.Ref("WidgetInfo")), required: true))
             .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetEnvelope"))));
+
+    /// <summary>
+    /// A bare success whose body is an inline object: ingestion promotes it into the graph
+    /// under the operation-scoped key, and the payload is that promoted schema itself.
+    /// </summary>
+    private static SpecScenario InlinePayloadScenario(Action<SchemaBuilder> configurePayload) =>
+        SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.stats", path: "/api/widget/stats", configure: operation => operation
+                .Response(200, "application/json", schema =>
+                {
+                    _ = schema.Type("object").AdditionalPropertiesFalse();
+                    configurePayload(schema);
+                })));
 
     private static SpecScenario NoContentScenario(Action<OperationBuilder>? configure = null) =>
         SpecScenario.Define(spec => spec

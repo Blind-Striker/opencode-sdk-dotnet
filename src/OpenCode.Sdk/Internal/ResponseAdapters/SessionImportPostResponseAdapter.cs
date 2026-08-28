@@ -10,6 +10,7 @@ internal sealed class SessionImportPostResponseAdapter : ResponseAdapter<Session
 {
     private static readonly string[] Status400Tags = ["InvalidRequestError"];
     private static readonly string[] Status401Tags = ["UnauthorizedError"];
+    private static readonly string[] Status404Tags = ["SessionNotFoundError"];
     private static readonly string[] Status409Tags = ["ConflictError"];
     private SessionImportPostResponseAdapter()
     {
@@ -29,6 +30,7 @@ internal sealed class SessionImportPostResponseAdapter : ResponseAdapter<Session
         >= 200 and < 300 => StatusVerdict.UndeclaredSuccess,
         400 => StatusVerdict.DeclaredError,
         401 => StatusVerdict.DeclaredError,
+        404 => StatusVerdict.DeclaredError,
         409 => StatusVerdict.DeclaredError,
         _ => StatusVerdict.UndeclaredError
     };
@@ -56,6 +58,7 @@ internal sealed class SessionImportPostResponseAdapter : ResponseAdapter<Session
             >= 200 and < 300 => throw StatusVerdictFailures.UndeclaredSuccess(status),
             400 => new SessionImportPostResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),
             401 => new SessionImportPostResponse(status, ReadTolerantError(rawBody, Status401Tags), rawBody),
+            404 => new SessionImportPostResponse(status, ReadTolerantError(rawBody, Status404Tags), rawBody),
             409 => new SessionImportPostResponse(status, ReadTolerantError(rawBody, Status409Tags), rawBody),
             _ => new SessionImportPostResponse(status, ReadTolerantError(rawBody, null), rawBody)
         };

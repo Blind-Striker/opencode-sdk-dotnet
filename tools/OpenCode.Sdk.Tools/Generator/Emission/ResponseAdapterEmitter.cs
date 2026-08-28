@@ -274,8 +274,7 @@ internal static class ResponseAdapterEmitter
         ExpressionSyntax Read()
         {
             var readTypeName = envelope.EnvelopeDtoTypeName
-                               ?? envelope.PayloadTypeName
-                               ?? throw new InvalidOperationException($"Envelope '{envelope.ResponseTypeName}' has no payload.");
+                               ?? SerializerTypeNamePolicy.ContextPropertyName(envelope.PayloadType!);
             return EmissionSyntax.Invocation(
                 SyntaxFactory.IdentifierName("ReadBarePayload"),
                 SyntaxFactory.Argument(body),

@@ -10,7 +10,7 @@ namespace OpenCode.Sdk;
 /// </summary>
 public sealed record GenerateTextPostResponse : OpenCodeResponse
 {
-    private readonly GenerateTextResponseData? _text;
+    private readonly GenerateTextPostData? _text;
     /// <summary>
     /// Initializes a success instance of the &apos;GenerateTextPostResponse&apos; envelope.
     /// </summary>
@@ -34,7 +34,7 @@ public sealed record GenerateTextPostResponse : OpenCodeResponse
     /// <summary>
     /// Gets the Text payload; guarded on the error path.
     /// </summary>
-    public required GenerateTextResponseData Text { get => _text ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Text."); init => _text = value; }
+    public required GenerateTextPostData Text { get => _text ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Text."); init => _text = value; }
 
     /// <summary>
     /// Prints the shared metadata and appends the payload only when it is present.

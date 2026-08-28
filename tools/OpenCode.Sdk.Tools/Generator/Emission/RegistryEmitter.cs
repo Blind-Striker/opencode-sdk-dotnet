@@ -35,9 +35,27 @@ internal static class RegistryEmitter
                 SyntaxFactory.AttributeArgument(SyntaxFactory.TypeOfExpression(TypeSyntaxEmitter.EmitNamed(typeName)))));
         }
 
+        var payloadEntries = plan.PayloadEntries
+            .Select(entry => (Entry: entry, Accessor: SerializerTypeNamePolicy.ContextPropertyName(entry)))
+            .DistinctBy(static item => item.Accessor, StringComparer.Ordinal)
+            .OrderBy(static item => item.Accessor, StringComparer.Ordinal);
+        foreach (var (entry, accessor) in payloadEntries)
+        {
+            declaration = declaration.AddAttributeLists(EmissionSyntax.Attribute(
+                "JsonSerializable",
+                SyntaxFactory.AttributeArgument(SyntaxFactory.TypeOfExpression(TypeSyntaxEmitter.Emit(entry))),
+                EmissionSyntax.StringArgument(accessor).WithNameEquals(SyntaxFactory.NameEquals("TypeInfoPropertyName"))));
+        }
+
+        var usings = new List<string> { "OpenCode.Sdk.Models", "System.Text.Json.Serialization" };
+        if (plan.PayloadEntries.Count > 0)
+        {
+            usings.Add("System.Collections.Generic");
+        }
+
         var unit = EmissionSyntax.CompilationUnit(
             "OpenCode.Sdk.Internal.Serialization",
-            ["OpenCode.Sdk.Models", "System.Text.Json.Serialization"],
+            usings,
             [declaration]);
         return Array.AsReadOnly(
         [

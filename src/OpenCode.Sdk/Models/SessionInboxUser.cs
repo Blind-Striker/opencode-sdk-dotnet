@@ -6,7 +6,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session inbox user value.
 /// </summary>
-public sealed record SessionInboxUser
+public sealed record SessionInboxUser : ISessionInboxInfo
 {
     /// <summary>
     /// Gets the id value.
@@ -30,7 +30,7 @@ public sealed record SessionInboxUser
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public required string Type { get; init; }
+    public string Type => "user";
 
     /// <summary>
     /// Gets the payload value.

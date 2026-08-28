@@ -400,7 +400,7 @@ public sealed class ModelMaterializationMatrixTests
     private static async Task AssertRootUnionNullFailsAsync(Assembly assembly, EmitPlan plan)
     {
         var operation = plan.Clients.SelectMany(static client => client.Operations)
-            .Single(static candidate => candidate.Envelope?.PayloadTypeName == "IMatrixChoice");
+            .Single(static candidate => candidate.Envelope?.PayloadType is NamedTypeReferencePlan { Name: "IMatrixChoice" });
         var adapterType = assembly.GetType(
             $"OpenCode.Sdk.Internal.ResponseAdapters.{operation.Envelope!.AdapterTypeName}",
             throwOnError: true)!;
@@ -413,4 +413,345 @@ public sealed class ModelMaterializationMatrixTests
 
         await Assert.That(exception.InnerException?.GetType().FullName).IsEqualTo("OpenCode.Sdk.OpenCodeTransportException");
     }
+
+    /// <summary>
+    /// The four container envelope shapes Task 4 wires through <c>TypePlanBinder</c>: a
+    /// Data-wrapped list, a Data-wrapped dictionary, a bare list, and a bare dictionary. One
+    /// compile carries all four so the round trip pays the Roslyn cost once; each leg asserts
+    /// the adapter materializes the typed payload, and the Data-shaped legs additionally
+    /// assert their DTO wall still refuses a missing 'data'.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Compile_And_Roundtrip_Container_Envelope_Payloads()
+    {
+        var (plan, operations) = await CreateContainerEnvelopePlanAsync();
+        await AssertContainerPayloadShapesAsync(operations);
+
+        var assembly = await GeneratedSourceCompiler.CompileAndLoadWithSdkCoreAsync(SourceEmitter.Emit(plan));
+
+        await AssertListPayloadRoundTripsAsync(assembly, operations.DataList, """{"data":[{"id":"a"}]}""");
+        await AssertMapPayloadRoundTripsAsync(assembly, operations.DataMap, """{"data":{"k":{"id":"a"}}}""");
+        await AssertListPayloadRoundTripsAsync(assembly, operations.BareList, """[{"id":"a"}]""");
+        await AssertMapPayloadRoundTripsAsync(assembly, operations.BareMap, """{"k":{"id":"a"}}""");
+
+        await AssertMissingDataFailsAsync(assembly, operations.DataList.Envelope!, "{}");
+        await AssertMissingDataFailsAsync(assembly, operations.DataMap.Envelope!, "{}");
+    }
+
+    /// <summary>
+    /// The promoted inline payload Task 5 admits: a bare success body that is an inline object
+    /// becomes a model named from the operation, and a single-property wrapper is that model
+    /// itself rather than the value it wraps.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Compile_And_Roundtrip_Promoted_Inline_Envelope_Payloads()
+    {
+        var (plan, stats, handoff) = await CreatePromotedInlinePlanAsync();
+        await Assert.That(((NamedTypeReferencePlan)stats.Envelope!.PayloadType!).Name).IsEqualTo("WidgetStatsData");
+        await Assert.That(((NamedTypeReferencePlan)handoff.Envelope!.PayloadType!).Name).IsEqualTo("WidgetHandoffData");
+
+        var assembly = await GeneratedSourceCompiler.CompileAndLoadWithSdkCoreAsync(SourceEmitter.Emit(plan));
+
+        var stitched = AdaptSuccess(assembly, stats.Envelope, """{"count":3}""");
+        var payload = GetProperty(stitched, stats.Envelope.PayloadName!)
+                      ?? throw new InvalidOperationException("The promoted payload materialized to null.");
+        await Assert.That(GetProperty(payload, "Count")).IsEqualTo(3L);
+
+        var wrapped = AdaptSuccess(assembly, handoff.Envelope, """{"handoff":{"id":"a"}}""");
+        var wrapper = GetProperty(wrapped, handoff.Envelope.PayloadName!)
+                      ?? throw new InvalidOperationException("The promoted wrapper materialized to null.");
+        await Assert.That(GetProperty(GetProperty(wrapper, "Handoff")!, "Id")).IsEqualTo("a");
+    }
+
+    /// <summary>
+    /// Task 6's response-state guard: a nullable Data payload's success path lets a wire
+    /// <c>null</c> flow through as CLR null while <c>IsError</c> stays
+    /// false, a present value still round-trips, and the error path still throws the guard —
+    /// distinct from the field-null coalesce the non-nullable shape keeps using.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Materialize_A_Nullable_Data_Envelope_Payload_By_Response_State()
+    {
+        var (plan, operation) = await CreateNullableDataEnvelopePlanAsync();
+        await Assert.That(operation.Envelope!.PayloadType!.IsNullable).IsTrue();
+
+        var assembly = await GeneratedSourceCompiler.CompileAndLoadWithSdkCoreAsync(SourceEmitter.Emit(plan));
+
+        var present = AdaptSuccess(assembly, operation.Envelope, """{"data":{"id":"a"}}""");
+        var presentPayload = GetProperty(present, operation.Envelope.PayloadName!)
+                             ?? throw new InvalidOperationException("Expected a present payload.");
+        await Assert.That(GetProperty(presentPayload, "Id")).IsEqualTo("a");
+
+        var nullSuccess = AdaptSuccess(assembly, operation.Envelope, """{"data":null}""");
+        await Assert.That((bool)GetProperty(nullSuccess, "IsError")!).IsFalse();
+        await Assert.That(GetProperty(nullSuccess, operation.Envelope.PayloadName!)).IsNull();
+        var nullSuccessText = nullSuccess.ToString()
+                              ?? throw new InvalidOperationException("ToString returned null.");
+        await Assert.That(nullSuccessText).Contains($"{operation.Envelope.PayloadName} = ");
+        await Assert.That(nullSuccessText).DoesNotContain($"{operation.Envelope.PayloadName} = null");
+
+        // A nullable payload accepts an explicit wire null, but the DTO's 'data' member stays
+        // `required` — an absent 'data' key is still a materialization failure, not a second
+        // spelling of null.
+        await AssertMissingDataFailsAsync(assembly, operation.Envelope, "{}");
+
+        var (adapter, adapt) = ResolveAdapter(assembly, operation.Envelope);
+        var error = adapt.Invoke(adapter, [400, """{"_tag":"WidgetError","message":"bad"}"""])
+                    ?? throw new InvalidOperationException("Adapt returned null for the error path.");
+        await Assert.That((bool)GetProperty(error, "IsError")!).IsTrue();
+        var exception = Assert.Throws<TargetInvocationException>(
+            () => GetProperty(error, operation.Envelope.PayloadName!));
+        await Assert.That(exception.InnerException).IsTypeOf<InvalidOperationException>();
+        await Assert.That(exception.InnerException!.Message).Contains("IsError");
+    }
+
+    /// <summary>
+    /// The non-nullable wall next to the nullable path it sits beside: Task 6 only changes the
+    /// guard shape a nullable-typed payload uses, so a non-nullable payload's wire null still
+    /// fails materialization behind <c>RespectNullableAnnotations</c>, exactly as before.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Still_Fail_To_Materialize_A_Wire_Null_For_A_Non_Nullable_Data_Envelope_Payload()
+    {
+        var (plan, operations) = await CreateContainerEnvelopePlanAsync();
+        var assembly = await GeneratedSourceCompiler.CompileAndLoadWithSdkCoreAsync(SourceEmitter.Emit(plan));
+
+        await AssertMissingDataFailsAsync(assembly, operations.DataList.Envelope!, """{"data":null}""");
+    }
+
+    private static async Task<(EmitPlan Plan, OperationPlan Operation)> CreateNullableDataEnvelopePlanAsync()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("WidgetError", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("_tag", property => property.Type("string").Enum("WidgetError"), required: true)
+                .Property("message", property => property.Type("string"), required: true))
+            .WithSchema("WidgetResponse", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("data", property => property.AnyOf(
+                    static branch => branch.Ref("WidgetInfo"),
+                    static branch => branch.Type("null")), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetResponse"))
+                .Response(400, "application/json", schema => schema.Ref("WidgetError")))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.list"),
+            Curation(Groups("widget", RootGroup())));
+
+        var operation = plan.Clients.SelectMany(static client => client.Operations).Single();
+        return (plan, operation);
+    }
+
+    /// <summary>
+    /// The addendum's array arm: a location envelope's array-of-inline-object <c>data</c>
+    /// promotes its item under the operation-scoped name and round-trips both siblings.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Compile_And_Roundtrip_A_Promoted_Data_Location_List_Item()
+    {
+        var (plan, operation) = await CreatePromotedDataLocationListPlanAsync();
+        await Assert.That(operation.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocationList);
+        var elementType = (NamedTypeReferencePlan)((ListTypeReferencePlan)operation.Envelope.PayloadType!).ElementType;
+        await Assert.That(elementType.Name).IsEqualTo("WidgetListData");
+
+        var assembly = await GeneratedSourceCompiler.CompileAndLoadWithSdkCoreAsync(SourceEmitter.Emit(plan));
+
+        var result = AdaptSuccess(assembly, operation.Envelope, """{"data":[{"id":"a"}],"location":{"directory":"widget-place"}}""");
+        var items = (IList)GetProperty(result, operation.Envelope.PayloadName!)!;
+        await Assert.That(items.Count).IsEqualTo(1);
+        await Assert.That(GetProperty(items[0]!, "Id")).IsEqualTo("a");
+        var location = GetProperty(result, "Location")
+                       ?? throw new InvalidOperationException("Expected a present location.");
+        await Assert.That(GetProperty(location, "Directory")).IsEqualTo("widget-place");
+    }
+
+    private static async Task<(EmitPlan Plan, OperationPlan Operation)> CreatePromotedDataLocationListPlanAsync()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("PlaceInfo", schema => schema
+                .Type("object")
+                .Property("directory", property => property.Type("string"), required: true))
+            .WithSchema("WidgetError", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("_tag", property => property.Type("string").Enum("WidgetError"), required: true)
+                .Property("message", property => property.Type("string"), required: true))
+            .WithSchema("WidgetEnvelope", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("location", property => property.Ref("PlaceInfo"), required: true)
+                .Property("data", property => property
+                    .Type("array")
+                    .Items(static item => item
+                        .Type("object")
+                        .Property("id", static inner => inner.Type("string"), required: true)), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetEnvelope"))
+                .Response(400, "application/json", schema => schema.Ref("WidgetError")))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.list"),
+            Curation(Groups("widget", RootGroup())));
+
+        var operation = plan.Clients.SelectMany(static client => client.Operations).Single();
+        return (plan, operation);
+    }
+
+    private static async Task<(EmitPlan Plan, OperationPlan Stats, OperationPlan Handoff)> CreatePromotedInlinePlanAsync()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("WidgetError", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("_tag", property => property.Type("string").Enum("WidgetError"), required: true)
+                .Property("message", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.stats", path: "/api/widget/stats", configure: operation => operation
+                .Response(200, "application/json", schema => schema
+                    .Type("object")
+                    .AdditionalPropertiesFalse()
+                    .Property("count", property => property.Type("integer"), required: true))
+                .Response(400, "application/json", schema => schema.Ref("WidgetError")))
+            .WithOperation("v2.widget.handoff", path: "/api/widget/handoff", configure: operation => operation
+                .Response(200, "application/json", schema => schema
+                    .Type("object")
+                    .AdditionalPropertiesFalse()
+                    .Property("handoff", property => property.Ref("WidgetInfo"), required: true)))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.stats", "v2.widget.handoff"),
+            Curation(Groups("widget", RootGroup())));
+
+        var bound = plan.Clients.SelectMany(static client => client.Operations).ToArray();
+        return (
+            plan,
+            bound.Single(static operation => operation.MethodName == "GetStatsAsync"),
+            bound.Single(static operation => operation.MethodName == "GetHandoffAsync"));
+    }
+
+    private static async Task<(EmitPlan Plan, ContainerOperations Operations)> CreateContainerEnvelopePlanAsync()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("WidgetListEnvelope", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("data", property => property.Type("array").Items(item => item.Ref("WidgetInfo")), required: true))
+            .WithSchema("WidgetMapEnvelope", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("data", property => property.Type("object").AdditionalProperties(value => value.Ref("WidgetInfo")),
+                    required: true))
+            .WithSchema("WidgetError", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("_tag", property => property.Type("string").Enum("WidgetError"), required: true)
+                .Property("message", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget/list", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetListEnvelope"))
+                .Response(400, "application/json", schema => schema.Ref("WidgetError")))
+            .WithOperation("v2.widget.map", path: "/api/widget/map", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetMapEnvelope")))
+            .WithOperation("v2.widget.bareList", path: "/api/widget/bare-list", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Type("array").Items(item => item.Ref("WidgetInfo"))))
+            .WithOperation("v2.widget.bareMap", path: "/api/widget/bare-map", configure: operation => operation
+                .Response(200, "application/json",
+                    schema => schema.Type("object").AdditionalProperties(value => value.Ref("WidgetInfo"))))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.list", "v2.widget.map", "v2.widget.bareList", "v2.widget.bareMap"),
+            Curation(
+                Groups("widget", RootGroup()),
+                operationNames:
+                [
+                    OperationName("v2.widget.list", "GetWidgetListAsync"),
+                    OperationName("v2.widget.map", "GetWidgetMapAsync"),
+                    OperationName("v2.widget.bareList", "GetWidgetBareListAsync"),
+                    OperationName("v2.widget.bareMap", "GetWidgetBareMapAsync"),
+                ]));
+
+        var bound = plan.Clients.SelectMany(static client => client.Operations).ToArray();
+        var operations = new ContainerOperations(
+            DataList: bound.Single(static operation => operation.MethodName == "GetWidgetListAsync"),
+            DataMap: bound.Single(static operation => operation.MethodName == "GetWidgetMapAsync"),
+            BareList: bound.Single(static operation => operation.MethodName == "GetWidgetBareListAsync"),
+            BareMap: bound.Single(static operation => operation.MethodName == "GetWidgetBareMapAsync"));
+        return (plan, operations);
+    }
+
+    private static async Task AssertContainerPayloadShapesAsync(ContainerOperations operations)
+    {
+        await Assert.That(operations.DataList.Envelope!.Kind).IsEqualTo(EnvelopeKind.Data);
+        await Assert.That(operations.DataList.Envelope.PayloadType).IsTypeOf<ListTypeReferencePlan>();
+        await Assert.That(operations.DataMap.Envelope!.Kind).IsEqualTo(EnvelopeKind.Data);
+        await Assert.That(operations.DataMap.Envelope.PayloadType).IsTypeOf<DictionaryTypeReferencePlan>();
+        await Assert.That(operations.BareList.Envelope!.Kind).IsEqualTo(EnvelopeKind.Bare);
+        await Assert.That(operations.BareList.Envelope.PayloadType).IsTypeOf<ListTypeReferencePlan>();
+        await Assert.That(operations.BareMap.Envelope!.Kind).IsEqualTo(EnvelopeKind.Bare);
+        await Assert.That(operations.BareMap.Envelope.PayloadType).IsTypeOf<DictionaryTypeReferencePlan>();
+    }
+
+    private static async Task AssertListPayloadRoundTripsAsync(Assembly assembly, OperationPlan operation, string rawBody)
+    {
+        var envelope = operation.Envelope!;
+        var result = AdaptSuccess(assembly, envelope, rawBody);
+        var payload = (IList)GetProperty(result, envelope.PayloadName!)!;
+        await Assert.That(payload.Count).IsEqualTo(1);
+        await Assert.That(GetProperty(payload[0]!, "Id")).IsEqualTo("a");
+    }
+
+    private static async Task AssertMapPayloadRoundTripsAsync(Assembly assembly, OperationPlan operation, string rawBody)
+    {
+        var envelope = operation.Envelope!;
+        var result = AdaptSuccess(assembly, envelope, rawBody);
+        var payload = (IDictionary)GetProperty(result, envelope.PayloadName!)!;
+        await Assert.That(payload.Count).IsEqualTo(1);
+        await Assert.That(GetProperty(payload["k"]!, "Id")).IsEqualTo("a");
+    }
+
+    private static object AdaptSuccess(Assembly assembly, EnvelopePlan envelope, string rawBody)
+    {
+        var (adapter, adapt) = ResolveAdapter(assembly, envelope);
+        return adapt.Invoke(adapter, [200, rawBody])
+               ?? throw new InvalidOperationException("Adapt returned null.");
+    }
+
+    private static async Task AssertMissingDataFailsAsync(Assembly assembly, EnvelopePlan envelope, string rawBody)
+    {
+        var (adapter, adapt) = ResolveAdapter(assembly, envelope);
+
+        var exception = Assert.Throws<TargetInvocationException>(() => _ = adapt.Invoke(adapter, [200, rawBody]));
+
+        await Assert.That(exception.InnerException?.GetType().FullName).IsEqualTo("OpenCode.Sdk.OpenCodeTransportException");
+    }
+
+    private static (object Adapter, MethodInfo Adapt) ResolveAdapter(Assembly assembly, EnvelopePlan envelope)
+    {
+        var adapterType = assembly.GetType($"OpenCode.Sdk.Internal.ResponseAdapters.{envelope.AdapterTypeName}", throwOnError: true)!;
+        var adapter = adapterType.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static)?.GetValue(null)
+                      ?? throw new InvalidOperationException("The generated response adapter has no Instance.");
+        var adapt = adapterType.GetMethod("Adapt", BindingFlags.Public | BindingFlags.Instance)
+                    ?? throw new InvalidOperationException("The generated response adapter has no Adapt method.");
+        return (adapter, adapt);
+    }
+
+    private sealed record ContainerOperations(
+        OperationPlan DataList,
+        OperationPlan DataMap,
+        OperationPlan BareList,
+        OperationPlan BareMap);
 }
