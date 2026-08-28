@@ -813,6 +813,32 @@ dotnet_diagnostic.CA5399.severity = none
 [src/OpenCode.Sdk/Ptys/PtySession.cs]
 dotnet_diagnostic.CA2213.severity = none
 
+# DriveController deliberately never disposes its send-gate and invocation-signal semaphores.
+# The BCL only requires SemaphoreSlim disposal once AvailableWaitHandle has been read, which
+# this class never does, and disposing them would break disposal itself: a WaitForRequestAsync
+# caller parked in WaitAsync would never wake, because Dispose does not complete pending async
+# waiters. Winner: the disposal-race contract; CA2213 remains enabled for every other file.
+[tests/Shared/DriveController.cs]
+dotnet_diagnostic.CA2213.severity = none
+
+# DriveProtocol.Compose builds one JSON-RPC message into an in-memory MemoryStream through a
+# `using var writer = new Utf8JsonWriter(buffer)`; Utf8JsonWriter implements IAsyncDisposable,
+# which is what MA0045 reacts to, but the write is pure in-memory buffering with no I/O to await,
+# and every composing method's public contract returns `byte[]` synchronously (the controller
+# calls them as plain value transforms, not async operations). Making Compose async would ripple
+# a needless Task allocation into every DriveProtocol call site for no real asynchrony. Winner:
+# the synchronous protocol-composition contract; MA0045 remains enabled for every other file.
+[tests/Shared/DriveProtocol.cs]
+dotnet_diagnostic.MA0045.severity = none
+
+# DriveManifest.Write has the same in-memory Utf8JsonWriter shape as DriveProtocol.Compose, plus
+# an IFileSystem.WriteAllBytes call; its public contract is a synchronous `DriveManifest Write(...)`
+# (DriveManifestTests calls it without awaiting), matching the manifest-writing seam the drive
+# fixture needs before Task 5's live wiring exists. Winner: the synchronous manifest-writer
+# contract; MA0045 remains enabled for every other file.
+[tests/Shared/DriveManifest.cs]
+dotnet_diagnostic.MA0045.severity = none
+
 # The generated route surface deliberately nests one static container per operation
 # group; flattening would erase the grouping the public
 # API promises. Winner: the generated route shape; CA1034 remains enabled for every other
@@ -912,3 +938,16 @@ dotnet_diagnostic.MA0045.severity = none
 # remains enabled for every other file.
 [tests/OpenCode.Sdk.Tests/OpenCodeServerContractTests.cs]
 dotnet_diagnostic.CA2000.severity = none
+
+# DriveManifestTests targets net472 in this project's Windows leg. The regex source generator's
+# GeneratedRegexAttribute is not available there (no polyfill covers it), so the instance-name
+# check uses a plain static Regex with an explicit match timeout instead — a shape MA0110 always
+# flags regardless of TFM feasibility. The manifest readback right after DriveManifest.Write also
+# stays synchronous: it reads MockFileSystem's in-memory store, never real I/O, and
+# IFile.ReadAllTextAsync is unavailable through this abstraction on the same net472 leg. Winner:
+# the cross-TFM test shape; MA0110/CA1849/VSTHRD103/S6966 remain enabled for every other file.
+[tests/OpenCode.Sdk.Tests/DriveManifestTests.cs]
+dotnet_diagnostic.MA0110.severity = none
+dotnet_diagnostic.CA1849.severity = none
+dotnet_diagnostic.VSTHRD103.severity = none
+dotnet_diagnostic.S6966.severity = none
