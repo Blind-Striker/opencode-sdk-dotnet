@@ -145,6 +145,11 @@
       "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
     },
     {
+      "operationId": "server.experimental.persistentPty.handoff",
+      "identity": "v2.persistentPty.handoff",
+      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
+    },
+    {
       "operationId": "server.experimental.persistentPty.list",
       "identity": "v2.persistentPty.list",
       "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
@@ -290,6 +295,11 @@
     {
       "schema": "Session.Message.ToolState.Error_1",
       "aliasOf": "Session.Message.ToolState.Error",
+      "reason": "The restored event tree re-emits the operation-side schema as a structurally identical duplicate (upstream stabilize suffixing); collapsing keeps stream payloads and one-shot models one type."
+    },
+    {
+      "schema": "Session.Message.ToolState.Running_1",
+      "aliasOf": "Session.Message.ToolState.Running",
       "reason": "The restored event tree re-emits the operation-side schema as a structurally identical duplicate (upstream stabilize suffixing); collapsing keeps stream payloads and one-shot models one type."
     },
     {

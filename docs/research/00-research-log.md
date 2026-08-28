@@ -4156,3 +4156,43 @@ same. A second, smaller finding rides along — PSReadLine's rendering is not st
 matching a marker on the command's *result* is unreliable where matching the terminal's echo is
 not. The leg therefore reads until the echo appears and then drains the stream for a bounded
 window, reporting whatever the terminal produced instead of asserting a shape.
+
+## Q152: What did the third receipt-governed refresh land, and what did its walls catch?
+
+**Method (2026-08-28):** the per-session cadence (ADR-0020) opened with `refresh-spec --ref
+origin/v2`. The fetch reported a **forced update** — `803ead32` → `d2ee536c` is not a
+fast-forward (`git merge-base --is-ancestor` refuses), so upstream manages `v2` with history
+rewrites and the old pin left the branch's reachable history. Commit-range diffs between pins
+are therefore unreliable evidence; the receipt's content hashes are the trustworthy comparison,
+and the pin move itself removes the fragility of pinning a rewritten-away commit. The receipt
+was maintainer-reviewed before apply.
+
+**The refresh:** the accepted snapshot moved `954cdc7b`-era `803ead32` → `d2ee536c` — 134
+operations (+1/−0), 339 components (+3), `contentSchema` restored at 2 by the unchanged SSE
+patch. The single protocol-visible upstream commit is `762291b2a8` ("durable session metadata
+at creation", #45805). The delta: the new `server.experimental.persistentPty.handoff` (a plain
+HTTP POST answering the nullable-payload envelope `{"handoff": PersistentPty.Handoff | null}` —
+exactly the represented-nullable shape the queued envelope-completion lane binds), the
+`Session.Metadata` free-form record riding session create/created/info as an optional
+dictionary, a new 404 `SessionNotFoundError` arm on `session.import` (parents import before
+children), and one more stabilize duplicate, `Session.Message.ToolState.Running_1`.
+
+**What the walls caught:** (1) the T3 identity wall refused the new operation's leaked group id
+(`server.experimental.…` without the `v2.` prefix); one more reason-bearing
+`operationIdentities` row maps it to `v2.persistentPty.handoff` beside its eight siblings.
+(2) the alias structural-identity check refused `Session.Message.Assistant.Tool_1` because its
+state union now references `ToolState.Running_1`, which had no alias row; the pair proved
+byte-identical under sorted-JSON diff and collapsed through one more `schemaAliases` row with
+the established event-tree reason. Both refusals were loud, named the exact schema, and needed
+no mechanism changes.
+
+**SSE assumption re-verified at `d2ee536c`:** the Restore patch applied rather than refusing, so
+the repair predicate still holds — raw upstream's `V2EventEncoded`/`SessionLogItemEncoded` still
+lack `contentSchema`; both touched-file preimages are byte-identical to the patch's pins, and
+`session.ts` still declares the `SessionLogItem` stream union through `HttpApiSchema.StreamSse`.
+PR #45182 remains open (`needs:issue`); `rawSha ≠ baselineSha` persists (doc 21 T7).
+
+**Evidence:** the full gate is green — 2,767 tests, `generate --verify` current at 81/53,
+`refresh-spec --verify` reproducing the committed receipt. The PublicApi delta is three
+additive optional `Metadata` properties with all four TFM snapshots byte-identical; the
+reviewed baseline was accepted.

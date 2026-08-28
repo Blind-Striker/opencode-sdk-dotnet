@@ -381,6 +381,15 @@ carrying only the Basic credential answered `101 Switching Protocols`, exactly o
 closed the replay, reconnecting at that cursor replayed only what followed it, the latest cursor
 replayed nothing at all, and removing the PTY ended the read as a normal close.
 
+**The third receipt-governed refresh is complete** (2026-08-28; evidence: research log Q152). The
+accepted snapshot is **`d2ee536c`** — upstream force-updated `v2` past `803ead32`, and the first
+non-identical candidate added one operation (`server.experimental.persistentPty.handoff`, pending
+through a ninth T3 identity row) and three components (`Session.Metadata` on the session models, a
+404 arm on `session.import`, one more stabilize duplicate collapsed by alias). The SSE Restore
+patch still applies with byte-identical preimages; PR #45182 remains open. The profile stands at
+**81 selected / 53 pending**, the full gate is green at 2,767 tests, and the PublicApi baseline
+accepted its three additive `Metadata` properties.
+
 ## Milestones
 
 Deliverable-first: every milestone ends in something callable or demonstrable. The next

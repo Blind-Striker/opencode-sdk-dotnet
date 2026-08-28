@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "upstreamCommit": "803ead32e733e32f94bfeb29248def8b9781a3be",
+  "upstreamCommit": "d2ee536c16f7b5c6a678e4144d8a512bda19adb8",
   "rawDocumentSha256": "f1fc46f2758fb7ef1ebd4c7854c415c9e87899a0fd5d59dabe1f07774403da8f",
-  "generatedBaselineSha256": "dec831386cb7f45e887ecd0b52ed433519f616e3ead97d1b1b1008d5cda91fe1",
+  "generatedBaselineSha256": "0b127d3d243505c6f144e715659f676bbad8cf8c784dc782e37bf9bde7488ed2",
   "patches": [
     {
       "manifest": "001-restore-sse-payloads.json",
@@ -14,17 +14,19 @@
         },
         {
           "path": "packages/protocol/src/groups/session.ts",
-          "sha256": "9b7115e0beba57bed4edc7214739460fdea79760c47f206d42b51431563dbad9"
+          "sha256": "2bdbff9a83dd2d0ba32960ef6c5b7370685da7f76e7c90758a115a222863dfe6"
         }
       ]
     }
   ],
-  "normalizedDocumentSha256": "7168332b805fc13cde74136d69ee64de6cd3586884ce2d07d9f7917957b7623e",
+  "normalizedDocumentSha256": "48f02c98c1a2852dc2abc2ba2b1bb309c7bafc86197320b58ad6ad4784fa5c33",
   "normalizedDocumentPath": null,
-  "operationSetDigest": "774012eb2a4364d7f776d50ec325387e368ca61c34320ec04f029d509a3360f1",
-  "operationCount": 133,
-  "addedOperations": [],
+  "operationSetDigest": "af5d80fcfc39c855c927a5ec14034d660cc9e5b1e2e6fbc85b578d3c550a3bbd",
+  "operationCount": 134,
+  "addedOperations": [
+    "server.experimental.persistentPty.handoff"
+  ],
   "removedOperations": [],
-  "componentCount": 336,
+  "componentCount": 339,
   "contentSchemaCount": 2
 }

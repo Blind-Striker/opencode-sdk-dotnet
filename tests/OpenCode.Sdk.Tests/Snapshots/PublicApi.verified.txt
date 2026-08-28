@@ -3952,6 +3952,9 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("location")]
         public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("model")]
         public OpenCode.Sdk.Models.ModelRef? Model { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -3986,6 +3989,9 @@ namespace OpenCode.Sdk.Models
         public string? Agent { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("location")]
         public required OpenCode.Sdk.Models.LocationRef Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("model")]
         public OpenCode.Sdk.Models.ModelRef? Model { get; init; }
@@ -4648,6 +4654,9 @@ namespace OpenCode.Sdk.Models
         public required string Id { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("location")]
         public required OpenCode.Sdk.Models.LocationRef Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("model")]
         public OpenCode.Sdk.Models.ModelRef? Model { get; init; }

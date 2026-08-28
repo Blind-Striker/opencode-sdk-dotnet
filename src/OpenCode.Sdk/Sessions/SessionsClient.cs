@@ -73,13 +73,13 @@ public class SessionsClient
     }
 
     /// <summary>
-    /// Import session. Import a projected session transcript at the requested location.
+    /// Import session. Import a projected session transcript at the requested location. If parentID is supplied, the parent session must already exist; import parents before children.
     /// </summary>
     /// <param name = "request">The request body.</param>
     /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
     /// <returns>The &apos;SessionImportPostResponse&apos; envelope.</returns>
-    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 409) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 409) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
     public virtual Task<SessionImportPostResponse> PostImportAsync(SessionImportPostRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
