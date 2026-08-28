@@ -87,6 +87,12 @@ implementation knowledge (ADR-0013).
 - Only literals used to dispatch a union become constants or get-only properties. Other fixed
   values remain ordinary primitives so a representable server value is preserved rather than
   revalidated locally (ADR-0004, ADR-0014).
+- An envelope payload is accepted when its ingested schema binds to a supported type plan: named
+  models, lists, dictionaries, inline objects promoted under deterministic operation-scoped
+  names (reasoned naming rows override), and represented-nullable payloads — distinguished
+  from the error path by response state, never by treating CLR null as an unset backing field.
+  Location-envelope data may reference an array component; the cursor-list item stays nominal
+  (ADR-0017). Unsupported nodes fail closed, and no family-specific shape exception exists.
 
 ## Runtime materialization boundary
 
