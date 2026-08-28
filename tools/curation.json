@@ -256,6 +256,11 @@
       "operationId": "v2.session.permission.list",
       "methodName": "ListRequestsAsync",
       "reason": "List methods name their subject in the plural across the reviewed surface, exactly like v2.permission.request.list; the mechanical singular 'Permission' also already names SessionPermissionCreateResponse's single-object payload in this same client family, so it would misleadingly read as returning one permission instead of the session's pending permission requests."
+    },
+    {
+      "operationId": "v2.debug.location.list",
+      "methodName": "ListLocationsAsync",
+      "reason": "The mechanical payload name 'Location' collides with ReservedNamePolicy.PayloadNames (the response-spine name every DataLocation envelope's sibling reserves), forcing a payload rename regardless; the operation returns a list, so 'Locations' is both the collision fix and the accurate shape. The method name is renamed in lockstep to the same plural, following the reviewed surface's uniform list-verb-pluralizes-its-subject convention (v2.mcp.list, v2.pty.list, v2.permission.request.list, v2.session.form.list, v2.session.permission.list) so it does not read as returning a single location."
     }
   ],
   "schemaNames": [
@@ -293,6 +298,7 @@
     }
   ],
   "envelopePayloadNames": {
+    "v2.debug.location.list": "Locations",
     "v2.mcp.list": "McpServers",
     "v2.permission.request.list": "Requests",
     "v2.pty.list": "Ptys",

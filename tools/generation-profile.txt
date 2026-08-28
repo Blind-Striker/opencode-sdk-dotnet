@@ -4,6 +4,7 @@ v2.command.list
 v2.credential.remove
 v2.credential.update
 v2.debug.location.evict
+v2.debug.location.list
 v2.event.subscribe
 v2.experimental.integration.wellknown.add
 v2.generate.text

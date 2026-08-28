@@ -38,4 +38,17 @@ public class DebugClient
     {
         return Pipeline.ExecuteAsync(HttpMethod.Delete, OpenCodeRoutes.Debug.EvictLocation(request), DebugLocationEvictDeleteResponseAdapter.Instance, requestOptions, cancellationToken);
     }
+
+    /// <summary>
+    /// List loaded locations. List locations currently loaded by the server.
+    /// </summary>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;DebugLocationListResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<DebugLocationListResponse> ListLocationsAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Debug.ListLocations, DebugLocationListResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
 }

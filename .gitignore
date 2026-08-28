@@ -24,6 +24,8 @@ mono_crash.*
 [Rr]eleases/
 # The generated Debug client family is source, not build output.
 !src/OpenCode.Sdk/Debug/
+# Its contract tests are source too.
+!tests/OpenCode.Sdk.Tests/Debug/
 x64/
 x86/
 [Ww][Ii][Nn]32/

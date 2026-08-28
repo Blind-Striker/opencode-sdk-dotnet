@@ -70,6 +70,7 @@
     {
         protected DebugClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.DebugLocationEvictDeleteResponse> EvictLocationAsync(OpenCode.Sdk.DebugLocationEvictDeleteRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.DebugLocationListResponse> ListLocationsAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class DebugLocationEvictDeleteRequest : System.IEquatable<OpenCode.Sdk.DebugLocationEvictDeleteRequest>
     {
@@ -79,6 +80,12 @@
     public sealed class DebugLocationEvictDeleteResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.DebugLocationEvictDeleteResponse>
     {
         public DebugLocationEvictDeleteResponse() { }
+    }
+    public sealed class DebugLocationListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.DebugLocationListResponse>
+    {
+        public DebugLocationListResponse() { }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.LocationRef> Locations { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public enum ErrorBehavior
     {
@@ -422,6 +429,7 @@
         public static class Debug
         {
             public const string EvictLocationTemplate = "/api/debug/location";
+            public const string ListLocations = "/api/debug/location";
             public static string EvictLocation(OpenCode.Sdk.DebugLocationEvictDeleteRequest? request = null) { }
         }
         public static class Events

@@ -588,6 +588,7 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(WorktreeResolvedDurable))]
 [JsonSerializable(typeof(WorktreeUpdated))]
 [JsonSerializable(typeof(WorktreeUpdatedData))]
+[JsonSerializable(typeof(IReadOnlyList<LocationRef>), TypeInfoPropertyName = "LocationRefList")]
 [JsonSerializable(typeof(IReadOnlyList<WorktreeDirectory>), TypeInfoPropertyName = "WorktreeDirectoryList")]
 internal sealed partial class OpenCodeJsonContext : JsonSerializerContext
 {

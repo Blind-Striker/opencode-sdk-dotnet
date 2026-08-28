@@ -1,6 +1,6 @@
 Generation is incomplete; packages must not be published.
-Selected operations: 92
-Pending operations: 42
+Selected operations: 93
+Pending operations: 41
 Selected:
 - v2.agent.get
 - v2.agent.list
@@ -8,6 +8,7 @@ Selected:
 - v2.credential.remove
 - v2.credential.update
 - v2.debug.location.evict
+- v2.debug.location.list
 - v2.event.subscribe
 - v2.experimental.integration.wellknown.add
 - v2.generate.text
@@ -97,7 +98,6 @@ Selected:
 Pending:
 - v2.config.get
 - v2.credential.activate
-- v2.debug.location.list
 - v2.experimental.migration.v1.status
 - v2.form.request.list
 - v2.fs.find

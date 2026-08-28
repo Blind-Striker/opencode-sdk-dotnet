@@ -184,6 +184,11 @@ public static class OpenCodeRoutes
             query.AddLocation("location", request.Location);
             return path + query.Value;
         }
+
+        /// <summary>
+        /// The &apos;GET /api/debug/location&apos; route.
+        /// </summary>
+        public const string ListLocations = "/api/debug/location";
     }
 
     /// <summary>
