@@ -264,7 +264,8 @@
   "envelopePayloadNames": {
     "v2.mcp.list": "McpServers",
     "v2.permission.request.list": "Requests",
-    "v2.pty.list": "Ptys"
+    "v2.pty.list": "Ptys",
+    "v2.vcs.status": "Changes"
   },
   "schemaAliases": [
     {

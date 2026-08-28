@@ -598,7 +598,9 @@
         }
         public static class Vcs
         {
+            public const string GetStatusTemplate = "/api/vcs/status";
             public const string GetVcsTemplate = "/api/vcs";
+            public static string GetStatus(OpenCode.Sdk.VcsStatusRequest? request = null) { }
             public static string GetVcs(OpenCode.Sdk.VcsRequest? request = null) { }
         }
         public static class Websearch
@@ -1157,6 +1159,7 @@
     public class VcsClient
     {
         protected VcsClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.VcsStatusResponse> GetStatusAsync(OpenCode.Sdk.VcsStatusRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.VcsResponse> GetVcsAsync(OpenCode.Sdk.VcsRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class VcsRequest : System.IEquatable<OpenCode.Sdk.VcsRequest>
@@ -1169,6 +1172,18 @@
         public VcsResponse() { }
         public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
         public required OpenCode.Sdk.Models.VcsInfo Vcs { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class VcsStatusRequest : System.IEquatable<OpenCode.Sdk.VcsStatusRequest>
+    {
+        public VcsStatusRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class VcsStatusResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.VcsStatusResponse>
+    {
+        public VcsStatusResponse() { }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.VcsFileStatus> Changes { get; init; }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public class WebsearchClient
@@ -7613,6 +7628,28 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("branch")]
         public string? Branch { get; init; }
+    }
+    public sealed class VcsFileStatus : System.IEquatable<OpenCode.Sdk.Models.VcsFileStatus>
+    {
+        public VcsFileStatus() { }
+        [System.Text.Json.Serialization.JsonPropertyName("additions")]
+        public required long Additions { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("deletions")]
+        public required long Deletions { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("file")]
+        public required string File { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public required OpenCode.Sdk.Models.VcsFileStatusStatus Status { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.VcsFileStatusStatus>))]
+    public enum VcsFileStatusStatus
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("added")]
+        Added = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("deleted")]
+        Deleted = 1,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("modified")]
+        Modified = 2,
     }
     public sealed class VcsInfo : System.IEquatable<OpenCode.Sdk.Models.VcsInfo>
     {

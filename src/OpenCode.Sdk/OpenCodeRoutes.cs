@@ -1988,6 +1988,28 @@ public static class OpenCodeRoutes
     public static class Vcs
     {
         /// <summary>
+        /// The &apos;GET /api/vcs/status&apos; route template.
+        /// </summary>
+        public const string GetStatusTemplate = "/api/vcs/status";
+        /// <summary>
+        /// Builds the &apos;/api/vcs/status&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetStatus(VcsStatusRequest? request = null)
+        {
+            var path = "/api/vcs/status";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
         /// The &apos;GET /api/vcs&apos; route template.
         /// </summary>
         public const string GetVcsTemplate = "/api/vcs";

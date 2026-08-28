@@ -397,6 +397,22 @@ patch still applies with byte-identical preimages; PR #45182 remains open. The p
 **81 selected / 53 pending**, the full gate is green at 2,767 tests, and the PublicApi baseline
 accepted its three additive `Metadata` properties.
 
+**Envelope completion's first selection batch is landing** (2026-08-28; plan:
+`docs/superpowers/plans/2026-08-28-envelope-completion.md`). `v2.vcs.status` is selected through
+the container-payload mechanism: its `data` array of `Vcs.FileStatus` binds as
+`IReadOnlyList<VcsFileStatus>` beside the `DataLocation` sibling, and a curated `Changes` envelope
+payload name resolves the reserved `Status` spine collision (`OpenCodeResponse.Status` carries the
+HTTP status code). `v2.vcs.branches` was probed for the same batch but refuses: its `data` is a
+named reference to `Vcs.BranchList`, an unnamed array-of-string component, and
+`BindDataLocationPayload`'s ref-vs-array wall does not fall through to the generic type machinery
+for that shape (only a named ref or a literal inline array of named refs binds); it stays pending
+rather than being forced. A latent `CliWrapProjectFormatter` scaling bug surfaced and was fixed in
+the same slice: the generator's post-write `dotnet format --include <every generated file>` step
+had grown past Windows's 32,767-character process command-line limit now that the generated tree
+exceeds ~900 files ("the filename or extension is too long"); the formatter now batches its
+`--include` list under a safe budget, proven by both a unit-tested pure splitter and a real
+`generate` run. The profile stands at **82 selected / 52 pending**.
+
 ## Milestones
 
 Deliverable-first: every milestone ends in something callable or demonstrable. The next
