@@ -4196,3 +4196,51 @@ PR #45182 remains open (`needs:issue`); `rawSha ≠ baselineSha` persists (doc 2
 `refresh-spec --verify` reproducing the committed receipt. The PublicApi delta is three
 additive optional `Metadata` properties with all four TFM snapshots byte-identical; the
 reviewed baseline was accepted.
+
+## Q153: What did the M4 launcher arc land, and what did its live checkpoints prove?
+
+**Method (2026-08-28):** the maintainer-approved arc plan (every decision resolved pre-execution)
+ran task-by-task on an isolated worktree branch with a fresh implementer per task, an independent
+task review per task, scoped re-reviews per fix round, and a final whole-branch review (verdict:
+ready to merge; Standards 0C/1I, Spec 0C/0I). Six tasks, four fix rounds total, all converged in
+one or two rounds. The branch merged into master at `4ec11b0` with the full gate green at
+3,182/3,182 — the ReservedNamePolicy mirror gained the three launcher spine names atomically with
+the types, and the PublicApi baseline union was proven by its own test rather than trusted.
+
+**What landed:** `OpenCodeServer.StartAsync` — the standalone door (ADR-0001): hand-rolled on
+`System.Diagnostics.Process`, `serve --stdio --port 0`, caller-generated `OPENCODE_PASSWORD`,
+event-based dual-stream drain, single-JSON-line readiness, stdin ownership lease, and a bounded
+teardown ladder (grace → tree kill → forced wait) with every failure path drain-bounded after the
+review closed the plan's own unbounded-`WaitForExit` hang class. `CreateClient` pins identity
+fail-closed (caller-set Endpoint/Username/Password refuse; fresh options instance, never mutating
+the delegate's) with a reflection mirror test that trips on any future options member. Test
+infrastructure: `PinnedServerCommand`/`ServerIsolation`/`TestRunRoot`, real-process lifecycle
+acceptance (8 scenarios × 4 TFMs green locally, incl. the net472 taskkill arm),
+`PinnedOpenCodeServerFixture` over a test-only CliWrap adapter (failure-path log retention made
+reachable after review caught the plan's dead-code path; double-dispose guarded), the
+`DriveController` JSON-RPC client (id-correlated round trips, notification buffering, bounded
+everything), and the ADR-0022 workflow test — day-one blocking, no skip mechanism.
+
+**Live checkpoints:** (1) the plan's highest-risk unverified item — a config-seeded
+`providers.sim` over the builtin openai-compatible provider — resolved end to end: the live
+`llm.request` arrived at the claimed chat URL with the seeded model id (now asserted in the gate,
+not just observed); upstream's model resolver has no fallback for an explicit `ModelRef`, so the
+determinism is structural. (2) The sandbox `--standalone` demo: the SDK started the pinned server
+itself, health answered with the child's own pid. (3) A real 1-in-3 flake (drive port-reservation
+race) was fixed as a bug per the gating decision — `DrivePortGate` holds a machine-wide file lock
+from reservation until a completed WebSocket connect proves the bind.
+
+**Upstream findings (report candidates):** `session.idle` is deprecated at the pin with no
+publisher anywhere while `SessionIdle` stays in the public event union — the workflow's terminal
+event is `SessionExecutionSucceeded` (`execution.ts`, one terminal observation per busy period).
+Bun's workspace/JSX discovery keys on the working directory, not the entry path — the pinned
+server must run with cwd at `packages/cli` (now recorded in the fixture, the README recipe, and
+this log). The simulation catalog is not empty (models.dev bundle loads); determinism rides the
+explicit `ModelRef`.
+
+**Outstanding:** the three-OS hosted matrix proof (maintainer-gated push; first hosted run of the
+bun legs and `FileShare.None` on Unix is the named risk), the queued service-parity arc
+(Discover/Ensure/Stop), and the named post-integration work: fixture retention/disposal
+consolidation across the two tests/Shared fixtures, `OpenCodeServer` post-dispose guards, three
+cheap contract tests (composer backslash-before-quote, negative grace timeout, non-object
+readiness root), and `Dispatch`'s malformed-notification hardening at the next controller touch.

@@ -406,6 +406,20 @@ array-of-string component). Full mechanism detail, the two generator-tooling fix
 and the reviewed naming/placement/handle decisions live in the task's own report, feeding the
 dated research log at Task 8. The profile stands at **92 selected / 42 pending**.
 
+**M4's launcher arc is code-complete and integrated** (2026-08-28; evidence: research log Q153;
+plan executed task-by-task with independent reviews and a clean final whole-branch review).
+`OpenCodeServer.StartAsync` is the landed standalone door (ADR-0001) with real-process
+three-TFM-plus-net472 lifecycle acceptance on Windows, the exact-pin `PinnedOpenCodeServerFixture`
+over a CliWrap control adapter, the repository-owned `DriveController` for the simulation
+backend, and the day-one-blocking deterministic simulated-session workflow test (ADR-0022) whose
+config-seeded-provider checkpoint passed live (`llm.request` observed with the seeded model id).
+The committed sandbox's `--standalone` demo ran live: the SDK started the pinned server itself
+and health answered with the child's own pid. Canon carries the three-connection-mode door
+taxonomy; CONTEXT.md carries the vocabulary. **Outstanding for M4 closure: the three-OS hosted
+matrix proof (maintainer-gated push) and the service-parity follow-up arc.** Upstream-report
+candidate discovered: `session.idle` is deprecated at the pin with no publisher while
+`SessionIdle` remains in the event union.
+
 ## Milestones
 
 Deliverable-first: every milestone ends in something callable or demonstrable. The next
