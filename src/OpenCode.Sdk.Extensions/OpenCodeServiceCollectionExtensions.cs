@@ -70,6 +70,7 @@ public static class OpenCodeServiceCollectionExtensions
         _ = services.AddSingleton(static VcsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Vcs);
         _ = services.AddSingleton(static WebsearchClient (provider) => provider.GetRequiredService<OpenCodeClient>().Websearch);
         _ = services.AddSingleton(static WorkspacesClient (provider) => provider.GetRequiredService<OpenCodeClient>().Workspaces);
+        _ = services.AddSingleton(static WorktreesClient (provider) => provider.GetRequiredService<OpenCodeClient>().Worktrees);
         return services;
     }
 }

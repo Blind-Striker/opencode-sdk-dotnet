@@ -433,7 +433,26 @@ pinned-plan test fixture data (`OperationPlanBinderTests`' expected client/sub-c
 (ADR-0019, matching credential's update/remove precedent) — `WorkspacesClient.CreateWorkspaceAsync`
 takes the request body directly, no id argument yet. Its `{"data": "wrk..."}` success body binds
 as a plain `string` (a scalar payload needs no promotion), and its 400/401/404/409 error map lands
-exactly as declared. The profile stands at **85 selected / 49 pending**.
+exactly as declared. `v2.worktree.list` closes the batch as a handle family: its full pinned
+surface (list, create, remove, refresh) all chain on the same `projectID`, so ADR-0019's
+full-surface rule gives `Worktrees` a handle (`WorktreeClient`, keyed by `projectID`) now even
+though only `list` is selected — `Worktrees.GetWorktreeClient(projectID).ListWorktreesAsync()`,
+mirroring how sessions/shells key their handles. Its bare `Worktree.List` payload (a named
+component array-of-named-ref schema with no separate C# type of its own) binds through the
+Task 3 bare-container-registry mechanism as `IReadOnlyList<WorktreeDirectory>` with a pinned
+`WorktreeDirectoryList` accessor name. Landing this first bare-container-with-named-accessor
+registration surfaced one more narrow test assumption: `SourceEmitterTests`' registry-reading
+helper assumed every emitted `[JsonSerializable(...)]` attribute carries exactly one argument,
+which a bare container's pinned `TypeInfoPropertyName` argument breaks; both the reader and the
+test's expected-type set (now covering `RegistryPlan.PayloadEntries` alongside `TypeNames`) are
+fixed alongside the extended Extensions/`OperationPlanBinderTests` rosters.
+
+**Envelope completion's first selection batch (7a) is complete**: five family commits landed
+`vcs.status`, `location.get`, the new `server` and `workspace` families, and the handle-based
+`worktree` family — five of the six named operations, with `vcs.branches` reported as a refusal
+rather than forced (its `data` is a named ref to an unnamed array-of-string component, a shape
+`BindDataLocationPayload`'s ref-vs-array wall does not admit). The profile stands at
+**86 selected / 48 pending**.
 
 ## Milestones
 

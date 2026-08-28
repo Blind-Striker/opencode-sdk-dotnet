@@ -83,3 +83,4 @@ v2.vcs.status
 v2.websearch.providers
 v2.websearch.query
 v2.workspace.create
+v2.worktree.list

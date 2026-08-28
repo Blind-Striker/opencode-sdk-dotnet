@@ -140,6 +140,13 @@
       "placement": "client",
       "clientName": "Workspaces",
       "reason": "Create and the still-pending destroy are two single-shot admin actions on a workspace id, not a chained working object; the id will ride as an argument once destroy is selected, exactly like credential (ADR-0019)."
+    },
+    "worktree": {
+      "placement": "client",
+      "clientName": "Worktrees",
+      "handleName": "WorktreeClient",
+      "handleParameter": "projectID",
+      "reason": "The family's full pinned surface (list, create, remove, refresh) all chain on the same projectID, so ADR-0019's full-surface rule gives it a handle now even though only list is selected this batch."
     }
   },
   "operationIdentities": [

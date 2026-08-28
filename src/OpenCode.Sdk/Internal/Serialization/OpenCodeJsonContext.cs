@@ -571,11 +571,13 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(WebsearchUpdated))]
 [JsonSerializable(typeof(WorkspaceCreateRequest))]
 [JsonSerializable(typeof(WorkspaceCreateResponseEnvelope))]
+[JsonSerializable(typeof(WorktreeDirectory))]
 [JsonSerializable(typeof(WorktreeResolved))]
 [JsonSerializable(typeof(WorktreeResolvedData))]
 [JsonSerializable(typeof(WorktreeResolvedDurable))]
 [JsonSerializable(typeof(WorktreeUpdated))]
 [JsonSerializable(typeof(WorktreeUpdatedData))]
+[JsonSerializable(typeof(IReadOnlyList<WorktreeDirectory>), TypeInfoPropertyName = "WorktreeDirectoryList")]
 internal sealed partial class OpenCodeJsonContext : JsonSerializerContext
 {
 }

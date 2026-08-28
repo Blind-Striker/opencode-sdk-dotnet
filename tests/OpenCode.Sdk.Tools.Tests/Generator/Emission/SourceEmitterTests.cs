@@ -82,13 +82,25 @@ public sealed class SourceEmitterTests
             .ToArray();
         await Assert.That(allRequiredRegistryTypes.Except(plan.Registry.TypeNames, StringComparer.Ordinal)).IsEmpty();
 
+        // A bare container payload (list/dictionary not carried by an envelope DTO) joins the
+        // registry from RegistryPlan.PayloadEntries rather than TypeNames, deduplicated by its
+        // accessor name exactly as RegistryEmitter itself dedupes before emitting.
+        var expectedPayloadEntryTypes = plan
+            .Registry.PayloadEntries
+            .Select(entry => (Entry: entry, Accessor: SerializerTypeNamePolicy.ContextPropertyName(entry)))
+            .DistinctBy(static item => item.Accessor, StringComparer.Ordinal)
+            .Select(static item => TypeSyntaxEmitter.Emit(item.Entry).ToString());
+        var expectedRegistryTypes = plan
+            .Registry.TypeNames
+            .Concat(expectedPayloadEntryTypes)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
         var registrySource = sources.Single(static source =>
             source.RelativePath == "Internal/Serialization/OpenCodeJsonContext.cs");
         var emittedRegistryTypes = ReadRegistryTypes(registrySource);
         await Assert
-            .That(emittedRegistryTypes.SequenceEqual(
-                plan.Registry.TypeNames.Order(StringComparer.Ordinal),
-                StringComparer.Ordinal))
+            .That(emittedRegistryTypes.SequenceEqual(expectedRegistryTypes, StringComparer.Ordinal))
             .IsTrue();
         await Assert.That(allRequiredRegistryTypes.Except(emittedRegistryTypes, StringComparer.Ordinal)).IsEmpty();
 
@@ -235,7 +247,11 @@ public sealed class SourceEmitterTests
                 .OfType<AttributeSyntax>()
                 .Where(static attribute => attribute.Name.ToString() == "JsonSerializable")
                 .Select(static attribute =>
-                    ((TypeOfExpressionSyntax)attribute.ArgumentList!.Arguments.Single().Expression).Type.ToString())
+                    // The lone positional argument is always the typeof(...) target; a bare
+                    // container payload's registration also carries a named
+                    // TypeInfoPropertyName argument, so this reads the first argument
+                    // specifically rather than demanding exactly one.
+                    ((TypeOfExpressionSyntax)attribute.ArgumentList!.Arguments[0].Expression).Type.ToString())
                 .Order(StringComparer.Ordinal),
         ];
     }

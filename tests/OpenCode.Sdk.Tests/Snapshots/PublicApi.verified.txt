@@ -363,6 +363,7 @@
         public virtual OpenCode.Sdk.VcsClient Vcs { get; }
         public virtual OpenCode.Sdk.WebsearchClient Websearch { get; }
         public virtual OpenCode.Sdk.WorkspacesClient Workspaces { get; }
+        public virtual OpenCode.Sdk.WorktreesClient Worktrees { get; }
         public void Dispose() { }
         protected virtual void Dispose(bool disposing) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.HealthResponse> GetHealthAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
@@ -636,6 +637,11 @@
         public static class Workspaces
         {
             public const string CreateWorkspace = "/api/workspace";
+        }
+        public static class Worktrees
+        {
+            public const string ListWorktreesTemplate = "/api/worktree/{projectID}";
+            public static string ListWorktrees(string projectId) { }
         }
     }
     public sealed class OpenCodeStreamFailureException : OpenCode.Sdk.OpenCodeTransportException
@@ -1259,6 +1265,22 @@
     {
         protected WorkspacesClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.WorkspaceCreateResponse> CreateWorkspaceAsync(OpenCode.Sdk.Models.WorkspaceCreateRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public class WorktreeClient
+    {
+        protected WorktreeClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.WorktreeListResponse> ListWorktreesAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class WorktreeListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.WorktreeListResponse>
+    {
+        public WorktreeListResponse() { }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.WorktreeDirectory> Worktrees { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public class WorktreesClient
+    {
+        protected WorktreesClient() { }
+        public virtual OpenCode.Sdk.WorktreeClient GetWorktreeClient(string projectId) { }
     }
 }
 namespace OpenCode.Sdk.Models
@@ -7786,6 +7808,15 @@ namespace OpenCode.Sdk.Models
         public string? Id { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("provider")]
         public required string Provider { get; init; }
+    }
+    public sealed class WorktreeDirectory : System.IEquatable<OpenCode.Sdk.Models.WorktreeDirectory>
+    {
+        public WorktreeDirectory() { }
+        [System.Text.Json.Serialization.JsonPropertyName("directory")]
+        public required string Directory { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("strategy")]
+        public string? Strategy { get; init; }
     }
     public sealed class WorktreeResolved : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.WorktreeResolved>
     {
