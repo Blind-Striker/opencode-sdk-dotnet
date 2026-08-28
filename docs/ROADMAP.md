@@ -421,13 +421,21 @@ is revisited at each milestone boundary.
    owned-transport/net472 GA gate (#43 plus #32) are complete. The union single-pass deserialization
    and streaming adapter-boundary redesign (#23), #29's surviving success-body cost, #33's carrier
    refusal, and the generated collection comparison completed in Arc 6 at `fa6124d`. M3 is complete.
-4. **M4 — Launcher and process truth.** `OpenCodeServer.StartAsync` with three-OS acceptance
-   (ADR-0001) over the measured stdio contract: `serve --stdio --port 0`, JSON readiness,
-   caller-supplied lease credential via `OPENCODE_PASSWORD`, stdin-EOF ownership, and bounded
-   tree termination (research log Q148). Carries the TUnit exact-pin server fixture, the
-   deterministic simulated-model session workflow with its repository-owned C# controller
-   (ADR-0022), and the net472 stdout/tree-kill items. Demo: the SDK starts the server itself
-   and calls health.
+4. **M4 — Launcher and process truth.** The SDK targets full parity with upstream's three
+   connection modes under upstream's own vocabulary (maintainer, 2026-08-28): standalone start,
+   explicit endpoint, and the registration-file background service
+   (`Service.discover/ensure/stop`). M4 itself lands the standalone door —
+   `OpenCodeServer.StartAsync` with three-OS acceptance (ADR-0001) over the measured stdio
+   contract: `serve --stdio --port 0`, JSON readiness, caller-supplied lease credential via
+   `OPENCODE_PASSWORD`, stdin-EOF ownership, and bounded tree termination (research log Q148) —
+   plus the explicit-endpoint health/version validation option. Ownership is structural: only
+   the started server's working object can end a process, and only its own. Carries the TUnit
+   exact-pin server fixture, the deterministic simulated-model session workflow with its
+   repository-owned C# controller (ADR-0022), and the net472 stdout/tree-kill items. Demo: the
+   SDK starts the server itself and calls health. **The background-service parity follow-up**
+   (`OpenCodeService.DiscoverAsync/EnsureAsync/StopAsync` over the registration file — an
+   upstream-observed contract outside the OpenAPI pin, canary-guarded) **is its own queued arc
+   after M4**; whether read-only discovery rides M4 is decided at the M4 plan review.
 5. **M5 — Full surface.** Opened with the minimal `refresh-spec` synchronizer and the first
    accepted (Restore-patched) refresh to the current tip (ADR-0020), then the typed per-call
    location plus normal-PTY ownership lane (ADR-0021) — both landed, with the operation-identity
