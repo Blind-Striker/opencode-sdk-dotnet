@@ -609,6 +609,32 @@
             public static string Query(OpenCode.Sdk.Models.WebsearchQueryPostRequest? request = null) { }
         }
     }
+    public class OpenCodeServer : System.IAsyncDisposable
+    {
+        protected OpenCodeServer() { }
+        public virtual System.Uri Endpoint { get; }
+        public virtual string Password { get; }
+        public virtual int ProcessId { get; }
+        public virtual string Username { get; }
+        public virtual OpenCode.Sdk.OpenCodeClient CreateClient(System.Action<OpenCode.Sdk.OpenCodeClientOptions>? configure = null) { }
+        public virtual System.Threading.Tasks.ValueTask DisposeAsync() { }
+        public static System.Threading.Tasks.Task<OpenCode.Sdk.OpenCodeServer> StartAsync(OpenCode.Sdk.OpenCodeServerOptions? options = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public class OpenCodeServerException : OpenCode.Sdk.OpenCodeException
+    {
+        public OpenCodeServerException() { }
+        public OpenCodeServerException(string message) { }
+        public OpenCodeServerException(string message, System.Exception innerException) { }
+    }
+    public sealed class OpenCodeServerOptions
+    {
+        public OpenCodeServerOptions() { }
+        public System.Collections.Generic.IReadOnlyList<string> Command { get; set; }
+        public System.Collections.Generic.IReadOnlyDictionary<string, string>? Environment { get; set; }
+        public System.TimeSpan GracefulShutdownTimeout { get; set; }
+        public System.TimeSpan ReadinessTimeout { get; set; }
+        public string? WorkingDirectory { get; set; }
+    }
     public sealed class OpenCodeStreamFailureException : OpenCode.Sdk.OpenCodeTransportException
     {
         public OpenCodeStreamFailureException() { }

@@ -872,3 +872,26 @@ dotnet_diagnostic.VSTHRD003.severity = none
 # Sandbox application's purpose is primarly for testing
 [tests/OpenCode.Sdk.Sandbox/**.cs]
 dotnet_diagnostic.MA0076.severity = none
+
+# StartAsync's readyLine TaskCompletionSource is completed only by this same method's own
+# OutputDataReceived handler, wired to the very child process this method spawns — there is no
+# externally-owned task lifetime for VSTHRD003 to protect against, the same shape already
+# arbitrated for ScriptedPtyWebSocket's TaskCompletionSource handles. Winner: the event-to-async
+# bridge for the readiness signal; VSTHRD003 remains enabled for every other file.
+# FlushOutputDrain must call the parameterless WaitForExit(), not WaitForExitAsync(): Polyfill's
+# downlevel WaitForExitAsync is Exited-event-only and never waits for the async output readers to
+# reach EOF, while .NET Framework's synchronous WaitForExit() does drain them before returning.
+# Every startup-failure path calls this after the child has already exited, so it returns
+# promptly, and the stderr tail the failure message quotes is complete on every TFM. Winner: the
+# cross-TFM diagnostics-drain contract; MA0045 remains enabled elsewhere.
+[src/OpenCode.Sdk/OpenCodeServer.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+dotnet_diagnostic.MA0045.severity = none
+
+# OpenCodeServerContractTests exercises the processless friend-assembly seam
+# (internal OpenCodeServer(Uri, string)) and the bare protected-ctor mock seam exclusively:
+# neither holds a real child process, so DisposeAsync is a no-op and nothing physical leaks when
+# a test does not dispose the door itself. Winner: the deterministic contract-test seam; CA2000
+# remains enabled for every other file.
+[tests/OpenCode.Sdk.Tests/OpenCodeServerContractTests.cs]
+dotnet_diagnostic.CA2000.severity = none

@@ -216,10 +216,39 @@ local server launcher. Protocol and generated-model rules live in
 
 ## Launcher
 
-The local `opencode serve` launcher belongs in `OpenCode.Sdk` when its milestone lands. Its design
-is hand-written over `System.Diagnostics.Process`: start and monitor one known executable, drain
-output safely, and own graceful/forceful shutdown without a process-management dependency
-(ADR-0001). `docs/ROADMAP.md` owns its current delivery status.
+`OpenCodeServer.StartAsync(OpenCodeServerOptions?, CancellationToken)` is the standalone door
+(upstream `Standalone.start` parity), hand-written over `System.Diagnostics.Process` with no
+process-management dependency (ADR-0001). Every call is always a fresh private server on port
+zero: the caller's `Command` plus `--stdio --port 0` is the argv, and a freshly generated lease
+credential is injected into the child environment as `OPENCODE_PASSWORD`, after any caller-supplied
+`Environment` entries so it can never be shadowed. Readiness is the single JSON stdout line the
+child prints once fully booted; stdin stays open as the ownership lease for as long as the server
+runs, and every later stdout line plus all of stderr is drained continuously (stderr into a bounded
+tail kept for failure diagnostics) so a chatty child can never wedge the pipes.
+
+Disposal is a ladder, bounded at every step so it never hangs the caller: stdin EOF (the lease
+release) first, then the configured grace (`GracefulShutdownTimeout`, default 3 seconds — the
+reference client's own force-kill window), then a forced whole-tree kill
+(`Process.Kill(entireProcessTree: true)` on modern TFMs, `taskkill /pid … /T /F` on downlevel
+Windows, plain `Kill()` on downlevel non-Windows once the stdin-EOF lease has already released any
+children), then a final bounded forced-exit wait. Ownership is structural: the returned
+`OpenCodeServer` is the only owner of its child, disposal ends exactly that child, and the
+operating system closes the lease even when the owner crashes before disposal runs — coexistence
+with any other running server is safe by construction, since a started door never discovers or
+attaches to one.
+
+`CreateClient(Action<OpenCodeClientOptions>?)` pins the connection identity fail-closed: the
+delegate receives a fresh identity-unset options instance, and setting `Endpoint`, `Username`, or
+`Password` there is refused with `InvalidOperationException` before the door writes its own
+endpoint and lease credential; behavior members such as `Location` configure freely. Every call
+builds a new client over its own owned transport, which the caller disposes.
+
+The failure plane is `OpenCodeServerException : OpenCodeException`, carrying a bounded stderr tail
+for every startup failure: a spawn failure (wrapping the underlying `Win32Exception`), an exit
+before readiness (naming the exit code), a readiness timeout (naming the configured bound), or a
+non-contract first stdout line (quoting it). Caller cancellation during the readiness wait stays
+`OperationCanceledException` rather than being folded into the exception type, after the child is
+torn down.
 
 Launcher acceptance is real-process and three-OS. Platform-specific behavior is tested on the
 platform it represents; a successful compile is not a lifecycle proof.
