@@ -544,6 +544,62 @@ public sealed class ModelMaterializationMatrixTests
         return (plan, operation);
     }
 
+    /// <summary>
+    /// The addendum's array arm: a location envelope's array-of-inline-object <c>data</c>
+    /// promotes its item under the operation-scoped name and round-trips both siblings.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Compile_And_Roundtrip_A_Promoted_Data_Location_List_Item()
+    {
+        var (plan, operation) = await CreatePromotedDataLocationListPlanAsync();
+        await Assert.That(operation.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocationList);
+        var elementType = (NamedTypeReferencePlan)((ListTypeReferencePlan)operation.Envelope.PayloadType!).ElementType;
+        await Assert.That(elementType.Name).IsEqualTo("WidgetListData");
+
+        var assembly = await GeneratedSourceCompiler.CompileAndLoadWithSdkCoreAsync(SourceEmitter.Emit(plan));
+
+        var result = AdaptSuccess(assembly, operation.Envelope, """{"data":[{"id":"a"}],"location":{"directory":"widget-place"}}""");
+        var items = (IList)GetProperty(result, operation.Envelope.PayloadName!)!;
+        await Assert.That(items.Count).IsEqualTo(1);
+        await Assert.That(GetProperty(items[0]!, "Id")).IsEqualTo("a");
+        var location = GetProperty(result, "Location")
+                       ?? throw new InvalidOperationException("Expected a present location.");
+        await Assert.That(GetProperty(location, "Directory")).IsEqualTo("widget-place");
+    }
+
+    private static async Task<(EmitPlan Plan, OperationPlan Operation)> CreatePromotedDataLocationListPlanAsync()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("PlaceInfo", schema => schema
+                .Type("object")
+                .Property("directory", property => property.Type("string"), required: true))
+            .WithSchema("WidgetError", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("_tag", property => property.Type("string").Enum("WidgetError"), required: true)
+                .Property("message", property => property.Type("string"), required: true))
+            .WithSchema("WidgetEnvelope", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("location", property => property.Ref("PlaceInfo"), required: true)
+                .Property("data", property => property
+                    .Type("array")
+                    .Items(static item => item
+                        .Type("object")
+                        .Property("id", static inner => inner.Type("string"), required: true)), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetEnvelope"))
+                .Response(400, "application/json", schema => schema.Ref("WidgetError")))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.list"),
+            Curation(Groups("widget", RootGroup())));
+
+        var operation = plan.Clients.SelectMany(static client => client.Operations).Single();
+        return (plan, operation);
+    }
+
     private static async Task<(EmitPlan Plan, OperationPlan Stats, OperationPlan Handoff)> CreatePromotedInlinePlanAsync()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec

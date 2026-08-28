@@ -232,10 +232,13 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
             return Named(datumName);
         }
 
-        // Items must reference top-level components: a promoted inline item would take its
-        // name from the excluded response root, so the dialect keeps list items nominal.
+        // A named top-level component item keeps its own identity. An inline item ingestion
+        // promoted into the graph reaches the same lookup once SchemaNameResolver's
+        // DataLocationList arm claims it under the operation-scoped payload name (mirroring
+        // the Data shape's single-object promotion); a RefNode item claimed by neither path
+        // still falls through and refuses below — no resurrection via the type machinery's
+        // mechanical fallback name.
         if (data.Schema is ArrayNode { Item: RefNode item }
-            && !item.Target.Contains('#', StringComparison.Ordinal)
             && _context.TypeNames.TryGetValue(item.Target, out var itemName))
         {
             return ListOf(Named(itemName));

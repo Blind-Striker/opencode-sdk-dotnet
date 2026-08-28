@@ -168,11 +168,12 @@ internal sealed class SchemaNameResolver
     /// its own: it was promoted out of envelope spine — the operation's own inline root, or a
     /// wrapper the dialect never names — and neither spelling belongs on the public surface.
     /// Such a payload is named from the operation instead, mechanically
-    /// (<see cref="OperationNamePolicy.PayloadTypeName"/>), uniformly for the bare body root and
-    /// for a data wrapper's <c>data</c> member. A component-referenced payload keeps its
-    /// component identity, and a reasoned <c>schemaNames</c> row still overrides. Cursor-list
-    /// items (ADR-0017) and location-envelope data stay nominal, so those positions never carry
-    /// a promoted key for this to claim.
+    /// (<see cref="OperationNamePolicy.PayloadTypeName"/>), uniformly for the bare body root, for
+    /// a data wrapper's <c>data</c> member, and for a location wrapper's <c>data</c> list item. A
+    /// component-referenced payload keeps its component identity, and a reasoned
+    /// <c>schemaNames</c> row still overrides. Cursor-list items (ADR-0017) and a location
+    /// wrapper's single-object <c>data</c> stay nominal, so those positions never carry a
+    /// promoted key for this to claim.
     /// </summary>
     private Dictionary<string, string> ResolveEnvelopePayloadRootNames(SpecDocument document,
         IReadOnlyList<SpecOperation> selected, BindingErrorCollector errors)
@@ -186,13 +187,15 @@ internal sealed class SchemaNameResolver
                 continue;
             }
 
-            // Cursor-list items and location-envelope data stay nominal, so those shapes have no
-            // promoted key to claim; the remaining shapes never reach a payload at all.
+            // Cursor-list items and a location wrapper's single-object data stay nominal, so
+            // those shapes have no promoted key to claim; the remaining shapes never reach a
+            // payload at all.
             var payloadKey = success.EnvelopeShape switch
             {
                 SpecEnvelopeShape.Bare => reference.Target,
                 SpecEnvelopeShape.Data => ResolveDataMemberKey(document, reference.Target),
-                SpecEnvelopeShape.CursorData or SpecEnvelopeShape.DataLocation
+                SpecEnvelopeShape.DataLocation => ResolveDataLocationListItemKey(document, reference.Target),
+                SpecEnvelopeShape.CursorData
                     or SpecEnvelopeShape.DataHasMore or SpecEnvelopeShape.None => null,
                 _ => null,
             };
@@ -229,6 +232,30 @@ internal sealed class SchemaNameResolver
         && wrapper is ObjectNode { Properties: [{ Name: "data", IsRequired: true, Schema: RefNode payload, }] }
             ? payload.Target
             : null;
+
+    /// <summary>
+    /// Resolves the graph key of a location wrapper's <c>data</c> list item, matching the
+    /// required-<c>data</c>-and-<c>location</c> shape <c>EnvelopeFacetBinder.BindDataLocationPayload</c>
+    /// reads. A non-array (single-object) <c>data</c> stays out of scope here — that arm keeps
+    /// its own nominal-only rule — and a real top-level component item is filtered back out by
+    /// this method's caller (its key carries no '#').
+    /// </summary>
+    private static string? ResolveDataLocationListItemKey(SpecDocument document, string wrapperKey)
+    {
+        if (!document.Schemas.TryGetValue(wrapperKey, out var target) || target is not ObjectNode wrapper)
+        {
+            return null;
+        }
+
+        var data = wrapper.Properties.FirstOrDefault(static property => property.Name is "data");
+        var location = wrapper.Properties.FirstOrDefault(static property => property.Name is "location");
+        if (wrapper.Properties.Count is not 2 || data is not { IsRequired: true } || location is not { IsRequired: true })
+        {
+            return null;
+        }
+
+        return data.Schema is ArrayNode { Item: RefNode item } ? item.Target : null;
+    }
 
     private string ResolveUnionName(string key, UnionNode union, IReadOnlyDictionary<string, SchemaNode> graph,
         ProjectionArtifactNamePolicy artifacts)

@@ -886,8 +886,14 @@ public sealed class OperationPlanBinderTests
         await AssertWidgetRefusalAsync(document, "location sibling");
     }
 
+    /// <summary>
+    /// The addendum's array arm: an inline-object list item promotes with the same
+    /// operation-scoped name Task 5 built for a single-object 'data' payload (the guard
+    /// Task 4 added existed to stop a pointer-derived name leaking, not to forbid promotion
+    /// outright once one is registered).
+    /// </summary>
     [Test]
-    public async Task Bind_Should_Refuse_A_Data_Location_List_Of_Promoted_Inline_Items()
+    public async Task Bind_Should_Promote_A_Data_Location_List_Of_Inline_Items_Under_An_Operation_Scoped_Name()
     {
         var document = await BindingTestHost.IngestAsync(DataLocationScenario(
             data: static property => property
@@ -896,7 +902,79 @@ public sealed class OperationPlanBinderTests
                     .Type("object")
                     .Property("id", static inner => inner.Type("string"), required: true))));
 
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocationList);
+        await Assert.That(list.Envelope.PayloadType).IsTypeOf<ListTypeReferencePlan>();
+        var elementType = (NamedTypeReferencePlan)((ListTypeReferencePlan)list.Envelope.PayloadType!).ElementType;
+        await Assert.That(elementType.Name).IsEqualTo("WidgetListData");
+        await Assert.That(plan.Models.Any(static model => string.Equals(model.Name, "WidgetListData", StringComparison.Ordinal)))
+            .IsTrue();
+
+        // The wrapper component's own spelling never reaches the surface.
+        await Assert.That(plan.Models.Any(static model => model.Name.Contains("Response", StringComparison.Ordinal))).IsFalse();
+    }
+
+    /// <summary>
+    /// A RefNode item that resolves to a non-nominal target (a primitive alias, here) is
+    /// claimed by neither the nominal-component lookup nor the promotion resolver: it still
+    /// refuses exactly as before — the addendum narrows the guard, it does not resurrect a
+    /// mechanically-derived name for every RefNode.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Refuse_A_Data_Location_List_Item_Referencing_A_Non_Nominal_Component()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetAlias", schema => schema.Type("string"))
+            .WithSchema("PlaceInfo", schema => schema
+                .Type("object")
+                .Property("directory", property => property.Type("string"), required: true))
+            .WithSchema("WidgetEnvelope", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("location", property => property.Ref("PlaceInfo"), required: true)
+                .Property("data", property => property.Type("array").Items(static item => item.Ref("WidgetAlias")),
+                    required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetEnvelope")))));
+
         await AssertWidgetRefusalAsync(document, "named component schema");
+    }
+
+    /// <summary>Reuses Task 5's double-claim wall for the array arm's promoted item.</summary>
+    [Test]
+    public async Task Bind_Should_Refuse_A_Promoted_Data_Location_List_Item_Claimed_By_Two_Operations()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("PlaceInfo", schema => schema
+                .Type("object")
+                .Property("directory", property => property.Type("string"), required: true))
+            .WithSchema("WidgetsEnvelope", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("location", property => property.Ref("PlaceInfo"), required: true)
+                .Property("data", property => property
+                    .Type("array")
+                    .Items(static item => item
+                        .Type("object")
+                        .Property("id", static inner => inner.Type("string"), required: true)), required: true))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetsEnvelope")))
+            .WithOperation("v2.widget.summary", path: "/api/widget-summary", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetsEnvelope")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.list", "v2.widget.summary"),
+            Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)))));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
+                                                       && error.Problem.Contains(
+                                                           "claimed as both 'WidgetListData' and 'WidgetSummaryData'",
+                                                           StringComparison.Ordinal)))
+            .IsTrue();
     }
 
     [Test]
