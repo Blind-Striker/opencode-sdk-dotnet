@@ -1,6 +1,6 @@
 Generation is incomplete; packages must not be published.
-Selected operations: 93
-Pending operations: 41
+Selected operations: 94
+Pending operations: 40
 Selected:
 - v2.agent.get
 - v2.agent.list
@@ -16,6 +16,7 @@ Selected:
 - v2.integration.command.cancel
 - v2.integration.command.connect
 - v2.integration.command.status
+- v2.integration.get
 - v2.integration.oauth.cancel
 - v2.integration.oauth.complete
 - v2.integration.oauth.status
@@ -104,7 +105,6 @@ Pending:
 - v2.fs.list
 - v2.fs.read
 - v2.integration.connect.key
-- v2.integration.get
 - v2.integration.list
 - v2.integration.oauth.connect
 - v2.model.default

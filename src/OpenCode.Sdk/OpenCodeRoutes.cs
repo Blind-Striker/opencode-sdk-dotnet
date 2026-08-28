@@ -366,6 +366,35 @@ public static class OpenCodeRoutes
         }
 
         /// <summary>
+        /// The &apos;GET /api/integration/{integrationID}&apos; route template.
+        /// </summary>
+        public const string GetIntegrationTemplate = "/api/integration/{integrationID}";
+        /// <summary>
+        /// Builds the &apos;/api/integration/{integrationID}&apos; route.
+        /// </summary>
+        /// <param name = "integrationId">The &apos;integrationID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetIntegration(string integrationId, IntegrationRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(integrationId);
+            if (integrationId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(integrationId));
+            }
+
+            var path = "/api/integration/" + RouteValuePolicy.Escape(integrationId, nameof(integrationId));
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
         /// The &apos;GET /api/integration/{integrationID}/connect/oauth/{attemptID}&apos; route template.
         /// </summary>
         public const string GetOauthStatusTemplate = "/api/integration/{integrationID}/connect/oauth/{attemptID}";

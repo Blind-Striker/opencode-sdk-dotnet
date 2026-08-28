@@ -136,6 +136,7 @@
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.IntegrationCommandCancelDeleteResponse> DeleteCommandCancelAsync(string attemptId, OpenCode.Sdk.IntegrationCommandCancelDeleteRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.IntegrationOauthCancelDeleteResponse> DeleteOauthCancelAsync(string attemptId, OpenCode.Sdk.IntegrationOauthCancelDeleteRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.IntegrationCommandStatusResponse> GetCommandStatusAsync(string attemptId, OpenCode.Sdk.IntegrationCommandStatusRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.IntegrationResponse> GetIntegrationAsync(OpenCode.Sdk.IntegrationRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.IntegrationOauthStatusResponse> GetOauthStatusAsync(string attemptId, OpenCode.Sdk.IntegrationOauthStatusRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.IntegrationCommandConnectPostResponse> PostCommandConnectAsync(OpenCode.Sdk.Models.IntegrationCommandConnectPostRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.IntegrationOauthCompletePostResponse> PostOauthCompleteAsync(string attemptId, OpenCode.Sdk.Models.IntegrationOauthCompletePostRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
@@ -191,6 +192,18 @@
         public IntegrationOauthStatusResponse() { }
         public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
         public required OpenCode.Sdk.Models.IIntegrationAttemptStatus OauthStatus { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class IntegrationRequest : System.IEquatable<OpenCode.Sdk.IntegrationRequest>
+    {
+        public IntegrationRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class IntegrationResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.IntegrationResponse>
+    {
+        public IntegrationResponse() { }
+        public required OpenCode.Sdk.Models.IntegrationInfo? Integration { get; init; }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public class IntegrationsClient
@@ -454,12 +467,14 @@
             public const string DeleteCommandCancelTemplate = "/api/integration/{integrationID}/connect/command/{attemptID}";
             public const string DeleteOauthCancelTemplate = "/api/integration/{integrationID}/connect/oauth/{attemptID}";
             public const string GetCommandStatusTemplate = "/api/integration/{integrationID}/connect/command/{attemptID}";
+            public const string GetIntegrationTemplate = "/api/integration/{integrationID}";
             public const string GetOauthStatusTemplate = "/api/integration/{integrationID}/connect/oauth/{attemptID}";
             public const string PostCommandConnectTemplate = "/api/integration/{integrationID}/connect/command";
             public const string PostOauthCompleteTemplate = "/api/integration/{integrationID}/connect/oauth/{attemptID}/complete";
             public static string DeleteCommandCancel(string integrationId, string attemptId, OpenCode.Sdk.IntegrationCommandCancelDeleteRequest? request = null) { }
             public static string DeleteOauthCancel(string integrationId, string attemptId, OpenCode.Sdk.IntegrationOauthCancelDeleteRequest? request = null) { }
             public static string GetCommandStatus(string integrationId, string attemptId, OpenCode.Sdk.IntegrationCommandStatusRequest? request = null) { }
+            public static string GetIntegration(string integrationId, OpenCode.Sdk.IntegrationRequest? request = null) { }
             public static string GetOauthStatus(string integrationId, string attemptId, OpenCode.Sdk.IntegrationOauthStatusRequest? request = null) { }
             public static string PostCommandConnect(string integrationId, OpenCode.Sdk.Models.IntegrationCommandConnectPostRequest? request = null) { }
             public static string PostOauthComplete(string integrationId, string attemptId, OpenCode.Sdk.Models.IntegrationOauthCompletePostRequest? request = null) { }
@@ -1535,6 +1550,24 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("_tag")]
         public string Tag { get; }
     }
+    public sealed class ConnectionCredentialInfo : OpenCode.Sdk.Models.IConnectionInfo, System.IEquatable<OpenCode.Sdk.Models.ConnectionCredentialInfo>
+    {
+        public ConnectionCredentialInfo() { }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("label")]
+        public required string Label { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class ConnectionEnvInfo : OpenCode.Sdk.Models.IConnectionInfo, System.IEquatable<OpenCode.Sdk.Models.ConnectionEnvInfo>
+    {
+        public ConnectionEnvInfo() { }
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public required string Name { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
     public sealed class CredentialSwitched : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.CredentialSwitched>
     {
         public CredentialSwitched() { }
@@ -2083,6 +2116,12 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("prompt")]
         public required string Prompt { get; init; }
     }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ConnectionInfoJsonConverter))]
+    public interface IConnectionInfo
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        string Type { get; }
+    }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.EventJsonConverter))]
     public interface IEvent
     {
@@ -2106,6 +2145,12 @@ namespace OpenCode.Sdk.Models
     {
         [System.Text.Json.Serialization.JsonPropertyName("status")]
         string Status { get; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.IntegrationMethodJsonConverter))]
+    public interface IIntegrationMethod
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        string Type { get; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.McpJsonConverter))]
     public interface IMcp
@@ -2487,6 +2532,66 @@ namespace OpenCode.Sdk.Models
         public OpenCode.Sdk.LocationSelector? Location { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("methodID")]
         public required string MethodId { get; init; }
+    }
+    public sealed class IntegrationCommandMethod : OpenCode.Sdk.Models.IIntegrationMethod, System.IEquatable<OpenCode.Sdk.Models.IntegrationCommandMethod>
+    {
+        public IntegrationCommandMethod() { }
+        [System.Text.Json.Serialization.JsonPropertyName("command")]
+        public required System.Collections.Generic.IReadOnlyList<string> Command { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("label")]
+        public required string Label { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class IntegrationEnvMethod : OpenCode.Sdk.Models.IIntegrationMethod, System.IEquatable<OpenCode.Sdk.Models.IntegrationEnvMethod>
+    {
+        public IntegrationEnvMethod() { }
+        [System.Text.Json.Serialization.JsonPropertyName("names")]
+        public required System.Collections.Generic.IReadOnlyList<string> Names { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class IntegrationInfo : System.IEquatable<OpenCode.Sdk.Models.IntegrationInfo>
+    {
+        public IntegrationInfo() { }
+        [System.Text.Json.Serialization.JsonPropertyName("connections")]
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.IConnectionInfo> Connections { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("methods")]
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.IIntegrationMethod> Methods { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public required string Name { get; init; }
+    }
+    public sealed class IntegrationKeyMethod : OpenCode.Sdk.Models.IIntegrationMethod, System.IEquatable<OpenCode.Sdk.Models.IntegrationKeyMethod>
+    {
+        public IntegrationKeyMethod() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("form")]
+        public System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.IFormField>? Form { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("label")]
+        public string? Label { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class IntegrationOAuthMethod : OpenCode.Sdk.Models.IIntegrationMethod, System.IEquatable<OpenCode.Sdk.Models.IntegrationOAuthMethod>
+    {
+        public IntegrationOAuthMethod() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("form")]
+        public System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.IFormField>? Form { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("label")]
+        public required string Label { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
     }
     public sealed class IntegrationOauthCompletePostRequest : System.IEquatable<OpenCode.Sdk.Models.IntegrationOauthCompletePostRequest>
     {
@@ -7565,6 +7670,15 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("_tag")]
         public string Tag { get; }
     }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownConnectionInfoJsonConverter))]
+    public sealed class UnknownConnectionInfo : OpenCode.Sdk.Models.IConnectionInfo, System.IEquatable<OpenCode.Sdk.Models.UnknownConnectionInfo>
+    {
+        [System.Text.Json.Serialization.JsonConstructor]
+        public UnknownConnectionInfo(string type, System.Text.Json.JsonElement payload) { }
+        public System.Text.Json.JsonElement Payload { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
     public sealed class UnknownError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.UnknownError>
     {
         public UnknownError() { }
@@ -7611,6 +7725,15 @@ namespace OpenCode.Sdk.Models
         public System.Text.Json.JsonElement Payload { get; }
         [System.Text.Json.Serialization.JsonPropertyName("status")]
         public string Status { get; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownIntegrationMethodJsonConverter))]
+    public sealed class UnknownIntegrationMethod : OpenCode.Sdk.Models.IIntegrationMethod, System.IEquatable<OpenCode.Sdk.Models.UnknownIntegrationMethod>
+    {
+        [System.Text.Json.Serialization.JsonConstructor]
+        public UnknownIntegrationMethod(string type, System.Text.Json.JsonElement payload) { }
+        public System.Text.Json.JsonElement Payload { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownMcpJsonConverter))]
     public sealed class UnknownMcp : OpenCode.Sdk.Models.IMcp, System.IEquatable<OpenCode.Sdk.Models.UnknownMcp>
