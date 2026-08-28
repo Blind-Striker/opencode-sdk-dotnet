@@ -61,9 +61,16 @@ internal sealed class ReachableSchemaCollector
                 var isWrapperShape = response.EnvelopeShape
                     is SpecEnvelopeShape.Data or SpecEnvelopeShape.CursorData or SpecEnvelopeShape.DataLocation;
 
+                // A bare success body is the payload itself, so its promoted inline root is a
+                // model like any other — SchemaNameResolver names it from the operation rather
+                // than from the excluded root's own spelling.
+                var isPayloadRoot = !response.IsSse
+                                    && response.StatusCode is 200
+                                    && response.EnvelopeShape is SpecEnvelopeShape.Bare;
+
                 // An event frame is framing the engine consumes, never a model: the stream
                 // yields what the frame's data encodes, not the frame.
-                if (isInlineRoot || isWrapperShape || response.IsSse)
+                if ((isInlineRoot && !isPayloadRoot) || isWrapperShape || response.IsSse)
                 {
                     _ = _responseRoots.Add(reference.Target);
                 }

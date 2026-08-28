@@ -12,6 +12,8 @@ namespace OpenCode.Sdk.Tools.Generator.Binding;
 /// </summary>
 internal static class OperationNamePolicy
 {
+    private const string ResponseSuffix = "Response";
+
     /// <summary>Identifier segments recognized as operation verbs when they close the identifier.</summary>
     private static readonly string[] KnownVerbSegments = ["create", "get", "list", "remove", "rename", "timeout"];
 
@@ -56,7 +58,21 @@ internal static class OperationNamePolicy
 
         var verb = Verb(operation);
         var verbSuffix = string.Equals(verb, "Get", StringComparison.Ordinal) ? string.Empty : verb;
-        return $"{CSharpNamePolicy.ToPascalCase(operation.Segments[0])}{Subject(operation)}{verbSuffix}Response";
+        return $"{CSharpNamePolicy.ToPascalCase(operation.Segments[0])}{Subject(operation)}{verbSuffix}{ResponseSuffix}";
+    }
+
+    /// <summary>
+    /// Names the model a promoted inline envelope payload becomes: the response spine's stem
+    /// plus <c>Data</c>. Such a payload has no schema identity of its own — the wrapper it was
+    /// promoted out of is response spine the dialect never names — so it takes the operation's,
+    /// and no upstream wrapper spelling reaches the public surface.
+    /// </summary>
+    public static string PayloadTypeName(SpecOperation operation)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+
+        var responseTypeName = ResponseTypeName(operation);
+        return $"{responseTypeName[..^ResponseSuffix.Length]}Data";
     }
 
     /// <summary>

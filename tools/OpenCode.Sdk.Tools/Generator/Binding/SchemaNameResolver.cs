@@ -19,6 +19,7 @@ internal sealed class SchemaNameResolver
 
         var responseRoots = reachable.ResponseRootKeys.ToHashSet(_comparer);
         var requestRoots = ResolveRequestBodyRootNames(selected, errors);
+        var payloadRoots = ResolveEnvelopePayloadRootNames(selected);
         var effectStreamTypes = ResolveEffectStreamTypeNames(document, selected);
         var artifacts = new ProjectionArtifactNamePolicy(document.Schemas.Keys);
         var curatedNames = curation
@@ -47,6 +48,10 @@ internal sealed class SchemaNameResolver
             else if (requestRoots.TryGetValue(key, out var requestName))
             {
                 name = requestName;
+            }
+            else if (payloadRoots.TryGetValue(key, out var payloadName))
+            {
+                name = payloadName;
             }
             else
             {
@@ -153,6 +158,34 @@ internal sealed class SchemaNameResolver
             }
 
             names[reference.Target] = requestName;
+        }
+
+        return names;
+    }
+
+    /// <summary>
+    /// A bare success body that ingestion promoted into the graph is the operation's payload
+    /// model, and it carries no schema identity of its own: the root it was promoted under is
+    /// the operation, which the public surface never spells. Such a payload is named from the
+    /// operation instead, mechanically (<see cref="OperationNamePolicy.PayloadTypeName"/>);
+    /// a component-referenced payload keeps its component identity, and a reasoned
+    /// <c>schemaNames</c> row still overrides. The key embeds the operation id, so no two
+    /// selected operations can claim the same one; two claiming one <em>name</em> collide at
+    /// the ordinary owner wall in <see cref="Resolve"/>.
+    /// </summary>
+    private Dictionary<string, string> ResolveEnvelopePayloadRootNames(IReadOnlyList<SpecOperation> selected)
+    {
+        var names = new Dictionary<string, string>(_comparer);
+        foreach (var operation in selected)
+        {
+            if (operation.Responses.FirstOrDefault(static response => response.StatusCode is 200) is
+                {
+                    IsSse: false, EnvelopeShape: SpecEnvelopeShape.Bare, Schema: RefNode reference,
+                }
+                && reference.Target.Contains('#', StringComparison.Ordinal))
+            {
+                names[reference.Target] = OperationNamePolicy.PayloadTypeName(operation);
+            }
         }
 
         return names;

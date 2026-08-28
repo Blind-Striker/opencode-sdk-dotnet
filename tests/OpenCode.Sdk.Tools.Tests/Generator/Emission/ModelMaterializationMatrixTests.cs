@@ -438,6 +438,66 @@ public sealed class ModelMaterializationMatrixTests
         await AssertMissingDataFailsAsync(assembly, operations.DataMap.Envelope!, "{}");
     }
 
+    /// <summary>
+    /// The promoted inline payload Task 5 admits: a bare success body that is an inline object
+    /// becomes a model named from the operation, and a single-property wrapper is that model
+    /// itself rather than the value it wraps.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Compile_And_Roundtrip_Promoted_Inline_Envelope_Payloads()
+    {
+        var (plan, stats, handoff) = await CreatePromotedInlinePlanAsync();
+        await Assert.That(((NamedTypeReferencePlan)stats.Envelope!.PayloadType!).Name).IsEqualTo("WidgetStatsData");
+        await Assert.That(((NamedTypeReferencePlan)handoff.Envelope!.PayloadType!).Name).IsEqualTo("WidgetHandoffData");
+
+        var assembly = await GeneratedSourceCompiler.CompileAndLoadWithSdkCoreAsync(SourceEmitter.Emit(plan));
+
+        var stitched = AdaptSuccess(assembly, stats.Envelope, """{"count":3}""");
+        var payload = GetProperty(stitched, stats.Envelope.PayloadName!)
+                      ?? throw new InvalidOperationException("The promoted payload materialized to null.");
+        await Assert.That(GetProperty(payload, "Count")).IsEqualTo(3L);
+
+        var wrapped = AdaptSuccess(assembly, handoff.Envelope, """{"handoff":{"id":"a"}}""");
+        var wrapper = GetProperty(wrapped, handoff.Envelope.PayloadName!)
+                      ?? throw new InvalidOperationException("The promoted wrapper materialized to null.");
+        await Assert.That(GetProperty(GetProperty(wrapper, "Handoff")!, "Id")).IsEqualTo("a");
+    }
+
+    private static async Task<(EmitPlan Plan, OperationPlan Stats, OperationPlan Handoff)> CreatePromotedInlinePlanAsync()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("WidgetError", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("_tag", property => property.Type("string").Enum("WidgetError"), required: true)
+                .Property("message", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.stats", path: "/api/widget/stats", configure: operation => operation
+                .Response(200, "application/json", schema => schema
+                    .Type("object")
+                    .AdditionalPropertiesFalse()
+                    .Property("count", property => property.Type("integer"), required: true))
+                .Response(400, "application/json", schema => schema.Ref("WidgetError")))
+            .WithOperation("v2.widget.handoff", path: "/api/widget/handoff", configure: operation => operation
+                .Response(200, "application/json", schema => schema
+                    .Type("object")
+                    .AdditionalPropertiesFalse()
+                    .Property("handoff", property => property.Ref("WidgetInfo"), required: true)))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.stats", "v2.widget.handoff"),
+            Curation(Groups("widget", RootGroup())));
+
+        var bound = plan.Clients.SelectMany(static client => client.Operations).ToArray();
+        return (
+            plan,
+            bound.Single(static operation => operation.MethodName == "GetStatsAsync"),
+            bound.Single(static operation => operation.MethodName == "GetHandoffAsync"));
+    }
+
     private static async Task<(EmitPlan Plan, ContainerOperations Operations)> CreateContainerEnvelopePlanAsync()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec

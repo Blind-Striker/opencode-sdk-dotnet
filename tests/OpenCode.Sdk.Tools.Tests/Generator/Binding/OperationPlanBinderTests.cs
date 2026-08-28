@@ -1123,6 +1123,66 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Promote_An_Inline_Object_Bare_Payload_Under_An_Operation_Scoped_Name()
+    {
+        var document = await BindingTestHost.IngestAsync(InlinePayloadScenario(static schema => schema
+            .Property("count", static property => property.Type("integer"), required: true)));
+
+        var plan = BindWidgets(document, "v2.widget.stats");
+
+        var stats = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(stats.Envelope!.Kind).IsEqualTo(EnvelopeKind.Bare);
+        await Assert.That(stats.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(((NamedTypeReferencePlan)stats.Envelope.PayloadType!).Name).IsEqualTo("WidgetStatsData");
+        await Assert.That(plan.Models.Any(static model => string.Equals(model.Name, "WidgetStatsData", StringComparison.Ordinal)))
+            .IsTrue();
+        await Assert.That(plan.Registry.TypeNames.Contains("WidgetStatsData", StringComparer.Ordinal)).IsTrue();
+        await Assert.That(plan.Registry.PayloadEntries.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task Bind_Should_Promote_A_Bare_Single_Property_Wrapper_As_The_Payload_Model()
+    {
+        var document = await BindingTestHost.IngestAsync(InlinePayloadScenario(static schema => schema
+            .Property("handoff", static property => property.AnyOf(
+                static branch => branch.Ref("WidgetInfo"),
+                static branch => branch.Type("null")), required: true)));
+
+        var plan = BindWidgets(document, "v2.widget.stats");
+
+        var stats = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(((NamedTypeReferencePlan)stats.Envelope!.PayloadType!).Name).IsEqualTo("WidgetStatsData");
+        var model = plan.Models.OfType<ObjectModelPlan>()
+            .Single(static candidate => string.Equals(candidate.Name, "WidgetStatsData", StringComparison.Ordinal));
+        var handoff = model.Properties.Single();
+        await Assert.That(handoff.WireName).IsEqualTo("handoff");
+        await Assert.That(handoff.Type.IsNullable).IsTrue();
+        await Assert.That(((NamedTypeReferencePlan)handoff.Type).Name).IsEqualTo("WidgetInfo");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Promoted_Payload_Whose_Name_Collides_With_A_Component()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetStatsData", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.stats", path: "/api/widget/stats", configure: operation => operation
+                .Response(200, "application/json", schema => schema
+                    .Type("object")
+                    .Property("related", property => property.Ref("WidgetStatsData"), required: true)))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = BindWidgets(document, "v2.widget.stats"));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
+                                                       && error.Problem.Contains(
+                                                           "C# type name 'WidgetStatsData' collides with schema",
+                                                           StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
     public async Task Bind_Should_Accept_A_Data_Location_Envelope_Whose_Data_Is_A_Dictionary()
     {
         var document = await BindingTestHost.IngestAsync(DataLocationScenario(
@@ -1758,13 +1818,16 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Refuse_A_Bare_Success_Without_A_Named_Schema()
+    public async Task Bind_Should_Refuse_A_Bare_Success_That_Does_Not_Bind_To_A_Type_Plan()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
             .WithOperation("v2.health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema
-                    .Type("object")
-                    .Property("value", property => property.Type("string"), required: true)))));
+                    .Type("string")
+                    .ContentSchema("application/json", inner => inner.Ref("ItemInfo"))))));
 
         await AssertOperationRefusalAsync(document, "v2.health.get", "does not bind to a supported type plan");
     }
@@ -2270,6 +2333,22 @@ public sealed class OperationPlanBinderTests
                 .Property("data", data ?? (static property => property.Ref("WidgetInfo")), required: true))
             .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetEnvelope"))));
+
+    /// <summary>
+    /// A bare success whose body is an inline object: ingestion promotes it into the graph
+    /// under the operation-scoped key, and the payload is that promoted schema itself.
+    /// </summary>
+    private static SpecScenario InlinePayloadScenario(Action<SchemaBuilder> configurePayload) =>
+        SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.stats", path: "/api/widget/stats", configure: operation => operation
+                .Response(200, "application/json", schema =>
+                {
+                    _ = schema.Type("object").AdditionalPropertiesFalse();
+                    configurePayload(schema);
+                })));
 
     private static SpecScenario NoContentScenario(Action<OperationBuilder>? configure = null) =>
         SpecScenario.Define(spec => spec

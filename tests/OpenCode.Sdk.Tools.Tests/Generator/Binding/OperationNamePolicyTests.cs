@@ -69,6 +69,17 @@ public sealed class OperationNamePolicyTests
     }
 
     [Test]
+    [Arguments("v2.health.get", "get", "HealthData")]
+    [Arguments("v2.session.message", "get", "SessionMessageData")]
+    [Arguments("v2.session.create", "post", "SessionCreateData")]
+    [Arguments("v2.shell.timeout", "patch", "ShellTimeoutData")]
+    public async Task PayloadTypeName_Should_Replace_The_Response_Spine_Suffix(string operationId, string method,
+        string expected)
+    {
+        await Assert.That(OperationNamePolicy.PayloadTypeName(Operation(operationId, method))).IsEqualTo(expected);
+    }
+
+    [Test]
     [Arguments("v2.health.get", "get", false, "Get")]
     [Arguments("v2.session.message", "get", true, "GetMessage")]
     [Arguments("v2.session.get", "get", true, "GetSession")]
