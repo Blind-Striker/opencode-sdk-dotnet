@@ -125,26 +125,66 @@ public sealed class SimulatedSessionWorkflowTests(SimulatedDriveServerFixture se
         _ = await DriveAsync(
             () => server.Controller.WaitForRequestAsync(RequestWait), "waiting for the model request");
 
-        _ = await session.PostInterruptAsync(cancellationToken: cancellationToken);
-
-        // Interrupting the consumer removes the invocation server-side
-        // (simulated-provider.ts:291 acquireRelease/close); removal is asynchronous, so poll
-        // bounded. Polling is the condition wait here, not a stand-in for one: the drive protocol
-        // has exactly one notification, llm.request (simulated-provider.ts:334), so nothing
-        // announces a removal and llm.pending is the only way to observe it.
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
-        var pending = int.MaxValue;
-        while (DateTime.UtcNow < deadline)
-        {
-            pending = await DriveAsync(server.Controller.PendingCountAsync, "reading the pending invocations");
-            if (pending == 0)
+        // The event bus has no replay, so the subscription must be attached - and proven attached,
+        // the same way the round-trip test above proves it - before the interrupt is posted.
+        using var eventWindow = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        eventWindow.CancelAfter(TimeSpan.FromSeconds(60));
+        var observed = new List<string>();
+        var sawInterrupted = false;
+        var subscribed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var eventTask = Task.Run(
+            async () =>
             {
-                break;
-            }
+                try
+                {
+                    await foreach (var @event in client.Events.SubscribeAsync(eventWindow.Token))
+                    {
+                        _ = subscribed.TrySetResult(true);
+                        observed.Add(@event.Type);
+                        if (@event is SessionExecutionInterrupted interrupted
+                            && interrupted.Data.SessionId == sessionId
+                            && interrupted.Data.Reason == SessionExecutionInterruptedDataReason.User)
+                        {
+                            sawInterrupted = true;
+                            return;
+                        }
+                    }
+                }
+                catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+                {
+                    // The subscription's own window expired rather than the test being torn down:
+                    // report it as the bounded wait it is, with what did arrive, instead of an
+                    // opaque cancellation.
+                    throw new TimeoutException(
+                        $"The session never reported session.execution.interrupted within the event window. Events: {string.Join(", ", observed)}.",
+                        exception);
+                }
+            },
+            cancellationToken);
 
-            await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken);
+        var attached = await Task.WhenAny(subscribed.Task, eventTask);
+        if (attached == eventTask)
+        {
+            await eventTask; // surfaces the subscription failure instead of a later timeout
+            throw new InvalidOperationException("The event subscription ended before its first event.");
         }
 
+        _ = await session.PostInterruptAsync(cancellationToken: cancellationToken);
+
+        // Upstream publishes session.execution.interrupted only after the interrupted execution
+        // fiber's finalizers have fully settled - which include the simulated provider's own
+        // acquireRelease/close finalizer that removes the invocation from state.pending
+        // (run-coordinator.ts:57-61: the "settled" callback runs for every exit, including
+        // interruption, "after the final drain and before the execution settles"; execution.ts:
+        // 110-128: that same settled callback is what publishes Execution.Interrupted;
+        // session-event.ts:233-238: the wire shape this SDK generates as
+        // SessionExecutionInterrupted). So once this event for this session id arrives, the
+        // removal has already happened server-side, and a single post-event read suffices -
+        // no poll needed.
+        await eventTask;
+        await Assert.That(sawInterrupted).IsTrue();
+
+        var pending = await DriveAsync(server.Controller.PendingCountAsync, "reading the pending invocations");
         await Assert.That(pending).IsEqualTo(0);
     }
 
