@@ -180,6 +180,8 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(PermissionRequest))]
 [JsonSerializable(typeof(PermissionRequestListResponseEnvelope))]
 [JsonSerializable(typeof(PermissionRule))]
+[JsonSerializable(typeof(PermissionSavedInfo))]
+[JsonSerializable(typeof(PermissionSavedListResponseEnvelope))]
 [JsonSerializable(typeof(PermissionSourceTool))]
 [JsonSerializable(typeof(PersistentPtyAdded))]
 [JsonSerializable(typeof(PersistentPtyAddedData))]

@@ -768,6 +768,28 @@ public static class OpenCodeRoutes
         }
 
         /// <summary>
+        /// The &apos;GET /api/permission/saved&apos; route template.
+        /// </summary>
+        public const string ListSavedTemplate = "/api/permission/saved";
+        /// <summary>
+        /// Builds the &apos;/api/permission/saved&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ListSaved(PermissionSavedListRequest? request = null)
+        {
+            var path = "/api/permission/saved";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddText("projectID", request.ProjectId);
+            return path + query.Value;
+        }
+
+        /// <summary>
         /// The &apos;DELETE /api/permission/saved/{id}&apos; route template.
         /// </summary>
         public const string RemoveSavedTemplate = "/api/permission/saved/{id}";

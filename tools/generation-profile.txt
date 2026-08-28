@@ -27,6 +27,7 @@ v2.message.list
 v2.model.default
 v2.model.list
 v2.permission.request.list
+v2.permission.saved.list
 v2.permission.saved.remove
 v2.plugin.list
 v2.project.current
