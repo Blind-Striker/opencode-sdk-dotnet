@@ -250,7 +250,7 @@
     {
       "operationId": "v2.session.form.list",
       "methodName": "ListFormsAsync",
-      "reason": "List methods name their subject in the plural across the reviewed surface; the mechanical singular 'Form' also already names SessionFormCreateResponse's single-object payload in this same client family, so it would misleadingly read as returning one form instead of the session's pending forms."
+      "reason": "List methods name their subject in the plural across the reviewed surface (v2.mcp.list, v2.pty.list, v2.permission.request.list); the mechanical singular 'Form' would misleadingly read as returning one form instead of the session's pending forms. This also keeps the name stable against the still-pending v2.session.form.create, whose single-object payload would otherwise collide with it once selected into this same client family."
     },
     {
       "operationId": "v2.session.permission.list",
