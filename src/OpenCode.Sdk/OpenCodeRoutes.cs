@@ -864,6 +864,11 @@ public static class OpenCodeRoutes
             query.AddLocation("location", request.Location);
             return path + query.Value;
         }
+
+        /// <summary>
+        /// The &apos;GET /api/project&apos; route.
+        /// </summary>
+        public const string ListProjects = "/api/project";
     }
 
     /// <summary>

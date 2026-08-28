@@ -38,4 +38,17 @@ public class ProjectsClient
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Projects.GetCurrent(request), ProjectCurrentResponseAdapter.Instance, requestOptions, cancellationToken);
     }
+
+    /// <summary>
+    /// List projects. List known projects.
+    /// </summary>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ProjectListResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<ProjectListResponse> ListProjectsAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Projects.ListProjects, ProjectListResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
 }

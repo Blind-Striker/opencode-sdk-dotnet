@@ -536,6 +536,7 @@
         public static class Projects
         {
             public const string GetCurrentTemplate = "/api/project/current";
+            public const string ListProjects = "/api/project";
             public static string GetCurrent(OpenCode.Sdk.ProjectCurrentRequest? request = null) { }
         }
         public static class Providers
@@ -797,6 +798,12 @@
         public required OpenCode.Sdk.Models.ProjectCurrent Current { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
+    public sealed class ProjectListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ProjectListResponse>
+    {
+        public ProjectListResponse() { }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.Project> Projects { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
     public class ProjectWorktreesClient
     {
         protected ProjectWorktreesClient() { }
@@ -806,6 +813,7 @@
     {
         protected ProjectsClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ProjectCurrentResponse> GetCurrentAsync(OpenCode.Sdk.ProjectCurrentRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ProjectListResponse> ListProjectsAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class ProviderListRequest : System.IEquatable<OpenCode.Sdk.ProviderListRequest>
     {
@@ -3513,6 +3521,30 @@ namespace OpenCode.Sdk.Models
         public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
+    }
+    public sealed class Project : System.IEquatable<OpenCode.Sdk.Models.Project>
+    {
+        public Project() { }
+        [System.Text.Json.Serialization.JsonPropertyName("canonical")]
+        public required string Canonical { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("commands")]
+        public OpenCode.Sdk.Models.ProjectCommands? Commands { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("icon")]
+        public OpenCode.Sdk.Models.ProjectIcon? Icon { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string? Name { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("sandboxes")]
+        public required System.Collections.Generic.IReadOnlyList<string> Sandboxes { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("time")]
+        public required OpenCode.Sdk.Models.ProjectTime Time { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("vcs")]
+        public string? Vcs { get; init; }
     }
     public sealed class ProjectCommands : System.IEquatable<OpenCode.Sdk.Models.ProjectCommands>
     {

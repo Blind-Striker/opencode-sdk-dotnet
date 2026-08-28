@@ -201,6 +201,7 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(PluginSourcePackage))]
 [JsonSerializable(typeof(PluginSourceSdk))]
 [JsonSerializable(typeof(PluginUpdated))]
+[JsonSerializable(typeof(Project))]
 [JsonSerializable(typeof(ProjectCommands))]
 [JsonSerializable(typeof(ProjectCurrent))]
 [JsonSerializable(typeof(ProjectIcon))]
@@ -604,6 +605,7 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(WorktreeUpdated))]
 [JsonSerializable(typeof(WorktreeUpdatedData))]
 [JsonSerializable(typeof(IReadOnlyList<LocationRef>), TypeInfoPropertyName = "LocationRefList")]
+[JsonSerializable(typeof(IReadOnlyList<Project>), TypeInfoPropertyName = "ProjectList")]
 [JsonSerializable(typeof(IReadOnlyList<WorktreeDirectory>), TypeInfoPropertyName = "WorktreeDirectoryList")]
 internal sealed partial class OpenCodeJsonContext : JsonSerializerContext
 {

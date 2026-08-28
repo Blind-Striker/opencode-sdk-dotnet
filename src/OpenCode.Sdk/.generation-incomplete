@@ -1,6 +1,6 @@
 Generation is incomplete; packages must not be published.
-Selected operations: 96
-Pending operations: 38
+Selected operations: 97
+Pending operations: 37
 Selected:
 - v2.agent.get
 - v2.agent.list
@@ -35,6 +35,7 @@ Selected:
 - v2.permission.saved.remove
 - v2.plugin.list
 - v2.project.current
+- v2.project.list
 - v2.provider.get
 - v2.provider.list
 - v2.pty.connect.token
@@ -119,7 +120,6 @@ Pending:
 - v2.persistentPty.shutdown
 - v2.persistentPty.snapshot
 - v2.persistentPty.update
-- v2.project.list
 - v2.project.update
 - v2.pty.connect
 - v2.session.environment
