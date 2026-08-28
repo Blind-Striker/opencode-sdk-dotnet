@@ -280,6 +280,13 @@ downlevel keeps the string path — Polyfill's alternate lookup is an O(n) scan)
 composition measured as an honest negative behind its own permanent rung. Doc 20's D2/D3 had
 already landed inside the runtime arc. **Outstanding batch evidence:** the closing default-job
 comparison against `arc-milestone-default`, which also carries the frozen-table timing verdict.
+A **benchmark coverage batch** precedes that run (maintainer, 2026-08-28): a `PtySession`
+read-path ladder (shipped 08-27, currently unmeasured), a location-merge case on the
+route-composition rung, a dictionary-envelope rung once envelope completion selects one (with
+reasoned skip notes for Data-list and bare-container shapes, covered by the MessageList/Health
+ladders), and the `compare-benchmarks` completeness fix — the comparison CSV currently drops
+before-only/after-only cases that the console reports, so new rungs must enter the CSV with
+their exact allocation columns instead of vanishing from the durable artifact.
 **M5 breadth batches are pulled ahead of M4 and are landing.** The Q144 wall-probe mapped the
 full pinned surface (99 workable pending operations after Q137/Q139's drift map excludes the
 upstream-removed families — the question flow, `projectCopy.*`, `health.stop`,
@@ -440,10 +447,18 @@ is revisited at each milestone boundary.
    accepted (Restore-patched) refresh to the current tip (ADR-0020), then the typed per-call
    location plus normal-PTY ownership lane (ADR-0021) — both landed, with the operation-identity
    rows and the header/base64 ingestion shapes riding along. What remains is the rest of target
-   admission over the refreshed surface: envelope completion, the remaining mechanism batches,
-   persistentPty's HTTP batch, exclusion fingerprints (ADR-0008), the operation inventory and
-   assurance ledger, remaining ingestion/binding walls (#52/#53), and package/API/TFM assurance
-   (#51), packaging unblocked.
+   admission over the refreshed surface: envelope completion, then a one-commit routine sweep of
+   the no-wall pending operations the C2 probe surfaced (maintainer, 2026-08-28: 14 operations
+   bind with no wall today — refreshes and mechanism batches grow this pool silently; the sweep
+   also lands the interim bindability telltale: `generate` marks each pending operation
+   `[bindable]`/`[refused: …]` in the committed `.generation-incomplete`, bridging until the
+   inventory lane's standardized tracking), the
+   remaining mechanism batches, persistentPty's HTTP batch, exclusion fingerprints (ADR-0008),
+   the operation inventory and assurance ledger — whose design also standardizes
+   pending-operation bindability tracking, so a wall-free pending operation surfaces as a
+   committed-artifact diff at every generate/refresh instead of accumulating unseen (maintainer
+   requirement, 2026-08-28) — remaining ingestion/binding walls (#52/#53), and package/API/TFM
+   assurance (#51), packaging unblocked.
    The location design is sealed (#37 closed — ambient plus per-call, research log Q148), so
    the freeze review inherits a settled surface.
 6. **M6 — Operational closure.** The observation lanes' automation (tip detector, candidate
