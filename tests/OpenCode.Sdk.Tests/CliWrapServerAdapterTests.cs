@@ -46,4 +46,30 @@ public sealed class CliWrapServerAdapterTests
 
         await Assert.That(IsProcessRunning(processId)).IsFalse();
     }
+
+    [Test]
+    [Timeout(240_000)]
+    [NotInParallel("cliwrap-server-adapter")]
+    public async Task DisposeAsync_Should_Be_Idempotent_When_Called_Twice(CancellationToken cancellationToken)
+    {
+        var runRoot = new TestRunRoot(FileSystem);
+        using var _ = runRoot;
+        var pinnedCommand = new PinnedServerCommand(FileSystem);
+
+        var adapter = await CliWrapServerAdapter.StartAsync(
+            pinnedCommand.Resolve(),
+            ServerIsolation.Environment(FileSystem, runRoot.Path),
+            FileSystem.Path.Combine(pinnedCommand.RepositoryRoot, "external", "opencode", "packages", "cli"),
+            readinessTimeout: TimeSpan.FromMinutes(3),
+            cancellationToken: cancellationToken);
+
+        await adapter.DisposeAsync();
+
+        // The guard's short-circuit makes a second call a no-op unconditionally, regardless of
+        // whether the first call's forced-kill wait actually raced _execution's completion - the
+        // exact interleaving the review flagged. That race needs no dedicated timing
+        // reproduction: the guard returns before touching _forceKill either way, so this
+        // deterministic double-dispose call is the whole pin.
+        await adapter.DisposeAsync();
+    }
 }

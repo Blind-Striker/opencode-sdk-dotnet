@@ -45,6 +45,7 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
     private Uri? _endpoint;
     private string? _password;
     private int _processId;
+    private int _disposed;
 
     private CliWrapServerAdapter()
     {
@@ -173,6 +174,17 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        // The onConstructed-captured reference (see StartAsync's doc comment) makes a second call
+        // on the same adapter a normal occurrence on every init failure: once inside StartAsync's
+        // own failure branch, once again from the caller's own teardown. Without this guard the
+        // second call's forced-kill branch could run CancelAsync on the _forceKill token source
+        // this same method already disposed at the end of the first call
+        // (OpenCodeServer.DisposeAsync's own Interlocked guard, mirrored here).
+        if (Interlocked.Exchange(ref _disposed, 1) is 1)
+        {
+            return;
+        }
+
         _ = _stdinLease.TrySetResult(null);
         if (_execution is not null)
         {
