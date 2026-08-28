@@ -1,4 +1,5 @@
 using OpenCode.Sdk.Tools.Generator.Binding;
+using OpenCode.Sdk.Tools.Generator.Binding.Abstractions;
 using OpenCode.Sdk.Tools.Generator.Binding.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
@@ -20,6 +21,9 @@ internal sealed class BindingTestHost
             new SchemaPlanBinder(new StructuralUnionPlanBinder(), new UnionMembershipValidator()),
             new OperationPlanBinder());
     }
+
+    /// <summary>The production binder pipeline, exposed for callers that drive it themselves (e.g. the pending-operation probe).</summary>
+    public ISpecBinder Binder => _binder;
 
     public EmitPlan Bind(SpecDocument document, OperationSelection selection, GenerationCuration curation)
     {

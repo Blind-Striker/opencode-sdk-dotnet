@@ -45,8 +45,13 @@ internal static class GenerationTestData
             .WithSchema("ExampleHealth", schema => schema
                 .Type("object")
                 .Property("healthy", property => property.Type("boolean"), required: true))
+            .WithSchema("ExamplePlugin", schema => schema
+                .Type("object")
+                .Property("name", property => property.Type("string"), required: true))
             .WithOperation("v2.health.get", path: "/api/health", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("ExampleHealth")))
+            .WithOperation("v2.plugin.list", path: "/api/plugin", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("ExamplePlugin")))
             .WithOperation("v2.session.list", path: "/api/session")
             .BuildJson();
         var fileSystem = CreateFileSystem();

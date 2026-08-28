@@ -46,6 +46,7 @@ public static class ToolApp
         services.AddSingleton<SchemaPlanBinder>();
         services.AddSingleton<OperationPlanBinder>();
         services.AddSingleton<ISpecBinder, SpecBinder>();
+        services.AddSingleton<PendingOperationBindabilityProbe>();
         services.AddSingleton<IProjectFormatter, CliWrapProjectFormatter>();
         services.AddSingleton<IGenerationWriter, GenerationWriter>();
         services.AddSingleton<GenerationCoordinator>();

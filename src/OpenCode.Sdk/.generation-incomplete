@@ -101,39 +101,39 @@ Selected:
 - v2.workspace.create
 - v2.worktree.list
 Pending:
-- v2.config.get
-- v2.credential.activate
-- v2.experimental.migration.v1.status
-- v2.form.request.list
-- v2.fs.find
-- v2.fs.list
-- v2.fs.read
-- v2.integration.connect.key
-- v2.integration.list
-- v2.integration.oauth.connect
-- v2.persistentPty.connect
-- v2.persistentPty.connectToken
-- v2.persistentPty.create
-- v2.persistentPty.get
-- v2.persistentPty.handoff
-- v2.persistentPty.list
-- v2.persistentPty.remove
-- v2.persistentPty.shutdown
-- v2.persistentPty.snapshot
-- v2.persistentPty.update
-- v2.project.update
-- v2.pty.connect
-- v2.session.environment
-- v2.session.form.create
-- v2.session.form.get
-- v2.session.form.reply
-- v2.session.form.state
-- v2.session.messageUpdate
-- v2.session.stats
-- v2.session.view
-- v2.shell.output
-- v2.vcs.diff
-- v2.workspace.destroy
-- v2.worktree.create
-- v2.worktree.refresh
-- v2.worktree.remove
+- v2.config.get [refused: C# type name 'ConfigModelCost' collides with schema 'Config.Model.CostEncoded']
+- v2.credential.activate [bindable]
+- v2.experimental.migration.v1.status [refused: structural union branch 1 overlaps earlier branch token kind(s): StartObject]
+- v2.form.request.list [bindable]
+- v2.fs.find [refused: query parameter 'query' must be optional]
+- v2.fs.list [refused: the payload name cannot be derived mechanically: the group does not pluralize naively; curate an envelope payload name]
+- v2.fs.read [refused: wildcard paths are not supported in M1]
+- v2.integration.connect.key [bindable]
+- v2.integration.list [bindable]
+- v2.integration.oauth.connect [bindable]
+- v2.persistentPty.connect [refused: WebSocket operations are not supported in M1]
+- v2.persistentPty.connectToken [refused: header parameter 'x-opencode-ticket' has no runtime channel]
+- v2.persistentPty.create [bindable]
+- v2.persistentPty.get [bindable]
+- v2.persistentPty.handoff [bindable]
+- v2.persistentPty.list [refused: the payload name cannot be derived mechanically: the group does not pluralize naively; curate an envelope payload name]
+- v2.persistentPty.remove [bindable]
+- v2.persistentPty.shutdown [bindable]
+- v2.persistentPty.snapshot [refused: schema node 'EncodedStringNode' is not supported by the M1 emitter]
+- v2.persistentPty.update [bindable]
+- v2.project.update [bindable]
+- v2.pty.connect [refused: WebSocket operations are not supported in M1]
+- v2.session.environment [bindable]
+- v2.session.form.create [bindable]
+- v2.session.form.get [bindable]
+- v2.session.form.reply [bindable]
+- v2.session.form.state [bindable]
+- v2.session.messageUpdate [bindable]
+- v2.session.stats [refused: query parameter 'tools' has an unsupported schema shape]
+- v2.session.view [bindable]
+- v2.shell.output [refused: location envelope 'data' must reference a named component schema, or be an array of one]
+- v2.vcs.diff [refused: query parameter 'mode' must be optional]
+- v2.workspace.destroy [bindable]
+- v2.worktree.create [refused: selected errors must use the Effect _tag style in M1]
+- v2.worktree.refresh [refused: selected errors must use the Effect _tag style in M1]
+- v2.worktree.remove [refused: selected errors must use the Effect _tag style in M1]

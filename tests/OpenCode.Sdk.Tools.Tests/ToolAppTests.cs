@@ -111,6 +111,27 @@ public sealed class ToolAppTests
     }
 
     [Test]
+    public async Task RunAsync_Should_Mark_Pending_Operations_With_Their_Bindability()
+    {
+        var fileSystem = GenerationTestData.CreateCommandFileSystem();
+        using var registrar = ToolApp.CreateRegistrar(services =>
+        {
+            services.AddSingleton<IFileSystem>(fileSystem);
+            services.AddSingleton<IAnsiConsole, TestConsole>();
+            services.AddSingleton<IProjectFormatter>(new RecordingProjectFormatter(fileSystem));
+        });
+        var tester = new CommandAppTester(registrar);
+        tester.Configure(ToolApp.Configure);
+
+        var result = await tester.RunAsync(["generate"]);
+
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        var marker = await fileSystem.File.ReadAllTextAsync(GenerationTestData.MarkerPath, CancellationToken.None);
+        await Assert.That(marker).Contains("- v2.plugin.list [bindable]");
+        await Assert.That(marker).Contains("- v2.session.list [refused: the success response must carry a JSON schema]");
+    }
+
+    [Test]
     public async Task RunAsync_Should_Return_Zero_When_Verify_Is_Clean()
     {
         var fileSystem = GenerationTestData.CreateCommandFileSystem();

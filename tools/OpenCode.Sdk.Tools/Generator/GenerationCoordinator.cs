@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using OpenCode.Sdk.Tools.Generator.Binding;
 using OpenCode.Sdk.Tools.Generator.Binding.Abstractions;
+using OpenCode.Sdk.Tools.Generator.Binding.Models;
 using OpenCode.Sdk.Tools.Generator.Emission;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Abstractions;
 using OpenCode.Sdk.Tools.Output;
@@ -14,12 +15,14 @@ internal sealed class GenerationCoordinator(
     OperationSelectionLoader selectionLoader,
     CurationLoader curationLoader,
     ISpecBinder binder,
+    PendingOperationBindabilityProbe pendingProbe,
     IGenerationWriter writer)
 {
     private readonly ISpecIngestion _ingestion = ingestion ?? throw new ArgumentNullException(nameof(ingestion));
     private readonly OperationSelectionLoader _selectionLoader = selectionLoader ?? throw new ArgumentNullException(nameof(selectionLoader));
     private readonly CurationLoader _curationLoader = curationLoader ?? throw new ArgumentNullException(nameof(curationLoader));
     private readonly ISpecBinder _binder = binder ?? throw new ArgumentNullException(nameof(binder));
+    private readonly PendingOperationBindabilityProbe _pendingProbe = pendingProbe ?? throw new ArgumentNullException(nameof(pendingProbe));
     private readonly IGenerationWriter _writer = writer ?? throw new ArgumentNullException(nameof(writer));
 
     public async Task<GenerationReport> GenerateAsync(GenerationRequest request, CancellationToken cancellationToken)
@@ -41,7 +44,11 @@ internal sealed class GenerationCoordinator(
             .Order(StringComparer.Ordinal)
             .ToArray();
 
-        var marker = pending.Length > 0 ? CreatePartialMarker(plan.SelectedOperationIds, pending) : null;
+        // Marking runs the same selection-path binder over each pending operation in isolation
+        // (ADR-driven bridge telltale), so a wall-free operation shows up as a committed diff
+        // instead of accumulating silently.
+        var pendingMarks = pending.Length > 0 ? _pendingProbe.Probe(document, pending) : [];
+        var marker = pending.Length > 0 ? CreatePartialMarker(plan.SelectedOperationIds, pendingMarks) : null;
 
         // The admitted family folders are the plan's own container names — never an open glob.
         var familyFolders = plan.Clients
@@ -73,16 +80,16 @@ internal sealed class GenerationCoordinator(
         };
     }
 
-    private static string CreatePartialMarker(IReadOnlyList<string> selected, string[] pending)
+    private static string CreatePartialMarker(IReadOnlyList<string> selected, IReadOnlyList<PendingOperationMark> pendingMarks)
     {
         var content = new StringBuilder()
             .AppendLine("Generation is incomplete; packages must not be published.")
             .Append("Selected operations: ")
             .AppendLine(selected.Count.ToString(CultureInfo.InvariantCulture))
             .Append("Pending operations: ")
-            .AppendLine(pending.Length.ToString(CultureInfo.InvariantCulture));
+            .AppendLine(pendingMarks.Count.ToString(CultureInfo.InvariantCulture));
         AppendOperations(content, "Selected", selected);
-        AppendOperations(content, "Pending", pending);
+        AppendOperations(content, "Pending", pendingMarks.Select(FormatPendingLine));
 
         return content.ToString().ReplaceLineEndings("\n");
     }
@@ -95,4 +102,7 @@ internal sealed class GenerationCoordinator(
             _ = content.Append("- ").AppendLine(operationId);
         }
     }
+
+    private static string FormatPendingLine(PendingOperationMark mark) =>
+        $"{mark.OperationId} {(mark.IsBindable ? "[bindable]" : $"[refused: {mark.RefusalMessage}]")}";
 }
