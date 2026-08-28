@@ -126,6 +126,10 @@
       "placement": "client",
       "clientName": "Vcs",
       "reason": "The initialism does not pluralize; the mass-noun container names the domain (ADR-0019)."
+    },
+    "location": {
+      "placement": "root",
+      "reason": "A single location-resolution probe belongs on the root client, not behind a one-method container, mirroring health (ADR-0019)."
     }
   },
   "operationIdentities": [
@@ -265,7 +269,8 @@
     "v2.mcp.list": "McpServers",
     "v2.permission.request.list": "Requests",
     "v2.pty.list": "Ptys",
-    "v2.vcs.status": "Changes"
+    "v2.vcs.status": "Changes",
+    "v2.location.get": "ResolvedLocation"
   },
   "schemaAliases": [
     {

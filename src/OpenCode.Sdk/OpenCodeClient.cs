@@ -218,4 +218,18 @@ public class OpenCodeClient : IDisposable
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Health.Get, HealthResponseAdapter.Instance, requestOptions, cancellationToken);
     }
+
+    /// <summary>
+    /// Get location. Resolve the requested location or the server default location.
+    /// </summary>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;LocationResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<LocationResponse> GetLocationAsync(LocationRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Location.Get(request), LocationResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
 }

@@ -216,6 +216,17 @@
         public string? Limit { get; init; }
         public OpenCode.Sdk.ListOrder? Order { get; init; }
     }
+    public sealed class LocationRequest : System.IEquatable<OpenCode.Sdk.LocationRequest>
+    {
+        public LocationRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class LocationResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.LocationResponse>
+    {
+        public LocationResponse() { }
+        public required OpenCode.Sdk.Models.LocationInfo ResolvedLocation { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
     public sealed class LocationSelector : System.IEquatable<OpenCode.Sdk.LocationSelector>
     {
         public LocationSelector() { }
@@ -353,6 +364,7 @@
         public void Dispose() { }
         protected virtual void Dispose(bool disposing) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.HealthResponse> GetHealthAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.LocationResponse> GetLocationAsync(OpenCode.Sdk.LocationRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class OpenCodeClientOptions : OpenCode.Sdk.IOpenCodeClientOptions
     {
@@ -445,6 +457,11 @@
         {
             public const string ListModelsTemplate = "/api/model";
             public static string ListModels(OpenCode.Sdk.ModelListRequest? request = null) { }
+        }
+        public static class Location
+        {
+            public const string GetTemplate = "/api/location";
+            public static string Get(OpenCode.Sdk.LocationRequest? request = null) { }
         }
         public static class McpServers
         {

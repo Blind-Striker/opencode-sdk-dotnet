@@ -411,7 +411,17 @@ the same slice: the generator's post-write `dotnet format --include <every gener
 had grown past Windows's 32,767-character process command-line limit now that the generated tree
 exceeds ~900 files ("the filename or extension is too long"); the formatter now batches its
 `--include` list under a safe budget, proven by both a unit-tested pure splitter and a real
-`generate` run. The profile stands at **82 selected / 52 pending**.
+`generate` run. `v2.location.get` is selected next, riding the root placement health already
+established (ADR-0019): its default payload name `Location` collides with the response spine's
+reserved DataLocation-sibling property, so a curated `ResolvedLocation` envelope payload name
+resolves it. Landing a brand-new family folder surfaced a second, unrelated `dotnet format`
+limitation: a file in a folder the `.editorconfig` IDE0130 flat-namespace glob does not yet cover
+crashes the formatter outright (`NotSupportedException: Changing document properties is not
+supported`, from Roslyn's namespace-sync code fix attempting a workspace change `MSBuildWorkspace`
+cannot apply) rather than merely reporting a style diagnostic; `.editorconfig`'s own comment already
+prescribes the fix ("a new family folder extends these globs deliberately"), so `Location` (and each
+later new family folder) is added to both glob lists in the same commit that introduces it. The
+profile stands at **83 selected / 51 pending**.
 
 ## Milestones
 

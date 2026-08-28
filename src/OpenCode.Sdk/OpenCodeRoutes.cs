@@ -491,6 +491,34 @@ public static class OpenCodeRoutes
     }
 
     /// <summary>
+    /// Defines the &apos;Location&apos; routes.
+    /// </summary>
+    public static class Location
+    {
+        /// <summary>
+        /// The &apos;GET /api/location&apos; route template.
+        /// </summary>
+        public const string GetTemplate = "/api/location";
+        /// <summary>
+        /// Builds the &apos;/api/location&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string Get(LocationRequest? request = null)
+        {
+            var path = "/api/location";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+    }
+
+    /// <summary>
     /// Defines the &apos;McpServers&apos; routes.
     /// </summary>
     public static class McpServers

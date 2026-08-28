@@ -115,7 +115,7 @@ public sealed class OperationPlanBinderTests
         await Assert.That(root.HandleFactory).IsNull();
         await Assert.That(root.HandleParameter).IsNull();
 
-        var health = root.Operations.Single();
+        var health = root.Operations.Single(static operation => operation.MethodName == "GetHealthAsync");
         await Assert.That(health.MethodName).IsEqualTo("GetHealthAsync");
         await Assert.That(health.HttpMethod).IsEqualTo("get");
         await Assert.That(health.RouteTemplate).IsEqualTo("/api/health");
@@ -139,6 +139,27 @@ public sealed class OperationPlanBinderTests
         await Assert.That(health.ErrorMap.Statuses[0].Tags.Single().TypeName).IsEqualTo("InvalidRequestError");
         await Assert.That(health.ErrorMap.Statuses[1].Tags.Single().Tag).IsEqualTo("UnauthorizedError");
 
+        var location = root.Operations.Single(static operation => operation.MethodName == "GetLocationAsync");
+        await Assert.That(location.HttpMethod).IsEqualTo("get");
+        await Assert.That(location.RouteTemplate).IsEqualTo("/api/location");
+        await Assert.That(location.RouteContainerName).IsEqualTo("Location");
+        await Assert.That(location.RouteMemberName).IsEqualTo("Get");
+        await Assert.That(location.Parameters).IsEmpty();
+        await Assert.That(location.Envelope!.ResponseTypeName).IsEqualTo("LocationResponse");
+        await Assert.That(location.Envelope.AdapterTypeName).IsEqualTo("LocationResponseAdapter");
+        await Assert.That(location.Envelope.PayloadName).IsEqualTo("ResolvedLocation");
+        await Assert.That(location.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(((NamedTypeReferencePlan)location.Envelope.PayloadType!).Name).IsEqualTo("LocationInfo");
+        await Assert.That(location.Envelope.Kind).IsEqualTo(EnvelopeKind.Bare);
+        await Assert
+            .That(location
+                .ErrorMap.Statuses.Select(static status => status.StatusCode)
+                .SequenceEqual([400, 401]))
+            .IsTrue();
+        await Assert.That(location.ErrorMap.Statuses[0].Tags.Single().Tag).IsEqualTo("InvalidRequestError");
+        await Assert.That(location.ErrorMap.Statuses[1].Tags.Single().Tag).IsEqualTo("UnauthorizedError");
+
+        await Assert.That(root.Operations.Count).IsEqualTo(2);
         await Assert.That(root.ContainerName).IsNull();
     }
 
