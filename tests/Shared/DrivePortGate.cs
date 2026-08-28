@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.IO.Abstractions;
+using OpenCode.Sdk.Tests.Support;
 
 namespace OpenCode.Sdk.TestSupport;
 
@@ -39,6 +40,9 @@ internal sealed class DrivePortGate : IDisposable
     /// contends for, so a test that proved mutual exclusion against it would stall real fixtures.
     /// Taking the path lets the contract be pinned against a private file instead.
     /// </summary>
+    [SlopwatchSuppress(
+        "SW004",
+        "Test-only cross-process gate: the drive manifest requires a pre-picked port (upstream forbids port 0) that the child binds later in another process, and no OS API signals another process's file-lock release — polling the lock is the condition wait.")]
     public static async Task<DrivePortGate> AcquireAsync(IFileSystem fileSystem, string path, TimeSpan timeout)
     {
         ArgumentNullException.ThrowIfNull(fileSystem);
