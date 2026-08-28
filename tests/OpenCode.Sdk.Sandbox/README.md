@@ -59,3 +59,31 @@ designed non-browser path. It records the replay frames and the single cursor fr
 the replay, writes `echo hello`, reads until the terminal echoes it, reconnects at the observed
 cursor to show that a resume replays only what came after it, and finally removes the PTY while a
 read is in flight so the normal close ends the enumeration rather than faulting it.
+
+## Standalone server demo (`--standalone`)
+
+`StandaloneServerWalkthrough` is the M4 launcher demo leg: unlike every mode above, it needs no
+`OPENCODE_SANDBOX_ENDPOINT` and no ambient server — the SDK starts and owns the server itself
+through `OpenCodeServer.StartAsync` (the standalone-start connection mode; `docs/architecture/
+client-runtime.md` §Connection modes), then calls `CreateClient()` and `GetHealthAsync` under a
+5-second-bounded probe, the same recipe door 2 (explicit endpoint) would run against a
+caller-supplied endpoint. It is checked before the `OPENCODE_SANDBOX_ENDPOINT` gate, so it is the
+only mode reachable without a running server.
+
+`OPENCODE_SANDBOX_SERVER_COMMAND` overrides the launched command (`|`-separated, to survive paths
+with spaces); unset uses the product default (`opencode serve` from `PATH`). Run from the
+repository root against the pinned submodule source:
+
+```sh
+OPENCODE_SANDBOX_SERVER_COMMAND="bun|--cwd=$(pwd)/external/opencode/packages/cli|src/index.ts|serve" \
+  dotnet run --project tests/OpenCode.Sdk.Sandbox --no-launch-profile -- --standalone
+```
+
+The `--cwd=<abs>` token is load-bearing, not decorative: the source-run server's workspace/JSX
+preload discovery (`@opentui/solid/preload`, wired through `packages/cli/bunfig.toml`) walks from
+bun's own process working directory, not from the entry file's path — an absolute entry path with
+the launcher's default (unset) working directory reproduces upstream's own `bun run --cwd
+packages/cli src/index.ts` shape one token short and fails before readiness with `Cannot find
+module 'react/jsx-dev-runtime'`. This is the same root cause `PinnedOpenCodeServerFixture` anchors
+around via `OpenCodeServerOptions.WorkingDirectory` for the test suite (Task 2); the sandbox demo
+reaches the identical fix by folding `--cwd` into the command tokens themselves.

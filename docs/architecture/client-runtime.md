@@ -239,16 +239,51 @@ attaches to one.
 
 `CreateClient(Action<OpenCodeClientOptions>?)` pins the connection identity fail-closed: the
 delegate receives a fresh identity-unset options instance, and setting `Endpoint`, `Username`, or
-`Password` there is refused with `InvalidOperationException` before the door writes its own
-endpoint and lease credential; behavior members such as `Location` configure freely. Every call
-builds a new client over its own owned transport, which the caller disposes.
+`Password` there is refused with `InvalidOperationException`. On success the door never mutates the
+delegate's instance: it builds a distinct, freshly constructed `OpenCodeClientOptions` carrying its
+own endpoint and lease credential, copying over only the behavior members (`Location`) the delegate
+set; the object the delegate received stays identity-unset for as long as the caller keeps a
+reference to it. Every call builds a new client over its own owned transport, which the caller
+disposes.
 
-The failure plane is `OpenCodeServerException : OpenCodeException`, carrying a bounded stderr tail
-for every startup failure: a spawn failure (wrapping the underlying `Win32Exception`), an exit
-before readiness (naming the exit code), a readiness timeout (naming the configured bound), or a
-non-contract first stdout line (quoting it). Caller cancellation during the readiness wait stays
+The failure plane is `OpenCodeServerException : OpenCodeException`. A bounded stderr tail rides
+every startup failure that reaches a running child: an exit before readiness (naming the exit
+code), a readiness timeout (naming the configured bound), and a non-contract first stdout line
+(quoting it) all carry it. A spawn failure (wrapping the underlying `Win32Exception`) carries none
+— nothing ran, so there is no stderr to report. Caller cancellation during the readiness wait stays
 `OperationCanceledException` rather than being folded into the exception type, after the child is
 torn down.
 
 Launcher acceptance is real-process and three-OS. Platform-specific behavior is tested on the
 platform it represents; a successful compile is not a lifecycle proof.
+
+### Connection modes
+
+The SDK targets all three upstream connection modes, named after upstream's own verbs — no
+invented method names, and every variation rides options arguments rather than a new door.
+
+**Standalone start** (`Standalone.start` parity, upstream `packages/cli/src/services/standalone.ts`;
+CLI `--standalone`) → `OpenCodeServer.StartAsync`, above: always a fresh private server on port
+zero with its own generated lease credential, never discovering or attaching to another server, so
+coexistence with any running server is safe by construction. The returned working object is the
+only owner of its child. This door has landed.
+
+**Explicit endpoint** (CLI `--server` parity; upstream builds a plain client plus a 5-second-bounded
+health check and a version warning, `server-connection.ts:24-39`) → plain `OpenCodeClient`
+construction. There is no dedicated SDK verb or member for this door; the validation recipe
+composes two existing pieces: construct the client against the known endpoint, call
+`GetHealthAsync` under a caller-owned `CancellationTokenSource(TimeSpan.FromSeconds(5))`, and
+compare the returned `Health.Version` against the caller's own expectation. The SDK carries no
+version comparand of its own — the accepted snapshot (`spec/SNAPSHOT.md`) is a protocol identity,
+not a runtime version — and the network-timeout knob a first-class helper would want is
+M6-deferred, so **no new public member lands for this door in this arc**: a dedicated helper would
+need a version comparand the SDK does not have and would pre-empt a timeout channel that does not
+exist yet, and the generated client cannot gain members in this arc's territory. The recipe is
+documented here and demonstrated by the sandbox's `StandaloneServerWalkthrough`, which runs the same
+tail without `StartAsync` once a caller already holds an endpoint. *Noted for later:* revisit once
+the M6 network-timeout knob lands as an option rather than a caller-owned
+`CancellationTokenSource` — a bounded-probe helper only earns public surface at that point.
+
+**Background service** (`Service.discover/ensure/stop`, public export `@opencode-ai/client/service`,
+upstream `packages/client/src/promise/service.ts:255`) → the queued follow-up arc; the SDK has no
+`DiscoverAsync`/`EnsureAsync`/`StopAsync` parity yet. See `docs/ROADMAP.md` §4 for status.

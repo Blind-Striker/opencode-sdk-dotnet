@@ -80,7 +80,23 @@ public names carry no prefix.
 _Avoid_: v2, V2 (in public naming); legacy (the retired 1.x dual-surface vocabulary)
 
 **Launcher**:
-The in-core component that starts, monitors, and stops a local `opencode serve` process.
+The in-core component that starts, monitors, and stops a local `opencode serve` process —
+`OpenCodeServer.StartAsync` and its working object, covering the standalone-server connection
+mode. Discovery/attachment of background services is deliberately not the launcher's job.
+
+**Standalone server**:
+A fresh private `opencode serve --stdio --port 0` child owned by the SDK caller through
+`OpenCodeServer`: generated lease credential, stdin-EOF ownership, bounded tree termination.
+Upstream's `Standalone.start` connection mode.
+
+**Background service**:
+Upstream's registered daemon connection mode (`Service.discover/ensure/stop` over a
+registration file); the SDK's `DiscoverAsync`/`EnsureAsync`/`StopAsync` parity is a queued
+follow-up arc, not part of M4.
+
+**Registration file**:
+The on-disk record a background service publishes (address, credential, instance identity) so
+clients can discover it; an upstream-observed contract outside the OpenAPI pin.
 
 **Accepted snapshot**:
 The reviewed protocol identity the SDK builds against: an exact upstream commit, the committed
