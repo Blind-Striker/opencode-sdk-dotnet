@@ -10,7 +10,7 @@ namespace OpenCode.Sdk;
 /// </summary>
 public sealed record SessionGeneratePostResponse : OpenCodeResponse
 {
-    private readonly SessionGenerateResponseData? _generate;
+    private readonly SessionGeneratePostData? _generate;
     /// <summary>
     /// Initializes a success instance of the &apos;SessionGeneratePostResponse&apos; envelope.
     /// </summary>
@@ -34,7 +34,7 @@ public sealed record SessionGeneratePostResponse : OpenCodeResponse
     /// <summary>
     /// Gets the Generate payload; guarded on the error path.
     /// </summary>
-    public required SessionGenerateResponseData Generate { get => _generate ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Generate."); init => _generate = value; }
+    public required SessionGeneratePostData Generate { get => _generate ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Generate."); init => _generate = value; }
 
     /// <summary>
     /// Prints the shared metadata and appends the payload only when it is present.

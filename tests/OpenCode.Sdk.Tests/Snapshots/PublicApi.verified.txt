@@ -102,7 +102,7 @@
     public sealed class GenerateTextPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.GenerateTextPostResponse>
     {
         public GenerateTextPostResponse() { }
-        public required OpenCode.Sdk.Models.GenerateTextResponseData Text { get; init; }
+        public required OpenCode.Sdk.Models.GenerateTextPostData Text { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public class GenerationClient
@@ -911,7 +911,7 @@
     public sealed class SessionGeneratePostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionGeneratePostResponse>
     {
         public SessionGeneratePostResponse() { }
-        public required OpenCode.Sdk.Models.SessionGenerateResponseData Generate { get; init; }
+        public required OpenCode.Sdk.Models.SessionGeneratePostData Generate { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class SessionImportPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionImportPostResponse>
@@ -1895,6 +1895,12 @@ namespace OpenCode.Sdk.Models
         Boolean = 2,
         Unknown = 3,
     }
+    public sealed class GenerateTextPostData : System.IEquatable<OpenCode.Sdk.Models.GenerateTextPostData>
+    {
+        public GenerateTextPostData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("text")]
+        public required string Text { get; init; }
+    }
     public sealed class GenerateTextPostRequest : System.IEquatable<OpenCode.Sdk.Models.GenerateTextPostRequest>
     {
         public GenerateTextPostRequest() { }
@@ -1903,12 +1909,6 @@ namespace OpenCode.Sdk.Models
         public OpenCode.Sdk.Models.ModelRef? Model { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("prompt")]
         public required string Prompt { get; init; }
-    }
-    public sealed class GenerateTextResponseData : System.IEquatable<OpenCode.Sdk.Models.GenerateTextResponseData>
-    {
-        public GenerateTextResponseData() { }
-        [System.Text.Json.Serialization.JsonPropertyName("text")]
-        public required string Text { get; init; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.EventJsonConverter))]
     public interface IEvent
@@ -4299,17 +4299,17 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required double Version { get; init; }
     }
+    public sealed class SessionGeneratePostData : System.IEquatable<OpenCode.Sdk.Models.SessionGeneratePostData>
+    {
+        public SessionGeneratePostData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("text")]
+        public required string Text { get; init; }
+    }
     public sealed class SessionGeneratePostRequest : System.IEquatable<OpenCode.Sdk.Models.SessionGeneratePostRequest>
     {
         public SessionGeneratePostRequest() { }
         [System.Text.Json.Serialization.JsonPropertyName("prompt")]
         public required string Prompt { get; init; }
-    }
-    public sealed class SessionGenerateResponseData : System.IEquatable<OpenCode.Sdk.Models.SessionGenerateResponseData>
-    {
-        public SessionGenerateResponseData() { }
-        [System.Text.Json.Serialization.JsonPropertyName("text")]
-        public required string Text { get; init; }
     }
     public sealed class SessionIdle : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.SessionIdle>
     {

@@ -19,7 +19,7 @@ internal sealed class SchemaNameResolver
 
         var responseRoots = reachable.ResponseRootKeys.ToHashSet(_comparer);
         var requestRoots = ResolveRequestBodyRootNames(selected, errors);
-        var payloadRoots = ResolveEnvelopePayloadRootNames(selected);
+        var payloadRoots = ResolveEnvelopePayloadRootNames(document, selected, errors);
         var effectStreamTypes = ResolveEffectStreamTypeNames(document, selected);
         var artifacts = new ProjectionArtifactNamePolicy(document.Schemas.Keys);
         var curatedNames = curation
@@ -164,32 +164,71 @@ internal sealed class SchemaNameResolver
     }
 
     /// <summary>
-    /// A bare success body that ingestion promoted into the graph is the operation's payload
-    /// model, and it carries no schema identity of its own: the root it was promoted under is
-    /// the operation, which the public surface never spells. Such a payload is named from the
-    /// operation instead, mechanically (<see cref="OperationNamePolicy.PayloadTypeName"/>);
-    /// a component-referenced payload keeps its component identity, and a reasoned
-    /// <c>schemaNames</c> row still overrides. The key embeds the operation id, so no two
-    /// selected operations can claim the same one; two claiming one <em>name</em> collide at
-    /// the ordinary owner wall in <see cref="Resolve"/>.
+    /// A success payload that ingestion promoted into the graph carries no schema identity of
+    /// its own: it was promoted out of envelope spine — the operation's own inline root, or a
+    /// wrapper the dialect never names — and neither spelling belongs on the public surface.
+    /// Such a payload is named from the operation instead, mechanically
+    /// (<see cref="OperationNamePolicy.PayloadTypeName"/>), uniformly for the bare body root and
+    /// for a data wrapper's <c>data</c> member. A component-referenced payload keeps its
+    /// component identity, and a reasoned <c>schemaNames</c> row still overrides. Cursor-list
+    /// items (ADR-0017) and location-envelope data stay nominal, so those positions never carry
+    /// a promoted key for this to claim.
     /// </summary>
-    private Dictionary<string, string> ResolveEnvelopePayloadRootNames(IReadOnlyList<SpecOperation> selected)
+    private Dictionary<string, string> ResolveEnvelopePayloadRootNames(SpecDocument document,
+        IReadOnlyList<SpecOperation> selected, BindingErrorCollector errors)
     {
         var names = new Dictionary<string, string>(_comparer);
         foreach (var operation in selected)
         {
-            if (operation.Responses.FirstOrDefault(static response => response.StatusCode is 200) is
-                {
-                    IsSse: false, EnvelopeShape: SpecEnvelopeShape.Bare, Schema: RefNode reference,
-                }
-                && reference.Target.Contains('#', StringComparison.Ordinal))
+            if (operation.Responses.FirstOrDefault(static response => response.StatusCode is 200) is not
+                { IsSse: false, Schema: RefNode reference, } success)
             {
-                names[reference.Target] = OperationNamePolicy.PayloadTypeName(operation);
+                continue;
             }
+
+            // Cursor-list items and location-envelope data stay nominal, so those shapes have no
+            // promoted key to claim; the remaining shapes never reach a payload at all.
+            var payloadKey = success.EnvelopeShape switch
+            {
+                SpecEnvelopeShape.Bare => reference.Target,
+                SpecEnvelopeShape.Data => ResolveDataMemberKey(document, reference.Target),
+                SpecEnvelopeShape.CursorData or SpecEnvelopeShape.DataLocation
+                    or SpecEnvelopeShape.DataHasMore or SpecEnvelopeShape.None => null,
+                _ => null,
+            };
+            if (payloadKey is null || !payloadKey.Contains('#', StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            // A bare root embeds the operation id and cannot be shared, but a component data
+            // wrapper can be: two operations claiming one payload under different names refuse
+            // rather than letting iteration order pick a winner.
+            var payloadName = OperationNamePolicy.PayloadTypeName(operation);
+            if (names.TryGetValue(payloadKey, out var existing) && !_comparer.Equals(existing, payloadName))
+            {
+                errors.Add(
+                    BindingErrorCategory.Naming,
+                    payloadKey,
+                    $"envelope payload is claimed as both '{existing}' and '{payloadName}' by selected operations");
+                continue;
+            }
+
+            names[payloadKey] = payloadName;
         }
 
         return names;
     }
+
+    /// <summary>
+    /// Resolves the wrapper member the payload binder reads, matching the single-required-<c>data</c>
+    /// shape <c>EnvelopeFacetBinder.BindDataPayload</c> accepts; any other wrapper refuses there.
+    /// </summary>
+    private static string? ResolveDataMemberKey(SpecDocument document, string wrapperKey) =>
+        document.Schemas.TryGetValue(wrapperKey, out var wrapper)
+        && wrapper is ObjectNode { Properties: [{ Name: "data", IsRequired: true, Schema: RefNode payload, }] }
+            ? payload.Target
+            : null;
 
     private string ResolveUnionName(string key, UnionNode union, IReadOnlyDictionary<string, SchemaNode> graph,
         ProjectionArtifactNamePolicy artifacts)

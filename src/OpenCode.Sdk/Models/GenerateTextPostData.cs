@@ -4,9 +4,9 @@ using System.Text.Json.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a generate text response data value.
+/// Represents a generate text post data value.
 /// </summary>
-public sealed record GenerateTextResponseData
+public sealed record GenerateTextPostData
 {
     /// <summary>
     /// Gets the text value.

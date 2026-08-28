@@ -1161,6 +1161,61 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Name_A_Data_Envelope_Promoted_Payload_From_The_Operation()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetStatsEnvelope", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("data", property => property
+                    .Type("object")
+                    .AdditionalPropertiesFalse()
+                    .Property("count", inner => inner.Type("integer"), required: true), required: true))
+            .WithOperation("v2.widget.stats", path: "/api/widget/stats", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetStatsEnvelope")))));
+
+        var plan = BindWidgets(document, "v2.widget.stats");
+
+        var stats = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(stats.Envelope!.Kind).IsEqualTo(EnvelopeKind.Data);
+        await Assert.That(((NamedTypeReferencePlan)stats.Envelope.PayloadType!).Name).IsEqualTo("WidgetStatsData");
+        await Assert.That(plan.Models.Any(static model => string.Equals(model.Name, "WidgetStatsData", StringComparison.Ordinal)))
+            .IsTrue();
+
+        // The wrapper component's own spelling never reaches the surface.
+        await Assert.That(plan.Models.Any(static model => model.Name.Contains("Envelope", StringComparison.Ordinal))).IsFalse();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Promoted_Payload_Claimed_By_Two_Operations()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetStatsEnvelope", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("data", property => property
+                    .Type("object")
+                    .AdditionalPropertiesFalse()
+                    .Property("count", inner => inner.Type("integer"), required: true), required: true))
+            .WithOperation("v2.widget.stats", path: "/api/widget/stats", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetStatsEnvelope")))
+            .WithOperation("v2.widget.summary", path: "/api/widget/summary", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("WidgetStatsEnvelope")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.stats", "v2.widget.summary"),
+            Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)))));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
+                                                       && error.Problem.Contains(
+                                                           "claimed as both 'WidgetStatsData' and 'WidgetSummaryData'",
+                                                           StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
     public async Task Bind_Should_Refuse_A_Promoted_Payload_Whose_Name_Collides_With_A_Component()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec

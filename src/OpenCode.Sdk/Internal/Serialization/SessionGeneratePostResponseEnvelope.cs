@@ -10,5 +10,5 @@ namespace OpenCode.Sdk.Internal.Serialization;
 internal sealed record SessionGeneratePostResponseEnvelope
 {
     [JsonPropertyName("data")]
-    public required SessionGenerateResponseData Data { get; init; }
+    public required SessionGeneratePostData Data { get; init; }
 }
