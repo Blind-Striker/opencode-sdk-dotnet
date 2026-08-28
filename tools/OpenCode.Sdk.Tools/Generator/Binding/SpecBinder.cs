@@ -166,6 +166,14 @@ internal sealed class SpecBinder(
             .SelectMany(static client => client.Operations)
             .Select(static operation => operation.Stream?.CauseTypeName)
             .OfType<string>();
+        // Bare shapes without a DTO carry their payload type straight through, so a
+        // non-named payload (a list or a dictionary) must register its own accessor here;
+        // a DTO-wrapped payload rides the DTO above instead.
+        var payloadEntries = clients
+            .SelectMany(static client => client.Operations)
+            .Select(static operation => operation.Envelope)
+            .Where(static envelope => envelope is { EnvelopeDtoTypeName: null, PayloadType: not null and not NamedTypeReferencePlan })
+            .Select(static envelope => envelope!.PayloadType!);
         return new RegistryPlan
         {
             // Uniqueness is guaranteed by CheckDtoNameCollisions before composition.
@@ -177,6 +185,7 @@ internal sealed class SpecBinder(
                     .Distinct(StringComparer.Ordinal)
                     .Order(StringComparer.Ordinal)
             ],
+            PayloadEntries = [.. payloadEntries],
         };
     }
 
