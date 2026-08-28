@@ -4,7 +4,7 @@ using OpenCode.Sdk.Tests.Support;
 
 namespace OpenCode.Sdk.Tests;
 
-public sealed class WorktreeClientContractTests
+public sealed class ProjectWorktreesClientContractTests
 {
     [Test]
     public async Task ListWorktreesAsync_Should_Return_The_Typed_Worktrees()
@@ -12,7 +12,7 @@ public sealed class WorktreeClientContractTests
         const string worktrees = "[{\"directory\":\"/repo\",\"strategy\":\"branch\"},{\"directory\":\"/repo-2\"}]";
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, worktrees);
 
-        var response = await scenario.Client.Worktrees.GetWorktreeClient("prj_1").ListWorktreesAsync();
+        var response = await scenario.Client.Worktrees.GetProjectWorktreesClient("prj_1").ListWorktreesAsync();
 
         await Assert.That(response.Worktrees.Count).IsEqualTo(2);
         await Assert.That(response.Worktrees[0].Directory).IsEqualTo("/repo");
@@ -28,7 +28,7 @@ public sealed class WorktreeClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, "[]");
 
-        var response = await scenario.Client.Worktrees.GetWorktreeClient("prj_1").ListWorktreesAsync();
+        var response = await scenario.Client.Worktrees.GetProjectWorktreesClient("prj_1").ListWorktreesAsync();
 
         await Assert.That(response.Worktrees).IsEmpty();
     }
@@ -39,7 +39,7 @@ public sealed class WorktreeClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.InvalidRequestError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Worktrees.GetWorktreeClient("prj_1").ListWorktreesAsync())
+            .That(async () => _ = await scenario.Client.Worktrees.GetProjectWorktreesClient("prj_1").ListWorktreesAsync())
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(400);
@@ -51,7 +51,7 @@ public sealed class WorktreeClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
 
-        var response = await scenario.Client.Worktrees.GetWorktreeClient("prj_1")
+        var response = await scenario.Client.Worktrees.GetProjectWorktreesClient("prj_1")
             .ListWorktreesAsync(OpenCodeRequestOptions.NoThrow);
 
         await Assert.That(response.IsError).IsTrue();

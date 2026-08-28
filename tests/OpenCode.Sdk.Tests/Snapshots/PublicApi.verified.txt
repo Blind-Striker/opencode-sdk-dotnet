@@ -708,6 +708,11 @@
         public required OpenCode.Sdk.Models.ProjectCurrent Current { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
+    public class ProjectWorktreesClient
+    {
+        protected ProjectWorktreesClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.WorktreeListResponse> ListWorktreesAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
     public class ProjectsClient
     {
         protected ProjectsClient() { }
@@ -1266,11 +1271,6 @@
         protected WorkspacesClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.WorkspaceCreateResponse> CreateWorkspaceAsync(OpenCode.Sdk.Models.WorkspaceCreateRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
-    public class WorktreeClient
-    {
-        protected WorktreeClient() { }
-        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.WorktreeListResponse> ListWorktreesAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
-    }
     public sealed class WorktreeListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.WorktreeListResponse>
     {
         public WorktreeListResponse() { }
@@ -1280,7 +1280,7 @@
     public class WorktreesClient
     {
         protected WorktreesClient() { }
-        public virtual OpenCode.Sdk.WorktreeClient GetWorktreeClient(string projectId) { }
+        public virtual OpenCode.Sdk.ProjectWorktreesClient GetProjectWorktreesClient(string projectId) { }
     }
 }
 namespace OpenCode.Sdk.Models

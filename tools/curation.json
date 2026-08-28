@@ -129,12 +129,12 @@
     },
     "location": {
       "placement": "root",
-      "reason": "A single location-resolution probe belongs on the root client, not behind a one-method container, mirroring health (ADR-0019)."
+      "reason": "Like health, location resolution is a cross-cutting utility every call can reach directly, not a domain-scoped operation; it belongs on the root client, not behind a one-method container."
     },
     "server": {
       "placement": "client",
       "clientName": "Server",
-      "reason": "v2.server.get is the family's only operation and names one server process, not a collection; a flat singular-noun client holds it with no handle (ADR-0019)."
+      "reason": "The server tag is its own domain group, exactly like every other family in this profile; root placement is reserved for the cross-cutting utility probes (health, location), not domain-scoped ones. A flat singular-noun client also leaves room for upstream to grow this group later without a placement change."
     },
     "workspace": {
       "placement": "client",
@@ -144,9 +144,9 @@
     "worktree": {
       "placement": "client",
       "clientName": "Worktrees",
-      "handleName": "WorktreeClient",
+      "handleName": "ProjectWorktreesClient",
       "handleParameter": "projectID",
-      "reason": "The family's full pinned surface (list, create, remove, refresh) all chain on the same projectID, so ADR-0019's full-surface rule gives it a handle now even though only list is selected this batch."
+      "reason": "The family's full pinned surface (list, create, remove, refresh) all chain on the same projectID, so ADR-0019's full-surface rule gives it a handle now even though only list is selected this batch. The handle is keyed by a project id, not a worktree id, so it is named for what it actually holds: one project's worktree registry."
     }
   },
   "operationIdentities": [

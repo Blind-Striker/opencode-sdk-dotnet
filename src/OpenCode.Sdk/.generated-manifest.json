@@ -861,7 +861,7 @@
     "Websearch/WebsearchQueryPostResponse.cs",
     "Workspaces/WorkspaceCreateResponse.cs",
     "Workspaces/WorkspacesClient.cs",
-    "Worktrees/WorktreeClient.cs",
+    "Worktrees/ProjectWorktreesClient.cs",
     "Worktrees/WorktreeListResponse.cs",
     "Worktrees/WorktreesClient.cs"
   ]

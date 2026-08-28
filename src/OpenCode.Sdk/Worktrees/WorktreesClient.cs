@@ -23,11 +23,11 @@ public class WorktreesClient
     }
 
     /// <summary>
-    /// Gets a bound &apos;WorktreeClient&apos;; the handle never caches server state.
+    /// Gets a bound &apos;ProjectWorktreesClient&apos;; the handle never caches server state.
     /// </summary>
     /// <param name = "projectId">The &apos;projectID&apos; route value.</param>
-    /// <returns>The bound &apos;WorktreeClient&apos;.</returns>
-    public virtual WorktreeClient GetWorktreeClient(string projectId)
+    /// <returns>The bound &apos;ProjectWorktreesClient&apos;.</returns>
+    public virtual ProjectWorktreesClient GetProjectWorktreesClient(string projectId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(projectId);
         if (projectId is "." or "..")
@@ -35,7 +35,7 @@ public class WorktreesClient
             throw new ArgumentException("Route values must not be dot segments.", nameof(projectId));
         }
 
-        return new WorktreeClient(Pipeline, projectId);
+        return new ProjectWorktreesClient(Pipeline, projectId);
     }
 
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("WorktreesClient", "Pipeline");

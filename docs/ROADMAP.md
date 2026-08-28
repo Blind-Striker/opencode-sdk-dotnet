@@ -397,62 +397,14 @@ patch still applies with byte-identical preimages; PR #45182 remains open. The p
 **81 selected / 53 pending**, the full gate is green at 2,767 tests, and the PublicApi baseline
 accepted its three additive `Metadata` properties.
 
-**Envelope completion's first selection batch is landing** (2026-08-28; plan:
-`docs/superpowers/plans/2026-08-28-envelope-completion.md`). `v2.vcs.status` is selected through
-the container-payload mechanism: its `data` array of `Vcs.FileStatus` binds as
-`IReadOnlyList<VcsFileStatus>` beside the `DataLocation` sibling, and a curated `Changes` envelope
-payload name resolves the reserved `Status` spine collision (`OpenCodeResponse.Status` carries the
-HTTP status code). `v2.vcs.branches` was probed for the same batch but refuses: its `data` is a
-named reference to `Vcs.BranchList`, an unnamed array-of-string component, and
-`BindDataLocationPayload`'s ref-vs-array wall does not fall through to the generic type machinery
-for that shape (only a named ref or a literal inline array of named refs binds); it stays pending
-rather than being forced. A latent `CliWrapProjectFormatter` scaling bug surfaced and was fixed in
-the same slice: the generator's post-write `dotnet format --include <every generated file>` step
-had grown past Windows's 32,767-character process command-line limit now that the generated tree
-exceeds ~900 files ("the filename or extension is too long"); the formatter now batches its
-`--include` list under a safe budget, proven by both a unit-tested pure splitter and a real
-`generate` run. `v2.location.get` is selected next, riding the root placement health already
-established (ADR-0019): its default payload name `Location` collides with the response spine's
-reserved DataLocation-sibling property, so a curated `ResolvedLocation` envelope payload name
-resolves it. Landing a brand-new family folder surfaced a second, unrelated `dotnet format`
-limitation: a file in a folder the `.editorconfig` IDE0130 flat-namespace glob does not yet cover
-crashes the formatter outright (`NotSupportedException: Changing document properties is not
-supported`, from Roslyn's namespace-sync code fix attempting a workspace change `MSBuildWorkspace`
-cannot apply) rather than merely reporting a style diagnostic; `.editorconfig`'s own comment already
-prescribes the fix ("a new family folder extends these globs deliberately"), so `Location` (and each
-later new family folder) is added to both glob lists in the same commit that introduces it.
-`v2.server.get` follows as the first new public client family born in this batch: its bare
-`{"urls": [...]}` payload is an inline object promoted with Task 5's operation-scoped naming
-(`ServerData`, no `Response`/`Envelope` leakage), and the flat singular-noun `ServerClient` carries
-it with no handle (ADR-0019, one operation). Landing a new family also means updating the two
-existing reflective inventories that assume the current roster rather than discovering it: the
-Extensions package's explicit per-family `AddSingleton` registration list, and the generator's own
-pinned-plan test fixture data (`OperationPlanBinderTests`' expected client/sub-client name lists).
-`v2.workspace.create` follows next: its own family only carries two full-surface operations
-(create, and the still-pending destroy), a shape that stays flat rather than earning a handle
-(ADR-0019, matching credential's update/remove precedent) — `WorkspacesClient.CreateWorkspaceAsync`
-takes the request body directly, no id argument yet. Its `{"data": "wrk..."}` success body binds
-as a plain `string` (a scalar payload needs no promotion), and its 400/401/404/409 error map lands
-exactly as declared. `v2.worktree.list` closes the batch as a handle family: its full pinned
-surface (list, create, remove, refresh) all chain on the same `projectID`, so ADR-0019's
-full-surface rule gives `Worktrees` a handle (`WorktreeClient`, keyed by `projectID`) now even
-though only `list` is selected — `Worktrees.GetWorktreeClient(projectID).ListWorktreesAsync()`,
-mirroring how sessions/shells key their handles. Its bare `Worktree.List` payload (a named
-component array-of-named-ref schema with no separate C# type of its own) binds through the
-Task 3 bare-container-registry mechanism as `IReadOnlyList<WorktreeDirectory>` with a pinned
-`WorktreeDirectoryList` accessor name. Landing this first bare-container-with-named-accessor
-registration surfaced one more narrow test assumption: `SourceEmitterTests`' registry-reading
-helper assumed every emitted `[JsonSerializable(...)]` attribute carries exactly one argument,
-which a bare container's pinned `TypeInfoPropertyName` argument breaks; both the reader and the
-test's expected-type set (now covering `RegistryPlan.PayloadEntries` alongside `TypeNames`) are
-fixed alongside the extended Extensions/`OperationPlanBinderTests` rosters.
-
-**Envelope completion's first selection batch (7a) is complete**: five family commits landed
-`vcs.status`, `location.get`, the new `server` and `workspace` families, and the handle-based
-`worktree` family — five of the six named operations, with `vcs.branches` reported as a refusal
-rather than forced (its `data` is a named ref to an unnamed array-of-string component, a shape
-`BindDataLocationPayload`'s ref-vs-array wall does not admit). The profile stands at
-**86 selected / 48 pending**.
+**Envelope completion's first selection batch (7a) is complete** (2026-08-28; plan:
+`docs/superpowers/plans/2026-08-28-envelope-completion.md`). Five family commits select
+`vcs.status`, `location.get`, and the new `server`, `workspace`, and `worktree` families — five
+of the six named operations; `v2.vcs.branches` was probed and refused rather than forced
+(`BindDataLocationPayload`'s ref-vs-array wall does not admit a named ref to an unnamed
+array-of-string component). Full mechanism detail, the two generator-tooling fixes it surfaced,
+and the reviewed naming/placement/handle decisions live in the task's own report, feeding the
+dated research log at Task 8. The profile stands at **86 selected / 48 pending**.
 
 ## Milestones
 

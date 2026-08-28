@@ -5,13 +5,13 @@ using OpenCode.Sdk.Internal.ResponseAdapters;
 
 namespace OpenCode.Sdk;
 /// <summary>
-/// A bound &apos;WorktreeClient&apos; handle; it holds an immutable identifier and the shared pipeline.
+/// A bound &apos;ProjectWorktreesClient&apos; handle; it holds an immutable identifier and the shared pipeline.
 /// </summary>
-public class WorktreeClient
+public class ProjectWorktreesClient
 {
     private readonly Pipeline? _pipeline;
     private readonly string? _projectId;
-    internal WorktreeClient(Pipeline pipeline, string projectId)
+    internal ProjectWorktreesClient(Pipeline pipeline, string projectId)
     {
         ArgumentNullException.ThrowIfNull(pipeline);
         ArgumentException.ThrowIfNullOrWhiteSpace(projectId);
@@ -27,12 +27,12 @@ public class WorktreeClient
     /// <summary>
     /// Initializes a mocking instance; members invoked without an override throw an instructive failure.
     /// </summary>
-    protected WorktreeClient()
+    protected ProjectWorktreesClient()
     {
     }
 
-    private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("WorktreeClient", "Pipeline");
-    private string ProjectId => _projectId ?? throw MockSeam.CreateError("WorktreeClient", "ProjectId");
+    private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("ProjectWorktreesClient", "Pipeline");
+    private string ProjectId => _projectId ?? throw MockSeam.CreateError("ProjectWorktreesClient", "ProjectId");
 
     /// <summary>
     /// List worktrees. List known local worktrees for a project.

@@ -24,6 +24,7 @@ public sealed class OperationPlanBinderTests
         "McpServersClient",
         "PermissionsClient",
         "PluginsClient",
+        "ProjectWorktreesClient",
         "ProjectsClient",
         "ProvidersClient",
         "PtyRawClient",
@@ -38,7 +39,6 @@ public sealed class OperationPlanBinderTests
         "VcsClient",
         "WebsearchClient",
         "WorkspacesClient",
-        "WorktreeClient",
         "WorktreesClient",
     ];
 
