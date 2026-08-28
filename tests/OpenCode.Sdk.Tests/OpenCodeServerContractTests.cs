@@ -1,3 +1,6 @@
+using System.Reflection;
+using OpenCode.Sdk.Internal;
+
 namespace OpenCode.Sdk.Tests;
 
 public sealed class OpenCodeServerContractTests
@@ -59,6 +62,34 @@ public sealed class OpenCodeServerContractTests
             options.Location = new LocationSelector { Directory = "/tmp/workspace" });
 
         await Assert.That(client).IsNotNull();
+    }
+
+    [Test]
+    public async Task CreateClient_Should_Carry_Every_Behavior_Member_Into_The_Built_Client()
+    {
+        var identityMembers = new HashSet<string>(StringComparer.Ordinal) { "Endpoint", "Username", "Password" };
+        var behaviorMembers = typeof(OpenCodeClientOptions)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(property => property.CanWrite && !identityMembers.Contains(property.Name))
+            .Select(property => property.Name)
+            .ToArray();
+
+        // A newly added OpenCodeClientOptions behavior member (M6's queued timeout knob, for
+        // instance) lands here first: CreateClient's hand-written copy-list cannot know about it
+        // on its own, so this assertion is what turns that silence loud instead of quiet. Extend
+        // both the expected list and the propagation check below in the same change that adds
+        // the member.
+        await Assert.That(behaviorMembers).IsEquivalentTo(["Location"]);
+
+        var server = CreateStartedDoor();
+        var sentinelLocation = new LocationSelector { Directory = "/sentinel-workspace" };
+
+        using var client = server.CreateClient(options => options.Location = sentinelLocation);
+
+        var pipeline = (Pipeline)typeof(OpenCodeClient)
+            .GetField("_pipeline", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .GetValue(client)!;
+        await Assert.That(pipeline.Connection.Location).IsSameReferenceAs(sentinelLocation);
     }
 
     [Test]

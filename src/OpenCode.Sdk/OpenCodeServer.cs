@@ -21,6 +21,14 @@ public class OpenCodeServer : IAsyncDisposable
 
     private static readonly TimeSpan ForcedExitTimeout = TimeSpan.FromSeconds(10);
 
+    /// <summary>
+    /// Bounds the diagnostics-only output drain on every failure path. A drain is best-effort
+    /// only — it must never turn into the unbounded hang <see cref="FlushOutputDrainAsync"/>'s
+    /// remarks describe, so a caller always regains control within this window regardless of
+    /// what the child (or anything the child spawned) is still holding open.
+    /// </summary>
+    private static readonly TimeSpan DrainTimeout = TimeSpan.FromSeconds(2);
+
     private readonly Process? _process;
     private readonly Uri? _endpoint;
     private readonly string? _password;
@@ -105,7 +113,7 @@ public class OpenCodeServer : IAsyncDisposable
                 process, readyLine, readinessTimeout, stderrGate, stderrTail, cancellationToken).ConfigureAwait(false);
             if (!ServerReadyLine.TryParse(line, out var endpoint))
             {
-                EndStartupFailure(process);
+                await EndStartupFailureAsync(process).ConfigureAwait(false);
                 throw new OpenCodeServerException(
                     $"The server's first stdout line is not the JSON readiness contract: '{line}'.{DescribeStderr(stderrGate, stderrTail)}");
             }
@@ -263,7 +271,7 @@ public class OpenCodeServer : IAsyncDisposable
         }
         catch (OperationCanceledException exception)
         {
-            EndStartupFailure(process);
+            await EndStartupFailureAsync(process).ConfigureAwait(false);
             if (cancellationToken.IsCancellationRequested)
             {
                 throw new OperationCanceledException("The server start was canceled.", exception, cancellationToken);
@@ -279,7 +287,14 @@ public class OpenCodeServer : IAsyncDisposable
         }
 
         var exitCode = process.ExitCode;
-        FlushOutputDrain(process);
+
+        // The root already exited on its own, but a launcher shim (a .cmd/bun wrapper that
+        // spawns the real server and exits) can leave live grandchildren holding the redirected
+        // pipe handles open — which would make the drain below wait for an EOF that never comes.
+        // Killing the tree first (best-effort, already swallowed by ProcessTreeTerminator) closes
+        // that gap before the bounded drain runs.
+        ProcessTreeTerminator.Kill(process);
+        await FlushOutputDrainAsync(process).ConfigureAwait(false);
         throw new OpenCodeServerException(
             $"The server exited with code {exitCode.ToString(CultureInfo.InvariantCulture)} before reporting readiness.{DescribeStderr(stderrGate, stderrTail)}");
     }
@@ -347,15 +362,19 @@ public class OpenCodeServer : IAsyncDisposable
         }
     }
 
-    private static void EndStartupFailure(Process process)
+    private static async Task EndStartupFailureAsync(Process process)
     {
         ProcessTreeTerminator.Kill(process);
         try
         {
-            if (process.WaitForExit(10_000))
-            {
-                FlushOutputDrain(process);
-            }
+            using var exitWindow = new CancellationTokenSource(ForcedExitTimeout);
+            await process.WaitForExitAsync(exitWindow.Token).ConfigureAwait(false);
+            await FlushOutputDrainAsync(process).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // The bounded exit wait expired without the process ending; skip the drain rather
+            // than wait on a process that may still be alive and writing.
         }
         catch (InvalidOperationException)
         {
@@ -367,13 +386,22 @@ public class OpenCodeServer : IAsyncDisposable
         }
     }
 
-    private static void FlushOutputDrain(Process process)
+    /// <summary>
+    /// Drains the redirected output readers to EOF so the stderr tail a failure message quotes is
+    /// complete, bounded by <see cref="DrainTimeout"/>. The parameterless
+    /// <see cref="Process.WaitForExit()"/> is what actually performs the drain — Polyfill's
+    /// downlevel <c>WaitForExitAsync</c> is Exited-event-only and the int-timeout overload of
+    /// <c>WaitForExit</c> never drains either — but EOF on the redirected pipes arrives only when
+    /// every process holding the write end closes it. The immediate child having already exited
+    /// does not guarantee that: a launcher shim can leave live grandchildren holding those handles
+    /// open, which would make an unbounded call here hang forever. The bound below is the
+    /// guarantee instead; diagnostics are best-effort and never outrank returning to the caller.
+    /// </summary>
+    private static Task FlushOutputDrainAsync(Process process) =>
+        BoundedDrain.RunAsync(() => WaitForExitBestEffort(process), DrainTimeout);
+
+    private static void WaitForExitBestEffort(Process process)
     {
-        // Polyfill's downlevel WaitForExitAsync is Exited-event-only and the int overload of
-        // WaitForExit never drains; on .NET Framework only the parameterless WaitForExit waits
-        // for the async output readers to reach EOF. The child has already exited when this is
-        // called, so it returns promptly — and the stderr tail the failure message quotes is
-        // complete on every TFM.
         try
         {
             process.WaitForExit();
