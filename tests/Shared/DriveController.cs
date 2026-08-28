@@ -173,6 +173,24 @@ internal sealed class DriveController : IAsyncDisposable
         _lifetime.Dispose();
     }
 
+    /// <summary>
+    /// Reads the model id out of an invocation's provider request body. Upstream sends
+    /// <c>{id, url, body}</c> on both the llm.request notification and llm.pending
+    /// (simulated-provider.ts:223,264,334), but that body is provider shaped, not protocol
+    /// shaped: it is whatever the resolved provider package chose to send. A missing, non-object
+    /// body or a missing, non-string <c>model</c> therefore yields null rather than throwing -
+    /// the receive loop must still deliver an invocation a caller is parked waiting for, and a
+    /// controller that faulted on one optional field would turn a readable assertion failure into
+    /// a hang.
+    /// </summary>
+    private static string? ReadModel(JsonElement parameters) =>
+        parameters.TryGetProperty("body", out var body) &&
+        body.ValueKind is JsonValueKind.Object &&
+        body.TryGetProperty("model", out var model) &&
+        model.ValueKind is JsonValueKind.String
+            ? model.GetString()
+            : null;
+
     private static void EnsureOk(JsonDocument response, string method)
     {
         if (!response.RootElement.GetProperty("result").GetProperty("ok").GetBoolean())
@@ -284,7 +302,8 @@ internal sealed class DriveController : IAsyncDisposable
                 var parameters = root.GetProperty("params");
                 _invocations.Enqueue(new DriveInvocation(
                     parameters.GetProperty("id").GetString()!,
-                    parameters.GetProperty("url").GetString()!));
+                    parameters.GetProperty("url").GetString()!,
+                    ReadModel(parameters)));
                 _ = _invocationSignal.Release();
             }
         }

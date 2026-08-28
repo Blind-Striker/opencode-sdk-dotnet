@@ -17,6 +17,13 @@ public sealed class SimulatedSessionWorkflowTests(SimulatedDriveServerFixture se
 
     private const string ChatCompletionsUrl = "https://api.openai.com/v1/chat/completions";
 
+    /// <summary>
+    /// The single model the fixture's provider seed registers
+    /// (<c>SimulatedDriveServerFixture.SimulationConfig</c>): named once here so the session's
+    /// model selection and the invocation assertion that checks it cannot drift apart.
+    /// </summary>
+    private const string SimulatedModelId = "sim-model";
+
     private static readonly TimeSpan RequestWait = TimeSpan.FromSeconds(60);
 
     [Test]
@@ -89,7 +96,7 @@ public sealed class SimulatedSessionWorkflowTests(SimulatedDriveServerFixture se
 
         var invocation = await DriveAsync(
             () => server.Controller.WaitForRequestAsync(RequestWait), "waiting for the model request");
-        await Assert.That(invocation.Url).IsEqualTo(ChatCompletionsUrl);
+        await AssertSimulatedInvocationAsync(invocation);
 
         await DriveAsync(
             () => server.Controller.ChunkTextAsync(invocation.Id, "Hello ", "from ", "the drive."),
@@ -158,6 +165,21 @@ public sealed class SimulatedSessionWorkflowTests(SimulatedDriveServerFixture se
     }
 
     /// <summary>
+    /// The named checkpoint: the prompt reached the drive through the config-seeded provider.
+    /// Both halves are load-bearing. The url proves the seed pinned the chat route the simulated
+    /// network claims, but it does not discriminate on its own - every openai-chat-shaped
+    /// provider claims that same route - so a background model call the server made for its own
+    /// reasons would satisfy it, and the scripted turn would then be driven against the wrong
+    /// invocation while the real one sat pending until the event window expired. The model id is
+    /// what identifies this as the seeded provider's request for this prompt.
+    /// </summary>
+    private static async Task AssertSimulatedInvocationAsync(DriveInvocation invocation)
+    {
+        await Assert.That(invocation.Url).IsEqualTo(ChatCompletionsUrl);
+        await Assert.That(invocation.Model).IsEqualTo(SimulatedModelId);
+    }
+
+    /// <summary>
     /// Creates a session pinned to the config-seeded simulated model. In simulation the drive
     /// backend answers only the chat route this provider claims, so the explicit
     /// <see cref="ModelRef"/> is what makes every prompt in the suite deterministic rather than
@@ -170,7 +192,7 @@ public sealed class SimulatedSessionWorkflowTests(SimulatedDriveServerFixture se
             new SessionCreateRequest
             {
                 Title = title,
-                Model = new ModelRef { Id = "sim-model", ProviderId = "sim" },
+                Model = new ModelRef { Id = SimulatedModelId, ProviderId = "sim" },
             },
             cancellationToken: cancellationToken);
         return created.Session.Id;
