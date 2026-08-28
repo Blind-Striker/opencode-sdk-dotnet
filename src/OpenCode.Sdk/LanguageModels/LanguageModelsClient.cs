@@ -26,6 +26,20 @@ public class LanguageModelsClient
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("LanguageModelsClient", "Pipeline");
 
     /// <summary>
+    /// Get default model. Retrieve the model used when a session has no explicit model selection.
+    /// </summary>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ModelDefaultResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 503) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<ModelDefaultResponse> GetDefaultAsync(ModelDefaultRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.LanguageModels.GetDefault(request), ModelDefaultResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
     /// List models. Retrieve the current snapshot of available models ordered by release date. The snapshot may precede initial plugin settlement.
     /// </summary>
     /// <param name = "request">The request shaping the query.</param>

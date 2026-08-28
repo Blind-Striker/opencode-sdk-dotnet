@@ -502,6 +502,28 @@ public static class OpenCodeRoutes
     public static class LanguageModels
     {
         /// <summary>
+        /// The &apos;GET /api/model/default&apos; route template.
+        /// </summary>
+        public const string GetDefaultTemplate = "/api/model/default";
+        /// <summary>
+        /// Builds the &apos;/api/model/default&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetDefault(ModelDefaultRequest? request = null)
+        {
+            var path = "/api/model/default";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
         /// The &apos;GET /api/model&apos; route template.
         /// </summary>
         public const string ListModelsTemplate = "/api/model";

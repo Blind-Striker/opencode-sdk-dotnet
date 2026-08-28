@@ -404,7 +404,7 @@ of the six named operations; `v2.vcs.branches` was probed and refused rather tha
 (`BindDataLocationPayload`'s ref-vs-array wall does not admit a named ref to an unnamed
 array-of-string component). Full mechanism detail, the two generator-tooling fixes it surfaced,
 and the reviewed naming/placement/handle decisions live in the task's own report, feeding the
-dated research log at Task 8. The profile stands at **94 selected / 40 pending**.
+dated research log at Task 8. The profile stands at **95 selected / 39 pending**.
 
 **M4's launcher arc is code-complete and integrated** (2026-08-28; evidence: research log Q153;
 plan executed task-by-task with independent reviews and a clean final whole-branch review).

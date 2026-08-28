@@ -214,6 +214,7 @@
     public class LanguageModelsClient
     {
         protected LanguageModelsClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ModelDefaultResponse> GetDefaultAsync(OpenCode.Sdk.ModelDefaultRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ModelListResponse> ListModelsAsync(OpenCode.Sdk.ModelListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class ListCursor : System.IEquatable<OpenCode.Sdk.ListCursor>
@@ -332,6 +333,18 @@
         public MessageListResponse() { }
         public required OpenCode.Sdk.ListCursor Cursor { get; init; }
         public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.ISessionMessageInfo> Messages { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class ModelDefaultRequest : System.IEquatable<OpenCode.Sdk.ModelDefaultRequest>
+    {
+        public ModelDefaultRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class ModelDefaultResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ModelDefaultResponse>
+    {
+        public ModelDefaultResponse() { }
+        public required OpenCode.Sdk.Models.ModelInfo? Default { get; init; }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class ModelListRequest : System.IEquatable<OpenCode.Sdk.ModelListRequest>
@@ -481,7 +494,9 @@
         }
         public static class LanguageModels
         {
+            public const string GetDefaultTemplate = "/api/model/default";
             public const string ListModelsTemplate = "/api/model";
+            public static string GetDefault(OpenCode.Sdk.ModelDefaultRequest? request = null) { }
             public static string ListModels(OpenCode.Sdk.ModelListRequest? request = null) { }
         }
         public static class Location

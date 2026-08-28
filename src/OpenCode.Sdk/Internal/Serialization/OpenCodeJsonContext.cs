@@ -160,6 +160,7 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(ModelCost))]
 [JsonSerializable(typeof(ModelCostCache))]
 [JsonSerializable(typeof(ModelCostTier))]
+[JsonSerializable(typeof(ModelDefaultResponseEnvelope))]
 [JsonSerializable(typeof(ModelInfo))]
 [JsonSerializable(typeof(ModelInfoLimit))]
 [JsonSerializable(typeof(ModelInfoStatus))]

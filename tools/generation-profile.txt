@@ -24,6 +24,7 @@ v2.mcp.list
 v2.mcp.remove
 v2.mcp.resource.catalog
 v2.message.list
+v2.model.default
 v2.model.list
 v2.permission.request.list
 v2.permission.saved.remove
