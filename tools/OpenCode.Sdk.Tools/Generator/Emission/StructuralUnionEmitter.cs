@@ -163,6 +163,7 @@ internal static class StructuralUnionEmitter
         ListTypeReferencePlan or DictionaryTypeReferencePlan => true,
         NamedTypeReferencePlan { Name: "bool" or "double" or "long" } => false,
         SpecialNumberTypeReferencePlan => false,
+        BinaryTypeReferencePlan => false,
         NamedTypeReferencePlan => true,
         _ => true,
     };

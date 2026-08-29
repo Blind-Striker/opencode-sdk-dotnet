@@ -46,6 +46,10 @@ internal sealed class TypePlanBinder(
         SpecialNumberNode => SpecialNumber(),
         NullableNode nullable => BindNullable(nullable, subject, aliases),
         JsonStringNode => Refuse(subject, "JSON-encoded strings are not supported by the M1 emitter"),
+        EncodedStringNode { ContentEncoding: "base64" } => Binary(),
+        EncodedStringNode encoded => Refuse(
+            subject,
+            $"content encoding '{encoded.ContentEncoding}' is not supported by the emitter; only base64 materializes as bytes"),
         TupleNode => Refuse(subject, "tuple schemas are not supported by the M1 emitter"),
         UnionNode { Classification: UnionClassification.Structural } union
             when UnstructuredUnionPolicy.Collapse(union, _graph) is { } collapsed => BindCore(collapsed, subject, aliases),
@@ -131,6 +135,13 @@ internal sealed class TypePlanBinder(
         };
 
     private static SpecialNumberTypeReferencePlan SpecialNumber() =>
+        new()
+        {
+            IsNullable = false,
+            JsonNullRepresentation = JsonNullRepresentation.ClrNull,
+        };
+
+    private static BinaryTypeReferencePlan Binary() =>
         new()
         {
             IsNullable = false,

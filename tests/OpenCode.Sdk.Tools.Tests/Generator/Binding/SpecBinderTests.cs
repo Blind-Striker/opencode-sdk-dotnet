@@ -358,7 +358,7 @@ public sealed class SpecBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Refuse_A_Selected_Operation_With_An_Encoded_String_Member()
+    public async Task Bind_Should_Materialize_A_Base64_String_As_Bytes()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
             .WithSchema("Snapshot", schema => schema
@@ -371,11 +371,36 @@ public sealed class SpecBinderTests
                 .Response(200, "application/json", schema => schema.Ref("Snapshot")))));
         var curation = Curation(Groups("health", RootGroup()));
 
+        var plan = new BindingTestHost().Bind(document, Selection("v2.health.get"), curation);
+
+        var checkpoint = plan.Models
+            .OfType<ObjectModelPlan>()
+            .Single(static model => model.Name == "Snapshot")
+            .Properties
+            .Single(static property => property.WireName == "checkpoint");
+        await Assert.That(TypeReferenceNamePolicy.Format(checkpoint.Type)).IsEqualTo("ReadOnlyMemory<byte>");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Content_Encoding_Other_Than_Base64()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("Snapshot", schema => schema
+                .Type("object")
+                .Property("checkpoint", property => property
+                    .Type("string")
+                    .Format("byte")
+                    .Raw("contentEncoding", "\"base32\""), required: true)
+                .AdditionalPropertiesFalse())
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("Snapshot")))));
+        var curation = Curation(Groups("health", RootGroup()));
+
         var exception = Assert.Throws<BindingException>(
             () => _ = new BindingTestHost().Bind(document, Selection("v2.health.get"), curation));
 
-        var error = exception.Errors.Single(static error => error.Problem.Contains("EncodedStringNode", StringComparison.Ordinal));
-        await Assert.That(error.Problem).Contains("not supported");
+        var error = exception.Errors.Single(static error => error.Problem.Contains("content encoding", StringComparison.Ordinal));
+        await Assert.That(error.Problem).Contains("base32");
     }
 
     [Test]
@@ -1004,6 +1029,30 @@ public sealed class SpecBinderTests
         await Assert
             .That(exception.Errors.Any(static error => error.Subject == "Choice"
                                                        && error.Problem.Contains("reserved carrier member", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Structural_Union_Arm_That_Is_A_Base64_String()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("Choice", schema => schema.AnyOf(
+                branch => branch.Type("string").Format("byte").Raw("contentEncoding", "\"base64\""),
+                branch => branch.Type("boolean")))
+            .WithSchema("Container", schema => schema
+                .Type("object")
+                .Property("choice", property => property.Ref("Choice"), required: true))
+            .WithOperation("v2.choice.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("Container")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.choice.get"),
+            Curation(Groups("choice", RootGroup()))));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Subject == "Choice"
+                                                       && error.Problem.Contains("binary arms are not supported", StringComparison.Ordinal)))
             .IsTrue();
     }
 

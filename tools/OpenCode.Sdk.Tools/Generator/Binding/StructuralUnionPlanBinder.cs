@@ -57,6 +57,11 @@ internal sealed class StructuralUnionPlanBinder
                 continue;
             }
 
+            if (!ValidateNotBinaryArm(type, armNameSubject, key, errors))
+            {
+                continue;
+            }
+
             var armName = ArmName(type);
             if (!ValidateArmName(armName, arms, key, errors))
             {
@@ -107,6 +112,19 @@ internal sealed class StructuralUnionPlanBinder
 
         errors.Add(BindingErrorCategory.Schema, key,
             "a structural special-number arm requires an earlier text branch to own its named string spellings");
+        return false;
+    }
+
+    private static bool ValidateNotBinaryArm(TypeReferencePlan type, string armNameSubject, string key,
+        BindingErrorCollector errors)
+    {
+        if (type is not BinaryTypeReferencePlan)
+        {
+            return true;
+        }
+
+        errors.Add(BindingErrorCategory.Schema, key,
+            $"structural union arm '{armNameSubject}' is a base64 string; binary arms are not supported");
         return false;
     }
 
@@ -175,7 +193,7 @@ internal sealed class StructuralUnionPlanBinder
         tokens = branch switch
         {
             PrimitiveNode { Kind: PrimitiveKind.String } or EnumNode or LiteralNode { Kind: LiteralKind.String }
-                or JsonStringNode => [JsonTokenType.String],
+                or JsonStringNode or EncodedStringNode => [JsonTokenType.String],
             PrimitiveNode { Kind: PrimitiveKind.Number or PrimitiveKind.Integer }
                 or LiteralNode { Kind: LiteralKind.Number } => [JsonTokenType.Number],
             PrimitiveNode { Kind: PrimitiveKind.Boolean } or LiteralNode { Kind: LiteralKind.Boolean } =>
@@ -198,6 +216,7 @@ internal sealed class StructuralUnionPlanBinder
         NamedTypeReferencePlan named => CSharpNamePolicy.ToUnionConceptName(named.Name),
         ListTypeReferencePlan list => $"{ArmName(list.ElementType)}List",
         DictionaryTypeReferencePlan dictionary => $"{ArmName(dictionary.ValueType)}Dictionary",
+        BinaryTypeReferencePlan => throw new InvalidOperationException("Binary arms are refused before naming."),
         _ => throw new InvalidOperationException($"Unknown structural union arm type '{type.GetType().Name}'."),
     };
 }

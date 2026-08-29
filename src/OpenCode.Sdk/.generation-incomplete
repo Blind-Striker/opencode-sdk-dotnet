@@ -130,7 +130,7 @@ Pending:
 - v2.persistentPty.read [bindable]
 - v2.persistentPty.remove [bindable]
 - v2.persistentPty.shutdown [bindable]
-- v2.persistentPty.snapshot [refused: schema node 'EncodedStringNode' is not supported by the M1 emitter]
+- v2.persistentPty.snapshot [bindable]
 - v2.persistentPty.update [bindable]
 - v2.session.stats [refused: query parameter 'tools' has an unsupported schema shape]
 - v2.shell.output [refused: location envelope 'data' must reference a named component schema, or be an array of one]

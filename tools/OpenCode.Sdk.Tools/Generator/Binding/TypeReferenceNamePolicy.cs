@@ -12,6 +12,7 @@ internal static class TypeReferenceNamePolicy
         {
             NamedTypeReferencePlan named => named.Name,
             SpecialNumberTypeReferencePlan => "double",
+            BinaryTypeReferencePlan => "ReadOnlyMemory<byte>",
             ListTypeReferencePlan list => $"IReadOnlyList<{Format(list.ElementType)}>",
             DictionaryTypeReferencePlan dictionary => $"IReadOnlyDictionary<string, {Format(dictionary.ValueType)}>",
             _ => throw new InvalidOperationException($"Unknown type-reference plan '{type.GetType().Name}'."),

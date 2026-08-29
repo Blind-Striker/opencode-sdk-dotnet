@@ -212,6 +212,9 @@ internal static class ModelEmitter
             case NamedTypeReferencePlan { Name: "JsonElement" }:
                 _ = usings.Add("System.Text.Json");
                 break;
+            case BinaryTypeReferencePlan:
+                _ = usings.Add("System");
+                break;
             case ListTypeReferencePlan list:
                 _ = usings.Add("System.Collections.Generic");
                 CollectTypeUsings(list.ElementType, usings);
