@@ -6,9 +6,11 @@ using BenchmarkDotNet.Running;
 namespace OpenCode.Sdk.Performance.Tests.Support.Columns;
 
 /// <summary>
-/// A summary column derived from the case's <see cref="WireFixture"/> and its exact measured
-/// allocation, so wire bytes, item counts, and allocation amplification appear in every
-/// ordinary BenchmarkDotNet report beside the allocated column.
+/// A summary column combining the case's <see cref="WireFixture"/> with its exact measured
+/// allocation, so the per-item and amplification views appear in every ordinary BenchmarkDotNet
+/// report beside the allocated column. The plain fixture figures (wire bytes, items, payload
+/// bytes per item) are emitted by <see cref="WireFixtureDiagnoser"/> as metrics instead, which
+/// renders them as columns and additionally carries them into the full JSON export.
 /// </summary>
 internal abstract class WireFixtureColumn : IColumn
 {
@@ -36,7 +38,7 @@ internal abstract class WireFixtureColumn : IColumn
     {
         ArgumentNullException.ThrowIfNull(summary);
         ArgumentNullException.ThrowIfNull(benchmarkCase);
-        return FindFixture(benchmarkCase) is not { } fixture
+        return WireFixtureParameter.Find(benchmarkCase) is not { } fixture
             ? Unavailable
             : Format(fixture, AllocatedBytes(summary, benchmarkCase)) ?? Unavailable;
     }
@@ -46,7 +48,7 @@ internal abstract class WireFixtureColumn : IColumn
     public bool IsAvailable(Summary summary)
     {
         ArgumentNullException.ThrowIfNull(summary);
-        return summary.BenchmarksCases.Any(static benchmarkCase => FindFixture(benchmarkCase) is not null);
+        return summary.BenchmarksCases.Any(static benchmarkCase => WireFixtureParameter.Find(benchmarkCase) is not null);
     }
 
     /// <summary>Formats the column value, or <see langword="null"/> when it cannot be computed for this case.</summary>
@@ -55,9 +57,6 @@ internal abstract class WireFixtureColumn : IColumn
     protected static string Integer(long value) => value.ToString("N0", CultureInfo.InvariantCulture);
 
     protected static string Ratio(double value) => value.ToString("0.00", CultureInfo.InvariantCulture);
-
-    private static WireFixture? FindFixture(BenchmarkCase benchmarkCase) =>
-        benchmarkCase.Parameters.Items.Select(static parameter => parameter.Value).OfType<WireFixture>().FirstOrDefault();
 
     private static long? AllocatedBytes(Summary summary, BenchmarkCase benchmarkCase) =>
         summary.HasReport(benchmarkCase) ? summary[benchmarkCase]?.GcStats.GetBytesAllocatedPerOperation(benchmarkCase) : null;
