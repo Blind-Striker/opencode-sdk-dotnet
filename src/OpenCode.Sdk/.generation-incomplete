@@ -1,6 +1,6 @@
 Generation is incomplete; packages must not be published.
-Selected operations: 100
-Pending operations: 34
+Selected operations: 103
+Pending operations: 31
 Selected:
 - v2.agent.get
 - v2.agent.list
@@ -18,9 +18,12 @@ Selected:
 - v2.integration.command.cancel
 - v2.integration.command.connect
 - v2.integration.command.status
+- v2.integration.connect.key
 - v2.integration.get
+- v2.integration.list
 - v2.integration.oauth.cancel
 - v2.integration.oauth.complete
+- v2.integration.oauth.connect
 - v2.integration.oauth.status
 - v2.location.get
 - v2.mcp.add
@@ -108,9 +111,6 @@ Pending:
 - v2.fs.find [refused: query parameter 'query' must be optional]
 - v2.fs.list [refused: the payload name cannot be derived mechanically: the group does not pluralize naively; curate an envelope payload name]
 - v2.fs.read [refused: wildcard paths are not supported in M1]
-- v2.integration.connect.key [bindable]
-- v2.integration.list [bindable]
-- v2.integration.oauth.connect [bindable]
 - v2.persistentPty.connect [refused: WebSocket operations are not supported in M1]
 - v2.persistentPty.connectToken [refused: header parameter 'x-opencode-ticket' has no runtime channel]
 - v2.persistentPty.create [bindable]

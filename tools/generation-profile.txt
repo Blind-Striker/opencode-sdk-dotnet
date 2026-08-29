@@ -14,9 +14,12 @@ v2.health.get
 v2.integration.command.cancel
 v2.integration.command.connect
 v2.integration.command.status
+v2.integration.connect.key
 v2.integration.get
+v2.integration.list
 v2.integration.oauth.cancel
 v2.integration.oauth.complete
+v2.integration.oauth.connect
 v2.integration.oauth.status
 v2.location.get
 v2.mcp.add

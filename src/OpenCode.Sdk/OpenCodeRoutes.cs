@@ -488,6 +488,28 @@ public static class OpenCodeRoutes
         }
 
         /// <summary>
+        /// The &apos;GET /api/integration&apos; route template.
+        /// </summary>
+        public const string ListIntegrationsTemplate = "/api/integration";
+        /// <summary>
+        /// Builds the &apos;/api/integration&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ListIntegrations(IntegrationListRequest? request = null)
+        {
+            var path = "/api/integration";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
         /// The &apos;POST /api/integration/{integrationID}/connect/command&apos; route template.
         /// </summary>
         public const string PostCommandConnectTemplate = "/api/integration/{integrationID}/connect/command";
@@ -506,6 +528,35 @@ public static class OpenCodeRoutes
             }
 
             var path = "/api/integration/" + RouteValuePolicy.Escape(integrationId, nameof(integrationId)) + "/connect/command";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/integration/{integrationID}/connect/key&apos; route template.
+        /// </summary>
+        public const string PostConnectKeyTemplate = "/api/integration/{integrationID}/connect/key";
+        /// <summary>
+        /// Builds the &apos;/api/integration/{integrationID}/connect/key&apos; route.
+        /// </summary>
+        /// <param name = "integrationId">The &apos;integrationID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostConnectKey(string integrationId, IntegrationConnectKeyPostRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(integrationId);
+            if (integrationId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(integrationId));
+            }
+
+            var path = "/api/integration/" + RouteValuePolicy.Escape(integrationId, nameof(integrationId)) + "/connect/key";
             if (request is null)
             {
                 return path;
@@ -542,6 +593,35 @@ public static class OpenCodeRoutes
             }
 
             var path = "/api/integration/" + RouteValuePolicy.Escape(integrationId, nameof(integrationId)) + "/connect/oauth/" + RouteValuePolicy.Escape(attemptId, nameof(attemptId)) + "/complete";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/integration/{integrationID}/connect/oauth&apos; route template.
+        /// </summary>
+        public const string PostOauthConnectTemplate = "/api/integration/{integrationID}/connect/oauth";
+        /// <summary>
+        /// Builds the &apos;/api/integration/{integrationID}/connect/oauth&apos; route.
+        /// </summary>
+        /// <param name = "integrationId">The &apos;integrationID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostOauthConnect(string integrationId, IntegrationOauthConnectPostRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(integrationId);
+            if (integrationId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(integrationId));
+            }
+
+            var path = "/api/integration/" + RouteValuePolicy.Escape(integrationId, nameof(integrationId)) + "/connect/oauth";
             if (request is null)
             {
                 return path;

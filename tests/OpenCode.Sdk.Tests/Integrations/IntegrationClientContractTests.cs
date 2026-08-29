@@ -75,4 +75,93 @@ public sealed class IntegrationClientContractTests
         await Assert.That(response.Status).IsEqualTo(401);
         await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
     }
+
+    [Test]
+    public async Task PostConnectKeyAsync_Should_Send_The_Typed_Body_On_The_Handle_Route()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
+
+        var response = await scenario.Client.Integrations.GetIntegrationClient("int_1")
+            .PostConnectKeyAsync(new IntegrationConnectKeyPostRequest { Key = "sk-test" });
+
+        await Assert.That(response.Status).IsEqualTo(204);
+        await Assert.That(response.IsError).IsFalse();
+        var request = scenario.Requests.Single();
+        await Assert.That(request.RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/integration/int_1/connect/key"));
+        await Assert.That(request.Body).IsEqualTo("{\"key\":\"sk-test\"}");
+    }
+
+    [Test]
+    public async Task PostConnectKeyAsync_Should_Throw_The_Declared_400_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.InvalidRequestError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Integrations.GetIntegrationClient("int_1")
+                .PostConnectKeyAsync(new IntegrationConnectKeyPostRequest { Key = "sk-test" }))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(400);
+        await Assert.That(exception.Error).IsTypeOf<InvalidRequestError>();
+    }
+
+    [Test]
+    public async Task PostConnectKeyAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Integrations.GetIntegrationClient("int_1").PostConnectKeyAsync(
+            new IntegrationConnectKeyPostRequest { Key = "sk-test" },
+            requestOptions: OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
+
+    [Test]
+    public async Task PostOauthConnectAsync_Should_Return_The_Typed_Attempt()
+    {
+        const string attempt = "{\"attemptID\":\"att_1\",\"url\":\"https://example.test/authorize\","
+            + "\"instructions\":\"Open the link\",\"mode\":\"auto\",\"time\":{\"created\":1,\"expires\":2}}";
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.LocationEnvelope(attempt));
+
+        var response = await scenario.Client.Integrations.GetIntegrationClient("int_1")
+            .PostOauthConnectAsync(new IntegrationOauthConnectPostRequest { MethodId = "github" });
+
+        await Assert.That(response.OauthConnect.AttemptId).IsEqualTo("att_1");
+        await Assert.That(response.OauthConnect.Url).IsEqualTo("https://example.test/authorize");
+        await Assert.That(response.OauthConnect.Mode).IsEqualTo(IntegrationAttemptMode.Auto);
+        await Assert.That(scenario.Requests.Single().RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/integration/int_1/connect/oauth"));
+        await Assert.That(scenario.Requests.Single().Body).IsEqualTo("{\"methodID\":\"github\"}");
+    }
+
+    [Test]
+    public async Task PostOauthConnectAsync_Should_Throw_The_Declared_400_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.InvalidRequestError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Integrations.GetIntegrationClient("int_1")
+                .PostOauthConnectAsync(new IntegrationOauthConnectPostRequest { MethodId = "github" }))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(400);
+        await Assert.That(exception.Error).IsTypeOf<InvalidRequestError>();
+    }
+
+    [Test]
+    public async Task PostOauthConnectAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Integrations.GetIntegrationClient("int_1").PostOauthConnectAsync(
+            new IntegrationOauthConnectPostRequest { MethodId = "github" },
+            requestOptions: OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
 }
