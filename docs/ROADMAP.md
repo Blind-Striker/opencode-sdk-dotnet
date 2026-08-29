@@ -474,6 +474,30 @@ materialize. Upstream-report candidate discovered: `session.idle` is deprecated 
 publisher while `SessionIdle` remains in the event union. **The service-parity follow-up arc
 remains queued** (Milestones, M4).
 
+**The persistent PTY family arc is complete** (2026-08-29; plan:
+`docs/superpowers/plans/2026-08-29-persistent-pty-family.md`; decisions and live evidence: research
+log Q156). ADR-0021's ownership pattern now covers both PTY families: `persistentPty` is a curated
+`internalRaw` group keyed on `ptyID`, its ten HTTP operations selected behind the hand-written
+`PersistentPtysClient`/`PersistentPtyClient` doors, and `v2.persistentPty.connect` is
+fingerprint-pinned transport-owned beside `v2.pty.connect` — **the profile stands at 122 selected /
+12 pending / 2 transport-owned** of 136, with the full gate green at **4,004 tests**. The mechanism
+the family needed landed first: a `contentEncoding: base64` string now materializes as
+`ReadOnlyMemory<byte>` and every other encoding refuses, which is what `snapshot`'s `checkpoint`
+required. `PtySession`'s socket lifecycle became the family-neutral `TerminalSocketCore<TFrame>`
+behind three named seams — decode, close, and upgrade failure — with the normal family's public
+surface unchanged, and `PersistentPtySession` rides the same core: `ConnectAsync` returns only
+after the server's `attached` frame and exposes it, output and checkpoints are bytes, input is the
+`input_protocol=1` framed layout with viewport tracking, the closed frame hierarchy carries an
+unknown control type rather than failing the read, and 4404 covers "no such terminal" and "no
+daemon" alike. Test reach grew with it: the exact-pin fixture gained an external-endpoint mode,
+`PersistentPtyDaemonGate` picks the live test's arm, and the sandbox README records the WSL2
+recipe. **What is pending:** the maintainer's hosted three-OS run and the WSL2 run — the live
+test's round-trip arm has not executed anywhere yet, only its daemon-absent arm, which passed here;
+the `handoff` door's promoted-body accessor (`response.Handoff.Handoff`), parked for the pre-1.0
+surface review because flattening it needs an envelope-facet mechanism rather than a curation row;
+and a rerun of the `PtySession` read benchmark ladder, since the shared core added one interface
+dispatch per frame.
+
 ## Milestones
 
 Deliverable-first: every milestone ends in something callable or demonstrable. The next
@@ -528,8 +552,9 @@ is revisited at each milestone boundary.
    operation `[bindable]`/`[refused: …]` in the committed `.generation-incomplete`, bridging until
    the inventory lane's standardized tracking. What remains is the rest of target admission over
    the refreshed surface: the no-wall sweep's 14-operation pool the C2 probe surfaced is closed
-   (S2 batch A and S3 batch B both landed), so what is left is the remaining mechanism batches,
-   persistentPty's HTTP batch, exclusion fingerprints (ADR-0008),
+   (S2 batch A and S3 batch B both landed) and so is the persistentPty family, so what is left is
+   the remaining mechanism batches, the curation-only trio (`vcs.base`, `config.get`, `fs.list`),
+   exclusion fingerprints (ADR-0008),
    the operation inventory and assurance ledger — whose design also standardizes
    pending-operation bindability tracking, so a wall-free pending operation surfaces as a
    committed-artifact diff at every generate/refresh instead of accumulating unseen (maintainer
@@ -641,13 +666,28 @@ is revisited at each milestone boundary.
   `refresh-spec` prepare reports each entry's hash and anchor in the receipt (`watchedSources`),
   verify checks the pins, apply re-pins over the reviewed receipt. A review trigger only, never a
   generation input (ADR-0013); its stated blind spot is behavior added in a file the list does
-  not name, backstopped by the sandbox PTY leg today and the M6 canary later. (3)
+  not name, backstopped by the sandbox PTY legs today and the M6 canary later. Both hand-written
+  families now supply their input list. **Normal PTY:** `packages/server/src/handlers/pty.ts`
+  (4404 not-found/exited, 1000 normal end, ticket consume, cursor coercion at or above −1,
+  `PtyProtocol.chunks` and the meta frame), `packages/server/src/middleware/authorization.ts` (a
+  non-empty `ticket` query skips credentials), `packages/protocol/src/groups/pty.ts` (the
+  `x-opencode-ticket` header name and the ticket query), `packages/core/src/pty/protocol.ts` (the
+  `0x00` control marker and replay chunking), `packages/core/src/pty/ticket.ts` (60 s TTL,
+  single-use consume), `packages/core/src/pty.ts` (replay buffer limit, exit handling, attach),
+  and `packages/server/src/routes.ts` (handler wiring). **Persistent PTY** adds
+  `packages/protocol/src/groups/persistent-pty.ts`,
+  `packages/server/src/handlers/persistent-pty.ts`, `packages/core/src/persistent-pty/index.ts`,
+  `packages/core/src/persistent-pty/daemon.ts`, `packages/schema/src/persistent-pty.ts`, the
+  daemon's location and pin (`packages/core/src/persistent-pty/binary.bun.ts`, `binary.node.ts`,
+  `pty-binding.ts`, and `packages/core/package.json`), `packages/server/src/process.ts`, and — as
+  behavioral oracles rather than contracts — `packages/server/test/persistent-pty.test.ts`,
+  `packages/client/src/solid/pty.ts`, and `packages/tui/src/component/terminal-pane.tsx`. (3)
   *transport-owned leaves pending* — **landed 2026-08-29**: `SpecBinder` derives pending as the
   unselected operations without a fingerprint-pinned `transportOwned` row (a selected operation
   with such a row refuses), the marker carries a fixed `Transport-owned operations:` count and a
   `Transport-owned:` section while it exists (emitted even when empty, so a row's arrival or
   retirement is a one-line diff), and the canon marker sentence reads "unselected and not
-  transport-owned". The profile reads **112 selected / 23 pending / 1 transport-owned** at 3,533
-  tests, and the packing wall is satisfiable at full admission; the prerelease-versus-stable
-  wording of that wall stays a release-prep decision. Sequenced: (1) and (2) as the tools touch
-  after the persistentPty batch, beside the `ToolJsonContext` `NewLine` pin.
+  transport-owned". The marker reads **122 selected / 12 pending / 2 transport-owned**, and the
+  packing wall is satisfiable at full admission; the prerelease-versus-stable wording of that wall
+  stays a release-prep decision. Sequenced: (1) and (2) as the next tools touch, beside the
+  `ToolJsonContext` `NewLine` pin.

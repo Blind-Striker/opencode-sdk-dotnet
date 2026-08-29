@@ -15,6 +15,14 @@ compilation locally. The ticket constant is applied internally and never supplie
 family may not bypass the generic envelope machinery for represented responses. This is a bounded
 family-ownership exception to ADR-0008's generated-surface rule, not a reversal of it.
 
+**Scope (revised 2026-08-29):** the persistent PTY family (`v2.persistentPty.*`) follows the
+same ownership pattern for the same two reasons — its `connect` operation is a WebSocket
+upgrade and its connect-token handshake requires the same `x-opencode-ticket` sentinel — while
+its wire differs from the normal family's (binary output, JSON text control frames, framed
+input, a cursor domain without a live-only mode, no pre-upgrade existence check). Both
+families' public doors are hand-written over generated internal raw clients and share one
+family-neutral socket core behind named decode, close, and upgrade seams.
+
 ## Considered options
 
 - Split ownership through partial classes (generated CRUD public; hand-written session and token

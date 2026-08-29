@@ -1,6 +1,6 @@
 # Protocol and Generation Architecture
 
-Date: 2026-08-27
+Date: 2026-08-29
 
 Canonical current rules for the protocol surface, generator, generated models, and runtime
 materialization boundary. ADRs record why these decisions were made; dated research records the
@@ -85,6 +85,9 @@ implementation knowledge (ADR-0013).
 - A required or present value uses nullable C# only when the selected representation needs CLR null
   to materialize JSON null. A source-generation-proven in-band null carrier remains non-nullable;
   `JsonElement` currently carries JSON null through `JsonValueKind.Null` (ADR-0004, ADR-0014).
+- A string declaring `contentEncoding: base64` materializes as `ReadOnlyMemory<byte>` — a
+  represented token conversion the serializer performs natively; any other content encoding fails
+  closed (ADR-0014).
 - Optional collections remain nullable. Generated collection properties expose shallow
   `IReadOnlyList<T>` or `IReadOnlyDictionary<string, T>` references without defensive copies,
   read-only wrappers, empty normalization, or recursive child validation. Callers retain ownership

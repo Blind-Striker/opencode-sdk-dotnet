@@ -1,6 +1,6 @@
 # Testing Style — authoring tests
 
-Date: 2026-08-18
+Date: 2026-08-29
 
 Binding authorship style for every test in this repository. `quality-gates.md` owns the
 current assurance posture and completion gates; operational build-out state belongs in
@@ -133,7 +133,10 @@ unsupported OpenAPI constructs and prove the exact required/null-representation 
 - Full-spec count assertions against the pin — counts are research-doc facts, and a
   count test turns every legitimate spec refresh into noise.
 - `Skip` outside a mechanism that is implemented, documented, and sanctioned by the current test
-  architecture. The container conditional skip is the only such mechanism today.
+  architecture. The container conditional skip is the only such mechanism today. A platform-gated
+  live leg is not a skip: it asserts the arm the platform can reach (the daemon-absent 503 where
+  the opencode-pty daemon cannot run, the full flow where it can), names the branch it took, and
+  both branches assert.
 - A second filesystem fake, a resurrected retired helper, or infrastructure kept "just
   in case" — deleted code is recoverable from git.
 - Testing library internals (the OpenAPI reader's conformance, TUnit itself, the BCL)

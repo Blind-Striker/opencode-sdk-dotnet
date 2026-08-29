@@ -72,6 +72,28 @@ retained buffer, `-1` attaches live-only, and a value at or above zero resumes f
 The short-lived, single-use credential the token door mints for handing a PTY connection to a
 browser. The SDK never mints one for its own connection.
 
+**Persistent PTY**:
+A terminal owned by the `opencode-pty` daemon rather than by the Server process; it survives a
+server restart through a handoff, is keyed to a Session, and is the source of `read`'s "current
+terminal".
+
+**Attachment**:
+One live connection to a Persistent PTY: its identity, its controller/observer role, the resize
+generation it attached at, and the replay bounds the server granted it.
+
+**Controller / Observer**:
+The two roles a Persistent PTY grants an Attachment. A Controller writes input and resizes; an
+Observer reads output only, and its input is dropped server-side. The server grants the role, so
+it is not necessarily the one the connection asked for.
+
+**Checkpoint**:
+The terminal-escape byte stream that repaints a screen state, carried base64 on the wire and as
+bytes in the SDK.
+
+**Framed input**:
+The `input_protocol=1` layout a Persistent PTY connection writes: `[type][cols][rows][data]`, so
+every input or control message carries the viewport it was typed at.
+
 ### This project's language
 
 **Protocol surface** (historically "modern surface" in dated research docs):
@@ -150,6 +172,11 @@ door that builds its own transport instead of riding the HTTP pipeline.
 **PTY frame**:
 One message read from a PTY connection — either output text or the single cursor control frame
 the server sends once the retained buffer has been replayed.
+
+**Terminal socket core**:
+The family-neutral WebSocket lifecycle both PTY sessions share — receive and reassembly,
+serialized sends, bounded close, disposal — with per-family decode, close, and upgrade-failure
+behavior behind named seams.
 
 **Connection snapshot**:
 The construction-time endpoint, credential, and ambient location the pipeline publishes for a

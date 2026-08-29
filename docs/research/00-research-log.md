@@ -4377,3 +4377,97 @@ receipt and the generation manifest are written with CRLF bodies and a bare-LF t
 (`git ls-files --eol` reports `w/mixed`); the repository's `eol=lf` attribute normalizes the
 committed blobs, so it is cosmetic — a one-line `NewLine` pin with a no-CR test is queued as a
 hygiene item.
+
+## Q156: What did the persistent PTY family arc land, and what did the live proof show?
+
+**Method (2026-08-29):** the maintainer-approved plan
+(`docs/superpowers/plans/2026-08-29-persistent-pty-family.md`, every decision resolved at plan
+review) ran task-by-task on the branch `feature/persistent-pty-family` inside the existing working
+tree rather than a worktree — the exact-pin fixture needs the initialized submodule and its `bun
+install` output, which a second checkout would have to rebuild — with a fresh implementer per task,
+an independent review per task, and scoped re-reviews per fix round. Eight tasks, three fix rounds
+in total. The protocol evidence is a read-only source study of `external/opencode` at the accepted
+pin `106629aa` (the protocol group, the server handler, the core, and the daemon), carried into the
+plan as decided facts so no task re-derived them.
+
+**What landed,** in order: the generator now materializes a `contentEncoding: base64` string as
+`ReadOnlyMemory<byte>` through a `BinaryTypeReferencePlan`, refusing every other encoding by name
+and refusing a binary arm inside a structural union — the mechanism `persistentPty.snapshot`'s
+`checkpoint` needed (`c5e703c`). The family then flipped to a curated `internalRaw` group keyed on
+`ptyID`, with ten HTTP operations selected and their public doors hand-written over the generated
+raw clients: `PersistentPtysClient` (`ListPersistentPtysAsync`, `CreatePersistentPtyAsync`,
+`ReadAsync`, `HandoffAsync`, `ShutdownAsync`, `GetPersistentPtyClient`) and `PersistentPtyClient`
+(`GetPersistentPtyAsync`, `UpdatePersistentPtyAsync`, `RemovePersistentPtyAsync`,
+`GetSnapshotAsync`, `CreateConnectTokenAsync`), the last of which shares the normal family's ticket
+sentinel through a new internal `PtyTicketHeader` (`726a564`). `PtySession`'s socket lifecycle was
+extracted into the family-neutral `TerminalSocketCore<TFrame>` behind
+`ITerminalFrameDecoder<TFrame>`, `ITerminalClosePolicy`, and `ITerminalUpgradeFailurePolicy`,
+leaving the normal family's public surface untouched (`c49b49e`). `PersistentPtySession` and
+`PersistentPtyClient.ConnectAsync` followed (`ccb5376`, fix `2514a60`), then the `transportOwned`
+fingerprint over `v2.persistentPty.connect` (`efac958`), the exact-pin fixture's external-endpoint
+mode with `PersistentPtyDaemonGate` and the WSL2 recipe (`5997172`, fix `68a03c3`), and the live
+test plus the sandbox walkthrough leg (`9cdc53d`, fix `db7de72`).
+
+**The protocol facts that became runtime behavior.** This family's wire is the normal family's
+inverted, and each difference is a named piece of code rather than a comment. Output rides binary
+messages and control frames ride JSON text, so `PersistentPtyOutputFrame` carries bytes and the
+decoder is `PtyFrameReader`'s mirror. There is no pre-upgrade existence check, so
+`PersistentPtyUpgradeFailurePolicy` has no 404 arm at all — 400 for a rejected connect query,
+401/403 for credential or origin — and `PersistentPtyClosePolicy` owns 4404 instead. The server
+sends exactly one `attached` frame before any replay, and everything a session needs to speak the
+wire correctly rides only there, so `ConnectAsync` returns only after it and exposes it as
+`Attachment`; a server negotiating any input protocol but the framed one fails at connect rather
+than mid-stream. Input is framed `[type u8][cols u16 BE][rows u16 BE][data]` with the viewport on
+every message, so the session tracks the viewport off the resize frames instead of freezing it at
+attach. The cursor domain has no live-only mode — 0 is the oldest retained byte, not "replay
+nothing" — and per-frame offsets are not on the wire, so a resume anchors on `replay_complete`'s
+`endOffset` or on `Info.output.tail`. The socket is declared experimental and may grow control
+kinds, so an unrecognized `type` is carried as `PersistentPtyUnknownFrame` rather than failing the
+read.
+
+**The daemon, and what it does to CI.** The `opencode-pty` daemon (npm `@opencode-ai/pty`) ships
+darwin and linux platform binaries only at the pin — there is no win32 package — and the server
+spawns it as a detached child reached over a Unix domain socket, so neither a daemon-alone
+container nor a Windows workstation can host one. That shapes the proof instead of skipping it:
+`PersistentPtyLiveTests` has two asserting arms selected by `PersistentPtyDaemonGate` (platform
+default, `OPENCODE_SDK_TESTS_PTY_DAEMON` override), and the arm that ran names itself on the
+console. The daemon-absent arm ran here and passed, measuring every route's daemon-absent answer at
+once:
+
+```text
+ppty-live: arm=daemon-absent create=503 service=opencode-pty list=0 read=<null> handoff=<null> shutdown=204
+```
+
+**The round-trip arm has not executed anywhere yet.** Its first execution is the maintainer's hosted
+three-OS run or a WSL2 run, both pending at the time of writing, so what this entry records is a
+compiled, reviewed, and unexecuted arm — not a passed one. That hosted run is also the first time
+the daemon starts under CI at all, which is the named risk of the push.
+
+**The WSL2 recipe** (`tests/OpenCode.Sdk.Sandbox/README.md`) is the workstation-side answer: a
+server built from the same submodule commit inside WSL2, whose linux package does carry the daemon
+binary, reached from Windows through the fixture's external-endpoint mode
+(`OPENCODE_SDK_TESTS_ENDPOINT`/`OPENCODE_SDK_TESTS_PASSWORD`) with
+`OPENCODE_SDK_TESTS_PTY_DAEMON=1` opting the gate back into the daemon-present arm. The exact-pin
+discipline becomes the operator's there: the fixture prints both commits so a mismatch is visible,
+but it cannot verify a source run's version. Recorded, not yet run.
+
+**Upstream-report candidates.** (1) `persistentPty.read`'s `lines` query is a bare string in the
+document (`PersistentPty.ReadLinesEncoded`) while the handler decodes an integer 1..65535 and
+answers 400 outside it — the range is invisible to any generated client. (2) The connect close code
+4404 is overloaded: "the terminal does not exist" and "the daemon is unavailable" share one code
+with nothing on the wire to tell them apart, which is why the SDK's close message has to name both.
+(3) `v2.persistentPty.connect` declares 404 `PtyNotFoundError` and 503 `ServiceUnavailableError`
+arms its handler cannot produce, because it upgrades before it checks either — declared answers the
+wire never gives. All three join the parked set beside the undeclared `x-opencode-ticket` value,
+which this family's token door requires exactly as the normal family's does.
+
+**Outstanding:** the round-trip arm's first live execution; the `handoff` door's accessor shape —
+its `{handoff: …}` body binds as a promoted body model, so a caller reads
+`response.Handoff.Handoff`, parked for the pre-1.0 surface review because flattening it needs an
+envelope-facet mechanism rather than a curation row; and a rerun of the `PtySession` read
+benchmark ladder, since the shared core added one interface dispatch per frame.
+
+**Evidence:** the full gate is green at the branch head — slopwatch 0, a Release build with zero
+warnings, `dotnet format` clean, **4,004 tests** on all TFMs, and `generate --verify` current with
+the marker at **122 selected / 12 pending / 2 transport-owned** of 136. The branch is unmerged and
+unpushed, awaiting the maintainer's merge and the hosted run.

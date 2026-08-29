@@ -1,6 +1,6 @@
 # Client Runtime Architecture
 
-Date: 2026-08-27
+Date: 2026-08-29
 
 Canonical current rules for client construction, transport ownership, API errors, streams, and the
 local server launcher. Protocol and generated-model rules live in
@@ -62,7 +62,7 @@ local server launcher. Protocol and generated-model rules live in
 
 ## PTY family ownership
 
-- The normal PTY family is the one family whose **public** surface is hand-written:
+- The normal PTY family is one of the two families whose **public** surface is hand-written:
   `PtysClient` and `PtyClient` live in `src/OpenCode.Sdk/Ptys/` as ordinary hand-written code,
   and the generator emits `PtysRawClient`/`PtyRawClient` internally beside them under the
   `internalRaw` curation emission. Everything else the family needs — routes, query shapers,
@@ -143,6 +143,88 @@ local server launcher. Protocol and generated-model rules live in
   one outstanding send. Caller cancellation stays `OperationCanceledException`. Disposal closes
   gracefully under a bounded wait, then tears the socket down; it is idempotent, and a dispose
   racing a pending read completes that read as a normal end rather than a fault.
+
+### Persistent PTY family
+
+- The persistent PTY family carries the same ownership: `PersistentPtysClient` and
+  `PersistentPtyClient` live in `src/OpenCode.Sdk/PersistentPtys/` as hand-written code over the
+  generated `PersistentPtysRawClient`/`PersistentPtyRawClient` beside them, under the same
+  `internalRaw` curation emission, with routes, adapters, verdicts, wire models, envelopes, and
+  serializer metadata all still generated (ADR-0021). Placement follows ADR-0019 over the group's
+  `ptyID` handle parameter: the id-keyed operations sit on the bound handle, while the
+  session-keyed `list`, `create`, and `read` and the unkeyed `handoff` and `shutdown` sit on the
+  collection client with their route values as arguments, exactly as upstream flattens the group.
+- **The doors.** `PersistentPtysClient` carries `ListPersistentPtysAsync(sessionId)`,
+  `CreatePersistentPtyAsync(sessionId, request)`, `ReadAsync(sessionId, …)`, `HandoffAsync`,
+  `ShutdownAsync`, and `GetPersistentPtyClient(ptyId)`; the handle carries `GetPersistentPtyAsync`,
+  `UpdatePersistentPtyAsync`, `RemovePersistentPtyAsync`, `GetSnapshotAsync`,
+  `CreateConnectTokenAsync`, and `ConnectAsync`. `HandoffAsync` and `ShutdownAsync` are
+  server-lifecycle doors rather than terminal doors: the first prepares the daemon to outlive this
+  server until a replacement claims it, the second stops the daemon and every terminal it owns.
+  `CreateConnectTokenAsync` applies the `x-opencode-ticket` sentinel through the internal
+  `PtyTicketHeader` both families share, since both connect-token handlers require the same value.
+- **Connect and attach.** `PersistentPtyClient.ConnectAsync` opens `PersistentPtySession` and
+  returns only after the server's `attached` frame, so `PersistentPtySession.Attachment` is always
+  known: the attachment identity, the negotiated input protocol, the terminal as it stood, the
+  granted role — which is not necessarily the role the request asked for — the resize generation,
+  and the replay bounds. That frame is consumed at connect and never yielded to a read, and a
+  server negotiating any input protocol but the framed one is a connect-time protocol failure. The
+  upgrade is the same transport divergence the normal family's is; the address is
+  `/api/experimental/persistent-pty/{ptyID}/connect` and its query carries no location, because
+  this family's terminals are keyed by id alone.
+- **Bytes, not text.** Output rides binary messages, so `PersistentPtyOutputFrame.Data` is
+  `ReadOnlyMemory<byte>` and nothing is decoded: a frame is free to split a multi-byte character,
+  and a caller feeding an emulator writes the bytes as they are. A screen checkpoint — the
+  terminal-escape stream that repaints a screen state — is bytes for the same reason, on
+  `PersistentPtySnapshot.Checkpoint` and on the resize frame alike: base64 on the wire,
+  `ReadOnlyMemory<byte>` in the SDK.
+- **Frames.** `ReadAsync` yields a closed `PersistentPtyFrame` hierarchy — one named
+  `PersistentPty*Frame` type each for the attached, output, replay-complete, resized, exited,
+  controller-changed, title-changed, and foreground-process-changed messages — plus
+  `PersistentPtyUnknownFrame`, which carries a control `type` this SDK does not know together with
+  its raw body instead of failing the read, because the socket is an experimental surface that may
+  grow kinds. A body that is not a JSON object
+  carrying a string `type`, and a known frame whose members cannot be read, are both protocol
+  failures, reported apart because they mean different things.
+- **Input.** `WriteAsync(ReadOnlyMemory<byte>)` and `ResizeAsync(cols, rows)` each send one binary
+  message in the framed input protocol's layout — `[type u8][cols u16 BE][rows u16 BE][data]`,
+  type 1 for input and type 0 for a viewport change — which the SDK negotiates on every connection
+  and is the only protocol it writes. The viewport is a wire fact, not a caller preference: the
+  session starts it at the attachment's size and follows every resize frame the read enumeration
+  yields, whoever caused it, so a later write carries the size the server believes. Input from a
+  connection the server attached as an observer is accepted here and dropped there.
+- **Cursor.** `PersistentPtyConnectOptions.Cursor` is a relay to the connect query and nothing
+  more. There is no live-only mode here: null replays from the oldest retained byte, and zero means
+  the same rather than "replay nothing". The server accepts JavaScript safe integers at or above
+  zero and answers HTTP 400 before the upgrade for anything else, so the option refuses an
+  out-of-range value rather than spending a round trip on it. Per-frame offsets are not on this
+  wire, so a resume anchors on the previous connection's replay-complete `EndOffset` or on the
+  terminal's `Info.Output.Tail`; a cursor pointing at trimmed output is advanced by the server,
+  which reports the gap through the attachment's replay bounds.
+- **Close.** 1000 ends the enumeration normally. 4404 means the terminal does not exist **or** the
+  `opencode-pty` daemon is unavailable — one application code for both causes, which a caller
+  cannot tell apart from the wire — and because this family runs no pre-upgrade existence check it
+  arrives before the `attached` frame, so `ConnectAsync` surfaces it rather than the first read.
+  Any other close is abnormal.
+- **Failed upgrade.** The connect query and the credential are checked before the upgrade: 400
+  names the rejected query (the cursor is the value that can produce it), 401 and 403 name the
+  rejected credential or origin, and any other status is named as the answer it was. There is
+  deliberately no 404 arm even though the pinned document declares one — a missing terminal
+  upgrades and then closes 4404.
+- **Daemon facts a caller must know.** These terminals belong to the `opencode-pty` daemon rather
+  than to the server process: the server spawns it as its own child, and the terminals survive a
+  server restart through `handoff`. At the accepted pin the daemon ships darwin and linux platform
+  packages only, so on any other platform `create` — the one route that starts it — answers the
+  declared 503 whose `service` is `opencode-pty`, while the rest take their daemon-absent arms:
+  `list` an empty list, `read` a null payload, the id-keyed reads and writes a 404 they share with
+  an unknown id, `shutdown` a 204, and `connect` a 4404 close. `ShutdownAsync` ends every terminal
+  the daemon owns, not one.
+- **Shared core.** Both families' sessions run on the internal, family-neutral
+  `TerminalSocketCore<TFrame>` — receive with fragment reassembly, serialized sends, a bounded
+  graceful close, idempotent disposal, and one active read enumeration — and differ only behind
+  three named seams: `ITerminalFrameDecoder<TFrame>` for what a message carries,
+  `ITerminalClosePolicy` for what a close status means, and `ITerminalUpgradeFailurePolicy` for
+  what a refused upgrade means.
 
 ## Error channels
 
