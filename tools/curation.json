@@ -181,6 +181,11 @@
       "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
     },
     {
+      "operationId": "server.experimental.persistentPty.read",
+      "identity": "v2.persistentPty.read",
+      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
+    },
+    {
       "operationId": "server.experimental.persistentPty.remove",
       "identity": "v2.persistentPty.remove",
       "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."

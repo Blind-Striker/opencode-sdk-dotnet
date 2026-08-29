@@ -411,7 +411,9 @@ duplicated across `SchemaNameResolver`/`EnvelopeFacetBinder` — the one with a 
 hazard, since a one-sided widening would fall back to a pointer-derived name with no wall to catch
 it; the `ComposeRegistry`/`RegistryPlan.PayloadEntries` doc one-liners; the
 `SerializerTypeNamePolicy`/`RegistryEmitter` dedupe + nested-recursion unit rows; the
-`PayloadTypeName` `Response`-suffix test row; the `AssertMissingDataFailsAsync` rename) and a
+`PayloadTypeName` `Response`-suffix test row; the `AssertMissingDataFailsAsync` rename; the
+`ToolJsonContext` `NewLine` pin so receipts and the generation manifest stop being written with
+mixed line endings on Windows, research log Q155) and a
 *vcs.status contract top-up* (empty-list, location-query, protocol-failure tests). The benchmark
 coverage batch (recorded above) and the release track remain queued.
 
@@ -431,6 +433,19 @@ with no curation needed beyond correcting the `session.form.list` naming reason'
 wording now that `session.form.create` is selected alongside it in the same client family with
 no collision. The profile stands at **112 selected / 22 pending**, closing the sweep's full
 14-operation pool.
+
+**The fourth receipt-governed refresh is complete** (2026-08-29; evidence: research log Q155). The
+accepted snapshot is **`106629aa`** — a fast-forward of `d2ee536c` this time (120 commits, four
+touching `packages/protocol`), adding two operations, both pending and both marked `[bindable]`
+by the telltale: `server.experimental.persistentPty.read` (session-keyed, through a tenth T3
+identity row) and `v2.vcs.base`; three components (`PersistentPty.ReadResult`,
+`PersistentPty.ReadLinesEncoded`, `Vcs.Base`); `Vcs.Mode` gains `committed`; `vcs.diff` gains a
+`base` query and a 503 arm; two duplicated-`anyOf` 404 arms simplify to one `$ref`.
+Generated source did not change and the PublicApi baseline is untouched. The SSE Restore patch
+still applies with byte-identical preimages and PR #45182 remains open; upstream's #45969
+refreshed its committed baseline, so raw equals generated baseline at the tip and the T7 report
+retires unfiled. The profile stands at **112 selected / 24 pending**, the full gate is green at
+3,530 tests.
 
 **M4's launcher arc is complete** (2026-08-28; evidence: research log Q153; plan executed
 task-by-task with independent reviews and a clean final whole-branch review).
@@ -537,10 +552,11 @@ is revisited at each milestone boundary.
   are numeric `limit`/`after` decode targets emitted only as strings. Reports stay diagnostic and
   never feed generation or curation (ADR-0013, research Q107/Q108).
 - **Parked upstream reports (doc 21 C4)** — filed when the maintainer chooses, not on a schedule:
-  the eight off-convention `persistentPty.*` operationIds (T3 — draft ready under
+  the ten off-convention `persistentPty.*` operationIds (T3 — draft ready under
   `.scratchpad/upstream-issue-drafts/`), the missing `HttpApiSecurity` declaration behind
-  `security: []` (T2), the 25 lost `Config.Info` descriptions (T6), the stale committed document
-  (T7), and the undeclared `x-opencode-ticket` value.
+  `security: []` (T2), the 25 lost `Config.Info` descriptions (T6), and the undeclared
+  `x-opencode-ticket` value. T7 (the stale committed document) resolved upstream at `106629aa`
+  and needs no report.
 - **Release mechanics** — decided parts live in ADR-0006 (independent semver, per-merge
   GitHub Packages CD, manual NuGet.org releases). Pre-1.0 numbering, `VersionPrefix`,
   RELEASE_NOTES flow, and the concrete workflows are scheduled when the first publishable

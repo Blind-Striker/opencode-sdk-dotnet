@@ -1,6 +1,6 @@
 # Research log — 2026-08-08
 
-Date: 2026-08-27
+Date: 2026-08-29
 
 > Dated evidence and decision history, not current policy. Follow current canon through
 > `AGENTS.md`; later sessions in this log intentionally supersede some earlier conclusions.
@@ -4333,3 +4333,47 @@ standardizes pending-operation tracking.
 commit `9cff200`, which touched no generator/spec code) reports 3,282/3,282 tests and slopwatch at
 exactly the two ledgered SW004 residuals with zero new findings; `generate --verify` was last run,
 and last applicable, at the `vcs.branches` fix-round commit `142d6fa`, current at 98/36.
+
+## Q155: What did the fourth receipt-governed refresh land, and what did its walls catch?
+
+**Method (2026-08-29):** the per-session cadence (ADR-0020) opened with `refresh-spec --ref
+origin/v2`. Unlike Q152, the tip was a **fast-forward** — `d2ee536c` is an ancestor of `106629aa`
+— so commit-range evidence is trustworthy again: 120 commits, four touching `packages/protocol`
+(#45792 experimental terminal reads, #45969 committed-baseline refresh, #45994, and the TUI
+branch-review-scopes commit). A structural preview of the delta preceded prepare; the receipt was
+maintainer-reviewed before apply.
+
+**The refresh:** `d2ee536c` → `106629aa` — 136 operations (+2/−0), 342 components (+3),
+`contentSchema` restored at 2 by the unchanged SSE patch. The delta:
+`server.experimental.persistentPty.read` (GET `/api/experimental/session/{sessionID}/terminal/read`
+— **session-keyed**, unlike the rest of its family, which chains on a pty id; an optional `lines`
+query typed through the `PersistentPty.ReadLinesEncoded` string; a nullable
+`PersistentPty.ReadResult` payload carrying the screen text, dimensions, and cursor), `v2.vcs.base`
+(GET with the location query and the `DataLocation` envelope over a nullable `Vcs.Base`),
+`Vcs.Mode` gaining `committed`, `v2.vcs.diff` gaining a `base` query and a 503 arm, and
+the 404 arms of `v2.session.form.list`/`v2.session.permission.list` simplified from a duplicated
+`anyOf[ref, ref]` to the single `$ref`.
+
+**What the walls caught:** only the T3 identity wall, on `persistentPty.read`'s leaked group id —
+a tenth `operationIdentities` row beside its siblings, same reason text. No alias wall fired: the
+raw tip introduces no new stabilize duplicate. The regenerated marker adds
+`v2.persistentPty.read [bindable]` and `v2.vcs.base [bindable]` with every pre-existing mark
+unchanged — the first refresh the bindability telltale (S1) has observed, showing exactly the
+refresh-side drift it was built to surface. **Generated source did not change at all:** the
+duplicated-`anyOf` 404s bound to the same single error arm before and after, and `Vcs.Mode` is
+referenced only by the pending `vcs.diff`, so the PublicApi baseline is untouched.
+
+**SSE assumption re-verified at `106629aa`:** the Restore patch applied rather than refusing — raw
+upstream's `V2EventEncoded`/`SessionLogItemEncoded` still lack `contentSchema` (zero occurrences in
+the raw document); both preimages are byte-identical to the patch's pins; PR #45182 is open and
+unmerged (last activity 2026-08-28) and issue #44911 open with no comments. **T7 resolved
+upstream:** the receipt's `rawDocumentSha256` equals its `generatedBaselineSha256` (`c24fb10f…`)
+after #45969, so the "stale committed document" report retires unfiled.
+
+**Evidence:** the full gate is green — 3,530 tests on all TFMs, slopwatch 0, `generate --verify`
+current at 112/24, `refresh-spec --verify` reproducing the committed receipt. One tool wart
+observed: the shared `ToolJsonContext` sets `WriteIndented` without `NewLine`, so on Windows the
+receipt and the generation manifest are written with CRLF bodies and a bare-LF tail
+(`git ls-files --eol` reports `w/mixed`); the repository's `eol=lf` attribute normalizes the
+committed blobs, so it is cosmetic — a one-line `NewLine` pin with a no-CR test is queued as a
+hygiene item.
