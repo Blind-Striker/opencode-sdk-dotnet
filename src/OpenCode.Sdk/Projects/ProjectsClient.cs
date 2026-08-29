@@ -2,6 +2,8 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Internal.ResponseAdapters;
+using OpenCode.Sdk.Internal.Serialization;
+using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk;
 /// <summary>
@@ -9,6 +11,7 @@ namespace OpenCode.Sdk;
 /// </summary>
 public class ProjectsClient
 {
+    private static readonly ProjectUpdatePatchRequest EmptyProjectUpdatePatchRequest = new();
     private readonly Pipeline? _pipeline;
     internal ProjectsClient(Pipeline pipeline)
     {
@@ -50,5 +53,21 @@ public class ProjectsClient
     public virtual Task<ProjectListResponse> ListProjectsAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Projects.ListProjects, ProjectListResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Update project. Update project display metadata and workspace commands.
+    /// </summary>
+    /// <param name = "projectId">The &apos;projectID&apos; route value.</param>
+    /// <param name = "request">The request body; an empty body is sent when omitted.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ProjectUpdatePatchResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<ProjectUpdatePatchResponse> UpdateProjectAsync(string projectId, ProjectUpdatePatchRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(projectId);
+        return Pipeline.ExecuteAsync(OpenCodeHttpMethod.Patch, OpenCodeRoutes.Projects.UpdateProject(projectId), request ?? EmptyProjectUpdatePatchRequest, OpenCodeJsonContext.Default.ProjectUpdatePatchRequest, ProjectUpdatePatchResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }

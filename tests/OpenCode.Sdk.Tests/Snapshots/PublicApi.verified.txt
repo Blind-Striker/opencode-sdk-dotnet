@@ -604,7 +604,9 @@
         {
             public const string GetCurrentTemplate = "/api/project/current";
             public const string ListProjects = "/api/project";
+            public const string UpdateProjectTemplate = "/api/project/{projectID}";
             public static string GetCurrent(OpenCode.Sdk.ProjectCurrentRequest? request = null) { }
+            public static string UpdateProject(string projectId) { }
         }
         public static class Providers
         {
@@ -873,6 +875,12 @@
         public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.Project> Projects { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
+    public sealed class ProjectUpdatePatchResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ProjectUpdatePatchResponse>
+    {
+        public ProjectUpdatePatchResponse() { }
+        public required OpenCode.Sdk.Models.Project Update { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
     public class ProjectWorktreesClient
     {
         protected ProjectWorktreesClient() { }
@@ -883,6 +891,7 @@
         protected ProjectsClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ProjectCurrentResponse> GetCurrentAsync(OpenCode.Sdk.ProjectCurrentRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ProjectListResponse> ListProjectsAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ProjectUpdatePatchResponse> UpdateProjectAsync(string projectId, OpenCode.Sdk.Models.ProjectUpdatePatchRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class ProviderListRequest : System.IEquatable<OpenCode.Sdk.ProviderListRequest>
     {
@@ -3720,6 +3729,16 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("url")]
         public string? Url { get; init; }
     }
+    public sealed class ProjectNotFoundError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.ProjectNotFoundError>
+    {
+        public ProjectNotFoundError() { }
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public required string Message { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("projectID")]
+        public required string ProjectId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("_tag")]
+        public string Tag { get; }
+    }
     public sealed class ProjectTime : System.IEquatable<OpenCode.Sdk.Models.ProjectTime>
     {
         public ProjectTime() { }
@@ -3730,6 +3749,19 @@ namespace OpenCode.Sdk.Models
         public long? Initialized { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("updated")]
         public required long Updated { get; init; }
+    }
+    public sealed class ProjectUpdatePatchRequest : System.IEquatable<OpenCode.Sdk.Models.ProjectUpdatePatchRequest>
+    {
+        public ProjectUpdatePatchRequest() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("commands")]
+        public OpenCode.Sdk.Models.ProjectCommands? Commands { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("icon")]
+        public OpenCode.Sdk.Models.ProjectIcon? Icon { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string? Name { get; init; }
     }
     public sealed class ProjectUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.ProjectUpdated>
     {

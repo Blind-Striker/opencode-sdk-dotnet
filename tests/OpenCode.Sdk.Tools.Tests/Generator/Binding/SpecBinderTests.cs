@@ -25,6 +25,7 @@ public sealed class SpecBinderTests
         "McpServerNotFoundError",
         "MessageNotFoundError",
         "PermissionNotFoundError",
+        "ProjectNotFoundError",
         "ProviderNotFoundError",
         "PtyNotFoundError",
         "ServiceUnavailableError",

@@ -57,6 +57,9 @@ internal static class WireBodyData
     public const string ProviderNotFoundError =
         "{\"_tag\":\"ProviderNotFoundError\",\"providerID\":\"prov_9\",\"message\":\"gone\"}";
 
+    public const string ProjectNotFoundError =
+        "{\"_tag\":\"ProjectNotFoundError\",\"projectID\":\"prj_9\",\"message\":\"gone\"}";
+
     public const string ResolvedLocation =
         "{\"directory\":\"/repo\",\"project\":{\"id\":\"prj_1\",\"directory\":\"/repo\",\"canonical\":\"/repo\"}}";
 

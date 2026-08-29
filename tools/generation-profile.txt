@@ -37,6 +37,7 @@ v2.permission.saved.remove
 v2.plugin.list
 v2.project.current
 v2.project.list
+v2.project.update
 v2.provider.get
 v2.provider.list
 v2.pty.connect.token

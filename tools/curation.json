@@ -110,7 +110,7 @@
     "project": {
       "placement": "client",
       "clientName": "Projects",
-      "reason": "The family carries no per-id operations; a flat container holds its calls (ADR-0019)."
+      "reason": "Update is a single-shot admin action on a project id, not a chained working object; the id rides as an argument, exactly like credential (ADR-0019). The list and current lookups carry no per-id operation of their own."
     },
     "reference": {
       "placement": "client",
@@ -276,6 +276,11 @@
       "operationId": "v2.form.request.list",
       "methodName": "ListRequestsAsync",
       "reason": "List methods name their subject in the plural across the reviewed surface, exactly like v2.permission.request.list and v2.session.permission.list; the mechanical singular 'Request' would misleadingly read as returning one pending form request instead of the full list."
+    },
+    {
+      "operationId": "v2.project.update",
+      "methodName": "UpdateProjectAsync",
+      "reason": "The operation's own verb is update; the mechanical PATCH prefix is transport detail, not part of the reviewed surface, exactly like v2.credential.update's own 'update' verb."
     }
   ],
   "schemaNames": [

@@ -1006,6 +1006,25 @@ public static class OpenCodeRoutes
         /// The &apos;GET /api/project&apos; route.
         /// </summary>
         public const string ListProjects = "/api/project";
+        /// <summary>
+        /// The &apos;PATCH /api/project/{projectID}&apos; route template.
+        /// </summary>
+        public const string UpdateProjectTemplate = "/api/project/{projectID}";
+        /// <summary>
+        /// Builds the &apos;/api/project/{projectID}&apos; route.
+        /// </summary>
+        /// <param name = "projectId">The &apos;projectID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string UpdateProject(string projectId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(projectId);
+            if (projectId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(projectId));
+            }
+
+            return "/api/project/" + RouteValuePolicy.Escape(projectId, nameof(projectId));
+        }
     }
 
     /// <summary>
