@@ -89,12 +89,6 @@ internal sealed class BenchmarkRunReader
                 $"Benchmark case '{reportCase.FullName}' in '{reportPath}' carries no memory diagnostics; run with MemoryDiagnoser enabled.");
         }
 
-        if (reportCase.Statistics is not { Median: > 0 } statistics)
-        {
-            throw new InvalidOperationException(
-                $"Benchmark case '{reportCase.FullName}' in '{reportPath}' carries no positive median timing.");
-        }
-
         return new BenchmarkRunCase
         {
             FullName = reportCase.FullName,
@@ -103,7 +97,9 @@ internal sealed class BenchmarkRunReader
             Parameters = reportCase.Parameters,
             Runtime = ExtractRuntime(reportCase.DisplayInfo),
             AllocatedBytes = memory.BytesAllocatedPerOperation,
-            MedianNanoseconds = statistics.Median,
+            // A constant-folded case measures at the noise floor and can report a zero median; it
+            // carries no usable timing but its exact allocation still compares.
+            MedianNanoseconds = reportCase.Statistics is { Median: > 0 } statistics ? statistics.Median : null,
         };
     }
 

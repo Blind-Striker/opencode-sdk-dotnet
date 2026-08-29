@@ -30,7 +30,7 @@ internal static class BenchmarkComparisonComposer
                 AllocatedBefore = beforeCase.AllocatedBytes,
                 AllocatedAfter = afterCase.AllocatedBytes,
                 AllocatedDelta = afterCase.AllocatedBytes - beforeCase.AllocatedBytes,
-                TimeRatio = afterCase.MedianNanoseconds / beforeCase.MedianNanoseconds,
+                TimeRatio = ComputeTimeRatio(beforeCase.MedianNanoseconds, afterCase.MedianNanoseconds),
             });
         }
 
@@ -44,6 +44,11 @@ internal static class BenchmarkComparisonComposer
             AfterOnly = Sort(afterOnly),
         };
     }
+
+    /// <summary>A ratio needs a positive median on both legs; a noise-floor leg supplies none, and
+    /// dividing by its zero would fabricate an infinite ratio.</summary>
+    private static double? ComputeTimeRatio(double? beforeMedian, double? afterMedian) =>
+        beforeMedian is { } beforeValue && afterMedian is { } afterValue ? afterValue / beforeValue : null;
 
     private static IReadOnlyList<BenchmarkRunCase> Sort(IEnumerable<BenchmarkRunCase> cases) =>
     [

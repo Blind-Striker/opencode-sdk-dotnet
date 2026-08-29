@@ -78,7 +78,28 @@ public sealed class BenchmarkComparisonComposerTests
             StringComparer.Ordinal)).IsTrue();
     }
 
-    private static BenchmarkRunCase Case(string method, string runtime, long allocatedBytes, double medianNanoseconds) =>
+    [Test]
+    public async Task Compose_Should_Compare_Allocation_Without_A_Time_Ratio_When_A_Leg_Carries_No_Timing()
+    {
+        var before = new[]
+        {
+            Case("ConstantRoute", ".NET Framework 4.7.2", allocatedBytes: 24, medianNanoseconds: 12.5),
+        };
+        var after = new[]
+        {
+            Case("ConstantRoute", ".NET Framework 4.7.2", allocatedBytes: 0, medianNanoseconds: null),
+        };
+
+        var comparison = BenchmarkComparisonComposer.Compose(before, after);
+
+        var row = comparison.Rows.Single();
+        await Assert.That(row.AllocatedBefore).IsEqualTo(24L);
+        await Assert.That(row.AllocatedAfter).IsEqualTo(0L);
+        await Assert.That(row.AllocatedDelta).IsEqualTo(-24L);
+        await Assert.That(row.TimeRatio).IsNull();
+    }
+
+    private static BenchmarkRunCase Case(string method, string runtime, long allocatedBytes, double? medianNanoseconds) =>
         new()
         {
             FullName = $"OpenCode.Sdk.Performance.Tests.Benchmarks.HealthBenchmarks.{method}(Fixture: health)",

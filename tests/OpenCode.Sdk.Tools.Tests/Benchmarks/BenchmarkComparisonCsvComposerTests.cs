@@ -102,7 +102,27 @@ public sealed class BenchmarkComparisonCsvComposerTests
             StringComparer.Ordinal)).IsTrue();
     }
 
-    private static BenchmarkComparisonRow Row(string caseLabel, string runtime, long allocatedBefore, long allocatedAfter, double timeRatio) =>
+    [Test]
+    public async Task Compose_Should_Leave_Timing_Cells_Blank_When_A_Case_Carries_No_Timing()
+    {
+        var comparison = new BenchmarkComparison
+        {
+            Rows = [Row("RouteComposition/ConstantRoute", ".NET Framework 4.7.2", 24, 0, timeRatio: null)],
+            BeforeOnly = [],
+            AfterOnly = [RunCase("RouteComposition", "ConstantRoute", "", ".NET 10.0", allocatedBytes: 0, medianNanoseconds: null)],
+        };
+
+        var csv = BenchmarkComparisonCsvComposer.Compose(comparison);
+
+        // A Matched row with a blank TimeRatio says "no timing ratio available"; absence from the
+        // other run is a different fact and stays visible through the one-sided statuses.
+        await Assert.That(csv).IsEqualTo(
+            "\"Case\",\"Runtime\",\"Status\",\"AllocBefore\",\"AllocAfter\",\"AllocDelta\",\"TimeRatio\",\"MedianNanoseconds\"\n"
+            + "\"RouteComposition/ConstantRoute\",\".NET Framework 4.7.2\",\"Matched\",\"24\",\"0\",\"-24\",\"\",\"\"\n"
+            + "\"RouteComposition/ConstantRoute\",\".NET 10.0\",\"AfterOnly\",\"\",\"0\",\"\",\"\",\"\"\n");
+    }
+
+    private static BenchmarkComparisonRow Row(string caseLabel, string runtime, long allocatedBefore, long allocatedAfter, double? timeRatio) =>
         new()
         {
             CaseLabel = caseLabel,
@@ -113,7 +133,7 @@ public sealed class BenchmarkComparisonCsvComposerTests
             TimeRatio = timeRatio,
         };
 
-    private static BenchmarkRunCase RunCase(string family, string method, string parameters, string runtime, long allocatedBytes, double medianNanoseconds) =>
+    private static BenchmarkRunCase RunCase(string family, string method, string parameters, string runtime, long allocatedBytes, double? medianNanoseconds) =>
         new()
         {
             FullName = $"OpenCode.Sdk.Performance.Tests.Benchmarks.{family}Benchmarks.{method}({parameters})",

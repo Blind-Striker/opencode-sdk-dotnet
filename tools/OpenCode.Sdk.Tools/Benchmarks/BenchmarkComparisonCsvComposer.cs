@@ -9,13 +9,15 @@ namespace OpenCode.Sdk.Tools.Benchmarks;
 /// <c>Status</c> of <c>Matched</c>, <c>BeforeOnly</c>, or <c>AfterOnly</c> — named after
 /// <see cref="BenchmarkComparison"/>'s own <c>Rows</c>/<c>BeforeOnly</c>/<c>AfterOnly</c> shape — so a
 /// reader can tell which columns apply without guessing from blank cells. Matched rows populate
-/// <c>AllocBefore</c>, <c>AllocAfter</c>, <c>AllocDelta</c>, and <c>TimeRatio</c>, leaving
-/// <c>MedianNanoseconds</c> blank (a ratio needs two sides, so a one-sided case cannot have one).
-/// One-sided rows populate only the allocation side they actually have plus their own exact
-/// <c>MedianNanoseconds</c> (the honest one-sided timing figure), leaving the other allocation
-/// column, <c>AllocDelta</c>, and <c>TimeRatio</c> blank — there is no counterpart to diff or ratio
-/// against. Rows appear in three sections, each already sorted by the composer: matched, then
-/// before-only, then after-only.
+/// <c>AllocBefore</c>, <c>AllocAfter</c>, and <c>AllocDelta</c> always, plus <c>TimeRatio</c> when
+/// both legs carry a positive median timing; a noise-floor case yields no ratio and leaves
+/// <c>TimeRatio</c> blank while its <c>Matched</c> status still says both runs measured it. Matched
+/// rows leave <c>MedianNanoseconds</c> blank (a ratio needs two sides, so a one-sided case cannot
+/// have one). One-sided rows populate only the allocation side they actually have plus their own
+/// exact <c>MedianNanoseconds</c> when the case has one (the honest one-sided timing figure),
+/// leaving the other allocation column, <c>AllocDelta</c>, and <c>TimeRatio</c> blank — there is no
+/// counterpart to diff or ratio against. Rows appear in three sections, each already sorted by the
+/// composer: matched, then before-only, then after-only.
 /// </summary>
 internal static class BenchmarkComparisonCsvComposer
 {
@@ -54,7 +56,7 @@ internal static class BenchmarkComparisonCsvComposer
         AllocBefore = row.AllocatedBefore.ToString(CultureInfo.InvariantCulture),
         AllocAfter = row.AllocatedAfter.ToString(CultureInfo.InvariantCulture),
         AllocDelta = row.AllocatedDelta.ToString(CultureInfo.InvariantCulture),
-        TimeRatio = row.TimeRatio.ToString("0.00", CultureInfo.InvariantCulture),
+        TimeRatio = row.TimeRatio is { } timeRatio ? timeRatio.ToString("0.00", CultureInfo.InvariantCulture) : string.Empty,
         MedianNanoseconds = string.Empty,
     };
 
@@ -70,7 +72,9 @@ internal static class BenchmarkComparisonCsvComposer
             AllocAfter = allocatesBefore ? string.Empty : allocatedBytes,
             AllocDelta = string.Empty,
             TimeRatio = string.Empty,
-            MedianNanoseconds = runCase.MedianNanoseconds.ToString(CultureInfo.InvariantCulture),
+            MedianNanoseconds = runCase.MedianNanoseconds is { } median
+                ? median.ToString(CultureInfo.InvariantCulture)
+                : string.Empty,
         };
     }
 

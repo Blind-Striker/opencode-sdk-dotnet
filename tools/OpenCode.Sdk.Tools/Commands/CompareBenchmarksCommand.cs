@@ -82,7 +82,9 @@ internal sealed partial class CompareBenchmarksCommand : AsyncCommand<CompareBen
                 row.AllocatedBefore.ToString("N0", CultureInfo.InvariantCulture),
                 row.AllocatedAfter.ToString("N0", CultureInfo.InvariantCulture),
                 row.AllocatedDelta.ToString("+#,0;-#,0;0", CultureInfo.InvariantCulture),
-                row.TimeRatio.ToString("0.00", CultureInfo.InvariantCulture));
+                // "n/a" marks a matched case with no timing ratio (a noise-floor median on a leg);
+                // a case absent from the other run is listed as before-only/after-only instead.
+                row.TimeRatio is { } timeRatio ? timeRatio.ToString("0.00", CultureInfo.InvariantCulture) : "n/a");
         }
 
         _console.Write(table);

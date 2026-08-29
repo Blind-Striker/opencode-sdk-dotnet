@@ -57,6 +57,24 @@ public sealed class BenchmarkRunReaderTests
     }
 
     [Test]
+    public async Task ReadAsync_Should_Read_A_Case_Without_A_Positive_Median_As_Carrying_No_Timing()
+    {
+        var fileSystem = new MockFileSystem();
+        fileSystem.Initialize().With(new FileDescription(
+            "runs/results/zero-median-report-full.json",
+            _fixtures.Load("Benchmarks.zero-median-report-full.json")));
+        var reader = new BenchmarkRunReader(fileSystem);
+
+        var cases = await reader.ReadAsync("runs", CancellationToken.None);
+
+        var timedCase = cases.Single(runCase => runCase.Runtime == ".NET 10.0");
+        var noiseFloorCase = cases.Single(runCase => runCase.Runtime == ".NET Framework 4.7.2");
+        await Assert.That(timedCase.MedianNanoseconds).IsEqualTo(0.08522830903530121);
+        await Assert.That(noiseFloorCase.MedianNanoseconds).IsNull();
+        await Assert.That(noiseFloorCase.AllocatedBytes).IsEqualTo(0L);
+    }
+
+    [Test]
     public async Task ReadAsync_Should_Refuse_A_Missing_Run_Directory()
     {
         var reader = new BenchmarkRunReader(new MockFileSystem());

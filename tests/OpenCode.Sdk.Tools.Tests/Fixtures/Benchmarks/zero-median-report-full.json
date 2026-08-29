@@ -1,0 +1,57 @@
+{
+  "Title": "OpenCode.Sdk.Performance.Tests.Benchmarks.RouteCompositionBenchmarks-20260829-084943",
+  "HostEnvironmentInfo": {
+    "BenchmarkDotNetVersion": "0.15.8",
+    "RuntimeVersion": ".NET 10.0.11 (10.0.11, 10.0.1126.37416)",
+    "Architecture": "X64",
+    "Configuration": "RELEASE"
+  },
+  "Benchmarks": [
+    {
+      "DisplayInfo": "RouteCompositionBenchmarks.ConstantRoute: .NET 10.0(Runtime=.NET 10.0, Toolchain=net10.0)",
+      "Namespace": "OpenCode.Sdk.Performance.Tests.Benchmarks",
+      "Type": "RouteCompositionBenchmarks",
+      "Method": "ConstantRoute",
+      "MethodTitle": "ConstantRoute",
+      "Parameters": "",
+      "FullName": "OpenCode.Sdk.Performance.Tests.Benchmarks.RouteCompositionBenchmarks.ConstantRoute",
+      "Statistics": {
+        "N": 17,
+        "Median": 0.08522830903530121,
+        "Mean": 0.08562308023957645,
+        "StandardDeviation": 0.04699066816356156
+      },
+      "Memory": {
+        "Gen0Collections": 0,
+        "Gen1Collections": 0,
+        "Gen2Collections": 0,
+        "TotalOperations": 268435456,
+        "BytesAllocatedPerOperation": 0
+      },
+      "Measurements": []
+    },
+    {
+      "DisplayInfo": "RouteCompositionBenchmarks.ConstantRoute: .NET Framework 4.7.2(Runtime=.NET Framework 4.7.2, Toolchain=net472)",
+      "Namespace": "OpenCode.Sdk.Performance.Tests.Benchmarks",
+      "Type": "RouteCompositionBenchmarks",
+      "Method": "ConstantRoute",
+      "MethodTitle": "ConstantRoute",
+      "Parameters": "",
+      "FullName": "OpenCode.Sdk.Performance.Tests.Benchmarks.RouteCompositionBenchmarks.ConstantRoute",
+      "Statistics": {
+        "N": 15,
+        "Median": 0,
+        "Mean": 0.018697107831637066,
+        "StandardDeviation": 0.031917335468212196
+      },
+      "Memory": {
+        "Gen0Collections": 0,
+        "Gen1Collections": 0,
+        "Gen2Collections": 0,
+        "TotalOperations": 268435456,
+        "BytesAllocatedPerOperation": 0
+      },
+      "Measurements": []
+    }
+  ]
+}

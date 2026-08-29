@@ -13,5 +13,7 @@ internal sealed record BenchmarkComparisonRow
 
     public required long AllocatedDelta { get; init; }
 
-    public required double TimeRatio { get; init; }
+    /// <summary>After median over before median, or <see langword="null"/> when either leg carries
+    /// no positive median timing — allocation still compares, only the ratio is unavailable.</summary>
+    public required double? TimeRatio { get; init; }
 }
