@@ -30,6 +30,9 @@ internal static class PersistentPtyFrameData
     /// <summary>The checkpoint is base64 of ESC c (0x1B 0x63).</summary>
     public const string ResizedJson = "{\"type\":\"resized\",\"cols\":120,\"rows\":40,\"generation\":4,\"checkpoint\":\"G2M=\"}";
 
+    /// <summary>A resize whose type is readable but whose <c>cols</c> member the server left out.</summary>
+    public const string ResizedWithoutColsJson = "{\"type\":\"resized\",\"rows\":40,\"generation\":4,\"checkpoint\":\"G2M=\"}";
+
     public const string ExitedJson = "{\"type\":\"exited\",\"exitCode\":0,\"finalOffset\":99}";
 
     public const string ExitedWithoutCodeJson = "{\"type\":\"exited\",\"finalOffset\":99}";

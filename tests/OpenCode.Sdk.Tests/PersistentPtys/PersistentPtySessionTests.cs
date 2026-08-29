@@ -199,6 +199,23 @@ public sealed class PersistentPtySessionTests
     }
 
     [Test]
+    public async Task ReadAsync_Should_Name_The_Frame_Kind_When_A_Typed_Control_Frame_Is_Unreadable()
+    {
+        var socket = new ScriptedPtyWebSocket()
+            .Text(PersistentPtyFrameData.AttachedJson)
+            .Text(PersistentPtyFrameData.ResizedWithoutColsJson);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        var failure = await Assert.That(async () => _ = await ReadAllAsync(session)).Throws<OpenCodeTransportException>();
+
+        // The body is a JSON object carrying a string type, so blaming the envelope would be a
+        // false report: the frame kind the SDK could not read is what a reader needs to see.
+        await Assert.That(failure!.Message).Contains("'resized'");
+        await Assert.That(failure.Message.Contains("not a JSON object", StringComparison.Ordinal)).IsFalse();
+        await Assert.That(failure.InnerException).IsNotNull();
+    }
+
+    [Test]
     public async Task ReadAsync_Should_Refuse_Truncated_Control_Json()
     {
         var socket = new ScriptedPtyWebSocket()
