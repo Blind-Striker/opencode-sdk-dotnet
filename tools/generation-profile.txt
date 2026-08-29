@@ -34,6 +34,16 @@ v2.model.list
 v2.permission.request.list
 v2.permission.saved.list
 v2.permission.saved.remove
+v2.persistentPty.connectToken
+v2.persistentPty.create
+v2.persistentPty.get
+v2.persistentPty.handoff
+v2.persistentPty.list
+v2.persistentPty.read
+v2.persistentPty.remove
+v2.persistentPty.shutdown
+v2.persistentPty.snapshot
+v2.persistentPty.update
 v2.plugin.list
 v2.project.current
 v2.project.list

@@ -22,6 +22,7 @@ public class OpenCodeClient : IDisposable
     private readonly LanguageModelsClient? _languageModels;
     private readonly McpServersClient? _mcpServers;
     private readonly PermissionsClient? _permissions;
+    private readonly PersistentPtysClient? _persistentPtys;
     private readonly PluginsClient? _plugins;
     private readonly ProjectsClient? _projects;
     private readonly ProvidersClient? _providers;
@@ -54,6 +55,7 @@ public class OpenCodeClient : IDisposable
         _languageModels = new LanguageModelsClient(_pipeline);
         _mcpServers = new McpServersClient(_pipeline);
         _permissions = new PermissionsClient(_pipeline);
+        _persistentPtys = new PersistentPtysClient(_pipeline);
         _plugins = new PluginsClient(_pipeline);
         _projects = new ProjectsClient(_pipeline);
         _providers = new ProvidersClient(_pipeline);
@@ -89,6 +91,7 @@ public class OpenCodeClient : IDisposable
         _languageModels = new LanguageModelsClient(_pipeline);
         _mcpServers = new McpServersClient(_pipeline);
         _permissions = new PermissionsClient(_pipeline);
+        _persistentPtys = new PersistentPtysClient(_pipeline);
         _plugins = new PluginsClient(_pipeline);
         _projects = new ProjectsClient(_pipeline);
         _providers = new ProvidersClient(_pipeline);
@@ -180,6 +183,10 @@ public class OpenCodeClient : IDisposable
     /// Gets the &apos;Permissions&apos; collection client.
     /// </summary>
     public virtual PermissionsClient Permissions => _permissions ?? throw MockSeam.CreateError("OpenCodeClient", "Permissions");
+    /// <summary>
+    /// Gets the &apos;PersistentPtys&apos; collection client.
+    /// </summary>
+    public virtual PersistentPtysClient PersistentPtys => _persistentPtys ?? throw MockSeam.CreateError("OpenCodeClient", "PersistentPtys");
     /// <summary>
     /// Gets the &apos;Plugins&apos; collection client.
     /// </summary>

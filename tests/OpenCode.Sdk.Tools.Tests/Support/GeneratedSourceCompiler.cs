@@ -19,8 +19,8 @@ internal static class GeneratedSourceCompiler
     private static readonly AnalyzerFileReference SourceGenerator = CreateSourceGeneratorReference();
 
     /// <summary>
-    /// Hand-written sources sitting <em>above</em> generated output instead of under it: the
-    /// PTY family's public doors delegate to generated raw clients (ADR-0021), so unlike the
+    /// Hand-written sources sitting <em>above</em> generated output instead of under it: both
+    /// PTY families' public doors delegate to generated raw clients (ADR-0021), so unlike the
     /// behavior core they cannot compile against a plan that never emitted their twin. Each
     /// rides along only when the plan under test emitted the raw client it delegates to —
     /// today's pinned plan does, and a dedicated test asserts it keeps doing so
@@ -31,6 +31,8 @@ internal static class GeneratedSourceCompiler
     /// </summary>
     internal static readonly (string Consumer, string RequiredEmission)[] GeneratedSurfaceConsumers =
     [
+        ("PersistentPtys/PersistentPtyClient.cs", "PersistentPtys/PersistentPtyRawClient.cs"),
+        ("PersistentPtys/PersistentPtysClient.cs", "PersistentPtys/PersistentPtysRawClient.cs"),
         ("Ptys/PtyClient.cs", "Ptys/PtyRawClient.cs"),
         ("Ptys/PtysClient.cs", "Ptys/PtysRawClient.cs"),
     ];

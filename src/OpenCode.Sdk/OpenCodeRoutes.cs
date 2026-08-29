@@ -948,6 +948,189 @@ public static class OpenCodeRoutes
     }
 
     /// <summary>
+    /// Defines the &apos;PersistentPtys&apos; routes.
+    /// </summary>
+    public static class PersistentPtys
+    {
+        /// <summary>
+        /// The &apos;POST /api/experimental/session/{sessionID}/terminal&apos; route template.
+        /// </summary>
+        public const string CreatePersistentPtyTemplate = "/api/experimental/session/{sessionID}/terminal";
+        /// <summary>
+        /// Builds the &apos;/api/experimental/session/{sessionID}/terminal&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string CreatePersistentPty(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/experimental/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/terminal";
+        }
+
+        /// <summary>
+        /// The &apos;GET /api/experimental/persistent-pty/{ptyID}&apos; route template.
+        /// </summary>
+        public const string GetPersistentPtyTemplate = "/api/experimental/persistent-pty/{ptyID}";
+        /// <summary>
+        /// Builds the &apos;/api/experimental/persistent-pty/{ptyID}&apos; route.
+        /// </summary>
+        /// <param name = "ptyId">The &apos;ptyID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetPersistentPty(string ptyId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(ptyId);
+            if (ptyId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(ptyId));
+            }
+
+            return "/api/experimental/persistent-pty/" + RouteValuePolicy.Escape(ptyId, nameof(ptyId));
+        }
+
+        /// <summary>
+        /// The &apos;GET /api/experimental/session/{sessionID}/terminal/read&apos; route template.
+        /// </summary>
+        public const string GetReadTemplate = "/api/experimental/session/{sessionID}/terminal/read";
+        /// <summary>
+        /// Builds the &apos;/api/experimental/session/{sessionID}/terminal/read&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetRead(string sessionId, PersistentPtyReadRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            var path = "/api/experimental/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/terminal/read";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddText("lines", request.Lines);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;GET /api/experimental/persistent-pty/{ptyID}/snapshot&apos; route template.
+        /// </summary>
+        public const string GetSnapshotTemplate = "/api/experimental/persistent-pty/{ptyID}/snapshot";
+        /// <summary>
+        /// Builds the &apos;/api/experimental/persistent-pty/{ptyID}/snapshot&apos; route.
+        /// </summary>
+        /// <param name = "ptyId">The &apos;ptyID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetSnapshot(string ptyId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(ptyId);
+            if (ptyId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(ptyId));
+            }
+
+            return "/api/experimental/persistent-pty/" + RouteValuePolicy.Escape(ptyId, nameof(ptyId)) + "/snapshot";
+        }
+
+        /// <summary>
+        /// The &apos;GET /api/experimental/session/{sessionID}/terminal&apos; route template.
+        /// </summary>
+        public const string ListPersistentPtysTemplate = "/api/experimental/session/{sessionID}/terminal";
+        /// <summary>
+        /// Builds the &apos;/api/experimental/session/{sessionID}/terminal&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ListPersistentPtys(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/experimental/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/terminal";
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/experimental/persistent-pty/{ptyID}/connect-token&apos; route template.
+        /// </summary>
+        public const string PostConnectTokenTemplate = "/api/experimental/persistent-pty/{ptyID}/connect-token";
+        /// <summary>
+        /// Builds the &apos;/api/experimental/persistent-pty/{ptyID}/connect-token&apos; route.
+        /// </summary>
+        /// <param name = "ptyId">The &apos;ptyID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostConnectToken(string ptyId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(ptyId);
+            if (ptyId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(ptyId));
+            }
+
+            return "/api/experimental/persistent-pty/" + RouteValuePolicy.Escape(ptyId, nameof(ptyId)) + "/connect-token";
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/experimental/persistent-pty/handoff&apos; route.
+        /// </summary>
+        public const string PostHandoff = "/api/experimental/persistent-pty/handoff";
+        /// <summary>
+        /// The &apos;POST /api/experimental/persistent-pty/shutdown&apos; route.
+        /// </summary>
+        public const string PostShutdown = "/api/experimental/persistent-pty/shutdown";
+        /// <summary>
+        /// The &apos;PUT /api/experimental/persistent-pty/{ptyID}&apos; route template.
+        /// </summary>
+        public const string PutUpdateTemplate = "/api/experimental/persistent-pty/{ptyID}";
+        /// <summary>
+        /// Builds the &apos;/api/experimental/persistent-pty/{ptyID}&apos; route.
+        /// </summary>
+        /// <param name = "ptyId">The &apos;ptyID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PutUpdate(string ptyId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(ptyId);
+            if (ptyId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(ptyId));
+            }
+
+            return "/api/experimental/persistent-pty/" + RouteValuePolicy.Escape(ptyId, nameof(ptyId));
+        }
+
+        /// <summary>
+        /// The &apos;DELETE /api/experimental/persistent-pty/{ptyID}&apos; route template.
+        /// </summary>
+        public const string RemovePersistentPtyTemplate = "/api/experimental/persistent-pty/{ptyID}";
+        /// <summary>
+        /// Builds the &apos;/api/experimental/persistent-pty/{ptyID}&apos; route.
+        /// </summary>
+        /// <param name = "ptyId">The &apos;ptyID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string RemovePersistentPty(string ptyId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(ptyId);
+            if (ptyId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(ptyId));
+            }
+
+            return "/api/experimental/persistent-pty/" + RouteValuePolicy.Escape(ptyId, nameof(ptyId));
+        }
+    }
+
+    /// <summary>
     /// Defines the &apos;Plugins&apos; routes.
     /// </summary>
     public static class Plugins

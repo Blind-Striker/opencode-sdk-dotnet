@@ -1,0 +1,1 @@
+{"ptyID":"pty_persistent_7","title":"sdk terminal","cwd":"/","foregroundProcess":"bash","screen":{"text":"$ echo hello\nhello\n","cols":80,"rows":24,"cursor":{"x":2,"y":2}}}

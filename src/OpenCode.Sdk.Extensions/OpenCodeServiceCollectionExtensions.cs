@@ -59,6 +59,7 @@ public static class OpenCodeServiceCollectionExtensions
         _ = services.AddSingleton(static LanguageModelsClient (provider) => provider.GetRequiredService<OpenCodeClient>().LanguageModels);
         _ = services.AddSingleton(static McpServersClient (provider) => provider.GetRequiredService<OpenCodeClient>().McpServers);
         _ = services.AddSingleton(static PermissionsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Permissions);
+        _ = services.AddSingleton(static PersistentPtysClient (provider) => provider.GetRequiredService<OpenCodeClient>().PersistentPtys);
         _ = services.AddSingleton(static PluginsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Plugins);
         _ = services.AddSingleton(static ProjectsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Projects);
         _ = services.AddSingleton(static ProvidersClient (provider) => provider.GetRequiredService<OpenCodeClient>().Providers);

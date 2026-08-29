@@ -438,6 +438,7 @@
         public virtual OpenCode.Sdk.LanguageModelsClient LanguageModels { get; }
         public virtual OpenCode.Sdk.McpServersClient McpServers { get; }
         public virtual OpenCode.Sdk.PermissionsClient Permissions { get; }
+        public virtual OpenCode.Sdk.PersistentPtysClient PersistentPtys { get; }
         public virtual OpenCode.Sdk.PluginsClient Plugins { get; }
         public virtual OpenCode.Sdk.ProjectsClient Projects { get; }
         public virtual OpenCode.Sdk.ProvidersClient Providers { get; }
@@ -594,6 +595,27 @@
             public static string ListRequests(OpenCode.Sdk.PermissionRequestListRequest? request = null) { }
             public static string ListSaved(OpenCode.Sdk.PermissionSavedListRequest? request = null) { }
             public static string RemoveSaved(string id) { }
+        }
+        public static class PersistentPtys
+        {
+            public const string CreatePersistentPtyTemplate = "/api/experimental/session/{sessionID}/terminal";
+            public const string GetPersistentPtyTemplate = "/api/experimental/persistent-pty/{ptyID}";
+            public const string GetReadTemplate = "/api/experimental/session/{sessionID}/terminal/read";
+            public const string GetSnapshotTemplate = "/api/experimental/persistent-pty/{ptyID}/snapshot";
+            public const string ListPersistentPtysTemplate = "/api/experimental/session/{sessionID}/terminal";
+            public const string PostConnectTokenTemplate = "/api/experimental/persistent-pty/{ptyID}/connect-token";
+            public const string PostHandoff = "/api/experimental/persistent-pty/handoff";
+            public const string PostShutdown = "/api/experimental/persistent-pty/shutdown";
+            public const string PutUpdateTemplate = "/api/experimental/persistent-pty/{ptyID}";
+            public const string RemovePersistentPtyTemplate = "/api/experimental/persistent-pty/{ptyID}";
+            public static string CreatePersistentPty(string sessionId) { }
+            public static string GetPersistentPty(string ptyId) { }
+            public static string GetRead(string sessionId, OpenCode.Sdk.PersistentPtyReadRequest? request = null) { }
+            public static string GetSnapshot(string ptyId) { }
+            public static string ListPersistentPtys(string sessionId) { }
+            public static string PostConnectToken(string ptyId) { }
+            public static string PutUpdate(string ptyId) { }
+            public static string RemovePersistentPty(string ptyId) { }
         }
         public static class Plugins
         {
@@ -856,6 +878,86 @@
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PermissionRequestListResponse> ListRequestsAsync(OpenCode.Sdk.PermissionRequestListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PermissionSavedListResponse> ListSavedAsync(OpenCode.Sdk.PermissionSavedListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PermissionSavedRemoveResponse> RemoveSavedAsync(string id, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public class PersistentPtyClient
+    {
+        protected PersistentPtyClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PersistentPtyConnectTokenPostResponse> CreateConnectTokenAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PersistentPtyResponse> GetPersistentPtyAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PersistentPtySnapshotResponse> GetSnapshotAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PersistentPtyRemoveResponse> RemovePersistentPtyAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PersistentPtyUpdatePutResponse> UpdatePersistentPtyAsync(OpenCode.Sdk.Models.PersistentPtyUpdatePutRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class PersistentPtyConnectTokenPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PersistentPtyConnectTokenPostResponse>
+    {
+        public PersistentPtyConnectTokenPostResponse() { }
+        public required OpenCode.Sdk.Models.PtyTicketConnectToken ConnectToken { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class PersistentPtyCreateResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PersistentPtyCreateResponse>
+    {
+        public PersistentPtyCreateResponse() { }
+        public required OpenCode.Sdk.Models.PersistentPtyInfo PersistentPty { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class PersistentPtyHandoffPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PersistentPtyHandoffPostResponse>
+    {
+        public PersistentPtyHandoffPostResponse() { }
+        public required OpenCode.Sdk.Models.PersistentPtyHandoffPostData Handoff { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class PersistentPtyListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PersistentPtyListResponse>
+    {
+        public PersistentPtyListResponse() { }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.PersistentPtyInfo> PersistentPtys { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class PersistentPtyReadRequest : System.IEquatable<OpenCode.Sdk.PersistentPtyReadRequest>
+    {
+        public PersistentPtyReadRequest() { }
+        public string? Lines { get; init; }
+    }
+    public sealed class PersistentPtyReadResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PersistentPtyReadResponse>
+    {
+        public PersistentPtyReadResponse() { }
+        public required OpenCode.Sdk.Models.PersistentPtyReadResult? Read { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class PersistentPtyRemoveResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PersistentPtyRemoveResponse>
+    {
+        public PersistentPtyRemoveResponse() { }
+    }
+    public sealed class PersistentPtyResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PersistentPtyResponse>
+    {
+        public PersistentPtyResponse() { }
+        public required OpenCode.Sdk.Models.PersistentPtyInfo PersistentPty { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class PersistentPtyShutdownPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PersistentPtyShutdownPostResponse>
+    {
+        public PersistentPtyShutdownPostResponse() { }
+    }
+    public sealed class PersistentPtySnapshotResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PersistentPtySnapshotResponse>
+    {
+        public PersistentPtySnapshotResponse() { }
+        public required OpenCode.Sdk.Models.PersistentPtySnapshot Snapshot { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class PersistentPtyUpdatePutResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PersistentPtyUpdatePutResponse>
+    {
+        public PersistentPtyUpdatePutResponse() { }
+        public required OpenCode.Sdk.Models.PersistentPtyInfo Update { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public class PersistentPtysClient
+    {
+        protected PersistentPtysClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PersistentPtyCreateResponse> CreatePersistentPtyAsync(string sessionId, OpenCode.Sdk.Models.PersistentPtyCreateRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual OpenCode.Sdk.PersistentPtyClient GetPersistentPtyClient(string ptyId) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PersistentPtyHandoffPostResponse> HandoffAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PersistentPtyListResponse> ListPersistentPtysAsync(string sessionId, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PersistentPtyReadResponse> ReadAsync(string sessionId, OpenCode.Sdk.PersistentPtyReadRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PersistentPtyShutdownPostResponse> ShutdownAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class PluginListRequest : System.IEquatable<OpenCode.Sdk.PluginListRequest>
     {
@@ -3607,6 +3709,52 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("terminal")]
         public required OpenCode.Sdk.Models.PersistentPtyInfo Terminal { get; init; }
     }
+    public sealed class PersistentPtyCreateInputSize : System.IEquatable<OpenCode.Sdk.Models.PersistentPtyCreateInputSize>
+    {
+        public PersistentPtyCreateInputSize() { }
+        [System.Text.Json.Serialization.JsonPropertyName("cols")]
+        public required long Cols { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("rows")]
+        public required long Rows { get; init; }
+    }
+    public sealed class PersistentPtyCreateRequest : System.IEquatable<OpenCode.Sdk.Models.PersistentPtyCreateRequest>
+    {
+        public PersistentPtyCreateRequest() { }
+        [System.Text.Json.Serialization.JsonPropertyName("args")]
+        public required System.Collections.Generic.IReadOnlyList<string> Args { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("command")]
+        public string? Command { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("cwd")]
+        public string? Cwd { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("env")]
+        public required System.Collections.Generic.IReadOnlyDictionary<string, string> Env { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("size")]
+        public OpenCode.Sdk.Models.PersistentPtyCreateInputSize? Size { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("title")]
+        public required string Title { get; init; }
+    }
+    public sealed class PersistentPtyHandoff : System.IEquatable<OpenCode.Sdk.Models.PersistentPtyHandoff>
+    {
+        public PersistentPtyHandoff() { }
+        [System.Text.Json.Serialization.JsonPropertyName("directory")]
+        public required string Directory { get; init; }
+        [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
+        [System.Text.Json.Serialization.JsonPropertyName("expiresAt")]
+        public required double ExpiresAt { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("instanceID")]
+        public required string InstanceId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("ticket")]
+        public required string Ticket { get; init; }
+    }
+    public sealed class PersistentPtyHandoffPostData : System.IEquatable<OpenCode.Sdk.Models.PersistentPtyHandoffPostData>
+    {
+        public PersistentPtyHandoffPostData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("handoff")]
+        public required OpenCode.Sdk.Models.PersistentPtyHandoff? Handoff { get; init; }
+    }
     public sealed class PersistentPtyInfo : System.IEquatable<OpenCode.Sdk.Models.PersistentPtyInfo>
     {
         public PersistentPtyInfo() { }
@@ -3660,6 +3808,40 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonStringEnumMemberName("exited")]
         Exited = 1,
     }
+    public sealed class PersistentPtyReadResult : System.IEquatable<OpenCode.Sdk.Models.PersistentPtyReadResult>
+    {
+        public PersistentPtyReadResult() { }
+        [System.Text.Json.Serialization.JsonPropertyName("cwd")]
+        public required string Cwd { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("foregroundProcess")]
+        public required string? ForegroundProcess { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("ptyID")]
+        public required string PtyId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("screen")]
+        public required OpenCode.Sdk.Models.PersistentPtyReadResultScreen Screen { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("title")]
+        public required string Title { get; init; }
+    }
+    public sealed class PersistentPtyReadResultScreen : System.IEquatable<OpenCode.Sdk.Models.PersistentPtyReadResultScreen>
+    {
+        public PersistentPtyReadResultScreen() { }
+        [System.Text.Json.Serialization.JsonPropertyName("cols")]
+        public required long Cols { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("cursor")]
+        public required OpenCode.Sdk.Models.PersistentPtyReadResultScreenCursor Cursor { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("rows")]
+        public required long Rows { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("text")]
+        public required string Text { get; init; }
+    }
+    public sealed class PersistentPtyReadResultScreenCursor : System.IEquatable<OpenCode.Sdk.Models.PersistentPtyReadResultScreenCursor>
+    {
+        public PersistentPtyReadResultScreenCursor() { }
+        [System.Text.Json.Serialization.JsonPropertyName("x")]
+        public required long X { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("y")]
+        public required long Y { get; init; }
+    }
     public sealed class PersistentPtyRemoved : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.PersistentPtyRemoved>
     {
         public PersistentPtyRemoved() { }
@@ -3685,6 +3867,43 @@ namespace OpenCode.Sdk.Models
         public required string PtyId { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
+    }
+    public sealed class PersistentPtySnapshot : System.IEquatable<OpenCode.Sdk.Models.PersistentPtySnapshot>
+    {
+        public PersistentPtySnapshot() { }
+        [System.Text.Json.Serialization.JsonPropertyName("checkpoint")]
+        public required System.ReadOnlyMemory<byte> Checkpoint { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("cursor")]
+        public required OpenCode.Sdk.Models.PersistentPtySnapshotCursor Cursor { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("info")]
+        public required OpenCode.Sdk.Models.PersistentPtyInfo Info { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("text")]
+        public required string Text { get; init; }
+    }
+    public sealed class PersistentPtySnapshotCursor : System.IEquatable<OpenCode.Sdk.Models.PersistentPtySnapshotCursor>
+    {
+        public PersistentPtySnapshotCursor() { }
+        [System.Text.Json.Serialization.JsonPropertyName("x")]
+        public required long X { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("y")]
+        public required long Y { get; init; }
+    }
+    public sealed class PersistentPtyUpdateInputSize : System.IEquatable<OpenCode.Sdk.Models.PersistentPtyUpdateInputSize>
+    {
+        public PersistentPtyUpdateInputSize() { }
+        [System.Text.Json.Serialization.JsonPropertyName("cols")]
+        public required long Cols { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("rows")]
+        public required long Rows { get; init; }
+    }
+    public sealed class PersistentPtyUpdatePutRequest : System.IEquatable<OpenCode.Sdk.Models.PersistentPtyUpdatePutRequest>
+    {
+        public PersistentPtyUpdatePutRequest() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("attachmentID")]
+        public string? AttachmentId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("size")]
+        public required OpenCode.Sdk.Models.PersistentPtyUpdateInputSize Size { get; init; }
     }
     public sealed class PluginAdded : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.PluginAdded>
     {

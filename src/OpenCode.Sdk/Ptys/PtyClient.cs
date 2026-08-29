@@ -12,13 +12,6 @@ namespace OpenCode.Sdk;
 /// </summary>
 public class PtyClient
 {
-    /// <summary>
-    /// Knowledge source: upstream-observed — the server's connect-token handler requires this
-    /// exact value; it exists only in upstream implementation source (ADR-0013/0021), so it
-    /// lives here in hand-written runtime code and never in curation or generated output.
-    /// </summary>
-    private const string PtyTicketSentinel = "1";
-
     private readonly ConnectionSnapshot? _connection;
     private readonly string? _ptyId;
     private readonly PtyRawClient? _raw;
@@ -94,7 +87,7 @@ public class PtyClient
     /// <exception cref="OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
     public virtual Task<PtyConnectTokenPostResponse> CreateConnectTokenAsync(PtyConnectTokenPostRequest? request = null,
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
-        Raw.PostConnectTokenAsync(request, xOpencodeTicket: PtyTicketSentinel, requestOptions, cancellationToken);
+        Raw.PostConnectTokenAsync(request, xOpencodeTicket: PtyTicketHeader.Sentinel, requestOptions, cancellationToken);
 
     /// <summary>
     /// Opens the PTY's live WebSocket session. The upgrade is the SDK's one transport
