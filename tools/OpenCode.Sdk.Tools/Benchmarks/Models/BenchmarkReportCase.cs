@@ -17,6 +17,7 @@ internal sealed record BenchmarkReportCase
 
     public BenchmarkReportMemory? Memory { get; init; }
 
-    /// <summary>The exported metrics; absent in exports predating BenchmarkDotNet's metric output.</summary>
+    /// <summary>The exported metrics. The exporter omits the member for a case with none, and the
+    /// wire ids are optional within it, so the reader treats the whole member as optional.</summary>
     public IReadOnlyList<BenchmarkReportMetric>? Metrics { get; init; }
 }
