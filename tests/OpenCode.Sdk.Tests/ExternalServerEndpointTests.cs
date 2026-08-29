@@ -43,6 +43,25 @@ public sealed class ExternalServerEndpointTests
     }
 
     [Test]
+    [Arguments("")]
+    [Arguments("   ")]
+    public async Task FromEnvironment_Should_Throw_Naming_The_Password_Variable_When_It_Is_Blank(string blankPassword)
+    {
+        string? Read(string name) => name switch
+        {
+            "OPENCODE_SDK_TESTS_ENDPOINT" => "http://localhost:4097",
+            "OPENCODE_SDK_TESTS_PASSWORD" => blankPassword,
+            _ => null,
+        };
+
+        var exception = await Assert
+            .That(() => ExternalServerEndpoint.FromEnvironment(Read))
+            .Throws<InvalidOperationException>();
+
+        await Assert.That(exception!.Message).Contains("OPENCODE_SDK_TESTS_PASSWORD");
+    }
+
+    [Test]
     public async Task FromEnvironment_Should_Throw_Naming_The_Variable_When_The_Endpoint_Does_Not_Parse()
     {
         static string? Read(string name) => name switch

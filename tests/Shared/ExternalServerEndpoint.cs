@@ -26,8 +26,9 @@ internal sealed record ExternalServerEndpoint(Uri Endpoint, string Password)
     /// The pair when both variables are set; <see langword="null"/> when neither is set.
     /// </returns>
     /// <exception cref="InvalidOperationException">
-    /// Exactly one of the two variables is set, or <c>OPENCODE_SDK_TESTS_ENDPOINT</c> does not
-    /// parse as an absolute <c>http</c>/<c>https</c> URI.
+    /// Exactly one of the two variables is set, <c>OPENCODE_SDK_TESTS_PASSWORD</c> is blank or
+    /// whitespace, or <c>OPENCODE_SDK_TESTS_ENDPOINT</c> does not parse as an absolute
+    /// <c>http</c>/<c>https</c> URI.
     /// </exception>
     public static ExternalServerEndpoint? FromEnvironment(Func<string, string?> read)
     {
@@ -46,6 +47,18 @@ internal sealed record ExternalServerEndpoint(Uri Endpoint, string Password)
                 "OPENCODE_SDK_TESTS_ENDPOINT and OPENCODE_SDK_TESTS_PASSWORD must both be set, or neither " +
                 "(the exact-pin fixture's external-endpoint mode needs both to attach to an operator-supplied " +
                 "server).");
+        }
+
+        // Mirrors Pipeline's own rule (src/OpenCode.Sdk/Internal/Pipeline.cs): a blank password
+        // has no upstream meaning - a server without configured authentication expects no
+        // credentials at all, i.e. the variable left unset - so it fails loudly here rather than
+        // reaching OpenCodeClient's own constructor guard with a message that names "options"
+        // instead of the environment variable an operator can actually act on.
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            throw new InvalidOperationException(
+                "OPENCODE_SDK_TESTS_PASSWORD cannot be empty or whitespace; leave it and " +
+                "OPENCODE_SDK_TESTS_ENDPOINT both unset for a server without authentication.");
         }
 
         if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var parsed) ||

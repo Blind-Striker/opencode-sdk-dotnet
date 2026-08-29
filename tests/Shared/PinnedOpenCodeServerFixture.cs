@@ -193,23 +193,46 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
     /// </summary>
     private async Task AttachToExternalAsync(ExternalServerEndpoint external)
     {
-        using var client = new OpenCodeClient(new OpenCodeClientOptions
-        {
-            Endpoint = external.Endpoint,
-            Password = external.Password,
-        });
         using var probeTimeout = new CancellationTokenSource(ExternalHealthProbeTimeout);
 
         HealthResponse health;
         try
         {
+            // OpenCodeClient construction lives inside this try, not before it: Pipeline's own
+            // option guards (a blank password, a missing endpoint) throw ArgumentException, and a
+            // failure there is exactly as much an external-mode attach failure as the probe
+            // itself - it must surface through the same fixture InvalidOperationException naming
+            // the endpoint, never as a raw ArgumentException naming "options".
+            using var client = new OpenCodeClient(new OpenCodeClientOptions
+            {
+                Endpoint = external.Endpoint,
+                Password = external.Password,
+            });
             health = await client.GetHealthAsync(cancellationToken: probeTimeout.Token).ConfigureAwait(false);
         }
-        catch (Exception exception)
+        catch (OpenCodeApiException apiException)
+        {
+            // The server answered - with an error - so this is never a timeout. Surfacing "did
+            // not answer within Ns" here would send an operator chasing a nonexistent timeout
+            // instead of the real cause (wrong password, broken server).
+            throw new InvalidOperationException(
+                $"The external server at '{external.Endpoint}' answered the health probe with HTTP " +
+                $"{apiException.Status.ToString(CultureInfo.InvariantCulture)} " +
+                $"({DescribeApiFailure(apiException)}).",
+                apiException);
+        }
+        catch (OperationCanceledException exception) when (probeTimeout.IsCancellationRequested)
         {
             throw new InvalidOperationException(
                 $"The external server at '{external.Endpoint}' did not answer a health probe within " +
                 $"{ExternalHealthProbeTimeout.TotalSeconds.ToString("F0", CultureInfo.InvariantCulture)}s.",
+                exception);
+        }
+        catch (Exception exception)
+        {
+            throw new InvalidOperationException(
+                $"The external server at '{external.Endpoint}' could not be reached for a health probe: " +
+                $"{exception.Message}",
                 exception);
         }
 
@@ -221,6 +244,14 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
 
         _external = external;
     }
+
+    /// <summary>Describes a failed health probe's typed error, or its raw body when there is none.</summary>
+    private static string DescribeApiFailure(OpenCodeApiException apiException) =>
+        // The pattern (rather than a string.IsNullOrEmpty call) is what narrows rawBody to
+        // non-null on every TFM: net472's older BCL surface does not carry the NotNullWhen
+        // attribute IsNullOrEmpty relies on for flow analysis elsewhere (PinnedServerCommand's
+        // FindRepositoryRoot records the same fix for the same reason).
+        apiException.Error?.Tag ?? (apiException.RawBody is { Length: > 0 } rawBody ? rawBody : "no error body");
 
     private string ReadPinnedUpstreamCommit()
     {

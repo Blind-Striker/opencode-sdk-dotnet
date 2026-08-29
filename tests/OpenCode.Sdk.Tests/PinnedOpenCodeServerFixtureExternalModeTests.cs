@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
@@ -54,7 +55,29 @@ public sealed class PinnedOpenCodeServerFixtureExternalModeTests
 
         var exception = await Assert.That(fixture.InitializeAsync).Throws<InvalidOperationException>();
 
+        // The server answered (with a 500), so the message must name the real cause rather than
+        // claim a timeout that never happened - the failure this fixture surfaces must be
+        // trustworthy enough for an operator to act on directly.
         await Assert.That(exception!.Message).Contains(server.Endpoint.ToString());
+        await Assert.That(exception.Message).Contains("500");
+        await Assert.That(exception.Message).DoesNotContain("did not answer a health probe");
+        await fixture.DisposeAsync();
+    }
+
+    [Test]
+    public async Task Fixture_Should_Refuse_An_Unreachable_External_Endpoint()
+    {
+        var port = LoopbackPortReservation.Reserve();
+        var endpoint = new Uri($"http://127.0.0.1:{port.ToString(CultureInfo.InvariantCulture)}");
+        var fixture = new PinnedOpenCodeServerFixture(new ExternalServerEndpoint(endpoint, "any-password"));
+
+        var exception = await Assert.That(fixture.InitializeAsync).Throws<InvalidOperationException>();
+
+        // Nothing is listening on the reserved port, so this is a connection failure, not a
+        // timeout and not an HTTP error status - the message must not claim either of those.
+        await Assert.That(exception!.Message).Contains(endpoint.ToString());
+        await Assert.That(exception.Message).DoesNotContain("did not answer a health probe");
+        await Assert.That(exception.Message).DoesNotContain("answered the health probe");
         await fixture.DisposeAsync();
     }
 }
