@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-27
+Date: 2026-08-29
 
 Operational state: what is done, what is next, what is open. This file shrinks as work lands.
 `../AGENTS.md` routes to current architecture and engineering canon; decision records live in
@@ -278,15 +278,15 @@ conditioned to the downlevel targets (maintainer-sealed), and the net9.0+ altern
 that stops materializing known union tags (net10.0 union rows lose exactly their tag strings;
 downlevel keeps the string path — Polyfill's alternate lookup is an O(n) scan). Route/query
 composition measured as an honest negative behind its own permanent rung. Doc 20's D2/D3 had
-already landed inside the runtime arc. **Outstanding batch evidence:** the closing default-job
-comparison against `arc-milestone-default`, which also carries the frozen-table timing verdict.
-A **benchmark coverage batch** precedes that run (maintainer, 2026-08-28): a `PtySession`
-read-path ladder (shipped 08-27, currently unmeasured), a location-merge case on the
-route-composition rung, a dictionary-envelope rung once envelope completion selects one (with
-reasoned skip notes for Data-list and bare-container shapes, covered by the MessageList/Health
-ladders), and the `compare-benchmarks` completeness fix — the comparison CSV currently drops
-before-only/after-only cases that the console reports, so new rungs must enter the CSV with
-their exact allocation columns instead of vanishing from the durable artifact.
+already landed inside the runtime arc. The **benchmark coverage batch**'s code half is landed
+(2026-08-29): the `compare-benchmarks` CSV completeness fix (B1, `98e682a`) gives one-sided
+before-only/after-only cases exact allocation figures and a `Status` column instead of vanishing
+from the durable artifact, and three new rungs (B2, `b672120`/`aff51d4`/`1d133c5`) landed — a
+`PtySession` read-path ladder, a location-merge case on the route-composition rung, and a
+dictionary-envelope ladder over the generated `SessionActiveResponse` adapter, with reasoned skip
+notes for the Data-list and bare-container shapes already covered by the MessageList/Health
+ladders. **The closing default-job comparison against `arc-milestone-default` is in flight**
+(also carrying the frozen-table timing verdict); no result yet.
 **M5 breadth batches are pulled ahead of M4 and are landing.** The Q144 wall-probe mapped the
 full pinned surface (99 workable pending operations after Q137/Q139's drift map excludes the
 upstream-removed families — the question flow, `projectCopy.*`, `health.stop`,
@@ -312,7 +312,7 @@ accompanies the breadth push: amend the deliberate partial-operation packing wal
 `Directory.Build.targets` so prerelease packs are allowed while stable packs stay blocked
 (decision-first; it revises the wall recorded here and rides ADR-0006/#51), then stand up the
 ADR-0006 pipeline — per-merge GitHub Packages CD and the manual NuGet.org lane — whose CI legs
-can now validate against the restored hosted matrix. No M4 source or planning work has begun.
+can now validate against the restored hosted matrix. M4's launcher arc has since landed (below).
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family
@@ -397,12 +397,23 @@ patch still applies with byte-identical preimages; PR #45182 remains open. The p
 **81 selected / 53 pending**, the full gate is green at 2,767 tests, and the PublicApi baseline
 accepted its three additive `Metadata` properties.
 
-**Envelope completion (C2) is code-complete and closing** (2026-08-28; plan:
+**Envelope completion (C2) is complete** (2026-08-28; plan:
 `docs/superpowers/plans/2026-08-28-envelope-completion.md`; full mechanism, selection, and live
-evidence: research log Q154). The profile stood at 98 selected / 36 pending of 134 at that point;
-final whole-branch review is pending. The queue now advances to the held maintainer sitting (SW004
-adjudication, canon wording, push), the benchmark coverage batch, the release track, and the
-service-parity follow-up — all already recorded above.
+evidence: research log Q154). The profile stood at 98 selected / 36 pending of 134 at that point.
+The final whole-branch review closed (17/17 approved operations verified; 2 MUST FIX / 7 FIX SOON
+/ 9 ACCEPT), its two MUST FIX items landed at `4db95d1` (`LanguageModelsClient.ListModelsAsync`
+contract tests; the `IntegrationsClient` factory-guard test), and the held maintainer sitting
+closed too (the two residual SW004 warnings adjudicated — one redesigned to await the interrupted
+event, `d6f653d`; one kept as a documented impossibility-argument suppression, `abdfb28` — plus
+the canon wording at `f625c28`/`bc28f65` and the push). The seven FIX SOON items are queued as
+named post-arc work in two touches: a *tools hygiene* touch (the wrapper-shape predicate
+duplicated across `SchemaNameResolver`/`EnvelopeFacetBinder` — the one with a real silent-drift
+hazard, since a one-sided widening would fall back to a pointer-derived name with no wall to catch
+it; the `ComposeRegistry`/`RegistryPlan.PayloadEntries` doc one-liners; the
+`SerializerTypeNamePolicy`/`RegistryEmitter` dedupe + nested-recursion unit rows; the
+`PayloadTypeName` `Response`-suffix test row; the `AssertMissingDataFailsAsync` rename) and a
+*vcs.status contract top-up* (empty-list, location-query, protocol-failure tests). The benchmark
+coverage batch (recorded above) and the release track remain queued.
 
 **The no-wall sweep is complete** (S1 telltale, S2 batch A, S3 batch B; 2026-08-29; task briefs
 and reports: `.superpowers/sdd/2026-08-29-no-wall-sweep/`). S1 landed the interim bindability
@@ -421,8 +432,8 @@ wording now that `session.form.create` is selected alongside it in the same clie
 no collision. The profile stands at **112 selected / 22 pending**, closing the sweep's full
 14-operation pool.
 
-**M4's launcher arc is code-complete and integrated** (2026-08-28; evidence: research log Q153;
-plan executed task-by-task with independent reviews and a clean final whole-branch review).
+**M4's launcher arc is complete** (2026-08-28; evidence: research log Q153; plan executed
+task-by-task with independent reviews and a clean final whole-branch review).
 `OpenCodeServer.StartAsync` is the landed standalone door (ADR-0001) with real-process
 three-TFM-plus-net472 lifecycle acceptance on Windows, the exact-pin `PinnedOpenCodeServerFixture`
 over a CliWrap control adapter, the repository-owned `DriveController` for the simulation
@@ -430,10 +441,14 @@ backend, and the day-one-blocking deterministic simulated-session workflow test 
 config-seeded-provider checkpoint passed live (`llm.request` observed with the seeded model id).
 The committed sandbox's `--standalone` demo ran live: the SDK started the pinned server itself
 and health answered with the child's own pid. Canon carries the three-connection-mode door
-taxonomy; CONTEXT.md carries the vocabulary. **Outstanding for M4 closure: the three-OS hosted
-matrix proof (maintainer-gated push) and the service-parity follow-up arc.** Upstream-report
-candidate discovered: `session.idle` is deprecated at the pin with no publisher while
-`SessionIdle` remains in the event union.
+taxonomy; CONTEXT.md carries the vocabulary. **The three-OS hosted matrix proof is closed**: run
+`33221482103` at `4bf0c07` passed Linux, macOS, and Windows after one budgeted fix round — CI's
+"Detect slop" step lacked the canonical `--exclude ".scratchpad/**,external/**"` args, and the new
+bun leg's vendored `external/opencode/node_modules/node-gyp/lib/Find-VisualStudio.cs` tripped
+SW003 ×4; the named pre-push risks (`FileShare.None` on Unix, bun on hosted runners) did not
+materialize. Upstream-report candidate discovered: `session.idle` is deprecated at the pin with no
+publisher while `SessionIdle` remains in the event union. **The service-parity follow-up arc
+remains queued** (Milestones, M4).
 
 ## Milestones
 
@@ -569,3 +584,12 @@ is revisited at each milestone boundary.
   allocate one wire-sized copy on >1 MB bodies (a larger-cap `ArrayPool.Create` is a
   benchmark-gated follow-up); the committed sandbox's `--paginate` mode exits nonzero on an empty
   enumeration.
+- **`PtySession.ReadCoreAsync` receive-buffer allocation** — the B2 benchmark ladder measured a
+  fresh 16 KiB buffer allocated per `ReadAsync()` call (16,776 B on the complete read path vs 24 B
+  for decode alone, `cursor-x1`/net10.0): pre-existing, previously unmeasured, now isolated on its
+  own rung. Queued as a named, benchmark-gated optimization candidate (an `ArrayPool` rent is the
+  obvious shape), not a defect.
+- **Two curation/doc minors (next curation touch):** the `form` group's curation reason says "no
+  per-id operations, ever" where every sibling row states present-tense fact only; the
+  `MedianNanoseconds` `compare-benchmarks` CSV column breaks the other columns' abbreviation
+  convention.
