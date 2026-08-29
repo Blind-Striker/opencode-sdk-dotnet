@@ -47,6 +47,15 @@
         protected CommandsClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.CommandListResponse> ListCommandsAsync(OpenCode.Sdk.CommandListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
+    public sealed class CredentialActivatePostRequest : System.IEquatable<OpenCode.Sdk.CredentialActivatePostRequest>
+    {
+        public CredentialActivatePostRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class CredentialActivatePostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.CredentialActivatePostResponse>
+    {
+        public CredentialActivatePostResponse() { }
+    }
     public sealed class CredentialRemoveRequest : System.IEquatable<OpenCode.Sdk.CredentialRemoveRequest>
     {
         public CredentialRemoveRequest() { }
@@ -63,6 +72,7 @@
     public class CredentialsClient
     {
         protected CredentialsClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.CredentialActivatePostResponse> ActivateCredentialAsync(string credentialId, OpenCode.Sdk.CredentialActivatePostRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.CredentialRemoveResponse> RemoveCredentialAsync(string credentialId, OpenCode.Sdk.CredentialRemoveRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.CredentialUpdatePatchResponse> UpdateCredentialAsync(string credentialId, OpenCode.Sdk.Models.CredentialUpdatePatchRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
@@ -447,8 +457,10 @@
         }
         public static class Credentials
         {
+            public const string ActivateCredentialTemplate = "/api/credential/{credentialID}/activate";
             public const string RemoveCredentialTemplate = "/api/credential/{credentialID}";
             public const string UpdateCredentialTemplate = "/api/credential/{credentialID}";
+            public static string ActivateCredential(string credentialId, OpenCode.Sdk.CredentialActivatePostRequest? request = null) { }
             public static string RemoveCredential(string credentialId, OpenCode.Sdk.CredentialRemoveRequest? request = null) { }
             public static string UpdateCredential(string credentialId, OpenCode.Sdk.Models.CredentialUpdatePatchRequest? request = null) { }
         }

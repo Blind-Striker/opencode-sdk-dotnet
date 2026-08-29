@@ -28,6 +28,22 @@ public class CredentialsClient
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("CredentialsClient", "Pipeline");
 
     /// <summary>
+    /// Activate credential. Activate a stored integration credential.
+    /// </summary>
+    /// <param name = "credentialId">The &apos;credentialID&apos; route value.</param>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;CredentialActivatePostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<CredentialActivatePostResponse> ActivateCredentialAsync(string credentialId, CredentialActivatePostRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(credentialId);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Credentials.ActivateCredential(credentialId, request), CredentialActivatePostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
     /// Remove credential. Remove a stored integration credential.
     /// </summary>
     /// <param name = "credentialId">The &apos;credentialID&apos; route value.</param>

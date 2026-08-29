@@ -261,6 +261,11 @@
       "operationId": "v2.debug.location.list",
       "methodName": "ListLocationsAsync",
       "reason": "The mechanical payload name 'Location' collides with ReservedNamePolicy.PayloadNames (the response-spine name every DataLocation envelope's sibling reserves), forcing a payload rename regardless; the operation returns a list, so 'Locations' is both the collision fix and the accurate shape. The method name is renamed in lockstep to the same plural, following the reviewed surface's uniform list-verb-pluralizes-its-subject convention (v2.mcp.list, v2.pty.list, v2.permission.request.list, v2.session.form.list, v2.session.permission.list) so it does not read as returning a single location."
+    },
+    {
+      "operationId": "v2.credential.activate",
+      "methodName": "ActivateCredentialAsync",
+      "reason": "The operation's own verb is activate; the mechanical POST prefix is transport detail, not part of the reviewed surface, exactly like v2.credential.update's own 'update' verb."
     }
   ],
   "schemaNames": [

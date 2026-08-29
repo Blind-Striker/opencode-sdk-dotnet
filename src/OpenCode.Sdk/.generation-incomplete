@@ -1,10 +1,11 @@
 Generation is incomplete; packages must not be published.
-Selected operations: 98
-Pending operations: 36
+Selected operations: 99
+Pending operations: 35
 Selected:
 - v2.agent.get
 - v2.agent.list
 - v2.command.list
+- v2.credential.activate
 - v2.credential.remove
 - v2.credential.update
 - v2.debug.location.evict
@@ -102,7 +103,6 @@ Selected:
 - v2.worktree.list
 Pending:
 - v2.config.get [refused: C# type name 'ConfigModelCost' collides with schema 'Config.Model.CostEncoded']
-- v2.credential.activate [bindable]
 - v2.experimental.migration.v1.status [refused: structural union branch 1 overlaps earlier branch token kind(s): StartObject]
 - v2.form.request.list [bindable]
 - v2.fs.find [refused: query parameter 'query' must be optional]

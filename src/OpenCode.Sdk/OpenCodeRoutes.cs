@@ -100,6 +100,35 @@ public static class OpenCodeRoutes
     public static class Credentials
     {
         /// <summary>
+        /// The &apos;POST /api/credential/{credentialID}/activate&apos; route template.
+        /// </summary>
+        public const string ActivateCredentialTemplate = "/api/credential/{credentialID}/activate";
+        /// <summary>
+        /// Builds the &apos;/api/credential/{credentialID}/activate&apos; route.
+        /// </summary>
+        /// <param name = "credentialId">The &apos;credentialID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ActivateCredential(string credentialId, CredentialActivatePostRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(credentialId);
+            if (credentialId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(credentialId));
+            }
+
+            var path = "/api/credential/" + RouteValuePolicy.Escape(credentialId, nameof(credentialId)) + "/activate";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
         /// The &apos;DELETE /api/credential/{credentialID}&apos; route template.
         /// </summary>
         public const string RemoveCredentialTemplate = "/api/credential/{credentialID}";
