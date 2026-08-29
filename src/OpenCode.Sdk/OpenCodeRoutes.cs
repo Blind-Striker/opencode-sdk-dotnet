@@ -260,6 +260,34 @@ public static class OpenCodeRoutes
     }
 
     /// <summary>
+    /// Defines the &apos;Forms&apos; routes.
+    /// </summary>
+    public static class Forms
+    {
+        /// <summary>
+        /// The &apos;GET /api/form/request&apos; route template.
+        /// </summary>
+        public const string ListRequestsTemplate = "/api/form/request";
+        /// <summary>
+        /// Builds the &apos;/api/form/request&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ListRequests(FormRequestListRequest? request = null)
+        {
+            var path = "/api/form/request";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+    }
+
+    /// <summary>
     /// Defines the &apos;Generation&apos; routes.
     /// </summary>
     public static class Generation

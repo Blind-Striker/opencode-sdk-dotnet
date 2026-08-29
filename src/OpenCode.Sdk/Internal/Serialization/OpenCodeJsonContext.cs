@@ -50,6 +50,7 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(FormOption))]
 [JsonSerializable(typeof(FormReplied))]
 [JsonSerializable(typeof(FormRepliedData))]
+[JsonSerializable(typeof(FormRequestListResponseEnvelope))]
 [JsonSerializable(typeof(FormStringField))]
 [JsonSerializable(typeof(FormStringFieldFormat))]
 [JsonSerializable(typeof(FormValue))]

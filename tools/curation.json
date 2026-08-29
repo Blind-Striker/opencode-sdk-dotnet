@@ -147,6 +147,11 @@
       "handleName": "ProjectWorktreesClient",
       "handleParameter": "projectID",
       "reason": "The family's full pinned surface (list, create, remove, refresh) all chain on the same projectID, so ADR-0019's full-surface rule gives it a handle now even though only list is selected this batch. The handle is keyed by a project id, not a worktree id, so it is named for what it actually holds: one project's worktree registry."
+    },
+    "form": {
+      "placement": "client",
+      "clientName": "Forms",
+      "reason": "v2.form.request.list is the family's entire pinned surface (unlike v2.session.form.*, a distinct group that rides the session working object): a bare GET with no id in its path, so it carries no per-id operations, ever, and a flat container holds its one call (ADR-0019)."
     }
   },
   "operationIdentities": [
@@ -266,6 +271,11 @@
       "operationId": "v2.credential.activate",
       "methodName": "ActivateCredentialAsync",
       "reason": "The operation's own verb is activate; the mechanical POST prefix is transport detail, not part of the reviewed surface, exactly like v2.credential.update's own 'update' verb."
+    },
+    {
+      "operationId": "v2.form.request.list",
+      "methodName": "ListRequestsAsync",
+      "reason": "List methods name their subject in the plural across the reviewed surface, exactly like v2.permission.request.list and v2.session.permission.list; the mechanical singular 'Request' would misleadingly read as returning one pending form request instead of the full list."
     }
   ],
   "schemaNames": [
@@ -304,6 +314,7 @@
   ],
   "envelopePayloadNames": {
     "v2.debug.location.list": "Locations",
+    "v2.form.request.list": "Requests",
     "v2.mcp.list": "McpServers",
     "v2.permission.request.list": "Requests",
     "v2.pty.list": "Ptys",

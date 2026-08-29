@@ -16,6 +16,7 @@ public class OpenCodeClient : IDisposable
     private readonly DebugClient? _debug;
     private readonly EventsClient? _events;
     private readonly ExperimentalClient? _experimental;
+    private readonly FormsClient? _forms;
     private readonly GenerationClient? _generation;
     private readonly IntegrationsClient? _integrations;
     private readonly LanguageModelsClient? _languageModels;
@@ -47,6 +48,7 @@ public class OpenCodeClient : IDisposable
         _debug = new DebugClient(_pipeline);
         _events = new EventsClient(_pipeline);
         _experimental = new ExperimentalClient(_pipeline);
+        _forms = new FormsClient(_pipeline);
         _generation = new GenerationClient(_pipeline);
         _integrations = new IntegrationsClient(_pipeline);
         _languageModels = new LanguageModelsClient(_pipeline);
@@ -81,6 +83,7 @@ public class OpenCodeClient : IDisposable
         _debug = new DebugClient(_pipeline);
         _events = new EventsClient(_pipeline);
         _experimental = new ExperimentalClient(_pipeline);
+        _forms = new FormsClient(_pipeline);
         _generation = new GenerationClient(_pipeline);
         _integrations = new IntegrationsClient(_pipeline);
         _languageModels = new LanguageModelsClient(_pipeline);
@@ -153,6 +156,10 @@ public class OpenCodeClient : IDisposable
     /// Gets the &apos;Experimental&apos; collection client.
     /// </summary>
     public virtual ExperimentalClient Experimental => _experimental ?? throw MockSeam.CreateError("OpenCodeClient", "Experimental");
+    /// <summary>
+    /// Gets the &apos;Forms&apos; collection client.
+    /// </summary>
+    public virtual FormsClient Forms => _forms ?? throw MockSeam.CreateError("OpenCodeClient", "Forms");
     /// <summary>
     /// Gets the &apos;Generation&apos; collection client.
     /// </summary>

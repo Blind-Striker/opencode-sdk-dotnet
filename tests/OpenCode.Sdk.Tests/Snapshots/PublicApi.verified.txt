@@ -116,6 +116,23 @@
     {
         public ExperimentalIntegrationWellknownAddPostResponse() { }
     }
+    public sealed class FormRequestListRequest : System.IEquatable<OpenCode.Sdk.FormRequestListRequest>
+    {
+        public FormRequestListRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class FormRequestListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.FormRequestListResponse>
+    {
+        public FormRequestListResponse() { }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.FormInfo> Requests { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public class FormsClient
+    {
+        protected FormsClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.FormRequestListResponse> ListRequestsAsync(OpenCode.Sdk.FormRequestListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
     public sealed class GenerateTextPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.GenerateTextPostResponse>
     {
         public GenerateTextPostResponse() { }
@@ -389,6 +406,7 @@
         public virtual OpenCode.Sdk.DebugClient Debug { get; }
         public virtual OpenCode.Sdk.EventsClient Events { get; }
         public virtual OpenCode.Sdk.ExperimentalClient Experimental { get; }
+        public virtual OpenCode.Sdk.FormsClient Forms { get; }
         public virtual OpenCode.Sdk.GenerationClient Generation { get; }
         public virtual OpenCode.Sdk.IntegrationsClient Integrations { get; }
         public virtual OpenCode.Sdk.LanguageModelsClient LanguageModels { get; }
@@ -478,6 +496,11 @@
         {
             public const string AddIntegrationWellknownTemplate = "/api/experimental/integration/wellknown";
             public static string AddIntegrationWellknown(OpenCode.Sdk.Models.ExperimentalIntegrationWellknownAddPostRequest? request = null) { }
+        }
+        public static class Forms
+        {
+            public const string ListRequestsTemplate = "/api/form/request";
+            public static string ListRequests(OpenCode.Sdk.FormRequestListRequest? request = null) { }
         }
         public static class Generation
         {
