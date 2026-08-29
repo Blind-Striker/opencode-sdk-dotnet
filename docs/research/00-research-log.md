@@ -4438,10 +4438,38 @@ once:
 ppty-live: arm=daemon-absent create=503 service=opencode-pty list=0 read=<null> handoff=<null> shutdown=204
 ```
 
-**The round-trip arm has not executed anywhere yet.** Its first execution is the maintainer's hosted
-three-OS run or a WSL2 run, both pending at the time of writing, so what this entry records is a
-compiled, reviewed, and unexecuted arm — not a passed one. That hosted run is also the first time
-the daemon starts under CI at all, which is the named risk of the push.
+**The round-trip arm executed in three places (2026-08-29).** The branch merged fast-forward into
+`master` (`203595c..2801dd4`) and pushed (`66dba42..2801dd4`); hosted run `33276305571` then carried
+the arm on both daemon platforms, and the WSL2 recipe below carried it on the workstation. The arm
+names itself on the console and TUnit captures console output, so every line quoted here comes from
+that leg's TUnit report artifact or TRX, never from a job log:
+
+```text
+ppty-live: arm=round-trip id=pty_persistent_3640412883362027 status=Running role=Controller inputProtocol=1 echo=sdk-live resize=100x30 read=sdk-live remove=204 listed-after=absent
+ppty-live: arm=round-trip id=pty_persistent_3236185671631908 status=Running role=Controller inputProtocol=1 echo=sdk-live resize=100x30 read=sdk-live remove=204 listed-after=absent
+ppty-live: arm=round-trip id=pty_persistent_1152050572023375 status=Running role=Controller inputProtocol=1 echo=sdk-live resize=100x30 read=sdk-live remove=204 listed-after=absent
+```
+
+— hosted Linux (3,162 tests), hosted macOS, and the WSL2 run, in that order. **The push's named
+risk is closed:** the hosted `bun install --frozen-lockfile --ignore-scripts` does leave a usable
+`opencode-pty` binary, and the daemon does start under CI. Windows took the other arm exactly as
+designed, `ppty-live: arm=daemon-absent create=503 service=opencode-pty list=0 read=<null>
+handoff=<null> shutdown=204`, and every `PersistentPty*` test class passed there.
+
+**What the Windows job did fail on belongs to the hosted net472 leg, not to this family.** Attempt 1
+failed `PipelineTests.ExecuteAsync_Should_Fail_A_Body_That_Stalls_Past_The_Progress_Window` — net472
+only, a 200 ms progress window under a 10 s caller token, where the hosted call took 12.9 s, so the
+caller token fired first and the test saw `TaskCanceledException` instead of
+`OpenCodeTransportException`. The re-run of that job (attempt 2) passed that test and failed a
+different one — the fixture's own external-mode attach test,
+`PinnedOpenCodeServerFixtureExternalModeTests.Fixture_Should_Attach_To_An_External_Endpoint_When_One_Is_Supplied`,
+again net472 only, "timed out after 00:00:15" against a purely in-process loopback server. Both
+attempts read 4,015 passed / 1 failed; Linux, macOS, and the Windows net8/net9/net10 legs were
+green in both, and both tests pass locally on net472. The net472 test executable took 2m15s on the
+hosted runner against roughly 1m18s locally. The finding is therefore
+not one flaky test but a contended hosted net472 leg with two under-budgeted timeouts — `master` is
+red there until both budgets are hardened; for the fixture test, .NET Framework's proxy
+auto-detection on the first request is the suspect.
 
 **The WSL2 recipe** (`tests/OpenCode.Sdk.Sandbox/README.md`) is the workstation-side answer: a
 server built from the same submodule commit inside WSL2, whose linux package does carry the daemon
@@ -4449,7 +4477,36 @@ binary, reached from Windows through the fixture's external-endpoint mode
 (`OPENCODE_SDK_TESTS_ENDPOINT`/`OPENCODE_SDK_TESTS_PASSWORD`) with
 `OPENCODE_SDK_TESTS_PTY_DAEMON=1` opting the gate back into the daemon-present arm. The exact-pin
 discipline becomes the operator's there: the fixture prints both commits so a mismatch is visible,
-but it cannot verify a source run's version. Recorded, not yet run.
+but it cannot verify a source run's version.
+
+**The recipe ran on the maintainer's workstation on 2026-08-29** and the README was corrected from
+what it taught. WSL Ubuntu 22.04; an HTTPS clone at `~/repos/opencode-sdk-dotnet` with the submodule
+initialized shallow at `106629aa`; bun **1.3.14** — the pin's own `packageManager`, not the
+workstation's 1.4.0 — installed through the bun install script. `bun install --frozen-lockfile
+--ignore-scripts` placed `@opencode-ai/pty-linux-x64-gnu/bin/opencode-pty` under
+`node_modules/.bun/`, and `packages/core` resolved its `binaryPath` to exactly that file. The server
+ran as `bun src/index.ts serve --port 4097` from `packages/cli` under isolated XDG roots
+(`/tmp/ocsdk/{data,cache,config,state}`), `OPENCODE_CONFIG_CONTENT={}`,
+`OPENCODE_DISABLE_MODELS_FETCH=1`, and a set `OPENCODE_PASSWORD`. The Windows side ran
+`dotnet test tests/OpenCode.Sdk.Tests --configuration Release --no-build --
+--treenode-filter "/*/*/PersistentPtyLiveTests/*" --report-trx` with `OPENCODE_SDK_TESTS_ENDPOINT`,
+`OPENCODE_SDK_TESTS_PASSWORD`, and `OPENCODE_SDK_TESTS_PTY_DAEMON=1`: **4 of 4 TFMs passed**, the
+fixture printed its external-mode line naming `version: local` beside the pinned commit, an
+`opencode-pty daemon` process was observed and exited with the server, and a deliberate blank
+password was refused by the fixture's guard naming `OPENCODE_SDK_TESTS_PASSWORD` — the F1 fix
+(`68a03c3`) working as designed.
+
+**Four gotchas the recipe now carries.** Drive WSL from a script file
+(`MSYS_NO_PATHCONV=1 wsl.exe -- bash /mnt/c/<path>.sh`), because Git Bash mangles the quoting and
+converts `/tmp` paths into Windows ones. Stop the server by pattern
+(`pkill -f "index.ts serve --port 4097"`), because a backgrounded `setsid nohup … &` left the pid
+file empty. Do **not** share the Windows checkout's `node_modules` with WSL over `/mnt/<drive>` —
+one tree holds the platform package of whichever OS installed last, so the two installs clobber each
+other's daemon binary; clone into the WSL filesystem instead. And the sandbox is not a second proof
+here: `dotnet run` needs `--no-launch-profile` (the checked-in `launchSettings.json` prefills
+`OPENCODE_SANDBOX_ENDPOINT` at port 4096) and the walkthrough's earlier session legs answer 500 on a
+provider-less isolated server, so its persistent PTY leg was never reached — the live test is the
+proof.
 
 **Upstream-report candidates.** (1) `persistentPty.read`'s `lines` query is a bare string in the
 document (`PersistentPty.ReadLinesEncoded`) while the handler decodes an integer 1..65535 and
@@ -4461,15 +4518,14 @@ arms its handler cannot produce, because it upgrades before it checks either —
 wire never gives. All three join the parked set beside the undeclared `x-opencode-ticket` value,
 which this family's token door requires exactly as the normal family's does.
 
-**Outstanding:** the round-trip arm's first live execution; the `handoff` door's accessor shape —
-its `{handoff: …}` body binds as a promoted body model, so a caller reads
-`response.Handoff.Handoff`, parked for the pre-1.0 surface review because flattening it needs an
-envelope-facet mechanism rather than a curation row.
+**Outstanding:** the two hosted net472 timeout budgets above, which keep `master` red on that one
+leg; and the `handoff` door's accessor shape — its `{handoff: …}` body binds as a promoted body
+model, so a caller reads `response.Handoff.Handoff`, parked for the pre-1.0 surface review because
+flattening it needs an envelope-facet mechanism rather than a curation row.
 
-**Evidence:** the full gate is green at the branch head — slopwatch 0, a Release build with zero
-warnings, `dotnet format` clean, **4,016 tests** on all TFMs, and `generate --verify` current with
-the marker at **122 selected / 12 pending / 2 transport-owned** of 136. The branch is unmerged and
-unpushed, awaiting the maintainer's merge and the hosted run.
+**Evidence:** the full gate is green at `2801dd4`, now `master` — slopwatch 0, a Release build with
+zero warnings, `dotnet format` clean, **4,016 tests** on all TFMs, and `generate --verify` current
+with the marker at **122 selected / 12 pending / 2 transport-owned** of 136.
 
 **The `PtySession` read ladder measured across the shared-core extraction.** The increment-level
 check (`--filter '*PtySessionRead*' --job short --runtimes net10.0 net472`) ran on this

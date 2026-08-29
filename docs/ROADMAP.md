@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-29
+Date: 2026-08-30
 
 Operational state: what is done, what is next, what is open. This file shrinks as work lands.
 `../AGENTS.md` routes to current architecture and engineering canon; decision records live in
@@ -491,10 +491,15 @@ after the server's `attached` frame and exposes it, output and checkpoints are b
 unknown control type rather than failing the read, and 4404 covers "no such terminal" and "no
 daemon" alike. Test reach grew with it: the exact-pin fixture gained an external-endpoint mode,
 `PersistentPtyDaemonGate` picks the live test's arm, and the sandbox README records the WSL2
-recipe. **What is pending:** the maintainer's hosted three-OS run and the WSL2 run — the live
-test's round-trip arm has not executed anywhere yet, only its daemon-absent arm, which passed here;
-and the `handoff` door's promoted-body accessor (`response.Handoff.Handoff`), parked for the pre-1.0
-surface review because flattening it needs an envelope-facet mechanism rather than a curation row.
+recipe, since corrected against a real run. **The arc is integrated and the round trip is proven:**
+it merged fast-forward into `master` (`203595c..2801dd4`, pushed `66dba42..2801dd4`), and the live
+test's round-trip arm executed on hosted Linux and macOS in run `33276305571` and against a WSL2
+server from this workstation, carrying the same `arm=round-trip` evidence line each time (Q156);
+Windows took the daemon-absent arm, as designed, and every `PersistentPty*` class passed there. That
+run's Windows job is red for an unrelated reason — the hosted net472 leg is slow enough to break two
+timing budgets, and the re-run failed a different one of them (Known Gaps). **Still open:** the
+`handoff` door's promoted-body accessor (`response.Handoff.Handoff`), parked for the pre-1.0 surface
+review because flattening it needs an envelope-facet mechanism rather than a curation row.
 The `PtySession` read ladder was rerun across the extraction (`--job short`, both runtimes) and the
 shared core's added interface dispatch costs no allocation: `DecodeFrames` is byte-identical on
 every fixture and runtime, and `ReadFramesAsync` allocates 0–16 bytes less per read (Q156).
@@ -648,6 +653,21 @@ is revisited at each milestone boundary.
   for decode alone, `cursor-x1`/net10.0): pre-existing, previously unmeasured, now isolated on its
   own rung. Queued as a named, benchmark-gated optimization candidate (an `ArrayPool` rent is the
   obvious shape), not a defect.
+- **Hosted Windows net472 timing budgets** — `master` is red on that one CI leg. In run
+  `33276305571`, attempt 1 failed the pipeline progress-window test (a 200 ms window under a 10 s
+  caller token; the hosted call took 12.9 s), and the re-run passed that one and failed the
+  fixture's external-mode attach test on its 15 s test timeout instead. Both pass locally on net472,
+  and the net472 executable runs 2m15s hosted against roughly 1m18s locally. Harden both budgets —
+  and for the attach test, check .NET Framework's first-request proxy auto-detection — as the first
+  item of the hygiene batch (evidence: research log Q156).
+- **Sandbox against an isolated external server** — `dotnet run --project
+  tests/OpenCode.Sdk.Sandbox` needs `--no-launch-profile`, because the checked-in
+  `launchSettings.json` prefills `OPENCODE_SANDBOX_ENDPOINT` at port 4096; and the walkthrough's
+  earlier session legs answer 500 on a provider-less server, so its persistent PTY leg is
+  unreachable there. `tests/OpenCode.Sdk.Sandbox/README.md`'s WSL2 recipe was corrected against the
+  2026-08-29 run and is done: clone into the WSL filesystem rather than sharing `node_modules` over
+  `/mnt/<drive>`, install the pin's own bun, serve under isolated XDG roots, and run the filtered
+  live test from Windows.
 - **Two curation/doc minors (next curation touch):** the `form` group's curation reason says "no
   per-id operations, ever" where every sibling row states present-tense fact only; the
   `MedianNanoseconds` `compare-benchmarks` CSV column breaks the other columns' abbreviation
