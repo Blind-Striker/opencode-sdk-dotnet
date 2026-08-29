@@ -23,6 +23,10 @@ internal static class BenchmarkComparisonComposer
             }
 
             matchedCases.Add((afterCase.FullName, afterCase.Runtime));
+
+            // The wire figures describe the case's fixture, not a measurement: prefer the after
+            // leg's triple and fall back to the baseline's when only it recorded wire metrics.
+            var wireSource = afterCase.HasWireMetrics ? afterCase : beforeCase;
             rows.Add(new BenchmarkComparisonRow
             {
                 CaseLabel = afterCase.CaseLabel,
@@ -31,6 +35,9 @@ internal static class BenchmarkComparisonComposer
                 AllocatedAfter = afterCase.AllocatedBytes,
                 AllocatedDelta = afterCase.AllocatedBytes - beforeCase.AllocatedBytes,
                 TimeRatio = ComputeTimeRatio(beforeCase.MedianNanoseconds, afterCase.MedianNanoseconds),
+                WireBytes = wireSource.WireBytes,
+                WireItems = wireSource.WireItems,
+                PayloadBytesPerItem = wireSource.PayloadBytesPerItem,
             });
         }
 

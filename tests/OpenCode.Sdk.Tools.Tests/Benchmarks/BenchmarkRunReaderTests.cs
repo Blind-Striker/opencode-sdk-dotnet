@@ -57,6 +57,46 @@ public sealed class BenchmarkRunReaderTests
     }
 
     [Test]
+    public async Task ReadAsync_Should_Populate_The_Wire_Metrics_When_The_Report_Carries_Them()
+    {
+        var fileSystem = new MockFileSystem();
+        fileSystem.Initialize().With(new FileDescription(
+            "runs/results/wire-metrics-report-full.json",
+            _fixtures.Load("Benchmarks.wire-metrics-report-full.json")));
+        var reader = new BenchmarkRunReader(fileSystem);
+
+        var cases = await reader.ReadAsync("runs", CancellationToken.None);
+
+        var wireCase = cases.Single(runCase => runCase.Method == "GetHealthAsync");
+        await Assert.That(wireCase.WireBytes).IsEqualTo(49L);
+        await Assert.That(wireCase.WireItems).IsEqualTo(1L);
+        await Assert.That(wireCase.PayloadBytesPerItem).IsEqualTo(49L);
+        await Assert.That(wireCase.AllocatedBytes).IsEqualTo(2392L);
+
+        // Wire stays optional per case: the composition rung of the same report carries none.
+        var compositionCase = cases.Single(runCase => runCase.Method == "ComposeRequest");
+        await Assert.That(compositionCase.HasWireMetrics).IsFalse();
+        await Assert.That(compositionCase.AllocatedBytes).IsEqualTo(184L);
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Read_An_Archived_Report_Without_Wire_Metrics_With_Wire_Unset()
+    {
+        var reader = new BenchmarkRunReader(BenchmarkRunData.CreateComparisonStore());
+
+        var cases = await reader.ReadAsync(BenchmarkRunData.BeforeDirectory, CancellationToken.None);
+
+        await Assert.That(cases.Count).IsEqualTo(4);
+        foreach (var runCase in cases)
+        {
+            await Assert.That(runCase.WireBytes).IsNull();
+            await Assert.That(runCase.WireItems).IsNull();
+            await Assert.That(runCase.PayloadBytesPerItem).IsNull();
+            await Assert.That(runCase.HasWireMetrics).IsFalse();
+        }
+    }
+
+    [Test]
     public async Task ReadAsync_Should_Read_A_Case_Without_A_Positive_Median_As_Carrying_No_Timing()
     {
         var fileSystem = new MockFileSystem();

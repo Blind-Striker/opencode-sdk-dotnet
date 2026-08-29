@@ -10,6 +10,15 @@ internal sealed class BenchmarkRunReader
     private const string ReportPattern = "*-report-full.json";
     private const string BenchmarkTypeSuffix = "Benchmarks";
 
+    /// <summary>Wire metric ids as the performance suite's <c>WireFixtureDiagnoser</c> emits them.</summary>
+    private const string WireBytesMetricId = "WireBytes";
+
+    /// <summary>See <see cref="WireBytesMetricId"/>.</summary>
+    private const string WireItemsMetricId = "WireItems";
+
+    /// <summary>See <see cref="WireBytesMetricId"/>.</summary>
+    private const string PayloadBytesPerItemMetricId = "PayloadBytesPerItem";
+
     private readonly IFileSystem _fileSystem;
 
     public BenchmarkRunReader(IFileSystem fileSystem)
@@ -100,8 +109,20 @@ internal sealed class BenchmarkRunReader
             // A constant-folded case measures at the noise floor and can report a zero median; it
             // carries no usable timing but its exact allocation still compares.
             MedianNanoseconds = reportCase.Statistics is { Median: > 0 } statistics ? statistics.Median : null,
+            WireBytes = FindWireMetric(reportCase, WireBytesMetricId),
+            WireItems = FindWireMetric(reportCase, WireItemsMetricId),
+            PayloadBytesPerItem = FindWireMetric(reportCase, PayloadBytesPerItemMetricId),
         };
     }
+
+    /// <summary>Wire is optional per case: pure-composition rungs and runs predating the wire
+    /// metrics carry none. The values originate from exact <see cref="int"/> fixture figures, so
+    /// the export's <see cref="double"/> representation converts back without loss.</summary>
+    private static long? FindWireMetric(BenchmarkReportCase reportCase, string metricId) =>
+        reportCase.Metrics?.FirstOrDefault(metric => string.Equals(metric.Descriptor.Id, metricId, StringComparison.Ordinal))
+            is { } metric
+            ? (long)metric.Value
+            : null;
 
     private static string TrimFamily(string typeName) =>
         typeName.EndsWith(BenchmarkTypeSuffix, StringComparison.Ordinal) && typeName.Length > BenchmarkTypeSuffix.Length

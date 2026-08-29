@@ -70,6 +70,9 @@ internal sealed partial class CompareBenchmarksCommand : AsyncCommand<CompareBen
         var table = new Table();
         table.AddColumn("Case");
         table.AddColumn("Runtime");
+        table.AddColumn(new TableColumn("Wire (B)").RightAligned());
+        table.AddColumn(new TableColumn("Items").RightAligned());
+        table.AddColumn(new TableColumn("Payload (B/item)").RightAligned());
         table.AddColumn(new TableColumn("Alloc before (B)").RightAligned());
         table.AddColumn(new TableColumn("Alloc after (B)").RightAligned());
         table.AddColumn(new TableColumn("Delta (B)").RightAligned());
@@ -79,6 +82,10 @@ internal sealed partial class CompareBenchmarksCommand : AsyncCommand<CompareBen
             table.AddRow(
                 Markup.Escape(row.CaseLabel),
                 Markup.Escape(row.Runtime),
+                // "-" marks a case without wire figures: no wire fixture, or runs predating them.
+                OptionalCount(row.WireBytes),
+                OptionalCount(row.WireItems),
+                OptionalCount(row.PayloadBytesPerItem),
                 row.AllocatedBefore.ToString("N0", CultureInfo.InvariantCulture),
                 row.AllocatedAfter.ToString("N0", CultureInfo.InvariantCulture),
                 row.AllocatedDelta.ToString("+#,0;-#,0;0", CultureInfo.InvariantCulture),
@@ -118,6 +125,9 @@ internal sealed partial class CompareBenchmarksCommand : AsyncCommand<CompareBen
     }
 
     private static string Count(int value) => value.ToString(CultureInfo.InvariantCulture);
+
+    private static string OptionalCount(long? value) =>
+        value is { } presentValue ? presentValue.ToString("N0", CultureInfo.InvariantCulture) : "-";
 
     internal sealed class Settings : GlobalSettings
     {

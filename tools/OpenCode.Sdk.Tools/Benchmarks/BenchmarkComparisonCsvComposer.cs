@@ -16,13 +16,18 @@ namespace OpenCode.Sdk.Tools.Benchmarks;
 /// have one). One-sided rows populate only the allocation side they actually have plus their own
 /// exact <c>MedianNanoseconds</c> when the case has one (the honest one-sided timing figure),
 /// leaving the other allocation column, <c>AllocDelta</c>, and <c>TimeRatio</c> blank — there is no
-/// counterpart to diff or ratio against. Rows appear in three sections, each already sorted by the
+/// counterpart to diff or ratio against. The wire columns (<c>WireBytes</c>, <c>WireItems</c>,
+/// <c>PayloadBytesPerItem</c>) carry the case's exact fixture figures on matched and one-sided rows
+/// alike — matched rows source them per <see cref="BenchmarkComparisonRow.WireBytes"/>, one-sided
+/// rows carry their own — and stay blank for a case without a wire fixture or a run recorded
+/// before the wire metrics existed. Rows appear in three sections, each already sorted by the
 /// composer: matched, then before-only, then after-only.
 /// </summary>
 internal static class BenchmarkComparisonCsvComposer
 {
     private const string Header =
-        "\"Case\",\"Runtime\",\"Status\",\"AllocBefore\",\"AllocAfter\",\"AllocDelta\",\"TimeRatio\",\"MedianNanoseconds\"\n";
+        "\"Case\",\"Runtime\",\"Status\",\"WireBytes\",\"WireItems\",\"PayloadBytesPerItem\","
+        + "\"AllocBefore\",\"AllocAfter\",\"AllocDelta\",\"TimeRatio\",\"MedianNanoseconds\"\n";
 
     public static string Compose(BenchmarkComparison comparison)
     {
@@ -53,6 +58,9 @@ internal static class BenchmarkComparisonCsvComposer
         CaseLabel = row.CaseLabel,
         Runtime = row.Runtime,
         Status = "Matched",
+        WireBytes = OptionalInteger(row.WireBytes),
+        WireItems = OptionalInteger(row.WireItems),
+        PayloadBytesPerItem = OptionalInteger(row.PayloadBytesPerItem),
         AllocBefore = row.AllocatedBefore.ToString(CultureInfo.InvariantCulture),
         AllocAfter = row.AllocatedAfter.ToString(CultureInfo.InvariantCulture),
         AllocDelta = row.AllocatedDelta.ToString(CultureInfo.InvariantCulture),
@@ -68,6 +76,9 @@ internal static class BenchmarkComparisonCsvComposer
             CaseLabel = runCase.CaseLabel,
             Runtime = runCase.Runtime,
             Status = status,
+            WireBytes = OptionalInteger(runCase.WireBytes),
+            WireItems = OptionalInteger(runCase.WireItems),
+            PayloadBytesPerItem = OptionalInteger(runCase.PayloadBytesPerItem),
             AllocBefore = allocatesBefore ? allocatedBytes : string.Empty,
             AllocAfter = allocatesBefore ? string.Empty : allocatedBytes,
             AllocDelta = string.Empty,
@@ -78,12 +89,18 @@ internal static class BenchmarkComparisonCsvComposer
         };
     }
 
+    private static string OptionalInteger(long? value) =>
+        value is { } presentValue ? presentValue.ToString(CultureInfo.InvariantCulture) : string.Empty;
+
     private static void AppendRow(StringBuilder builder, CsvRow row)
     {
         builder
             .Append(Quote(row.CaseLabel)).Append(',')
             .Append(Quote(row.Runtime)).Append(',')
             .Append(Quote(row.Status)).Append(',')
+            .Append(Quote(row.WireBytes)).Append(',')
+            .Append(Quote(row.WireItems)).Append(',')
+            .Append(Quote(row.PayloadBytesPerItem)).Append(',')
             .Append(Quote(row.AllocBefore)).Append(',')
             .Append(Quote(row.AllocAfter)).Append(',')
             .Append(Quote(row.AllocDelta)).Append(',')
@@ -102,6 +119,12 @@ internal static class BenchmarkComparisonCsvComposer
         public required string Runtime { get; init; }
 
         public required string Status { get; init; }
+
+        public required string WireBytes { get; init; }
+
+        public required string WireItems { get; init; }
+
+        public required string PayloadBytesPerItem { get; init; }
 
         public required string AllocBefore { get; init; }
 

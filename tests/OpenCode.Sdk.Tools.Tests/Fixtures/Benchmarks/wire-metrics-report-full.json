@@ -1,0 +1,152 @@
+{
+  "Title": "OpenCode.Sdk.Performance.Tests.Benchmarks.HealthBenchmarks-20260829-113000",
+  "HostEnvironmentInfo": {
+    "BenchmarkDotNetVersion": "0.15.8",
+    "RuntimeVersion": ".NET 10.0.11 (10.0.11, 10.0.1126.37416)",
+    "Architecture": "X64",
+    "Configuration": "RELEASE"
+  },
+  "Benchmarks": [
+    {
+      "DisplayInfo": "HealthBenchmarks.GetHealthAsync: .NET 10.0(Runtime=.NET 10.0, Toolchain=net10.0) [Fixture=health]",
+      "Namespace": "OpenCode.Sdk.Performance.Tests.Benchmarks",
+      "Type": "HealthBenchmarks",
+      "Method": "GetHealthAsync",
+      "MethodTitle": "GetHealthAsync",
+      "Parameters": "Fixture=health",
+      "FullName": "OpenCode.Sdk.Performance.Tests.Benchmarks.HealthBenchmarks.GetHealthAsync(Fixture: health)",
+      "Statistics": {
+        "N": 15,
+        "Median": 1507.2129249572754,
+        "Mean": 1498.6761411031086,
+        "StandardDeviation": 15.737404473520806
+      },
+      "Memory": {
+        "Gen0Collections": 74,
+        "Gen1Collections": 0,
+        "Gen2Collections": 0,
+        "TotalOperations": 524288,
+        "BytesAllocatedPerOperation": 2392
+      },
+      "Metrics": [
+        {
+          "Value": 49,
+          "Descriptor": {
+            "Id": "WireBytes",
+            "DisplayName": "Wire B",
+            "Legend": "Exact wire body bytes one operation consumes (envelope/framing included)",
+            "NumberFormat": "N0",
+            "UnitType": 2,
+            "Unit": "B",
+            "TheGreaterTheBetter": false,
+            "PriorityInCategory": 4
+          }
+        },
+        {
+          "Value": 1,
+          "Descriptor": {
+            "Id": "WireItems",
+            "DisplayName": "Items",
+            "Legend": "Payloads or frames consumed per operation",
+            "NumberFormat": "N0",
+            "UnitType": 0,
+            "Unit": "Count",
+            "TheGreaterTheBetter": false,
+            "PriorityInCategory": 5
+          }
+        },
+        {
+          "Value": 49,
+          "Descriptor": {
+            "Id": "PayloadBytesPerItem",
+            "DisplayName": "Payload B/item",
+            "Legend": "JSON payload bytes per item, excluding envelope and SSE framing (average for a mixed body)",
+            "NumberFormat": "N0",
+            "UnitType": 2,
+            "Unit": "B",
+            "TheGreaterTheBetter": false,
+            "PriorityInCategory": 6
+          }
+        },
+        {
+          "Value": 0.141143798828125,
+          "Descriptor": {
+            "Id": "Gen0Collects",
+            "DisplayName": "Gen0",
+            "Legend": "GC Generation 0 collects per 1000 operations",
+            "NumberFormat": "#0.0000",
+            "UnitType": 0,
+            "Unit": "Count",
+            "TheGreaterTheBetter": false,
+            "PriorityInCategory": 0
+          }
+        },
+        {
+          "Value": 2392,
+          "Descriptor": {
+            "Id": "Allocated Memory",
+            "DisplayName": "Allocated",
+            "Legend": "Allocated memory per single operation (managed only, inclusive, 1KB = 1024B)",
+            "NumberFormat": "0.##",
+            "UnitType": 2,
+            "Unit": "B",
+            "TheGreaterTheBetter": false,
+            "PriorityInCategory": 3
+          }
+        }
+      ],
+      "Measurements": []
+    },
+    {
+      "DisplayInfo": "HealthBenchmarks.ComposeRequest: .NET 10.0(Runtime=.NET 10.0, Toolchain=net10.0)",
+      "Namespace": "OpenCode.Sdk.Performance.Tests.Benchmarks",
+      "Type": "HealthBenchmarks",
+      "Method": "ComposeRequest",
+      "MethodTitle": "ComposeRequest",
+      "Parameters": "",
+      "FullName": "OpenCode.Sdk.Performance.Tests.Benchmarks.HealthBenchmarks.ComposeRequest",
+      "Statistics": {
+        "N": 15,
+        "Median": 182.42381286621094,
+        "Mean": 183.05620321451822,
+        "StandardDeviation": 2.1310579
+      },
+      "Memory": {
+        "Gen0Collections": 11,
+        "Gen1Collections": 0,
+        "Gen2Collections": 0,
+        "TotalOperations": 524288,
+        "BytesAllocatedPerOperation": 184
+      },
+      "Metrics": [
+        {
+          "Value": 0.020980834960937501,
+          "Descriptor": {
+            "Id": "Gen0Collects",
+            "DisplayName": "Gen0",
+            "Legend": "GC Generation 0 collects per 1000 operations",
+            "NumberFormat": "#0.0000",
+            "UnitType": 0,
+            "Unit": "Count",
+            "TheGreaterTheBetter": false,
+            "PriorityInCategory": 0
+          }
+        },
+        {
+          "Value": 184,
+          "Descriptor": {
+            "Id": "Allocated Memory",
+            "DisplayName": "Allocated",
+            "Legend": "Allocated memory per single operation (managed only, inclusive, 1KB = 1024B)",
+            "NumberFormat": "0.##",
+            "UnitType": 2,
+            "Unit": "B",
+            "TheGreaterTheBetter": false,
+            "PriorityInCategory": 3
+          }
+        }
+      ],
+      "Measurements": []
+    }
+  ]
+}

@@ -16,4 +16,7 @@ internal sealed record BenchmarkReportCase
     public BenchmarkReportStatistics? Statistics { get; init; }
 
     public BenchmarkReportMemory? Memory { get; init; }
+
+    /// <summary>The exported metrics; absent in exports predating BenchmarkDotNet's metric output.</summary>
+    public IReadOnlyList<BenchmarkReportMetric>? Metrics { get; init; }
 }

@@ -99,7 +99,68 @@ public sealed class BenchmarkComparisonComposerTests
         await Assert.That(row.TimeRatio).IsNull();
     }
 
-    private static BenchmarkRunCase Case(string method, string runtime, long allocatedBytes, double? medianNanoseconds) =>
+    [Test]
+    public async Task Compose_Should_Carry_The_After_Legs_Wire_Figures_When_Both_Runs_Record_Them()
+    {
+        var before = new[]
+        {
+            Case("GetHealthAsync", ".NET 10.0", allocatedBytes: 2104, medianNanoseconds: 1000.0, wireBytes: 47, wireItems: 1, payloadBytesPerItem: 47),
+        };
+        var after = new[]
+        {
+            Case("GetHealthAsync", ".NET 10.0", allocatedBytes: 2376, medianNanoseconds: 980.0, wireBytes: 49, wireItems: 1, payloadBytesPerItem: 49),
+        };
+
+        var comparison = BenchmarkComparisonComposer.Compose(before, after);
+
+        var row = comparison.Rows.Single();
+        await Assert.That(row.WireBytes).IsEqualTo(49L);
+        await Assert.That(row.WireItems).IsEqualTo(1L);
+        await Assert.That(row.PayloadBytesPerItem).IsEqualTo(49L);
+    }
+
+    [Test]
+    public async Task Compose_Should_Fall_Back_To_The_Baseline_Wire_Figures_When_The_After_Run_Lacks_Them()
+    {
+        var before = new[]
+        {
+            Case("GetHealthAsync", ".NET 10.0", allocatedBytes: 2104, medianNanoseconds: 1000.0, wireBytes: 49, wireItems: 1, payloadBytesPerItem: 49),
+        };
+        var after = new[]
+        {
+            Case("GetHealthAsync", ".NET 10.0", allocatedBytes: 2376, medianNanoseconds: 980.0),
+        };
+
+        var comparison = BenchmarkComparisonComposer.Compose(before, after);
+
+        var row = comparison.Rows.Single();
+        await Assert.That(row.WireBytes).IsEqualTo(49L);
+        await Assert.That(row.WireItems).IsEqualTo(1L);
+        await Assert.That(row.PayloadBytesPerItem).IsEqualTo(49L);
+    }
+
+    [Test]
+    public async Task Compose_Should_Leave_The_Wire_Figures_Unset_When_Neither_Run_Records_Them()
+    {
+        var before = new[] { Case("GetHealthAsync", ".NET 10.0", allocatedBytes: 2104, medianNanoseconds: 1000.0) };
+        var after = new[] { Case("GetHealthAsync", ".NET 10.0", allocatedBytes: 2376, medianNanoseconds: 980.0) };
+
+        var comparison = BenchmarkComparisonComposer.Compose(before, after);
+
+        var row = comparison.Rows.Single();
+        await Assert.That(row.WireBytes).IsNull();
+        await Assert.That(row.WireItems).IsNull();
+        await Assert.That(row.PayloadBytesPerItem).IsNull();
+    }
+
+    private static BenchmarkRunCase Case(
+        string method,
+        string runtime,
+        long allocatedBytes,
+        double? medianNanoseconds,
+        long? wireBytes = null,
+        long? wireItems = null,
+        long? payloadBytesPerItem = null) =>
         new()
         {
             FullName = $"OpenCode.Sdk.Performance.Tests.Benchmarks.HealthBenchmarks.{method}(Fixture: health)",
@@ -109,5 +170,8 @@ public sealed class BenchmarkComparisonComposerTests
             Runtime = runtime,
             AllocatedBytes = allocatedBytes,
             MedianNanoseconds = medianNanoseconds,
+            WireBytes = wireBytes,
+            WireItems = wireItems,
+            PayloadBytesPerItem = payloadBytesPerItem,
         };
 }

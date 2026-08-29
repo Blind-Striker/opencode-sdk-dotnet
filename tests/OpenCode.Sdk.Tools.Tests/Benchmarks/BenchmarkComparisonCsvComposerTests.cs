@@ -22,9 +22,9 @@ public sealed class BenchmarkComparisonCsvComposerTests
         var csv = BenchmarkComparisonCsvComposer.Compose(comparison);
 
         await Assert.That(csv).IsEqualTo(
-            "\"Case\",\"Runtime\",\"Status\",\"AllocBefore\",\"AllocAfter\",\"AllocDelta\",\"TimeRatio\",\"MedianNanoseconds\"\n"
-            + "\"Health/GetHealthAsync [Fixture=health]\",\".NET 10.0\",\"Matched\",\"2104\",\"2376\",\"272\",\"1.08\",\"\"\n"
-            + "\"Health/GetHealthAsync [Fixture=health]\",\".NET Framework 4.7.2\",\"Matched\",\"6432\",\"4686\",\"-1746\",\"0.40\",\"\"\n");
+            "\"Case\",\"Runtime\",\"Status\",\"WireBytes\",\"WireItems\",\"PayloadBytesPerItem\",\"AllocBefore\",\"AllocAfter\",\"AllocDelta\",\"TimeRatio\",\"MedianNanoseconds\"\n"
+            + "\"Health/GetHealthAsync [Fixture=health]\",\".NET 10.0\",\"Matched\",\"\",\"\",\"\",\"2104\",\"2376\",\"272\",\"1.08\",\"\"\n"
+            + "\"Health/GetHealthAsync [Fixture=health]\",\".NET Framework 4.7.2\",\"Matched\",\"\",\"\",\"\",\"6432\",\"4686\",\"-1746\",\"0.40\",\"\"\n");
     }
 
     [Test]
@@ -55,10 +55,10 @@ public sealed class BenchmarkComparisonCsvComposerTests
         var csv = BenchmarkComparisonCsvComposer.Compose(comparison);
 
         await Assert.That(csv).IsEqualTo(
-            "\"Case\",\"Runtime\",\"Status\",\"AllocBefore\",\"AllocAfter\",\"AllocDelta\",\"TimeRatio\",\"MedianNanoseconds\"\n"
-            + "\"Health/GetHealthAsync [Fixture=health]\",\".NET 10.0\",\"Matched\",\"2104\",\"2376\",\"272\",\"1.08\",\"\"\n"
-            + "\"Health/Deserialize [Fixture=health]\",\".NET 10.0\",\"BeforeOnly\",\"256\",\"\",\"\",\"\",\"401.5\"\n"
-            + "\"Health/AdaptSuccess [Fixture=health]\",\".NET 10.0\",\"AfterOnly\",\"\",\"304\",\"\",\"\",\"420.25\"\n");
+            "\"Case\",\"Runtime\",\"Status\",\"WireBytes\",\"WireItems\",\"PayloadBytesPerItem\",\"AllocBefore\",\"AllocAfter\",\"AllocDelta\",\"TimeRatio\",\"MedianNanoseconds\"\n"
+            + "\"Health/GetHealthAsync [Fixture=health]\",\".NET 10.0\",\"Matched\",\"\",\"\",\"\",\"2104\",\"2376\",\"272\",\"1.08\",\"\"\n"
+            + "\"Health/Deserialize [Fixture=health]\",\".NET 10.0\",\"BeforeOnly\",\"\",\"\",\"\",\"256\",\"\",\"\",\"\",\"401.5\"\n"
+            + "\"Health/AdaptSuccess [Fixture=health]\",\".NET 10.0\",\"AfterOnly\",\"\",\"\",\"\",\"\",\"304\",\"\",\"\",\"420.25\"\n");
     }
 
     [Test]
@@ -117,12 +117,48 @@ public sealed class BenchmarkComparisonCsvComposerTests
         // A Matched row with a blank TimeRatio says "no timing ratio available"; absence from the
         // other run is a different fact and stays visible through the one-sided statuses.
         await Assert.That(csv).IsEqualTo(
-            "\"Case\",\"Runtime\",\"Status\",\"AllocBefore\",\"AllocAfter\",\"AllocDelta\",\"TimeRatio\",\"MedianNanoseconds\"\n"
-            + "\"RouteComposition/ConstantRoute\",\".NET Framework 4.7.2\",\"Matched\",\"24\",\"0\",\"-24\",\"\",\"\"\n"
-            + "\"RouteComposition/ConstantRoute\",\".NET 10.0\",\"AfterOnly\",\"\",\"0\",\"\",\"\",\"\"\n");
+            "\"Case\",\"Runtime\",\"Status\",\"WireBytes\",\"WireItems\",\"PayloadBytesPerItem\",\"AllocBefore\",\"AllocAfter\",\"AllocDelta\",\"TimeRatio\",\"MedianNanoseconds\"\n"
+            + "\"RouteComposition/ConstantRoute\",\".NET Framework 4.7.2\",\"Matched\",\"\",\"\",\"\",\"24\",\"0\",\"-24\",\"\",\"\"\n"
+            + "\"RouteComposition/ConstantRoute\",\".NET 10.0\",\"AfterOnly\",\"\",\"\",\"\",\"\",\"0\",\"\",\"\",\"\"\n");
     }
 
-    private static BenchmarkComparisonRow Row(string caseLabel, string runtime, long allocatedBefore, long allocatedAfter, double? timeRatio) =>
+    [Test]
+    public async Task Compose_Should_Carry_Wire_For_Matched_And_One_Sided_Rows_Alike()
+    {
+        var comparison = new BenchmarkComparison
+        {
+            Rows =
+            [
+                Row("Health/GetHealthAsync [Fixture=health]", ".NET 10.0", 2104, 2392, timeRatio: 1.08, wireBytes: 49, wireItems: 1, payloadBytesPerItem: 49),
+            ],
+            BeforeOnly =
+            [
+                RunCase("Health", "Deserialize", "Fixture=health", ".NET 10.0", allocatedBytes: 256, medianNanoseconds: 401.5, wireBytes: 49, wireItems: 1, payloadBytesPerItem: 49),
+            ],
+            AfterOnly =
+            [
+                RunCase("Health", "ComposeRequest", "", ".NET 10.0", allocatedBytes: 184, medianNanoseconds: 182.5),
+            ],
+        };
+
+        var csv = BenchmarkComparisonCsvComposer.Compose(comparison);
+
+        await Assert.That(csv).IsEqualTo(
+            "\"Case\",\"Runtime\",\"Status\",\"WireBytes\",\"WireItems\",\"PayloadBytesPerItem\",\"AllocBefore\",\"AllocAfter\",\"AllocDelta\",\"TimeRatio\",\"MedianNanoseconds\"\n"
+            + "\"Health/GetHealthAsync [Fixture=health]\",\".NET 10.0\",\"Matched\",\"49\",\"1\",\"49\",\"2104\",\"2392\",\"288\",\"1.08\",\"\"\n"
+            + "\"Health/Deserialize [Fixture=health]\",\".NET 10.0\",\"BeforeOnly\",\"49\",\"1\",\"49\",\"256\",\"\",\"\",\"\",\"401.5\"\n"
+            + "\"Health/ComposeRequest\",\".NET 10.0\",\"AfterOnly\",\"\",\"\",\"\",\"\",\"184\",\"\",\"\",\"182.5\"\n");
+    }
+
+    private static BenchmarkComparisonRow Row(
+        string caseLabel,
+        string runtime,
+        long allocatedBefore,
+        long allocatedAfter,
+        double? timeRatio,
+        long? wireBytes = null,
+        long? wireItems = null,
+        long? payloadBytesPerItem = null) =>
         new()
         {
             CaseLabel = caseLabel,
@@ -131,9 +167,21 @@ public sealed class BenchmarkComparisonCsvComposerTests
             AllocatedAfter = allocatedAfter,
             AllocatedDelta = allocatedAfter - allocatedBefore,
             TimeRatio = timeRatio,
+            WireBytes = wireBytes,
+            WireItems = wireItems,
+            PayloadBytesPerItem = payloadBytesPerItem,
         };
 
-    private static BenchmarkRunCase RunCase(string family, string method, string parameters, string runtime, long allocatedBytes, double? medianNanoseconds) =>
+    private static BenchmarkRunCase RunCase(
+        string family,
+        string method,
+        string parameters,
+        string runtime,
+        long allocatedBytes,
+        double? medianNanoseconds,
+        long? wireBytes = null,
+        long? wireItems = null,
+        long? payloadBytesPerItem = null) =>
         new()
         {
             FullName = $"OpenCode.Sdk.Performance.Tests.Benchmarks.{family}Benchmarks.{method}({parameters})",
@@ -143,5 +191,8 @@ public sealed class BenchmarkComparisonCsvComposerTests
             Runtime = runtime,
             AllocatedBytes = allocatedBytes,
             MedianNanoseconds = medianNanoseconds,
+            WireBytes = wireBytes,
+            WireItems = wireItems,
+            PayloadBytesPerItem = payloadBytesPerItem,
         };
 }
