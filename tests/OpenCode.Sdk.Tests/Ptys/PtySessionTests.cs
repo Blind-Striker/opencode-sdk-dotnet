@@ -260,6 +260,18 @@ public sealed class PtySessionTests
     }
 
     [Test]
+    public async Task WriteAsync_Should_Send_A_Text_Message()
+    {
+        var socket = new ScriptedPtyWebSocket();
+        await using var session = new PtySession(socket);
+
+        await session.WriteAsync("ls\r");
+
+        await Assert.That(socket.SentMessageTypes.Single()).IsEqualTo(WebSocketMessageType.Text);
+        await Assert.That(socket.SentText.Single()).IsEqualTo("ls\r");
+    }
+
+    [Test]
     public async Task WriteAsync_Should_Serialize_Concurrent_Sends()
     {
         var socket = new ScriptedPtyWebSocket().GatingSends();

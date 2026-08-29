@@ -19,7 +19,7 @@ public sealed class PtyUpgradeFailurePolicyTests
     {
         var fault = new WebSocketException("upgrade refused");
 
-        var mapped = PtyUpgradeFailurePolicy.Map(fault, 404, PtyId);
+        var mapped = PtyUpgradeFailurePolicy.Instance.Map(fault, 404, PtyId);
 
         await Assert.That(mapped.Message).Contains(PtyId);
         await Assert.That(mapped.Message).Contains("404");
@@ -32,7 +32,7 @@ public sealed class PtyUpgradeFailurePolicyTests
     {
         var fault = new WebSocketException("upgrade refused");
 
-        var mapped = PtyUpgradeFailurePolicy.Map(fault, status, PtyId);
+        var mapped = PtyUpgradeFailurePolicy.Instance.Map(fault, status, PtyId);
 
         await Assert.That(mapped.Message).Contains(status.ToString(CultureInfo.InvariantCulture));
         await Assert.That(mapped.Message).Contains("credential");
@@ -44,7 +44,7 @@ public sealed class PtyUpgradeFailurePolicyTests
     {
         var fault = new WebSocketException("upgrade refused");
 
-        var mapped = PtyUpgradeFailurePolicy.Map(fault, 500, PtyId);
+        var mapped = PtyUpgradeFailurePolicy.Instance.Map(fault, 500, PtyId);
 
         await Assert.That(mapped.Message).Contains("500");
         await Assert.That(mapped.InnerException).IsSameReferenceAs(fault);
@@ -55,7 +55,7 @@ public sealed class PtyUpgradeFailurePolicyTests
     {
         var fault = new WebSocketException("upgrade refused");
 
-        var mapped = PtyUpgradeFailurePolicy.Map(fault, status: null, PtyId);
+        var mapped = PtyUpgradeFailurePolicy.Instance.Map(fault, status: null, PtyId);
 
         await Assert.That(mapped.Message).Contains(PtyId);
         await Assert.That(mapped.InnerException).IsSameReferenceAs(fault);

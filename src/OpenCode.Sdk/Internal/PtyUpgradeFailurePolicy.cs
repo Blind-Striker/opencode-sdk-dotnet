@@ -11,14 +11,17 @@ namespace OpenCode.Sdk.Internal;
 /// <see cref="ClientWebSocket"/> cannot report the response status the failure still names the
 /// connect context it does know.
 /// </summary>
-internal static class PtyUpgradeFailurePolicy
+internal sealed class PtyUpgradeFailurePolicy : ITerminalUpgradeFailurePolicy
 {
-    /// <summary>Maps a failed upgrade onto the transport failure that explains it.</summary>
-    /// <param name="exception">The failure <see cref="ClientWebSocket.ConnectAsync(Uri, CancellationToken)"/> raised.</param>
-    /// <param name="status">The HTTP status the server answered, or null when the target cannot report one.</param>
-    /// <param name="ptyId">The PTY the upgrade addressed.</param>
-    /// <returns>The transport failure to throw.</returns>
-    public static OpenCodeTransportException Map(WebSocketException exception, int? status, string ptyId)
+    private PtyUpgradeFailurePolicy()
+    {
+    }
+
+    /// <summary>Gets the shared policy instance.</summary>
+    public static PtyUpgradeFailurePolicy Instance { get; } = new();
+
+    /// <inheritdoc />
+    public OpenCodeTransportException Map(WebSocketException exception, int? status, string ptyId)
     {
         ArgumentNullException.ThrowIfNull(exception);
 

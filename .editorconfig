@@ -804,13 +804,13 @@ dotnet_diagnostic.S1694.severity = none
 [src/OpenCode.Sdk/Internal/Pipeline.cs]
 dotnet_diagnostic.CA5399.severity = none
 
-# PtySession deliberately never disposes its send-gate SemaphoreSlim. The BCL only requires
+# TerminalSocketCore deliberately never disposes its send-gate SemaphoreSlim. The BCL only requires
 # disposal once AvailableWaitHandle has been read, which this class never does, and disposing it
 # would break disposal itself: an in-flight write's Release would throw over its own mapped
 # failure, and a writer already parked in WaitAsync would never wake, because Dispose does not
 # complete pending async waiters. Winner: the disposal-race contract; CA2213 remains enabled for
 # every other file.
-[src/OpenCode.Sdk/Ptys/PtySession.cs]
+[src/OpenCode.Sdk/Internal/TerminalSocketCore.cs]
 dotnet_diagnostic.CA2213.severity = none
 
 # DriveController deliberately never disposes its send-gate and invocation-signal semaphores.

@@ -3,9 +3,9 @@ using System.Net.WebSockets;
 namespace OpenCode.Sdk.Internal;
 
 /// <summary>
-/// The live PTY WebSocket a <see cref="PtySession"/> reads, writes, and closes. It is the seam a
-/// session test scripts: connecting is the door's job, so it is deliberately absent here — what a
-/// session consumes is exactly this.
+/// The live terminal WebSocket a <see cref="TerminalSocketCore{TFrame}"/> reads, writes, and
+/// closes. It is the seam a session test scripts: connecting is the door's job, so it is
+/// deliberately absent here — what a session consumes is exactly this.
 /// </summary>
 internal interface IPtyWebSocket : IDisposable
 {
@@ -21,11 +21,12 @@ internal interface IPtyWebSocket : IDisposable
     /// <returns>What the receive delivered.</returns>
     public Task<PtyReceiveResult> ReceiveAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken);
 
-    /// <summary>Sends one complete text message; the caller serializes sends.</summary>
-    /// <param name="buffer">The UTF-8 bytes to send.</param>
+    /// <summary>Sends one complete message of the given type; the caller serializes sends.</summary>
+    /// <param name="buffer">The bytes to send.</param>
+    /// <param name="messageType">The message type to send them as.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task that completes once the message is sent.</returns>
-    public Task SendAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken);
+    public Task SendAsync(ArraySegment<byte> buffer, WebSocketMessageType messageType, CancellationToken cancellationToken);
 
     /// <summary>Closes the output half with the normal-closure status.</summary>
     /// <param name="cancellationToken">The cancellation token bounding the close.</param>

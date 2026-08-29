@@ -15,6 +15,7 @@ internal sealed class ScriptedPtyWebSocket : IPtyWebSocket
     private readonly TaskCompletionSource<bool> _parked = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly Queue<ScriptedPtyReceive> _receives = new();
     private readonly List<byte[]> _sent = [];
+    private readonly List<WebSocketMessageType> _sentTypes = [];
     private readonly TaskCompletionSource<bool> _sendEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int _activeSends;
     private Exception? _closeFault;
@@ -43,6 +44,9 @@ internal sealed class ScriptedPtyWebSocket : IPtyWebSocket
 
     /// <summary>Gets every message the session sent, in the order the socket saw them.</summary>
     public IReadOnlyList<byte[]> SentMessages => _sent;
+
+    /// <summary>Gets the message type each send carried, in the order the socket saw them.</summary>
+    public IReadOnlyList<WebSocketMessageType> SentMessageTypes => _sentTypes;
 
     /// <summary>Gets every sent message decoded as UTF-8.</summary>
     public IReadOnlyList<string> SentText => [.. _sent.Select(static message => Encoding.UTF8.GetString(message))];
@@ -158,7 +162,7 @@ internal sealed class ScriptedPtyWebSocket : IPtyWebSocket
     }
 
     /// <summary>Records one sent message and refuses a second send entering at the same time.</summary>
-    public async Task SendAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken)
+    public async Task SendAsync(ArraySegment<byte> buffer, WebSocketMessageType messageType, CancellationToken cancellationToken)
     {
         var active = Interlocked.Increment(ref _activeSends);
         try
@@ -172,6 +176,7 @@ internal sealed class ScriptedPtyWebSocket : IPtyWebSocket
             var message = new byte[buffer.Count];
             Array.Copy(buffer.Array!, buffer.Offset, message, 0, buffer.Count);
             _sent.Add(message);
+            _sentTypes.Add(messageType);
             _ = _sendEntered.TrySetResult(true);
             if (_sendGate is not null)
             {

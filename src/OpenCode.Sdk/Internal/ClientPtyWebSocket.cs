@@ -36,11 +36,18 @@ internal sealed class ClientPtyWebSocket : IPtyWebSocket
 
     /// <summary>Performs the upgrade, mapping a refusal onto the failure that names its cause.</summary>
     /// <param name="uri">The <c>ws</c> or <c>wss</c> address to upgrade.</param>
-    /// <param name="ptyId">The PTY the upgrade addresses; it names the failure.</param>
+    /// <param name="ptyId">The terminal the upgrade addresses; it names the failure.</param>
+    /// <param name="policy">The family's policy naming why an upgrade was refused.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task that completes once the connection is established.</returns>
-    public async Task ConnectAsync(Uri uri, string ptyId, CancellationToken cancellationToken)
+    public async Task ConnectAsync(
+        Uri uri,
+        string ptyId,
+        ITerminalUpgradeFailurePolicy policy,
+        CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(policy);
+
         try
         {
             await _socket.ConnectAsync(uri, cancellationToken).ConfigureAwait(false);
@@ -51,12 +58,12 @@ internal sealed class ClientPtyWebSocket : IPtyWebSocket
             cancellationToken.ThrowIfCancellationRequested();
 #if NET
             var status = (int)_socket.HttpStatusCode;
-            throw PtyUpgradeFailurePolicy.Map(exception, status is 0 ? null : status, ptyId);
+            throw policy.Map(exception, status is 0 ? null : status, ptyId);
 #else
             // CollectHttpResponseDetails and ClientWebSocket.HttpStatusCode are .NET 7 and later,
             // so neither downlevel leg can surface a refused upgrade's response status; the
             // failure names the connect context instead of guessing one.
-            throw PtyUpgradeFailurePolicy.Map(exception, status: null, ptyId);
+            throw policy.Map(exception, status: null, ptyId);
 #endif
         }
     }
@@ -73,19 +80,19 @@ internal sealed class ClientPtyWebSocket : IPtyWebSocket
         return new PtyReceiveResult(received.MessageType, received.Count, received.EndOfMessage);
     }
 
-    public async Task SendAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken)
+    public async Task SendAsync(ArraySegment<byte> buffer, WebSocketMessageType messageType, CancellationToken cancellationToken)
     {
 #if NET
         await _socket
             .SendAsync(
                 new ReadOnlyMemory<byte>(buffer.Array!, buffer.Offset, buffer.Count),
-                WebSocketMessageType.Text,
+                messageType,
                 endOfMessage: true,
                 cancellationToken)
             .ConfigureAwait(false);
 #else
         await _socket
-            .SendAsync(buffer, WebSocketMessageType.Text, endOfMessage: true, cancellationToken)
+            .SendAsync(buffer, messageType, endOfMessage: true, cancellationToken)
             .ConfigureAwait(false);
 #endif
     }

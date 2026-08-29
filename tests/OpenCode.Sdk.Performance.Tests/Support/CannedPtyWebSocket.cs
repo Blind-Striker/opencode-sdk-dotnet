@@ -56,7 +56,8 @@ internal sealed class CannedPtyWebSocket : IPtyWebSocket
     }
 
     /// <summary>Not exercised by the read-path benchmarks; a harmless no-op rather than a refusal.</summary>
-    public Task SendAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task SendAsync(ArraySegment<byte> buffer, WebSocketMessageType messageType, CancellationToken cancellationToken) =>
+        Task.CompletedTask;
 
     /// <summary>Not exercised by the read-path benchmarks; a harmless no-op rather than a refusal.</summary>
     public Task CloseOutputAsync(CancellationToken cancellationToken) => Task.CompletedTask;
