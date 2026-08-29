@@ -53,4 +53,18 @@ internal sealed record EmitPlan
             field = Array.AsReadOnly([.. value]);
         }
     } = Array.AsReadOnly(Array.Empty<PendingOperationPlan>());
+
+    /// <summary>
+    /// Operations a <c>transportOwned</c> curation row covers: neither selected nor pending, their
+    /// shape is fingerprint-pinned for a hand-written door (ADR-0021). Ordinal-sorted.
+    /// </summary>
+    public required IReadOnlyList<string> TransportOwnedOperationIds
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<string>());
 }

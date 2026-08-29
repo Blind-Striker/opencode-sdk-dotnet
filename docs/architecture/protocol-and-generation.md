@@ -51,10 +51,11 @@ evidence and may contain superseded positions.
   and their generated diffs (ADR-0003).
 - Generated files are changed through the generator, never by hand. The output manifest, not a
   folder or filename convention, identifies generator-owned files.
-- Pending (unselected) operations are recorded in the committed `.generation-incomplete` marker,
-  each carrying the bindability the same selection-path binder finds today — `[bindable]`, or
-  `[refused: <verbatim wall message>]` — so wall-free drift among pending operations surfaces as a
-  reviewed diff instead of accumulating silently.
+- Pending (unselected and not transport-owned) operations are recorded in the committed
+  `.generation-incomplete` marker, each carrying the bindability the same selection-path binder
+  finds today — `[bindable]`, or `[refused: <verbatim wall message>]` — so wall-free drift among
+  pending operations surfaces as a reviewed diff instead of accumulating silently; the marker also
+  lists the fingerprint-pinned transport-owned operations beside them while it exists.
 
 ## Curation boundary
 

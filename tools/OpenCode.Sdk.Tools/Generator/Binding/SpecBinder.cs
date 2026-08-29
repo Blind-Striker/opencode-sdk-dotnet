@@ -51,9 +51,13 @@ internal sealed class SpecBinder(
         var schemaResult = _schemaPlans.Bind(document, reachable, curation, typeNames, errors);
         var clients = _operationPlans.Bind(document, selected, curation, typeNames, errors);
         var selectedIds = selected.Select(static operation => operation.OperationId).ToHashSet(StringComparer.Ordinal);
+        // A transport-owned operation is neither selected nor pending. Leaving it out of the
+        // pending set hides no drift only because the curation validator above proves every
+        // row on every bind — existence, reason, and the subtree fingerprint are that wall.
+        var transportOwnedIds = curation.TransportOwned.Select(static row => row.OperationId).ToHashSet(StringComparer.Ordinal);
         var pending = document
             .Operations
-            .Where(operation => !selectedIds.Contains(operation.OperationId))
+            .Where(operation => !selectedIds.Contains(operation.OperationId) && !transportOwnedIds.Contains(operation.OperationId))
             .OrderBy(static operation => operation.OperationId, StringComparer.Ordinal)
             .Select(static operation => new PendingOperationPlan
             {
@@ -72,6 +76,7 @@ internal sealed class SpecBinder(
             Registry = ComposeRegistry(schemaResult.Registry, clients),
             Clients = clients,
             PendingOperations = pending,
+            TransportOwnedOperationIds = [.. transportOwnedIds.Order(StringComparer.Ordinal)],
         };
     }
 

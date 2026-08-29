@@ -1269,14 +1269,7 @@ public sealed class SpecBinderTests
     [Test]
     public async Task Bind_Should_Accept_A_Matching_Transport_Owned_Fingerprint()
     {
-        var document = await IngestAsync(TransportOwnedScenario());
-        var operation = document.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
-        var hash = TransportOwnedFingerprint.ComputeSha256(operation);
-
-        var plan = new BindingTestHost().Bind(
-            document,
-            Selection("v2.health.get"),
-            Curation(Groups("health", RootGroup()), transportOwned: [TransportOwned("v2.pty.connect", hash)]));
+        var plan = await BindTransportOwnedScenarioAsync();
 
         await Assert.That(plan.SelectedOperationIds.Single()).IsEqualTo("v2.health.get");
     }
@@ -1379,6 +1372,53 @@ public sealed class SpecBinderTests
                                                        && error.Subject == "v2.pty.connect"
                                                        && error.Problem.Contains("duplicated", StringComparison.Ordinal)))
             .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Move_A_Transport_Owned_Operation_Out_Of_The_Pending_Set()
+    {
+        var plan = await BindTransportOwnedScenarioAsync();
+
+        await Assert.That(plan.PendingOperations).IsEmpty();
+        await Assert.That(plan.TransportOwnedOperationIds.SequenceEqual(["v2.pty.connect"], StringComparer.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Transport_Owned_Operation_That_Is_Also_Selected()
+    {
+        var document = await IngestAsync(TransportOwnedScenario());
+        var operation = document.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
+        var hash = TransportOwnedFingerprint.ComputeSha256(operation);
+        var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+        {
+            ["health"] = RootGroup(),
+            ["pty"] = RootGroup(),
+        };
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get", "v2.pty.connect"),
+            Curation(groups, transportOwned: [TransportOwned("v2.pty.connect", hash)])));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+                                                       && error.Subject == "v2.pty.connect"
+                                                       && error.Problem.Contains("transport-owned operation cannot be selected", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    /// <summary>Binds the transport-owned scenario with a matching fingerprint row beside one
+    /// selected root operation — the arrangement the accept and pending-set tests share.</summary>
+    private static async Task<EmitPlan> BindTransportOwnedScenarioAsync()
+    {
+        var document = await IngestAsync(TransportOwnedScenario());
+        var operation = document.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
+        var hash = TransportOwnedFingerprint.ComputeSha256(operation);
+
+        return new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(Groups("health", RootGroup()), transportOwned: [TransportOwned("v2.pty.connect", hash)]));
     }
 
     /// <summary>A miniature stand-in for <c>v2.pty.connect</c>'s real shape (Task 4 brief): a path

@@ -132,6 +132,30 @@ public sealed class ToolAppTests
     }
 
     [Test]
+    public async Task RunAsync_Should_List_Transport_Owned_Operations_Beside_The_Pending_Map()
+    {
+        var fileSystem = await GenerationTestData.CreateTransportOwnedCommandFileSystemAsync();
+        using var registrar = ToolApp.CreateRegistrar(services =>
+        {
+            services.AddSingleton<IFileSystem>(fileSystem);
+            services.AddSingleton<IAnsiConsole, TestConsole>();
+            services.AddSingleton<IProjectFormatter>(new RecordingProjectFormatter(fileSystem));
+        });
+        var tester = new CommandAppTester(registrar);
+        tester.Configure(ToolApp.Configure);
+
+        var result = await tester.RunAsync(["generate"]);
+
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(result.Output).Contains("Transport-owned operations: 1");
+        var marker = await fileSystem.File.ReadAllTextAsync(GenerationTestData.MarkerPath, CancellationToken.None);
+        await Assert.That(marker).Contains("Pending operations: 2\nTransport-owned operations: 1\n");
+        await Assert.That(marker).Contains("- v2.plugin.list [bindable]");
+        await Assert.That(marker).Contains("Transport-owned:\n- v2.pty.connect [fingerprint-pinned]\n");
+        await Assert.That(marker).DoesNotContain("- v2.pty.connect [refused");
+    }
+
+    [Test]
     public async Task RunAsync_Should_Return_Zero_When_Verify_Is_Clean()
     {
         var fileSystem = GenerationTestData.CreateCommandFileSystem();

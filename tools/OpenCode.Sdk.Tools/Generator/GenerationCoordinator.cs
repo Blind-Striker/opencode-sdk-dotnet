@@ -48,7 +48,11 @@ internal sealed class GenerationCoordinator(
         // (ADR-driven bridge telltale), so a wall-free operation shows up as a committed diff
         // instead of accumulating silently.
         var pendingMarks = pending.Length > 0 ? _pendingProbe.Probe(document, pending) : [];
-        var marker = pending.Length > 0 ? CreatePartialMarker(plan.SelectedOperationIds, pendingMarks) : null;
+        // Transport-owned operations are not pending — the binder keeps them out — so they are
+        // never probed; the marker lists them beside the pending map as fingerprint-pinned.
+        var marker = pending.Length > 0
+            ? CreatePartialMarker(plan.SelectedOperationIds, pendingMarks, plan.TransportOwnedOperationIds)
+            : null;
 
         // The admitted family folders are the plan's own container names — never an open glob.
         var familyFolders = plan.Clients
@@ -76,20 +80,25 @@ internal sealed class GenerationCoordinator(
         {
             SelectedOperationIds = plan.SelectedOperationIds,
             PendingOperationIds = pending,
+            TransportOwnedOperationIds = plan.TransportOwnedOperationIds,
             WriteResult = writeResult,
         };
     }
 
-    private static string CreatePartialMarker(IReadOnlyList<string> selected, IReadOnlyList<PendingOperationMark> pendingMarks)
+    private static string CreatePartialMarker(IReadOnlyList<string> selected, IReadOnlyList<PendingOperationMark> pendingMarks,
+        IReadOnlyList<string> transportOwned)
     {
         var content = new StringBuilder()
             .AppendLine("Generation is incomplete; packages must not be published.")
             .Append("Selected operations: ")
             .AppendLine(selected.Count.ToString(CultureInfo.InvariantCulture))
             .Append("Pending operations: ")
-            .AppendLine(pendingMarks.Count.ToString(CultureInfo.InvariantCulture));
+            .AppendLine(pendingMarks.Count.ToString(CultureInfo.InvariantCulture))
+            .Append("Transport-owned operations: ")
+            .AppendLine(transportOwned.Count.ToString(CultureInfo.InvariantCulture));
         AppendOperations(content, "Selected", selected);
         AppendOperations(content, "Pending", pendingMarks.Select(FormatPendingLine));
+        AppendOperations(content, "Transport-owned", transportOwned.Select(FormatTransportOwnedLine));
 
         return content.ToString().ReplaceLineEndings("\n");
     }
@@ -105,4 +114,7 @@ internal sealed class GenerationCoordinator(
 
     private static string FormatPendingLine(PendingOperationMark mark) =>
         $"{mark.OperationId} {(mark.IsBindable ? "[bindable]" : $"[refused: {mark.RefusalMessage}]")}";
+
+    /// <summary>The curation validator has already proven the row's subtree fingerprint on this bind.</summary>
+    private static string FormatTransportOwnedLine(string operationId) => $"{operationId} [fingerprint-pinned]";
 }

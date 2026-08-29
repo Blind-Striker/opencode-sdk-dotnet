@@ -64,6 +64,7 @@ internal static class EmitterPlanFixture
                 ],
             },
             PendingOperations = [],
+            TransportOwnedOperationIds = [],
         };
     }
 

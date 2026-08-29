@@ -1,6 +1,7 @@
 Generation is incomplete; packages must not be published.
 Selected operations: 112
-Pending operations: 24
+Pending operations: 23
+Transport-owned operations: 1
 Selected:
 - v2.agent.get
 - v2.agent.list
@@ -131,7 +132,6 @@ Pending:
 - v2.persistentPty.shutdown [bindable]
 - v2.persistentPty.snapshot [refused: schema node 'EncodedStringNode' is not supported by the M1 emitter]
 - v2.persistentPty.update [bindable]
-- v2.pty.connect [refused: WebSocket operations are not supported in M1]
 - v2.session.stats [refused: query parameter 'tools' has an unsupported schema shape]
 - v2.shell.output [refused: location envelope 'data' must reference a named component schema, or be an array of one]
 - v2.vcs.base [bindable]
@@ -139,3 +139,5 @@ Pending:
 - v2.worktree.create [refused: selected errors must use the Effect _tag style in M1]
 - v2.worktree.refresh [refused: selected errors must use the Effect _tag style in M1]
 - v2.worktree.remove [refused: selected errors must use the Effect _tag style in M1]
+Transport-owned:
+- v2.pty.connect [fingerprint-pinned]

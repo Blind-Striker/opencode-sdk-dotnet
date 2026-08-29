@@ -453,8 +453,8 @@ identity row) and `v2.vcs.base`; three components (`PersistentPty.ReadResult`,
 Generated source did not change and the PublicApi baseline is untouched. The SSE Restore patch
 still applies with byte-identical preimages and PR #45182 remains open; upstream's #45969
 refreshed its committed baseline, so raw equals generated baseline at the tip and the T7 report
-retires unfiled. The profile stands at **112 selected / 24 pending**, the full gate is green at
-3,530 tests.
+retires unfiled. The profile stood at **112 selected / 24 pending** at the refresh, the full gate
+green at 3,530 tests.
 
 **M4's launcher arc is complete** (2026-08-28; evidence: research log Q153; plan executed
 task-by-task with independent reviews and a clean final whole-branch review).
@@ -642,10 +642,12 @@ is revisited at each milestone boundary.
   verify checks the pins, apply re-pins over the reviewed receipt. A review trigger only, never a
   generation input (ADR-0013); its stated blind spot is behavior added in a file the list does
   not name, backstopped by the sandbox PTY leg today and the M6 canary later. (3)
-  *transport-owned leaves pending* — `SpecBinder` derives pending as the unselected operations
-  without a fingerprint-pinned `transportOwned` row, the marker gains a `Transport-owned:`
-  section while it exists, and the canon marker sentence reads "unselected and not
-  transport-owned", so the packing wall becomes satisfiable at full admission; the
-  prerelease-versus-stable wording of that wall stays a release-prep decision. Sequenced: (3)
-  now, (1) and (2) as the tools touch after the persistentPty batch, beside the `ToolJsonContext`
-  `NewLine` pin.
+  *transport-owned leaves pending* — **landed 2026-08-29**: `SpecBinder` derives pending as the
+  unselected operations without a fingerprint-pinned `transportOwned` row (a selected operation
+  with such a row refuses), the marker carries a fixed `Transport-owned operations:` count and a
+  `Transport-owned:` section while it exists (emitted even when empty, so a row's arrival or
+  retirement is a one-line diff), and the canon marker sentence reads "unselected and not
+  transport-owned". The profile reads **112 selected / 23 pending / 1 transport-owned** at 3,533
+  tests, and the packing wall is satisfiable at full admission; the prerelease-versus-stable
+  wording of that wall stays a release-prep decision. Sequenced: (1) and (2) as the tools touch
+  after the persistentPty batch, beside the `ToolJsonContext` `NewLine` pin.

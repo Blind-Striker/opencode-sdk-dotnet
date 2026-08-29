@@ -25,7 +25,7 @@ internal sealed class CurationValidator
         ValidateSchemaNames(document, reachable, curation, errors);
         ValidateEnvelopeNames(selectedIds, documentIds, curation, errors);
         ValidateSchemaAliases(document, reachable, curation, errors);
-        ValidateTransportOwned(document, curation, errors);
+        ValidateTransportOwned(document, selectedIds, curation, errors);
     }
 
     private static void ValidateSchemaNames(SpecDocument document, ReachableSchemaSet reachable,
@@ -377,9 +377,12 @@ internal sealed class CurationValidator
     /// A transport-owned row pins a fingerprint over an operation the profile never selects
     /// (ADR-0021's hand-written doors depend on its shape without the compiler ever seeing it),
     /// so this checks against <paramref name="document"/>'s full ingested operation set, not the
-    /// selected subset every other curation row is validated against.
+    /// selected subset every other curation row is validated against. A row over a selected
+    /// operation is refused: the operation would be generated and hand-written at once, and the
+    /// binder relies on the row to keep its operation out of the pending set.
     /// </summary>
-    private static void ValidateTransportOwned(SpecDocument document, GenerationCuration curation, BindingErrorCollector errors)
+    private static void ValidateTransportOwned(SpecDocument document, HashSet<string> selectedIds, GenerationCuration curation,
+        BindingErrorCollector errors)
     {
         var operationsById = document.Operations.ToDictionary(static operation => operation.OperationId, StringComparer.Ordinal);
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -408,6 +411,11 @@ internal sealed class CurationValidator
             {
                 errors.Add(BindingErrorCategory.Curation, row.OperationId, "curated operation does not exist in the spec");
                 continue;
+            }
+
+            if (selectedIds.Contains(row.OperationId))
+            {
+                errors.Add(BindingErrorCategory.Curation, row.OperationId, "transport-owned operation cannot be selected");
             }
 
             var computed = TransportOwnedFingerprint.ComputeSha256(operation);
