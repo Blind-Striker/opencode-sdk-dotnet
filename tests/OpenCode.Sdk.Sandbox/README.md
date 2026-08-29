@@ -51,7 +51,8 @@ boundary, the mechanism leg — the bodyless POSTs (interrupt, revert clear), th
 family (mcp add, pty update, the instructions entry), and a typed `FormNotFoundError` over
 NoThrow — the envelope-completion leg (vcs branches' ref-to-array shape, the location sibling,
 the session-active dictionary, the server response's promoted-inline `ServerData`, and a
-session's context read), and the PTY leg, all through the same Extensions registration.
+session's context read), the PTY leg, and the persistent PTY leg, all through the same Extensions
+registration.
 
 The PTY leg (`PtySessionWalkthrough`) is the hand-written family's live proof (ADR-0021). It
 creates a PTY, lists the family, mints a connect ticket through the token door — whose
@@ -61,6 +62,25 @@ designed non-browser path. It records the replay frames and the single cursor fr
 the replay, writes `echo hello`, reads until the terminal echoes it, reconnects at the observed
 cursor to show that a resume replays only what came after it, and finally removes the PTY while a
 read is in flight so the normal close ends the enumeration rather than faulting it.
+
+The persistent PTY leg (`PersistentPtyWalkthrough`) follows it over the second hand-written family,
+whose live socket is the inverse wire: binary output frames and framed binary input. Which arm runs
+is the server's own answer rather than a flag. Where the `opencode-pty` daemon exists (Linux and
+macOS; the daemon ships no win32 package) it creates a terminal for the walkthrough's session,
+lists it, attaches as controller, writes `echo sdk-live` terminated by a line feed — Enter on these
+terminals' Unix line discipline — reads until the output carries the echo, resizes to 100x30 and
+reads the `resized` frame the server answers with, reads the same terminal back over HTTP (the
+controller attach is what selected it for that route), and removes it. Where the daemon does not
+exist, `create` is the only route that fails, so the leg records the declared 503 naming
+`opencode-pty` beside the daemon-absent answers of the others:
+
+```text
+ppty-create: status=503 service=opencode-pty error=ServiceUnavailableError
+ppty-list:   status=200 ptys=0
+ppty-read:   status=200 read=<null>
+ppty-handoff: status=200 handoff=<null>
+ppty-shutdown: status=204 isError=False
+```
 
 ## Standalone server demo (`--standalone`)
 
@@ -114,3 +134,7 @@ carry the daemon binary:
 
 The exact-pin discipline is the operator's: the WSL2 server must be built from the same submodule
 commit; the fixture prints both so a mismatch is visible, it cannot verify a source run's version.
+
+The sandbox reaches the same server without any of that wiring — point `OPENCODE_SANDBOX_ENDPOINT`
+at it and the persistent PTY leg takes its round-trip arm, because that leg branches on the
+server's own `create` answer rather than on the platform.

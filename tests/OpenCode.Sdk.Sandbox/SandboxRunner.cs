@@ -193,6 +193,7 @@ internal static class SandboxRunner
         await MechanismActionsWalkthrough.RunAsync(client, handle).ConfigureAwait(false);
         await EnvelopeCompletionWalkthrough.RunAsync(client, handle).ConfigureAwait(false);
         await PtySessionWalkthrough.RunAsync(client).ConfigureAwait(false);
+        await PersistentPtyWalkthrough.RunAsync(client, created.Session.Id).ConfigureAwait(false);
 
         return 0;
     }
