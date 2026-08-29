@@ -91,12 +91,12 @@ local server launcher. Protocol and generated-model rules live in
 - `PtyClient.ConnectAsync` opens `PtySession`, the family's live working object: `ReadAsync`
   enumerates `PtyFrame` values, `WriteAsync` sends input, and `DisposeAsync` closes. The session
   owns its socket, so disposing it is the only way to end the connection.
-- **Transport divergence.** This is the one SDK door that does not ride the HTTP pipeline. The
-  upgrade builds its own `ClientWebSocket`, so a caller-supplied `HttpClient`, its proxy, its
-  handler chain, the redirect policy, the pooled-connection lifetime, and the pipeline's progress
-  window **do not apply** to a PTY session. What the session does inherit is the construction-time
-  `ConnectionSnapshot` the pipeline publishes: the normalized endpoint, the Basic credential, and
-  the ambient location.
+- **Transport divergence.** This is one of the two SDK doors that do not ride the HTTP pipeline
+  (the persistent PTY session is the other). The upgrade builds its own `ClientWebSocket`, so a
+  caller-supplied `HttpClient`, its proxy, its handler chain, the redirect policy, the
+  pooled-connection lifetime, and the pipeline's progress window **do not apply** to a PTY session.
+  What the session does inherit is the construction-time `ConnectionSnapshot` the pipeline
+  publishes: the normalized endpoint, the Basic credential, and the ambient location.
 - **Authentication.** The Basic credential rides the upgrade request's `Authorization` header. The
   API's authentication middleware skips credentials only for a URL carrying a non-empty `ticket`
   query, so a header-authenticated upgrade is the designed non-browser path. The SDK never mints a

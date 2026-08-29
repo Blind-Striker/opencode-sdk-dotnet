@@ -65,8 +65,10 @@ The live WebSocket attached to one PTY, carrying replayed and live output out an
 Distinct from the PTY itself, which outlives any connection to it.
 
 **Replay cursor**:
-The absolute position in a PTY's retained output. A connection omitting it replays the whole
-retained buffer, `-1` attaches live-only, and a value at or above zero resumes from there.
+The absolute position in a PTY's retained output. Normal PTY: a connection omitting it replays the
+whole retained buffer, `-1` attaches live-only, and a value at or above zero resumes from there.
+Persistent PTY: omitted means 0 (the oldest retained byte), there is no live-only mode, and the
+resume anchors are `replay_complete.endOffset` and `Info.Output.Tail`.
 
 **Connect ticket**:
 The short-lived, single-use credential the token door mints for handing a PTY connection to a
@@ -166,8 +168,9 @@ A sub-client bound to one resource id (e.g. a session) — partial application o
 shared pipeline; never caches server state.
 
 **PTY session** (`PtySession`):
-The working object over one PTY connection: read frames, write input, dispose to close. The one
-door that builds its own transport instead of riding the HTTP pipeline.
+The working object over one PTY connection: read frames, write input, dispose to close. One of the
+two doors that build their own transport instead of riding the HTTP pipeline (the persistent PTY
+session is the other).
 
 **PTY frame**:
 One message read from a PTY connection — either output text or the single cursor control frame
