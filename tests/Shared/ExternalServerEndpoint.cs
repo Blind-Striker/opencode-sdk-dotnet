@@ -70,4 +70,13 @@ internal sealed record ExternalServerEndpoint(Uri Endpoint, string Password)
 
         return new ExternalServerEndpoint(parsed, password);
     }
+
+    /// <summary>
+    /// Renders the pair by its endpoint alone. The positional record's synthesized rendering
+    /// prints every member, so an attach banner, an assertion message, or a failing test's
+    /// diagnostic would carry the operator's password verbatim; the endpoint is the only half
+    /// that identifies the server.
+    /// </summary>
+    /// <returns>The record's name and its endpoint, never the password.</returns>
+    public override string ToString() => nameof(ExternalServerEndpoint) + " { Endpoint = " + Endpoint + " }";
 }

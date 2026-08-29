@@ -4,19 +4,23 @@ namespace OpenCode.Sdk.Tests;
 
 public sealed class ExternalServerEndpointTests
 {
+    private const string Endpoint = "http://localhost:4097";
+
+    private const string Password = "secret";
+
     [Test]
     public async Task FromEnvironment_Should_Return_The_Pair_When_Both_Variables_Are_Set()
     {
         var endpoint = ExternalServerEndpoint.FromEnvironment(name => name switch
         {
-            "OPENCODE_SDK_TESTS_ENDPOINT" => "http://localhost:4097",
-            "OPENCODE_SDK_TESTS_PASSWORD" => "secret",
+            "OPENCODE_SDK_TESTS_ENDPOINT" => Endpoint,
+            "OPENCODE_SDK_TESTS_PASSWORD" => Password,
             _ => null,
         });
 
         await Assert.That(endpoint).IsNotNull();
-        await Assert.That(endpoint!.Endpoint).IsEqualTo(new Uri("http://localhost:4097"));
-        await Assert.That(endpoint.Password).IsEqualTo("secret");
+        await Assert.That(endpoint!.Endpoint).IsEqualTo(new Uri(Endpoint));
+        await Assert.That(endpoint.Password).IsEqualTo(Password);
     }
 
     [Test]
@@ -49,7 +53,7 @@ public sealed class ExternalServerEndpointTests
     {
         string? Read(string name) => name switch
         {
-            "OPENCODE_SDK_TESTS_ENDPOINT" => "http://localhost:4097",
+            "OPENCODE_SDK_TESTS_ENDPOINT" => Endpoint,
             "OPENCODE_SDK_TESTS_PASSWORD" => blankPassword,
             _ => null,
         };
@@ -67,7 +71,7 @@ public sealed class ExternalServerEndpointTests
         static string? Read(string name) => name switch
         {
             "OPENCODE_SDK_TESTS_ENDPOINT" => "not-a-uri",
-            "OPENCODE_SDK_TESTS_PASSWORD" => "secret",
+            "OPENCODE_SDK_TESTS_PASSWORD" => Password,
             _ => null,
         };
 
@@ -76,5 +80,21 @@ public sealed class ExternalServerEndpointTests
             .Throws<InvalidOperationException>();
 
         await Assert.That(exception!.Message).Contains("OPENCODE_SDK_TESTS_ENDPOINT");
+    }
+
+    [Test]
+    public async Task ToString_Should_Name_The_Endpoint_And_Never_The_Password()
+    {
+        var endpoint = ExternalServerEndpoint.FromEnvironment(static name => name switch
+        {
+            "OPENCODE_SDK_TESTS_ENDPOINT" => Endpoint,
+            "OPENCODE_SDK_TESTS_PASSWORD" => Password,
+            _ => null,
+        });
+
+        var rendered = endpoint!.ToString();
+
+        await Assert.That(rendered).Contains(Endpoint);
+        await Assert.That(rendered.Contains(Password, StringComparison.Ordinal)).IsFalse();
     }
 }

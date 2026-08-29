@@ -960,21 +960,6 @@ dotnet_diagnostic.CA1849.severity = none
 dotnet_diagnostic.VSTHRD103.severity = none
 dotnet_diagnostic.S6966.severity = none
 
-# PersistentPtyDaemonGate's platform default reads RuntimeInformation.IsOSPlatform(OSPlatform
-# .Windows) (System.Runtime.InteropServices, native to net472 since .NET Framework 4.7.1)
-# rather than MA0144's suggested System.OperatingSystem.IsWindows(), which on net472 only exists
-# through the repository's source-only Polyfill package - correct today, but this one platform
-# check has no reason to depend on a third-party shim's coverage of that newer BCL type when the
-# native net472 API already answers the same question. The test file below independently pins
-# the same platform default (rather than re-deriving it through the production gate) for the
-# same reason. Winner: no downlevel-polyfill dependency for this one check; MA0144 remains
-# enabled for every other file.
-[tests/Shared/PersistentPtyDaemonGate.cs]
-dotnet_diagnostic.MA0144.severity = none
-
-[tests/OpenCode.Sdk.Tests/PersistentPtyDaemonGateTests.cs]
-dotnet_diagnostic.MA0144.severity = none
-
 # ReadPinnedUpstreamCommit reads spec/receipt.json for the external-endpoint mode's attach
 # banner (Task 6, real RealFileSystem I/O, not MockFileSystem). IFile.ReadAllTextAsync is
 # unavailable through this abstraction on the net472 leg - the same constraint

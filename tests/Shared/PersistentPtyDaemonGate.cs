@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-
 namespace OpenCode.Sdk.TestSupport;
 
 /// <summary>
@@ -33,7 +31,7 @@ public static class PersistentPtyDaemonGate
         {
             "1" => true,
             "0" => false,
-            _ => !RuntimeInformation.IsOSPlatform(OSPlatform.Windows),
+            _ => !OperatingSystem.IsWindows(),
         };
     }
 }

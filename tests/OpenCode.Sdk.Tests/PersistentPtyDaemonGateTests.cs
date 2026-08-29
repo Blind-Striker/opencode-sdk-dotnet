@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using OpenCode.Sdk.TestSupport;
 
 namespace OpenCode.Sdk.Tests;
@@ -26,6 +25,6 @@ public sealed class PersistentPtyDaemonGateTests
     {
         var result = PersistentPtyDaemonGate.Resolve(static _ => null);
 
-        await Assert.That(result).IsEqualTo(!RuntimeInformation.IsOSPlatform(OSPlatform.Windows));
+        await Assert.That(result).IsEqualTo(!OperatingSystem.IsWindows());
     }
 }
