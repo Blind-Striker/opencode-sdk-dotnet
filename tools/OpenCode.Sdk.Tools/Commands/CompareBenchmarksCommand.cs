@@ -45,11 +45,11 @@ internal sealed partial class CompareBenchmarksCommand : AsyncCommand<CompareBen
         var comparison = BenchmarkComparisonComposer.Compose(before, after);
         if (comparison.Rows.Count == 0)
         {
-            _console.MarkupLine(
-                $"[red]The runs share no benchmark cases[/] ({Count(before.Count)} before, {Count(after.Count)} after).");
+            WriteZeroOverlapFailure(before, after);
             return 1;
         }
 
+        WriteRuntimeLegMismatchWarning(before, after);
         WriteRows(comparison);
         WriteUnmatched(comparison);
         _console.MarkupLine($"[grey]Compared cases:[/] {Count(comparison.Rows.Count)}");
@@ -64,6 +64,43 @@ internal sealed partial class CompareBenchmarksCommand : AsyncCommand<CompareBen
 
     [LoggerMessage(EventId = 1, Level = LogLevel.Debug, Message = "Compare-benchmarks invoked for '{BeforePath}' vs '{AfterPath}'.")]
     private static partial void LogInvocation(ILogger logger, string beforePath, string afterPath);
+
+    /// <summary>Zero overlap between non-empty runs is a mislabelled leg, not an empty result: a run
+    /// launched without <c>--runtimes</c> is labelled by its job name (such as <c>DefaultJob</c>) and
+    /// joins nothing against a runtime-labelled baseline. Name both label sets so the cause is
+    /// visible instead of printing an all-one-sided comparison.</summary>
+    private void WriteZeroOverlapFailure(IReadOnlyList<BenchmarkRunCase> before, IReadOnlyList<BenchmarkRunCase> after)
+    {
+        _console.MarkupLine(
+            $"[red]The runs share no benchmark cases[/] ({Count(before.Count)} before, {Count(after.Count)} after).");
+        _console.MarkupLine($"[red]before runtimes:[/] {Markup.Escape(RuntimeLabels(before))}");
+        _console.MarkupLine($"[red]after runtimes:[/] {Markup.Escape(RuntimeLabels(after))}");
+        _console.MarkupLine(
+            "[red]Cases join on (case, runtime). A job-named leg such as 'DefaultJob' means that run was launched "
+            + "without --runtimes; relaunch it with --runtimes net10.0 net472 to make it joinable.[/]");
+    }
+
+    /// <summary>A partial form of the zero-overlap failure: when the runs' runtime label sets
+    /// differ, every case on a leg only one side has is silently one-sided, so say so once.</summary>
+    private void WriteRuntimeLegMismatchWarning(IReadOnlyList<BenchmarkRunCase> before, IReadOnlyList<BenchmarkRunCase> after)
+    {
+        var beforeLabels = RuntimeLabels(before);
+        var afterLabels = RuntimeLabels(after);
+        if (string.Equals(beforeLabels, afterLabels, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _console.MarkupLine(
+            $"[yellow]warning:[/] the runs carry different runtime legs (before: {Markup.Escape(beforeLabels)}; "
+            + $"after: {Markup.Escape(afterLabels)}); every case on a leg only one side has is one-sided.");
+    }
+
+    private static string RuntimeLabels(IReadOnlyList<BenchmarkRunCase> cases) =>
+        string.Join(", ", cases
+            .Select(static runCase => $"'{runCase.Runtime}'")
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal));
 
     private void WriteRows(BenchmarkComparison comparison)
     {

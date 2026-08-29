@@ -1,0 +1,57 @@
+{
+  "Title": "OpenCode.Sdk.Performance.Tests.Benchmarks.HealthBenchmarks-20260829-114500",
+  "HostEnvironmentInfo": {
+    "BenchmarkDotNetVersion": "0.15.8",
+    "RuntimeVersion": ".NET 10.0.11 (10.0.11, 10.0.1126.37416)",
+    "Architecture": "X64",
+    "Configuration": "RELEASE"
+  },
+  "Benchmarks": [
+    {
+      "DisplayInfo": "HealthBenchmarks.GetHealthAsync: .NET 10.0(Runtime=.NET 10.0, Toolchain=net10.0) [Fixture=health]",
+      "Namespace": "OpenCode.Sdk.Performance.Tests.Benchmarks",
+      "Type": "HealthBenchmarks",
+      "Method": "GetHealthAsync",
+      "MethodTitle": "GetHealthAsync",
+      "Parameters": "Fixture=health",
+      "FullName": "OpenCode.Sdk.Performance.Tests.Benchmarks.HealthBenchmarks.GetHealthAsync(Fixture: health)",
+      "Statistics": {
+        "N": 15,
+        "Median": 1327.6363372802734,
+        "Mean": 1333.1265365600587,
+        "StandardDeviation": 18.75232427
+      },
+      "Memory": {
+        "Gen0Collections": 74,
+        "Gen1Collections": 0,
+        "Gen2Collections": 0,
+        "TotalOperations": 524288,
+        "BytesAllocatedPerOperation": 2376
+      },
+      "Measurements": []
+    },
+    {
+      "DisplayInfo": "HealthBenchmarks.ExecuteWithoutAdapterAsync: .NET 10.0(Runtime=.NET 10.0, Toolchain=net10.0) [Fixture=health]",
+      "Namespace": "OpenCode.Sdk.Performance.Tests.Benchmarks",
+      "Type": "HealthBenchmarks",
+      "Method": "ExecuteWithoutAdapterAsync",
+      "MethodTitle": "ExecuteWithoutAdapterAsync",
+      "Parameters": "Fixture=health",
+      "FullName": "OpenCode.Sdk.Performance.Tests.Benchmarks.HealthBenchmarks.ExecuteWithoutAdapterAsync(Fixture: health)",
+      "Statistics": {
+        "N": 15,
+        "Median": 821.4372711181641,
+        "Mean": 824.9552246093750,
+        "StandardDeviation": 9.11239218
+      },
+      "Memory": {
+        "Gen0Collections": 63,
+        "Gen1Collections": 0,
+        "Gen2Collections": 0,
+        "TotalOperations": 524288,
+        "BytesAllocatedPerOperation": 2112
+      },
+      "Measurements": []
+    }
+  ]
+}

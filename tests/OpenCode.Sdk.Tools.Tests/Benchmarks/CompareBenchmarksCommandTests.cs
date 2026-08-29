@@ -46,10 +46,13 @@ public sealed class CompareBenchmarksCommandTests
         // than vanish from the durable CSV (ROADMAP.md's compare-benchmarks completeness requirement).
         await Assert.That(csv).Contains(
             "\"Health/GetVersionAsync [Fixture=health]\",\".NET 10.0\",\"AfterOnly\",\"\",\"\",\"\",\"\",\"96\",\"\",\"\",\"645.5\"\n");
+
+        // Both runs carry the same two runtime legs, so the leg-mismatch warning must stay silent.
+        await Assert.That(result.Output).DoesNotContain("warning:");
     }
 
     [Test]
-    public async Task Execute_Should_Fail_When_The_Runs_Share_No_Cases()
+    public async Task Execute_Should_Fail_Naming_Both_Runtime_Label_Sets_When_The_Runs_Share_No_Cases()
     {
         var fileSystem = new MockFileSystem();
         var loader = new FixtureLoader();
@@ -74,5 +77,43 @@ public sealed class CompareBenchmarksCommandTests
         ]);
 
         await Assert.That(result.ExitCode).IsEqualTo(1);
+        await Assert.That(result.Output).Contains("The runs share no benchmark cases");
+        await Assert.That(result.Output).Contains("before runtimes: '.NET 10.0', '.NET Framework 4.7.2'");
+        await Assert.That(result.Output).Contains("after runtimes: 'DefaultJob'");
+        await Assert.That(result.Output).Contains("--runtimes");
+    }
+
+    [Test]
+    public async Task Execute_Should_Warn_When_The_Runs_Carry_Different_Runtime_Legs()
+    {
+        var fileSystem = new MockFileSystem();
+        var loader = new FixtureLoader();
+        fileSystem.Initialize().With(
+            new FileDescription(BenchmarkRunData.BeforeReportPath, loader.Load(BenchmarkRunData.BeforeFixture)),
+            new FileDescription(
+                BenchmarkRunData.AfterReportPath,
+                loader.Load("Benchmarks.net10-only-report-full.json")));
+        using var registrar = ToolApp.CreateRegistrar(services =>
+        {
+            services.AddSingleton<IFileSystem>(fileSystem);
+            services.AddSingleton<IAnsiConsole, TestConsole>();
+        });
+        var tester = new CommandAppTester(registrar);
+        tester.Configure(ToolApp.Configure);
+
+        var result = await tester.RunAsync(
+        [
+            "compare-benchmarks",
+            BenchmarkRunData.BeforeDirectory,
+            BenchmarkRunData.AfterDirectory,
+        ]);
+
+        // The net10.0 cases still join, so the comparison succeeds — but the missing net472 leg
+        // must be named instead of silently draining into the one-sided lists.
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(result.Output).Contains("warning:");
+        await Assert.That(result.Output).Contains("different runtime legs");
+        await Assert.That(result.Output).Contains("before: '.NET 10.0', '.NET Framework 4.7.2'");
+        await Assert.That(result.Output).Contains("after: '.NET 10.0'");
     }
 }
