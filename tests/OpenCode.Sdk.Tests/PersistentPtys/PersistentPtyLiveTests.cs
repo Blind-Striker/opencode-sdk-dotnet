@@ -181,7 +181,9 @@ public sealed class PersistentPtyLiveTests(PinnedOpenCodeServerFixture server)
         await Assert.That(echoed).Contains(EchoMarker);
 
         await session.ResizeAsync(ResizedCols, ResizedRows, cancellationToken);
-        var resized = await ReadUntilResizedAsync(session, cancellationToken);
+        var resized = await ReadFirstResizeAsync(session, cancellationToken);
+        await Assert.That(resized.Cols).IsEqualTo(ResizedCols);
+        await Assert.That(resized.Rows).IsEqualTo(ResizedRows);
 
         // The read route answers from the session's most recently controlled terminal, and this
         // connection's controller attach is what selected it - so a payload here is the selection
@@ -228,25 +230,26 @@ public sealed class PersistentPtyLiveTests(PinnedOpenCodeServerFixture server)
     }
 
     /// <summary>
-    /// Reads until the server reports the resize this session asked for. The enumeration the echo
-    /// left behind was disposed by its own loop, so this one starts fresh on the same socket.
+    /// Returns the server's first resize report. The first frame is the answer whatever it
+    /// carries: a server that clamped the requested size to another one must fail the caller's
+    /// assertion in seconds, naming both dimensions, rather than being read past until the test's
+    /// token fires with nothing recorded. The enumeration the echo left behind was disposed by its
+    /// own loop, so this one starts fresh on the same socket.
     /// </summary>
-    private static async Task<PersistentPtyResizedFrame> ReadUntilResizedAsync(
+    private static async Task<PersistentPtyResizedFrame> ReadFirstResizeAsync(
         PersistentPtySession session, CancellationToken cancellationToken)
     {
         await foreach (var frame in session.ReadAsync(cancellationToken))
         {
-            if (frame is PersistentPtyResizedFrame resized &&
-                resized.Cols == ResizedCols &&
-                resized.Rows == ResizedRows)
+            if (frame is PersistentPtyResizedFrame resized)
             {
                 return resized;
             }
         }
 
         throw new InvalidOperationException(
-            "The persistent terminal closed before it reported the " +
-            Number(ResizedCols) + "x" + Number(ResizedRows) + " resize.");
+            "The persistent terminal closed before it reported any resize; the session asked for " +
+            Number(ResizedCols) + "x" + Number(ResizedRows) + ".");
     }
 
     /// <summary>Renders one number for the console line and the failure text, culture-free.</summary>

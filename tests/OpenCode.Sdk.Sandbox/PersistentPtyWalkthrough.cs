@@ -30,12 +30,6 @@ internal static class PersistentPtyWalkthrough
     /// <summary>The rows the resize asks for; the create default is 24.</summary>
     private const int ResizedRows = 30;
 
-    /// <summary>How much raw terminal output is printed on either side of the echo.</summary>
-    private const int ContextWidth = 24;
-
-    /// <summary>Keeps a printed terminal excerpt to one readable console line.</summary>
-    private const int ExcerptLimit = 160;
-
     /// <summary>Bounds every read so an unresponsive terminal ends the leg instead of the process.</summary>
     private static readonly TimeSpan ReadBudget = TimeSpan.FromSeconds(20);
 
@@ -149,15 +143,15 @@ internal static class PersistentPtyWalkthrough
         var echoed = await ReadUntilEchoAsync(session).ConfigureAwait(false);
 
         Console.WriteLine($"ppty-echo:   chars={echoed.Text.Length} carriesMarker={Carries(echoed.Text)} end={echoed.End}");
-        Console.WriteLine($"             text={Around(echoed.Text, EchoMarker)}");
+        Console.WriteLine($"             text={TerminalExcerpt.Around(echoed.Text, EchoMarker)}");
 
         await session.ResizeAsync(ResizedCols, ResizedRows).ConfigureAwait(false);
 
-        var resize = await ReadUntilResizedAsync(session).ConfigureAwait(false);
+        var resize = await ReadFirstResizeAsync(session).ConfigureAwait(false);
 
         Console.WriteLine(resize.Frame is { } resized
-            ? $"ppty-resize: cols={resized.Cols} rows={resized.Rows} generation={resized.Generation} checkpointBytes={resized.Checkpoint.Length} end={resize.End}"
-            : $"ppty-resize: no resized frame within {ReadBudget.TotalSeconds.ToString("F0", CultureInfo.InvariantCulture)}s end={resize.End}");
+            ? $"ppty-resize: asked={ResizedCols}x{ResizedRows} got={resized.Cols}x{resized.Rows} generation={resized.Generation} checkpointBytes={resized.Checkpoint.Length} end={resize.End}"
+            : $"ppty-resize: asked={ResizedCols}x{ResizedRows} got=<none> within {ReadBudget.TotalSeconds.ToString("F0", CultureInfo.InvariantCulture)}s end={resize.End}");
 
         var read = await client.PersistentPtys.ReadAsync(sessionId).ConfigureAwait(false);
 
@@ -207,11 +201,12 @@ internal static class PersistentPtyWalkthrough
     }
 
     /// <summary>
-    /// Reads until the server reports the resize this session asked for, or the budget expires.
-    /// The enumeration the echo left behind was disposed by its own loop, so this one starts fresh
-    /// on the same socket.
+    /// Reads until the server reports its first resize, or the budget expires. The first frame is
+    /// the answer whatever it carries: a server that clamped the request to another size is
+    /// evidence worth printing, not a frame to read past. The enumeration the echo left behind was
+    /// disposed by its own loop, so this one starts fresh on the same socket.
     /// </summary>
-    private static async Task<ResizeRead> ReadUntilResizedAsync(PersistentPtySession session)
+    private static async Task<ResizeRead> ReadFirstResizeAsync(PersistentPtySession session)
     {
         using var budget = new CancellationTokenSource(ReadBudget);
         var end = TerminalReadEnd.ServerClose;
@@ -220,9 +215,7 @@ internal static class PersistentPtyWalkthrough
         {
             await foreach (var frame in session.ReadAsync(budget.Token).ConfigureAwait(false))
             {
-                if (frame is PersistentPtyResizedFrame resized &&
-                    resized.Cols == ResizedCols &&
-                    resized.Rows == ResizedRows)
+                if (frame is PersistentPtyResizedFrame resized)
                 {
                     return new ResizeRead { Frame = resized, End = TerminalReadEnd.Target };
                 }
@@ -239,47 +232,6 @@ internal static class PersistentPtyWalkthrough
     private static bool Carries(string text) => text.Contains(EchoMarker, StringComparison.Ordinal);
 
     private static string ErrorName(OpenCodeResponse response) => response.Error?.GetType().Name ?? "<untyped>";
-
-    /// <summary>
-    /// Shows the echo in the surrounding terminal noise, so the match is visible rather than
-    /// asserted. A stretch that does not carry it prints from its start instead.
-    /// </summary>
-    private static string Around(string text, string marker)
-    {
-        var index = text.LastIndexOf(marker, StringComparison.Ordinal);
-        if (index < 0)
-        {
-            return Excerpt(text);
-        }
-
-        var start = Math.Max(0, index - ContextWidth);
-        var length = Math.Min(text.Length - start, marker.Length + (2 * ContextWidth));
-        return string.Create(CultureInfo.InvariantCulture, $"@{index} {Excerpt(text.Substring(start, length))}");
-    }
-
-    /// <summary>Renders terminal bytes as one printable line; escapes keep the console readable.</summary>
-    private static string Excerpt(string text)
-    {
-        var builder = new StringBuilder(text.Length);
-        foreach (var character in text)
-        {
-            if (builder.Length >= ExcerptLimit)
-            {
-                _ = builder.Append('…');
-                break;
-            }
-
-            _ = character switch
-            {
-                '\n' => builder.Append("\\n"),
-                '\r' => builder.Append("\\r"),
-                _ when char.IsControl(character) => builder.Append(CultureInfo.InvariantCulture, $"\\x{(int)character:x2}"),
-                _ => builder.Append(character),
-            };
-        }
-
-        return builder.ToString();
-    }
 
     /// <summary>How one bounded read ended; printed beside what it saw.</summary>
     private enum TerminalReadEnd

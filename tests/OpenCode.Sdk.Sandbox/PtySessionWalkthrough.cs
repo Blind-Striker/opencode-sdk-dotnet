@@ -23,12 +23,6 @@ internal static class PtySessionWalkthrough
     /// <summary>The text the terminal echoes back, then prints again as the command's own output.</summary>
     private const string EchoMarker = "hello";
 
-    /// <summary>How much raw terminal output is printed on either side of the echo.</summary>
-    private const int ContextWidth = 24;
-
-    /// <summary>Keeps a printed terminal excerpt to one readable console line.</summary>
-    private const int ExcerptLimit = 160;
-
     /// <summary>Bounds every read so an unresponsive terminal ends the leg instead of the process.</summary>
     private static readonly TimeSpan ReadBudget = TimeSpan.FromSeconds(20);
 
@@ -88,21 +82,21 @@ internal static class PtySessionWalkthrough
         var replay = await ReadAsync(session, PtyStop.Cursor, ReadBudget).ConfigureAwait(false);
 
         Console.WriteLine($"pty-replay:  {Describe(replay)}");
-        Console.WriteLine($"             text={Excerpt(replay.Text)}");
+        Console.WriteLine($"             text={TerminalExcerpt.Excerpt(replay.Text)}");
 
         await session.WriteAsync(EchoCommand).ConfigureAwait(false);
 
-        Console.WriteLine($"pty-write:   sent {Excerpt(EchoCommand)}");
+        Console.WriteLine($"pty-write:   sent {TerminalExcerpt.Excerpt(EchoCommand)}");
 
         var echo = await ReadAsync(session, PtyStop.Marker, ReadBudget).ConfigureAwait(false);
 
         Console.WriteLine($"pty-echo:    {Describe(echo)}");
-        Console.WriteLine($"             echoed={Around(echo.Text, EchoMarker)}");
+        Console.WriteLine($"             echoed={TerminalExcerpt.Around(echo.Text, EchoMarker)}");
 
         var settled = await ReadAsync(session, PtyStop.Settle, SettleBudget).ConfigureAwait(false);
 
         Console.WriteLine($"pty-output:  {Describe(settled)}");
-        Console.WriteLine($"             text={Around(settled.Text, EchoMarker)}");
+        Console.WriteLine($"             text={TerminalExcerpt.Around(settled.Text, EchoMarker)}");
 
         return replay.Cursor ?? 0;
     }
@@ -121,7 +115,7 @@ internal static class PtySessionWalkthrough
         var resume = await ReadAsync(session, PtyStop.Cursor, ReadBudget).ConfigureAwait(false);
 
         Console.WriteLine($"pty-resume:  from={cursor} {Describe(resume)}");
-        Console.WriteLine($"             text={Excerpt(resume.Text)}");
+        Console.WriteLine($"             text={TerminalExcerpt.Excerpt(resume.Text)}");
 
         return resume.Cursor ?? cursor;
     }
@@ -154,48 +148,6 @@ internal static class PtySessionWalkthrough
     private static string Describe(PtyRead read) => string.Create(
         CultureInfo.InvariantCulture,
         $"outputFrames={read.OutputFrames} chars={read.Text.Length} cursorFrames={read.CursorFrames} cursor={read.Cursor?.ToString(CultureInfo.InvariantCulture) ?? "<none>"} end={read.End}");
-
-    /// <summary>
-    /// Shows the echo in the surrounding terminal noise, so the match is visible rather than
-    /// asserted. A stretch that does not carry it — the terminal is free to finish the round trip
-    /// inside either read — prints from its start instead.
-    /// </summary>
-    private static string Around(string text, string marker)
-    {
-        var index = text.LastIndexOf(marker, StringComparison.Ordinal);
-        if (index < 0)
-        {
-            return Excerpt(text);
-        }
-
-        var start = Math.Max(0, index - ContextWidth);
-        var length = Math.Min(text.Length - start, marker.Length + (2 * ContextWidth));
-        return string.Create(CultureInfo.InvariantCulture, $"@{index} {Excerpt(text.Substring(start, length))}");
-    }
-
-    /// <summary>Renders terminal bytes as one printable line; escapes keep the console readable.</summary>
-    private static string Excerpt(string text)
-    {
-        var builder = new StringBuilder(text.Length);
-        foreach (var character in text)
-        {
-            if (builder.Length >= ExcerptLimit)
-            {
-                _ = builder.Append('…');
-                break;
-            }
-
-            _ = character switch
-            {
-                '\n' => builder.Append("\\n"),
-                '\r' => builder.Append("\\r"),
-                _ when char.IsControl(character) => builder.Append(CultureInfo.InvariantCulture, $"\\x{(int)character:x2}"),
-                _ => builder.Append(character),
-            };
-        }
-
-        return builder.ToString();
-    }
 
     /// <summary>Reads one bounded stretch of the session and reports what it saw.</summary>
     private static async Task<PtyRead> ReadAsync(PtySession session, PtyStop stop, TimeSpan window)
