@@ -285,8 +285,17 @@ from the durable artifact, and three new rungs (B2, `b672120`/`aff51d4`/`1d133c5
 `PtySession` read-path ladder, a location-merge case on the route-composition rung, and a
 dictionary-envelope ladder over the generated `SessionActiveResponse` adapter, with reasoned skip
 notes for the Data-list and bare-container shapes already covered by the MessageList/Health
-ladders. **The closing default-job comparison against `arc-milestone-default` is in flight**
-(also carrying the frozen-table timing verdict); no result yet.
+ladders. **The closing default-job comparison against `arc-milestone-default` landed**
+(`.benchmarks/post-sweep-default`, `post-sweep-comparison.csv`; findings in the 2026-08-29
+handoff): .NET 10.0 allocation −1,847,984 B (48 improved / 21 same / 7 worse by ≤64 B); net472
++56,615 B (47 regressed, `MessageList` 50,242 B of it) — unattributed, a bisect across the spec
+refresh and the envelope arc is queued; allocation amplification is scale-invariant at ~5.8×
+and belongs entirely to deserialization (the transport allocates a flat 2,128 B across a 490×
+payload range); the fixed per-call buffers are named (`PtySession.ReadFramesAsync` 16 KiB per
+read, the SSE reader ~26 KB per open, `SessionActive.GetActiveAsync` 53×). The frozen-table
+timing verdict is that there is none: identical code four hours apart moved 87 of 96 cases by
+more than 10% on time while allocation was byte-identical on all 96, so timing on this
+workstation is never evidence — allocation is the axis.
 **M5 breadth batches are pulled ahead of M4 and are landing.** The Q144 wall-probe mapped the
 full pinned surface (99 workable pending operations after Q137/Q139's drift map excludes the
 upstream-removed families — the question flow, `projectCopy.*`, `health.stop`,
@@ -524,8 +533,16 @@ is revisited at each milestone boundary.
    the operation inventory and assurance ledger — whose design also standardizes
    pending-operation bindability tracking, so a wall-free pending operation surfaces as a
    committed-artifact diff at every generate/refresh instead of accumulating unseen (maintainer
-   requirement, 2026-08-28) — remaining ingestion/binding walls (#52/#53), and package/API/TFM
-   assurance (#51), packaging unblocked.
+   requirement, 2026-08-28), subsumes `tools/generation-profile.txt` as the one hand-authored
+   admission list (Q148), and makes per-operation assurance mechanically complete (maintainer
+   requirement, 2026-08-29): every selected operation carries a contract test for every status
+   arm the pinned document declares, checked by an `opencode-tool` verifier that fails the gate
+   on a missing arm; every deterministically reachable arm carries exact-pin real-server
+   evidence (the fixture, plus the simulated model where a model is needed); arms no
+   deterministic fixture can reach are listed by name with their reason, never skipped
+   silently (ADR-0022); runtime edges (cut streams, timeouts, malformed bodies, undeclared 3xx)
+   stay pipeline-plane tests and are not repeated per operation — remaining ingestion/binding
+   walls (#52/#53), and package/API/TFM assurance (#51), packaging unblocked.
    The location design is sealed (#37 closed — ambient plus per-call, research log Q148), so
    the freeze review inherits a settled surface.
 6. **M6 — Operational closure.** The observation lanes' automation (tip detector, candidate
@@ -609,3 +626,26 @@ is revisited at each milestone boundary.
   per-id operations, ever" where every sibling row states present-tense fact only; the
   `MedianNanoseconds` `compare-benchmarks` CSV column breaks the other columns' abbreviation
   convention.
+- **Approved generator/tooling mechanisms (maintainer, 2026-08-29):** (1) *stabilize-duplicate
+  collapse* — a mechanical `StabilizeDuplicatePolicy` folds a reachable `<base>_<N>` component
+  into `<base>` when `SchemaNodeComparer.DeepEquals` holds and refuses, naming both, when it does
+  not; runs to a fixpoint, never chains, records the implicit aliases in `.generated-manifest.json`
+  as a committed telltale, keeps explicit `schemaAliases` rows for non-`_N` cases, and retires 24
+  of today's 25 rows (19 of which exist only in the Restore patch's regenerated event tree). An
+  unrecognized naming convention gets no implicit alias and surfaces exactly as an undeclared
+  duplicate does today — a duplicate error tag refuses, a duplicate model breaks the PublicApi
+  baseline — so the worst case is loud. Same class of dialect-artifact rule as the `*Encoded`
+  strip (Q150); lands with a research-log entry and one curation-boundary sentence in canon.
+  (2) *source watch* — `spec/source-watch.json` pins the upstream files the hand-written doors
+  depend on by path, sha256, and a content anchor (the patch manifests' predicate pattern);
+  `refresh-spec` prepare reports each entry's hash and anchor in the receipt (`watchedSources`),
+  verify checks the pins, apply re-pins over the reviewed receipt. A review trigger only, never a
+  generation input (ADR-0013); its stated blind spot is behavior added in a file the list does
+  not name, backstopped by the sandbox PTY leg today and the M6 canary later. (3)
+  *transport-owned leaves pending* — `SpecBinder` derives pending as the unselected operations
+  without a fingerprint-pinned `transportOwned` row, the marker gains a `Transport-owned:`
+  section while it exists, and the canon marker sentence reads "unselected and not
+  transport-owned", so the packing wall becomes satisfiable at full admission; the
+  prerelease-versus-stable wording of that wall stays a release-prep decision. Sequenced: (3)
+  now, (1) and (2) as the tools touch after the persistentPty batch, beside the `ToolJsonContext`
+  `NewLine` pin.
