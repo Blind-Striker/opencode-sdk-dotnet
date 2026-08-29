@@ -121,6 +121,22 @@ timings are indicative only — never quoted as evidence. The full suite under t
 as milestone evidence when an arc of work completes, from a clean copy outside the repository
 (BenchmarkDotNet locates the project by name from the solution root and refuses duplicate copies
 such as scratch clones). Whatever the tier, before/after runs stay within one environment, and
-allocation is the primary comparison. The performance project adds a net472 target on Windows only
-(`dotnet run -f net10.0 -- --runtimes net472 net10.0 ...`); net472 numbers come from that leg, never
-from net10 or source-equivalent probes.
+allocation is the primary comparison. The performance project adds a net472 target on Windows only;
+net472 numbers come from the `--runtimes` net472 leg of the canonical invocation below, never from
+net10 or source-equivalent probes.
+
+The canonical comparable run, and the comparison it feeds:
+
+```bash
+dotnet run --project tests/OpenCode.Sdk.Performance.Tests -c Release -f net10.0 -- --filter '*' --runtimes net10.0 net472 --artifacts .benchmarks/<run-name>
+dotnet run --file tools/opencode-tool.cs -- compare-benchmarks .benchmarks/<before-run> .benchmarks/<after-run> --output .benchmarks/<comparison>.csv
+```
+
+`--runtimes` is load-bearing: it labels each case's leg with the runtime name (`.NET 10.0`,
+`.NET Framework 4.7.2`) in the exports, and `compare-benchmarks` joins the two runs on exactly
+(case, runtime). A run launched without it is labelled by its job name (`DefaultJob`) instead and
+joins nothing against the archived runs — the comparison then fails naming both label sets, but
+only after the run's hours are already spent. An increment-level check narrows `--filter` and adds
+`--job short`. `--artifacts` names the run's folder in the git-ignored `.benchmarks/` store;
+`compare-benchmarks` reads each folder's `results/*-report-full.json`, so those exports are the
+part of a run that must be preserved.
