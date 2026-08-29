@@ -98,6 +98,29 @@
         "BytesAllocatedPerOperation": 4413
       },
       "Measurements": []
+    },
+    {
+      "DisplayInfo": "HealthBenchmarks.GetVersionAsync: .NET 10.0(Runtime=.NET 10.0, Toolchain=net10.0) [Fixture=health]",
+      "Namespace": "OpenCode.Sdk.Performance.Tests.Benchmarks",
+      "Type": "HealthBenchmarks",
+      "Method": "GetVersionAsync",
+      "MethodTitle": "GetVersionAsync",
+      "Parameters": "Fixture=health",
+      "FullName": "OpenCode.Sdk.Performance.Tests.Benchmarks.HealthBenchmarks.GetVersionAsync(Fixture: health)",
+      "Statistics": {
+        "N": 15,
+        "Median": 645.5,
+        "Mean": 648.192871093750,
+        "StandardDeviation": 9.114582367
+      },
+      "Memory": {
+        "Gen0Collections": 24,
+        "Gen1Collections": 0,
+        "Gen2Collections": 0,
+        "TotalOperations": 524288,
+        "BytesAllocatedPerOperation": 96
+      },
+      "Measurements": []
     }
   ]
 }

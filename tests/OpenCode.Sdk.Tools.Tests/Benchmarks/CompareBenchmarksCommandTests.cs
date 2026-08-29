@@ -35,11 +35,17 @@ public sealed class CompareBenchmarksCommandTests
 
         await Assert.That(result.ExitCode).IsEqualTo(0);
         var csv = await fileSystem.File.ReadAllTextAsync(outputPath, CancellationToken.None);
-        await Assert.That(csv).StartsWith("\"Case\",\"Runtime\",\"AllocBefore\",\"AllocAfter\",\"AllocDelta\",\"TimeRatio\"\n");
+        await Assert.That(csv).StartsWith(
+            "\"Case\",\"Runtime\",\"Status\",\"AllocBefore\",\"AllocAfter\",\"AllocDelta\",\"TimeRatio\",\"MedianNanoseconds\"\n");
         await Assert.That(csv).Contains(
-            "\"Health/GetHealthAsync [Fixture=health]\",\".NET 10.0\",\"2104\",\"2376\",\"272\",\"0.98\"\n");
+            "\"Health/GetHealthAsync [Fixture=health]\",\".NET 10.0\",\"Matched\",\"2104\",\"2376\",\"272\",\"0.98\",\"\"\n");
         await Assert.That(csv).Contains(
-            "\"Health/ExecuteWithoutAdapterAsync [Fixture=health]\",\".NET Framework 4.7.2\",\"6142\",\"4413\",\"-1729\",\"0.37\"\n");
+            "\"Health/ExecuteWithoutAdapterAsync [Fixture=health]\",\".NET Framework 4.7.2\",\"Matched\",\"6142\",\"4413\",\"-1729\",\"0.37\",\"\"\n");
+
+        // The after run's new rung has no baseline yet — it must still land with exact figures rather
+        // than vanish from the durable CSV (ROADMAP.md's compare-benchmarks completeness requirement).
+        await Assert.That(csv).Contains(
+            "\"Health/GetVersionAsync [Fixture=health]\",\".NET 10.0\",\"AfterOnly\",\"\",\"96\",\"\",\"\",\"645.5\"\n");
     }
 
     [Test]
