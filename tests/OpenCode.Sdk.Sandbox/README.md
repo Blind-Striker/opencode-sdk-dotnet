@@ -89,3 +89,28 @@ packages/cli src/index.ts` shape one token short and fails before readiness with
 module 'react/jsx-dev-runtime'`. This is the same root cause `PinnedOpenCodeServerFixture` anchors
 around via `OpenCodeServerOptions.WorkingDirectory` for the test suite (Task 2); the sandbox demo
 reaches the identical fix by folding `--cwd` into the command tokens themselves.
+
+## Live legs against a WSL2 server (Windows workstations)
+
+The `opencode-pty` daemon (`@opencode-ai/pty`) ships darwin/linux platform packages only — no
+win32 package exists at the pinned upstream commit — so a persistentPty live test run directly on
+Windows can only exercise the daemon-absent arms. `PinnedOpenCodeServerFixture`'s
+external-endpoint mode plus `PersistentPtyDaemonGate`'s override (Task 6) let a Windows
+workstation instead run the live leg against a server hosted in WSL2, whose linux package does
+carry the daemon binary:
+
+1. In WSL2, at the same checkout (`/mnt/<drive>/…/external/opencode`):
+   ```sh
+   bun install --frozen-lockfile --ignore-scripts        # places the linux opencode-pty package
+   OPENCODE_PASSWORD=<pw> bun packages/cli/src/index.ts serve --port 4097
+   ```
+2. On Windows:
+   ```powershell
+   $env:OPENCODE_SDK_TESTS_ENDPOINT = "http://localhost:4097"
+   $env:OPENCODE_SDK_TESTS_PASSWORD = "<pw>"
+   $env:OPENCODE_SDK_TESTS_PTY_DAEMON = "1"
+   dotnet test --configuration Release
+   ```
+
+The exact-pin discipline is the operator's: the WSL2 server must be built from the same submodule
+commit; the fixture prints both so a mismatch is visible, it cannot verify a source run's version.

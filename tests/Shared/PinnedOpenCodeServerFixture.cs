@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.Json;
 using Testably.Abstractions;
 using TUnit.Core.Interfaces;
 
@@ -11,15 +13,39 @@ namespace OpenCode.Sdk.TestSupport;
 /// process-global scenarios add <c>[NotInParallel("pinned-opencode-server")]</c>.
 /// Fail-fast, never skip: a missing submodule/install/bun surfaces as an instructive error.
 /// </summary>
+/// <remarks>
+/// Environment variables this fixture and its neighbors respond to, one line each:
+/// <list type="bullet">
+/// <item><c>OPENCODE_SDK_TESTS_KEEP_LOGS=1</c> - retain the spawned server's stdout/stderr (and
+/// the run root) under the OS temp root instead of deleting them on dispose.</item>
+/// <item><c>OPENCODE_SDK_TESTS_ENDPOINT</c> - an operator-supplied server to attach to instead of
+/// spawning one (paired with <c>OPENCODE_SDK_TESTS_PASSWORD</c>; see below).</item>
+/// <item><c>OPENCODE_SDK_TESTS_PASSWORD</c> - the Basic-auth password for
+/// <c>OPENCODE_SDK_TESTS_ENDPOINT</c>; both or neither, never one alone.</item>
+/// <item><c>OPENCODE_SDK_TESTS_PTY_DAEMON=0|1</c> - overrides <see cref="PersistentPtyDaemonGate"/>'s
+/// platform default (see its own remarks).</item>
+/// </list>
+/// External-endpoint mode (Task 6, the WSL2 recipe - <c>tests/OpenCode.Sdk.Sandbox/README.md</c>
+/// carries the runnable steps): when <c>OPENCODE_SDK_TESTS_ENDPOINT</c>/
+/// <c>OPENCODE_SDK_TESTS_PASSWORD</c> name an operator-supplied server - or the internal
+/// <see cref="ExternalServerEndpoint"/> constructor supplies the pair directly -
+/// <see cref="InitializeAsync"/> spawns nothing: it probes the server's health instead of
+/// starting <see cref="Adapter"/>, so <see cref="Adapter"/> stays unset and every member below
+/// reads from the external pair.
+/// </remarks>
 public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDisposable
 {
     private static readonly TimeSpan ReadinessTimeout = TimeSpan.FromMinutes(3);
 
+    private static readonly TimeSpan ExternalHealthProbeTimeout = TimeSpan.FromSeconds(30);
+
     private readonly RealFileSystem _fileSystem = new();
     private readonly IReadOnlyList<string>? _commandOverride;
     private readonly string? _workingDirectoryOverride;
+    private readonly ExternalServerEndpoint? _externalOverride;
     private CliWrapServerAdapter? _adapter;
     private TestRunRoot? _runRoot;
+    private ExternalServerEndpoint? _external;
     private bool _retainLogs;
 
     public PinnedOpenCodeServerFixture()
@@ -38,7 +64,19 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
         _workingDirectoryOverride = workingDirectory;
     }
 
-    public Uri Endpoint => Adapter.Endpoint;
+    /// <summary>
+    /// Test-only seam: drives <see cref="InitializeAsync"/> against an injected external endpoint
+    /// instead of resolving <see cref="ExternalServerEndpoint.FromEnvironment()"/> from the real
+    /// process environment, so the attach/refuse contract is testable over a loopback server.
+    /// </summary>
+    internal PinnedOpenCodeServerFixture(ExternalServerEndpoint external)
+    {
+        ArgumentNullException.ThrowIfNull(external);
+
+        _externalOverride = external;
+    }
+
+    public Uri Endpoint => _external?.Endpoint ?? Adapter.Endpoint;
 
     internal CliWrapServerAdapter Adapter =>
         _adapter ?? throw new InvalidOperationException("The fixture has not initialized.");
@@ -49,6 +87,22 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
     public async Task InitializeAsync()
     {
         _runRoot = new TestRunRoot(_fileSystem);
+
+        // The command-override constructor forces a deliberate local-spawn failure
+        // (PinnedOpenCodeServerFixtureFailureTests); ambient OPENCODE_SDK_TESTS_ENDPOINT/PASSWORD
+        // left over from an operator's WSL2 recipe session must never hijack that test into
+        // attaching to a real server instead, so the environment fallback is only consulted for
+        // the two modes that do not already name a fixed mode of their own.
+        if (_commandOverride is null || _workingDirectoryOverride is null)
+        {
+            var external = _externalOverride ?? ExternalServerEndpoint.FromEnvironment();
+            if (external is not null)
+            {
+                await AttachToExternalAsync(external).ConfigureAwait(false);
+                return;
+            }
+        }
+
         IReadOnlyList<string> command;
         string workingDirectory;
         if (_commandOverride is not null && _workingDirectoryOverride is not null)
@@ -97,8 +151,8 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
     public OpenCodeClient CreateClient(LocationSelector? location = null) =>
         new(new OpenCodeClientOptions
         {
-            Endpoint = Adapter.Endpoint,
-            Password = Adapter.Password,
+            Endpoint = _external?.Endpoint ?? Adapter.Endpoint,
+            Password = _external?.Password ?? Adapter.Password,
             Location = location,
         });
 
@@ -130,4 +184,51 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
 
     private Dictionary<string, string> BuildEnvironment(string runRoot) =>
         ServerIsolation.Environment(_fileSystem, runRoot);
+
+    /// <summary>
+    /// Probes the external pair's health through a throw-away client and, once it answers, prints
+    /// its reported version beside the pinned submodule commit - the exact-pin discipline in this
+    /// mode is the operator's, and a source run's version cannot be verified mechanically, so this
+    /// is the only mechanical evidence available that the pair actually matches.
+    /// </summary>
+    private async Task AttachToExternalAsync(ExternalServerEndpoint external)
+    {
+        using var client = new OpenCodeClient(new OpenCodeClientOptions
+        {
+            Endpoint = external.Endpoint,
+            Password = external.Password,
+        });
+        using var probeTimeout = new CancellationTokenSource(ExternalHealthProbeTimeout);
+
+        HealthResponse health;
+        try
+        {
+            health = await client.GetHealthAsync(cancellationToken: probeTimeout.Token).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            throw new InvalidOperationException(
+                $"The external server at '{external.Endpoint}' did not answer a health probe within " +
+                $"{ExternalHealthProbeTimeout.TotalSeconds.ToString("F0", CultureInfo.InvariantCulture)}s.",
+                exception);
+        }
+
+        var upstreamCommit = ReadPinnedUpstreamCommit();
+        Console.WriteLine(
+            $"Attached to external server at '{external.Endpoint}' (reported version: " +
+            $"{health.Health.Version}; pinned upstream commit: {upstreamCommit}). A source run's version " +
+            "cannot be verified mechanically.");
+
+        _external = external;
+    }
+
+    private string ReadPinnedUpstreamCommit()
+    {
+        var repositoryRoot = new PinnedServerCommand(_fileSystem).RepositoryRoot;
+        var receiptPath = _fileSystem.Path.Combine(repositoryRoot, "spec", "receipt.json");
+        var receipt = _fileSystem.File.ReadAllText(receiptPath);
+        using var document = JsonDocument.Parse(receipt);
+        return document.RootElement.GetProperty("upstreamCommit").GetString()
+            ?? throw new InvalidOperationException($"'{receiptPath}' has no 'upstreamCommit' value.");
+    }
 }
