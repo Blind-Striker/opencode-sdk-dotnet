@@ -49,8 +49,11 @@ public sealed class PersistentPtyLiveTests(PinnedOpenCodeServerFixture server)
     public async Task Terminal_Lifecycle_Should_Round_Trip_Or_Answer_The_Daemon_Absent_Arm(
         CancellationToken cancellationToken)
     {
-        using var workspace = server.CreateWorkspace();
-        using var client = server.CreateClient(new LocationSelector { Directory = workspace.Path });
+        // No workspace and no location: the terminals this family creates live on the server's own
+        // machine, so a Windows path from a location selector would be meaningless to the Linux
+        // server the WSL2 recipe points this test at. The session lands in the server's cwd
+        // instance, which the fixture already isolates through its own XDG roots.
+        using var client = server.CreateClient();
         var session = await client.Sessions.CreateSessionAsync(
             new SessionCreateRequest { Title = SessionTitle }, cancellationToken: cancellationToken);
         var created = await client.PersistentPtys.CreatePersistentPtyAsync(

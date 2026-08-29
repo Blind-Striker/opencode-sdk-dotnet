@@ -132,6 +132,10 @@ carry the daemon binary:
    dotnet test --configuration Release
    ```
 
+That command runs the whole suite, not just the persistentPty legs: the fixture-driven live legs
+create their sessions without a location, so no Windows path from the workstation reaches the WSL2
+server.
+
 The exact-pin discipline is the operator's: the WSL2 server must be built from the same submodule
 commit; the fixture prints both so a mismatch is visible, it cannot verify a source run's version.
 
