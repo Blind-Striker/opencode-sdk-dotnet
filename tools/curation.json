@@ -338,6 +338,11 @@
       "operationId": "v2.pty.connect",
       "subtreeSha256": "467add4eb0b2979b5095fa071b2bc775453af06d86086822560e6e081f7063b2",
       "reason": "The WebSocket session door is hand-written over its own URL/query construction (ADR-0021 Task 5); the operation is never selected into the generation profile, so this fingerprint is the only generation-time check that a spec refresh reshaping method, path, parameters, the x-websocket marker, or declared responses fails loudly instead of drifting silently under the hand-written door."
+    },
+    {
+      "operationId": "v2.persistentPty.connect",
+      "subtreeSha256": "f4469e4e309536f004c116c72894b04b5ed7f0c677f9b8bcbf8c0d4f81c10a17",
+      "reason": "The persistent PTY WebSocket session door is hand-written over its own URL/query construction (ADR-0021 pattern, Task 4); the operation is never selected into the generation profile, so this fingerprint is the only generation-time check that a spec refresh reshaping method, path, the six connect queries, the x-websocket marker, or declared responses fails loudly instead of drifting silently under the hand-written door."
     }
   ],
   "envelopePayloadNames": {

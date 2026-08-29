@@ -180,6 +180,23 @@ public sealed class OperationPlanBinderTests
         await Assert.That(root.ContainerName).IsNull();
     }
 
+    /// <summary>
+    /// Both WebSocket connect operations (ADR-0021's hand-written session doors) are pinned by
+    /// fingerprint rather than selected, ordinal-sorted; a spec refresh or a curation edit that
+    /// drops either row, or reorders them, must fail this test rather than drift silently.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Report_Both_WebSocket_Operations_As_Transport_Owned()
+    {
+        var plan = await new BindingTestHost().BindPinnedAsync();
+
+        await Assert
+            .That(plan.TransportOwnedOperationIds.SequenceEqual(
+                ["v2.persistentPty.connect", "v2.pty.connect"],
+                StringComparer.Ordinal))
+            .IsTrue();
+    }
+
     [Test]
     public async Task Bind_Should_Create_The_Selected_Pinned_Session_Client_Plans()
     {
