@@ -480,7 +480,7 @@ log Q156). ADR-0021's ownership pattern now covers both PTY families: `persisten
 `internalRaw` group keyed on `ptyID`, its ten HTTP operations selected behind the hand-written
 `PersistentPtysClient`/`PersistentPtyClient` doors, and `v2.persistentPty.connect` is
 fingerprint-pinned transport-owned beside `v2.pty.connect` — **the profile stands at 122 selected /
-12 pending / 2 transport-owned** of 136, with the full gate green at **4,004 tests**. The mechanism
+12 pending / 2 transport-owned** of 136, with the full gate green at **4,016 tests**. The mechanism
 the family needed landed first: a `contentEncoding: base64` string now materializes as
 `ReadOnlyMemory<byte>` and every other encoding refuses, which is what `snapshot`'s `checkpoint`
 required. `PtySession`'s socket lifecycle became the family-neutral `TerminalSocketCore<TFrame>`
@@ -493,10 +493,11 @@ daemon" alike. Test reach grew with it: the exact-pin fixture gained an external
 `PersistentPtyDaemonGate` picks the live test's arm, and the sandbox README records the WSL2
 recipe. **What is pending:** the maintainer's hosted three-OS run and the WSL2 run — the live
 test's round-trip arm has not executed anywhere yet, only its daemon-absent arm, which passed here;
-the `handoff` door's promoted-body accessor (`response.Handoff.Handoff`), parked for the pre-1.0
-surface review because flattening it needs an envelope-facet mechanism rather than a curation row;
-and a rerun of the `PtySession` read benchmark ladder, since the shared core added one interface
-dispatch per frame.
+and the `handoff` door's promoted-body accessor (`response.Handoff.Handoff`), parked for the pre-1.0
+surface review because flattening it needs an envelope-facet mechanism rather than a curation row.
+The `PtySession` read ladder was rerun across the extraction (`--job short`, both runtimes) and the
+shared core's added interface dispatch costs no allocation: `DecodeFrames` is byte-identical on
+every fixture and runtime, and `ReadFramesAsync` allocates 0–16 bytes less per read (Q156).
 
 ## Milestones
 

@@ -4464,10 +4464,24 @@ which this family's token door requires exactly as the normal family's does.
 **Outstanding:** the round-trip arm's first live execution; the `handoff` door's accessor shape —
 its `{handoff: …}` body binds as a promoted body model, so a caller reads
 `response.Handoff.Handoff`, parked for the pre-1.0 surface review because flattening it needs an
-envelope-facet mechanism rather than a curation row; and a rerun of the `PtySession` read
-benchmark ladder, since the shared core added one interface dispatch per frame.
+envelope-facet mechanism rather than a curation row.
 
 **Evidence:** the full gate is green at the branch head — slopwatch 0, a Release build with zero
-warnings, `dotnet format` clean, **4,004 tests** on all TFMs, and `generate --verify` current with
+warnings, `dotnet format` clean, **4,016 tests** on all TFMs, and `generate --verify` current with
 the marker at **122 selected / 12 pending / 2 transport-owned** of 136. The branch is unmerged and
 unpushed, awaiting the maintainer's merge and the hosted run.
+
+**The `PtySession` read ladder measured across the shared-core extraction.** The increment-level
+check (`--filter '*PtySessionRead*' --job short --runtimes net10.0 net472`) ran on this
+workstation against the pre-branch ladder run `.benchmarks/b2-short` (2026-08-29 05:53, runtime
+labelled, so its legs join) as before and `.benchmarks/persistent-pty-after-short` at the branch
+head as after; all twelve cases joined in
+`.benchmarks/persistent-pty-short-comparison.csv`. The interface dispatch
+`TerminalSocketCore<TFrame>` added per received frame costs no allocation. `DecodeFrames` is
+byte-identical on both runtimes: **24 B** (`cursor-x1`), **90,112 B** net10.0 and **98,593 B**
+net472 (`output-small-x1024`), **5,245,952 B** net10.0 and **5,253,264 B** net472
+(`output-large-x64`). `ReadFramesAsync` allocates marginally less than before — **16,776 →
+16,760 B** net10.0 and **16,857 → 16,848 B** net472 (`cursor-x1`); **188,776 → 188,760 B**
+net10.0 and **205,788 → 205,772 B** net472 (`output-small-x1024`); **5,392,848 → 5,392,832 B**
+net10.0 and **5,403,568 B** unchanged on net472 (`output-large-x64`) — a per-read difference of
+one object, not a per-frame one. Timing is not evidence on this workstation and none is quoted.
