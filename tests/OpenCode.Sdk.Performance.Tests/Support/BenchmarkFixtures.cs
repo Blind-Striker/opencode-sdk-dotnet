@@ -97,6 +97,30 @@ internal static class BenchmarkFixtures
         return Encoding.UTF8.GetBytes(builder.ToString());
     }
 
+    /// <summary>
+    /// The active-sessions dictionary payload: <paramref name="count"/> entries keyed by session
+    /// ID, each carrying the one declared <c>"running"</c> type tag, in the object shape
+    /// <c>session.active</c> returns (not the ordered array a cursor-list page carries).
+    /// </summary>
+    public static byte[] SessionActiveDictionary(int count)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(count, 1);
+        var builder = new StringBuilder("{");
+        for (var index = 0; index < count; index++)
+        {
+            if (index > 0)
+            {
+                _ = builder.Append(',');
+            }
+
+            _ = builder.Append("\"ses_bench").Append((index + 1).ToString("D20", CultureInfo.InvariantCulture))
+                .Append("\":{\"type\":\"running\"}");
+        }
+
+        _ = builder.Append('}');
+        return Encoding.UTF8.GetBytes(builder.ToString());
+    }
+
     /// <summary>Wraps a payload in the <c>{"data": ...}</c> success envelope.</summary>
     public static byte[] DataEnvelope(byte[] payload)
     {
