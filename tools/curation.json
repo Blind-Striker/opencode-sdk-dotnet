@@ -255,7 +255,7 @@
     {
       "operationId": "v2.session.form.list",
       "methodName": "ListFormsAsync",
-      "reason": "List methods name their subject in the plural across the reviewed surface (v2.mcp.list, v2.pty.list, v2.permission.request.list); the mechanical singular 'Form' would misleadingly read as returning one form instead of the session's pending forms. This also keeps the name stable against the still-pending v2.session.form.create, whose single-object payload would otherwise collide with it once selected into this same client family."
+      "reason": "List methods name their subject in the plural across the reviewed surface (v2.mcp.list, v2.pty.list, v2.permission.request.list); the mechanical singular 'Form' would misleadingly read as returning one form instead of the session's pending forms. v2.session.form.create is now selected in this same client family (no-wall sweep batch B): its own single-object payload binds independently as SessionFormCreateResponse.Form under CreateFormAsync, so the two read distinctly (one form created vs. the session's pending forms listed) with no name or payload collision."
     },
     {
       "operationId": "v2.session.permission.list",

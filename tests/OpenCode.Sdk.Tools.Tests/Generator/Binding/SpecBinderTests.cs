@@ -18,6 +18,7 @@ public sealed class SpecBinderTests
         "ConflictError",
         "ForbiddenError",
         "FormAlreadySettledError",
+        "FormInvalidAnswerError",
         "FormNotFoundError",
         "InstructionEntryValueTooLargeError",
         "InvalidCursorError",

@@ -773,4 +773,345 @@ public sealed class SessionClientContractTests
         await Assert.That(response.Status).IsEqualTo(401);
         await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
     }
+
+    [Test]
+    public async Task PutEnvironmentAsync_Should_Send_The_Typed_Body_On_The_204()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PutEnvironmentAsync(new SessionEnvironmentPutRequest
+        {
+            Variables = new Dictionary<string, string>(StringComparer.Ordinal) { ["PATH"] = "/usr/bin", },
+        });
+
+        await Assert.That(response.Status).IsEqualTo(204);
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo(HttpMethod.Put);
+        await Assert.That(request.RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/environment"));
+        await Assert.That(request.Body).IsEqualTo("{\"variables\":{\"PATH\":\"/usr/bin\"}}");
+    }
+
+    [Test]
+    public async Task PutEnvironmentAsync_Should_Throw_The_Declared_404_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.SessionNotFoundError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").PutEnvironmentAsync(new SessionEnvironmentPutRequest
+            {
+                Variables = new Dictionary<string, string>(StringComparer.Ordinal),
+            }))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(404);
+        await Assert.That(exception.Error).IsTypeOf<SessionNotFoundError>();
+    }
+
+    [Test]
+    public async Task PutEnvironmentAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PutEnvironmentAsync(
+            new SessionEnvironmentPutRequest { Variables = new Dictionary<string, string>(StringComparer.Ordinal), },
+            OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
+
+    [Test]
+    public async Task CreateFormAsync_Should_Send_The_Typed_Body_And_Return_The_Typed_Form()
+    {
+        const string form = "{\"id\":\"frm_1\",\"sessionID\":\"ses_100\",\"title\":\"Pick a name\",\"fields\":[]}";
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(form));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").CreateFormAsync(new SessionFormCreateRequest
+        {
+            Title = "Pick a name",
+            Fields = [],
+        });
+
+        await Assert.That(response.Form.Id).IsEqualTo("frm_1");
+        await Assert.That(response.Form.Title).IsEqualTo("Pick a name");
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo(HttpMethod.Post);
+        await Assert.That(request.RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/form"));
+        await Assert.That(request.Body).IsEqualTo("{\"title\":\"Pick a name\",\"fields\":[]}");
+    }
+
+    [Test]
+    public async Task CreateFormAsync_Should_Throw_The_Declared_409_Conflict()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Conflict, WireBodyData.ConflictError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").CreateFormAsync(new SessionFormCreateRequest
+            {
+                Title = "Pick a name",
+                Fields = [],
+            }))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(409);
+        await Assert.That(exception.Error).IsTypeOf<ConflictError>();
+    }
+
+    [Test]
+    public async Task CreateFormAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").CreateFormAsync(
+            new SessionFormCreateRequest { Title = "Pick a name", Fields = [], },
+            OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
+
+    [Test]
+    public async Task GetFormAsync_Should_Return_The_Typed_Form()
+    {
+        const string form = "{\"id\":\"frm_1\",\"sessionID\":\"ses_100\",\"title\":\"Approve deploy\",\"fields\":[]}";
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(form));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetFormAsync("frm_1");
+
+        await Assert.That(response.Form.Id).IsEqualTo("frm_1");
+        await Assert.That(response.Form.Title).IsEqualTo("Approve deploy");
+        await Assert.That(scenario.Requests.Single().RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/form/frm_1"));
+    }
+
+    [Test]
+    public async Task GetFormAsync_Should_Throw_The_Declared_404_Error()
+    {
+        using var scenario = ContractScenario.Responding(
+            HttpStatusCode.NotFound,
+            "{\"_tag\":\"FormNotFoundError\",\"id\":\"frm_9\",\"message\":\"gone\"}");
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").GetFormAsync("frm_9"))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(404);
+        await Assert.That(exception.Error).IsTypeOf<FormNotFoundError>();
+    }
+
+    [Test]
+    public async Task GetFormAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetFormAsync("frm_1", OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
+
+    [Test]
+    public async Task GetFormStateAsync_Should_Return_The_Typed_Pending_State()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope("{\"status\":\"pending\"}"));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetFormStateAsync("frm_1");
+
+        await Assert.That(response.FormState).IsTypeOf<FormStatePending>();
+        await Assert.That(scenario.Requests.Single().RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/form/frm_1/state"));
+    }
+
+    [Test]
+    public async Task GetFormStateAsync_Should_Return_The_Typed_Answered_State()
+    {
+        const string state = "{\"status\":\"answered\",\"answer\":{\"q1\":\"blue\"}}";
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(state));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetFormStateAsync("frm_1");
+
+        var answered = (FormStateAnswered)response.FormState;
+        await Assert.That(answered.Answer["q1"].Text).IsEqualTo("blue");
+    }
+
+    [Test]
+    public async Task GetFormStateAsync_Should_Throw_The_Declared_404_Error()
+    {
+        using var scenario = ContractScenario.Responding(
+            HttpStatusCode.NotFound,
+            "{\"_tag\":\"FormNotFoundError\",\"id\":\"frm_9\",\"message\":\"gone\"}");
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").GetFormStateAsync("frm_9"))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(404);
+        await Assert.That(exception.Error).IsTypeOf<FormNotFoundError>();
+    }
+
+    [Test]
+    public async Task GetFormStateAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100")
+            .GetFormStateAsync("frm_1", OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
+
+    [Test]
+    public async Task PostFormReplyAsync_Should_Send_The_Typed_Answer_On_The_204()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PostFormReplyAsync("frm_1", new SessionFormReplyPostRequest
+        {
+            Answer = new Dictionary<string, FormValue>(StringComparer.Ordinal) { ["q1"] = FormValue.FromText("blue"), },
+        });
+
+        await Assert.That(response.Status).IsEqualTo(204);
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo(HttpMethod.Post);
+        await Assert.That(request.RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/form/frm_1/reply"));
+        await Assert.That(request.Body).IsEqualTo("{\"answer\":{\"q1\":\"blue\"}}");
+    }
+
+    [Test]
+    public async Task PostFormReplyAsync_Should_Throw_The_Declared_400_Invalid_Answer()
+    {
+        using var scenario = ContractScenario.Responding(
+            HttpStatusCode.BadRequest,
+            "{\"_tag\":\"FormInvalidAnswerError\",\"id\":\"frm_1\",\"message\":\"wrong shape\"}");
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").PostFormReplyAsync("frm_1", new SessionFormReplyPostRequest
+            {
+                Answer = new Dictionary<string, FormValue>(StringComparer.Ordinal) { ["q1"] = FormValue.FromText("blue"), },
+            }))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(400);
+        await Assert.That(exception.Error).IsTypeOf<FormInvalidAnswerError>();
+    }
+
+    [Test]
+    public async Task PostFormReplyAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PostFormReplyAsync(
+            "frm_1",
+            new SessionFormReplyPostRequest { Answer = new Dictionary<string, FormValue>(StringComparer.Ordinal), },
+            OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
+
+    [Test]
+    public async Task PatchMessageUpdateAsync_Should_Send_The_Tagged_Content_And_Return_The_Typed_Message()
+    {
+        const string message = "{\"id\":\"msg_1\",\"time\":{\"created\":1},\"agent\":\"build\","
+            + "\"model\":{\"id\":\"gpt-4\",\"providerID\":\"openai\"},\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]}";
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(message));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PatchMessageUpdateAsync("msg_1", new SessionMessageUpdatePatchRequest
+        {
+            Content = [new SessionMessageAssistantText { Text = "hello", }],
+        });
+
+        await Assert.That(response.MessageUpdate.Id).IsEqualTo("msg_1");
+        await Assert.That(response.MessageUpdate.Content.Single()).IsTypeOf<SessionMessageAssistantText>();
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method.Method).IsEqualTo("PATCH");
+        await Assert.That(request.RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/message/msg_1"));
+        await Assert.That(request.Body).IsEqualTo("{\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]}");
+    }
+
+    [Test]
+    public async Task PatchMessageUpdateAsync_Should_Throw_The_Declared_404_Message_Not_Found()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.MessageNotFoundError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").PatchMessageUpdateAsync("msg_9", new SessionMessageUpdatePatchRequest
+            {
+                Content = [new SessionMessageAssistantText { Text = "hello", }],
+            }))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(404);
+        await Assert.That(exception.Error).IsTypeOf<MessageNotFoundError>();
+    }
+
+    [Test]
+    public async Task PatchMessageUpdateAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PatchMessageUpdateAsync(
+            "msg_1",
+            new SessionMessageUpdatePatchRequest { Content = [], },
+            OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
+
+    [Test]
+    public async Task PostViewAsync_Should_Send_The_Typed_Body_On_The_204()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PostViewAsync(new SessionViewPostRequest
+        {
+            Idle = 5,
+        });
+
+        await Assert.That(response.Status).IsEqualTo(204);
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo(HttpMethod.Post);
+        await Assert.That(request.RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/view"));
+        await Assert.That(request.Body).IsEqualTo("{\"idle\":5}");
+    }
+
+    [Test]
+    public async Task PostViewAsync_Should_Throw_The_Declared_404_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.SessionNotFoundError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").PostViewAsync(new SessionViewPostRequest { Idle = 1, }))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(404);
+        await Assert.That(exception.Error).IsTypeOf<SessionNotFoundError>();
+    }
+
+    [Test]
+    public async Task PostViewAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PostViewAsync(
+            new SessionViewPostRequest { Idle = 1, },
+            OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
 }

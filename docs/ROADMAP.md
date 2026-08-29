@@ -404,17 +404,22 @@ final whole-branch review is pending. The queue now advances to the held maintai
 adjudication, canon wording, push), the benchmark coverage batch, the release track, and the
 service-parity follow-up — all already recorded above.
 
-**The no-wall sweep's telltale (S1) and first admission batch (S2) are complete** (2026-08-29;
-task briefs and reports: `.superpowers/sdd/2026-08-29-no-wall-sweep/`). S1 landed the interim
-bindability telltale (`.generation-incomplete` now marks every pending operation `[bindable]` or
+**The no-wall sweep is complete** (S1 telltale, S2 batch A, S3 batch B; 2026-08-29; task briefs
+and reports: `.superpowers/sdd/2026-08-29-no-wall-sweep/`). S1 landed the interim bindability
+telltale (`.generation-incomplete` now marks every pending operation `[bindable]` or
 `[refused: …]`, per the `protocol-and-generation.md` rule below) and found the wall-free pool
 larger than the sweep's original 14-operation count assumed (persistentPty family members bind
 today but stay routed to their own queued batch regardless). S2 admitted batch A, the seven
 operations the telltale confirmed bindable with no wall — `credential.activate`, the new `form`
 family (`form.request.list`), the `integration` breadth (`list`, `connect.key`, `oauth.connect`),
 `project.update`, and `workspace.destroy` — one commit per family, each with its own contract
-tests and gate. The profile stands at **105 selected / 29 pending**. Batch B, the queued session
-seven (S3), closes the remaining 14-op sweep at 112/22.
+tests and gate. S3 admitted batch B, the session seven — `session.environment`,
+`session.form.create`, `session.form.get`, `session.form.reply`, `session.form.state`,
+`session.messageUpdate`, and `session.view` — all landing on the existing bound `SessionClient`
+with no curation needed beyond correcting the `session.form.list` naming reason's future-tense
+wording now that `session.form.create` is selected alongside it in the same client family with
+no collision. The profile stands at **112 selected / 22 pending**, closing the sweep's full
+14-operation pool.
 
 **M4's launcher arc is code-complete and integrated** (2026-08-28; evidence: research log Q153;
 plan executed task-by-task with independent reviews and a clean final whole-branch review).
@@ -483,9 +488,9 @@ is revisited at each milestone boundary.
    so has the interim bindability telltale (S1, 2026-08-29): `generate` marks each pending
    operation `[bindable]`/`[refused: …]` in the committed `.generation-incomplete`, bridging until
    the inventory lane's standardized tracking. What remains is the rest of target admission over
-   the refreshed surface: the no-wall sweep's queued second batch (S3, the session seven, closing
-   the 14-operation pool the C2 probe surfaced — batch A already landed as S2), the
-   remaining mechanism batches, persistentPty's HTTP batch, exclusion fingerprints (ADR-0008),
+   the refreshed surface: the no-wall sweep's 14-operation pool the C2 probe surfaced is closed
+   (S2 batch A and S3 batch B both landed), so what is left is the remaining mechanism batches,
+   persistentPty's HTTP batch, exclusion fingerprints (ADR-0008),
    the operation inventory and assurance ledger — whose design also standardizes
    pending-operation bindability tracking, so a wall-free pending operation surfaces as a
    committed-artifact diff at every generate/refresh instead of accumulating unseen (maintainer

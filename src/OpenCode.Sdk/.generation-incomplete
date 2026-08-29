@@ -1,6 +1,6 @@
 Generation is incomplete; packages must not be published.
-Selected operations: 105
-Pending operations: 29
+Selected operations: 112
+Pending operations: 22
 Selected:
 - v2.agent.get
 - v2.agent.list
@@ -58,10 +58,15 @@ Selected:
 - v2.session.compact
 - v2.session.context
 - v2.session.create
+- v2.session.environment
 - v2.session.export
 - v2.session.fork
 - v2.session.form.cancel
+- v2.session.form.create
+- v2.session.form.get
 - v2.session.form.list
+- v2.session.form.reply
+- v2.session.form.state
 - v2.session.generate
 - v2.session.get
 - v2.session.import
@@ -76,6 +81,7 @@ Selected:
 - v2.session.list
 - v2.session.log
 - v2.session.message
+- v2.session.messageUpdate
 - v2.session.move
 - v2.session.permission.create
 - v2.session.permission.get
@@ -92,6 +98,7 @@ Selected:
 - v2.session.switchAgent
 - v2.session.switchModel
 - v2.session.synthetic
+- v2.session.view
 - v2.session.wait
 - v2.shell.create
 - v2.shell.get
@@ -124,14 +131,7 @@ Pending:
 - v2.persistentPty.snapshot [refused: schema node 'EncodedStringNode' is not supported by the M1 emitter]
 - v2.persistentPty.update [bindable]
 - v2.pty.connect [refused: WebSocket operations are not supported in M1]
-- v2.session.environment [bindable]
-- v2.session.form.create [bindable]
-- v2.session.form.get [bindable]
-- v2.session.form.reply [bindable]
-- v2.session.form.state [bindable]
-- v2.session.messageUpdate [bindable]
 - v2.session.stats [refused: query parameter 'tools' has an unsupported schema shape]
-- v2.session.view [bindable]
 - v2.shell.output [refused: location envelope 'data' must reference a named component schema, or be an array of one]
 - v2.vcs.diff [refused: query parameter 'mode' must be optional]
 - v2.worktree.create [refused: selected errors must use the Effect _tag style in M1]
