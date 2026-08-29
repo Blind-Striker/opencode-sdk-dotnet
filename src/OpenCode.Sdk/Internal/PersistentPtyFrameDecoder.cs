@@ -96,7 +96,11 @@ internal sealed class PersistentPtyFrameDecoder : ITerminalFrameDecoder<Persiste
                     ? attachment.GetString()
                     : null,
                 root.GetProperty("generation").GetInt64()),
-            "title_changed" => new PersistentPtyTitleChangedFrame(root.GetProperty("title").GetString()!),
+            // A wire null for a promised string is a member-level failure of a frame whose type is
+            // already known, so it is named as one rather than reaching the frame constructor's
+            // own guard - whose ArgumentNullException would escape this decoder's catch filter.
+            "title_changed" => new PersistentPtyTitleChangedFrame(
+                root.GetProperty("title").GetString() ?? throw new OpenCodeTransportException(TypedFrameFailure(type))),
             "foreground_process_changed" => new PersistentPtyForegroundProcessChangedFrame(
                 root.GetProperty("process").ValueKind is JsonValueKind.String
                     ? root.GetProperty("process").GetString()
@@ -109,7 +113,11 @@ internal sealed class PersistentPtyFrameDecoder : ITerminalFrameDecoder<Persiste
     private static PersistentPtyAttachment ReadAttachment(JsonElement root) =>
         new()
         {
-            AttachmentId = root.GetProperty("attachmentID").GetString()!,
+            // `required` is a compile-time obligation, not a runtime null check, so a wire null
+            // would otherwise land in a non-nullable member as null. It is the same member-level
+            // failure the `info` member below reports, and is named the same way.
+            AttachmentId = root.GetProperty("attachmentID").GetString()
+                           ?? throw new OpenCodeTransportException(TypedFrameFailure(AttachedType)),
             InputProtocol = root.GetProperty("inputProtocol").GetInt32(),
 
             // The source-generated type info, never reflection: the SDK stays trimming- and

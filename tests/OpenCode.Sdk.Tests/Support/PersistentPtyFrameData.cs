@@ -25,6 +25,11 @@ internal static class PersistentPtyFrameData
         "{\"type\":\"attached\",\"attachmentID\":\"att_3\",\"inputProtocol\":0,\"info\":" + InfoJson +
         ",\"role\":\"controller\",\"generation\":3,\"replay\":{\"requestedOffset\":0,\"availableOffset\":0,\"endOffset\":0,\"truncated\":false}}";
 
+    /// <summary>An attach whose promised <c>attachmentID</c> string the server sent as JSON null.</summary>
+    public const string AttachedNullAttachmentIdJson =
+        "{\"type\":\"attached\",\"attachmentID\":null,\"inputProtocol\":1,\"info\":" + InfoJson +
+        ",\"role\":\"controller\",\"generation\":3,\"replay\":{\"requestedOffset\":0,\"availableOffset\":0,\"endOffset\":42,\"truncated\":false}}";
+
     public const string ReplayCompleteJson = "{\"type\":\"replay_complete\",\"endOffset\":42}";
 
     /// <summary>The checkpoint is base64 of ESC c (0x1B 0x63).</summary>
@@ -40,6 +45,9 @@ internal static class PersistentPtyFrameData
     public const string ControllerChangedJson = "{\"type\":\"controller_changed\",\"attachmentID\":\"att_9\",\"generation\":5}";
 
     public const string TitleChangedJson = "{\"type\":\"title_changed\",\"title\":\"vim\"}";
+
+    /// <summary>A title change whose promised <c>title</c> string the server sent as JSON null.</summary>
+    public const string TitleChangedNullTitleJson = "{\"type\":\"title_changed\",\"title\":null}";
 
     public const string ForegroundProcessChangedJson = "{\"type\":\"foreground_process_changed\",\"process\":null}";
 

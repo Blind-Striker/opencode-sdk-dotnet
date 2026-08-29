@@ -107,6 +107,21 @@ public sealed class PersistentPtySessionTests
     }
 
     [Test]
+    public async Task AttachAsync_Should_Name_The_Frame_Kind_When_The_Attachment_Id_Is_Null()
+    {
+        var socket = new ScriptedPtyWebSocket().Text(PersistentPtyFrameData.AttachedNullAttachmentIdJson);
+
+        var failure = await Assert
+            .That(async () => _ = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None))
+            .Throws<OpenCodeTransportException>();
+
+        // A wire null for a promised string is a member-level failure of a frame whose type the
+        // SDK already read, so it is named the same way an unreadable member is - not left to
+        // surface as a bare null attachment identity.
+        await Assert.That(failure!.Message).Contains("'attached'");
+    }
+
+    [Test]
     public async Task AttachAsync_Should_Refuse_A_Normal_Close_Before_Attached()
     {
         var socket = new ScriptedPtyWebSocket().Closing(WebSocketCloseStatus.NormalClosure);
@@ -213,6 +228,19 @@ public sealed class PersistentPtySessionTests
         await Assert.That(failure!.Message).Contains("'resized'");
         await Assert.That(failure.Message.Contains("not a JSON object", StringComparison.Ordinal)).IsFalse();
         await Assert.That(failure.InnerException).IsNotNull();
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Name_The_Frame_Kind_When_A_Title_Changed_Frame_Carries_A_Null_Title()
+    {
+        var socket = new ScriptedPtyWebSocket()
+            .Text(PersistentPtyFrameData.AttachedJson)
+            .Text(PersistentPtyFrameData.TitleChangedNullTitleJson);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        var failure = await Assert.That(async () => _ = await ReadAllAsync(session)).Throws<OpenCodeTransportException>();
+
+        await Assert.That(failure!.Message).Contains("'title_changed'");
     }
 
     [Test]
