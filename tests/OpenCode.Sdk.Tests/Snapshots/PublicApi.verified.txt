@@ -760,6 +760,8 @@
         public static class Workspaces
         {
             public const string CreateWorkspace = "/api/workspace";
+            public const string DestroyWorkspaceTemplate = "/api/workspace/{workspaceID}";
+            public static string DestroyWorkspace(string workspaceId) { }
         }
         public static class Worktrees
         {
@@ -1498,10 +1500,17 @@
         public required string Workspace { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
+    public sealed class WorkspaceDestroyDeleteResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.WorkspaceDestroyDeleteResponse>
+    {
+        public WorkspaceDestroyDeleteResponse() { }
+        public required OpenCode.Sdk.Models.WorkspaceDestroyResult Destroy { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
     public class WorkspacesClient
     {
         protected WorkspacesClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.WorkspaceCreateResponse> CreateWorkspaceAsync(OpenCode.Sdk.Models.WorkspaceCreateRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.WorkspaceDestroyDeleteResponse> DestroyWorkspaceAsync(string workspaceId, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class WorktreeListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.WorktreeListResponse>
     {
@@ -8312,6 +8321,12 @@ namespace OpenCode.Sdk.Models
         public string? Id { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("provider")]
         public required string Provider { get; init; }
+    }
+    public sealed class WorkspaceDestroyResult : System.IEquatable<OpenCode.Sdk.Models.WorkspaceDestroyResult>
+    {
+        public WorkspaceDestroyResult() { }
+        [System.Text.Json.Serialization.JsonPropertyName("destroyed")]
+        public required bool Destroyed { get; init; }
     }
     public sealed class WorktreeDirectory : System.IEquatable<OpenCode.Sdk.Models.WorktreeDirectory>
     {

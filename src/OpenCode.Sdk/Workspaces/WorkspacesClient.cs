@@ -41,4 +41,19 @@ public class WorkspacesClient
         ArgumentNullException.ThrowIfNull(request);
         return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Workspaces.CreateWorkspace, request, OpenCodeJsonContext.Default.WorkspaceCreateRequest, WorkspaceCreateResponseAdapter.Instance, requestOptions, cancellationToken);
     }
+
+    /// <summary>
+    /// Destroy workspace. Make a workspace not exist. This operation is idempotent: an already-missing workspace succeeds with `destroyed: false`, while a workspace removed by this request returns `destroyed: true`.
+    /// </summary>
+    /// <param name = "workspaceId">The &apos;workspaceID&apos; route value.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;WorkspaceDestroyDeleteResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 500) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<WorkspaceDestroyDeleteResponse> DestroyWorkspaceAsync(string workspaceId, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(workspaceId);
+        return Pipeline.ExecuteAsync(HttpMethod.Delete, OpenCodeRoutes.Workspaces.DestroyWorkspace(workspaceId), WorkspaceDestroyDeleteResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
 }

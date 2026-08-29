@@ -2497,6 +2497,25 @@ public static class OpenCodeRoutes
         /// The &apos;POST /api/workspace&apos; route.
         /// </summary>
         public const string CreateWorkspace = "/api/workspace";
+        /// <summary>
+        /// The &apos;DELETE /api/workspace/{workspaceID}&apos; route template.
+        /// </summary>
+        public const string DestroyWorkspaceTemplate = "/api/workspace/{workspaceID}";
+        /// <summary>
+        /// Builds the &apos;/api/workspace/{workspaceID}&apos; route.
+        /// </summary>
+        /// <param name = "workspaceId">The &apos;workspaceID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string DestroyWorkspace(string workspaceId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(workspaceId);
+            if (workspaceId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(workspaceId));
+            }
+
+            return "/api/workspace/" + RouteValuePolicy.Escape(workspaceId, nameof(workspaceId));
+        }
     }
 
     /// <summary>

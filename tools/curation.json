@@ -139,7 +139,7 @@
     "workspace": {
       "placement": "client",
       "clientName": "Workspaces",
-      "reason": "Create and the still-pending destroy are two single-shot admin actions on a workspace id, not a chained working object; the id will ride as an argument once destroy is selected, exactly like credential (ADR-0019)."
+      "reason": "Create and destroy are two single-shot admin actions on a workspace id, not a chained working object; the id rides as an argument, exactly like credential (ADR-0019)."
     },
     "worktree": {
       "placement": "client",
@@ -281,6 +281,11 @@
       "operationId": "v2.project.update",
       "methodName": "UpdateProjectAsync",
       "reason": "The operation's own verb is update; the mechanical PATCH prefix is transport detail, not part of the reviewed surface, exactly like v2.credential.update's own 'update' verb."
+    },
+    {
+      "operationId": "v2.workspace.destroy",
+      "methodName": "DestroyWorkspaceAsync",
+      "reason": "The operation's own verb is destroy; the mechanical DELETE prefix is transport detail, not part of the reviewed surface, exactly like v2.debug.location.evict's own 'evict' verb."
     }
   ],
   "schemaNames": [

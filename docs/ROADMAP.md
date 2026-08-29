@@ -399,10 +399,22 @@ accepted its three additive `Metadata` properties.
 
 **Envelope completion (C2) is code-complete and closing** (2026-08-28; plan:
 `docs/superpowers/plans/2026-08-28-envelope-completion.md`; full mechanism, selection, and live
-evidence: research log Q154). The profile stands at **98 selected / 36 pending** of 134; final
-whole-branch review is pending. The queue now advances to the held maintainer sitting (SW004
-adjudication, canon wording, push), the approved no-wall sweep batch, the benchmark coverage
-batch, the release track, and the service-parity follow-up — all already recorded above.
+evidence: research log Q154). The profile stood at 98 selected / 36 pending of 134 at that point;
+final whole-branch review is pending. The queue now advances to the held maintainer sitting (SW004
+adjudication, canon wording, push), the benchmark coverage batch, the release track, and the
+service-parity follow-up — all already recorded above.
+
+**The no-wall sweep's telltale (S1) and first admission batch (S2) are complete** (2026-08-29;
+task briefs and reports: `.superpowers/sdd/2026-08-29-no-wall-sweep/`). S1 landed the interim
+bindability telltale (`.generation-incomplete` now marks every pending operation `[bindable]` or
+`[refused: …]`, per the `protocol-and-generation.md` rule below) and found the wall-free pool
+larger than the sweep's original 14-operation count assumed (persistentPty family members bind
+today but stay routed to their own queued batch regardless). S2 admitted batch A, the seven
+operations the telltale confirmed bindable with no wall — `credential.activate`, the new `form`
+family (`form.request.list`), the `integration` breadth (`list`, `connect.key`, `oauth.connect`),
+`project.update`, and `workspace.destroy` — one commit per family, each with its own contract
+tests and gate. The profile stands at **105 selected / 29 pending**. Batch B, the queued session
+seven (S3), closes the remaining 14-op sweep at 112/22.
 
 **M4's launcher arc is code-complete and integrated** (2026-08-28; evidence: research log Q153;
 plan executed task-by-task with independent reviews and a clean final whole-branch review).
@@ -467,13 +479,12 @@ is revisited at each milestone boundary.
 5. **M5 — Full surface.** Opened with the minimal `refresh-spec` synchronizer and the first
    accepted (Restore-patched) refresh to the current tip (ADR-0020), then the typed per-call
    location plus normal-PTY ownership lane (ADR-0021) — both landed, with the operation-identity
-   rows and the header/base64 ingestion shapes riding along. What remains is the rest of target
-   admission over the refreshed surface: envelope completion, then a one-commit routine sweep of
-   the no-wall pending operations the C2 probe surfaced (maintainer, 2026-08-28: 14 operations
-   bind with no wall today — refreshes and mechanism batches grow this pool silently; the sweep
-   also lands the interim bindability telltale: `generate` marks each pending operation
-   `[bindable]`/`[refused: …]` in the committed `.generation-incomplete`, bridging until the
-   inventory lane's standardized tracking), the
+   rows and the header/base64 ingestion shapes riding along. Envelope completion has landed, and
+   so has the interim bindability telltale (S1, 2026-08-29): `generate` marks each pending
+   operation `[bindable]`/`[refused: …]` in the committed `.generation-incomplete`, bridging until
+   the inventory lane's standardized tracking. What remains is the rest of target admission over
+   the refreshed surface: the no-wall sweep's queued second batch (S3, the session seven, closing
+   the 14-operation pool the C2 probe surfaced — batch A already landed as S2), the
    remaining mechanism batches, persistentPty's HTTP batch, exclusion fingerprints (ADR-0008),
    the operation inventory and assurance ledger — whose design also standardizes
    pending-operation bindability tracking, so a wall-free pending operation surfaces as a

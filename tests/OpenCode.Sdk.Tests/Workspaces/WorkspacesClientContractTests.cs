@@ -76,4 +76,52 @@ public sealed class WorkspacesClientContractTests
         await Assert.That(response.Status).IsEqualTo(401);
         await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
     }
+
+    [Test]
+    public async Task DestroyWorkspaceAsync_Should_Return_True_When_A_Workspace_Was_Destroyed()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, "{\"destroyed\":true}");
+
+        var response = await scenario.Client.Workspaces.DestroyWorkspaceAsync("wrk_1");
+
+        await Assert.That(response.Destroy.Destroyed).IsTrue();
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo(HttpMethod.Delete);
+        await Assert.That(request.RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/workspace/wrk_1"));
+    }
+
+    [Test]
+    public async Task DestroyWorkspaceAsync_Should_Return_False_For_An_Already_Missing_Workspace()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, "{\"destroyed\":false}");
+
+        var response = await scenario.Client.Workspaces.DestroyWorkspaceAsync("wrk_9");
+
+        await Assert.That(response.Destroy.Destroyed).IsFalse();
+    }
+
+    [Test]
+    public async Task DestroyWorkspaceAsync_Should_Throw_The_Declared_500_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.InternalServerError, WireBodyData.UnknownError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Workspaces.DestroyWorkspaceAsync("wrk_1"))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(500);
+        await Assert.That(exception.Error).IsTypeOf<UnknownError>();
+    }
+
+    [Test]
+    public async Task DestroyWorkspaceAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Workspaces.DestroyWorkspaceAsync("wrk_1", requestOptions: OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
 }
