@@ -1,0 +1,445 @@
+using System.Net.WebSockets;
+using System.Text.Json;
+using OpenCode.Sdk.Tests.Support;
+
+namespace OpenCode.Sdk.Tests;
+
+public sealed class PersistentPtySessionTests
+{
+    private const string PtyId = "pty_persistent_7";
+
+    private const WebSocketCloseStatus TerminalUnavailable = (WebSocketCloseStatus)4404;
+
+    private static readonly byte[] ResizeCheckpoint = [0x1B, 0x63];
+
+    public static IEnumerable<Func<(string Control, Func<PersistentPtyFrame, Task> Verify)>> ControlFrames() =>
+    [
+        static () => (PersistentPtyFrameData.ResizedJson, static async frame =>
+        {
+            var resized = (PersistentPtyResizedFrame)frame;
+            await Assert.That(resized.Cols).IsEqualTo(120);
+            await Assert.That(resized.Rows).IsEqualTo(40);
+            await Assert.That(resized.Generation).IsEqualTo(4L);
+            await Assert.That(resized.Checkpoint.ToArray()).IsEquivalentTo(ResizeCheckpoint);
+        }),
+        static () => (PersistentPtyFrameData.ExitedJson, static async frame =>
+        {
+            var exited = (PersistentPtyExitedFrame)frame;
+            await Assert.That(exited.ExitCode).IsEqualTo(0);
+            await Assert.That(exited.FinalOffset).IsEqualTo(99L);
+        }),
+        static () => (PersistentPtyFrameData.ExitedWithoutCodeJson, static async frame =>
+        {
+            var exited = (PersistentPtyExitedFrame)frame;
+            await Assert.That(exited.ExitCode).IsNull();
+            await Assert.That(exited.FinalOffset).IsEqualTo(99L);
+        }),
+        static () => (PersistentPtyFrameData.ControllerChangedJson, static async frame =>
+        {
+            var changed = (PersistentPtyControllerChangedFrame)frame;
+            await Assert.That(changed.AttachmentId).IsEqualTo("att_9");
+            await Assert.That(changed.Generation).IsEqualTo(5L);
+        }),
+        static () => (PersistentPtyFrameData.TitleChangedJson, static async frame =>
+        {
+            var changed = (PersistentPtyTitleChangedFrame)frame;
+            await Assert.That(changed.Title).IsEqualTo("vim");
+        }),
+        static () => (PersistentPtyFrameData.ForegroundProcessChangedJson, static async frame =>
+        {
+            var changed = (PersistentPtyForegroundProcessChangedFrame)frame;
+            await Assert.That(changed.Process).IsNull();
+        }),
+    ];
+
+    [Test]
+    public async Task AttachAsync_Should_Consume_The_Attached_Frame_And_Expose_The_Attachment()
+    {
+        var socket = new ScriptedPtyWebSocket()
+            .Text(PersistentPtyFrameData.AttachedJson)
+            .Closing(WebSocketCloseStatus.NormalClosure);
+
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        await Assert.That(session.Attachment.AttachmentId).IsEqualTo("att_1");
+        await Assert.That(session.Attachment.Role).IsEqualTo(PersistentPtyRole.Controller);
+        await Assert.That(session.Attachment.Info.Id).IsEqualTo(PtyId);
+        await Assert.That(session.Attachment.Replay.EndOffset).IsEqualTo(42L);
+        await Assert.That(await ReadAllAsync(session)).IsEmpty();
+    }
+
+    [Test]
+    public async Task AttachAsync_Should_Refuse_A_Terminal_Unavailable_Close_Before_Attached()
+    {
+        var socket = new ScriptedPtyWebSocket().Closing(TerminalUnavailable, PersistentPtyFrameData.TerminalUnavailableReason);
+
+        var failure = await Assert
+            .That(async () => _ = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(failure!.Message).Contains("4404");
+        await Assert.That(failure.Message).Contains("daemon");
+    }
+
+    [Test]
+    public async Task AttachAsync_Should_Refuse_A_Raw_Input_Protocol()
+    {
+        var socket = new ScriptedPtyWebSocket().Text(PersistentPtyFrameData.AttachedRawProtocolJson);
+
+        var failure = await Assert
+            .That(async () => _ = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(failure!.Message).Contains("input protocol");
+        await Assert.That(failure.Message).Contains("protocol 1");
+    }
+
+    [Test]
+    public async Task AttachAsync_Should_Refuse_A_First_Frame_That_Is_Not_Attached()
+    {
+        var socket = new ScriptedPtyWebSocket().Text(PersistentPtyFrameData.ReplayCompleteJson);
+
+        var failure = await Assert
+            .That(async () => _ = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(failure!.Message).Contains("attached");
+    }
+
+    [Test]
+    public async Task AttachAsync_Should_Refuse_A_Normal_Close_Before_Attached()
+    {
+        var socket = new ScriptedPtyWebSocket().Closing(WebSocketCloseStatus.NormalClosure);
+
+        var failure = await Assert
+            .That(async () => _ = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(failure!.Message).Contains("attached");
+    }
+
+    [Test]
+    public async Task AttachAsync_Should_Expose_A_Truncated_Observer_Replay()
+    {
+        var socket = new ScriptedPtyWebSocket().Text(PersistentPtyFrameData.AttachedObserverJson);
+
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        await Assert.That(session.Attachment.Role).IsEqualTo(PersistentPtyRole.Observer);
+        await Assert.That(session.Attachment.Replay.Truncated).IsTrue();
+        await Assert.That(session.Attachment.Replay.RequestedOffset).IsEqualTo(10L);
+        await Assert.That(session.Attachment.Replay.AvailableOffset).IsEqualTo(20L);
+        await Assert.That(session.Attachment.Generation).IsEqualTo(3L);
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Yield_Output_As_Bytes_And_The_Replay_Bracket_In_Order()
+    {
+        var socket = new ScriptedPtyWebSocket()
+            .Text(PersistentPtyFrameData.AttachedJson)
+            .Binary(PersistentPtyFrameData.Output("$ "))
+            .Text(PersistentPtyFrameData.ReplayCompleteJson)
+            .Binary(PersistentPtyFrameData.Output("hello\n"))
+            .Closing(WebSocketCloseStatus.NormalClosure);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        var frames = await ReadAllAsync(session);
+
+        await Assert.That(frames.Count).IsEqualTo(3);
+        await Assert.That(((PersistentPtyOutputFrame)frames[0]).Data.ToArray())
+            .IsEquivalentTo(PersistentPtyFrameData.Output("$ "));
+        await Assert.That(((PersistentPtyReplayCompleteFrame)frames[1]).EndOffset).IsEqualTo(42L);
+        await Assert.That(((PersistentPtyOutputFrame)frames[2]).Data.ToArray())
+            .IsEquivalentTo(PersistentPtyFrameData.Output("hello\n"));
+    }
+
+    [Test]
+    [MethodDataSource(nameof(ControlFrames))]
+    public async Task ReadAsync_Should_Decode_Each_Control_Frame_Kind(
+        (string Control, Func<PersistentPtyFrame, Task> Verify) control)
+    {
+        var socket = new ScriptedPtyWebSocket()
+            .Text(PersistentPtyFrameData.AttachedJson)
+            .Text(control.Control)
+            .Closing(WebSocketCloseStatus.NormalClosure);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        var frames = await ReadAllAsync(session);
+
+        await control.Verify(frames.Single());
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Yield_An_Unknown_Control_Type_As_An_Unknown_Frame()
+    {
+        var socket = new ScriptedPtyWebSocket()
+            .Text(PersistentPtyFrameData.AttachedJson)
+            .Text(PersistentPtyFrameData.UnknownTypeJson)
+            .Closing(WebSocketCloseStatus.NormalClosure);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        var frames = await ReadAllAsync(session);
+
+        var unknown = (PersistentPtyUnknownFrame)frames.Single();
+        await Assert.That(unknown.Type).IsEqualTo("scrollback_trimmed");
+        await Assert.That(unknown.Payload.GetProperty("bytes").GetInt32()).IsEqualTo(1024);
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Refuse_A_Control_Frame_Without_A_Type()
+    {
+        var socket = new ScriptedPtyWebSocket()
+            .Text(PersistentPtyFrameData.AttachedJson)
+            .Text(PersistentPtyFrameData.TypelessJson);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        var failure = await Assert.That(async () => _ = await ReadAllAsync(session)).Throws<OpenCodeTransportException>();
+
+        await Assert.That(failure!.Message).Contains("type");
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Refuse_Truncated_Control_Json()
+    {
+        var socket = new ScriptedPtyWebSocket()
+            .Text(PersistentPtyFrameData.AttachedJson)
+            .Text(PersistentPtyFrameData.TruncatedJson);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        var failure = await Assert.That(async () => _ = await ReadAllAsync(session)).Throws<OpenCodeTransportException>();
+
+        await Assert.That(failure!.Message).Contains("control frame");
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Assemble_A_Fragmented_Output_Message_Once()
+    {
+        var output = PersistentPtyFrameData.Output("frag-mented");
+        var socket = new ScriptedPtyWebSocket()
+            .Text(PersistentPtyFrameData.AttachedJson)
+            .BinaryFragments(output, splitAt: 5)
+            .Closing(WebSocketCloseStatus.NormalClosure);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        var frames = await ReadAllAsync(session);
+
+        await Assert.That(((PersistentPtyOutputFrame)frames.Single()).Data.ToArray()).IsEquivalentTo(output);
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Assemble_A_Fragmented_Control_Frame_Once()
+    {
+        var socket = new ScriptedPtyWebSocket()
+            .Text(PersistentPtyFrameData.AttachedJson)
+            .TextFragments(PersistentPtyFrameData.ResizedJson[..20], PersistentPtyFrameData.ResizedJson[20..])
+            .Closing(WebSocketCloseStatus.NormalClosure);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        var frames = await ReadAllAsync(session);
+
+        var resized = (PersistentPtyResizedFrame)frames.Single();
+        await Assert.That(resized.Cols).IsEqualTo(120);
+        await Assert.That(resized.Checkpoint.ToArray()).IsEquivalentTo(ResizeCheckpoint);
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Refuse_A_Terminal_Unavailable_Close_Mid_Stream()
+    {
+        var socket = new ScriptedPtyWebSocket()
+            .Text(PersistentPtyFrameData.AttachedJson)
+            .Binary(PersistentPtyFrameData.Output("live"))
+            .Closing(TerminalUnavailable, PersistentPtyFrameData.TerminalUnavailableReason);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+        var frames = new List<PersistentPtyFrame>();
+
+        var failure = await Assert.That(async () => await ReadIntoAsync(session, frames))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(((PersistentPtyOutputFrame)frames.Single()).Data.ToArray())
+            .IsEquivalentTo(PersistentPtyFrameData.Output("live"));
+        await Assert.That(failure!.Message).Contains("4404");
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Refuse_An_Abnormal_Close()
+    {
+        var socket = new ScriptedPtyWebSocket()
+            .Text(PersistentPtyFrameData.AttachedJson)
+            .Closing(WebSocketCloseStatus.InternalServerError);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        var failure = await Assert.That(async () => _ = await ReadAllAsync(session)).Throws<OpenCodeTransportException>();
+
+        await Assert.That(failure!.Message).Contains("1011");
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Track_The_Viewport_From_A_Resized_Frame()
+    {
+        var socket = new ScriptedPtyWebSocket()
+            .Text(PersistentPtyFrameData.AttachedJson)
+            .Text(PersistentPtyFrameData.ResizedJson)
+            .Closing(WebSocketCloseStatus.NormalClosure);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+        _ = await ReadAllAsync(session);
+
+        await session.WriteAsync(PersistentPtyFrameData.Output("ls\n"));
+
+        await Assert.That(socket.SentMessages.Single())
+            .IsEquivalentTo(PersistentPtyFrameData.Framed(1, 120, 40, PersistentPtyFrameData.Output("ls\n")));
+    }
+
+    [Test]
+    public async Task WriteAsync_Should_Send_A_Framed_Binary_Input_Carrying_The_Attached_Viewport()
+    {
+        var socket = new ScriptedPtyWebSocket().Text(PersistentPtyFrameData.AttachedJson);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        await session.WriteAsync(PersistentPtyFrameData.Output("ls\n"));
+
+        await Assert.That(socket.SentMessageTypes.Single()).IsEqualTo(WebSocketMessageType.Binary);
+        await Assert.That(socket.SentMessages.Single())
+            .IsEquivalentTo(PersistentPtyFrameData.Framed(1, 80, 24, PersistentPtyFrameData.Output("ls\n")));
+    }
+
+    [Test]
+    public async Task WriteAsync_Should_Throw_After_Dispose()
+    {
+        var socket = new ScriptedPtyWebSocket().Text(PersistentPtyFrameData.AttachedJson);
+        var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+        await session.DisposeAsync();
+
+        _ = await Assert.That(async () => await session.WriteAsync(PersistentPtyFrameData.Output("late")))
+            .Throws<ObjectDisposedException>();
+    }
+
+    [Test]
+    public async Task ResizeAsync_Should_Send_A_Control_Frame_And_Track_The_Viewport()
+    {
+        var socket = new ScriptedPtyWebSocket().Text(PersistentPtyFrameData.AttachedJson);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        await session.ResizeAsync(100, 30);
+        await session.WriteAsync(PersistentPtyFrameData.Output("ls\n"));
+
+        await Assert.That(socket.SentMessages[0]).IsEquivalentTo(PersistentPtyFrameData.Framed(0, 100, 30, []));
+        await Assert.That(socket.SentMessages[1])
+            .IsEquivalentTo(PersistentPtyFrameData.Framed(1, 100, 30, PersistentPtyFrameData.Output("ls\n")));
+    }
+
+    [Test]
+    public async Task ResizeAsync_Should_Refuse_A_Zero_Or_Oversized_Dimension()
+    {
+        var socket = new ScriptedPtyWebSocket().Text(PersistentPtyFrameData.AttachedJson);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        _ = await Assert.That(async () => await session.ResizeAsync(0, 24)).Throws<ArgumentOutOfRangeException>();
+        _ = await Assert.That(async () => await session.ResizeAsync(80, 0)).Throws<ArgumentOutOfRangeException>();
+        _ = await Assert.That(async () => await session.ResizeAsync(65_536, 24)).Throws<ArgumentOutOfRangeException>();
+        _ = await Assert.That(async () => await session.ResizeAsync(80, 65_536)).Throws<ArgumentOutOfRangeException>();
+
+        // A refused resize never reaches the wire, so it cannot move the viewport later writes carry.
+        await Assert.That(socket.SentMessages).IsEmpty();
+    }
+
+    [Test]
+    public async Task ReadAsync_Should_Refuse_A_Second_Concurrent_Enumeration()
+    {
+        var socket = new ScriptedPtyWebSocket()
+            .Text(PersistentPtyFrameData.AttachedJson)
+            .Binary(PersistentPtyFrameData.Output("live"))
+            .Parking();
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+        var first = session.ReadAsync().GetAsyncEnumerator(CancellationToken.None);
+        await using var enumeration = first.ConfigureAwait(false);
+        await Assert.That(await first.MoveNextAsync()).IsTrue();
+
+        var second = session.ReadAsync().GetAsyncEnumerator(CancellationToken.None);
+
+        _ = await Assert.That(async () => _ = await second.MoveNextAsync()).Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task Session_Mock_Seam_Should_Stay_Overridable()
+    {
+        await using var session = new MockPersistentPtySession();
+
+        var frames = await ReadAllAsync(session);
+
+        await Assert.That(((PersistentPtyOutputFrame)frames[0]).Data.ToArray())
+            .IsEquivalentTo(PersistentPtyFrameData.Output("mocked"));
+        await Assert.That(((PersistentPtyTitleChangedFrame)frames[1]).Title).IsEqualTo("vim");
+    }
+
+    [Test]
+    public async Task Session_Mock_Seam_Should_Fail_Instructively_Without_An_Override()
+    {
+        await using var session = new UnoverriddenPersistentPtySession();
+
+        var failure = await Assert.That(async () => _ = await ReadAllAsync(session)).Throws<InvalidOperationException>();
+
+        await Assert.That(failure!.Message).Contains("mocking constructor");
+    }
+
+    /// <summary>
+    /// The mocking seam is only usable if the frames an override yields can be built from outside
+    /// this assembly. This test project is a friend, so the compiler cannot tell an internal
+    /// constructor from a public one - reflection is what pins the accessibility an external
+    /// consumer actually depends on.
+    /// </summary>
+    [Test]
+    public async Task Frame_Constructors_Should_Be_Reachable_Without_Friend_Access()
+    {
+        var constructors = new[]
+        {
+            typeof(PersistentPtyAttachedFrame).GetConstructor([typeof(PersistentPtyAttachment)]),
+            typeof(PersistentPtyOutputFrame).GetConstructor([typeof(ReadOnlyMemory<byte>)]),
+            typeof(PersistentPtyReplayCompleteFrame).GetConstructor([typeof(long)]),
+            typeof(PersistentPtyResizedFrame)
+                .GetConstructor([typeof(int), typeof(int), typeof(long), typeof(ReadOnlyMemory<byte>)]),
+            typeof(PersistentPtyExitedFrame).GetConstructor([typeof(int?), typeof(long)]),
+            typeof(PersistentPtyControllerChangedFrame).GetConstructor([typeof(string), typeof(long)]),
+            typeof(PersistentPtyTitleChangedFrame).GetConstructor([typeof(string)]),
+            typeof(PersistentPtyForegroundProcessChangedFrame).GetConstructor([typeof(string)]),
+            typeof(PersistentPtyUnknownFrame).GetConstructor([typeof(string), typeof(JsonElement)]),
+        };
+
+        await Assert.That(constructors.All(static constructor => constructor?.IsPublic is true)).IsTrue();
+    }
+
+    private static async Task<List<PersistentPtyFrame>> ReadAllAsync(PersistentPtySession session)
+    {
+        var frames = new List<PersistentPtyFrame>();
+        await ReadIntoAsync(session, frames);
+        return frames;
+    }
+
+    private static async Task ReadIntoAsync(PersistentPtySession session, List<PersistentPtyFrame> frames)
+    {
+        await foreach (var frame in session.ReadAsync())
+        {
+            frames.Add(frame);
+        }
+    }
+
+    private sealed class MockPersistentPtySession : PersistentPtySession
+    {
+        public override IAsyncEnumerable<PersistentPtyFrame> ReadAsync(CancellationToken cancellationToken = default) =>
+            Mocked();
+
+        /// <summary>
+        /// Builds frames through their public doors, exactly as a consumer outside this assembly
+        /// would write the same override.
+        /// </summary>
+        private static async IAsyncEnumerable<PersistentPtyFrame> Mocked()
+        {
+            await Task.Yield();
+            yield return new PersistentPtyOutputFrame(PersistentPtyFrameData.Output("mocked"));
+            yield return new PersistentPtyTitleChangedFrame("vim");
+        }
+    }
+
+    private sealed class UnoverriddenPersistentPtySession : PersistentPtySession
+    {
+    }
+}

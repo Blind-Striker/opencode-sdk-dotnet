@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Globalization;
 
 namespace OpenCode.Sdk.Internal;
@@ -14,10 +13,6 @@ internal static class PtyConnectUriBuilder
     private const string ConnectRouteSuffix = "/connect";
 
     private const string CursorParameterName = "cursor";
-
-    private const string HttpsScheme = "https:";
-
-    private const string HttpScheme = "http:";
 
     private const string LocationParameterName = "location";
 
@@ -41,23 +36,11 @@ internal static class PtyConnectUriBuilder
 
         return new Uri(
             string.Concat(
-                ToWebSocketScheme(connection.EndpointBase),
+                WebSocketSchemePolicy.ToWebSocketScheme(connection.EndpointBase),
                 PtyRoutePrefix,
                 RouteValuePolicy.Escape(ptyId, nameof(ptyId)),
                 ConnectRouteSuffix,
                 query.Value),
             UriKind.Absolute);
-    }
-
-    private static string ToWebSocketScheme(string endpointBase)
-    {
-        // EndpointPolicy already refused every scheme but these two, so the swap is total.
-        if (endpointBase.StartsWith(HttpsScheme, StringComparison.Ordinal))
-        {
-            return "wss:" + endpointBase[HttpsScheme.Length..];
-        }
-
-        Debug.Assert(endpointBase.StartsWith(HttpScheme, StringComparison.Ordinal), "The endpoint base is HTTP or HTTPS.");
-        return "ws:" + endpointBase[HttpScheme.Length..];
     }
 }

@@ -879,14 +879,38 @@
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PermissionSavedListResponse> ListSavedAsync(OpenCode.Sdk.PermissionSavedListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PermissionSavedRemoveResponse> RemoveSavedAsync(string id, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
+    public sealed class PersistentPtyAttachedFrame : OpenCode.Sdk.PersistentPtyFrame
+    {
+        public PersistentPtyAttachedFrame(OpenCode.Sdk.PersistentPtyAttachment attachment) { }
+        public OpenCode.Sdk.PersistentPtyAttachment Attachment { get; }
+    }
+    public sealed class PersistentPtyAttachment : System.IEquatable<OpenCode.Sdk.PersistentPtyAttachment>
+    {
+        public PersistentPtyAttachment() { }
+        public required string AttachmentId { get; init; }
+        public required long Generation { get; init; }
+        public required OpenCode.Sdk.Models.PersistentPtyInfo Info { get; init; }
+        public required int InputProtocol { get; init; }
+        public required OpenCode.Sdk.PersistentPtyReplayBounds Replay { get; init; }
+        public required OpenCode.Sdk.PersistentPtyRole Role { get; init; }
+    }
     public class PersistentPtyClient
     {
         protected PersistentPtyClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PersistentPtySession> ConnectAsync(OpenCode.Sdk.PersistentPtyConnectOptions? options = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PersistentPtyConnectTokenPostResponse> CreateConnectTokenAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PersistentPtyResponse> GetPersistentPtyAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PersistentPtySnapshotResponse> GetSnapshotAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PersistentPtyRemoveResponse> RemovePersistentPtyAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PersistentPtyUpdatePutResponse> UpdatePersistentPtyAsync(OpenCode.Sdk.Models.PersistentPtyUpdatePutRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class PersistentPtyConnectOptions : System.IEquatable<OpenCode.Sdk.PersistentPtyConnectOptions>
+    {
+        public PersistentPtyConnectOptions() { }
+        public string? AttachmentId { get; init; }
+        public long? Cursor { get; init; }
+        public OpenCode.Sdk.PersistentPtyRole Role { get; init; }
+        public bool Takeover { get; init; }
     }
     public sealed class PersistentPtyConnectTokenPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PersistentPtyConnectTokenPostResponse>
     {
@@ -894,12 +918,30 @@
         public required OpenCode.Sdk.Models.PtyTicketConnectToken ConnectToken { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
+    public sealed class PersistentPtyControllerChangedFrame : OpenCode.Sdk.PersistentPtyFrame
+    {
+        public PersistentPtyControllerChangedFrame(string? attachmentId, long generation) { }
+        public string? AttachmentId { get; }
+        public long Generation { get; }
+    }
     public sealed class PersistentPtyCreateResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PersistentPtyCreateResponse>
     {
         public PersistentPtyCreateResponse() { }
         public required OpenCode.Sdk.Models.PersistentPtyInfo PersistentPty { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
+    public sealed class PersistentPtyExitedFrame : OpenCode.Sdk.PersistentPtyFrame
+    {
+        public PersistentPtyExitedFrame(int? exitCode, long finalOffset) { }
+        public int? ExitCode { get; }
+        public long FinalOffset { get; }
+    }
+    public sealed class PersistentPtyForegroundProcessChangedFrame : OpenCode.Sdk.PersistentPtyFrame
+    {
+        public PersistentPtyForegroundProcessChangedFrame(string? process) { }
+        public string? Process { get; }
+    }
+    public abstract class PersistentPtyFrame { }
     public sealed class PersistentPtyHandoffPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PersistentPtyHandoffPostResponse>
     {
         public PersistentPtyHandoffPostResponse() { }
@@ -911,6 +953,11 @@
         public PersistentPtyListResponse() { }
         public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.PersistentPtyInfo> PersistentPtys { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class PersistentPtyOutputFrame : OpenCode.Sdk.PersistentPtyFrame
+    {
+        public PersistentPtyOutputFrame(System.ReadOnlyMemory<byte> data) { }
+        public System.ReadOnlyMemory<byte> Data { get; }
     }
     public sealed class PersistentPtyReadRequest : System.IEquatable<OpenCode.Sdk.PersistentPtyReadRequest>
     {
@@ -927,11 +974,46 @@
     {
         public PersistentPtyRemoveResponse() { }
     }
+    public sealed class PersistentPtyReplayBounds : System.IEquatable<OpenCode.Sdk.PersistentPtyReplayBounds>
+    {
+        public PersistentPtyReplayBounds(long RequestedOffset, long AvailableOffset, long EndOffset, bool Truncated) { }
+        public long AvailableOffset { get; init; }
+        public long EndOffset { get; init; }
+        public long RequestedOffset { get; init; }
+        public bool Truncated { get; init; }
+    }
+    public sealed class PersistentPtyReplayCompleteFrame : OpenCode.Sdk.PersistentPtyFrame
+    {
+        public PersistentPtyReplayCompleteFrame(long endOffset) { }
+        public long EndOffset { get; }
+    }
+    public sealed class PersistentPtyResizedFrame : OpenCode.Sdk.PersistentPtyFrame
+    {
+        public PersistentPtyResizedFrame(int cols, int rows, long generation, System.ReadOnlyMemory<byte> checkpoint) { }
+        public System.ReadOnlyMemory<byte> Checkpoint { get; }
+        public int Cols { get; }
+        public long Generation { get; }
+        public int Rows { get; }
+    }
     public sealed class PersistentPtyResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PersistentPtyResponse>
     {
         public PersistentPtyResponse() { }
         public required OpenCode.Sdk.Models.PersistentPtyInfo PersistentPty { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public enum PersistentPtyRole
+    {
+        Controller = 0,
+        Observer = 1,
+    }
+    public class PersistentPtySession : System.IAsyncDisposable
+    {
+        protected PersistentPtySession() { }
+        public virtual OpenCode.Sdk.PersistentPtyAttachment Attachment { get; }
+        public virtual System.Threading.Tasks.ValueTask DisposeAsync() { }
+        public virtual System.Collections.Generic.IAsyncEnumerable<OpenCode.Sdk.PersistentPtyFrame> ReadAsync(System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task ResizeAsync(int cols, int rows, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task WriteAsync(System.ReadOnlyMemory<byte> input, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class PersistentPtyShutdownPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PersistentPtyShutdownPostResponse>
     {
@@ -942,6 +1024,17 @@
         public PersistentPtySnapshotResponse() { }
         public required OpenCode.Sdk.Models.PersistentPtySnapshot Snapshot { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class PersistentPtyTitleChangedFrame : OpenCode.Sdk.PersistentPtyFrame
+    {
+        public PersistentPtyTitleChangedFrame(string title) { }
+        public string Title { get; }
+    }
+    public sealed class PersistentPtyUnknownFrame : OpenCode.Sdk.PersistentPtyFrame
+    {
+        public PersistentPtyUnknownFrame(string type, System.Text.Json.JsonElement payload) { }
+        public System.Text.Json.JsonElement Payload { get; }
+        public string Type { get; }
     }
     public sealed class PersistentPtyUpdatePutResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PersistentPtyUpdatePutResponse>
     {

@@ -20,18 +20,26 @@ internal static class GeneratedSourceCompiler
 
     /// <summary>
     /// Hand-written sources sitting <em>above</em> generated output instead of under it: both
-    /// PTY families' public doors delegate to generated raw clients (ADR-0021), so unlike the
-    /// behavior core they cannot compile against a plan that never emitted their twin. Each
-    /// rides along only when the plan under test emitted the raw client it delegates to —
-    /// today's pinned plan does, and a dedicated test asserts it keeps doing so
+    /// PTY families' public doors delegate to generated raw clients (ADR-0021), and the
+    /// persistent family's session carries the generated <c>PersistentPtyInfo</c> the server's
+    /// attach frame hands it, so unlike the behavior core they cannot compile against a plan that
+    /// never emitted those twins. Each rides along only when the plan under test emitted what it
+    /// consumes — a consumer listed against several emissions is skipped when any one is missing.
+    /// Today's pinned plan emits them all, and a dedicated test asserts it keeps doing so
     /// (<c>SourceEmitterTests.Emit_Should_Produce_Every_GeneratedSurfaceConsumers_RequiredEmission</c>),
-    /// so a renamed or dropped raw client fails that assertion loudly instead of silently
-    /// vanishing from this probe's coverage. A synthetic emitter fixture is free to omit the
-    /// twin, in which case its consumer is skipped here rather than failing to compile.
+    /// so a renamed or dropped twin fails that assertion loudly instead of silently vanishing
+    /// from this probe's coverage. A synthetic emitter fixture is free to omit a twin, in which
+    /// case its consumers are skipped here rather than failing to compile.
     /// </summary>
     internal static readonly (string Consumer, string RequiredEmission)[] GeneratedSurfaceConsumers =
     [
+        ("Internal/PersistentPtyFrameDecoder.cs", "Models/PersistentPtyInfo.cs"),
+        ("PersistentPtys/PersistentPtyAttachedFrame.cs", "Models/PersistentPtyInfo.cs"),
+        ("PersistentPtys/PersistentPtyAttachment.cs", "Models/PersistentPtyInfo.cs"),
+        ("PersistentPtys/PersistentPtyClient.cs", "Models/PersistentPtyInfo.cs"),
         ("PersistentPtys/PersistentPtyClient.cs", "PersistentPtys/PersistentPtyRawClient.cs"),
+        ("PersistentPtys/PersistentPtySession.cs", "Models/PersistentPtyInfo.cs"),
+        ("PersistentPtys/PersistentPtysClient.cs", "Models/PersistentPtyInfo.cs"),
         ("PersistentPtys/PersistentPtysClient.cs", "PersistentPtys/PersistentPtysRawClient.cs"),
         ("Ptys/PtyClient.cs", "Ptys/PtyRawClient.cs"),
         ("Ptys/PtysClient.cs", "Ptys/PtysRawClient.cs"),

@@ -28,9 +28,9 @@ internal static class ReservedNamePolicy
     /// <summary>
     /// Hand-written public spine types in the generated namespaces; a generated twin would not
     /// compile. Both PTY families' public doors are here because ADR-0021 gives their public
-    /// surface to hand-written code while the generator keeps its raw twins — including the
-    /// normal family's WebSocket session, its options, and its frame hierarchy, which the pinned
-    /// document cannot describe at all because the connect operation is transport-owned.
+    /// surface to hand-written code while the generator keeps its raw twins — including each
+    /// family's WebSocket session, its options, and its frame hierarchy, which the pinned
+    /// document cannot describe at all because the connect operations are transport-owned.
     /// </summary>
     public static readonly FrozenSet<string> SpineTypeNames = FrozenSet.ToFrozenSet(
         [
@@ -51,8 +51,23 @@ internal static class ReservedNamePolicy
             "OpenCodeServerOptions",
             "OpenCodeStreamFailureException",
             "OpenCodeTransportException",
+            "PersistentPtyAttachedFrame",
+            "PersistentPtyAttachment",
             "PersistentPtyClient",
+            "PersistentPtyConnectOptions",
+            "PersistentPtyControllerChangedFrame",
+            "PersistentPtyExitedFrame",
+            "PersistentPtyForegroundProcessChangedFrame",
+            "PersistentPtyFrame",
+            "PersistentPtyOutputFrame",
+            "PersistentPtyReplayBounds",
+            "PersistentPtyReplayCompleteFrame",
+            "PersistentPtyResizedFrame",
+            "PersistentPtyRole",
             "PersistentPtysClient",
+            "PersistentPtySession",
+            "PersistentPtyTitleChangedFrame",
+            "PersistentPtyUnknownFrame",
             "PtyClient",
             "PtyConnectOptions",
             "PtyCursorFrame",

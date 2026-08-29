@@ -888,6 +888,14 @@ dotnet_diagnostic.CA1844.severity = none
 [tests/OpenCode.Sdk.Tests/Ptys/PtySessionTests.cs]
 dotnet_diagnostic.CA2000.severity = none
 
+# The persistent PTY session tests hand the same scripted socket to the session under test, which
+# owns and disposes it; here the transfer runs through PersistentPtySession.AttachAsync rather than
+# a constructor, which an analyzer sees even less of. Disposing the fake from the test instead
+# would assert an ownership the design denies and mask a session that leaked its socket. Winner:
+# the ownership-transfer test; CA2000 remains enabled for every other file.
+[tests/OpenCode.Sdk.Tests/PersistentPtys/PersistentPtySessionTests.cs]
+dotnet_diagnostic.CA2000.severity = none
+
 # ScriptedPtyWebSocket parks on TaskCompletionSource handles the test itself completes; that
 # externally-owned completion is exactly the mechanism that makes a dispose-versus-read or
 # cancellation-versus-read race deterministic without waiting on wall-clock time. Winner: the

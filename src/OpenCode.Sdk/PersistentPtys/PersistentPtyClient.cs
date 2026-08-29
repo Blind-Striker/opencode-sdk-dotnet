@@ -4,19 +4,28 @@ using OpenCode.Sdk.Models;
 namespace OpenCode.Sdk;
 
 /// <summary>
-/// A bound 'PersistentPtyClient' handle over a <see cref="PersistentPtyRawClient"/>. The handle's
-/// public doors are hand-written (ADR-0021) because the connect-token handshake needs a value the
-/// pinned document does not carry; every represented response still rides the generic envelope
-/// machinery, so route, status, and schema drift breaks compilation through the raw twin.
+/// A bound 'PersistentPtyClient' handle; it holds a <see cref="PersistentPtyRawClient"/> and the
+/// <see cref="ConnectionSnapshot"/> the WebSocket door needs. The handle's public doors are
+/// hand-written (ADR-0021) because the connect-token handshake needs a value the pinned document
+/// does not carry and the live session is a WebSocket the document cannot describe; every
+/// represented response still rides the generic envelope machinery, so route, status, and schema
+/// drift breaks compilation through the raw twin.
 /// </summary>
 public class PersistentPtyClient
 {
+    private readonly ConnectionSnapshot? _connection;
+    private readonly string? _ptyId;
     private readonly PersistentPtyRawClient? _raw;
 
-    internal PersistentPtyClient(PersistentPtyRawClient raw)
+    internal PersistentPtyClient(PersistentPtyRawClient raw, ConnectionSnapshot connection, string ptyId)
     {
         ArgumentNullException.ThrowIfNull(raw);
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentException.ThrowIfNullOrWhiteSpace(ptyId);
+
         _raw = raw;
+        _connection = connection;
+        _ptyId = ptyId;
     }
 
     /// <summary>
@@ -89,6 +98,70 @@ public class PersistentPtyClient
     public virtual Task<PersistentPtyConnectTokenPostResponse> CreateConnectTokenAsync(
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
         Raw.PostConnectTokenAsync(xOpencodeTicket: PtyTicketHeader.Sentinel, requestOptions, cancellationToken);
+
+    /// <summary>
+    /// Opens the terminal's live WebSocket session and returns once the server has attached this
+    /// connection. The upgrade is the SDK's transport divergence: it builds its own socket, so a
+    /// caller-supplied <see cref="HttpClient"/>, its proxy, and its handler chain do not apply.
+    /// The client's Basic credential rides the upgrade request's <c>Authorization</c> header — the
+    /// designed non-browser path — and the SDK never mints a ticket for its own connection;
+    /// <see cref="CreateConnectTokenAsync"/> stays the door for handing a browser one. Unlike the
+    /// normal PTY family, the server does not check the terminal's existence before upgrading: a
+    /// missing terminal or an absent daemon closes 4404 right after, which this door surfaces here
+    /// rather than on the first read.
+    /// </summary>
+    /// <param name="options">The connect options: the replay cursor, the role, the attachment identity, and the takeover.</param>
+    /// <param name="cancellationToken">The cancellation token bounding the upgrade and the attach.</param>
+    /// <returns>The live session, already attached; the caller owns its disposal.</returns>
+    /// <exception cref="OpenCodeTransportException">
+    /// The upgrade was refused, never completed, or the server closed before attaching. A platform
+    /// that cannot construct the underlying
+    /// <see cref="System.Net.WebSockets.ClientWebSocket"/> (pre-Windows-8) maps here too, naming
+    /// the platform as the cause, rather than escaping as a raw
+    /// <see cref="PlatformNotSupportedException"/>.
+    /// </exception>
+    public virtual async Task<PersistentPtySession> ConnectAsync(PersistentPtyConnectOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        var connection = Connection;
+        var ptyId = PtyId;
+        var address = PersistentPtyConnectUriBuilder.Build(connection, ptyId, options);
+
+        // Ownership stays local until the session has taken the socket over: an upgrade that
+        // completed but never attached must not leave the connection open behind it.
+        ClientPtyWebSocket? socket = null;
+        try
+        {
+            socket = CreateSocket(connection, ptyId);
+            await socket
+                .ConnectAsync(address, ptyId, PersistentPtyUpgradeFailurePolicy.Instance, cancellationToken)
+                .ConfigureAwait(false);
+            var session = await PersistentPtySession.AttachAsync(socket, ptyId, cancellationToken).ConfigureAwait(false);
+            socket = null;
+            return session;
+        }
+        finally
+        {
+            socket?.Dispose();
+        }
+    }
+
+    private static ClientPtyWebSocket CreateSocket(ConnectionSnapshot connection, string ptyId)
+    {
+        try
+        {
+            return new ClientPtyWebSocket(connection.Authorization);
+        }
+        catch (PlatformNotSupportedException exception)
+        {
+            throw new OpenCodeTransportException(
+                $"The opencode persistent PTY '{ptyId}' WebSocket could not be constructed on this platform.", exception);
+        }
+    }
+
+    private ConnectionSnapshot Connection => _connection ?? throw MockSeam.CreateError("PersistentPtyClient", "Snapshot");
+
+    private string PtyId => _ptyId ?? throw MockSeam.CreateError("PersistentPtyClient", "PtyId");
 
     private PersistentPtyRawClient Raw => _raw ?? throw MockSeam.CreateError("PersistentPtyClient", "RawClient");
 }

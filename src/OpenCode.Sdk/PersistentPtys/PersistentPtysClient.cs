@@ -14,12 +14,17 @@ namespace OpenCode.Sdk;
 /// </summary>
 public class PersistentPtysClient
 {
+    private readonly ConnectionSnapshot? _connection;
     private readonly PersistentPtysRawClient? _raw;
 
     internal PersistentPtysClient(Pipeline pipeline)
     {
         ArgumentNullException.ThrowIfNull(pipeline);
         _raw = new PersistentPtysRawClient(pipeline);
+
+        // The WebSocket door cannot ride the pipeline's policies, so the family carries the
+        // connection facts down to the bound handle that opens the session.
+        _connection = pipeline.Connection;
     }
 
     /// <summary>
@@ -42,7 +47,7 @@ public class PersistentPtysClient
             throw new ArgumentException("Route values must not be dot segments.", nameof(ptyId));
         }
 
-        return new PersistentPtyClient(Raw.GetPersistentPtyRawClient(ptyId));
+        return new PersistentPtyClient(Raw.GetPersistentPtyRawClient(ptyId), Connection, ptyId);
     }
 
     /// <summary>
@@ -118,6 +123,8 @@ public class PersistentPtysClient
     public virtual Task<PersistentPtyShutdownPostResponse> ShutdownAsync(
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
         Raw.PostShutdownAsync(requestOptions, cancellationToken);
+
+    private ConnectionSnapshot Connection => _connection ?? throw MockSeam.CreateError("PersistentPtysClient", "Snapshot");
 
     private PersistentPtysRawClient Raw => _raw ?? throw MockSeam.CreateError("PersistentPtysClient", "RawClient");
 }
