@@ -641,7 +641,13 @@ is revisited at each milestone boundary.
   `.scratchpad/upstream-issue-drafts/`), the missing `HttpApiSecurity` declaration behind
   `security: []` (T2), the 25 lost `Config.Info` descriptions (T6), and the undeclared
   `x-opencode-ticket` value. T7 (the stale committed document) resolved upstream at `106629aa`
-  and needs no report.
+  and needs no report. The persistent-PTY arc added three more (research Q156): the `lines` query
+  on `persistentPty.read` is a bare string in the document while the handler decodes an integer
+  1..65535 and answers 400 outside it, so the range is invisible to any generated client; the
+  connect close code 4404 is overloaded across "no such terminal" and "no daemon", with nothing on
+  the wire telling them apart; and `v2.persistentPty.connect` declares 404 `PtyNotFoundError` and
+  503 `ServiceUnavailableError` arms its handler cannot produce, because it upgrades before it
+  checks either.
 - **Release mechanics** — decided parts live in ADR-0006 (independent semver, per-merge
   GitHub Packages CD, manual NuGet.org releases). Pre-1.0 numbering, `VersionPrefix`,
   RELEASE_NOTES flow, and the concrete workflows are scheduled when the first publishable
@@ -698,18 +704,36 @@ is revisited at each milestone boundary.
   hygiene candidate: the first suspect is .NET Framework's pipe reads, synchronous on a pool thread
   under an async signature, holding thread-pool threads for every piped child. Measure before
   changing anything.
-- **Sandbox against an isolated external server** — `dotnet run --project
-  tests/OpenCode.Sdk.Sandbox` needs `--no-launch-profile`, because the checked-in
-  `launchSettings.json` prefills `OPENCODE_SANDBOX_ENDPOINT` at port 4096; and the walkthrough's
-  earlier session legs answer 500 on a provider-less server, so its persistent PTY leg is
-  unreachable there. `tests/OpenCode.Sdk.Sandbox/README.md`'s WSL2 recipe was corrected against the
-  2026-08-29 run and is done: clone into the WSL filesystem rather than sharing `node_modules` over
-  `/mnt/<drive>`, install the pin's own bun, serve under isolated XDG roots, and run the filtered
-  live test from Windows.
+- **Sandbox against an isolated external server** — **closed as a doc note (2026-08-30).** Both
+  facts are stated in `tests/OpenCode.Sdk.Sandbox/README.md` where someone pointing the sandbox at
+  another server will read them: `dotnet run --project tests/OpenCode.Sdk.Sandbox` needs
+  `--no-launch-profile`, because the checked-in `launchSettings.json` prefills
+  `OPENCODE_SANDBOX_ENDPOINT` at port 4096; and the walkthrough's earlier session legs answer 500
+  on a provider-less server, so its persistent PTY leg is unreachable there. Neither is a code fix:
+  the prefill is what makes the zero-argument F5 and `dotnet run` work against the local server, and
+  the walkthrough asserting the server's real answers is its contract — swallowing a 500 to reach a
+  later leg would make the whole leg's evidence worthless. The README's WSL2 recipe was corrected
+  against the 2026-08-29 run and is done: clone into the WSL filesystem rather than sharing
+  `node_modules` over `/mnt/<drive>`, install the pin's own bun, serve under isolated XDG roots, and
+  run the filtered live test from Windows.
 - **Two curation/doc minors (next curation touch):** the `form` group's curation reason says "no
   per-id operations, ever" where every sibling row states present-tense fact only; the
   `MedianNanoseconds` `compare-benchmarks` CSV column breaks the other columns' abbreviation
   convention.
+- **`envelopePayloadNames` rows cannot carry a reason** (hygiene batch, 2026-08-30, deliberately
+  not fixed). Every other curation section is a list of reasoned rows the validator refuses without
+  a reason; this one is a plain `operationId -> name` map, so its fifteen overrides document
+  nothing. The loader change is mechanical — a reasoned row shape, a duplicate check, and a
+  "must declare a reason" refusal beside the identifier check `ValidateEnvelopeNames` already
+  runs — but each of the fifteen existing rows then needs its own verified present-tense fact
+  (`v2.vcs.status -> Changes` and `v2.location.get -> ResolvedLocation` are not the same kind of
+  override as the plural-derivation rows), and inventing those reasons is curation authoring, not
+  hygiene. Take it on the next curation touch, with the row shape above.
+- **The dot-segment refusal has two homes** (hygiene batch, 2026-08-30). The hand-written PTY
+  connect builders now share `RouteValuePolicy.EscapeSegment`, but the generator still emits an
+  inline copy of the same guard into every route builder and handle accessor. Folding those onto
+  `EscapeSegment` is an emitter change with a large, purely mechanical generated diff; it was left
+  out of the hygiene batch, whose generated output is otherwise byte-identical.
 - **Approved generator/tooling mechanisms (maintainer, 2026-08-29):** (1) *stabilize-duplicate
   collapse* — **landed 2026-08-30**: `StabilizeDuplicatePolicy` folds a reachable `<base>_<N>`
   component into `<base>` when `SchemaNodeComparer.DeepEquals` holds and refuses, naming both,

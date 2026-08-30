@@ -4421,7 +4421,7 @@ than mid-stream. Input is framed `[type u8][cols u16 BE][rows u16 BE][data]` wit
 every message, so the session tracks the viewport off the resize frames instead of freezing it at
 attach. The cursor domain has no live-only mode — 0 is the oldest retained byte, not "replay
 nothing" — and per-frame offsets are not on the wire, so a resume anchors on `replay_complete`'s
-`endOffset` or on `Info.output.tail`. The socket is declared experimental and may grow control
+`endOffset` or on `info.output.tail`. The socket is declared experimental and may grow control
 kinds, so an unrecognized `type` is carried as `PersistentPtyUnknownFrame` rather than failing the
 read.
 
@@ -4600,3 +4600,61 @@ with a wall-clock bound. The shape (several tests released together after the sa
 points at thread-pool starvation, and the first suspect is .NET Framework's pipe streams, whose
 `ReadAsync` is a synchronous read on a pool thread, so every piped child holds pool threads while it
 runs; measure that before changing anything.
+
+## Q158: What did the hygiene batch change, and what did it deliberately leave alone?
+
+Date: 2026-08-30. Branch `feature/coverage-to-full`, one dispatch over the handoff's twenty-eight
+deferred minors, this arc's own additions, and the per-task review minors from Tasks 1–8. The point
+of batching was that they are cheap together and expensive one at a time; the point of recording
+them is the handful that turned out not to be cosmetic.
+
+**One behavioural defect was in the set.** `PersistentPtyFrameDecoder` read the granted role as
+`role == "observer" ? Observer : Controller`, so a JSON null - or any spelling upstream might add -
+became `Controller`. Upstream declares exactly two literals
+(`packages/core/src/persistent-pty/daemon.ts:72`, `Schema.Literals(["controller", "observer"])`), so
+a third value is a protocol deviation, and defaulting it reported an observer as a controller: a
+caller acting on that writes input the server accepts and silently drops. It is now the same
+member-level frame failure an unreadable `attachmentID` or `info` already was, tested on both the
+null and the unknown-spelling arm. `PersistentPtySession.ResizeAsync` had the mirror-image problem
+on the write side: it committed the viewport before the control frame had left, so a send that
+failed still moved the size every later write carried. The commit now follows the send.
+
+**Two duplications that were load-bearing rather than untidy.** The `{data, location}` wrapper
+shape was checked in `SchemaNameResolver` (which claims a promoted inline payload under the
+operation-scoped name) and again in `EnvelopeFacetBinder` (which looks that name up); the two
+agreeing is what keeps a promoted payload from resurfacing under a mechanically-derived name, and
+nothing made them agree except that someone wrote the same predicate twice.
+`EnvelopeWrapperShape.IsDataLocation` is now the single definition both call. The second is
+`LoopbackPortReservation`: `Reserve()` binds port zero and releases it before returning, so two
+sequential calls can be handed the same ephemeral port back - which is what produced Task 5's
+`"Expected to not be equal to 55220 but received 55220"` in `DriveManifestTests`. It was never a
+collision with another test and no retry was added; `ReservePair()` holds both listeners until both
+are bound, which makes the pair distinct by construction.
+
+**`SchemaNodeComparer` still ignores `Description`, and the blast radius grew.** The comparer backs
+`schemaAliases`' structural-identity wall, and since the stabilize-duplicate collapse landed
+(Q-series entry for Task 6) it also decides which `<base>_<N>` duplicates fold mechanically. Two
+components that differ only in their description therefore fold into one, and the description that
+survives is the base's. That is the desired behaviour for the collapse - upstream's per-site
+duplicates differ in nothing else - but it is now a silent rule over generated documentation rather
+than a curation-time check a human reads. Recorded here rather than changed: making the comparer
+description-sensitive would refuse folds the pin depends on.
+
+**Three things were declined with reasons rather than fixed.** The `MA0045` arbitration on
+`PinnedOpenCodeServerFixture` is file-scoped where only one call needs it, and `.editorconfig`
+cannot scope below a file - the arbitration comment names the exact call site instead, which is the
+same shape `DriveManifestTests` already uses. `PtySession.WriteAsync`'s guards throw synchronously
+and encode before the disposed check; that shape is plan-mandated and verified harmless at all
+twelve call sites, and making it async would move an argument mistake from the caller's stack into a
+faulted task. The stabilize-duplicate pinned-spec test re-derives the `<base>_<N>` convention
+independently of the policy it tests; that twin is the test's oracle, and the alternatives are a
+count against the pin (which breaks on every refresh) or an assertion against the SUT itself (which
+proves nothing).
+
+**Two follow-ups are queued in the roadmap's Known Gaps rather than done here:** the
+`envelopePayloadNames` map still cannot carry a reason, because the loader change is mechanical but
+authoring fifteen verified reasons is a curation task; and the dot-segment refusal now has two homes
+- `RouteValuePolicy.EscapeSegment` for the hand-written connect builders, and the generator's inline
+copy in every emitted route builder - because folding the emitted copies is an emitter change with a
+large mechanical generated diff, and this batch's generated output is otherwise byte-identical
+except for one documentation line.
