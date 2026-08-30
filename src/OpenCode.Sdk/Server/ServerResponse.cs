@@ -10,7 +10,7 @@ namespace OpenCode.Sdk;
 /// </summary>
 public sealed record ServerResponse : OpenCodeResponse
 {
-    private readonly ServerData? _server;
+    private readonly IReadOnlyList<string>? _urls;
     /// <summary>
     /// Initializes a success instance of the &apos;ServerResponse&apos; envelope.
     /// </summary>
@@ -28,13 +28,13 @@ public sealed record ServerResponse : OpenCodeResponse
         IsError = true;
         Error = error;
         RawBody = rawBody;
-        Server = null!;
+        Urls = null!;
     }
 
     /// <summary>
-    /// Gets the Server payload; guarded on the error path.
+    /// Gets the Urls payload; guarded on the error path.
     /// </summary>
-    public required ServerData Server { get => _server ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Server."); init => _server = value; }
+    public required IReadOnlyList<string> Urls { get => _urls ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Urls."); init => _urls = value; }
 
     /// <summary>
     /// Prints the shared metadata and appends the payload only when it is present.
@@ -43,7 +43,7 @@ public sealed record ServerResponse : OpenCodeResponse
     {
         ArgumentNullException.ThrowIfNull(builder);
         var printed = base.PrintMembers(builder);
-        if (_server is null)
+        if (_urls is null)
         {
             return printed;
         }
@@ -53,7 +53,7 @@ public sealed record ServerResponse : OpenCodeResponse
             _ = builder.Append(", ");
         }
 
-        _ = builder.Append("Server = ").Append(_server);
+        _ = builder.Append("Urls = ").Append(_urls);
         return true;
     }
 }

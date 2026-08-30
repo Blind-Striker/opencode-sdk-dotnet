@@ -13,7 +13,7 @@ public sealed class ServerClientContractTests
 
         var response = await scenario.Client.Server.GetServerAsync();
 
-        await Assert.That(response.Server.Urls.Single()).IsEqualTo("http://127.0.0.1:4096");
+        await Assert.That(response.Urls.Single()).IsEqualTo("http://127.0.0.1:4096");
         await Assert.That(scenario.Requests.Single().RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/server"));
         await Assert.That(scenario.Requests.Single().Method).IsEqualTo(HttpMethod.Get);
     }

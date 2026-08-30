@@ -439,6 +439,39 @@ public sealed class OperationPlanBinderTests
             .IsTrue();
     }
 
+    /// <summary>
+    /// The pinned document's two single-key success bodies flatten: the payload arrives under
+    /// the body's own key, so the wrapper never becomes a model and the caller reads the value
+    /// directly.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Flatten_The_Pinned_Single_Key_Success_Envelopes()
+    {
+        var plan = await new BindingTestHost().BindPinnedAsync();
+
+        var server = plan
+            .Clients.Single(static client => client.Name == "ServerClient")
+            .Operations.Single(static operation => operation.MethodName == "GetServerAsync");
+        await Assert.That(server.Envelope!.Kind).IsEqualTo(EnvelopeKind.Data);
+        await Assert.That(server.Envelope.WireMemberName).IsEqualTo("urls");
+        await Assert.That(server.Envelope.PayloadName).IsEqualTo("Urls");
+        await Assert.That(server.Envelope.PayloadType).IsTypeOf<ListTypeReferencePlan>();
+        await Assert.That(plan.Models.Any(static model => string.Equals(model.Name, "ServerData", StringComparison.Ordinal)))
+            .IsFalse();
+
+        var handoff = plan
+            .Clients.Single(static client => client.Name == "PersistentPtysRawClient")
+            .Operations.Single(static operation => operation.MethodName == "PostHandoffAsync");
+        await Assert.That(handoff.Envelope!.Kind).IsEqualTo(EnvelopeKind.Data);
+        await Assert.That(handoff.Envelope.WireMemberName).IsEqualTo("handoff");
+        await Assert.That(handoff.Envelope.PayloadName).IsEqualTo("Handoff");
+        await Assert.That(((NamedTypeReferencePlan)handoff.Envelope.PayloadType!).Name).IsEqualTo("PersistentPtyHandoff");
+        await Assert.That(handoff.Envelope.PayloadType.IsNullable).IsTrue();
+        await Assert
+            .That(plan.Models.Any(static model => string.Equals(model.Name, "PersistentPtyHandoffPostData", StringComparison.Ordinal)))
+            .IsFalse();
+    }
+
     [Test]
     public async Task Bind_Should_Recognize_Only_The_Selected_ListRequest_Cursor_Operation_As_Paginated()
     {
@@ -1468,11 +1501,16 @@ public sealed class OperationPlanBinderTests
             .IsEqualTo("WidgetInfo");
     }
 
+    /// <summary>
+    /// A one-property inline body belongs to the single-key facet, so the promotion row carries
+    /// two properties: what it pins is the operation-scoped name of a promoted bare payload.
+    /// </summary>
     [Test]
     public async Task Bind_Should_Promote_An_Inline_Object_Bare_Payload_Under_An_Operation_Scoped_Name()
     {
         var document = await BindingTestHost.IngestAsync(InlinePayloadScenario(static schema => schema
-            .Property("count", static property => property.Type("integer"), required: true)));
+            .Property("count", static property => property.Type("integer"), required: true)
+            .Property("label", static property => property.Type("string"), required: true)));
 
         var plan = BindWidgets(document, "v2.widget.stats");
 
@@ -1486,8 +1524,13 @@ public sealed class OperationPlanBinderTests
         await Assert.That(plan.Registry.PayloadEntries.Count).IsEqualTo(0);
     }
 
+    /// <summary>
+    /// An inline body requiring exactly one non-<c>data</c> property is envelope spine wearing
+    /// its payload's key: the value flattens onto the response under the key, and the wrapper
+    /// never becomes a model.
+    /// </summary>
     [Test]
-    public async Task Bind_Should_Promote_A_Bare_Single_Property_Wrapper_As_The_Payload_Model()
+    public async Task Bind_Should_Flatten_An_Inline_Single_Key_Wrapper_Onto_Its_Own_Key()
     {
         var document = await BindingTestHost.IngestAsync(InlinePayloadScenario(static schema => schema
             .Property("handoff", static property => property.AnyOf(
@@ -1497,13 +1540,13 @@ public sealed class OperationPlanBinderTests
         var plan = BindWidgets(document, "v2.widget.stats");
 
         var stats = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
-        await Assert.That(((NamedTypeReferencePlan)stats.Envelope!.PayloadType!).Name).IsEqualTo("WidgetStatsData");
-        var model = plan.Models.OfType<ObjectModelPlan>()
-            .Single(static candidate => string.Equals(candidate.Name, "WidgetStatsData", StringComparison.Ordinal));
-        var handoff = model.Properties.Single();
-        await Assert.That(handoff.WireName).IsEqualTo("handoff");
-        await Assert.That(handoff.Type.IsNullable).IsTrue();
-        await Assert.That(((NamedTypeReferencePlan)handoff.Type).Name).IsEqualTo("WidgetInfo");
+        await Assert.That(stats.Envelope!.Kind).IsEqualTo(EnvelopeKind.Data);
+        await Assert.That(stats.Envelope.WireMemberName).IsEqualTo("handoff");
+        await Assert.That(stats.Envelope.PayloadName).IsEqualTo("Handoff");
+        await Assert.That(((NamedTypeReferencePlan)stats.Envelope.PayloadType!).Name).IsEqualTo("WidgetInfo");
+        await Assert.That(stats.Envelope.PayloadType.IsNullable).IsTrue();
+        await Assert.That(plan.Models.Any(static model => string.Equals(model.Name, "WidgetStatsData", StringComparison.Ordinal)))
+            .IsFalse();
     }
 
     [Test]
@@ -1571,7 +1614,10 @@ public sealed class OperationPlanBinderTests
             .WithOperation("v2.widget.stats", path: "/api/widget/stats", configure: operation => operation
                 .Response(200, "application/json", schema => schema
                     .Type("object")
-                    .Property("related", property => property.Ref("WidgetStatsData"), required: true)))));
+                    // Two properties keep the body a promoted bare payload; one would be the
+                    // single-key facet's, which promotes no model to collide.
+                    .Property("related", property => property.Ref("WidgetStatsData"), required: true)
+                    .Property("count", property => property.Type("integer"), required: true)))));
 
         var exception = Assert.Throws<BindingException>(() => _ = BindWidgets(document, "v2.widget.stats"));
 

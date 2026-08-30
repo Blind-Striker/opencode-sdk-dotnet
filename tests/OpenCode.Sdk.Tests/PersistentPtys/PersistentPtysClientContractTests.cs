@@ -178,7 +178,7 @@ public sealed class PersistentPtysClientContractTests
         var response = await scenario.Client.PersistentPtys.HandoffAsync();
 
         await Assert.That(response.IsError).IsFalse();
-        await Assert.That(response.Handoff.Handoff).IsNull();
+        await Assert.That(response.Handoff).IsNull();
         var request = scenario.Requests.Single();
         await Assert.That(request.Method).IsEqualTo(HttpMethod.Post);
         await Assert.That(request.RequestUri)
@@ -193,9 +193,9 @@ public sealed class PersistentPtysClientContractTests
 
         var response = await scenario.Client.PersistentPtys.HandoffAsync();
 
-        await Assert.That(response.Handoff.Handoff!.Ticket).IsEqualTo("hnd_1");
-        await Assert.That(response.Handoff.Handoff.InstanceId).IsEqualTo("inst_1");
-        await Assert.That(response.Handoff.Handoff.ExpiresAt).IsEqualTo(1756450000000d);
+        await Assert.That(response.Handoff!.Ticket).IsEqualTo("hnd_1");
+        await Assert.That(response.Handoff.InstanceId).IsEqualTo("inst_1");
+        await Assert.That(response.Handoff.ExpiresAt).IsEqualTo(1756450000000d);
     }
 
     [Test]

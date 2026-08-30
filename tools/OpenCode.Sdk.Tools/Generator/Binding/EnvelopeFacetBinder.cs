@@ -27,6 +27,7 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
         {
             SpecEnvelopeShape.Bare => BindBarePayload(success.Schema),
             SpecEnvelopeShape.Data => BindDataPayload(success.Schema),
+            SpecEnvelopeShape.SingleKey => BindSingleKeyPayload(success.Schema),
             SpecEnvelopeShape.CursorData => BindCursorListPayload(success.Schema),
             SpecEnvelopeShape.DataLocation => BindDataLocationPayload(success.Schema),
             SpecEnvelopeShape.None or SpecEnvelopeShape.DataHasMore or _ =>
@@ -45,8 +46,23 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
             return null;
         }
 
+        // A single-key body wears its payload's own key; every other wrapped shape uses the
+        // dialect's 'data'. The payload binder already refused a malformed wrapper, so the key
+        // is present by the time this reads it.
+        var wireMemberName = success.EnvelopeShape is SpecEnvelopeShape.SingleKey
+            ? SingleKeyMember(success.Schema)?.Name
+            : "data";
+        if (wireMemberName is null)
+        {
+            return null;
+        }
+
         var responseTypeName = OperationNamePolicy.ResponseTypeName(_context.Operation);
-        var payloadName = DerivePayloadName(responseTypeName);
+        var payloadName = DerivePayloadName(
+            responseTypeName,
+            success.EnvelopeShape is SpecEnvelopeShape.SingleKey
+                ? CSharpNamePolicy.ToPascalCase(wireMemberName)
+                : OperationNamePolicy.PayloadName(_context.Operation));
         if (payloadName is null)
         {
             return null;
@@ -54,7 +70,8 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
 
         var kind = success.EnvelopeShape switch
         {
-            SpecEnvelopeShape.Data => EnvelopeKind.Data,
+            // A single-key body reads exactly like a data wrapper once the DTO carries its key.
+            SpecEnvelopeShape.Data or SpecEnvelopeShape.SingleKey => EnvelopeKind.Data,
             SpecEnvelopeShape.CursorData => EnvelopeKind.CursorList,
             SpecEnvelopeShape.DataLocation => DataLocationKind(success.Schema),
             SpecEnvelopeShape.Bare or SpecEnvelopeShape.None
@@ -67,6 +84,7 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
             PayloadName = payloadName,
             PayloadType = payload,
             Kind = kind,
+            WireMemberName = wireMemberName,
             SuccessStatusCode = 200,
             EnvelopeDtoTypeName = kind is EnvelopeKind.Bare ? null : $"{responseTypeName}Envelope",
             LocationTypeName = locationTypeName,
@@ -87,11 +105,11 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
         JsonNullRepresentation = JsonNullRepresentation.ClrNull,
     };
 
-    private string? DerivePayloadName(string responseTypeName)
+    private string? DerivePayloadName(string responseTypeName, string? mechanicalName)
     {
         var payloadName = _context.Curation.EnvelopePayloadNames.TryGetValue(_context.Operation.OperationId, out var curated)
             ? curated
-            : OperationNamePolicy.PayloadName(_context.Operation);
+            : mechanicalName;
         if (payloadName is null)
         {
             _context.Refuse("the payload name cannot be derived mechanically: the group does not pluralize naively; curate an envelope payload name");
@@ -179,6 +197,37 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
         }
 
         return _context.Types.Bind(reference.Target, "data", data.Schema)
+               ?? _context.RefuseNull<TypeReferencePlan>("success payload does not bind to a supported type plan");
+    }
+
+    /// <summary>
+    /// Reads the sole required member of a single-key wrapper — the key the payload arrives
+    /// under. Ingestion only classifies an operation-declared inline object this way, so a
+    /// component the dialect names keeps its own identity and never reaches here.
+    /// </summary>
+    private SpecProperty? SingleKeyMember(SchemaNode schema) =>
+        schema is RefNode reference
+        && _context.Document.Schemas.TryGetValue(reference.Target, out var target)
+        && target is ObjectNode { Properties: [{ IsRequired: true } member] }
+            ? member
+            : _context.RefuseNull<SpecProperty>("single-key envelope must reference an object requiring exactly one property");
+
+    private TypeReferencePlan? BindSingleKeyPayload(SchemaNode schema)
+    {
+        if (SingleKeyMember(schema) is not { } member || schema is not RefNode reference)
+        {
+            return null;
+        }
+
+        // The value is the payload itself: a named component keeps its identity, and every
+        // other shape — a represented-nullable reference, a list of primitives — reaches the
+        // type machinery exactly as a 'data' member does.
+        if (member.Schema is RefNode payload && _context.TypeNames.TryGetValue(payload.Target, out var name))
+        {
+            return Named(name);
+        }
+
+        return _context.Types.Bind(reference.Target, member.Name, member.Schema)
                ?? _context.RefuseNull<TypeReferencePlan>("success payload does not bind to a supported type plan");
     }
 

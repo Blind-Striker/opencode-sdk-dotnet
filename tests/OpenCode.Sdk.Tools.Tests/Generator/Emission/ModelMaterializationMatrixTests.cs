@@ -464,6 +464,29 @@ public sealed class ModelMaterializationMatrixTests
     }
 
     /// <summary>
+    /// The single-key facet end to end: the emitted DTO reads the body under the operation's own
+    /// key, the response carries the value directly under that key's name, and the
+    /// represented-nullable arm still materializes as CLR null on a success.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Materialize_A_Single_Key_Envelope_Under_Its_Own_Wire_Key()
+    {
+        var (plan, operation) = await CreateSingleKeyEnvelopePlanAsync();
+        await Assert.That(operation.Envelope!.PayloadName).IsEqualTo("Handoff");
+
+        var assembly = await GeneratedSourceCompiler.CompileAndLoadWithSdkCoreAsync(SourceEmitter.Emit(plan));
+
+        var present = AdaptSuccess(assembly, operation.Envelope, """{"handoff":{"id":"a"}}""");
+        var payload = GetProperty(present, "Handoff")
+                      ?? throw new InvalidOperationException("The single-key payload materialized to null.");
+        await Assert.That(GetProperty(payload, "Id")).IsEqualTo("a");
+
+        var absent = AdaptSuccess(assembly, operation.Envelope, """{"handoff":null}""");
+        await Assert.That((bool)GetProperty(absent, "IsError")!).IsFalse();
+        await Assert.That(GetProperty(absent, "Handoff")).IsNull();
+    }
+
+    /// <summary>
     /// Task 6's response-state guard: a nullable Data payload's success path lets a wire
     /// <c>null</c> flow through as CLR null while <c>IsError</c> stays
     /// false, a present value still round-trips, and the error path still throws the guard —
@@ -517,6 +540,35 @@ public sealed class ModelMaterializationMatrixTests
         var assembly = await GeneratedSourceCompiler.CompileAndLoadWithSdkCoreAsync(SourceEmitter.Emit(plan));
 
         await AssertMissingDataFailsAsync(assembly, operations.DataList.Envelope!, """{"data":null}""");
+    }
+
+    private static async Task<(EmitPlan Plan, OperationPlan Operation)> CreateSingleKeyEnvelopePlanAsync()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("WidgetError", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("_tag", property => property.Type("string").Enum("WidgetError"), required: true)
+                .Property("message", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.handoff", path: "/api/widget/handoff", configure: operation => operation
+                .Response(200, "application/json", schema => schema
+                    .Type("object")
+                    .AdditionalPropertiesFalse()
+                    .Property("handoff", property => property.AnyOf(
+                        static branch => branch.Ref("WidgetInfo"),
+                        static branch => branch.Type("null")), required: true))
+                .Response(400, "application/json", schema => schema.Ref("WidgetError")))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.handoff"),
+            Curation(Groups("widget", RootGroup())));
+
+        var operation = plan.Clients.SelectMany(static client => client.Operations).Single();
+        return (plan, operation);
     }
 
     private static async Task<(EmitPlan Plan, OperationPlan Operation)> CreateNullableDataEnvelopePlanAsync()
@@ -677,17 +729,21 @@ public sealed class ModelMaterializationMatrixTests
                 .AdditionalPropertiesFalse()
                 .Property("_tag", property => property.Type("string").Enum("WidgetError"), required: true)
                 .Property("message", property => property.Type("string"), required: true))
+            // Both bodies carry a second, optional member: a one-member inline body is the
+            // single-key facet's, and this plan is about promoted bare payloads.
             .WithOperation("v2.widget.stats", path: "/api/widget/stats", configure: operation => operation
                 .Response(200, "application/json", schema => schema
                     .Type("object")
                     .AdditionalPropertiesFalse()
-                    .Property("count", property => property.Type("integer"), required: true))
+                    .Property("count", property => property.Type("integer"), required: true)
+                    .Property("label", property => property.Type("string")))
                 .Response(400, "application/json", schema => schema.Ref("WidgetError")))
             .WithOperation("v2.widget.handoff", path: "/api/widget/handoff", configure: operation => operation
                 .Response(200, "application/json", schema => schema
                     .Type("object")
                     .AdditionalPropertiesFalse()
-                    .Property("handoff", property => property.Ref("WidgetInfo"), required: true)))));
+                    .Property("handoff", property => property.Ref("WidgetInfo"), required: true)
+                    .Property("note", property => property.Type("string"))))));
 
         var plan = new BindingTestHost().Bind(
             document,

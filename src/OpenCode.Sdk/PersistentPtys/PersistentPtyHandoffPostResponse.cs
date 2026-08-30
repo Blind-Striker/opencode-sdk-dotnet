@@ -10,7 +10,7 @@ namespace OpenCode.Sdk;
 /// </summary>
 public sealed record PersistentPtyHandoffPostResponse : OpenCodeResponse
 {
-    private readonly PersistentPtyHandoffPostData? _handoff;
+    private readonly PersistentPtyHandoff? _handoff;
     /// <summary>
     /// Initializes a success instance of the &apos;PersistentPtyHandoffPostResponse&apos; envelope.
     /// </summary>
@@ -28,13 +28,13 @@ public sealed record PersistentPtyHandoffPostResponse : OpenCodeResponse
         IsError = true;
         Error = error;
         RawBody = rawBody;
-        Handoff = null!;
+        Handoff = null;
     }
 
     /// <summary>
     /// Gets the Handoff payload; guarded on the error path.
     /// </summary>
-    public required PersistentPtyHandoffPostData Handoff { get => _handoff ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Handoff."); init => _handoff = value; }
+    public required PersistentPtyHandoff? Handoff { get => !IsError ? _handoff : throw new InvalidOperationException("The response is an error; check IsError before accessing Handoff."); init => _handoff = value; }
 
     /// <summary>
     /// Prints the shared metadata and appends the payload only when it is present.
@@ -43,7 +43,7 @@ public sealed record PersistentPtyHandoffPostResponse : OpenCodeResponse
     {
         ArgumentNullException.ThrowIfNull(builder);
         var printed = base.PrintMembers(builder);
-        if (_handoff is null)
+        if (IsError)
         {
             return printed;
         }

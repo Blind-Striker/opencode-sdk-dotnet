@@ -38,7 +38,7 @@ internal sealed class PersistentPtyHandoffPostResponseAdapter : ResponseAdapter<
     public override PersistentPtyHandoffPostResponse AdaptSuccess(int status, ReadOnlySpan<byte> utf8Body) => new()
     {
         Status = status,
-        Handoff = ReadBarePayload(utf8Body, OpenCodeJsonContext.Default.PersistentPtyHandoffPostData)
+        Handoff = ReadBarePayload(utf8Body, OpenCodeJsonContext.Default.PersistentPtyHandoffPostResponseEnvelope).Data
     };
     /// <summary>
     /// Maps one buffered response onto the typed envelope.
@@ -51,7 +51,7 @@ internal sealed class PersistentPtyHandoffPostResponseAdapter : ResponseAdapter<
             200 => new PersistentPtyHandoffPostResponse
             {
                 Status = status,
-                Handoff = ReadBarePayload(rawBody, OpenCodeJsonContext.Default.PersistentPtyHandoffPostData)
+                Handoff = ReadBarePayload(rawBody, OpenCodeJsonContext.Default.PersistentPtyHandoffPostResponseEnvelope).Data
             },
             >= 200 and < 300 => throw StatusVerdictFailures.UndeclaredSuccess(status),
             400 => new PersistentPtyHandoffPostResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),

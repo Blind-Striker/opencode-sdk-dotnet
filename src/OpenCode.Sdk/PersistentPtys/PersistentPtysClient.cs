@@ -99,8 +99,8 @@ public class PersistentPtysClient
 
     /// <summary>
     /// Server-lifecycle operation: prepare a daemon handoff so the terminals outlive this server
-    /// until a replacement claims them or the handoff expires. The payload is null when this
-    /// server owns no daemon.
+    /// until a replacement claims them or the handoff expires. The response carries the record
+    /// directly on <c>Handoff</c>, which is null when this server owns no daemon.
     /// </summary>
     /// <param name="requestOptions">The per-call options.</param>
     /// <param name="cancellationToken">The cancellation token.</param>

@@ -233,7 +233,9 @@ internal sealed class SchemaNameResolver
                 SpecEnvelopeShape.Bare => reference.Target,
                 SpecEnvelopeShape.Data => ResolveDataMemberKey(document, reference.Target),
                 SpecEnvelopeShape.DataLocation => ResolveDataLocationPayloadKey(document, reference.Target),
-                SpecEnvelopeShape.CursorData
+                // A single-key wrapper's value is nominal or a primitive shape the type
+                // machinery names on its own, so that shape never promotes a payload key here.
+                SpecEnvelopeShape.SingleKey or SpecEnvelopeShape.CursorData
                     or SpecEnvelopeShape.DataHasMore or SpecEnvelopeShape.None => null,
                 _ => null,
             };

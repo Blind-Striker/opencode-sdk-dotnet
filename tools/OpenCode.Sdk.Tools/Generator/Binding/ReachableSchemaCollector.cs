@@ -70,7 +70,8 @@ internal sealed class ReachableSchemaCollector
                 // wrappers join the op-inline roots in the excluded set.
                 var isInlineRoot = reference.Target.StartsWith($"op:{operationId}#", StringComparison.Ordinal);
                 var isWrapperShape = response.EnvelopeShape
-                    is SpecEnvelopeShape.Data or SpecEnvelopeShape.CursorData or SpecEnvelopeShape.DataLocation;
+                    is SpecEnvelopeShape.Data or SpecEnvelopeShape.CursorData or SpecEnvelopeShape.DataLocation
+                        or SpecEnvelopeShape.SingleKey;
 
                 // A bare success body is the payload itself, so its promoted inline root is a
                 // model like any other — SchemaNameResolver names it from the operation rather

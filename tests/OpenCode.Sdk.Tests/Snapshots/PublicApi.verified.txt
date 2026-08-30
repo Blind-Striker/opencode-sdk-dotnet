@@ -1001,7 +1001,7 @@
     public sealed class PersistentPtyHandoffPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PersistentPtyHandoffPostResponse>
     {
         public PersistentPtyHandoffPostResponse() { }
-        public required OpenCode.Sdk.Models.PersistentPtyHandoffPostData Handoff { get; init; }
+        public required OpenCode.Sdk.Models.PersistentPtyHandoff? Handoff { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class PersistentPtyListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PersistentPtyListResponse>
@@ -1322,7 +1322,7 @@
     public sealed class ServerResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ServerResponse>
     {
         public ServerResponse() { }
-        public required OpenCode.Sdk.Models.ServerData Server { get; init; }
+        public required System.Collections.Generic.IReadOnlyList<string> Urls { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class SessionActiveResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionActiveResponse>
@@ -4005,12 +4005,6 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("ticket")]
         public required string Ticket { get; init; }
     }
-    public sealed class PersistentPtyHandoffPostData : System.IEquatable<OpenCode.Sdk.Models.PersistentPtyHandoffPostData>
-    {
-        public PersistentPtyHandoffPostData() { }
-        [System.Text.Json.Serialization.JsonPropertyName("handoff")]
-        public required OpenCode.Sdk.Models.PersistentPtyHandoff? Handoff { get; init; }
-    }
     public sealed class PersistentPtyInfo : System.IEquatable<OpenCode.Sdk.Models.PersistentPtyInfo>
     {
         public PersistentPtyInfo() { }
@@ -4782,12 +4776,6 @@ namespace OpenCode.Sdk.Models
         public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
-    }
-    public sealed class ServerData : System.IEquatable<OpenCode.Sdk.Models.ServerData>
-    {
-        public ServerData() { }
-        [System.Text.Json.Serialization.JsonPropertyName("urls")]
-        public required System.Collections.Generic.IReadOnlyList<string> Urls { get; init; }
     }
     public sealed class ServiceHealth : System.IEquatable<OpenCode.Sdk.Models.ServiceHealth>
     {

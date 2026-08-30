@@ -17,6 +17,12 @@ internal sealed record EnvelopePlan
 
     public required EnvelopeKind Kind { get; init; }
 
+    /// <summary>
+    /// Gets the wire member the wrapped payload arrives under. The dialect's envelope key is
+    /// <c>data</c>; a single-key body carries its payload under its own key instead.
+    /// </summary>
+    public string WireMemberName { get; init; } = "data";
+
     /// <summary>Gets the single declared success status the adapter accepts.</summary>
     public required int SuccessStatusCode { get; init; }
 

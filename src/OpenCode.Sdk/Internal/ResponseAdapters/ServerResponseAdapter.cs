@@ -36,7 +36,7 @@ internal sealed class ServerResponseAdapter : ResponseAdapter<ServerResponse>
     public override ServerResponse AdaptSuccess(int status, ReadOnlySpan<byte> utf8Body) => new()
     {
         Status = status,
-        Server = ReadBarePayload(utf8Body, OpenCodeJsonContext.Default.ServerData)
+        Urls = ReadBarePayload(utf8Body, OpenCodeJsonContext.Default.ServerResponseEnvelope).Data
     };
     /// <summary>
     /// Maps one buffered response onto the typed envelope.
@@ -49,7 +49,7 @@ internal sealed class ServerResponseAdapter : ResponseAdapter<ServerResponse>
             200 => new ServerResponse
             {
                 Status = status,
-                Server = ReadBarePayload(rawBody, OpenCodeJsonContext.Default.ServerData)
+                Urls = ReadBarePayload(rawBody, OpenCodeJsonContext.Default.ServerResponseEnvelope).Data
             },
             >= 200 and < 300 => throw StatusVerdictFailures.UndeclaredSuccess(status),
             400 => new ServerResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),

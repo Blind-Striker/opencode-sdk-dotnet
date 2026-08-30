@@ -20,4 +20,10 @@ public enum SpecEnvelopeShape
 
     /// <summary>The response has exactly <c>data</c> and <c>hasMore</c> properties.</summary>
     DataHasMore = 5,
+
+    /// <summary>
+    /// The operation declares its body inline as an object with exactly one property, named
+    /// something other than <c>data</c> — envelope spine wearing its payload's own key.
+    /// </summary>
+    SingleKey = 6,
 }

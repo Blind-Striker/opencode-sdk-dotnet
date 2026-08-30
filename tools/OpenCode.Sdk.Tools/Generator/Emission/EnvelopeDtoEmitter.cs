@@ -30,7 +30,9 @@ internal static class EnvelopeDtoEmitter
 
     private static GeneratedSource EmitDto(EnvelopePlan envelope)
     {
-        var data = EmitProperty("data", "Data", TypeSyntaxEmitter.Emit(envelope.PayloadType!));
+        // The DTO member stays 'Data' whatever the wire key is: it is internal single-pass
+        // framing every adapter reads the same way, and only the JSON name is the contract.
+        var data = EmitProperty(envelope.WireMemberName, "Data", TypeSyntaxEmitter.Emit(envelope.PayloadType!));
         var members = new List<MemberDeclarationSyntax> { data, };
         if (envelope.Kind is EnvelopeKind.CursorList)
         {

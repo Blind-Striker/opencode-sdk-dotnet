@@ -497,10 +497,9 @@ test's round-trip arm executed on hosted Linux and macOS in run `33276305571` an
 server from this workstation, carrying the same `arm=round-trip` evidence line each time (Q156);
 Windows took the daemon-absent arm, as designed, and every `PersistentPty*` class passed there. That
 run's Windows job was red for an unrelated reason — server-process tests scheduled in parallel
-stalled the net472 host under two timing-bounded tests, fixed by serializing them (Q157). **Still
-open:** the
-`handoff` door's promoted-body accessor (`response.Handoff.Handoff`), parked for the pre-1.0 surface
-review because flattening it needs an envelope-facet mechanism rather than a curation row.
+stalled the net472 host under two timing-bounded tests, fixed by serializing them (Q157). The
+`handoff` door's promoted-body accessor is **closed**: the single-key envelope facet flattens it,
+so a caller reads `response.Handoff` as `PersistentPtyHandoff?`.
 The `PtySession` read ladder was rerun across the extraction (`--job short`, both runtimes) and the
 shared core's added interface dispatch costs no allocation: `DecodeFrames` is byte-identical on
 every fixture and runtime, and `ReadFramesAsync` allocates 0–16 bytes less per read (Q156).

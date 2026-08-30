@@ -105,7 +105,7 @@ public sealed class PersistentPtyLiveTests(PinnedOpenCodeServerFixture server)
         await Assert.That(read.Read).IsNull();
 
         var handoff = await client.PersistentPtys.HandoffAsync(cancellationToken: cancellationToken);
-        await Assert.That(handoff.Handoff.Handoff).IsNull();
+        await Assert.That(handoff.Handoff).IsNull();
 
         var shutdown = await client.PersistentPtys.ShutdownAsync(cancellationToken: cancellationToken);
         await Assert.That(shutdown.Status).IsEqualTo(204);

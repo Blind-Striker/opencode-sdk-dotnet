@@ -2,15 +2,12 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 using System.Text.Json.Serialization;
 
-namespace OpenCode.Sdk.Models;
+namespace OpenCode.Sdk.Internal.Serialization;
 /// <summary>
-/// Represents a server data value.
+/// Carries the wire body of &apos;ServerResponse&apos; through one deserialization pass.
 /// </summary>
-public sealed record ServerData
+internal sealed record ServerResponseEnvelope
 {
-    /// <summary>
-    /// Gets the urls value.
-    /// </summary>
     [JsonPropertyName("urls")]
-    public required IReadOnlyList<string> Urls { get; init; }
+    public required IReadOnlyList<string> Data { get; init; }
 }

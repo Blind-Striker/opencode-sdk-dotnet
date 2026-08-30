@@ -58,6 +58,32 @@ public sealed class EnvelopeClassifierTests
     }
 
     [Test]
+    public async Task Classify_Should_Recognize_SingleKey_Envelope_From_An_Inline_Body()
+    {
+        var host = new OperationProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.handoff", configure: operation => operation
+            .ResponseFromFixture(200, "application/json", "envelope-single-key.json")));
+
+        var result = await host.ProjectAsync(scenario);
+
+        await Assert.That(result.Operations[0].Responses[0].EnvelopeShape).IsEqualTo(SpecEnvelopeShape.SingleKey);
+    }
+
+    [Test]
+    public async Task Classify_Should_Not_Recognize_SingleKey_Through_A_Named_Component()
+    {
+        var host = new OperationProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec
+            .WithRawSchema("SingleKeyComponent", "envelope-single-key.json")
+            .WithOperation("v2.test.component", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("SingleKeyComponent"))));
+
+        var result = await host.ProjectAsync(scenario);
+
+        await Assert.That(result.Operations[0].Responses[0].EnvelopeShape).IsEqualTo(SpecEnvelopeShape.Bare);
+    }
+
+    [Test]
     public async Task Classify_Should_Return_Bare_For_Unrecognized_Json_Shape()
     {
         var host = new OperationProjectionTestHost();

@@ -36,6 +36,12 @@ internal sealed class EnvelopeClassifier
         return properties.Count switch
         {
             1 when propertyNames.SetEquals(_data) => SpecEnvelopeShape.Data,
+
+            // A single non-'data' key is envelope spine only where the operation declares the
+            // object inline. A named component with one property is a model with its own
+            // identity — Worktree.Info's {directory}, SessionInterruptResponse's {interrupted} —
+            // and flattening it would erase a name upstream chose.
+            1 when schema is not OpenApiSchemaReference => SpecEnvelopeShape.SingleKey,
             2 when propertyNames.SetEquals(_dataLocation) => SpecEnvelopeShape.DataLocation,
             2 when propertyNames.SetEquals(_cursorData) => SpecEnvelopeShape.CursorData,
             2 when propertyNames.SetEquals(_dataHasMore) => SpecEnvelopeShape.DataHasMore,

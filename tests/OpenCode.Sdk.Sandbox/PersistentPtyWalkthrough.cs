@@ -88,7 +88,7 @@ internal static class PersistentPtyWalkthrough
 
         var handoff = await client.PersistentPtys.HandoffAsync().ConfigureAwait(false);
 
-        Console.WriteLine($"ppty-handoff: status={handoff.Status} handoff={handoff.Handoff.Handoff?.InstanceId ?? "<null>"}");
+        Console.WriteLine($"ppty-handoff: status={handoff.Status} handoff={handoff.Handoff?.InstanceId ?? "<null>"}");
 
         var shutdown = await client.PersistentPtys.ShutdownAsync().ConfigureAwait(false);
 
