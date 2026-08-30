@@ -62,7 +62,7 @@ create/get/reply round trip, the NoThrow spine over compact and a deliberately b
 boundary, the mechanism leg — the bodyless POSTs (interrupt, revert clear), the PUT
 family (mcp add, pty update, the instructions entry), and a typed `FormNotFoundError` over
 NoThrow — the envelope-completion leg (vcs branches' ref-to-array shape, the location sibling,
-the session-active dictionary, the server response's promoted-inline `Urls` list, and a
+the session-active dictionary, the server response's flattened single-key `Urls` list, and a
 session's context read), the PTY leg, and the persistent PTY leg, all through the same Extensions
 registration.
 

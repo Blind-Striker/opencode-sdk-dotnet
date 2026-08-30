@@ -503,43 +503,54 @@ so a caller reads `response.Handoff` as `PersistentPtyHandoff?`.
 The `PtySession` read ladder was rerun across the extraction (`--job short`, both runtimes) and the
 shared core's added interface dispatch costs no allocation: `DecodeFrames` is byte-identical on
 every fixture and runtime, and `ReadFramesAsync` allocates 0–16 bytes less per read (Q156).
-The coverage-to-full arc lands its first curation-only admissions at the pinned `b1e3a7b2`
-snapshot: `v2.vcs.base` (`VcsClient.GetBaseAsync`) and the filesystem family's `v2.fs.list`
-(`FileSystemClient.ListEntriesAsync`).
-The query-parameter mechanism then admits required, non-nullable, and enum-valued query
-parameters — a required parameter becomes a C# `required` non-nullable request property and makes
-`request` a required method and route argument, an optional parameter binds the same way whether or
-not its schema admits null, and a query enum binds to a generated C# enum whose wire spelling the
-route builder writes through a generated switch — selecting `v2.fs.find`
-(`FileSystemClient.FindEntriesAsync`), `v2.vcs.diff` (`VcsClient.GetDiffAsync`), and
-`v2.session.stats` (`SessionsClient.GetStatsAsync`) and taking the profile to **127 selected / 7
-pending / 2 transport-owned**.
-The location envelope's last nominal-only arm then closes: a location wrapper whose `data` is an
-inline object is promoted into a model the name resolver claims from the operation
-(`{stem}Data`), exactly as the data wrapper's member and the location wrapper's list item already
-were, so no upstream wrapper spelling reaches the surface. It selects `v2.shell.output`
-(`ShellClient.GetOutputAsync` returning `ShellOutputResponse.Output`, a `ShellOutputData` beside
-the location echo, with `cursor` and `limit` riding the query mechanism as the strings the wire
-declares) and takes the profile to **128 selected / 6 pending / 2 transport-owned**.
-The error model then admits its second wire dialect beside Effect's `_tag`: a `{name, data}`
-error binds under the same `IOpenCodeError` base with the `name` literal as its `Tag` (serialized
-under `name`) and its `data` struct as a nested generated model, the generated converter scans
-`_tag` first and then `name` without a JSON DOM for known arms, and an error dialect the policy
-does not name is still refused. The wire-shape wall widens with it: a DELETE that declares a request body now binds and sends it
-(RFC 9110 admits DELETE content where the origin server declares support, and the pinned document
-declares it), while GET keeps refusing a body and HEAD stays refused at ingestion. Together these
-select the worktree family's whole pinned surface — `v2.worktree.create`
-(`ProjectWorktreesClient.CreateWorktreeAsync` returning `WorktreeCreateResponse.Worktree`),
-`v2.worktree.refresh` (`RefreshWorktreesAsync`) and `v2.worktree.remove`
-(`RemoveWorktreeAsync(WorktreeRemoveRequest)`, both 204 no-content envelopes) — giving
-`WorktreeError` and `WorktreeErrorData` and taking the profile to
-**131 selected / 3 pending / 2 transport-owned**.
-The stabilize-duplicate collapse then becomes mechanical: `StabilizeDuplicatePolicy` folds every
+
+**The coverage-to-full arc is complete** (2026-08-30; plan:
+`docs/superpowers/plans/2026-08-30-coverage-to-full.md`; designs, evidence, and the standing walls:
+research log Q159, with the hygiene batch's own account in Q158). It opened with a
+document-identical refresh of the accepted snapshot (`106629aa` → `b1e3a7b2`, 8 upstream commits,
+none touching `packages/protocol` or a watched door input) and then admitted operations through
+shape-keyed mechanisms rather than one-off rows. Curation alone selected `v2.vcs.base`
+(`VcsClient.GetBaseAsync`, a represented-nullable payload) and the new filesystem family's
+`v2.fs.list` (`FileSystemClient.ListEntriesAsync`). The query mechanism admits required,
+non-nullable, and enum-valued query parameters — a required parameter becomes a C# `required`
+non-nullable request property and makes `request` a required method and route argument, an optional
+parameter binds the same way whether or not its schema admits null, and a query enum binds to a
+generated C# enum whose wire spelling the route builder writes through a generated switch — selecting
+`v2.fs.find` (`FindEntriesAsync`), `v2.vcs.diff` (`GetDiffAsync`), and `v2.session.stats`
+(`GetStatsAsync`). The location envelope's last nominal-only arm then closed: a location wrapper
+whose `data` is an inline object is promoted into a model the name resolver claims from the
+operation (`{stem}Data`), exactly as the data wrapper's member and the location wrapper's list item
+already were, so no upstream wrapper spelling reaches the surface; it selects `v2.shell.output`
+(`ShellClient.GetOutputAsync` returning `ShellOutputResponse.Output` beside the location echo, with
+`cursor` and `limit` riding the query mechanism as the strings the wire declares). The error model
+then admitted its second wire dialect beside Effect's `_tag`: a `{name, data}` error binds under the
+same `IOpenCodeError` base with the `name` literal as its `Tag` (serialized under `name`) and its
+`data` struct as a nested generated model, the generated converter scans `_tag` first and then
+`name` without a JSON DOM for known arms, and an error dialect the policy does not name is still
+refused. The wire-shape wall widened with it: a DELETE that declares a request body now binds and
+sends it (RFC 9110 admits DELETE content where the origin server declares support, the pinned
+document declares it, and net472's `HttpWebRequest` was proven on a real socket to write it), while
+GET keeps refusing a body and HEAD stays refused at ingestion. Together these select the worktree
+family's whole pinned surface — `v2.worktree.create` (`ProjectWorktreesClient.CreateWorktreeAsync`),
+`v2.worktree.refresh` (`RefreshWorktreesAsync`), and `v2.worktree.remove`
+(`RemoveWorktreeAsync(WorktreeRemoveRequest)`) — giving `WorktreeError` and `WorktreeErrorData` and
+taking the profile to **131 selected / 3 pending / 2 transport-owned** of 136, the coverage goal's
+reachable end state; the three that remain are pending by decision, not by omission (Known Gaps).
+Four tooling changes rode along: `ToolJsonContext` pins `NewLine`, so the generation manifest and
+the snapshot receipt are LF-only; the bindability telltale now lists every independent wall instead
+of the first, which is what re-classified `config.get`; `StabilizeDuplicatePolicy` folds every
 reachable `<base>_<N>` component into `<base>` when `SchemaNodeComparer.DeepEquals` holds and
-refuses naming both keys when it does not, running to a fixpoint and never chaining. All 24 `_N`
-`schemaAliases` rows retire against byte-identical generated output, a curated row the collapse
-already implies is refused as redundant, and `.generated-manifest.json` carries the folds in an
-`implicitAliases` section as the committed telltale.
+refuses naming both when it does not, retiring all 24 `_N` `schemaAliases` rows against
+byte-identical generated source and recording 25 folds in `.generated-manifest.json`
+(`implicitAliases`); and `spec/source-watch.json` pins the 20 upstream files the hand-written PTY
+doors read, by path, sha256, and one content anchor, as a refresh-time review trigger that never
+reaches generation (ADR-0013). The single-key envelope facet flattens a success body the operation
+declares inline as an object requiring exactly one property that is not `data`, which is what closed
+the `{handoff}` accessor above and turned `ServerResponse.Server` into `ServerResponse.Urls`. The
+arc closed with the hygiene batch — 52 items fixed with the PublicApi baseline unchanged, two of
+them behavioural (Q158) — and a `PersistentPtySession` read-ladder rung beside the `PtySession` one.
+The full gate is green at **4,406 tests** on all TFMs, slopwatch at zero, `generate --verify` current
+and `refresh-spec --verify` reproducing the receipt.
 
 ## Milestones
 
@@ -595,9 +606,9 @@ is revisited at each milestone boundary.
    operation `[bindable]`/`[refused: …]` in the committed `.generation-incomplete`, bridging until
    the inventory lane's standardized tracking. What remains is the rest of target admission over
    the refreshed surface: the no-wall sweep's 14-operation pool the C2 probe surfaced is closed
-   (S2 batch A and S3 batch B both landed) and so is the persistentPty family, so what is left is
-   the remaining mechanism batches, the curation-only trio (`vcs.base`, `config.get`, `fs.list`),
-   exclusion fingerprints (ADR-0008),
+   (S2 batch A and S3 batch B both landed), and so are the persistentPty family and the
+   coverage-to-full arc's mechanism batches, so what is left is the three operations that stay
+   pending by decision (Known Gaps), exclusion fingerprints (ADR-0008),
    the operation inventory and assurance ledger — whose design also standardizes
    pending-operation bindability tracking, so a wall-free pending operation surfaces as a
    committed-artifact diff at every generate/refresh instead of accumulating unseen (maintainer
@@ -647,7 +658,10 @@ is revisited at each milestone boundary.
   connect close code 4404 is overloaded across "no such terminal" and "no daemon", with nothing on
   the wire telling them apart; and `v2.persistentPty.connect` declares 404 `PtyNotFoundError` and
   503 `ServiceUnavailableError` arms its handler cannot produce, because it upgrades before it
-  checks either.
+  checks either. The coverage-to-full arc added one more (research Q159): `v2.fs.read` is declared
+  on `/api/fs/read/*`, a framework wildcard rather than an OpenAPI path template, so the file path
+  the call must carry is invisible to any generated client — **draft ready** under
+  `.scratchpad/upstream-issue-drafts/fs-read-wildcard-path.md`, like T3's.
 - **Release mechanics** — decided parts live in ADR-0006 (independent semver, per-merge
   GitHub Packages CD, manual NuGet.org releases). Pre-1.0 numbering, `VersionPrefix`,
   RELEASE_NOTES flow, and the concrete workflows are scheduled when the first publishable
@@ -704,18 +718,6 @@ is revisited at each milestone boundary.
   hygiene candidate: the first suspect is .NET Framework's pipe reads, synchronous on a pool thread
   under an async signature, holding thread-pool threads for every piped child. Measure before
   changing anything.
-- **Sandbox against an isolated external server** — **closed as a doc note (2026-08-30).** Both
-  facts are stated in `tests/OpenCode.Sdk.Sandbox/README.md` where someone pointing the sandbox at
-  another server will read them: `dotnet run --project tests/OpenCode.Sdk.Sandbox` needs
-  `--no-launch-profile`, because the checked-in `launchSettings.json` prefills
-  `OPENCODE_SANDBOX_ENDPOINT` at port 4096; and the walkthrough's earlier session legs answer 500
-  on a provider-less server, so its persistent PTY leg is unreachable there. Neither is a code fix:
-  the prefill is what makes the zero-argument F5 and `dotnet run` work against the local server, and
-  the walkthrough asserting the server's real answers is its contract — swallowing a 500 to reach a
-  later leg would make the whole leg's evidence worthless. The README's WSL2 recipe was corrected
-  against the 2026-08-29 run and is done: clone into the WSL filesystem rather than sharing
-  `node_modules` over `/mnt/<drive>`, install the pin's own bun, serve under isolated XDG roots, and
-  run the filtered live test from Windows.
 - **Two curation/doc minors (next curation touch):** the `form` group's curation reason says "no
   per-id operations, ever" where every sibling row states present-tense fact only; the
   `MedianNanoseconds` `compare-benchmarks` CSV column breaks the other columns' abbreviation
@@ -735,34 +737,62 @@ is revisited at each milestone boundary.
   `EscapeSegment` is an emitter change with a large, purely mechanical generated diff; it was left
   out of the hygiene batch, whose generated output is otherwise byte-identical.
 - **Approved generator/tooling mechanisms (maintainer, 2026-08-29):** (1) *stabilize-duplicate
-  collapse* — **landed 2026-08-30**: `StabilizeDuplicatePolicy` folds a reachable `<base>_<N>`
-  component into `<base>` when `SchemaNodeComparer.DeepEquals` holds and refuses, naming both,
-  when it does not; it runs to a fixpoint, never chains, and records the folds in
-  `.generated-manifest.json` (`implicitAliases`) as a committed telltale. All 24 `_N`
-  `schemaAliases` rows retired against byte-identical generated output; the one non-`_N` row (the
-  operation-scoped Effect cause union) stays explicit, and a curated row the collapse already
-  implies is refused as redundant. The manifest lists 25 folds — the 24 the rows spelled plus
-  `Form.Fields_1`, an array component that never needed a row because it emits no named model.
-  Still open: the research-log entry and one curation-boundary sentence in canon.
-  (2) *source watch* — **landed 2026-08-30**: `spec/source-watch.json` pins the 20 upstream files
-  the hand-written PTY doors read — 7 for the normal family, 13 more for persistent PTY, including
-  the daemon's location and `packages/core/package.json` pin and the three behavioral oracles
-  (`packages/server/test/persistent-pty.test.ts`, `packages/client/src/solid/pty.ts`,
-  `packages/tui/src/component/terminal-pane.tsx`) — by path, sha256, and one `contains` anchor
-  naming the behavior that door depends on. `refresh-spec` prepare observes every entry at the
-  candidate commit and records its hash and anchor verdict in the receipt (`watchedSources`),
-  verify checks the pins against the submodule checkout and refuses a missing file, a moved blob,
-  or a lost anchor, and apply re-pins over the reviewed receipt — refusing a receipt whose anchors
-  the reviewer saw fail. A review trigger only, never a generation input (ADR-0013); its stated
-  blind spot is behavior added in a file the list does not name, backstopped by the sandbox PTY
-  legs today and the M6 canary later. Still open: the research-log entry and the two proposed canon
-  sentences (`spec/SNAPSHOT.md` §Refresh procedure, `protocol-and-generation.md` §Snapshot
-  production). (3)
+  collapse* and (2) *source watch* both **landed 2026-08-30**; research Q159 owns the account of
+  what each does, `.generated-manifest.json` (`implicitAliases`) and `spec/source-watch.json` are
+  the committed telltales, and the one non-`_N` `schemaAliases` row (the operation-scoped Effect
+  cause union) stays explicit. Still open on them: three proposed canon sentences — one
+  curation-boundary sentence in `protocol-and-generation.md` §Curation boundary for the collapse,
+  and for the watch `spec/SNAPSHOT.md` §Refresh procedure plus `protocol-and-generation.md`
+  §Snapshot production — and the maintainer's seal on the watch's apply-time refusal (below). (3)
   *transport-owned leaves pending* — **landed 2026-08-29**: `SpecBinder` derives pending as the
   unselected operations without a fingerprint-pinned `transportOwned` row (a selected operation
   with such a row refuses), the marker carries a fixed `Transport-owned operations:` count and a
   `Transport-owned:` section while it exists (emitted even when empty, so a row's arrival or
   retirement is a one-line diff), and the canon marker sentence reads "unselected and not
-  transport-owned". The marker reads **122 selected / 12 pending / 2 transport-owned**, and the
-  packing wall is satisfiable at full admission; the prerelease-versus-stable wording of that wall
-  stays a release-prep decision.
+  transport-owned". The marker reads **131 selected / 3 pending / 2 transport-owned**; the
+  packing wall and the three operations pending by decision now meet, which is the release-prep
+  decision recorded below.
+- **Three operations stay pending by decision, not by omission** (coverage-to-full arc, 2026-08-30;
+  evidence research Q159). `.generation-incomplete` is the current map; this is why each one stands.
+  (a) `v2.config.get` — the **ADR-0016 structural-union wall**: `Config.InfoEncoded` carries three
+  same-token-kind unions (`lsp`'s map value `anyOf[{disabled:true}, Config.LSP.ServerEncoded]`,
+  `references`' map value `anyOf[string, Git, Local]`), the identical class the maintainer let stand
+  for `migration.v1.status`. Moving it needs a union mechanism, not a curation row; it was filed as
+  curation-only until the widened telltale showed otherwise. Two collisions in the same operation
+  *are* curation-fixable and are recorded here for the day that wall moves, because a row over an
+  unselected operation would be unvalidated: `ConfigModelCost` (the promoted
+  `Config.ModelEncoded#/properties/cost` `anyOf[Cost, Cost[]]` against the `Encoded`-stripped
+  `Config.Model.CostEncoded`) takes a `schemaNames` row, and `IMcp` (`mcp.add`'s inline request
+  union against `Config.InfoEncoded.mcp.servers`' `additionalProperties`, structurally identical)
+  takes a `schemaAliases` row. (b) `v2.fs.read` — the **path mechanism**: `/api/fs/read/*` is a
+  framework wildcard, not an OpenAPI path template, so there is nothing for a generator to bind. The
+  upstream report is drafted and parked (Open Questions); admitting it before upstream moves would
+  mean inventing a path parameter the document does not declare (ADR-0013). (c)
+  `v2.experimental.migration.v1.status` — the same structural-union wall, stood by the maintainer on
+  2026-08-28 and not reopened.
+- **Release preparation and the packing wall now meet, and the wall needs a decision.**
+  `Directory.Build.targets` refuses `pack` while `src/OpenCode.Sdk/.generation-incomplete` exists,
+  and the generator writes that marker whenever **any** operation is pending — so the wall keys on
+  pending = 0 while three operations stay pending by decision above. Full admission is therefore not
+  reachable by working the queue: the wall needs either a maintainer-acknowledged residual (a
+  declared pending set it tolerates) or a third admission state — "declined" beside selected and
+  pending — that leaves the marker publishable. That is a decision about what a released package is
+  allowed to omit, not a defect to fix, and it belongs with the prerelease-versus-stable wording
+  already queued for release prep (ADR-0006, #51).
+- **Two mechanism steps await the maintainer's seal** (coverage-to-full arc, 2026-08-30). The source
+  watch's `apply` refuses a receipt whose anchor verdict failed — deliberate, beyond the approved
+  proposal's literal wording, on the grounds that re-pinning a hash whose anchor moved installs the
+  drift the mechanism exists to catch; the alternative is to warn and re-pin. And the single-key
+  envelope facet keys on a **body shape** (an inline object requiring exactly one property that is
+  not `data`) rather than on the approved value predicate ("nominal or represented-nullable"), which
+  R7's own named outcome for `server.get`'s inline `{urls: string[]}` forced. Both are landed and
+  tested; both are wider than what was approved, so both are named here rather than treated as
+  settled.
+- **Three unnamed one-off test failures, none reproduced** (coverage-to-full arc, 2026-08-30). Under
+  implementer gates: 3 of 4,139, 1 of 4,242 (no failure block printed), and 3 of 4,406. Controller
+  re-runs of the same binaries were green every time and no runner named a test, so there is nothing
+  to fix yet — this is a measurement item. Two candidates are named for exoneration rather than
+  chased: `ClientTerminalWebSocketTests.cs:44` (the suite's only test that depends on a *refused*
+  connect, so on an exception shape rather than on no network) and `LoopbackPortReservationTests.cs`
+  (128 rapid ephemeral binds). Run the gates with `--report-trx --report-trx-filename <unique>` so a
+  recurrence yields names instead of a count.

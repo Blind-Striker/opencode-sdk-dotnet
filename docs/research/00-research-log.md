@@ -1,6 +1,6 @@
 # Research log — 2026-08-08
 
-Date: 2026-08-29
+Date: 2026-08-30
 
 > Dated evidence and decision history, not current policy. Follow current canon through
 > `AGENTS.md`; later sessions in this log intentionally supersede some earlier conclusions.
@@ -4633,7 +4633,7 @@ are bound, which makes the pair distinct by construction.
 
 **`SchemaNodeComparer` still ignores `Description`, and the blast radius grew.** The comparer backs
 `schemaAliases`' structural-identity wall, and since the stabilize-duplicate collapse landed
-(Q-series entry for Task 6) it also decides which `<base>_<N>` duplicates fold mechanically. Two
+(Q159) it also decides which `<base>_<N>` duplicates fold mechanically. Two
 components that differ only in their description therefore fold into one, and the description that
 survives is the base's. That is the desired behaviour for the collapse - upstream's per-site
 duplicates differ in nothing else - but it is now a silent rule over generated documentation rather
@@ -4658,3 +4658,197 @@ authoring fifteen verified reasons is a curation task; and the dot-segment refus
 copy in every emitted route builder - because folding the emitted copies is an emitter change with a
 large mechanical generated diff, and this batch's generated output is otherwise byte-identical
 except for one documentation line.
+
+## Q159: What did the coverage-to-full arc land, and which walls stand?
+
+**Method (2026-08-30):** the maintainer-approved plan
+(`docs/superpowers/plans/2026-08-30-coverage-to-full.md`, eleven tasks) ran subagent-driven on the
+branch `feature/coverage-to-full`, forked from `master` at `6319d78`, with a fresh implementer per
+task, an independent review per dispatch, and scoped re-reviews per fix round. Nine reviews covered
+Tasks 1–10 (Tasks 7 and 8 shared one), and every verdict was Approved first pass except Task 6's,
+which carried one Important finding and took a fix round. The controller's rulings and every
+task's completion line are in the SDD ledger
+(`.superpowers/sdd/2026-08-30-coverage-to-full/progress.md`); the briefs and reports sit beside it.
+
+**The session opened with a document-identical refresh** (`6319d78`, before the branch): the
+accepted snapshot moved `106629aa` → `b1e3a7b2` over 8 upstream commits, **none** of which touched
+`packages/protocol` or any file the PTY doors read. `rawDocumentSha256`, `generatedBaselineSha256`
+and the normalized hash were all unchanged (`c24fb10f…`), 136 operations / 342 components /
+`contentSchema` 2, and the receipt delta was the upstream commit plus an empty `addedOperations`.
+The SSE Restore patch still applied with byte-identical preimages and PR #45182 stayed open. A
+document-identical refresh needs no entry of its own under `spec/SNAPSHOT.md`'s procedure and
+ADR-0020 — the commit message carries the facts, and the mention rides here.
+
+**Four mechanisms admitted operations; one wall widened.** Each was keyed on wire shape rather than
+operation id (ADR-0013), each kept a refusal for the shapes it does not admit, and each review
+verified that the operations already bound produced byte-identical output.
+
+- **Curation only** (`d7b7add`): `v2.vcs.base` → `VcsClient.GetBaseAsync`, its payload the
+  represented-nullable `VcsBase?`; the `fs` group as the `FileSystem` family, `v2.fs.list` →
+  `FileSystemClient.ListEntriesAsync`. `fs.list` needed **two** curation rows, not one, because
+  `OperationNamePolicy.Pluralize("Fs")` returns null: an `operationNames` row and an
+  `envelopePayloadNames` row. The operational trap the task found: admitting a brand-new family
+  folder requires extending the IDE0130 arbitration globs in `.editorconfig` (the `src/OpenCode.Sdk`
+  list **and** its `tests/OpenCode.Sdk.Tests` mirror) *before* running `generate`, or the
+  post-generation `dotnet format` pass crashes with `System.NotSupportedException: Changing document
+  properties is not supported` instead of reporting a style diagnostic (precedent `ff8f527`).
+- **The query mechanism** (`a580771`, `5a339f9`, R4): a *required* query parameter emits a C#
+  `required` non-nullable request property and makes `request` a required method and route
+  argument; an *optional* parameter binds nullable and is omitted when unset whether or not its
+  schema admits JSON null — the null-admission wall was dialect ceremony with no representational
+  consequence; a string enum outside the spine's own value sets becomes a generated C# enum, reusing
+  a component's model where one exists (`Vcs.Mode` → `VcsMode`) and otherwise promoted under
+  ingestion's **existing** key `op:<id>#/parameters/<index>/schema` and named
+  `{RequestTypeName}{Property}` (`FsFindRequestType`, `SessionStatsRequestTools`). No ingestion
+  change was needed. `QueryEnumShapePolicy` is the single predicate `ReachableSchemaCollector`,
+  `SchemaNameResolver` and the facet binder share, so `asc`/`desc` and `true`/`false` keep their
+  spine kinds and no dead enum is emitted; `QueryEnumWireValueEmitter` writes the route's switch from
+  the same `EnumModelPlan` that supplies the model's `JsonStringEnumMemberName`, so wire drift
+  between the two is not expressible. Selected `v2.fs.find`, `v2.vcs.diff`, `v2.session.stats`.
+  Evidence: existing routes byte-identical, PublicApi **+207/−0**.
+- **Location-envelope object promotion** (`1c9ff31`, `2f35ede`, R5): a location wrapper whose `data`
+  is an inline object is promoted into a model the name resolver claims under `{stem}Data`, exactly
+  as the data wrapper's member and the location wrapper's list item already were.
+  `SchemaNameResolver.ResolveDataLocationPayloadKey` claims the key and `EnvelopeFacetBinder` drops
+  its promoted-key pre-check to rely on that claim — the two apply a verbatim-identical wrapper test
+  over the same `Single(200|204)` success, which is what makes the fall-through safe and is also
+  why the duplication became load-bearing (fixed in the hygiene batch, Q158). Selected
+  `v2.shell.output` → `ShellOutputResponse.Output` (`ShellOutputData` carrying `Output`, `Cursor`,
+  `Size`, `Truncated`), whose `cursor`/`limit` ride the query mechanism as the strings the wire
+  declares (ADR-0014 — patterns are never validated client-side). PublicApi **+29/−0**.
+- **The `{name, data}` error style** (`618dd3b`, `91111e3`, R6): `ErrorStyleClassifier` already
+  produced `ErrorStyle.NameData`; the new `ErrorMarkerPolicy` maps a style to its marker wire name
+  and fixes the converter's scan order `[_tag, name]`, and `UnionVariantPlan.MarkerWireName` carries
+  it into emission. `IOpenCodeError.Tag` stays the marker for both dialects — for a `NameData` error
+  it is the `name` literal, serialized under `[JsonPropertyName("name")]` — with the `data` struct as
+  a nested generated model (`WorktreeError`, `WorktreeErrorData` carrying `Message` and an optional
+  `ForceRequired`). The generated converter declares its marker tables in that order, scans one
+  property per attempt, and keeps the known-arm path free of a JSON DOM; a third style refuses by
+  name ("error style 'None' declares no tag marker property"). Canon needed no edit: ADR-0007 says
+  "tagged", never `_tag`.
+- **The wire-shape wall widened for DELETE with a body** (`59a910b`, `12c942a`, R13, ruled mid-task).
+  `v2.worktree.remove` is `DELETE /api/worktree/{projectID}` with a **required** body; the wall's
+  DELETE-body refusal was an M1 dialect restriction, not a protocol fact. The pin declares the body,
+  upstream's own client sends it, and RFC 9110 §9.3.5 permits DELETE content where the origin server
+  supports it — which this is. GET with a body still refuses and HEAD never reaches the wall
+  (ingestion refuses the path item). The evidence is a real socket, not a stub: `LoopbackHttpServer`
+  learned `Content-Length`, and
+  `OwnedTransportTests.ExecuteAsync_Should_Send_A_Delete_Body_Through_The_Real_Handler` drove
+  `RemoveWorktreeAsync` through the client's own owned transport on **all four TFMs**, reading
+  `{"directory":"/repo/feature","force":true}` back off the wire. **net472's `HttpWebRequest` writes
+  a DELETE body without complaint** — the .NET Framework restriction is GET/HEAD, not DELETE.
+  Together the style and the wall selected the worktree family's whole pinned surface, taking the
+  profile to its reachable end state: **131 selected / 3 pending / 2 transport-owned** of 136.
+
+**One consequence of R6 was accepted rather than guarded.** An error-plane JSON object carrying a
+string `name` now materializes as `UnknownOpenCodeError(name, payload)` where it returned `null`
+before. The raw body is retained, typed arms are unaffected, and an open error set is what ADR-0007
+asks for; the reversal, if it is ever wanted, is a converter guard requiring `data` beside `name`
+before treating `name` as a marker.
+
+**`config.get` was re-classified: it is not curation-only, and it stays pending.** The handoff had
+it filed as a one-row fix because the bindability telltale reported `Errors[0]` only. Binding it
+with the real binder against the selected profile produces **ten** errors: two `Curation` refusals
+for the `config` and `fs` groups' missing rows; `ConfigModelCost` colliding with
+`Config.Model.CostEncoded` (the promoted `anyOf[Cost, Cost[]]` union against the `Encoded`-stripped
+component); `IMcp` colliding across `mcp.add`'s inline request union and
+`Config.InfoEncoded.mcp.servers`' `additionalProperties` (structurally identical
+`anyOf[Mcp.LocalConfigEncoded, Mcp.RemoteConfigEncoded]` unions); **three ADR-0016 same-token-kind
+structural walls inside `Config.InfoEncoded`** — `lsp`'s map value `anyOf[{disabled:true},
+Config.LSP.ServerEncoded]` and `references`' map value `anyOf[string, Git, Local]`; two consequential
+"inline nominal schema was not promoted into the graph" errors; and one "merged request body model
+is absent". The three structural walls are the same class the maintainer let stand for
+`migration.v1.status` on 2026-08-28, so per mechanism rather than per operation the wall stands and
+`config.get` is recorded beside it. The two curation-fixable collisions are recorded for the day
+that wall moves, not landed now: a row over an unselected operation would be unvalidated.
+
+**The telltale's number and the combined bind's number are both right.** After the completeness
+rider (below) the marker shows **five** walls for `config.get`, not ten. The probe binds each
+pending operation **alone**, under a synthetic curation supplying only its own group row: the `IMcp`
+collision needs `mcp.add` reachable at the same time, and the "merged request body model is absent"
+check runs over *other* operations' query request models. Neither can fire in isolation. That
+isolation is by design and predates this arc — the old `Errors[0]` for `config.get` was already the
+`ConfigModelCost` collision — but it means the telltale under-reports a wall that only a wider bind
+can see. Recorded, not changed.
+
+**The tools touch landed four changes.** (1) `ToolJsonContext` now pins `NewLine` (`3122bdb`), so
+`spec/receipt.json` and `.generated-manifest.json` stop being written with CRLF bodies and a bare-LF
+tail on Windows (`git ls-files --eol` `w/mixed` → `w/lf`; the Q155 wart). (2) The telltale lists
+**every** independent wall, semicolon-joined and deduplicated in binder order, instead of `Errors[0]`
+(`6c6c514`, R11) — which is what made the `config.get` finding above visible at all. (3)
+`StabilizeDuplicatePolicy` makes the stabilize-duplicate collapse mechanical (`936dfbf`, fix
+`6726900`): a reachable `<base>_<N>` component folds into `<base>` when `SchemaNodeComparer.DeepEquals`
+holds and refuses naming **both** keys when it does not, running to a fixpoint and never chaining,
+with the folds recorded in `.generated-manifest.json`'s `implicitAliases` section as the committed
+telltale. All 24 `_N` `schemaAliases` rows retired against **byte-identical generated source** — the
+only diff under `src/OpenCode.Sdk` was the manifest — and a curated row the collapse already implies
+is now refused as redundant. The manifest lists **25** folds, not 24: `Form.Fields_1` never carried a
+row because an array component binds to a list type reference and so never produced a duplicate model
+to collide; folding it is inert, and its appearance is the telltale naming a duplicate the previous
+mechanism ignored silently. The review's one Important finding was that the new chain wall was
+one-directional — it refused a curated row whose *target* was a folded key but not one whose *source*
+is a fold base, where mechanical `X_1 → X` plus curated `X → Y` deletes `X` and leaves `X_1`'s
+references dangling as an unnamed reachability failure; the fix made it symmetric, with both
+directions tested through real ingestion. (4) `spec/source-watch.json` pins the **20** upstream files
+the hand-written PTY doors read — 7 for the normal family, 13 more for persistent PTY — by path,
+sha256 and one `contains` anchor naming the behavior that door depends on (`a14a82a`). `prepare`
+observes every entry at the candidate commit and records its hash and anchor verdict in the
+receipt's `watchedSources`, `verify` checks the pins against the submodule checkout, and `apply`
+re-pins over the reviewed receipt. Every observation reads the git blob
+(`git -C external/opencode show <rev>:<path>`), never the working tree, so the pins are not
+line-ending-dependent on Windows. The watch is a refresh-time review trigger only and never reaches
+ingestion, curation or emission (ADR-0013); its stated blind spot is behavior added in a file the
+list does not name.
+
+**A second-order consequence of the collapse is worth naming: `SchemaNodeComparer` ignores
+`Description`.** It backed the `schemaAliases` structural-identity wall before; it now also decides
+which `<base>_<N>` duplicates fold mechanically. Two components differing only in their description
+therefore fold into one and the base's description survives. That is the desired behavior — upstream's
+per-site duplicates differ in nothing else — but it moved from a curation-time check a human reads
+into a silent rule over generated documentation. Making the comparer description-sensitive would
+refuse folds the pin depends on, so it is recorded rather than changed (Q158 records it from the
+hygiene batch's side).
+
+**The single-key envelope facet closed the last upstream wrapper spelling on the surface**
+(`d6d3ff8`, R7). A success body the operation declares **inline** as an object requiring exactly one
+property that is not `data` is envelope spine: the payload flattens under that key's PascalCase name
+and the wrapper is never emitted as a model. Two operations qualify at the pin — `v2.server.get`
+`{urls}` and `persistentPty.handoff` `{handoff}` — and the ruling's original value predicate
+("nominal or represented-nullable") had to be **dropped** in favour of a body-shape rule, because
+`urls` is an inline `string[]`, not a `$ref`, and R7 named it anyway. Resolving through `$ref` would
+have caught three more bodies (`session.interrupt`, `worktree.create`, `workspace.destroy`), but
+those are named components with their own upstream identity, so the classifier admits the facet only
+when the response schema is not a schema reference. `PersistentPtyHandoffPostResponse.Handoff` is now
+`PersistentPtyHandoff?` and `ServerResponse.Urls` is an `IReadOnlyList<string>`; `ServerData` and
+`PersistentPtyHandoffPostData` are gone. Both are pre-1.0 renames (Q131), and `EnvelopeKind.Data` was
+reused with a new `WireMemberName`, so the adapter emitter, the projecting helpers and the pagination
+facet needed no change at all.
+
+**The hygiene batch and the benchmark rung closed the arc.** Q158 owns the batch's own account —
+**52 fixed, 3 doc-noted, 3 canon sentences proposed, 11 declined with reasons**, PublicApi unchanged
+and exactly one generated file changed (a documentation line). The new `PersistentPtySession`
+read-ladder rung (`2a84a9e`) measured, at `--job short` over both runtimes, `ReadFramesAsync` at
+**18,624 B** (net10.0) and **18,888 B** (net472) for `attached-x1`, and **2,772,096 B** /
+**2,777,436 B** for `output-large-x64`, with `DecodeFrames` at **1,696 B** / **1,853 B** and
+**2,625,024 B** / **2,627,916 B** respectively. The `PtySession` ladder ran beside it byte-identical
+to the archived `persistent-pty-after-short` run, which is what makes the new numbers comparable. At
+`output-large-x64` the persistent family allocates roughly **half** what the normal family does over
+the identical wire size (2,772,096 B against 5,392,832 B on the complete path) because
+`PersistentPtyOutputFrame` retains raw bytes while `PtyOutputFrame` decodes UTF-8 into a UTF-16
+`string`. Timings are not quoted: allocation is the only reliable axis on this workstation (Q156).
+
+**Evidence:** the full gate is green at every commit of the branch — **4,406 tests** on all four
+TFMs at HEAD, slopwatch **0**, a Release build with no warnings, `dotnet format` clean,
+`generate --verify` current at 131/3/2, and `refresh-spec --verify` reproducing the committed receipt
+at `b1e3a7b2`.
+
+**One measurement item is open, and it is not a defect found.** Three unnamed one-off full-suite
+failures occurred under implementer gates across the arc — 3 of 4,139 (Task 2), 1 of 4,242 (Task 4,
+with no failure block printed), and 3 of 4,406 (Task 9, whose report was overwritten before it was
+read). **None reproduced**: controller re-runs of the same binaries were green each time (4,139;
+4,258 with TRX; 4,406 with TRX), and no runner ever named a failing test. Task 9's review named two
+candidates worth exonerating rather than chasing: `ClientTerminalWebSocketTests.cs:44`, the suite's
+only test that depends on a *refused* connect (loopback port 1) and so on an exception shape rather
+than on no network at all, and `LoopbackPortReservationTests.cs:21-27`, which performs 128 rapid
+ephemeral binds. The recipe for the next occurrence is to run the gates with
+`--report-trx --report-trx-filename <unique>` so a recurrence yields names instead of a count.
