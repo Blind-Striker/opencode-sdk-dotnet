@@ -9,6 +9,7 @@ namespace OpenCode.Sdk.Tools.Serialization;
 [JsonSourceGenerationOptions(
     AllowTrailingCommas = true,
     GenerationMode = JsonSourceGenerationMode.Metadata,
+    NewLine = "\n",
     ReadCommentHandling = JsonCommentHandling.Skip,
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
     UseStringEnumConverter = true,
