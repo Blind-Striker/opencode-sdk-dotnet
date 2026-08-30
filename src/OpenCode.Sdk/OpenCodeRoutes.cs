@@ -265,6 +265,27 @@ public static class OpenCodeRoutes
     public static class FileSystem
     {
         /// <summary>
+        /// The &apos;GET /api/fs/find&apos; route template.
+        /// </summary>
+        public const string FindEntriesTemplate = "/api/fs/find";
+        /// <summary>
+        /// Builds the &apos;/api/fs/find&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string FindEntries(FsFindRequest request)
+        {
+            ArgumentNullException.ThrowIfNull(request);
+            var path = "/api/fs/find";
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            query.AddText("query", request.Query);
+            query.AddText("type", ToWireValue(request.Type));
+            query.AddText("limit", request.Limit);
+            return path + query.Value;
+        }
+
+        /// <summary>
         /// The &apos;GET /api/fs/list&apos; route template.
         /// </summary>
         public const string ListEntriesTemplate = "/api/fs/list";
@@ -1789,6 +1810,32 @@ public static class OpenCodeRoutes
         }
 
         /// <summary>
+        /// The &apos;GET /api/session/stats&apos; route template.
+        /// </summary>
+        public const string GetStatsTemplate = "/api/session/stats";
+        /// <summary>
+        /// Builds the &apos;/api/session/stats&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetStats(SessionStatsRequest? request = null)
+        {
+            var path = "/api/session/stats";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddText("from", request.From);
+            query.AddText("to", request.To);
+            query.AddText("project", request.Project);
+            query.AddText("timezone", request.Timezone);
+            query.AddText("tools", ToWireValue(request.Tools));
+            return path + query.Value;
+        }
+
+        /// <summary>
         /// The &apos;GET /api/session/{sessionID}/form&apos; route template.
         /// </summary>
         public const string ListFormsTemplate = "/api/session/{sessionID}/form";
@@ -2796,6 +2843,27 @@ public static class OpenCodeRoutes
         }
 
         /// <summary>
+        /// The &apos;GET /api/vcs/diff&apos; route template.
+        /// </summary>
+        public const string GetDiffTemplate = "/api/vcs/diff";
+        /// <summary>
+        /// Builds the &apos;/api/vcs/diff&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetDiff(VcsDiffRequest request)
+        {
+            ArgumentNullException.ThrowIfNull(request);
+            var path = "/api/vcs/diff";
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            query.AddText("mode", ToWireValue(request.Mode));
+            query.AddText("base", request.Base);
+            query.AddText("context", request.Context);
+            return path + query.Value;
+        }
+
+        /// <summary>
         /// The &apos;GET /api/vcs/status&apos; route template.
         /// </summary>
         public const string GetStatusTemplate = "/api/vcs/status";
@@ -2945,4 +3013,37 @@ public static class OpenCodeRoutes
             return "/api/worktree/" + RouteValuePolicy.Escape(projectId, nameof(projectId));
         }
     }
+
+    /// <summary>
+    /// Spells one &apos;FsFindRequestType&apos; member the way the wire query expects it.
+    /// </summary>
+    private static string? ToWireValue(FsFindRequestType? value) => value switch
+    {
+        FsFindRequestType.File => "file",
+        FsFindRequestType.Directory => "directory",
+        null => null,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, "Unknown FsFindRequestType value.")
+    };
+    /// <summary>
+    /// Spells one &apos;SessionStatsRequestTools&apos; member the way the wire query expects it.
+    /// </summary>
+    private static string? ToWireValue(SessionStatsRequestTools? value) => value switch
+    {
+        SessionStatsRequestTools.None => "none",
+        SessionStatsRequestTools.Summary => "summary",
+        SessionStatsRequestTools.Detail => "detail",
+        null => null,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, "Unknown SessionStatsRequestTools value.")
+    };
+    /// <summary>
+    /// Spells one &apos;VcsMode&apos; member the way the wire query expects it.
+    /// </summary>
+    private static string? ToWireValue(VcsMode? value) => value switch
+    {
+        VcsMode.Working => "working",
+        VcsMode.Branch => "branch",
+        VcsMode.Committed => "committed",
+        null => null,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, "Unknown VcsMode value.")
+    };
 }

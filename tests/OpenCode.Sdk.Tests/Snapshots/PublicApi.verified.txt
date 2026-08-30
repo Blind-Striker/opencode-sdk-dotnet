@@ -119,6 +119,7 @@
     public class FileSystemClient
     {
         protected FileSystemClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.FsFindResponse> FindEntriesAsync(OpenCode.Sdk.FsFindRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.FsListResponse> ListEntriesAsync(OpenCode.Sdk.FsListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class FormRequestListRequest : System.IEquatable<OpenCode.Sdk.FormRequestListRequest>
@@ -137,6 +138,21 @@
     {
         protected FormsClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.FormRequestListResponse> ListRequestsAsync(OpenCode.Sdk.FormRequestListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class FsFindRequest : System.IEquatable<OpenCode.Sdk.FsFindRequest>
+    {
+        public FsFindRequest() { }
+        public string? Limit { get; init; }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+        public required string Query { get; init; }
+        public OpenCode.Sdk.Models.FsFindRequestType? Type { get; init; }
+    }
+    public sealed class FsFindResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.FsFindResponse>
+    {
+        public FsFindResponse() { }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.FileSystemEntry> Entries { get; init; }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class FsListRequest : System.IEquatable<OpenCode.Sdk.FsListRequest>
     {
@@ -545,7 +561,9 @@
         }
         public static class FileSystem
         {
+            public const string FindEntriesTemplate = "/api/fs/find";
             public const string ListEntriesTemplate = "/api/fs/list";
+            public static string FindEntries(OpenCode.Sdk.FsFindRequest request) { }
             public static string ListEntries(OpenCode.Sdk.FsListRequest? request = null) { }
         }
         public static class Forms
@@ -700,6 +718,7 @@
             public const string GetMessageTemplate = "/api/session/{sessionID}/message/{messageID}";
             public const string GetPermissionTemplate = "/api/session/{sessionID}/permission/{requestID}";
             public const string GetSessionTemplate = "/api/session/{sessionID}";
+            public const string GetStatsTemplate = "/api/session/stats";
             public const string ListFormsTemplate = "/api/session/{sessionID}/form";
             public const string ListInboxTemplate = "/api/session/{sessionID}/inbox";
             public const string ListInstructionsEntryTemplate = "/api/session/{sessionID}/instructions/entries";
@@ -747,6 +766,7 @@
             public static string GetMessage(string sessionId, string messageId) { }
             public static string GetPermission(string sessionId, string requestId) { }
             public static string GetSession(string sessionId) { }
+            public static string GetStats(OpenCode.Sdk.SessionStatsRequest? request = null) { }
             public static string ListForms(string sessionId) { }
             public static string ListInbox(string sessionId) { }
             public static string ListInstructionsEntry(string sessionId) { }
@@ -805,10 +825,12 @@
         {
             public const string GetBaseTemplate = "/api/vcs/base";
             public const string GetBranchesTemplate = "/api/vcs/branches";
+            public const string GetDiffTemplate = "/api/vcs/diff";
             public const string GetStatusTemplate = "/api/vcs/status";
             public const string GetVcsTemplate = "/api/vcs";
             public static string GetBase(OpenCode.Sdk.VcsBaseRequest? request = null) { }
             public static string GetBranches(OpenCode.Sdk.VcsBranchesRequest? request = null) { }
+            public static string GetDiff(OpenCode.Sdk.VcsDiffRequest request) { }
             public static string GetStatus(OpenCode.Sdk.VcsStatusRequest? request = null) { }
             public static string GetVcs(OpenCode.Sdk.VcsRequest? request = null) { }
         }
@@ -1593,6 +1615,21 @@
     {
         public SessionSkillPostResponse() { }
     }
+    public sealed class SessionStatsRequest : System.IEquatable<OpenCode.Sdk.SessionStatsRequest>
+    {
+        public SessionStatsRequest() { }
+        public string? From { get; init; }
+        public string? Project { get; init; }
+        public string? Timezone { get; init; }
+        public string? To { get; init; }
+        public OpenCode.Sdk.Models.SessionStatsRequestTools? Tools { get; init; }
+    }
+    public sealed class SessionStatsResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionStatsResponse>
+    {
+        public SessionStatsResponse() { }
+        public required OpenCode.Sdk.Models.SessionStatsInfo Stats { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
     public sealed class SessionSwitchAgentPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionSwitchAgentPostResponse>
     {
         public SessionSwitchAgentPostResponse() { }
@@ -1621,6 +1658,7 @@
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionCreateResponse> CreateSessionAsync(OpenCode.Sdk.Models.SessionCreateRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionActiveResponse> GetActiveAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual OpenCode.Sdk.SessionClient GetSessionClient(string sessionId) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionStatsResponse> GetStatsAsync(OpenCode.Sdk.SessionStatsRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionListResponse> ListSessionsAsync(OpenCode.Sdk.SessionListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionImportPostResponse> PostImportAsync(OpenCode.Sdk.Models.SessionImportPostRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
@@ -1733,8 +1771,24 @@
         protected VcsClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.VcsBaseResponse> GetBaseAsync(OpenCode.Sdk.VcsBaseRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.VcsBranchesResponse> GetBranchesAsync(OpenCode.Sdk.VcsBranchesRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.VcsDiffResponse> GetDiffAsync(OpenCode.Sdk.VcsDiffRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.VcsStatusResponse> GetStatusAsync(OpenCode.Sdk.VcsStatusRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.VcsResponse> GetVcsAsync(OpenCode.Sdk.VcsRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class VcsDiffRequest : System.IEquatable<OpenCode.Sdk.VcsDiffRequest>
+    {
+        public VcsDiffRequest() { }
+        public string? Base { get; init; }
+        public string? Context { get; init; }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+        public required OpenCode.Sdk.Models.VcsMode Mode { get; init; }
+    }
+    public sealed class VcsDiffResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.VcsDiffResponse>
+    {
+        public VcsDiffResponse() { }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.FileDiffInfo> Diffs { get; init; }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class VcsRequest : System.IEquatable<OpenCode.Sdk.VcsRequest>
     {
@@ -2577,6 +2631,14 @@ namespace OpenCode.Sdk.Models
         Boolean = 2,
         Unknown = 3,
     }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.FsFindRequestType>))]
+    public enum FsFindRequestType
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("file")]
+        File = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("directory")]
+        Directory = 1,
+    }
     public sealed class GenerateTextPostData : System.IEquatable<OpenCode.Sdk.Models.GenerateTextPostData>
     {
         public GenerateTextPostData() { }
@@ -2744,6 +2806,12 @@ namespace OpenCode.Sdk.Models
     {
         [System.Text.Json.Serialization.JsonPropertyName("status")]
         string Status { get; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.SessionStatsToolsJsonConverter))]
+    public interface ISessionStatsTools
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("mode")]
+        string Mode { get; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.SessionStatusJsonConverter))]
     public interface ISessionStatus
@@ -7119,6 +7187,125 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("skill")]
         public required string Skill { get; init; }
     }
+    public sealed class SessionStatsActivity : System.IEquatable<OpenCode.Sdk.Models.SessionStatsActivity>
+    {
+        public SessionStatsActivity() { }
+        [System.Text.Json.Serialization.JsonPropertyName("date")]
+        public required string Date { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("steps")]
+        public required long Steps { get; init; }
+    }
+    public sealed class SessionStatsInfo : System.IEquatable<OpenCode.Sdk.Models.SessionStatsInfo>
+    {
+        public SessionStatsInfo() { }
+        [System.Text.Json.Serialization.JsonPropertyName("activeDays")]
+        public required long ActiveDays { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("activity")]
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.SessionStatsActivity> Activity { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("cost")]
+        public required double Cost { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("models")]
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.SessionStatsModelUsage> Models { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("prompts")]
+        public required long Prompts { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("range")]
+        public required OpenCode.Sdk.Models.SessionStatsInfoRange Range { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("sessions")]
+        public required long Sessions { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("steps")]
+        public required long Steps { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("streak")]
+        public required long Streak { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("subagents")]
+        public required long Subagents { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("tokens")]
+        public required OpenCode.Sdk.Models.TokenUsageInfo Tokens { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("tools")]
+        public required OpenCode.Sdk.Models.ISessionStatsTools Tools { get; init; }
+    }
+    public sealed class SessionStatsInfoRange : System.IEquatable<OpenCode.Sdk.Models.SessionStatsInfoRange>
+    {
+        public SessionStatsInfoRange() { }
+        [System.Text.Json.Serialization.JsonPropertyName("from")]
+        public required double From { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("to")]
+        public required double To { get; init; }
+    }
+    public sealed class SessionStatsModelUsage : System.IEquatable<OpenCode.Sdk.Models.SessionStatsModelUsage>
+    {
+        public SessionStatsModelUsage() { }
+        [System.Text.Json.Serialization.JsonPropertyName("cost")]
+        public required double Cost { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("model")]
+        public required OpenCode.Sdk.Models.ModelRef Model { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("steps")]
+        public required long Steps { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("tokens")]
+        public required OpenCode.Sdk.Models.TokenUsageInfo Tokens { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.SessionStatsRequestTools>))]
+    public enum SessionStatsRequestTools
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("none")]
+        None = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("summary")]
+        Summary = 1,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("detail")]
+        Detail = 2,
+    }
+    public sealed class SessionStatsToolTotals : System.IEquatable<OpenCode.Sdk.Models.SessionStatsToolTotals>
+    {
+        public SessionStatsToolTotals() { }
+        [System.Text.Json.Serialization.JsonPropertyName("calls")]
+        public required long Calls { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("failed")]
+        public required long Failed { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("succeeded")]
+        public required long Succeeded { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("unfinished")]
+        public required long Unfinished { get; init; }
+    }
+    public sealed class SessionStatsToolUsage : System.IEquatable<OpenCode.Sdk.Models.SessionStatsToolUsage>
+    {
+        public SessionStatsToolUsage() { }
+        [System.Text.Json.Serialization.JsonPropertyName("calls")]
+        public required long Calls { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("durationP50")]
+        public double? DurationP50 { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("failed")]
+        public required long Failed { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public required string Name { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("succeeded")]
+        public required long Succeeded { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("unfinished")]
+        public required long Unfinished { get; init; }
+    }
+    public sealed class SessionStatsToolsDetail : OpenCode.Sdk.Models.ISessionStatsTools, System.IEquatable<OpenCode.Sdk.Models.SessionStatsToolsDetail>
+    {
+        public SessionStatsToolsDetail() { }
+        [System.Text.Json.Serialization.JsonPropertyName("mode")]
+        public string Mode { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("totals")]
+        public required OpenCode.Sdk.Models.SessionStatsToolTotals Totals { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("usage")]
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.SessionStatsToolUsage> Usage { get; init; }
+    }
+    public sealed class SessionStatsToolsNone : OpenCode.Sdk.Models.ISessionStatsTools, System.IEquatable<OpenCode.Sdk.Models.SessionStatsToolsNone>
+    {
+        public SessionStatsToolsNone() { }
+        [System.Text.Json.Serialization.JsonPropertyName("mode")]
+        public string Mode { get; }
+    }
+    public sealed class SessionStatsToolsSummary : OpenCode.Sdk.Models.ISessionStatsTools, System.IEquatable<OpenCode.Sdk.Models.SessionStatsToolsSummary>
+    {
+        public SessionStatsToolsSummary() { }
+        [System.Text.Json.Serialization.JsonPropertyName("mode")]
+        public string Mode { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("totals")]
+        public required OpenCode.Sdk.Models.SessionStatsToolTotals Totals { get; init; }
+    }
     public sealed class SessionStatusBusy : OpenCode.Sdk.Models.ISessionStatus, System.IEquatable<OpenCode.Sdk.Models.SessionStatusBusy>
     {
         public SessionStatusBusy() { }
@@ -8679,6 +8866,15 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("status")]
         public string Status { get; }
     }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownSessionStatsToolsJsonConverter))]
+    public sealed class UnknownSessionStatsTools : OpenCode.Sdk.Models.ISessionStatsTools, System.IEquatable<OpenCode.Sdk.Models.UnknownSessionStatsTools>
+    {
+        [System.Text.Json.Serialization.JsonConstructor]
+        public UnknownSessionStatsTools(string mode, System.Text.Json.JsonElement payload) { }
+        [System.Text.Json.Serialization.JsonPropertyName("mode")]
+        public string Mode { get; }
+        public System.Text.Json.JsonElement Payload { get; }
+    }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownSessionStatusJsonConverter))]
     public sealed class UnknownSessionStatus : OpenCode.Sdk.Models.ISessionStatus, System.IEquatable<OpenCode.Sdk.Models.UnknownSessionStatus>
     {
@@ -8786,6 +8982,16 @@ namespace OpenCode.Sdk.Models
         public VcsInfo() { }
         [System.Text.Json.Serialization.JsonPropertyName("branch")]
         public required OpenCode.Sdk.Models.VcsBranch Branch { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.VcsMode>))]
+    public enum VcsMode
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("working")]
+        Working = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("branch")]
+        Branch = 1,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("committed")]
+        Committed = 2,
     }
     public sealed class WebSearchProvider : System.IEquatable<OpenCode.Sdk.Models.WebSearchProvider>
     {

@@ -1,6 +1,6 @@
 Generation is incomplete; packages must not be published.
-Selected operations: 124
-Pending operations: 10
+Selected operations: 127
+Pending operations: 7
 Transport-owned operations: 2
 Selected:
 - v2.agent.get
@@ -14,6 +14,7 @@ Selected:
 - v2.event.subscribe
 - v2.experimental.integration.wellknown.add
 - v2.form.request.list
+- v2.fs.find
 - v2.fs.list
 - v2.generate.text
 - v2.health.get
@@ -107,6 +108,7 @@ Selected:
 - v2.session.revert.stage
 - v2.session.shell
 - v2.session.skill
+- v2.session.stats
 - v2.session.switchAgent
 - v2.session.switchModel
 - v2.session.synthetic
@@ -120,6 +122,7 @@ Selected:
 - v2.skill.list
 - v2.vcs.base
 - v2.vcs.branches
+- v2.vcs.diff
 - v2.vcs.get
 - v2.vcs.status
 - v2.websearch.providers
@@ -130,11 +133,8 @@ Selected:
 Pending:
 - v2.config.get [refused: C# type name 'ConfigModelCost' collides with schema 'Config.Model.CostEncoded']
 - v2.experimental.migration.v1.status [refused: structural union branch 1 overlaps earlier branch token kind(s): StartObject]
-- v2.fs.find [bindable]
 - v2.fs.read [refused: wildcard paths are not supported in M1]
-- v2.session.stats [bindable]
 - v2.shell.output [refused: location envelope 'data' must reference a named component schema, or be an array of one]
-- v2.vcs.diff [bindable]
 - v2.worktree.create [refused: selected errors must use the Effect _tag style in M1]
 - v2.worktree.refresh [refused: selected errors must use the Effect _tag style in M1]
 - v2.worktree.remove [refused: selected errors must use the Effect _tag style in M1]

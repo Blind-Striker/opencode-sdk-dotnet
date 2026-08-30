@@ -54,6 +54,21 @@ public class VcsClient
     }
 
     /// <summary>
+    /// VCS diff. Diff HEAD to the working copy (working), the base merge-base to the working copy (branch), or the base merge-base to HEAD (committed). Omitting base preserves repository-default comparison; supplying it overrides the comparison without saving it.
+    /// </summary>
+    /// <param name = "request">The request shaping the query; its required members have no server default.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;VcsDiffResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 503) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<VcsDiffResponse> GetDiffAsync(VcsDiffRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Vcs.GetDiff(request), VcsDiffResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
     /// VCS status. List uncommitted working-copy changes relative to the requested location.
     /// </summary>
     /// <param name = "request">The request shaping the query.</param>

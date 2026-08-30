@@ -197,4 +197,68 @@ public sealed class SessionsClientContractTests
         await Assert.That(response.Status).IsEqualTo(401);
         await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
     }
+
+    [Test]
+    public async Task GetStatsAsync_Should_Return_The_Typed_Stats_With_Their_Detailed_Tool_Usage()
+    {
+        var stats = new FixtureLoader().LoadJson("Serialization.known-session-stats.json");
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(stats));
+
+        var response = await scenario.Client.Sessions.GetStatsAsync();
+
+        await Assert.That(response.Stats.Sessions).IsEqualTo(12);
+        await Assert.That(response.Stats.Range.From).IsEqualTo(1_735_689_600d);
+        await Assert.That(response.Stats.Tokens.Cache.Read).IsEqualTo(256d);
+        await Assert.That(response.Stats.Cost).IsEqualTo(1.25d);
+        await Assert.That(response.Stats.Activity.Count).IsEqualTo(2);
+        await Assert.That(response.Stats.Models.Single().Model.ProviderId).IsEqualTo("anthropic");
+        await Assert.That(response.Stats.Tools).IsTypeOf<SessionStatsToolsDetail>();
+        var tools = (SessionStatsToolsDetail)response.Stats.Tools;
+        await Assert.That(tools.Totals.Calls).IsEqualTo(20);
+        await Assert.That(tools.Usage[0].Name).IsEqualTo("bash");
+        await Assert.That(tools.Usage[1].DurationP50).IsNull();
+        await Assert.That(scenario.Requests.Single().RequestUri!.AbsoluteUri)
+            .IsEqualTo("http://localhost:4096/api/session/stats");
+    }
+
+    [Test]
+    public async Task GetStatsAsync_Should_Send_The_Tools_Enum_As_Its_Wire_Value()
+    {
+        var stats = new FixtureLoader().LoadJson("Serialization.known-session-stats.json");
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(stats));
+
+        _ = await scenario.Client.Sessions.GetStatsAsync(new SessionStatsRequest
+        {
+            From = "2026-08-01",
+            Tools = SessionStatsRequestTools.Summary,
+        });
+
+        await Assert.That(scenario.Requests.Single().RequestUri!.AbsoluteUri)
+            .IsEqualTo("http://localhost:4096/api/session/stats?from=2026-08-01&tools=summary");
+    }
+
+    [Test]
+    public async Task GetStatsAsync_Should_Throw_The_Declared_400_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.InvalidRequestError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetStatsAsync())
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(400);
+        await Assert.That(exception.Error).IsTypeOf<InvalidRequestError>();
+    }
+
+    [Test]
+    public async Task GetStatsAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Sessions.GetStatsAsync(requestOptions: OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
 }

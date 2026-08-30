@@ -1,0 +1,41 @@
+{
+  "range": { "from": 1735689600, "to": 1738368000 },
+  "sessions": 12,
+  "subagents": 3,
+  "prompts": 48,
+  "steps": 96,
+  "tokens": {
+    "input": 1024,
+    "output": 512,
+    "reasoning": 64,
+    "cache": { "read": 256, "write": 128 }
+  },
+  "cost": 1.25,
+  "tools": {
+    "mode": "detail",
+    "totals": { "calls": 20, "succeeded": 18, "failed": 1, "unfinished": 1 },
+    "usage": [
+      { "name": "bash", "calls": 12, "succeeded": 11, "failed": 1, "unfinished": 0, "durationP50": 42 },
+      { "name": "read", "calls": 8, "succeeded": 7, "failed": 0, "unfinished": 1 }
+    ]
+  },
+  "activeDays": 4,
+  "streak": 2,
+  "activity": [
+    { "date": "2026-08-29", "steps": 40 },
+    { "date": "2026-08-30", "steps": 56 }
+  ],
+  "models": [
+    {
+      "model": { "id": "claude-opus-5", "providerID": "anthropic" },
+      "steps": 80,
+      "tokens": {
+        "input": 900,
+        "output": 400,
+        "reasoning": 64,
+        "cache": { "read": 200, "write": 100 }
+      },
+      "cost": 1.0
+    }
+  ]
+}

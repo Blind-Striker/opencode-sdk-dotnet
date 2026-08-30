@@ -26,6 +26,21 @@ public class FileSystemClient
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("FileSystemClient", "Pipeline");
 
     /// <summary>
+    /// Find files. Find recursively ranked filesystem entries relative to the requested location.
+    /// </summary>
+    /// <param name = "request">The request shaping the query; its required members have no server default.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;FsFindResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<FsFindResponse> FindEntriesAsync(FsFindRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.FileSystem.FindEntries(request), FsFindResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
     /// List directory. List direct children of one directory relative to the requested location.
     /// </summary>
     /// <param name = "request">The request shaping the query.</param>

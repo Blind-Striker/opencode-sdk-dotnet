@@ -9,6 +9,7 @@ v2.debug.location.list
 v2.event.subscribe
 v2.experimental.integration.wellknown.add
 v2.form.request.list
+v2.fs.find
 v2.fs.list
 v2.generate.text
 v2.health.get
@@ -102,6 +103,7 @@ v2.session.revert.commit
 v2.session.revert.stage
 v2.session.shell
 v2.session.skill
+v2.session.stats
 v2.session.switchAgent
 v2.session.switchModel
 v2.session.synthetic
@@ -115,6 +117,7 @@ v2.shell.timeout
 v2.skill.list
 v2.vcs.base
 v2.vcs.branches
+v2.vcs.diff
 v2.vcs.get
 v2.vcs.status
 v2.websearch.providers

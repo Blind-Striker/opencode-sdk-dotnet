@@ -314,6 +314,11 @@
       "operationId": "v2.fs.list",
       "methodName": "ListEntriesAsync",
       "reason": "The group singular 'fs' does not pluralize naively, exactly like v2.pty.list; the reviewed subject is the directory's entries."
+    },
+    {
+      "operationId": "v2.fs.find",
+      "methodName": "FindEntriesAsync",
+      "reason": "The operation's own verb is find; the mechanical GET prefix is transport detail, not part of the reviewed surface, exactly like v2.credential.update's own 'update' verb. The subject is the directory's entries, matching v2.fs.list's reviewed subject in the same client family."
     }
   ],
   "schemaNames": [
@@ -366,7 +371,9 @@
     "v2.location.get": "ResolvedLocation",
     "v2.session.form.list": "Forms",
     "v2.session.permission.list": "Requests",
-    "v2.fs.list": "Entries"
+    "v2.fs.list": "Entries",
+    "v2.fs.find": "Entries",
+    "v2.vcs.diff": "Diffs"
   },
   "schemaAliases": [
     {

@@ -506,8 +506,15 @@ shared core's added interface dispatch costs no allocation: `DecodeFrames` is by
 every fixture and runtime, and `ReadFramesAsync` allocates 0–16 bytes less per read (Q156).
 The coverage-to-full arc lands its first curation-only admissions at the pinned `b1e3a7b2`
 snapshot: `v2.vcs.base` (`VcsClient.GetBaseAsync`) and the filesystem family's `v2.fs.list`
-(`FileSystemClient.ListEntriesAsync`), taking the profile to **124 selected / 10 pending / 2
-transport-owned**.
+(`FileSystemClient.ListEntriesAsync`).
+The query-parameter mechanism then admits required, non-nullable, and enum-valued query
+parameters — a required parameter becomes a C# `required` non-nullable request property and makes
+`request` a required method and route argument, an optional parameter binds the same way whether or
+not its schema admits null, and a query enum binds to a generated C# enum whose wire spelling the
+route builder writes through a generated switch — selecting `v2.fs.find`
+(`FileSystemClient.FindEntriesAsync`), `v2.vcs.diff` (`VcsClient.GetDiffAsync`), and
+`v2.session.stats` (`SessionsClient.GetStatsAsync`) and taking the profile to **127 selected / 7
+pending / 2 transport-owned**.
 
 ## Milestones
 

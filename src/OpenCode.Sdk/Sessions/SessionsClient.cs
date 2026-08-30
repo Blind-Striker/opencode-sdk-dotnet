@@ -72,6 +72,20 @@ public class SessionsClient
     }
 
     /// <summary>
+    /// Get session statistics. Aggregate local session activity, usage, and tool reliability for a time range.
+    /// </summary>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;SessionStatsResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<SessionStatsResponse> GetStatsAsync(SessionStatsRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Sessions.GetStats(request), SessionStatsResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
     /// List sessions. Retrieve sessions in the requested order. Items keep that order across pages; use cursor.next or cursor.previous to move through the ordered list.
     /// </summary>
     /// <param name = "request">The request shaping the query.</param>

@@ -65,6 +65,9 @@ internal static class WireBodyData
     public const string ProjectNotFoundError =
         "{\"_tag\":\"ProjectNotFoundError\",\"projectID\":\"prj_9\",\"message\":\"gone\"}";
 
+    /// <summary>One filesystem entry, the element both the fs list and fs find payloads carry.</summary>
+    public const string FileSystemEntry = "{\"path\":\"src/App.cs\",\"type\":\"file\"}";
+
     public const string ResolvedLocation =
         "{\"directory\":\"/repo\",\"project\":{\"id\":\"prj_1\",\"directory\":\"/repo\",\"canonical\":\"/repo\"}}";
 

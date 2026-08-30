@@ -74,4 +74,63 @@ public sealed class FileSystemClientContractTests
         await Assert.That(response.Status).IsEqualTo(401);
         await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
     }
+
+    [Test]
+    public async Task FindEntriesAsync_Should_Return_The_Typed_Entries_With_Their_Location()
+    {
+        using var scenario = ContractScenario.Responding(
+            HttpStatusCode.OK, WireBodyData.LocationEnvelope($"[{WireBodyData.FileSystemEntry}]"));
+
+        var response = await scenario.Client.FileSystem.FindEntriesAsync(new FsFindRequest { Query = "todo" });
+
+        await Assert.That(response.Entries.Count).IsEqualTo(1);
+        await Assert.That(response.Entries[0].Path).IsEqualTo("src/App.cs");
+        await Assert.That(response.Entries[0].Type).IsEqualTo(FileSystemEntryType.File);
+        await Assert.That(response.Location.Project.Id).IsEqualTo("prj_1");
+        await Assert.That(scenario.Requests.Single().RequestUri!.AbsoluteUri)
+            .IsEqualTo("http://localhost:4096/api/fs/find?query=todo");
+    }
+
+    [Test]
+    public async Task FindEntriesAsync_Should_Send_The_Enum_Type_As_Its_Wire_Value()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.LocationEnvelope("[]"));
+
+        _ = await scenario.Client.FileSystem.FindEntriesAsync(new FsFindRequest
+        {
+            Query = "todo",
+            Type = FsFindRequestType.Directory,
+            Limit = "10",
+        });
+
+        await Assert.That(scenario.Requests.Single().RequestUri!.AbsoluteUri)
+            .IsEqualTo("http://localhost:4096/api/fs/find?query=todo&type=directory&limit=10");
+    }
+
+    [Test]
+    public async Task FindEntriesAsync_Should_Throw_The_Declared_400_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.InvalidRequestError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.FileSystem.FindEntriesAsync(new FsFindRequest { Query = "todo" }))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(400);
+        await Assert.That(exception.Error).IsTypeOf<InvalidRequestError>();
+    }
+
+    [Test]
+    public async Task FindEntriesAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.FileSystem.FindEntriesAsync(
+            new FsFindRequest { Query = "todo" },
+            OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
 }
