@@ -408,16 +408,15 @@ internal sealed class OperationPlanBinder
             var targets = ResolveErrorTargets(response.Schema);
             if (targets is null)
             {
-                return RefuseNullTags("error responses must reference Effect-tagged error schemas");
+                return RefuseNullTags("error responses must reference tagged error schemas");
             }
 
             var tags = new List<ErrorTagPlan>(targets.Count);
             foreach (var (key, node) in targets)
             {
-                var markers = node.LiteralMarkers.Where(static marker => marker.PropertyName is "_tag").ToArray();
-                if (node.ErrorStyle is not ErrorStyle.EffectTag || markers is not [var marker])
+                if (ErrorMarkerPolicy.Resolve(node, out _) is not { } marker)
                 {
-                    return RefuseNullTags("error responses must reference Effect-tagged error schemas");
+                    return RefuseNullTags("error responses must reference tagged error schemas");
                 }
 
                 if (!_context.TypeNames.TryGetValue(key, out var typeName))

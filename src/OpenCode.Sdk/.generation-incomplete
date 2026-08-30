@@ -135,9 +135,9 @@ Pending:
 - v2.config.get [refused: C# type name 'ConfigModelCost' collides with schema 'Config.Model.CostEncoded']
 - v2.experimental.migration.v1.status [refused: structural union branch 1 overlaps earlier branch token kind(s): StartObject]
 - v2.fs.read [refused: wildcard paths are not supported in M1]
-- v2.worktree.create [refused: selected errors must use the Effect _tag style in M1]
-- v2.worktree.refresh [refused: selected errors must use the Effect _tag style in M1]
-- v2.worktree.remove [refused: selected errors must use the Effect _tag style in M1]
+- v2.worktree.create [bindable]
+- v2.worktree.refresh [bindable]
+- v2.worktree.remove [refused: DELETE operations must not carry a request body]
 Transport-owned:
 - v2.persistentPty.connect [fingerprint-pinned]
 - v2.pty.connect [fingerprint-pinned]

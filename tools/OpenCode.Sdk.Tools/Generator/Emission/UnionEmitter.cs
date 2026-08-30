@@ -86,12 +86,18 @@ internal static class UnionEmitter
     private static GeneratedSource EmitUnknown(UnionPlan union)
     {
         var markerType = TypeSyntaxEmitter.EmitMarker(union.MarkerKind);
-        var members = new List<MemberDeclarationSyntax>
+        var members = new List<MemberDeclarationSyntax>();
+        if (union.AlternateMarkerWireNames.Count > 0)
         {
+            members.Add(EmitMarkerWireNamesField(union));
+        }
+
+        members.AddRange(
+        [
             EmitUnknownMarkerField(markerType),
             EmitUnknownConstructor(union, markerType),
             EmitUnknownMarkerProperty(union, markerType),
-        };
+        ]);
         if (union.FixedMarker is { } fixedMarker)
         {
             members.Add(EmitFixedMarkerProperty(fixedMarker));
@@ -288,11 +294,53 @@ internal static class UnionEmitter
                 EmitMarkerLiteral(fixedMarker.Kind, fixedMarker.Value)));
         }
 
-        checks.Add(EmitPayloadMarkerCheck(
-            union.MarkerKind,
-            union.MarkerWireName,
-            SyntaxFactory.IdentifierName(markerParameterName)));
+        // A carrier for a union tagged by two dialects agrees with the payload when either
+        // declared marker property carries its marker; which one is the payload's own choice.
+        checks.Add(union.AlternateMarkerWireNames.Count is 0
+            ? EmitPayloadMarkerCheck(
+                union.MarkerKind,
+                union.MarkerWireName,
+                SyntaxFactory.IdentifierName(markerParameterName))
+            : EmitPayloadMarkerCheckAmong(union, markerParameterName));
         return checks;
+    }
+
+    private static ExpressionStatementSyntax EmitPayloadMarkerCheckAmong(UnionPlan union, string markerParameterName)
+    {
+        if (union.MarkerKind is not LiteralKind.String)
+        {
+            throw new InvalidOperationException(
+                $"Union '{union.ConceptName}' dispatches on more than one marker with kind '{union.MarkerKind}', which has no emission consumer.");
+        }
+
+        return SyntaxFactory.ExpressionStatement(EmissionSyntax.Invocation(
+            EmissionSyntax.MemberAccess(
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("UnionPayloadGuard"), "Instance"),
+                "RequireStringAmong"),
+            SyntaxFactory.Argument(SyntaxFactory.IdentifierName("payload")),
+            SyntaxFactory.Argument(SyntaxFactory.IdentifierName("MarkerWireNames")),
+            SyntaxFactory.Argument(SyntaxFactory.IdentifierName(markerParameterName))));
+    }
+
+    private static FieldDeclarationSyntax EmitMarkerWireNamesField(UnionPlan union)
+    {
+        var elements = MarkerWireNames(union)
+            .Select(static wireName => (CollectionElementSyntax)SyntaxFactory.ExpressionElement(
+                SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression, SyntaxFactory.Literal(wireName))));
+        return SyntaxFactory
+            .FieldDeclaration(SyntaxFactory
+                .VariableDeclaration(SyntaxFactory.ArrayType(
+                    SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword)),
+                    SyntaxFactory.SingletonList(SyntaxFactory.ArrayRankSpecifier(
+                        SyntaxFactory.SingletonSeparatedList<ExpressionSyntax>(SyntaxFactory.OmittedArraySizeExpression())))))
+                .WithVariables(SyntaxFactory.SingletonSeparatedList(SyntaxFactory
+                    .VariableDeclarator("MarkerWireNames")
+                    .WithInitializer(SyntaxFactory.EqualsValueClause(
+                        SyntaxFactory.CollectionExpression(SyntaxFactory.SeparatedList(elements)))))))
+            .WithModifiers(SyntaxFactory.TokenList(
+                SyntaxFactory.Token(SyntaxKind.PrivateKeyword),
+                SyntaxFactory.Token(SyntaxKind.StaticKeyword),
+                SyntaxFactory.Token(SyntaxKind.ReadOnlyKeyword)));
     }
 
     private static ExpressionStatementSyntax EmitPayloadMarkerCheck(LiteralKind kind, string wireName, ExpressionSyntax expected)
@@ -355,9 +403,9 @@ internal static class UnionEmitter
                 SyntaxFactory.Token(SyntaxKind.SealedKeyword)))
             .WithBaseList(SyntaxFactory.BaseList(SyntaxFactory.SingletonSeparatedList<BaseTypeSyntax>(
                 SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.Generic("JsonConverter", TypeSyntaxEmitter.EmitNamed(union.Name))))))
-            .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>(
+            .WithMembers(SyntaxFactory.List(
             [
-                EmitDispatchMap(union),
+                .. EmitDispatchMaps(union),
                 EmitDiscriminatorReader(),
                 EmitRead(union),
                 EmitWrite(union),
@@ -376,18 +424,43 @@ internal static class UnionEmitter
         return EmissionSyntax.CreateSource($"Internal/Serialization/{converterName}.cs", unit);
     }
 
-    private static FieldDeclarationSyntax EmitDispatchMap(UnionPlan union)
+    /// <summary>
+    /// One frozen table per marker property the union dispatches on, plus the ordered table
+    /// list the reader scans when there is more than one. Impossible tags belong to the
+    /// union's own marker: only a single-dialect union can declare them.
+    /// </summary>
+    private static List<MemberDeclarationSyntax> EmitDispatchMaps(UnionPlan union)
     {
-        var markerType = TypeSyntaxEmitter.EmitMarker(union.MarkerKind);
-        var hasImpossibleTags = union.KnownImpossibleTags.Count > 0;
-        var valueType = hasImpossibleTags
+        var valueType = union.KnownImpossibleTags.Count > 0
             ? (TypeSyntax)SyntaxFactory.NullableType(SyntaxFactory.IdentifierName("Type"))
             : SyntaxFactory.IdentifierName("Type");
+        var wireNames = MarkerWireNames(union);
+        var members = new List<MemberDeclarationSyntax>(wireNames.Count + 1);
+        foreach (var wireName in wireNames)
+        {
+            members.Add(EmitDispatchMap(union, wireName, valueType));
+        }
+
+        if (union.AlternateMarkerWireNames.Count > 0)
+        {
+            members.Add(EmitMarkerTables(union, valueType, wireNames));
+        }
+
+        return members;
+    }
+
+    private static FieldDeclarationSyntax EmitDispatchMap(UnionPlan union, string wireName, TypeSyntax valueType)
+    {
+        var markerType = TypeSyntaxEmitter.EmitMarker(union.MarkerKind);
+        var isOwnMarker = string.Equals(wireName, union.MarkerWireName, StringComparison.Ordinal);
         var dictionaryType = TypeSyntaxEmitter.Generic("Dictionary", markerType, valueType);
         var entries = union
             .Variants
+            .Where(variant => string.Equals(variant.MarkerWireName, wireName, StringComparison.Ordinal))
             .Select(static variant => new KeyValuePair<string, string?>(variant.Tag, variant.TypeName))
-            .Concat(union.KnownImpossibleTags.Select(static tag => new KeyValuePair<string, string?>(tag, null)))
+            .Concat(isOwnMarker
+                ? union.KnownImpossibleTags.Select(static tag => new KeyValuePair<string, string?>(tag, null))
+                : [])
             .OrderBy(static entry => entry.Key, StringComparer.Ordinal)
             .Select(entry => (ExpressionSyntax)SyntaxFactory.AssignmentExpression(
                 SyntaxKind.SimpleAssignmentExpression,
@@ -421,13 +494,54 @@ internal static class UnionEmitter
                 .VariableDeclaration(TypeSyntaxEmitter.Generic("FrozenDictionary", markerType, valueType))
                 .WithVariables(SyntaxFactory.SingletonSeparatedList(
                     SyntaxFactory
-                        .VariableDeclarator("TypesByTag")
+                        .VariableDeclarator(DispatchMapName(union, wireName))
                         .WithInitializer(SyntaxFactory.EqualsValueClause(frozen)))))
             .WithModifiers(SyntaxFactory.TokenList(
                 SyntaxFactory.Token(SyntaxKind.PrivateKeyword),
                 SyntaxFactory.Token(SyntaxKind.StaticKeyword),
                 SyntaxFactory.Token(SyntaxKind.ReadOnlyKeyword)));
     }
+
+    private static FieldDeclarationSyntax EmitMarkerTables(UnionPlan union, TypeSyntax valueType, IReadOnlyList<string> wireNames)
+    {
+        var tableType = TypeSyntaxEmitter.Generic("UnionMarkerTable", valueType);
+        var elements = wireNames.Select(wireName => (CollectionElementSyntax)SyntaxFactory.ExpressionElement(SyntaxFactory
+            .ObjectCreationExpression(tableType)
+            .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(
+            [
+                RuntimeStringArgument(wireName),
+                SyntaxFactory.Argument(SyntaxFactory.IdentifierName(DispatchMapName(union, wireName))),
+            ])))));
+        return SyntaxFactory
+            .FieldDeclaration(SyntaxFactory
+                .VariableDeclaration(SyntaxFactory.ArrayType(
+                    tableType,
+                    SyntaxFactory.SingletonList(SyntaxFactory.ArrayRankSpecifier(
+                        SyntaxFactory.SingletonSeparatedList<ExpressionSyntax>(SyntaxFactory.OmittedArraySizeExpression())))))
+                .WithVariables(SyntaxFactory.SingletonSeparatedList(SyntaxFactory
+                    .VariableDeclarator("MarkerTables")
+                    .WithInitializer(SyntaxFactory.EqualsValueClause(
+                        SyntaxFactory.CollectionExpression(SyntaxFactory.SeparatedList(elements)))))))
+            .WithModifiers(SyntaxFactory.TokenList(
+                SyntaxFactory.Token(SyntaxKind.PrivateKeyword),
+                SyntaxFactory.Token(SyntaxKind.StaticKeyword),
+                SyntaxFactory.Token(SyntaxKind.ReadOnlyKeyword)));
+    }
+
+    /// <summary>
+    /// The union's own marker keeps the uniform table name every single-dialect converter
+    /// uses; a further dialect's table is named for the wire property it reads.
+    /// </summary>
+    private static string DispatchMapName(UnionPlan union, string wireName) =>
+        string.Equals(wireName, union.MarkerWireName, StringComparison.Ordinal)
+            ? "TypesByTag"
+            : $"TypesBy{CSharpNamePolicy.ToPascalCase(wireName)}";
+
+    private static List<string> MarkerWireNames(UnionPlan union) => [union.MarkerWireName, .. union.AlternateMarkerWireNames];
+
+    /// <summary>Names every marker a payload may carry, for the messages that refuse one carrying none.</summary>
+    private static string MarkerDescription(UnionPlan union) =>
+        string.Join(" or ", MarkerWireNames(union).Select(static wireName => $"'{wireName}'"));
 
     private static MethodDeclarationSyntax EmitRead(UnionPlan union)
     {
@@ -615,21 +729,37 @@ internal static class UnionEmitter
                 EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("JsonValueKind"), "Object")),
             ThrowJson($"The {union.ConceptName} payload must be a JSON object."));
 
+    /// <summary>
+    /// The carrier's own read reproduces the base converter's fallback arm, so it accepts the
+    /// same markers in the same order: the first declared marker property the payload carries
+    /// is the one it preserves.
+    /// </summary>
     private static IfStatementSyntax EmitMarkerPresenceCheck(UnionPlan union)
     {
-        var tryGet = EmissionSyntax.Invocation(
-            EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("payload"), "TryGetProperty"),
-            SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
-                SyntaxKind.StringLiteralExpression,
-                SyntaxFactory.Literal(union.MarkerWireName))),
-            SyntaxFactory
-                .Argument(SyntaxFactory.DeclarationExpression(
+        ExpressionSyntax? absent = null;
+        var declare = true;
+        foreach (var wireName in MarkerWireNames(union))
+        {
+            var designation = declare
+                ? SyntaxFactory.Argument(SyntaxFactory.DeclarationExpression(
                     SyntaxFactory.IdentifierName("var"),
                     SyntaxFactory.SingleVariableDesignation(SyntaxFactory.Identifier("markerElement"))))
-                .WithRefKindKeyword(SyntaxFactory.Token(SyntaxKind.OutKeyword)));
+                : SyntaxFactory.Argument(SyntaxFactory.IdentifierName("markerElement"));
+            declare = false;
+            var missing = SyntaxFactory.PrefixUnaryExpression(SyntaxKind.LogicalNotExpression, EmissionSyntax.Invocation(
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("payload"), "TryGetProperty"),
+                SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
+                    SyntaxKind.StringLiteralExpression,
+                    SyntaxFactory.Literal(wireName))),
+                designation.WithRefKindKeyword(SyntaxFactory.Token(SyntaxKind.OutKeyword))));
+            absent = absent is null
+                ? missing
+                : SyntaxFactory.BinaryExpression(SyntaxKind.LogicalAndExpression, absent, missing);
+        }
+
         return SyntaxFactory.IfStatement(
-            SyntaxFactory.PrefixUnaryExpression(SyntaxKind.LogicalNotExpression, tryGet),
-            ThrowJson($"The {union.ConceptName} payload must contain '{union.MarkerWireName}'."));
+            absent ?? throw new InvalidOperationException($"Union '{union.ConceptName}' declares no marker property."),
+            ThrowJson($"The {union.ConceptName} payload must contain {MarkerDescription(union)}."));
     }
 
     private static IReadOnlyList<StatementSyntax> EmitMarkerRead(UnionPlan union) => union.MarkerKind switch
@@ -648,7 +778,7 @@ internal static class UnionEmitter
                 SyntaxKind.NotEqualsExpression,
                 EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("markerElement"), "ValueKind"),
                 EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("JsonValueKind"), "String")),
-            ThrowJson($"The '{union.MarkerWireName}' marker must be a string.")),
+            ThrowJson($"The {MarkerDescription(union)} marker must be a string.")),
         Local("marker", EmissionSyntax.Invocation(
             EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("markerElement"), "GetString"))),
         // An empty or whitespace marker is malformed input, classified before any dispatch so the
@@ -666,7 +796,7 @@ internal static class UnionEmitter
                         SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword)),
                         "IsNullOrWhiteSpace"),
                     SyntaxFactory.Argument(SyntaxFactory.IdentifierName("marker")))),
-            ThrowJson($"The '{union.MarkerWireName}' marker must be a non-empty string.")),
+            ThrowJson($"The {MarkerDescription(union)} marker must be a non-empty string.")),
     ];
 
     private static IReadOnlyList<StatementSyntax> EmitBooleanMarkerRead(UnionPlan union)
@@ -691,10 +821,35 @@ internal static class UnionEmitter
         ];
     }
 
-    private static IfStatementSyntax EmitKnownDispatch(UnionPlan union)
+    /// <summary>
+    /// The probe that answers whether the payload's marker is a declared one: a string marker
+    /// dispatches through the reader, which materializes the marker only on the unknown path,
+    /// and a union tagged by more than one dialect hands it the ordered table list instead of
+    /// one table. Any other kind has already read its marker.
+    /// </summary>
+    private static InvocationExpressionSyntax EmitDispatchProbe(UnionPlan union)
     {
-        var tryGet = union.MarkerKind is LiteralKind.String
+        if (union.MarkerKind is not LiteralKind.String)
+        {
+            return union.AlternateMarkerWireNames.Count > 0
+                ? throw new InvalidOperationException(
+                    $"Union '{union.ConceptName}' dispatches on more than one marker with kind '{union.MarkerKind}', which has no emission consumer.")
+                : EmissionSyntax.Invocation(
+                    EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("TypesByTag"), "TryGetValue"),
+                    SyntaxFactory.Argument(SyntaxFactory.IdentifierName("marker")),
+                    OutVariableArgument("targetType"));
+        }
+
+        return union.AlternateMarkerWireNames.Count > 0
             ? EmissionSyntax.Invocation(
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("DiscriminatorReader"), "TryFindKnown"),
+                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("reader"))
+                    .WithRefKindKeyword(SyntaxFactory.Token(SyntaxKind.RefKeyword)),
+                RuntimeStringArgument(union.ConceptName),
+                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("MarkerTables")),
+                OutVariableArgument("targetType"),
+                OutVariableArgument("marker"))
+            : EmissionSyntax.Invocation(
                 EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("DiscriminatorReader"), "TryFindKnown"),
                 SyntaxFactory.Argument(SyntaxFactory.IdentifierName("reader"))
                     .WithRefKindKeyword(SyntaxFactory.Token(SyntaxKind.RefKeyword)),
@@ -702,11 +857,12 @@ internal static class UnionEmitter
                 RuntimeStringArgument(union.ConceptName),
                 SyntaxFactory.Argument(SyntaxFactory.IdentifierName("TypesByTag")),
                 OutVariableArgument("targetType"),
-                OutVariableArgument("marker"))
-            : EmissionSyntax.Invocation(
-                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("TypesByTag"), "TryGetValue"),
-                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("marker")),
-                OutVariableArgument("targetType"));
+                OutVariableArgument("marker"));
+    }
+
+    private static IfStatementSyntax EmitKnownDispatch(UnionPlan union)
+    {
+        var tryGet = EmitDispatchProbe(union);
         var getTypeInfo = EmissionSyntax.Invocation(
             EmissionSyntax.MemberAccess(
                 EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("OpenCodeJsonContext"), "Default"),

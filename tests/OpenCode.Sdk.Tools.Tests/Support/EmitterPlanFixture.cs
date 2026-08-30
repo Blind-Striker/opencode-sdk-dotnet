@@ -754,6 +754,7 @@ internal static class EmitterPlanFixture
                 {
                     TypeName = "PhaseStartedEvent",
                     Tag = "started",
+                    MarkerWireName = "status",
                 }
             ],
             Description = "Represents an example nested phase union.",
@@ -850,11 +851,13 @@ internal static class EmitterPlanFixture
                 {
                     TypeName = "CreatedEvent",
                     Tag = "created",
+                    MarkerWireName = "type",
                 },
                 new UnionVariantPlan
                 {
                     TypeName = "DeletedEvent",
                     Tag = "deleted",
+                    MarkerWireName = "type",
                 },
             ],
             Description = "Represents an example event.",
@@ -876,6 +879,7 @@ internal static class EmitterPlanFixture
                 {
                     TypeName = "BadRequestError",
                     Tag = "BadRequestError",
+                    MarkerWireName = "_tag",
                 }
             ],
             Description = "Represents an opencode API error.",

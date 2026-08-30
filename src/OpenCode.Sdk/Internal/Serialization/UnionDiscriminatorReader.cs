@@ -31,6 +31,84 @@ internal sealed class UnionDiscriminatorReader
         ArgumentNullException.ThrowIfNull(typesByTag);
 
         var markerReader = Find(ref reader, propertyName, conceptName);
+        return Dispatch(ref markerReader, propertyName, typesByTag, out type, out marker);
+    }
+
+    /// <summary>
+    /// The multi-dialect twin of <see cref="TryFindKnown{TValue}(ref Utf8JsonReader, string, string, FrozenDictionary{string, TValue}, out TValue, out string)"/>:
+    /// the first declared marker property the payload carries decides the dispatch, so a union
+    /// tagged by two wire dialects reads either without a second pass or a JSON DOM. A payload
+    /// carrying none of them is malformed under this union's contract.
+    /// </summary>
+    public bool TryFindKnown<TValue>(
+        ref Utf8JsonReader reader,
+        string conceptName,
+        UnionMarkerTable<TValue>[] markerTables,
+        [MaybeNullWhen(false)] out TValue type,
+        [NotNullWhen(false)] out string? marker)
+    {
+        ArgumentNullException.ThrowIfNull(markerTables);
+
+        foreach (var table in markerTables)
+        {
+            if (!TryFind(ref reader, table.PropertyName, conceptName, out var candidate))
+            {
+                continue;
+            }
+
+            return Dispatch(ref candidate, table.PropertyName, table.Types, out type, out marker);
+        }
+
+        throw new JsonException($"The {conceptName} payload must contain {DescribeMarkers(markerTables)}.");
+    }
+
+    public bool ReadBoolean(ref Utf8JsonReader reader, string propertyName, string conceptName)
+    {
+        var marker = Find(ref reader, propertyName, conceptName);
+        if (marker.TokenType is not (JsonTokenType.True or JsonTokenType.False))
+        {
+            throw new JsonException($"The '{propertyName}' marker must be a boolean.");
+        }
+
+        return marker.GetBoolean();
+    }
+
+    public void RequireString(ref Utf8JsonReader reader, string propertyName, string expected, string conceptName)
+    {
+        var marker = Find(ref reader, propertyName, conceptName);
+        if (marker.TokenType is not JsonTokenType.String || !marker.ValueTextEquals(expected))
+        {
+            throw new JsonException($"The '{propertyName}' marker must be '{expected}'.");
+        }
+    }
+
+    public void RequireBoolean(ref Utf8JsonReader reader, string propertyName, bool expected, string conceptName)
+    {
+        var marker = Find(ref reader, propertyName, conceptName);
+        if (marker.TokenType != (expected ? JsonTokenType.True : JsonTokenType.False))
+        {
+            throw new JsonException($"The '{propertyName}' marker must be '{expected}'.");
+        }
+    }
+
+    private static string DescribeMarkers<TValue>(UnionMarkerTable<TValue>[] markerTables)
+    {
+        var names = new string[markerTables.Length];
+        for (var index = 0; index < markerTables.Length; index++)
+        {
+            names[index] = $"'{markerTables[index].PropertyName}'";
+        }
+
+        return string.Join(" or ", names);
+    }
+
+    private static bool Dispatch<TValue>(
+        ref Utf8JsonReader markerReader,
+        string propertyName,
+        FrozenDictionary<string, TValue> typesByTag,
+        [MaybeNullWhen(false)] out TValue type,
+        [NotNullWhen(false)] out string? marker)
+    {
         if (markerReader.TokenType is not JsonTokenType.String)
         {
             throw new JsonException($"The '{propertyName}' marker must be a string.");
@@ -76,36 +154,17 @@ internal sealed class UnionDiscriminatorReader
         return false;
     }
 
-    public bool ReadBoolean(ref Utf8JsonReader reader, string propertyName, string conceptName)
-    {
-        var marker = Find(ref reader, propertyName, conceptName);
-        if (marker.TokenType is not (JsonTokenType.True or JsonTokenType.False))
-        {
-            throw new JsonException($"The '{propertyName}' marker must be a boolean.");
-        }
+    private Utf8JsonReader Find(ref Utf8JsonReader reader, string propertyName, string conceptName) =>
+        TryFind(ref reader, propertyName, conceptName, out var marker)
+            ? marker
+            : throw new JsonException($"The {conceptName} payload must contain '{propertyName}'.");
 
-        return marker.GetBoolean();
-    }
-
-    public void RequireString(ref Utf8JsonReader reader, string propertyName, string expected, string conceptName)
-    {
-        var marker = Find(ref reader, propertyName, conceptName);
-        if (marker.TokenType is not JsonTokenType.String || !marker.ValueTextEquals(expected))
-        {
-            throw new JsonException($"The '{propertyName}' marker must be '{expected}'.");
-        }
-    }
-
-    public void RequireBoolean(ref Utf8JsonReader reader, string propertyName, bool expected, string conceptName)
-    {
-        var marker = Find(ref reader, propertyName, conceptName);
-        if (marker.TokenType != (expected ? JsonTokenType.True : JsonTokenType.False))
-        {
-            throw new JsonException($"The '{propertyName}' marker must be '{expected}'.");
-        }
-    }
-
-    private Utf8JsonReader Find(ref Utf8JsonReader reader, string propertyName, string conceptName)
+    /// <summary>
+    /// Scans for one marker property without judging its absence: a union dispatching on more
+    /// than one dialect asks for each in turn, and only the last absence is a malformed payload.
+    /// A payload that is not a well-formed object still throws here, on the first ask.
+    /// </summary>
+    private bool TryFind(ref Utf8JsonReader reader, string propertyName, string conceptName, out Utf8JsonReader value)
     {
         if (reader.TokenType != _objectToken)
         {
@@ -140,11 +199,7 @@ internal sealed class UnionDiscriminatorReader
             }
         }
 
-        if (!found)
-        {
-            throw new JsonException($"The {conceptName} payload must contain '{propertyName}'.");
-        }
-
-        return marker;
+        value = marker;
+        return found;
     }
 }

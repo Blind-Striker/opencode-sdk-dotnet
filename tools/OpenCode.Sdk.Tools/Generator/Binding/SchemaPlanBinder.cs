@@ -204,6 +204,7 @@ internal sealed class SchemaPlanBinder(
             {
                 TypeName = branch.TypeName,
                 Tag = tag,
+                MarkerWireName = marker.PropertyName,
                 IsNestedUnion = branch.IsNestedUnion,
             });
         }
@@ -415,13 +416,6 @@ internal sealed class SchemaPlanBinder(
             return null;
         }
 
-        var styles = errorsInClosure.Select(static pair => pair.Value.ErrorStyle).Distinct().ToArray();
-        if (styles is not [ErrorStyle.EffectTag])
-        {
-            errors.Add(BindingErrorCategory.Schema, "OpenCodeError", "selected errors must use the Effect _tag style in M1");
-            return null;
-        }
-
         var variants = new List<UnionVariantPlan>(errorsInClosure.Count);
         foreach (var (key, objectNode) in errorsInClosure.OrderBy(static pair => pair.Key, StringComparer.Ordinal))
         {
@@ -431,10 +425,9 @@ internal sealed class SchemaPlanBinder(
                 continue;
             }
 
-            var markers = objectNode.LiteralMarkers.Where(static marker => marker.PropertyName is "_tag").ToArray();
-            if (markers is not [var marker])
+            if (ErrorMarkerPolicy.Resolve(objectNode, out var problem) is not { } marker)
             {
-                errors.Add(BindingErrorCategory.Schema, key, "Effect error must declare exactly one required _tag literal");
+                errors.Add(BindingErrorCategory.Schema, key, problem);
                 continue;
             }
 
@@ -443,39 +436,56 @@ internal sealed class SchemaPlanBinder(
             {
                 TypeName = typeName,
                 Tag = marker.Value,
+                MarkerWireName = marker.PropertyName,
             });
         }
 
-        // A tag owned by two closure types would poison the converter's dispatch map at its
-        // first use; structurally identical duplicates have the schema-alias escape.
-        var duplicateTags = variants
-            .GroupBy(static variant => variant.Tag, StringComparer.Ordinal)
-            .Where(static group => group.Skip(1).Any())
-            .Select(static group => group.Key)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
-        if (duplicateTags.Length > 0)
+        if (variants.Count is 0 || !ReportDuplicateErrorTags(variants, errors))
         {
-            foreach (var tag in duplicateTags)
-            {
-                errors.Add(BindingErrorCategory.Schema, "OpenCodeError", $"multiple error schemas declare tag '{tag}'");
-            }
-
             return null;
         }
 
+        // The union's own marker is the first dialect the closure actually uses; the rest ride
+        // as alternates so the emitted converter scans them in the same declared order.
+        var markerWireNames = ErrorMarkerPolicy
+            .ScanOrder
+            .Where(wireName => variants.Any(variant => string.Equals(variant.MarkerWireName, wireName, StringComparison.Ordinal)))
+            .ToArray();
         return new UnionPlan
         {
             Name = CSharpNamePolicy.ToUnionInterfaceName("OpenCodeError"),
             ConceptName = "OpenCodeError",
             Namespace = GeneratedNamespace.Models,
             UnknownTypeName = "UnknownOpenCodeError",
-            MarkerWireName = "_tag",
+            MarkerWireName = markerWireNames[0],
             MarkerName = "Tag",
             MarkerKind = LiteralKind.String,
+            AlternateMarkerWireNames = markerWireNames[1..],
             Variants = [.. variants.OrderBy(static variant => variant.TypeName, StringComparer.Ordinal)],
             Description = "Represents a typed error returned by the opencode API.",
         };
+    }
+
+    /// <summary>
+    /// One tag owned by two closure types would poison the converter's dispatch map at its
+    /// first use, and the reader's per-status filter reads the same one member on either
+    /// dialect, so a collision refuses naming its owners; structurally identical duplicates
+    /// have the schema-alias escape.
+    /// </summary>
+    private static bool ReportDuplicateErrorTags(IReadOnlyList<UnionVariantPlan> variants, BindingErrorCollector errors)
+    {
+        var duplicates = variants
+            .GroupBy(static variant => variant.Tag, StringComparer.Ordinal)
+            .Where(static group => group.Skip(1).Any())
+            .OrderBy(static group => group.Key, StringComparer.Ordinal)
+            .ToArray();
+        foreach (var group in duplicates)
+        {
+            var owners = string.Join(", ", group.Select(static variant => variant.TypeName).Order(StringComparer.Ordinal));
+            errors.Add(BindingErrorCategory.Schema, "OpenCodeError", $"multiple error schemas declare tag '{group.Key}' ({owners})");
+        }
+
+        return duplicates.Length is 0;
     }
 
     private static ObjectModelPlan? BindObject(string key, string name, ObjectNode node, Dictionary<string, List<string>> inheritance,

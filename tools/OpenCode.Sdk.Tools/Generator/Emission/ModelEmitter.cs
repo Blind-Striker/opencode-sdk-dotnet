@@ -38,9 +38,10 @@ internal static class ModelEmitter
     {
         // A variant overrides one abstract marker per level of its union chain: a nested
         // union's variant carries both its own tag and the fixed outer tag.
-        var chainMarkers = GetChainMarkerWireNames(implemented, unions);
-        var unmatched = chainMarkers.Find(wireName =>
-            model.Properties.Count(property => IsDiscriminator(property, wireName)) is not 1);
+        var chainMarkers = GetChainMarkers(model.Name, implemented, unions);
+        var unmatched = chainMarkers
+            .Select(static marker => marker.WireName)
+            .FirstOrDefault(wireName => model.Properties.Count(property => IsDiscriminator(property, wireName)) is not 1);
         if (unmatched is not null)
         {
             throw new InvalidOperationException($"Union variant '{model.Name}' must carry exactly one '{unmatched}' marker.");
@@ -55,8 +56,7 @@ internal static class ModelEmitter
             .WithCloseBraceToken(SyntaxFactory.Token(SyntaxKind.CloseBraceToken))
             .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>(
             [
-                .. model.Properties.Select(property =>
-                    EmitProperty(property, chainMarkers.Any(wireName => IsDiscriminator(property, wireName)))),
+                .. model.Properties.Select(property => EmitProperty(property, MarkerMemberName(chainMarkers, property))),
                 .. model.RequestQueryProperties.Select(static property => EmitRequestQueryProperty(property)),
             ]))
             .WithLeadingTrivia(EmissionSyntax.Documentation(model.Description ?? $"Represents a {DisplayName(model.Name)} value."));
@@ -107,12 +107,18 @@ internal static class ModelEmitter
             .WithLeadingTrivia(documentation);
     }
 
-    private static PropertyDeclarationSyntax EmitProperty(ModelPropertyPlan property, bool isDiscriminator)
+    /// <summary>
+    /// A discriminator is emitted under the marker member its union promises rather than under
+    /// the property's own derived name, so a variant tagged by a second dialect's wire property
+    /// still satisfies the one interface member. The wire name it serializes as is untouched.
+    /// </summary>
+    private static PropertyDeclarationSyntax EmitProperty(ModelPropertyPlan property, string? markerMemberName)
     {
+        var memberName = markerMemberName ?? property.Name;
         var declaration = SyntaxFactory
-            .PropertyDeclaration(TypeSyntaxEmitter.Emit(property.Type), property.Name)
+            .PropertyDeclaration(TypeSyntaxEmitter.Emit(property.Type), memberName)
             .AddAttributeLists(EmissionSyntax.Attribute("JsonPropertyName", EmissionSyntax.StringArgument(property.WireName)))
-            .WithLeadingTrivia(EmissionSyntax.Documentation(property.Description ?? $"Gets the {DisplayName(property.Name)} value."));
+            .WithLeadingTrivia(EmissionSyntax.Documentation(property.Description ?? $"Gets the {DisplayName(memberName)} value."));
         if (ContainsSpecialNumber(property.Type))
         {
             declaration = declaration.AddAttributeLists(EmissionSyntax.Attribute(
@@ -133,7 +139,7 @@ internal static class ModelEmitter
                     .WithNameEquals(SyntaxFactory.NameEquals("Condition"))));
         }
 
-        if (isDiscriminator)
+        if (markerMemberName is not null)
         {
             return declaration
                 .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
@@ -236,23 +242,32 @@ internal static class ModelEmitter
     private static bool IsDiscriminator(ModelPropertyPlan property, string markerWireName) =>
         property.IsLiteral && string.Equals(property.WireName, markerWireName, StringComparison.Ordinal);
 
+    private static string? MarkerMemberName(IEnumerable<(string WireName, string MemberName)> markers, ModelPropertyPlan property) =>
+        markers
+            .Where(marker => IsDiscriminator(property, marker.WireName))
+            .Select(static marker => marker.MemberName)
+            .FirstOrDefault();
+
     /// <summary>
     /// The marker each union in the schema's membership expects it to carry, walking every
-    /// chain. Two unions may name different markers, and the schema then carries both; the
-    /// same name is one property serving both contracts.
+    /// chain, paired with the member name that union promises for it. Two unions may name
+    /// different markers, and the schema then carries both; the same name is one property
+    /// serving both contracts. A union that dispatches on more than one wire property reads
+    /// this schema's own variant entry, so each variant answers under the union's one member.
     /// </summary>
-    private static List<string> GetChainMarkerWireNames(IReadOnlyList<UnionPlan> implemented,
-        IReadOnlyDictionary<string, UnionPlan> unions)
+    private static List<(string WireName, string MemberName)> GetChainMarkers(string modelName,
+        IReadOnlyList<UnionPlan> implemented, IReadOnlyDictionary<string, UnionPlan> unions)
     {
-        var result = new List<string>();
+        var result = new List<(string WireName, string MemberName)>();
         foreach (var union in implemented)
         {
             var current = union;
             while (current is not null)
             {
-                if (!result.Contains(current.MarkerWireName, StringComparer.Ordinal))
+                var wireName = VariantMarkerWireName(current, modelName);
+                if (!result.Any(entry => string.Equals(entry.WireName, wireName, StringComparison.Ordinal)))
                 {
-                    result.Add(current.MarkerWireName);
+                    result.Add((wireName, current.MarkerName));
                 }
 
                 current = current.BaseTypeName is not null && unions.TryGetValue(current.BaseTypeName, out var outer)
@@ -263,6 +278,12 @@ internal static class ModelEmitter
 
         return result;
     }
+
+    private static string VariantMarkerWireName(UnionPlan union, string modelName) =>
+        union
+            .Variants.FirstOrDefault(variant => string.Equals(variant.TypeName, modelName, StringComparison.Ordinal))
+            ?.MarkerWireName
+        ?? union.MarkerWireName;
 
     private static string DisplayName(string name) =>
         string.Join(' ', CSharpNamePolicy.SplitWords(name).Select(static word => word.ToLowerInvariant()));

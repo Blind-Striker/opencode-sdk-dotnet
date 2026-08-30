@@ -1209,6 +1209,100 @@ public sealed class SpecBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Bind_An_Error_Closure_Mixing_The_Tag_And_Name_Styles()
+    {
+        var document = await IngestAsync(MixedErrorStyleScenario(
+            static schema => schema
+                .Type("object")
+                .Property("name", property => property.Type("string").Enum("WorkError"), required: true)
+                .Property(
+                    "data",
+                    property => property
+                        .Type("object")
+                        .Property("message", inner => inner.Type("string"), required: true),
+                    required: true)));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+            {
+                ["health"] = RootGroup(),
+            }));
+
+        var union = plan.Unions.Single(static union => union.Name == "IOpenCodeError");
+        await Assert.That(union.MarkerWireName).IsEqualTo("_tag");
+        await Assert.That(union.MarkerName).IsEqualTo("Tag");
+        await Assert.That(union.AlternateMarkerWireNames.SequenceEqual(["name"], StringComparer.Ordinal)).IsTrue();
+
+        var gone = union.Variants.Single(static variant => variant.TypeName == "GoneError");
+        await Assert.That(gone.MarkerWireName).IsEqualTo("_tag");
+        await Assert.That(gone.Tag).IsEqualTo("GoneError");
+
+        var work = union.Variants.Single(static variant => variant.TypeName == "WorkError");
+        await Assert.That(work.MarkerWireName).IsEqualTo("name");
+        await Assert.That(work.Tag).IsEqualTo("WorkError");
+        await Assert.That(plan.Models.Any(static model => model.Name == "WorkErrorData")).IsTrue();
+
+        var operation = plan.Clients.Single().Operations.Single();
+        var badRequest = operation.ErrorMap.Statuses.Single(static status => status.StatusCode == 400);
+        await Assert.That(badRequest.Tags.Select(static tag => tag.Tag).SequenceEqual(["WorkError"], StringComparer.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Marker_Value_Owned_By_Two_Error_Styles()
+    {
+        var document = await IngestAsync(MixedErrorStyleScenario(
+            static schema => schema
+                .Type("object")
+                .Property("name", property => property.Type("string").Enum("GoneError"), required: true)
+                .Property(
+                    "data",
+                    property => property
+                        .Type("object")
+                        .Property("message", inner => inner.Type("string"), required: true),
+                    required: true)));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+            {
+                ["health"] = RootGroup(),
+            })));
+
+        await Assert
+            .That(exception.Errors.Any(static error =>
+                error.Problem.Contains("multiple error schemas declare tag 'GoneError' (GoneError, WorkError)", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_An_Error_Response_Whose_Name_Literal_Carries_No_Required_Data()
+    {
+        var document = await IngestAsync(MixedErrorStyleScenario(
+            static schema => schema
+                .Type("object")
+                .Property("name", property => property.Type("string").Enum("WorkError"), required: true)
+                .Property("data", property => property
+                    .Type("object")
+                    .Property("message", inner => inner.Type("string"), required: true))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+            {
+                ["health"] = RootGroup(),
+            })));
+
+        await Assert
+            .That(exception.Errors.Any(static error =>
+                error.Problem.Contains("error responses must reference tagged error schemas", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
     public async Task Bind_Should_Refuse_An_Unrecognized_Group_Placement()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
@@ -1674,6 +1768,25 @@ public sealed class SpecBinderTests
                                                 && error.Problem.Contains(expectedProblem, StringComparison.Ordinal)))
             .IsTrue();
     }
+
+    /// <summary>
+    /// One Effect <c>_tag</c> error and one caller-varied second error schema in the same
+    /// closure, so a test varies only the dialect under examination.
+    /// </summary>
+    private static SpecScenario MixedErrorStyleScenario(Action<SchemaBuilder> second) =>
+        SpecScenario.Define(spec => spec
+            .WithSchema("ItemInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("GoneError", schema => schema
+                .Type("object")
+                .Property("_tag", property => property.Type("string").Enum("GoneError"), required: true)
+                .Property("message", property => property.Type("string"), required: true))
+            .WithSchema("WorkError", second)
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("ItemInfo"))
+                .Response(400, "application/json", schema => schema.Ref("WorkError"))
+                .Response(404, "application/json", schema => schema.Ref("GoneError"))));
 
     private static SpecScenario DuplicateTagScenario(Action<SchemaBuilder>? duplicate = null) =>
         SpecScenario.Define(spec => DefineDuplicateTagSpec(spec, duplicate ?? DefaultDuplicate));

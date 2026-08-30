@@ -26,6 +26,31 @@ internal sealed class UnionPayloadGuard
         }
     }
 
+    /// <summary>
+    /// The multi-dialect twin of <see cref="RequireString"/>: the carrier of a union tagged by
+    /// two wire dialects agrees with the payload when any one of the declared marker properties
+    /// carries the constructor marker, and the payload names the dialect it used.
+    /// </summary>
+    public void RequireStringAmong(JsonElement payload, string[] propertyNames, string expected)
+    {
+        ArgumentNullException.ThrowIfNull(propertyNames);
+
+        if (payload.ValueKind is JsonValueKind.Object)
+        {
+            foreach (var propertyName in propertyNames)
+            {
+                if (payload.TryGetProperty(propertyName, out var marker)
+                    && marker.ValueKind == _stringToken
+                    && marker.ValueEquals(expected))
+                {
+                    return;
+                }
+            }
+        }
+
+        throw Mismatch(string.Join("' or '", propertyNames), nameof(payload));
+    }
+
     public void RequireBoolean(JsonElement payload, string propertyName, bool expected)
     {
         if (payload.ValueKind is not JsonValueKind.Object
