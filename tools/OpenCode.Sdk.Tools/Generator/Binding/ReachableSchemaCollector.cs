@@ -16,12 +16,23 @@ internal sealed class ReachableSchemaCollector
         var traversal = new ReachabilityTraversal(document.Schemas, errors, _comparer);
         foreach (var operation in operations)
         {
-            // Query parameter schemas never generate models: the options binder consumes
-            // them shape-wise and fails closed on anything it does not recognize.
-            foreach (var parameter in operation.Parameters
-                         .Where(static parameter => parameter.Location is SpecParameterLocation.Path))
+            foreach (var parameter in operation.Parameters)
             {
-                traversal.Visit(parameter.Schema);
+                if (parameter.Location is SpecParameterLocation.Path)
+                {
+                    traversal.Visit(parameter.Schema);
+                    continue;
+                }
+
+                // Query parameter schemas otherwise generate no models: the query binder
+                // consumes them shape-wise and fails closed on anything it does not
+                // recognize. The exception is an enum outside the spine profiles, which the
+                // request property is typed with and therefore needs as a public model.
+                if (parameter.Location is SpecParameterLocation.Query
+                    && QueryEnumShapePolicy.ResolveModelKey(parameter.Schema, document.Schemas) is { } enumKey)
+                {
+                    traversal.VisitKey(enumKey);
+                }
             }
 
             if (operation.RequestBody is not null)
@@ -142,6 +153,13 @@ internal sealed class ReachableSchemaCollector
         public void Visit(SchemaNode schema)
         {
             Visit(schema, isStreamCause: false);
+        }
+
+        /// <summary>Reaches a schema the caller resolved to a graph key rather than to a node.</summary>
+        public void VisitKey(string target)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(target);
+            VisitReference(target, isStreamCause: false);
         }
 
         private void Visit(SchemaNode schema, bool isStreamCause)

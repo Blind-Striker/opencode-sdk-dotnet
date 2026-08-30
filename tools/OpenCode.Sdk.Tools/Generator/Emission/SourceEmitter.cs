@@ -14,7 +14,7 @@ internal static class SourceEmitter
         sources.AddRange(RegistryEmitter.Emit(plan.Registry));
         if (plan.Clients.Count > 0)
         {
-            sources.Add(RoutesEmitter.Emit(plan.Clients));
+            sources.Add(RoutesEmitter.Emit(plan.Clients, plan.Models));
             sources.AddRange(QueryRequestEmitter.Emit(plan.Clients));
             sources.AddRange(EnvelopeDtoEmitter.Emit(plan.Clients));
             sources.AddRange(EnvelopeEmitter.Emit(plan.Clients));

@@ -8,24 +8,30 @@ namespace OpenCode.Sdk.Tools.Generator.Emission;
 
 internal static class RoutesEmitter
 {
-    public static GeneratedSource Emit(IReadOnlyList<ClientPlan> clients)
+    public static GeneratedSource Emit(IReadOnlyList<ClientPlan> clients, IReadOnlyList<ModelPlan> models)
     {
         ArgumentNullException.ThrowIfNull(clients);
+        ArgumentNullException.ThrowIfNull(models);
 
         var operations = clients.SelectMany(static client => client.Operations).ToArray();
-        var containers = operations
+        var members = new List<MemberDeclarationSyntax>(operations
             .GroupBy(static operation => operation.RouteContainerName, StringComparer.Ordinal)
             .OrderBy(static container => container.Key, StringComparer.Ordinal)
-            .Select(EmitContainer)
-            .ToArray();
+            .Select(EmitContainer));
+        members.AddRange(QueryEnumWireValueEmitter.Emit(operations, models));
         var declaration = SyntaxFactory.ClassDeclaration("OpenCodeRoutes")
             .WithModifiers(SyntaxFactory.TokenList(
                 SyntaxFactory.Token(SyntaxKind.PublicKeyword),
                 SyntaxFactory.Token(SyntaxKind.StaticKeyword)))
-            .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>(containers))
+            .WithMembers(SyntaxFactory.List(members))
             .WithLeadingTrivia(EmissionSyntax.Documentation("Defines the wire route of every generated operation."));
         var usings = new List<string>();
-        if (operations.Any(static operation => operation.Parameters.Count > 0))
+
+        // System carries the route-value guards, the required-request guard, and the
+        // out-of-range refusal an enum converter falls through to.
+        if (operations.Any(static operation => operation.Parameters.Count > 0
+                                               || operation.QueryRequest is { HasRequiredMember: true })
+            || QueryEnumWireValueEmitter.EnumTypeNames(operations).Any())
         {
             usings.Add("System");
         }
@@ -35,8 +41,10 @@ internal static class RoutesEmitter
             usings.Add("OpenCode.Sdk.Internal");
         }
 
-        // A merged request types its route builder with the body model.
-        if (operations.Any(static operation => operation.QueryRequest is { RidesRequestBody: true }))
+        // A merged request types its route builder with the body model, and an enum query
+        // member types its converter with the generated enum.
+        if (operations.Any(static operation => operation.QueryRequest is { RidesRequestBody: true })
+            || QueryEnumWireValueEmitter.EnumTypeNames(operations).Any())
         {
             usings.Add("OpenCode.Sdk.Models");
         }
@@ -94,6 +102,11 @@ internal static class RoutesEmitter
             statements.AddRange(EmissionSyntax.RouteValueGuard(parameter.Name));
         }
 
+        if (operation.QueryRequest is { HasRequiredMember: true })
+        {
+            statements.AddRange(EmissionSyntax.ArgumentNullGuard(ReservedNamePolicy.RequestParameter));
+        }
+
         if (operation.QueryRequest is null)
         {
             statements.Add(SyntaxFactory.ReturnStatement(EmitConcatenation(operation)));
@@ -134,40 +147,49 @@ internal static class RoutesEmitter
                 .WithType(TypeSyntaxEmitter.EmitNamed(parameter.TypeName));
         }
 
-        if (operation.QueryRequest is not null)
+        if (operation.QueryRequest is { } queryRequest)
         {
-            yield return SyntaxFactory.Parameter(SyntaxFactory.Identifier(ReservedNamePolicy.RequestParameter))
-                .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(operation.QueryRequest.TypeName)))
-                .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)));
+            var parameter = SyntaxFactory.Parameter(SyntaxFactory.Identifier(ReservedNamePolicy.RequestParameter));
+            yield return queryRequest.HasRequiredMember
+                ? parameter.WithType(TypeSyntaxEmitter.EmitNamed(queryRequest.TypeName))
+                : parameter
+                    .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(queryRequest.TypeName)))
+                    .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)));
         }
     }
 
-    /// <summary>An unset request short-circuits to the bare path; a set one appends the composed query suffix.</summary>
+    /// <summary>
+    /// An unset optional request short-circuits to the bare path; a set one appends the
+    /// composed query suffix. A request carrying a required member is never unset, so it
+    /// composes unconditionally.
+    /// </summary>
     private static IEnumerable<StatementSyntax> EmitQueryComposition(OperationPlan operation)
     {
         yield return SyntaxFactory.LocalDeclarationStatement(SyntaxFactory.VariableDeclaration(
             SyntaxFactory.IdentifierName("var"),
             SyntaxFactory.SingletonSeparatedList(SyntaxFactory.VariableDeclarator("path")
                 .WithInitializer(SyntaxFactory.EqualsValueClause(EmitConcatenation(operation))))));
-        yield return SyntaxFactory.IfStatement(
-            SyntaxFactory.IsPatternExpression(
-                SyntaxFactory.IdentifierName(ReservedNamePolicy.RequestParameter),
-                SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
-            SyntaxFactory.Block(SyntaxFactory.ReturnStatement(SyntaxFactory.IdentifierName("path"))));
+        if (!operation.QueryRequest!.HasRequiredMember)
+        {
+            yield return SyntaxFactory.IfStatement(
+                SyntaxFactory.IsPatternExpression(
+                    SyntaxFactory.IdentifierName(ReservedNamePolicy.RequestParameter),
+                    SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression))),
+                SyntaxFactory.Block(SyntaxFactory.ReturnStatement(SyntaxFactory.IdentifierName("path"))));
+        }
+
         yield return SyntaxFactory.LocalDeclarationStatement(SyntaxFactory.VariableDeclaration(
             SyntaxFactory.IdentifierName("var"),
             SyntaxFactory.SingletonSeparatedList(SyntaxFactory.VariableDeclarator("query")
                 .WithInitializer(SyntaxFactory.EqualsValueClause(SyntaxFactory.ObjectCreationExpression(
                         TypeSyntaxEmitter.EmitNamed("QueryStringBuilder"))
                     .WithArgumentList(SyntaxFactory.ArgumentList()))))));
-        foreach (var property in operation.QueryRequest!.Properties)
+        foreach (var property in operation.QueryRequest.Properties)
         {
             var arguments = new List<ArgumentSyntax>
             {
                 SyntaxFactory.Argument(StringLiteral(property.WireName)),
-                SyntaxFactory.Argument(EmissionSyntax.MemberAccess(
-                    SyntaxFactory.IdentifierName(ReservedNamePolicy.RequestParameter),
-                    property.PropertyName)),
+                SyntaxFactory.Argument(EmitValueArgument(property)),
             };
             yield return SyntaxFactory.ExpressionStatement(EmissionSyntax.Invocation(
                 EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("query"), QueryAddMethod(property.Kind)),
@@ -180,9 +202,25 @@ internal static class RoutesEmitter
             EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("query"), "Value")));
     }
 
+    /// <summary>
+    /// An enum member reaches the builder already spelled for the wire, so the hand-written
+    /// spine keeps one text channel instead of a per-enum overload it cannot know about.
+    /// </summary>
+    private static ExpressionSyntax EmitValueArgument(QueryPropertyPlan property)
+    {
+        var member = EmissionSyntax.MemberAccess(
+            SyntaxFactory.IdentifierName(ReservedNamePolicy.RequestParameter),
+            property.PropertyName);
+        return property.Kind is QueryValueKind.Enum
+            ? EmissionSyntax.Invocation(
+                SyntaxFactory.IdentifierName(QueryEnumWireValueEmitter.ConverterName),
+                SyntaxFactory.Argument(member))
+            : member;
+    }
+
     private static string QueryAddMethod(QueryValueKind kind) => kind switch
     {
-        QueryValueKind.Text => "AddText",
+        QueryValueKind.Text or QueryValueKind.Enum => "AddText",
         QueryValueKind.ListOrder => "AddOrder",
         QueryValueKind.BooleanText => "AddBoolean",
         QueryValueKind.SessionParentFilter => "AddParentFilter",

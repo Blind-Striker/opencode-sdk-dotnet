@@ -29,6 +29,13 @@ internal static class OperationMethodEmitter
             statements.AddRange(EmissionSyntax.ArgumentNullGuard(requiredBody.ParameterName));
         }
 
+        // A query request carrying a required member is itself required, and guards exactly
+        // like a required body does.
+        if (operation.QueryRequest is { RidesRequestBody: false, HasRequiredMember: true })
+        {
+            statements.AddRange(EmissionSyntax.ArgumentNullGuard(ReservedNamePolicy.RequestParameter));
+        }
+
         statements.AddRange(EmitDeclaredHeaderCollection(operation));
         statements.Add(SyntaxFactory.ReturnStatement(EmitDelegation(operation)));
         var returnType = operation.Stream is { } streaming
@@ -107,12 +114,14 @@ internal static class OperationMethodEmitter
         }
 
         // A merged request already surfaced as the body parameter above.
-        if (operation.QueryRequest is { RidesRequestBody: false })
+        if (operation.QueryRequest is { RidesRequestBody: false } queryRequest)
         {
-            yield return SyntaxFactory
-                .Parameter(SyntaxFactory.Identifier(ReservedNamePolicy.RequestParameter))
-                .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(operation.QueryRequest.TypeName)))
-                .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)));
+            var request = SyntaxFactory.Parameter(SyntaxFactory.Identifier(ReservedNamePolicy.RequestParameter));
+            yield return queryRequest.HasRequiredMember
+                ? request.WithType(TypeSyntaxEmitter.EmitNamed(queryRequest.TypeName))
+                : request
+                    .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(queryRequest.TypeName)))
+                    .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)));
         }
 
         // Declared headers close the wire inputs, ahead of the SDK's own per-call knobs.
@@ -244,9 +253,13 @@ internal static class OperationMethodEmitter
                     : "The request body."));
         }
 
-        if (operation.QueryRequest is { RidesRequestBody: false })
+        if (operation.QueryRequest is { RidesRequestBody: false } documentedQuery)
         {
-            parameters.Add(new DocumentedParameter(ReservedNamePolicy.RequestParameter, "The request shaping the query."));
+            parameters.Add(new DocumentedParameter(
+                ReservedNamePolicy.RequestParameter,
+                documentedQuery.HasRequiredMember
+                    ? "The request shaping the query; its required members have no server default."
+                    : "The request shaping the query."));
         }
 
         parameters.AddRange(operation.DeclaredHeaders.Select(static header =>

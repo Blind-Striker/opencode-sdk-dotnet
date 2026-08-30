@@ -19,6 +19,7 @@ internal sealed class SchemaNameResolver
 
         var responseRoots = reachable.ResponseRootKeys.ToHashSet(_comparer);
         var requestRoots = ResolveRequestBodyRootNames(selected, errors);
+        var queryEnumRoots = ResolveQueryEnumRootNames(document, selected);
         var payloadRoots = ResolveEnvelopePayloadRootNames(document, selected, errors);
         var effectStreamTypes = ResolveEffectStreamTypeNames(document, selected);
         var artifacts = new ProjectionArtifactNamePolicy(document.Schemas.Keys);
@@ -48,6 +49,10 @@ internal sealed class SchemaNameResolver
             else if (requestRoots.TryGetValue(key, out var requestName))
             {
                 name = requestName;
+            }
+            else if (queryEnumRoots.TryGetValue(key, out var queryEnumName))
+            {
+                name = queryEnumName;
             }
             else if (payloadRoots.TryGetValue(key, out var payloadName))
             {
@@ -164,6 +169,35 @@ internal sealed class SchemaNameResolver
             }
 
             names[reference.Target] = requestName;
+        }
+
+        return names;
+    }
+
+    /// <summary>
+    /// An inline query enum that ingestion promoted into the graph carries no schema identity
+    /// of its own — its key is the operation's parameter pointer — so it is named from the
+    /// request record it is a member of, mechanically <c>{RequestTypeName}{PropertyName}</c>.
+    /// A component-referenced enum keeps its component identity and is skipped here. Each
+    /// promoted key embeds one operation id and one parameter pointer, so no two selected
+    /// operations can claim the same key; a reasoned <c>schemaNames</c> row still overrides.
+    /// </summary>
+    private Dictionary<string, string> ResolveQueryEnumRootNames(SpecDocument document, IReadOnlyList<SpecOperation> selected)
+    {
+        var names = new Dictionary<string, string>(_comparer);
+        foreach (var operation in selected)
+        {
+            foreach (var parameter in operation.Parameters.Where(static parameter =>
+                         parameter.Location is SpecParameterLocation.Query))
+            {
+                var key = QueryEnumShapePolicy.ResolveModelKey(parameter.Schema, document.Schemas);
+                if (key is null || !key.Contains('#', StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                names[key] = $"{OperationNamePolicy.RequestTypeName(operation)}{CSharpNamePolicy.ToPascalCase(parameter.Name)}";
+            }
         }
 
         return names;

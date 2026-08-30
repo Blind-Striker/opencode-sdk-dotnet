@@ -1873,21 +1873,100 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Refuse_A_Required_Query_Parameter()
+    public async Task Bind_Should_Bind_A_Required_Query_Parameter_As_A_Required_Text_Property()
     {
         var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
-            .Parameter("limit", "query", QueryScenarioData.NullableString, required: true)));
+            .Parameter("query", "query", schema => schema.Type("string"), required: true)));
 
-        await AssertWidgetRefusalAsync(document, "must be optional");
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        var property = list.QueryRequest!.Properties.Single();
+        await Assert.That(property.PropertyName).IsEqualTo("Query");
+        await Assert.That(property.Kind).IsEqualTo(QueryValueKind.Text);
+        await Assert.That(property.IsRequired).IsTrue();
+        await Assert.That(list.QueryRequest.HasRequiredMember).IsTrue();
     }
 
     [Test]
-    public async Task Bind_Should_Refuse_A_Query_Parameter_That_Does_Not_Admit_Null()
+    public async Task Bind_Should_Bind_An_Optional_Query_Parameter_That_Does_Not_Admit_Null_Like_One_That_Does()
     {
         var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
             .Parameter("limit", "query", schema => schema.Type("string"))));
 
-        await AssertWidgetRefusalAsync(document, "must admit null");
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        var property = list.QueryRequest!.Properties.Single();
+        await Assert.That(property.PropertyName).IsEqualTo("Limit");
+        await Assert.That(property.Kind).IsEqualTo(QueryValueKind.Text);
+        await Assert.That(property.IsRequired).IsFalse();
+        await Assert.That(list.QueryRequest.HasRequiredMember).IsFalse();
+    }
+
+    [Test]
+    public async Task Bind_Should_Bind_A_Referenced_Enum_Query_Parameter_To_Its_Component_Model()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithSchema("Widget.Mode", schema => schema.Type("string").Enum("working", "branch"))
+            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+                .Parameter("mode", "query", schema => schema.Ref("Widget.Mode"), required: true)
+                .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        var property = list.QueryRequest!.Properties.Single();
+        await Assert.That(property.Kind).IsEqualTo(QueryValueKind.Enum);
+        await Assert.That(property.EnumTypeName).IsEqualTo("WidgetMode");
+        await Assert.That(property.IsRequired).IsTrue();
+        await Assert
+            .That(plan
+                .Models.Select(static model => model.Name)
+                .Order(StringComparer.Ordinal)
+                .SequenceEqual(["WidgetInfo", "WidgetMode"], StringComparer.Ordinal))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Bind_An_Inline_Enum_Query_Parameter_To_A_Mechanically_Named_Model()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("type", "query", static schema => schema.AnyOf(
+                static branch => branch.Type("string").Enum("file", "directory"),
+                static branch => branch.Type("null")))));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        var property = list.QueryRequest!.Properties.Single();
+        await Assert.That(property.Kind).IsEqualTo(QueryValueKind.Enum);
+        await Assert.That(property.EnumTypeName).IsEqualTo("WidgetListRequestType");
+        await Assert.That(property.IsRequired).IsFalse();
+        var model = (EnumModelPlan)plan.Models.Single(static model => model.Name is "WidgetListRequestType");
+        await Assert
+            .That(model.Values.Select(static value => value.WireValue).SequenceEqual(["file", "directory"], StringComparer.Ordinal))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Keep_A_Spine_Profile_Query_Enum_Out_Of_The_Model_Closure()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("order", "query", QueryScenarioData.NullableOrderEnum)));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.QueryRequest!.Properties.Single().Kind).IsEqualTo(QueryValueKind.ListOrder);
+        await Assert
+            .That(plan
+                .Models.Select(static model => model.Name)
+                .SequenceEqual(["WidgetInfo"], StringComparer.Ordinal))
+            .IsTrue();
     }
 
     [Test]
@@ -1920,14 +1999,19 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Refuse_A_Query_String_Enum_Outside_The_Admitted_Profiles()
+    public async Task Bind_Should_Bind_A_Near_Spine_Query_Enum_As_Its_Own_Model()
     {
         var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
             .Parameter("order", "query", schema => schema.AnyOf(
                 branch => branch.Type("string").Enum("asc", "desc", "shuffled"),
                 branch => branch.Type("null")))));
 
-        await AssertWidgetRefusalAsync(document, "unsupported schema shape");
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        var property = list.QueryRequest!.Properties.Single();
+        await Assert.That(property.Kind).IsEqualTo(QueryValueKind.Enum);
+        await Assert.That(property.EnumTypeName).IsEqualTo("WidgetListRequestOrder");
     }
 
     [Test]
@@ -2591,7 +2675,7 @@ public sealed class OperationPlanBinderTests
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
             .WithOperation("v2.health.get", configure: operation => operation
-                .Parameter("limit", "query", schema => schema.Type("string"))
+                .Parameter("limit", "query", schema => schema.Type("string").Format("uri"))
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo")))
             .WithOperation("v2.health.probe", path: "/api/health-probe", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo"))

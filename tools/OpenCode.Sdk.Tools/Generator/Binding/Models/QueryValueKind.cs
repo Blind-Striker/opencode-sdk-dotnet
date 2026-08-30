@@ -17,4 +17,7 @@ internal enum QueryValueKind
 
     /// <summary>The deepObject location selector exposed as the shared <c>LocationSelector</c> spine type.</summary>
     Location = 4,
+
+    /// <summary>A string enum outside the spine profiles, exposed as its own generated C# enum.</summary>
+    Enum = 5,
 }

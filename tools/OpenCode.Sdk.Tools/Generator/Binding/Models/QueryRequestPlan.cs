@@ -13,6 +13,12 @@ internal sealed record QueryRequestPlan
     /// </summary>
     public bool RidesRequestBody { get; init; }
 
+    /// <summary>
+    /// Gets a value indicating whether any bound parameter is required, which makes the
+    /// request itself required on the emitted method and route builder.
+    /// </summary>
+    public bool HasRequiredMember => Properties.Any(static property => property.IsRequired);
+
     /// <summary>Gets every bound query parameter in wire order, including base-inherited ones.</summary>
     public required IReadOnlyList<QueryPropertyPlan> Properties
     {

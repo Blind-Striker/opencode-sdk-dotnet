@@ -128,15 +128,14 @@ public static class OpenCodeRoutes
         /// </summary>
         /// <param name = "request">The request shaping the query.</param>
         /// <returns>The escaped route.</returns>
-        public static string ListWidgets(WidgetListRequest? request = null)
+        public static string ListWidgets(WidgetListRequest request)
         {
+            ArgumentNullException.ThrowIfNull(request);
             var path = "/api/widget";
-            if (request is null)
-            {
-                return path;
-            }
-
             var query = new QueryStringBuilder();
+            query.AddText("query", request.Query);
+            query.AddText("mode", ToWireValue(request.Mode));
+            query.AddText("fallbackMode", ToWireValue(request.FallbackMode));
             query.AddText("limit", request.Limit);
             query.AddOrder("order", request.Order);
             query.AddText("cursor", request.Cursor);
@@ -166,4 +165,14 @@ public static class OpenCodeRoutes
             return "/api/widget/" + RouteValuePolicy.Escape(widgetId, nameof(widgetId));
         }
     }
+
+    /// <summary>
+    /// Spells one &apos;ExampleMode&apos; member the way the wire query expects it.
+    /// </summary>
+    private static string? ToWireValue(ExampleMode? value) => value switch
+    {
+        ExampleMode.FastMode => "fast-mode",
+        ExampleMode.Safe => "safe",
+        null => null,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, "Unknown ExampleMode value.")};
 }

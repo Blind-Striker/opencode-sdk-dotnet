@@ -398,6 +398,9 @@ internal static class EmitterPlanFixture
                 DerivesFromListRequest = false,
                 Properties =
                 [
+                    QueryProperty("query", "Query", QueryValueKind.Text, isRequired: true),
+                    QueryProperty("mode", "Mode", QueryValueKind.Enum, isRequired: true, enumTypeName: "ExampleMode"),
+                    QueryProperty("fallbackMode", "FallbackMode", QueryValueKind.Enum, enumTypeName: "ExampleMode"),
                     QueryProperty("limit", "Limit", QueryValueKind.Text, description: "Maximum widget count as wire text."),
                     QueryProperty("order", "Order", QueryValueKind.ListOrder),
                     QueryProperty("cursor", "Cursor", QueryValueKind.Text),
@@ -683,13 +686,15 @@ internal static class EmitterPlanFixture
         };
 
     private static QueryPropertyPlan QueryProperty(string wireName, string propertyName, QueryValueKind kind,
-        bool isInherited = false, string? description = null) =>
+        bool isInherited = false, string? description = null, bool isRequired = false, string? enumTypeName = null) =>
         new()
         {
             WireName = wireName,
             PropertyName = propertyName,
             Kind = kind,
+            EnumTypeName = enumTypeName,
             Description = description,
+            IsRequired = isRequired,
             IsInherited = isInherited,
         };
 

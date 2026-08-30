@@ -242,14 +242,15 @@ public class WidgetsClient
     /// <summary>
     /// List the widgets
     /// </summary>
-    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "request">The request shaping the query; its required members have no server default.</param>
     /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
     /// <returns>The &apos;WidgetListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 500) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<WidgetListResponse> ListWidgetsAsync(WidgetListRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    public virtual Task<WidgetListResponse> ListWidgetsAsync(WidgetListRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Widgets.ListWidgets(request), WidgetListResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 

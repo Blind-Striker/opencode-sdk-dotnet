@@ -8,7 +8,9 @@ public sealed class RoutesEmitterTests
     [Test]
     public async Task Emit_Should_Produce_Escaped_Route_Builders()
     {
-        var source = RoutesEmitter.Emit(EmitterPlanFixture.CreateClientPlans());
+        var plan = EmitterPlanFixture.Create();
+
+        var source = RoutesEmitter.Emit(plan.Clients, plan.Models);
 
         await Verify(EmitterSnapshot.Create([source]));
     }

@@ -19,44 +19,11 @@ internal sealed class QueryRequestFacetBinder(OperationFacetContext context)
         var properties = new List<QueryPropertyPlan>(query.Length);
         foreach (var parameter in query)
         {
-            if (parameter.IsDeepObject)
+            var property = parameter.IsDeepObject ? BindLocationSelector(parameter) : BindValue(parameter);
+            if (property is not null)
             {
-                var location = BindLocationSelector(parameter);
-                if (location is not null)
-                {
-                    properties.Add(location);
-                }
-
-                continue;
+                properties.Add(property);
             }
-
-            if (parameter.IsRequired)
-            {
-                _context.Refuse($"query parameter '{parameter.Name}' must be optional");
-                continue;
-            }
-
-            if (_context.Resolve(parameter.Schema) is not NullableNode nullable)
-            {
-                _context.Refuse($"query parameter '{parameter.Name}' must admit null");
-                continue;
-            }
-
-            var kind = nullable.Format is null ? ResolveQueryValueKind(nullable.Inner) : null;
-            if (kind is null)
-            {
-                _context.Refuse($"query parameter '{parameter.Name}' has an unsupported schema shape");
-                continue;
-            }
-
-            properties.Add(new QueryPropertyPlan
-            {
-                WireName = parameter.Name,
-                PropertyName = CSharpNamePolicy.ToPascalCase(parameter.Name),
-                Kind = kind.Value,
-                Description = nullable.Description ?? _context.Resolve(nullable.Inner).Description,
-                IsInherited = false,
-            });
         }
 
         var duplicate = properties
@@ -90,6 +57,64 @@ internal sealed class QueryRequestFacetBinder(OperationFacetContext context)
         };
     }
 
+    /// <summary>
+    /// Binds one ordinary query value. Requiredness rides the property rather than a wall:
+    /// the emitted member is C# <c>required</c> and non-nullable, and an optional parameter
+    /// binds identically whether or not its schema admits JSON null, because an unset member
+    /// is omitted from the wire either way.
+    /// </summary>
+    private QueryPropertyPlan? BindValue(SpecParameter parameter)
+    {
+        var declared = _context.Resolve(parameter.Schema);
+        if (declared is NullableNode { Format: not null })
+        {
+            return _context.RefuseNull<QueryPropertyPlan>($"query parameter '{parameter.Name}' has an unsupported schema shape");
+        }
+
+        var value = declared is NullableNode nullable ? nullable.Inner : parameter.Schema;
+        var enumTypeName = ResolveEnumTypeName(parameter, value, out var isEnum);
+        if (isEnum && enumTypeName is null)
+        {
+            return null;
+        }
+
+        var kind = isEnum ? QueryValueKind.Enum : ResolveQueryValueKind(value);
+        if (kind is null)
+        {
+            return _context.RefuseNull<QueryPropertyPlan>($"query parameter '{parameter.Name}' has an unsupported schema shape");
+        }
+
+        return new QueryPropertyPlan
+        {
+            WireName = parameter.Name,
+            PropertyName = CSharpNamePolicy.ToPascalCase(parameter.Name),
+            Kind = kind.Value,
+            EnumTypeName = enumTypeName,
+            Description = declared.Description ?? _context.Resolve(value).Description,
+            IsRequired = parameter.IsRequired,
+            IsInherited = false,
+        };
+    }
+
+    /// <summary>
+    /// Names the generated enum a parameter binds to. The type-name map is the same one the
+    /// model closure emits from, so a key the map does not carry means the enum has no model
+    /// and the operation refuses rather than typing a property against a missing type.
+    /// </summary>
+    private string? ResolveEnumTypeName(SpecParameter parameter, SchemaNode value, out bool isEnum)
+    {
+        var key = QueryEnumShapePolicy.ResolveModelKey(value, _context.Document.Schemas);
+        isEnum = key is not null;
+        if (key is null)
+        {
+            return null;
+        }
+
+        return _context.TypeNames.TryGetValue(key, out var typeName)
+            ? typeName
+            : _context.RefuseNull($"query parameter '{parameter.Name}' binds an enum that has no generated model");
+    }
+
     /// <summary>The one admitted deep-object encoding is the optional nullable location selector.</summary>
     private QueryPropertyPlan? BindLocationSelector(SpecParameter parameter)
     {
@@ -108,27 +133,27 @@ internal sealed class QueryRequestFacetBinder(OperationFacetContext context)
             PropertyName = CSharpNamePolicy.ToPascalCase(parameter.Name),
             Kind = QueryValueKind.Location,
             Description = parameter.Schema.Description,
+            IsRequired = false,
             IsInherited = false,
         };
     }
 
     /// <summary>
     /// The fail-closed profile wall: an operation derives from the <c>ListRequest</c> base
-    /// only when its wire query parameters are exactly the cursor-pagination trio.
+    /// only when its wire query parameters are exactly the optional cursor-pagination trio.
     /// </summary>
     private static bool MatchesListRequestProfile(List<QueryPropertyPlan> properties) =>
         properties.Count is 3
-        && properties.Any(static property => property is { WireName: "limit", Kind: QueryValueKind.Text })
-        && properties.Any(static property => property is { WireName: "order", Kind: QueryValueKind.ListOrder })
-        && properties.Any(static property => property is { WireName: "cursor", Kind: QueryValueKind.Text });
+        && properties.Any(static property => property is { WireName: "limit", Kind: QueryValueKind.Text, IsRequired: false })
+        && properties.Any(static property => property is { WireName: "order", Kind: QueryValueKind.ListOrder, IsRequired: false })
+        && properties.Any(static property => property is { WireName: "cursor", Kind: QueryValueKind.Text, IsRequired: false });
 
-    private QueryValueKind? ResolveQueryValueKind(SchemaNode inner)
+    private QueryValueKind? ResolveQueryValueKind(SchemaNode value)
     {
-        return _context.Resolve(inner) switch
+        return _context.Resolve(value) switch
         {
             PrimitiveNode { Kind: PrimitiveKind.String, Format: null } => QueryValueKind.Text,
-            EnumNode { Values: ["asc", "desc"], Format: null } => QueryValueKind.ListOrder,
-            EnumNode { Values: ["true", "false"] or ["false", "true"], Format: null } => QueryValueKind.BooleanText,
+            EnumNode node => QueryEnumShapePolicy.ResolveSpineKind(node),
             UnionNode { Classification: UnionClassification.Structural, Format: null, Branches: [var first, var second] }
                 when SpineShapePolicy.IsParentFilterShape(_context, first, second) => QueryValueKind.SessionParentFilter,
             _ => null,

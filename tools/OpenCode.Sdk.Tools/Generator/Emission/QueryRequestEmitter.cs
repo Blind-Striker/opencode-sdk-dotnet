@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using OpenCode.Sdk.Tools.Generator.Binding;
 using OpenCode.Sdk.Tools.Generator.Binding.Models;
 
 namespace OpenCode.Sdk.Tools.Generator.Emission;
@@ -47,7 +48,12 @@ internal static class QueryRequestEmitter
                 SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.EmitNamed("ListRequest")))));
         }
 
-        var unit = EmissionSyntax.CompilationUnit("OpenCode.Sdk", [], [declaration]);
+        // Every other query kind is a spine type in the client namespace; only a generated
+        // enum lives with the models.
+        var usings = queryRequest.Properties.Any(static property => property.Kind is QueryValueKind.Enum)
+            ? new[] { GeneratedNamespace.Models, }
+            : [];
+        var unit = EmissionSyntax.CompilationUnit("OpenCode.Sdk", usings, [declaration]);
         return EmissionSyntax.CreateSource($"{operation.RouteContainerName}/{queryRequest.TypeName}.cs", unit);
     }
 
@@ -60,22 +66,36 @@ internal static class QueryRequestEmitter
             SyntaxFactory.AccessorDeclaration(SyntaxKind.InitAccessorDeclaration)
                 .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
         ]));
-        return SyntaxFactory.PropertyDeclaration(EmitPropertyType(property.Kind), property.PropertyName)
-            .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
+        var modifiers = new List<SyntaxToken> { SyntaxFactory.Token(SyntaxKind.PublicKeyword), };
+        if (property.IsRequired)
+        {
+            modifiers.Add(SyntaxFactory.Token(SyntaxKind.RequiredKeyword));
+        }
+
+        return SyntaxFactory.PropertyDeclaration(EmitPropertyType(property), property.PropertyName)
+            .WithModifiers(SyntaxFactory.TokenList(modifiers))
             .WithAccessorList(accessors)
-            .WithLeadingTrivia(EmissionSyntax.Documentation(property.Description
-                ?? $"Gets the '{property.WireName}' query value; the server default applies when unset."));
+            .WithLeadingTrivia(EmissionSyntax.Documentation(property.Description ?? (property.IsRequired
+                ? $"Gets the required '{property.WireName}' query value."
+                : $"Gets the '{property.WireName}' query value; the server default applies when unset.")));
     }
 
-    private static NullableTypeSyntax EmitPropertyType(QueryValueKind kind) => kind switch
+    /// <summary>A required parameter is carried non-nullable; an optional one stays nullable so an unset member is omitted.</summary>
+    private static TypeSyntax EmitPropertyType(QueryPropertyPlan property)
     {
-        QueryValueKind.Text => SyntaxFactory.NullableType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword))),
-        QueryValueKind.ListOrder => SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed("ListOrder")),
-        QueryValueKind.BooleanText => SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed("QueryBoolean")),
-        QueryValueKind.SessionParentFilter => SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed("SessionParentFilter")),
-        QueryValueKind.Location => SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed("LocationSelector")),
-        _ => throw new InvalidOperationException($"Query value kind '{kind}' has no property type."),
-    };
+        var type = property.Kind switch
+        {
+            QueryValueKind.Text => SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword)),
+            QueryValueKind.ListOrder => TypeSyntaxEmitter.EmitNamed("ListOrder"),
+            QueryValueKind.BooleanText => TypeSyntaxEmitter.EmitNamed("QueryBoolean"),
+            QueryValueKind.SessionParentFilter => TypeSyntaxEmitter.EmitNamed("SessionParentFilter"),
+            QueryValueKind.Location => TypeSyntaxEmitter.EmitNamed("LocationSelector"),
+            QueryValueKind.Enum => TypeSyntaxEmitter.EmitNamed(property.EnumTypeName
+                ?? throw new InvalidOperationException($"Query property '{property.PropertyName}' has no enum type name.")),
+            _ => throw new InvalidOperationException($"Query value kind '{property.Kind}' has no property type."),
+        };
+        return property.IsRequired ? type : SyntaxFactory.NullableType(type);
+    }
 
     private static string RequestDocumentation(OperationPlan operation)
     {
