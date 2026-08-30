@@ -504,6 +504,10 @@ review because flattening it needs an envelope-facet mechanism rather than a cur
 The `PtySession` read ladder was rerun across the extraction (`--job short`, both runtimes) and the
 shared core's added interface dispatch costs no allocation: `DecodeFrames` is byte-identical on
 every fixture and runtime, and `ReadFramesAsync` allocates 0–16 bytes less per read (Q156).
+The coverage-to-full arc lands its first curation-only admissions at the pinned `b1e3a7b2`
+snapshot: `v2.vcs.base` (`VcsClient.GetBaseAsync`) and the filesystem family's `v2.fs.list`
+(`FileSystemClient.ListEntriesAsync`), taking the profile to **124 selected / 10 pending / 2
+transport-owned**.
 
 ## Milestones
 

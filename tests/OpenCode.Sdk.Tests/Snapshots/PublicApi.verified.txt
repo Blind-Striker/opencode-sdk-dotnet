@@ -116,6 +116,11 @@
     {
         public ExperimentalIntegrationWellknownAddPostResponse() { }
     }
+    public class FileSystemClient
+    {
+        protected FileSystemClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.FsListResponse> ListEntriesAsync(OpenCode.Sdk.FsListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
     public sealed class FormRequestListRequest : System.IEquatable<OpenCode.Sdk.FormRequestListRequest>
     {
         public FormRequestListRequest() { }
@@ -132,6 +137,19 @@
     {
         protected FormsClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.FormRequestListResponse> ListRequestsAsync(OpenCode.Sdk.FormRequestListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class FsListRequest : System.IEquatable<OpenCode.Sdk.FsListRequest>
+    {
+        public FsListRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+        public string? Path { get; init; }
+    }
+    public sealed class FsListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.FsListResponse>
+    {
+        public FsListResponse() { }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.FileSystemEntry> Entries { get; init; }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class GenerateTextPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.GenerateTextPostResponse>
     {
@@ -432,6 +450,7 @@
         public virtual OpenCode.Sdk.DebugClient Debug { get; }
         public virtual OpenCode.Sdk.EventsClient Events { get; }
         public virtual OpenCode.Sdk.ExperimentalClient Experimental { get; }
+        public virtual OpenCode.Sdk.FileSystemClient FileSystem { get; }
         public virtual OpenCode.Sdk.FormsClient Forms { get; }
         public virtual OpenCode.Sdk.GenerationClient Generation { get; }
         public virtual OpenCode.Sdk.IntegrationsClient Integrations { get; }
@@ -523,6 +542,11 @@
         {
             public const string AddIntegrationWellknownTemplate = "/api/experimental/integration/wellknown";
             public static string AddIntegrationWellknown(OpenCode.Sdk.Models.ExperimentalIntegrationWellknownAddPostRequest? request = null) { }
+        }
+        public static class FileSystem
+        {
+            public const string ListEntriesTemplate = "/api/fs/list";
+            public static string ListEntries(OpenCode.Sdk.FsListRequest? request = null) { }
         }
         public static class Forms
         {
@@ -2084,6 +2108,22 @@ namespace OpenCode.Sdk.Models
         Deleted = 1,
         [System.Text.Json.Serialization.JsonStringEnumMemberName("modified")]
         Modified = 2,
+    }
+    public sealed class FileSystemEntry : System.IEquatable<OpenCode.Sdk.Models.FileSystemEntry>
+    {
+        public FileSystemEntry() { }
+        [System.Text.Json.Serialization.JsonPropertyName("path")]
+        public required string Path { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public required OpenCode.Sdk.Models.FileSystemEntryType Type { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.FileSystemEntryType>))]
+    public enum FileSystemEntryType
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("file")]
+        File = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("directory")]
+        Directory = 1,
     }
     public sealed class FilesystemChanged : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.FilesystemChanged>
     {

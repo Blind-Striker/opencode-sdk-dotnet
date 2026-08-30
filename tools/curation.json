@@ -160,6 +160,11 @@
       "placement": "client",
       "clientName": "Forms",
       "reason": "v2.form.request.list is the family's entire pinned surface (unlike v2.session.form.*, a distinct group that rides the session working object): a bare GET with no id in its path, so it carries no per-id operations, ever, and a flat container holds its one call (ADR-0019)."
+    },
+    "fs": {
+      "placement": "client",
+      "clientName": "FileSystem",
+      "reason": "The three fs operations (list, find, read) carry no per-id operation, so a flat container holds the calls (ADR-0019); the client is named for the upstream tag and the FileSystem.Entry component, not the abbreviation."
     }
   },
   "operationIdentities": [
@@ -304,6 +309,11 @@
       "operationId": "v2.persistentPty.list",
       "methodName": "ListPersistentPtysAsync",
       "reason": "The group singular 'persistentPty' does not pluralize naively; the reviewed .NET domain name for a set of persistent pseudo-terminals is 'PersistentPtys', exactly like v2.pty.list's 'Ptys'."
+    },
+    {
+      "operationId": "v2.fs.list",
+      "methodName": "ListEntriesAsync",
+      "reason": "The group singular 'fs' does not pluralize naively, exactly like v2.pty.list; the reviewed subject is the directory's entries."
     }
   ],
   "schemaNames": [
@@ -355,7 +365,8 @@
     "v2.vcs.status": "Changes",
     "v2.location.get": "ResolvedLocation",
     "v2.session.form.list": "Forms",
-    "v2.session.permission.list": "Requests"
+    "v2.session.permission.list": "Requests",
+    "v2.fs.list": "Entries"
   },
   "schemaAliases": [
     {

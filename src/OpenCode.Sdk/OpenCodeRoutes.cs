@@ -260,6 +260,35 @@ public static class OpenCodeRoutes
     }
 
     /// <summary>
+    /// Defines the &apos;FileSystem&apos; routes.
+    /// </summary>
+    public static class FileSystem
+    {
+        /// <summary>
+        /// The &apos;GET /api/fs/list&apos; route template.
+        /// </summary>
+        public const string ListEntriesTemplate = "/api/fs/list";
+        /// <summary>
+        /// Builds the &apos;/api/fs/list&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ListEntries(FsListRequest? request = null)
+        {
+            var path = "/api/fs/list";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            query.AddText("path", request.Path);
+            return path + query.Value;
+        }
+    }
+
+    /// <summary>
     /// Defines the &apos;Forms&apos; routes.
     /// </summary>
     public static class Forms

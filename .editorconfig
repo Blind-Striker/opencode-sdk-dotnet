@@ -860,10 +860,10 @@ dotnet_diagnostic.CA1056.severity = none
 # test project mirrors the layout with equally flat test namespaces. Winner: the
 # flat-namespace contract; IDE0130 remains error for every other folder, tools included.
 # A new family folder extends these globs deliberately - curation changes are API reviews.
-[src/OpenCode.Sdk/{Agents,Commands,Credentials,Debug,Events,Experimental,Forms,Generation,Integrations,LanguageModels,Location,McpServers,Permissions,PersistentPtys,Plugins,Projects,Providers,Ptys,References,Server,Sessions,Skills,Vcs,Websearch,Health,Pagination,Shells,Workspaces,Worktrees}/**.cs]
+[src/OpenCode.Sdk/{Agents,Commands,Credentials,Debug,Events,Experimental,FileSystem,Forms,Generation,Integrations,LanguageModels,Location,McpServers,Permissions,PersistentPtys,Plugins,Projects,Providers,Ptys,References,Server,Sessions,Skills,Vcs,Websearch,Health,Pagination,Shells,Workspaces,Worktrees}/**.cs]
 dotnet_diagnostic.IDE0130.severity = none
 
-[tests/OpenCode.Sdk.Tests/{Agents,Commands,Credentials,Debug,Events,Experimental,Forms,Generation,Integrations,LanguageModels,Location,McpServers,Permissions,PersistentPtys,Plugins,Projects,Providers,Ptys,References,Server,Sessions,Skills,Vcs,Websearch,Health,Pagination,Shells,Workspaces,Worktrees}/**.cs]
+[tests/OpenCode.Sdk.Tests/{Agents,Commands,Credentials,Debug,Events,Experimental,FileSystem,Forms,Generation,Integrations,LanguageModels,Location,McpServers,Permissions,PersistentPtys,Plugins,Projects,Providers,Ptys,References,Server,Sessions,Skills,Vcs,Websearch,Health,Pagination,Shells,Workspaces,Worktrees}/**.cs]
 dotnet_diagnostic.IDE0130.severity = none
 
 # DI extension methods live in the Microsoft.Extensions.DependencyInjection namespace so

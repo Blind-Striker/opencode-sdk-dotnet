@@ -9,6 +9,7 @@ v2.debug.location.list
 v2.event.subscribe
 v2.experimental.integration.wellknown.add
 v2.form.request.list
+v2.fs.list
 v2.generate.text
 v2.health.get
 v2.integration.command.cancel
