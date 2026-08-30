@@ -103,4 +103,58 @@ public sealed class VcsClientContractTests
         await Assert.That(response.Status).IsEqualTo(401);
         await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
     }
+
+    [Test]
+    public async Task GetBaseAsync_Should_Return_The_Typed_Base_With_Its_Location()
+    {
+        const string reviewBase = "{\"name\":\"main\",\"ref\":\"a1b2c3\",\"source\":\"reflog\"}";
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.LocationEnvelope(reviewBase));
+
+        var response = await scenario.Client.Vcs.GetBaseAsync();
+
+        await Assert.That(response.IsError).IsFalse();
+        await Assert.That(response.Base!.Name).IsEqualTo("main");
+        await Assert.That(response.Base.Ref).IsEqualTo("a1b2c3");
+        await Assert.That(response.Base.Source).IsEqualTo(VcsBaseSource.Reflog);
+        await Assert.That(response.Location.Project.Id).IsEqualTo("prj_1");
+        await Assert.That(scenario.Requests.Single().RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/vcs/base"));
+    }
+
+    [Test]
+    public async Task GetBaseAsync_Should_Return_Null_When_No_Base_Is_Inferable()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.LocationEnvelope("null"));
+
+        var response = await scenario.Client.Vcs.GetBaseAsync();
+
+        await Assert.That(response.IsError).IsFalse();
+        await Assert.That(response.Base).IsNull();
+        await Assert.That(response.Location.Project.Id).IsEqualTo("prj_1");
+    }
+
+    [Test]
+    public async Task GetBaseAsync_Should_Throw_The_Declared_503_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.ServiceUnavailable, WireBodyData.ServiceUnavailableError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Vcs.GetBaseAsync())
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(503);
+        await Assert.That(exception.Error).IsTypeOf<ServiceUnavailableError>();
+    }
+
+    [Test]
+    public async Task GetBaseAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Vcs.GetBaseAsync(requestOptions: OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
 }

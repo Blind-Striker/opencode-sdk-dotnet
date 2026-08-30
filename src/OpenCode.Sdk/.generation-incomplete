@@ -1,6 +1,6 @@
 Generation is incomplete; packages must not be published.
-Selected operations: 122
-Pending operations: 12
+Selected operations: 123
+Pending operations: 11
 Transport-owned operations: 2
 Selected:
 - v2.agent.get
@@ -117,6 +117,7 @@ Selected:
 - v2.shell.remove
 - v2.shell.timeout
 - v2.skill.list
+- v2.vcs.base
 - v2.vcs.branches
 - v2.vcs.get
 - v2.vcs.status
@@ -133,7 +134,6 @@ Pending:
 - v2.fs.read [refused: wildcard paths are not supported in M1]
 - v2.session.stats [refused: query parameter 'tools' has an unsupported schema shape]
 - v2.shell.output [refused: location envelope 'data' must reference a named component schema, or be an array of one]
-- v2.vcs.base [bindable]
 - v2.vcs.diff [refused: query parameter 'mode' must be optional]
 - v2.worktree.create [refused: selected errors must use the Effect _tag style in M1]
 - v2.worktree.refresh [refused: selected errors must use the Effect _tag style in M1]

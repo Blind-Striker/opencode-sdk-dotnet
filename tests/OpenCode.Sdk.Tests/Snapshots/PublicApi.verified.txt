@@ -779,9 +779,11 @@
         }
         public static class Vcs
         {
+            public const string GetBaseTemplate = "/api/vcs/base";
             public const string GetBranchesTemplate = "/api/vcs/branches";
             public const string GetStatusTemplate = "/api/vcs/status";
             public const string GetVcsTemplate = "/api/vcs";
+            public static string GetBase(OpenCode.Sdk.VcsBaseRequest? request = null) { }
             public static string GetBranches(OpenCode.Sdk.VcsBranchesRequest? request = null) { }
             public static string GetStatus(OpenCode.Sdk.VcsStatusRequest? request = null) { }
             public static string GetVcs(OpenCode.Sdk.VcsRequest? request = null) { }
@@ -1676,6 +1678,18 @@
         protected SkillsClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SkillListResponse> ListSkillsAsync(OpenCode.Sdk.SkillListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
+    public sealed class VcsBaseRequest : System.IEquatable<OpenCode.Sdk.VcsBaseRequest>
+    {
+        public VcsBaseRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class VcsBaseResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.VcsBaseResponse>
+    {
+        public VcsBaseResponse() { }
+        public required OpenCode.Sdk.Models.VcsBase? Base { get; init; }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
     public sealed class VcsBranchesRequest : System.IEquatable<OpenCode.Sdk.VcsBranchesRequest>
     {
         public VcsBranchesRequest() { }
@@ -1693,6 +1707,7 @@
     public class VcsClient
     {
         protected VcsClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.VcsBaseResponse> GetBaseAsync(OpenCode.Sdk.VcsBaseRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.VcsBranchesResponse> GetBranchesAsync(OpenCode.Sdk.VcsBranchesRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.VcsStatusResponse> GetStatusAsync(OpenCode.Sdk.VcsStatusRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.VcsResponse> GetVcsAsync(OpenCode.Sdk.VcsRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
@@ -8650,6 +8665,24 @@ namespace OpenCode.Sdk.Models
         public System.Text.Json.JsonElement Payload { get; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
+    }
+    public sealed class VcsBase : System.IEquatable<OpenCode.Sdk.Models.VcsBase>
+    {
+        public VcsBase() { }
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public required string Name { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("ref")]
+        public required string Ref { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("source")]
+        public required OpenCode.Sdk.Models.VcsBaseSource Source { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.VcsBaseSource>))]
+    public enum VcsBaseSource
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("reflog")]
+        Reflog = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("default")]
+        Default = 1,
     }
     public sealed class VcsBranch : System.IEquatable<OpenCode.Sdk.Models.VcsBranch>
     {

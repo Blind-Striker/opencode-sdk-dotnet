@@ -26,6 +26,20 @@ public class VcsClient
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("VcsClient", "Pipeline");
 
     /// <summary>
+    /// VCS review base. Infer a local review base from named branch creation history, or the repository default only when currently on that branch. Returns null before the first commit or when the provider lacks base metadata; ambiguous Git history requires an explicit base on diff requests.
+    /// </summary>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;VcsBaseResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 503) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<VcsBaseResponse> GetBaseAsync(VcsBaseRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Vcs.GetBase(request), VcsBaseResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
     /// VCS branches. List local and remote branches available at the requested location.
     /// </summary>
     /// <param name = "request">The request shaping the query.</param>
