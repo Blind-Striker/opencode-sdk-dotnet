@@ -28,8 +28,8 @@ internal static class SourceWatchRepinner
         if (unmatched.Length > 0)
         {
             throw new SnapshotRefreshException(
-                $"the receipt reports lost anchors in {string.Join(", ", unmatched)}; read the hand-written doors and "
-                + "rewrite those anchors before applying");
+                $"the receipt reports lost anchors in {string.Join(", ", unmatched)}; read the hand-written doors, "
+                + "rewrite those anchors, then re-run prepare");
         }
 
         return pinned with { Sources = [.. pinned.Sources.Select(source => source with { Sha256 = byPath[source.Path].Sha256 })] };

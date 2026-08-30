@@ -71,7 +71,7 @@ public sealed class StabilizeDuplicatePolicyTests
     }
 
     [Test]
-    public async Task Resolve_Should_Refuse_To_Chain_When_The_Base_Is_Itself_A_Duplicate()
+    public async Task Resolve_Should_Decline_To_Chain_When_The_Base_Is_Itself_A_Duplicate()
     {
         var errors = new BindingErrorCollector();
 

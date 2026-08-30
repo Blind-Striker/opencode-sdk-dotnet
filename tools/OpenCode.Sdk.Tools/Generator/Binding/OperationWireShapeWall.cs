@@ -41,7 +41,7 @@ internal sealed class OperationWireShapeWall(OperationFacetContext context, Emis
         // A GET body has no defined semantics on any origin server and stays refused. DELETE is
         // different: RFC 9110 admits content when the origin server declares support, and this
         // origin server declares it in the pinned document, so the shape binds and the body is
-        // sent. Every other method the wall admits is refused before this check.
+        // sent. Any method the wall does not admit at all was already refused above.
         if (isGet && operation.RequestBody is not null)
         {
             _context.Refuse($"{operation.Method.ToUpperInvariant()} operations must not carry a request body");

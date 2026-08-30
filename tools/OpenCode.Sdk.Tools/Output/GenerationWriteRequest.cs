@@ -48,7 +48,7 @@ internal sealed record GenerationWriteRequest
     }
 
     /// <summary>Gets the stabilize duplicates the binder folded mechanically, recorded in the manifest as a telltale.</summary>
-    public required IReadOnlyDictionary<string, string> ImplicitSchemaAliases
+    public required IReadOnlyDictionary<string, string> ImplicitAliases
     {
         get;
         init

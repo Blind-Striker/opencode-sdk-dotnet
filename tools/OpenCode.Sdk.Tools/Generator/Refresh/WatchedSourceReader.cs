@@ -48,6 +48,13 @@ internal sealed class WatchedSourceReader(IFileSystem fileSystem, IProcessRunner
         return Array.AsReadOnly([.. observations]);
     }
 
+    /// <summary>
+    /// Applies one anchor. <see cref="SourceWatchLoader"/> already refuses an unsupported anchor
+    /// type with the same wording, so this arm is unreachable through the loader; it is kept
+    /// because the alternative for an anchor type this reader cannot apply is to answer
+    /// <see langword="false"/> and report a lost anchor - a wrong fact, not a refusal - and a
+    /// second anchor type added to the model without a case here would take exactly that path.
+    /// </summary>
     private static bool Matches(WatchedSource source, byte[] content) =>
         string.Equals(source.Anchor.Type, SourceAnchor.Contains, StringComparison.Ordinal)
             ? Encoding.UTF8.GetString(content).Contains(source.Anchor.Text, StringComparison.Ordinal)

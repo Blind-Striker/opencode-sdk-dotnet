@@ -72,5 +72,5 @@ internal sealed record EmitPlan
     /// Gets the stabilize duplicates the binder folded mechanically, the committed telltale the
     /// generation manifest carries in place of the curated rows the convention retires.
     /// </summary>
-    public required StabilizeDuplicateCollapse ImplicitSchemaAliases { get; init; }
+    public required StabilizeDuplicateCollapse ImplicitAliases { get; init; }
 }

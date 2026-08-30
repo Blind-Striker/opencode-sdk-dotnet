@@ -9,6 +9,7 @@ internal sealed class SpecBinder(
     ReachableSchemaCollector reachableSchemas,
     StabilizeDuplicatePolicy stabilizeDuplicates,
     CurationValidator curationValidator,
+    SchemaAliasValidator schemaAliasValidator,
     SchemaAliasApplier schemaAliases,
     SchemaNameResolver schemaNames,
     SchemaPlanBinder schemaPlans,
@@ -18,6 +19,7 @@ internal sealed class SpecBinder(
     private readonly OperationPlanBinder _operationPlans = operationPlans ?? throw new ArgumentNullException(nameof(operationPlans));
     private readonly ReachableSchemaCollector _reachableSchemas = reachableSchemas ?? throw new ArgumentNullException(nameof(reachableSchemas));
     private readonly SchemaAliasApplier _schemaAliases = schemaAliases ?? throw new ArgumentNullException(nameof(schemaAliases));
+    private readonly SchemaAliasValidator _schemaAliasValidator = schemaAliasValidator ?? throw new ArgumentNullException(nameof(schemaAliasValidator));
     private readonly SchemaNameResolver _schemaNames = schemaNames ?? throw new ArgumentNullException(nameof(schemaNames));
     private readonly SchemaPlanBinder _schemaPlans = schemaPlans ?? throw new ArgumentNullException(nameof(schemaPlans));
     private readonly StabilizeDuplicatePolicy _stabilizeDuplicates = stabilizeDuplicates ?? throw new ArgumentNullException(nameof(stabilizeDuplicates));
@@ -36,7 +38,8 @@ internal sealed class SpecBinder(
         // curated rows are then judged against the graph as it will be bound, and a row that
         // repeats a mechanical fold is refused as redundant instead of shadowing it.
         var collapse = _stabilizeDuplicates.Resolve(document, reachable, errors);
-        _curationValidator.Validate(document, selected, reachable, curation, collapse, errors);
+        _curationValidator.Validate(document, selected, reachable, curation, errors);
+        _schemaAliasValidator.Validate(document, reachable, curation, collapse, errors);
 
         // Aliases are validated against the raw document above; the collapse happens before
         // names resolve so the rest of the pipeline never sees the duplicates. Reachability
@@ -83,7 +86,7 @@ internal sealed class SpecBinder(
             Clients = clients,
             PendingOperations = pending,
             TransportOwnedOperationIds = [.. transportOwnedIds.Order(StringComparer.Ordinal)],
-            ImplicitSchemaAliases = collapse,
+            ImplicitAliases = collapse,
         };
     }
 

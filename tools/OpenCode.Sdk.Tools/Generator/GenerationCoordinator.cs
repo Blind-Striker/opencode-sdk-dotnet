@@ -70,7 +70,7 @@ internal sealed class GenerationCoordinator(
                     ProjectPath = request.ProjectPath,
                     Sources = SourceEmitter.Emit(plan),
                     FamilyFolders = familyFolders,
-                    ImplicitSchemaAliases = plan.ImplicitSchemaAliases.Aliases,
+                    ImplicitAliases = plan.ImplicitAliases.Aliases,
                     PartialMarkerContent = marker,
                     Verify = request.Verify,
                 },

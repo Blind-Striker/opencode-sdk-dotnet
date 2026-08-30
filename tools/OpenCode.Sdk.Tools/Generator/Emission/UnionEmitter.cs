@@ -363,6 +363,14 @@ internal static class UnionEmitter
             SyntaxFactory.Argument(expected)));
     }
 
+    /// <summary>
+    /// Emits the unknown carrier's marker property. The documentation names every marker the
+    /// payload may have carried, not just the union's first: a multi-dialect union's carrier can
+    /// hold a value the payload spelled under an alternate name, and saying "'_tag'" there
+    /// misstates the wire. The <c>JsonPropertyName</c> attribute keeps the union's own marker and
+    /// is inert either way - the carrier is read and written by the union's converter, never by
+    /// System.Text.Json's property machinery.
+    /// </summary>
     private static PropertyDeclarationSyntax EmitUnknownMarkerProperty(UnionPlan union, TypeSyntax markerType) =>
         SyntaxFactory
             .PropertyDeclaration(markerType, union.MarkerName)
@@ -371,7 +379,7 @@ internal static class UnionEmitter
             .AddAttributeLists(EmissionSyntax.Attribute("JsonPropertyName", EmissionSyntax.StringArgument(union.MarkerWireName)))
             .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(SyntaxFactory.IdentifierName("_marker")))
             .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
-            .WithLeadingTrivia(EmissionSyntax.Documentation($"Gets the unrecognized '{union.MarkerWireName}' marker."));
+            .WithLeadingTrivia(EmissionSyntax.Documentation($"Gets the unrecognized {MarkerDescription(union)} marker."));
 
     private static PropertyDeclarationSyntax EmitFixedMarkerProperty(UnionFixedMarkerPlan marker) =>
         SyntaxFactory

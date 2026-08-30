@@ -20,8 +20,10 @@ internal sealed record GenerationManifest
     /// Gets the stabilize duplicates the binder folded without a curation row, each mapped to
     /// the base it collapses into. The section is written even when empty and sorts ordinally,
     /// so a duplicate arriving or retiring upstream is a one-line diff in a committed file. The
-    /// property is nullable only because a manifest written before the section existed omits it;
-    /// the getter never returns <see langword="null"/>.
+    /// property is nullable for the deserialization path only: an omitted section leaves the
+    /// initializer's empty map standing, but a committed manifest carrying an explicit JSON null
+    /// hands one through this accessor, which normalizes it. The getter never returns
+    /// <see langword="null"/>, and nothing reads the section back — it exists to be diffed.
     /// </summary>
     [JsonPropertyName("implicitAliases")]
     public IReadOnlyDictionary<string, string>? ImplicitAliases

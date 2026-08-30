@@ -48,7 +48,7 @@ internal sealed class UnionPayloadGuard
             }
         }
 
-        throw Mismatch(string.Join("' or '", propertyNames), nameof(payload));
+        throw MismatchAmong(propertyNames, nameof(payload));
     }
 
     public void RequireBoolean(JsonElement payload, string propertyName, bool expected)
@@ -62,5 +62,17 @@ internal sealed class UnionPayloadGuard
     }
 
     private static ArgumentException Mismatch(string propertyName, string parameterName) =>
-        new($"The payload must contain a '{propertyName}' marker that agrees with the constructor marker.", parameterName);
+        MismatchAmong([propertyName], parameterName);
+
+    /// <summary>
+    /// Names every marker a payload could have carried. The quoting lives here rather than in the
+    /// caller's join: a caller splicing quote characters into the value this method then quotes
+    /// again produces the right text only by accident of the format string's shape.
+    /// </summary>
+    private static ArgumentException MismatchAmong(IReadOnlyList<string> propertyNames, string parameterName) =>
+        new(
+            "The payload must contain a "
+            + string.Join(" or ", propertyNames.Select(static name => $"'{name}'"))
+            + " marker that agrees with the constructor marker.",
+            parameterName);
 }

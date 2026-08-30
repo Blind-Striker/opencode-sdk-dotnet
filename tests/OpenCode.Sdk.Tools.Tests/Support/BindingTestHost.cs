@@ -17,6 +17,7 @@ internal sealed class BindingTestHost
             new ReachableSchemaCollector(),
             new StabilizeDuplicatePolicy(),
             new CurationValidator(),
+            new SchemaAliasValidator(),
             new SchemaAliasApplier(),
             new SchemaNameResolver(),
             new SchemaPlanBinder(new StructuralUnionPlanBinder(), new UnionMembershipValidator()),

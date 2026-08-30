@@ -129,8 +129,8 @@ public sealed class OpenCodeRoutesTests
     }
 
     /// <summary>
-    /// The wire declares 'cursor' and 'limit' as strings carrying a numeric pattern; patterns are
-    /// never validated client-side (ADR-0014), so the builder writes what the caller handed it.
+    /// The wire declares 'cursor' and 'limit' as strings, not integers, and the builder carries
+    /// them as the strings they are - escaping where the value needs it.
     /// </summary>
     [Test]
     public async Task GetOutput_Should_Carry_The_Cursor_And_Limit_As_The_Strings_They_Are()
@@ -143,6 +143,18 @@ public sealed class OpenCodeRoutesTests
         });
 
         await Assert.That(route).IsEqualTo("/api/shell/sh_100/output?location[workspace]=wrk_1&cursor=1.5e3&limit=%2B0");
+    }
+
+    /// <summary>
+    /// The declared numeric pattern is never validated client-side (ADR-0014). The values above
+    /// satisfy it, so they cannot show that; this one does not, and the builder still writes it.
+    /// </summary>
+    [Test]
+    public async Task GetOutput_Should_Write_A_Cursor_The_Wire_Pattern_Does_Not_Admit()
+    {
+        var route = OpenCodeRoutes.Shells.GetOutput("sh_100", new ShellOutputRequest { Cursor = "not-a-number" });
+
+        await Assert.That(route).IsEqualTo("/api/shell/sh_100/output?cursor=not-a-number");
     }
 
     [Test]

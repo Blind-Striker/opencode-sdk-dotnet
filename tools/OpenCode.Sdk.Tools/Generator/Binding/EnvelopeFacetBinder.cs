@@ -23,16 +23,12 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
             return null;
         }
 
-        var payload = success.EnvelopeShape switch
-        {
-            SpecEnvelopeShape.Bare => BindBarePayload(success.Schema),
-            SpecEnvelopeShape.Data => BindDataPayload(success.Schema),
-            SpecEnvelopeShape.SingleKey => BindSingleKeyPayload(success.Schema),
-            SpecEnvelopeShape.CursorData => BindCursorListPayload(success.Schema),
-            SpecEnvelopeShape.DataLocation => BindDataLocationPayload(success.Schema),
-            SpecEnvelopeShape.None or SpecEnvelopeShape.DataHasMore or _ =>
-                _context.RefuseNull<TypeReferencePlan>($"envelope shape '{success.EnvelopeShape}' is not supported"),
-        };
+        // Read once and threaded through: SingleKeyMember refuses a malformed wrapper by name, so
+        // resolving it twice would run that refusal twice for one operation.
+        var singleKeyMember = success.EnvelopeShape is SpecEnvelopeShape.SingleKey
+            ? SingleKeyMember(success.Schema)
+            : null;
+        var payload = BindPayload(success, singleKeyMember);
         var locationTypeName = success.EnvelopeShape is SpecEnvelopeShape.DataLocation
             ? BindLocationSibling(success.Schema)
             : null;
@@ -50,7 +46,7 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
         // dialect's 'data'. The payload binder already refused a malformed wrapper, so the key
         // is present by the time this reads it.
         var wireMemberName = success.EnvelopeShape is SpecEnvelopeShape.SingleKey
-            ? SingleKeyMember(success.Schema)?.Name
+            ? singleKeyMember?.Name
             : "data";
         if (wireMemberName is null)
         {
@@ -90,6 +86,19 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
             LocationTypeName = locationTypeName,
         };
     }
+
+    /// <summary>Binds the payload the classified envelope shape carries.</summary>
+    private TypeReferencePlan? BindPayload(SpecResponse success, SpecProperty? singleKeyMember) =>
+        success.EnvelopeShape switch
+        {
+            SpecEnvelopeShape.Bare => BindBarePayload(success.Schema!),
+            SpecEnvelopeShape.Data => BindDataPayload(success.Schema!),
+            SpecEnvelopeShape.SingleKey => BindSingleKeyPayload(success.Schema!, singleKeyMember),
+            SpecEnvelopeShape.CursorData => BindCursorListPayload(success.Schema!),
+            SpecEnvelopeShape.DataLocation => BindDataLocationPayload(success.Schema!),
+            SpecEnvelopeShape.None or SpecEnvelopeShape.DataHasMore or _ =>
+                _context.RefuseNull<TypeReferencePlan>($"envelope shape '{success.EnvelopeShape}' is not supported"),
+        };
 
     private static NamedTypeReferencePlan Named(string name) => new()
     {
@@ -203,7 +212,11 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
     /// <summary>
     /// Reads the sole required member of a single-key wrapper — the key the payload arrives
     /// under. Ingestion only classifies an operation-declared inline object this way, so a
-    /// component the dialect names keeps its own identity and never reaches here.
+    /// component the dialect names keeps its own identity and never reaches here. Requiredness is
+    /// this binder's wall, not the classifier's: <c>EnvelopeClassifier</c> admits any inline
+    /// object with exactly one property, because a key's name is all it can see, and a wrapper
+    /// whose sole property is optional has no payload the envelope can promise. It is refused
+    /// here by name rather than silently reclassified as a bare body.
     /// </summary>
     private SpecProperty? SingleKeyMember(SchemaNode schema) =>
         schema is RefNode reference
@@ -212,9 +225,9 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
             ? member
             : _context.RefuseNull<SpecProperty>("single-key envelope must reference an object requiring exactly one property");
 
-    private TypeReferencePlan? BindSingleKeyPayload(SchemaNode schema)
+    private TypeReferencePlan? BindSingleKeyPayload(SchemaNode schema, SpecProperty? singleKeyMember)
     {
-        if (SingleKeyMember(schema) is not { } member || schema is not RefNode reference)
+        if (singleKeyMember is not { } member || schema is not RefNode reference)
         {
             return null;
         }
@@ -276,9 +289,11 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
         // A named top-level component payload keeps its own identity. An inline object
         // ingestion promoted into the graph reaches the same lookup, because
         // SchemaNameResolver's DataLocation arm claims that promoted key under the
-        // operation-scoped payload name exactly as the Data shape's arm does; a RefNode the
-        // resolver named neither way still falls through and refuses below — no resurrection
-        // via the type machinery's mechanical fallback name.
+        // operation-scoped payload name. What makes that reliable is the shared shape check both
+        // sides run (EnvelopeWrapperShape.IsDataLocation), not the arm order below: a RefNode the
+        // resolver named neither way reaches one of the arms that follow, each of which either
+        // recognizes a shape of its own or refuses — no resurrection via the type machinery's
+        // mechanical fallback name.
         var data = wrapper.Properties.Single(static property => property.Name is "data");
         if (data.Schema is RefNode datum && _context.TypeNames.TryGetValue(datum.Target, out var datumName))
         {
@@ -350,14 +365,9 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
             return _context.RefuseNull<ObjectNode>("location envelope must reference an object schema");
         }
 
-        var data = wrapper.Properties.FirstOrDefault(static property => property.Name is "data");
-        var location = wrapper.Properties.FirstOrDefault(static property => property.Name is "location");
-        if (wrapper.Properties.Count is not 2 || data is not { IsRequired: true } || location is not { IsRequired: true })
-        {
-            return _context.RefuseNull<ObjectNode>("location envelope must require exactly 'data' and 'location'");
-        }
-
-        return wrapper;
+        return EnvelopeWrapperShape.IsDataLocation(wrapper, out _)
+            ? wrapper
+            : _context.RefuseNull<ObjectNode>("location envelope must require exactly 'data' and 'location'");
     }
 
     private string? BindLocationSibling(SchemaNode schema)

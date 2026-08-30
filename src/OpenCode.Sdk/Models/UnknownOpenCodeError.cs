@@ -31,7 +31,7 @@ public sealed record UnknownOpenCodeError : IOpenCodeError
     }
 
     /// <summary>
-    /// Gets the unrecognized &apos;_tag&apos; marker.
+    /// Gets the unrecognized &apos;_tag&apos; or &apos;name&apos; marker.
     /// </summary>
     [JsonPropertyName("_tag")]
     public string Tag => _marker;

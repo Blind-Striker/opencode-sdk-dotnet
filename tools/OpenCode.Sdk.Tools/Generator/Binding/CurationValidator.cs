@@ -8,13 +8,12 @@ internal sealed class CurationValidator
     private readonly StringComparer _comparer = StringComparer.Ordinal;
 
     public void Validate(SpecDocument document, IReadOnlyList<SpecOperation> selected, ReachableSchemaSet reachable,
-        GenerationCuration curation, StabilizeDuplicateCollapse collapse, BindingErrorCollector errors)
+        GenerationCuration curation, BindingErrorCollector errors)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(selected);
         ArgumentNullException.ThrowIfNull(reachable);
         ArgumentNullException.ThrowIfNull(curation);
-        ArgumentNullException.ThrowIfNull(collapse);
         ArgumentNullException.ThrowIfNull(errors);
 
         var selectedIds = selected.Select(static operation => operation.OperationId).ToHashSet(_comparer);
@@ -25,7 +24,6 @@ internal sealed class CurationValidator
         ValidateOperationNames(selectedIds, documentIds, curation, errors);
         ValidateSchemaNames(document, reachable, curation, errors);
         ValidateEnvelopeNames(selectedIds, documentIds, curation, errors);
-        ValidateSchemaAliases(document, reachable, curation, collapse, errors);
         ValidateTransportOwned(document, selectedIds, curation, errors);
     }
 
@@ -305,117 +303,6 @@ internal sealed class CurationValidator
             }
         }
     }
-
-    /// <summary>
-    /// The alias walls carry the drift contract: a deleted source or target orphans the row,
-    /// a dereferenced source goes dormant, and any structural divergence — the tag included —
-    /// breaks the identity check. Every upstream move on the duplicate is loud. A row the
-    /// mechanical stabilize-duplicate collapse already implies is refused as redundant, so
-    /// curation carries only the duplicates no convention recognizes.
-    /// </summary>
-    private static void ValidateSchemaAliases(SpecDocument document, ReachableSchemaSet reachable,
-        GenerationCuration curation, StabilizeDuplicateCollapse collapse, BindingErrorCollector errors)
-    {
-        var reachableKeys = reachable.GraphKeys.ToHashSet(StringComparer.Ordinal);
-        var sources = new HashSet<string>(StringComparer.Ordinal);
-        // Identity is judged on the graph as it will be bound, so one alias can be what makes
-        // a second pair identical — the mechanical collapse included.
-        // A duplicated source is reported below rather than throwing here.
-        var aliasTargets = SchemaAliasApplier.Compose(collapse, curation.SchemaAliases);
-        foreach (var alias in curation.SchemaAliases)
-        {
-            if (!sources.Add(alias.Schema))
-            {
-                errors.Add(BindingErrorCategory.Curation, alias.Schema, "schema alias is duplicated");
-            }
-
-            if (collapse.Aliases.TryGetValue(alias.Schema, out var implied))
-            {
-                errors.Add(BindingErrorCategory.Curation, alias.Schema,
-                    $"schema alias is redundant: the stabilize-duplicate collapse already folds it into '{implied}'");
-                continue;
-            }
-
-            if (string.IsNullOrWhiteSpace(alias.Reason))
-            {
-                errors.Add(BindingErrorCategory.Curation, alias.Schema, "schema alias must declare a reason");
-            }
-
-            if (string.Equals(alias.Schema, alias.AliasOf, StringComparison.Ordinal))
-            {
-                errors.Add(BindingErrorCategory.Curation, alias.Schema, "schema alias cannot target itself");
-                continue;
-            }
-
-            if (!document.Schemas.TryGetValue(alias.Schema, out var source))
-            {
-                errors.Add(BindingErrorCategory.Curation, alias.Schema, "aliased schema does not exist in the spec");
-                continue;
-            }
-
-            if (!document.Schemas.TryGetValue(alias.AliasOf, out var target))
-            {
-                errors.Add(BindingErrorCategory.Curation, alias.Schema, $"alias target '{alias.AliasOf}' does not exist in the spec");
-                continue;
-            }
-
-            if (!reachableKeys.Contains(alias.Schema))
-            {
-                errors.Add(BindingErrorCategory.Curation, alias.Schema, "aliased schema is not referenced by the selected profile");
-            }
-
-            if (!SchemaNodeComparer.DeepEquals(source, target, document.Schemas, aliasTargets))
-            {
-                errors.Add(BindingErrorCategory.Curation, alias.Schema, "aliased schemas must be structurally identical");
-            }
-        }
-
-        ValidateAliasChains(curation, collapse, sources, errors);
-    }
-
-    /// <summary>
-    /// A chain leaves the applier rewriting a reference onto a key it has already deleted from the
-    /// graph, so all three shapes of it refuse by name: a curated row whose target another curated
-    /// row aliases, a curated row whose target the mechanical collapse folds, and a curated row
-    /// over the very base the mechanical collapse folds duplicates into. The last two are mirror
-    /// images — a key-only lookup would catch one direction and leave the other to surface as an
-    /// unnamed reachability failure.
-    /// </summary>
-    private static void ValidateAliasChains(GenerationCuration curation, StabilizeDuplicateCollapse collapse,
-        HashSet<string> sources, BindingErrorCollector errors)
-    {
-        foreach (var alias in curation
-                     .SchemaAliases
-                     .Where(static alias => !string.Equals(alias.Schema, alias.AliasOf, StringComparison.Ordinal))
-                     .OrderBy(static alias => alias.Schema, StringComparer.Ordinal))
-        {
-            if (collapse.Aliases.TryGetValue(alias.AliasOf, out var foldedTarget))
-            {
-                errors.Add(BindingErrorCategory.Curation, alias.Schema,
-                    "schema aliases cannot chain: the stabilize-duplicate collapse already folds the target "
-                    + $"'{alias.AliasOf}' into '{foldedTarget}'");
-            }
-            else if (sources.Contains(alias.AliasOf))
-            {
-                errors.Add(BindingErrorCategory.Curation, alias.Schema, "schema aliases cannot chain");
-            }
-
-            if (FindDuplicateFoldedInto(collapse, alias.Schema) is { } duplicate)
-            {
-                errors.Add(BindingErrorCategory.Curation, alias.Schema,
-                    "schema aliases cannot chain: the stabilize-duplicate collapse already folds "
-                    + $"'{duplicate}' into '{alias.Schema}'");
-            }
-        }
-    }
-
-    /// <summary>The ordinally first stabilize duplicate the collapse folds into <paramref name="schema"/>, if any.</summary>
-    private static string? FindDuplicateFoldedInto(StabilizeDuplicateCollapse collapse, string schema) =>
-        collapse
-            .Aliases.Where(fold => string.Equals(fold.Value, schema, StringComparison.Ordinal))
-            .Select(static fold => fold.Key)
-            .Order(StringComparer.Ordinal)
-            .FirstOrDefault();
 
     /// <summary>
     /// A transport-owned row pins a fingerprint over an operation the profile never selects

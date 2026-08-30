@@ -9,6 +9,9 @@ namespace OpenCode.Sdk.Tools.Generator.Binding;
 /// marker names themselves. The order is the order the generated converter scans the payload:
 /// an Effect <c>_tag</c> first, then the <c>{name, data}</c> dialect. A dialect absent from this
 /// table has no marker and is refused by name (ADR-0007 admits tagged payloads, not untagged ones).
+/// The same two names are spelled once more in <c>Ingestion/Projection/ErrorStyleClassifier</c>,
+/// which recognizes the dialect from a schema's properties; the two layers must agree, so a
+/// dialect added there needs a row here.
 /// </summary>
 internal static class ErrorMarkerPolicy
 {

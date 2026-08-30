@@ -385,7 +385,7 @@ public sealed class GenerationWriterTests
         _ = await writer.WriteAsync(
             Request(
                 [GenerationTestData.Source("Models/Widget.cs", "widget")],
-                implicitSchemaAliases: new Dictionary<string, string>(StringComparer.Ordinal)
+                implicitAliases: new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     ["Widget_2"] = "Widget",
                     ["Widget_1"] = "Widget",
@@ -401,10 +401,28 @@ public sealed class GenerationWriterTests
             .IsLessThan(manifest.IndexOf("\"Widget_2\"", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// The section is written even when it is empty: an empty object in a committed file is what
+    /// makes the first implicit alias to arrive upstream a one-line diff rather than a new key.
+    /// </summary>
+    [Test]
+    public async Task WriteAsync_Should_Write_An_Empty_Implicit_Aliases_Section()
+    {
+        var fileSystem = GenerationTestData.CreateFileSystem();
+        var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
+
+        _ = await writer.WriteAsync(
+            Request([GenerationTestData.Source("Models/Widget.cs", "widget")]),
+            CancellationToken.None);
+
+        var manifest = await fileSystem.File.ReadAllTextAsync(GenerationTestData.ManifestPath, CancellationToken.None);
+        await Assert.That(manifest).Contains("\"implicitAliases\": {}");
+    }
+
     /// <summary>Assembles one write request over the shared test roots; flags default off.</summary>
     private static GenerationWriteRequest Request(IReadOnlyList<GeneratedSource> sources,
         IReadOnlyList<string>? familyFolders = null, string? partialMarkerContent = null, bool verify = false,
-        IReadOnlyDictionary<string, string>? implicitSchemaAliases = null) =>
+        IReadOnlyDictionary<string, string>? implicitAliases = null) =>
         new()
         {
             OutputRoot = GenerationTestData.OutputRoot,
@@ -412,7 +430,7 @@ public sealed class GenerationWriterTests
             Sources = sources,
             FamilyFolders = familyFolders ?? [],
             PartialMarkerContent = partialMarkerContent,
-            ImplicitSchemaAliases = implicitSchemaAliases ?? new Dictionary<string, string>(StringComparer.Ordinal),
+            ImplicitAliases = implicitAliases ?? new Dictionary<string, string>(StringComparer.Ordinal),
             Verify = verify,
         };
 }

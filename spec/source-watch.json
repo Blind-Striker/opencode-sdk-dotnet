@@ -133,7 +133,7 @@
       "behavior": "The embedded daemon asset comes from the binaryPath export of the pty package.",
       "anchor": {
         "type": "contains",
-        "text": "binaryPath"
+        "text": "import { binaryPath } from \"@opencode-ai/pty\""
       }
     },
     {
@@ -142,7 +142,7 @@
       "behavior": "The opencode-pty daemon dependency is pinned at 0.1.13, which fixes the daemon protocol the persistent-PTY door speaks.",
       "anchor": {
         "type": "contains",
-        "text": "0.1.13"
+        "text": "\"@opencode-ai/pty\": \"0.1.13\""
       }
     },
     {

@@ -262,10 +262,13 @@ public sealed class SnapshotSynchronizerTests
     {
         var fileSystem = await CreateRepositoryAsync();
         await fileSystem.File.WriteAllBytesAsync(SnapshotPaths.AcceptedDocument, CandidateDocument);
+        var pinned = RefreshScenarioData.Watched("packages/core/src/pty.ts", "const BUFFER_LIMIT = 1024 * 1024 * 2", "BUFFER_LIMIT");
         await fileSystem.File.WriteAllTextAsync(
             SnapshotPaths.CommittedReceipt,
-            RefreshScenarioData.Serialize(CreateReceipt(CandidateDocument, normalizedDocumentPath: null)));
-        var pinned = RefreshScenarioData.Watched("packages/core/src/pty.ts", "const BUFFER_LIMIT = 1024 * 1024 * 2", "BUFFER_LIMIT");
+            RefreshScenarioData.Serialize(CreateReceipt(CandidateDocument, normalizedDocumentPath: null) with
+            {
+                WatchedSources = [Observation(pinned.Path, pinned.Sha256, anchorMatched: true)],
+            }));
         await WriteSourceWatchAsync(fileSystem, pinned);
         var runner = new ScriptedProcessRunner()
             .Expect("git", "rev-parse HEAD", ScriptedProcessRunner.Ok(RefreshScenarioData.Commit + "\n"))
@@ -274,7 +277,44 @@ public sealed class SnapshotSynchronizerTests
 
         var outcome = await synchronizer.VerifyAsync(CancellationToken.None);
 
-        await Assert.That(outcome.Problems.Single()).Contains("watched source 'packages/core/src/pty.ts' changed: pinned");
+        // A checkout that moved under the door disagrees with both readings: the committed pin
+        // and the accepted receipt's own record of the same file.
+        await Assert
+            .That(outcome.Problems.Any(static problem =>
+                problem.Contains("watched source 'packages/core/src/pty.ts' changed: pinned", StringComparison.Ordinal)))
+            .IsTrue();
+        await Assert
+            .That(outcome.Problems.Any(static problem =>
+                problem.Contains("the receipt records watched source 'packages/core/src/pty.ts' at", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    /// <summary>
+    /// Verify reproduces the receipt's watchedSources section rather than trusting it: here the
+    /// checkout matches the committed pin exactly, and the only disagreement is the receipt's own
+    /// anchorMatched record (ADR-0020).
+    /// </summary>
+    [Test]
+    public async Task Verify_Should_Report_A_Receipt_Whose_Watched_Sources_It_Cannot_Reproduce()
+    {
+        var fileSystem = await CreateRepositoryAsync();
+        await fileSystem.File.WriteAllBytesAsync(SnapshotPaths.AcceptedDocument, CandidateDocument);
+        var pinned = RefreshScenarioData.Watched("packages/core/src/pty.ts", "const BUFFER_LIMIT = 1024 * 1024 * 2", "BUFFER_LIMIT");
+        await fileSystem.File.WriteAllTextAsync(
+            SnapshotPaths.CommittedReceipt,
+            RefreshScenarioData.Serialize(CreateReceipt(CandidateDocument, normalizedDocumentPath: null) with
+            {
+                WatchedSources = [Observation(pinned.Path, pinned.Sha256, anchorMatched: false)],
+            }));
+        await WriteSourceWatchAsync(fileSystem, pinned);
+        var runner = new ScriptedProcessRunner()
+            .Expect("git", "rev-parse HEAD", ScriptedProcessRunner.Ok(RefreshScenarioData.Commit + "\n"))
+            .Expect("git", $"show HEAD:{pinned.Path}", ScriptedProcessRunner.Ok("const BUFFER_LIMIT = 1024 * 1024 * 2"));
+        var synchronizer = CreateSynchronizer(fileSystem, runner);
+
+        var outcome = await synchronizer.VerifyAsync(CancellationToken.None);
+
+        await Assert.That(outcome.Problems.Single()).Contains("anchorMatched=false, but this checkout observes true");
     }
 
     [Test]

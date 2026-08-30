@@ -2107,6 +2107,25 @@ public sealed class OperationPlanBinderTests
             .IsTrue();
     }
 
+    /// <summary>
+    /// A format on an enum is a dialect the SDK does not read, so the parameter is not treated as
+    /// an enum at all and lands on the ordinary value path, which has no shape for it either. The
+    /// refusal is by name rather than a silent bind against a model that was never generated.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Refuse_A_Formatted_Enum_Query_Parameter()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("mode", "query", static schema => schema.Type("string").Enum("working", "branch").Format("mode"))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = BindWidgets(document));
+
+        await Assert
+            .That(exception.Errors.Any(static error =>
+                error.Problem.Contains("query parameter 'mode' has an unsupported schema shape", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
     [Test]
     public async Task Bind_Should_Keep_A_Spine_Profile_Query_Enum_Out_Of_The_Model_Closure()
     {

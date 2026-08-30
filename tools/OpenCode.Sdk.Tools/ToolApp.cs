@@ -40,6 +40,7 @@ public static class ToolApp
         services.AddSingleton<ReachableSchemaCollector>();
         services.AddSingleton<StabilizeDuplicatePolicy>();
         services.AddSingleton<CurationValidator>();
+        services.AddSingleton<SchemaAliasValidator>();
         services.AddSingleton<SchemaAliasApplier>();
         services.AddSingleton<SchemaNameResolver>();
         services.AddSingleton<StructuralUnionPlanBinder>();

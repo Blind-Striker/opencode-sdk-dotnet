@@ -440,7 +440,7 @@ internal sealed class SchemaPlanBinder(
             });
         }
 
-        if (variants.Count is 0 || !ReportDuplicateErrorTags(variants, errors))
+        if (variants.Count is 0 || !HasUniqueErrorTags(variants, errors))
         {
             return null;
         }
@@ -470,9 +470,10 @@ internal sealed class SchemaPlanBinder(
     /// One tag owned by two closure types would poison the converter's dispatch map at its
     /// first use, and the reader's per-status filter reads the same one member on either
     /// dialect, so a collision refuses naming its owners; structurally identical duplicates
-    /// have the schema-alias escape.
+    /// have the schema-alias escape. Returns whether the tags are unique - the caller reads it
+    /// as the go-ahead, so the name says what true means.
     /// </summary>
-    private static bool ReportDuplicateErrorTags(IReadOnlyList<UnionVariantPlan> variants, BindingErrorCollector errors)
+    private static bool HasUniqueErrorTags(IReadOnlyList<UnionVariantPlan> variants, BindingErrorCollector errors)
     {
         var duplicates = variants
             .GroupBy(static variant => variant.Tag, StringComparer.Ordinal)

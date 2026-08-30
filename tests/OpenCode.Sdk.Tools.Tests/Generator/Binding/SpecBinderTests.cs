@@ -1644,7 +1644,7 @@ public sealed class SpecBinderTests
                 .Tags.Select(static tag => tag.TypeName)
                 .SequenceEqual(["GadgetError"], StringComparer.Ordinal))
             .IsTrue();
-        await Assert.That(plan.ImplicitSchemaAliases.Aliases["GadgetError_1"]).IsEqualTo("GadgetError");
+        await Assert.That(plan.ImplicitAliases.Aliases["GadgetError_1"]).IsEqualTo("GadgetError");
     }
 
     [Test]

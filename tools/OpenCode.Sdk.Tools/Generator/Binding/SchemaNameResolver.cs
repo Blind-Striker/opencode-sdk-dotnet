@@ -275,10 +275,12 @@ internal sealed class SchemaNameResolver
 
     /// <summary>
     /// Resolves the graph key of a location wrapper's <c>data</c> payload — the array's item for
-    /// a list, the member itself for a single value — matching the
-    /// required-<c>data</c>-and-<c>location</c> shape <c>EnvelopeFacetBinder.BindDataLocationPayload</c>
-    /// reads. A real top-level component payload is filtered back out by this method's caller
-    /// (its key carries no '#'), which is also what keeps the ref-to-named-array shape out.
+    /// a list, the member itself for a single value. The shape check is
+    /// <see cref="EnvelopeWrapperShape.IsDataLocation"/>, the same call
+    /// <c>EnvelopeFacetBinder.ResolveDataLocationWrapper</c> makes, so what this claims and what
+    /// the binder reads cannot drift apart. A real top-level component payload is filtered back
+    /// out by this method's caller (its key carries no '#'), which is also what keeps the
+    /// ref-to-named-array shape out.
     /// </summary>
     private static string? ResolveDataLocationPayloadKey(SpecDocument document, string wrapperKey)
     {
@@ -287,9 +289,7 @@ internal sealed class SchemaNameResolver
             return null;
         }
 
-        var data = wrapper.Properties.FirstOrDefault(static property => property.Name is "data");
-        var location = wrapper.Properties.FirstOrDefault(static property => property.Name is "location");
-        if (wrapper.Properties.Count is not 2 || data is not { IsRequired: true } || location is not { IsRequired: true })
+        if (!EnvelopeWrapperShape.IsDataLocation(wrapper, out var data) || data is null)
         {
             return null;
         }

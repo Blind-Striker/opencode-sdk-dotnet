@@ -136,7 +136,7 @@ internal sealed partial class SnapshotSynchronizer(
             problems.Add(exception.Message);
         }
 
-        problems.AddRange(await CheckWatchedSourcesAsync(cancellationToken).ConfigureAwait(false));
+        problems.AddRange(await CheckWatchedSourcesAsync(receipt, cancellationToken).ConfigureAwait(false));
         return new VerifyOutcome
         {
             UpstreamCommit = receipt.UpstreamCommit,
@@ -394,13 +394,21 @@ internal sealed partial class SnapshotSynchronizer(
         };
     }
 
-    private async Task<IReadOnlyList<string>> CheckWatchedSourcesAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Observes the watched sources once and reads that observation twice: against the committed
+    /// pins, which says whether upstream moved under a hand-written door, and against the
+    /// accepted receipt's own section, which reproduces what prepare recorded instead of trusting
+    /// it. Both readings answer a different question and both belong to verify (ADR-0020).
+    /// </summary>
+    private async Task<IReadOnlyList<string>> CheckWatchedSourcesAsync(
+        SnapshotReceipt receipt, CancellationToken cancellationToken)
     {
         try
         {
             var watch = await _sourceWatchLoader.LoadAsync(cancellationToken).ConfigureAwait(false);
             var observed = await _watchedSourceReader.ObserveAsync("HEAD", watch.Sources, cancellationToken).ConfigureAwait(false);
-            return SourceWatchVerifier.Compare(watch.Sources, observed);
+            return [.. SourceWatchVerifier.Compare(watch.Sources, observed),
+                .. SourceWatchVerifier.CompareReceipt(receipt.WatchedSources, observed)];
         }
         catch (SnapshotRefreshException exception)
         {

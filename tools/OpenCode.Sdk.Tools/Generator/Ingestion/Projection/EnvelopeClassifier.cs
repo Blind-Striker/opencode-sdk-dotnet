@@ -40,7 +40,11 @@ internal sealed class EnvelopeClassifier
             // A single non-'data' key is envelope spine only where the operation declares the
             // object inline. A named component with one property is a model with its own
             // identity — Worktree.Info's {directory}, SessionInterruptResponse's {interrupted} —
-            // and flattening it would erase a name upstream chose.
+            // and flattening it would erase a name upstream chose. Requiredness is deliberately
+            // not read here: classification is a shape question about keys, and whether the sole
+            // property is required is a binding fact that EnvelopeFacetBinder.SingleKeyMember
+            // owns and refuses by name. Admitting an optional single property here and refusing
+            // it there keeps one wall rather than two that could disagree.
             1 when schema is not OpenApiSchemaReference => SpecEnvelopeShape.SingleKey,
             2 when propertyNames.SetEquals(_dataLocation) => SpecEnvelopeShape.DataLocation,
             2 when propertyNames.SetEquals(_cursorData) => SpecEnvelopeShape.CursorData,

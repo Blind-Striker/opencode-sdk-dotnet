@@ -153,6 +153,48 @@ public sealed class OpenCodeJsonContextTests
     }
 
     [Test]
+    public async Task Deserialize_Should_Leave_An_Absent_Force_Required_Null()
+    {
+        var json = _fixtures.LoadJson("Serialization.worktree-error-without-force-required.json");
+
+        var result = (WorktreeError)_serializer.Deserialize<IOpenCodeError>(json);
+
+        await Assert.That(result.Data.ForceRequired).IsNull();
+        await Assert.That(_serializer.Serialize<IOpenCodeError>(result)).IsEqualTo(json);
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Collapse_An_Explicit_Null_Force_Required()
+    {
+        var json = _fixtures.LoadJson("Serialization.worktree-error-null-force-required.json");
+
+        var result = (WorktreeError)_serializer.Deserialize<IOpenCodeError>(json);
+
+        // Absent and null are the same answer here, and the member is written back only when it
+        // has one - so the round trip drops the null the wire carried.
+        await Assert.That(result.Data.ForceRequired).IsNull();
+        await Assert.That(_serializer.Serialize<IOpenCodeError>(result))
+            .IsEqualTo(_fixtures.LoadJson("Serialization.worktree-error-without-force-required.json"));
+    }
+
+    /// <summary>
+    /// The generated converter scans the admitted markers in ErrorMarkerPolicy's declared order -
+    /// the Effect '_tag' first, then the {name, data} dialect - so a body carrying both dispatches
+    /// on '_tag'. Upstream declares one dialect per schema; this pins what the SDK does with a
+    /// body that declares two, rather than leaving the scan order an accident.
+    /// </summary>
+    [Test]
+    public async Task Deserialize_Should_Dispatch_On_The_Tag_Marker_When_A_Body_Carries_Both()
+    {
+        var json = _fixtures.LoadJson("Serialization.error-carrying-both-markers.json");
+
+        var result = _serializer.Deserialize<IOpenCodeError>(json);
+
+        await Assert.That(result).IsTypeOf<ShellNotFoundError>();
+        await Assert.That(result.Tag).IsEqualTo("ShellNotFoundError");
+    }
+
+    [Test]
     public async Task Deserialize_Should_Still_Create_The_Tag_Tagged_Error_Variant()
     {
         const string json = "{\"_tag\":\"ShellNotFoundError\",\"id\":\"sh_9\",\"message\":\"gone\"}";

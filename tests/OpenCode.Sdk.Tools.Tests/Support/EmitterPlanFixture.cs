@@ -36,7 +36,7 @@ internal static class EmitterPlanFixture
 
         return new EmitPlan
         {
-            ImplicitSchemaAliases = StabilizeDuplicateCollapse.Empty,
+            ImplicitAliases = StabilizeDuplicateCollapse.Empty,
             SelectedOperationIds = ["v2.example.get"],
             Models = models,
             Unions = unions,

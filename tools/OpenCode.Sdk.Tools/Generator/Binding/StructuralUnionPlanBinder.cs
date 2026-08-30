@@ -123,8 +123,11 @@ internal sealed class StructuralUnionPlanBinder
             return true;
         }
 
+        // Named as a branch, not as an arm: a structural union's branches are anonymous, so this
+        // subject is the positional index the sibling token-dispatch refusal above already uses.
+        // There is no human arm name to quote - ArmName cannot produce one for a binary plan.
         errors.Add(BindingErrorCategory.Schema, key,
-            $"structural union arm '{armNameSubject}' is a base64 string; binary arms are not supported");
+            $"structural union branch {armNameSubject} is a base64 string; binary arms are not supported");
         return false;
     }
 
@@ -207,6 +210,13 @@ internal sealed class StructuralUnionPlanBinder
         return tokens.Count > 0;
     }
 
+    /// <summary>
+    /// Names one arm from its bound type. The binary case is unreachable through
+    /// <see cref="Bind"/> - <see cref="ValidateNotBinaryArm"/> refuses a binary plan before
+    /// naming ever runs - and is kept spelled out anyway: the catch-all below would
+    /// call a type the binder knows perfectly well "unknown", which is the wrong thing for the
+    /// next reader to be told when the ordering that makes it unreachable changes.
+    /// </summary>
     private static string ArmName(TypeReferencePlan type) => type switch
     {
         NamedTypeReferencePlan { Name: "string" } => "Text",
