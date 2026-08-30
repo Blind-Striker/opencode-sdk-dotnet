@@ -14,7 +14,9 @@ internal sealed class LoopbackHttpServer : IAsyncDisposable
     private readonly ConcurrentBag<TcpClient> _clients = [];
     private readonly ConcurrentBag<Task> _connections = [];
     private readonly TcpListener _listener;
-    private readonly ConcurrentQueue<string> _requestPaths = [];
+    private const string contentLengthPrefix = "Content-Length:";
+
+    private readonly ConcurrentQueue<LoopbackRequest> _requests = [];
     private readonly Func<string, LoopbackHttpResponse> _respond;
     private readonly CancellationTokenSource _shutdown = new();
 
@@ -32,7 +34,10 @@ internal sealed class LoopbackHttpServer : IAsyncDisposable
 
     public Task ClientDisconnected => _clientDisconnected.Task;
 
-    public IReadOnlyList<string> RequestPaths => [.. _requestPaths];
+    public IReadOnlyList<string> RequestPaths => [.. _requests.Select(static request => request.Path)];
+
+    /// <summary>Gets the requests the platform handler actually put on the socket, bodies included.</summary>
+    public IReadOnlyList<LoopbackRequest> Requests => [.. _requests];
 
     public static LoopbackHttpServer Start(Func<string, LoopbackHttpResponse> respond)
     {
@@ -88,9 +93,9 @@ internal sealed class LoopbackHttpServer : IAsyncDisposable
         {
             try
             {
-                var path = await ReadRequestPathAsync(stream);
-                _requestPaths.Enqueue(path);
-                var response = _respond(path);
+                var request = await ReadRequestAsync(stream);
+                _requests.Enqueue(request);
+                var response = _respond(request.Path);
                 await WriteResponseAsync(stream, response);
                 if (response.KeepOpen)
                 {
@@ -125,7 +130,11 @@ internal sealed class LoopbackHttpServer : IAsyncDisposable
         }
     }
 
-    private static async Task<string> ReadRequestPathAsync(Stream stream)
+    /// <summary>
+    /// Reads the request head and, when the head declares one, exactly the declared body, so a
+    /// test can assert what the platform handler really wrote rather than what it was handed.
+    /// </summary>
+    private static async Task<LoopbackRequest> ReadRequestAsync(Stream stream)
     {
         using var reader = new StreamReader(
             stream,
@@ -135,15 +144,46 @@ internal sealed class LoopbackHttpServer : IAsyncDisposable
             leaveOpen: true);
         var requestLine = await reader.ReadLineAsync()
                           ?? throw new InvalidOperationException("The loopback request ended before its request line.");
-        while (!string.IsNullOrEmpty(await reader.ReadLineAsync()))
+        var contentLength = 0;
+        var header = await reader.ReadLineAsync();
+        while (!string.IsNullOrEmpty(header))
         {
-            // Request headers are irrelevant to this transport-policy fixture.
+            if (header.StartsWith(contentLengthPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                contentLength = int.Parse(
+                    header[contentLengthPrefix.Length..].Trim(),
+                    CultureInfo.InvariantCulture);
+            }
+
+            header = await reader.ReadLineAsync();
         }
 
         var parts = requestLine.Split(' ');
-        return parts.Length >= 2
-            ? parts[1]
-            : throw new InvalidOperationException($"Invalid loopback request line '{requestLine}'.");
+        if (parts.Length < 2)
+        {
+            throw new InvalidOperationException($"Invalid loopback request line '{requestLine}'.");
+        }
+
+        var body = string.Empty;
+        if (contentLength > 0)
+        {
+            var buffer = new char[contentLength];
+            var read = 0;
+            while (read < contentLength)
+            {
+                var count = await reader.ReadAsync(buffer, read, contentLength - read);
+                if (count is 0)
+                {
+                    break;
+                }
+
+                read += count;
+            }
+
+            body = new string(buffer, 0, read);
+        }
+
+        return new LoopbackRequest(parts[0], parts[1], body);
     }
 
     private static async Task WriteResponseAsync(Stream stream, LoopbackHttpResponse response)

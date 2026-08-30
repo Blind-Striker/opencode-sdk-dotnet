@@ -1,6 +1,6 @@
 Generation is incomplete; packages must not be published.
-Selected operations: 130
-Pending operations: 4
+Selected operations: 131
+Pending operations: 3
 Transport-owned operations: 2
 Selected:
 - v2.agent.get
@@ -133,11 +133,11 @@ Selected:
 - v2.worktree.create
 - v2.worktree.list
 - v2.worktree.refresh
+- v2.worktree.remove
 Pending:
 - v2.config.get [refused: C# type name 'ConfigModelCost' collides with schema 'Config.Model.CostEncoded']
 - v2.experimental.migration.v1.status [refused: structural union branch 1 overlaps earlier branch token kind(s): StartObject]
 - v2.fs.read [refused: wildcard paths are not supported in M1]
-- v2.worktree.remove [bindable]
 Transport-owned:
 - v2.persistentPty.connect [fingerprint-pinned]
 - v2.pty.connect [fingerprint-pinned]

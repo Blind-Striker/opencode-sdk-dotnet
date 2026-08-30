@@ -526,12 +526,15 @@ The error model then admits its second wire dialect beside Effect's `_tag`: a `{
 error binds under the same `IOpenCodeError` base with the `name` literal as its `Tag` (serialized
 under `name`) and its `data` struct as a nested generated model, the generated converter scans
 `_tag` first and then `name` without a JSON DOM for known arms, and an error dialect the policy
-does not name is still refused. It selects `v2.worktree.create`
-(`ProjectWorktreesClient.CreateWorktreeAsync` returning `WorktreeCreateResponse.Worktree`) and
-`v2.worktree.refresh` (`RefreshWorktreesAsync`, a 204 no-content envelope), giving `WorktreeError`
-and `WorktreeErrorData` and taking the profile to **130 selected / 4 pending / 2 transport-owned**.
-`v2.worktree.remove` stays pending on a second, independent wall: it is `DELETE` with a required
-request body, which `OperationWireShapeWall` refuses, and relaxing that wall is an open decision.
+does not name is still refused. The wire-shape wall widens with it: a DELETE that declares a request body now binds and sends it
+(RFC 9110 admits DELETE content where the origin server declares support, and the pinned document
+declares it), while GET keeps refusing a body and HEAD stays refused at ingestion. Together these
+select the worktree family's whole pinned surface — `v2.worktree.create`
+(`ProjectWorktreesClient.CreateWorktreeAsync` returning `WorktreeCreateResponse.Worktree`),
+`v2.worktree.refresh` (`RefreshWorktreesAsync`) and `v2.worktree.remove`
+(`RemoveWorktreeAsync(WorktreeRemoveRequest)`, both 204 no-content envelopes) — giving
+`WorktreeError` and `WorktreeErrorData` and taking the profile to
+**131 selected / 3 pending / 2 transport-owned**.
 
 ## Milestones
 

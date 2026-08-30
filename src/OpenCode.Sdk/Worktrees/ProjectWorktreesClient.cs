@@ -76,4 +76,19 @@ public class ProjectWorktreesClient
     {
         return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Worktrees.RefreshWorktrees(ProjectId), WorktreeRefreshPostResponseAdapter.Instance, requestOptions, cancellationToken);
     }
+
+    /// <summary>
+    /// Remove worktree. Remove a managed worktree from a project.
+    /// </summary>
+    /// <param name = "request">The request body.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;WorktreeRemoveResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<WorktreeRemoveResponse> RemoveWorktreeAsync(WorktreeRemoveRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return Pipeline.ExecuteAsync(HttpMethod.Delete, OpenCodeRoutes.Worktrees.RemoveWorktree(ProjectId), request, OpenCodeJsonContext.Default.WorktreeRemoveRequest, WorktreeRemoveResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
 }

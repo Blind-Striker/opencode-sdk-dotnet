@@ -154,7 +154,7 @@
       "clientName": "Worktrees",
       "handleName": "ProjectWorktreesClient",
       "handleParameter": "projectID",
-      "reason": "The family's full pinned surface (list, create, remove, refresh) all chain on the same projectID, so ADR-0019's full-surface rule gives it a handle; list, create, and refresh are selected, and remove is pending on the wire-shape wall that refuses its DELETE request body. The handle is keyed by a project id, not a worktree id, so it is named for what it actually holds: one project's worktree registry."
+      "reason": "The family's full pinned surface (list, create, remove, refresh) all chain on the same projectID, so ADR-0019's full-surface rule gives it a handle, and the whole surface is selected. The handle is keyed by a project id, not a worktree id, so it is named for what it actually holds: one project's worktree registry."
     },
     "form": {
       "placement": "client",

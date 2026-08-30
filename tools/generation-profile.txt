@@ -128,3 +128,4 @@ v2.workspace.destroy
 v2.worktree.create
 v2.worktree.list
 v2.worktree.refresh
+v2.worktree.remove

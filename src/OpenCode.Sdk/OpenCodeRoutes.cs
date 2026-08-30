@@ -3083,6 +3083,26 @@ public static class OpenCodeRoutes
 
             return "/api/worktree/" + RouteValuePolicy.Escape(projectId, nameof(projectId)) + "/refresh";
         }
+
+        /// <summary>
+        /// The &apos;DELETE /api/worktree/{projectID}&apos; route template.
+        /// </summary>
+        public const string RemoveWorktreeTemplate = "/api/worktree/{projectID}";
+        /// <summary>
+        /// Builds the &apos;/api/worktree/{projectID}&apos; route.
+        /// </summary>
+        /// <param name = "projectId">The &apos;projectID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string RemoveWorktree(string projectId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(projectId);
+            if (projectId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(projectId));
+            }
+
+            return "/api/worktree/" + RouteValuePolicy.Escape(projectId, nameof(projectId));
+        }
     }
 
     /// <summary>

@@ -69,6 +69,57 @@ public sealed class ProjectWorktreesClientContractTests
         await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
     }
 
+    /// <summary>
+    /// The pinned document declares a required body on this DELETE, so the wire must carry it:
+    /// a 204 that arrived without the body would be the server answering a different request.
+    /// </summary>
+    [Test]
+    public async Task RemoveWorktreeAsync_Should_Send_The_Json_Body_On_The_Delete_Route()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
+
+        var response = await scenario.Client.Worktrees.GetProjectWorktreesClient("prj_1").RemoveWorktreeAsync(new WorktreeRemoveRequest
+        {
+            Directory = "/repo/feature",
+            Force = true,
+        });
+
+        await Assert.That(response.Status).IsEqualTo(204);
+        await Assert.That(response.IsError).IsFalse();
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method.Method).IsEqualTo("DELETE");
+        await Assert.That(request.RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/worktree/prj_1"));
+        await Assert.That(request.Body).IsEqualTo("{\"directory\":\"/repo/feature\",\"force\":true}");
+    }
+
+    [Test]
+    public async Task RemoveWorktreeAsync_Should_Throw_The_Declared_400_Worktree_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.WorktreeError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Worktrees.GetProjectWorktreesClient("prj_1").RemoveWorktreeAsync(RemoveRequest()))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(400);
+        await Assert.That(exception.Message).Contains("'WorktreeError'");
+        await Assert.That(exception.Error).IsTypeOf<WorktreeError>();
+        await Assert.That(((WorktreeError)exception.Error!).Data.ForceRequired).IsTrue();
+    }
+
+    [Test]
+    public async Task RemoveWorktreeAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Worktrees.GetProjectWorktreesClient("prj_1")
+            .RemoveWorktreeAsync(RemoveRequest(), OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
+
     [Test]
     public async Task RefreshWorktreesAsync_Should_Post_On_The_Refresh_Route()
     {
@@ -167,5 +218,12 @@ public sealed class ProjectWorktreesClientContractTests
         {
             Strategy = "branch",
             Directory = "/repo/feature",
+        };
+
+    private static WorktreeRemoveRequest RemoveRequest() =>
+        new()
+        {
+            Directory = "/repo/feature",
+            Force = false,
         };
 }

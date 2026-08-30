@@ -1,5 +1,6 @@
 using System.Net;
 using OpenCode.Sdk.Internal;
+using OpenCode.Sdk.Models;
 using OpenCode.Sdk.Tests.Support;
 
 namespace OpenCode.Sdk.Tests;
@@ -19,6 +20,33 @@ public sealed class OwnedTransportTests
         await Assert.That(socketsHandler.PooledConnectionLifetime).IsEqualTo(TimeSpan.FromSeconds(120));
     }
 #endif
+
+    /// <summary>
+    /// The pinned document declares a required body on a DELETE, and .NET Framework's handler is
+    /// the one that refuses a body on the wrong verb, so the body is asserted off the socket on
+    /// every target rather than off a stub the platform never sees.
+    /// </summary>
+    [Test]
+    public async Task ExecuteAsync_Should_Send_A_Delete_Body_Through_The_Real_Handler()
+    {
+        await using var server = LoopbackHttpServer.Start(static _ => new LoopbackHttpResponse
+        {
+            StatusCode = HttpStatusCode.NoContent,
+        });
+        using var client = new OpenCodeClient(new OpenCodeClientOptions { Endpoint = server.Endpoint });
+
+        var response = await client.Worktrees.GetProjectWorktreesClient("prj_1").RemoveWorktreeAsync(new WorktreeRemoveRequest
+        {
+            Directory = "/repo/feature",
+            Force = true,
+        });
+
+        await Assert.That(response.Status).IsEqualTo(204);
+        var request = server.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo("DELETE");
+        await Assert.That(request.Path).IsEqualTo("/api/worktree/prj_1");
+        await Assert.That(request.Body).IsEqualTo("{\"directory\":\"/repo/feature\",\"force\":true}");
+    }
 
     [Test]
     public async Task ExecuteAsync_Should_Surface_A_Redirect_Through_The_Real_Handler()

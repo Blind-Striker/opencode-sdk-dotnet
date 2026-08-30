@@ -159,6 +159,7 @@ public sealed class OpenCodeRoutesTests
         await Assert.That(OpenCodeRoutes.Worktrees.CreateWorktree("a b")).IsEqualTo("/api/worktree/a%20b");
         await Assert.That(OpenCodeRoutes.Worktrees.ListWorktrees("a b")).IsEqualTo("/api/worktree/a%20b");
         await Assert.That(OpenCodeRoutes.Worktrees.RefreshWorktrees("a b")).IsEqualTo("/api/worktree/a%20b/refresh");
+        await Assert.That(OpenCodeRoutes.Worktrees.RemoveWorktree("a b")).IsEqualTo("/api/worktree/a%20b");
     }
 
     [Test]

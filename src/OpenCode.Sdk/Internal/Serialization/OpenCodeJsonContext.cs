@@ -675,6 +675,7 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(WorktreeError))]
 [JsonSerializable(typeof(WorktreeErrorData))]
 [JsonSerializable(typeof(WorktreeInfo))]
+[JsonSerializable(typeof(WorktreeRemoveRequest))]
 [JsonSerializable(typeof(WorktreeResolved))]
 [JsonSerializable(typeof(WorktreeResolvedData))]
 [JsonSerializable(typeof(WorktreeResolvedDurable))]

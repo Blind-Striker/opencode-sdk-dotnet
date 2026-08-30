@@ -178,6 +178,7 @@
     "Internal/ResponseAdapters/WorktreeCreateResponseAdapter.cs",
     "Internal/ResponseAdapters/WorktreeListResponseAdapter.cs",
     "Internal/ResponseAdapters/WorktreeRefreshPostResponseAdapter.cs",
+    "Internal/ResponseAdapters/WorktreeRemoveResponseAdapter.cs",
     "Internal/Serialization/AgentListResponseEnvelope.cs",
     "Internal/Serialization/AgentResponseEnvelope.cs",
     "Internal/Serialization/CommandListResponseEnvelope.cs",
@@ -934,6 +935,7 @@
     "Models/WorktreeError.cs",
     "Models/WorktreeErrorData.cs",
     "Models/WorktreeInfo.cs",
+    "Models/WorktreeRemoveRequest.cs",
     "Models/WorktreeResolved.cs",
     "Models/WorktreeResolvedData.cs",
     "Models/WorktreeResolvedDurable.cs",
@@ -1084,6 +1086,7 @@
     "Worktrees/WorktreeCreateResponse.cs",
     "Worktrees/WorktreeListResponse.cs",
     "Worktrees/WorktreeRefreshPostResponse.cs",
+    "Worktrees/WorktreeRemoveResponse.cs",
     "Worktrees/WorktreesClient.cs"
   ]
 }
