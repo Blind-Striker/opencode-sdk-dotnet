@@ -224,20 +224,20 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
             return null;
         }
 
+        // A named top-level component payload keeps its own identity. An inline object
+        // ingestion promoted into the graph reaches the same lookup, because
+        // SchemaNameResolver's DataLocation arm claims that promoted key under the
+        // operation-scoped payload name exactly as the Data shape's arm does; a RefNode the
+        // resolver named neither way still falls through and refuses below — no resurrection
+        // via the type machinery's mechanical fallback name.
         var data = wrapper.Properties.Single(static property => property.Name is "data");
-        if (data.Schema is RefNode datum
-            && !datum.Target.Contains('#', StringComparison.Ordinal)
-            && _context.TypeNames.TryGetValue(datum.Target, out var datumName))
+        if (data.Schema is RefNode datum && _context.TypeNames.TryGetValue(datum.Target, out var datumName))
         {
             return Named(datumName);
         }
 
-        // A named top-level component item keeps its own identity. An inline item ingestion
-        // promoted into the graph reaches the same lookup once SchemaNameResolver's
-        // DataLocationList arm claims it under the operation-scoped payload name (mirroring
-        // the Data shape's single-object promotion); a RefNode item claimed by neither path
-        // still falls through and refuses below — no resurrection via the type machinery's
-        // mechanical fallback name.
+        // The same claim covers a promoted inline list item, so a named component item and a
+        // promoted one share this lookup too.
         if (data.Schema is ArrayNode { Item: RefNode item }
             && _context.TypeNames.TryGetValue(item.Target, out var itemName))
         {
@@ -272,8 +272,9 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
                    ?? _context.RefuseNull<TypeReferencePlan>("success payload does not bind to a supported type plan");
         }
 
-        // A RefNode or ArrayNode that reached here already failed the nominal checks above (an
-        // unnamed or promoted-inline target, or a ref that does not resolve to an array); the
+        // A RefNode or ArrayNode that reached here already failed the name lookups above (a
+        // target the resolver left unnamed — a collapsed structural union, or a schema the
+        // dialect excludes from naming — or a ref that does not resolve to an array); the
         // dialect keeps refusing those exactly as before instead of letting the type machinery
         // resurrect a mechanically-derived name. Every other shape (a dictionary, for one)
         // delegates to the type machinery.
