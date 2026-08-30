@@ -48,7 +48,7 @@ public sealed class PendingOperationBindabilityProbeTests
     }
 
     [Test]
-    public async Task Probe_Should_Choose_The_First_Refusal_When_An_Operation_Fails_Several_Walls()
+    public async Task Probe_Should_List_Every_Independent_Wall_In_Binder_Order_When_An_Operation_Fails_Several_Walls()
     {
         var document = await BindingTestHost.IngestAsync(WidgetScenario);
         var probe = new PendingOperationBindabilityProbe(new BindingTestHost().Binder);
@@ -57,7 +57,24 @@ public sealed class PendingOperationBindabilityProbeTests
 
         await Assert.That(marks.Count).IsEqualTo(1);
         await Assert.That(marks[0].IsBindable).IsFalse();
-        await Assert.That(marks[0].RefusalMessage).IsEqualTo("wildcard paths are not supported in M1");
+        await Assert.That(marks[0].RefusalMessage).IsEqualTo(
+            "wildcard paths are not supported in M1; WebSocket operations are not supported in M1");
+    }
+
+    [Test]
+    public async Task Probe_Should_Collapse_A_Problem_Repeated_Across_Independent_Subjects_To_One_Occurrence()
+    {
+        var (document, _, _) = await BindingTestHost.LoadPinnedInputsAsync();
+        var probe = new PendingOperationBindabilityProbe(new BindingTestHost().Binder);
+
+        var marks = probe.Probe(document, ["v2.config.get"]);
+
+        await Assert.That(marks.Count).IsEqualTo(1);
+        await Assert.That(marks[0].IsBindable).IsFalse();
+        var walls = marks[0].RefusalMessage!.Split("; ");
+        await Assert.That(walls).Contains("inline nominal schema was not promoted into the graph");
+        await Assert.That(walls.Count(static wall => wall is "inline nominal schema was not promoted into the graph"))
+            .IsEqualTo(1);
     }
 
     [Test]

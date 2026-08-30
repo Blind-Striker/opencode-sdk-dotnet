@@ -129,6 +129,8 @@ public sealed class ToolAppTests
         var marker = await fileSystem.File.ReadAllTextAsync(GenerationTestData.MarkerPath, CancellationToken.None);
         await Assert.That(marker).Contains("- v2.plugin.list [bindable]");
         await Assert.That(marker).Contains("- v2.session.list [refused: the success response must carry a JSON schema]");
+        await Assert.That(marker).Contains(
+            "- v2.widget.tail [refused: wildcard paths are not supported in M1; WebSocket operations are not supported in M1]");
     }
 
     [Test]
@@ -149,7 +151,7 @@ public sealed class ToolAppTests
         await Assert.That(result.ExitCode).IsEqualTo(0);
         await Assert.That(result.Output).Contains("Transport-owned operations: 1");
         var marker = await fileSystem.File.ReadAllTextAsync(GenerationTestData.MarkerPath, CancellationToken.None);
-        await Assert.That(marker).Contains("Pending operations: 2\nTransport-owned operations: 1\n");
+        await Assert.That(marker).Contains("Pending operations: 3\nTransport-owned operations: 1\n");
         await Assert.That(marker).Contains("- v2.plugin.list [bindable]");
         await Assert.That(marker).Contains("Transport-owned:\n- v2.pty.connect [fingerprint-pinned]\n");
         await Assert.That(marker).DoesNotContain("- v2.pty.connect [refused");

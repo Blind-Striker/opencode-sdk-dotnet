@@ -80,7 +80,11 @@ internal static class GenerationTestData
                 .Response(200, "application/json", schema => schema.Ref("ExampleHealth")))
             .WithOperation("v2.plugin.list", path: "/api/plugin", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("ExamplePlugin")))
-            .WithOperation("v2.session.list", path: "/api/session");
+            .WithOperation("v2.session.list", path: "/api/session")
+            // Two independent wire-shape walls (wildcard path, WebSocket) on the same operation,
+            // so the pending map proves the telltale lists every wall, not only the first.
+            .WithOperation("v2.widget.tail", path: "/api/widget/*", configure: operation => operation
+                .Extension("x-websocket", "true"));
         extend?.Invoke(spec);
         var fileSystem = CreateFileSystem();
         fileSystem

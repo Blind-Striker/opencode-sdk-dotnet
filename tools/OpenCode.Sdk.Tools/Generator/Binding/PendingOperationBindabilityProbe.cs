@@ -13,9 +13,12 @@ namespace OpenCode.Sdk.Tools.Generator.Binding;
 /// Each probe binds one operation in isolation through the same <see cref="ISpecBinder"/>
 /// selection uses, under a synthetic single-group, root-placed curation row that answers "would
 /// this operation bind if it only needed a curation row?" without asserting what that row should
-/// actually look like. A probe that fails for any reason other than the deliberate
-/// <see cref="BindingException"/> wall still yields a refused mark instead of failing generation
-/// of the already-selected surface over an operation nobody has selected yet.
+/// actually look like. Binding collects every wall before throwing (no first-error stop), so a
+/// refused mark carries every independent <see cref="BindingError.Problem"/> the bind produced,
+/// in binder order and deduplicated by problem text — never only the first. A probe that fails
+/// for any reason other than the deliberate <see cref="BindingException"/> wall still yields a
+/// refused mark instead of failing generation of the already-selected surface over an operation
+/// nobody has selected yet.
 /// </summary>
 internal sealed class PendingOperationBindabilityProbe(ISpecBinder binder)
 {
@@ -51,7 +54,7 @@ internal sealed class PendingOperationBindabilityProbe(ISpecBinder binder)
         }
         catch (BindingException exception)
         {
-            return Refused(operation.OperationId, FirstProblem(exception));
+            return Refused(operation.OperationId, JoinedProblems(exception));
         }
         catch (Exception exception)
         {
@@ -65,8 +68,25 @@ internal sealed class PendingOperationBindabilityProbe(ISpecBinder binder)
         }
     }
 
-    private static string FirstProblem(BindingException exception) =>
-        exception.Errors.Count > 0 ? exception.Errors[0].Problem : exception.Message;
+    /// <summary>
+    /// Every independent wall the bind produced, in binder order, with a problem text already
+    /// seen earlier in the same bind dropped rather than repeated (the same generic problem — for
+    /// example an inline nominal schema that was not promoted into the graph — can fire once per
+    /// offending subject; the mark states the wall once, not once per subject).
+    /// </summary>
+    private static string JoinedProblems(BindingException exception)
+    {
+        if (exception.Errors.Count is 0)
+        {
+            return exception.Message;
+        }
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var distinctProblems = exception.Errors
+            .Select(static error => error.Problem)
+            .Where(seen.Add);
+        return string.Join("; ", distinctProblems);
+    }
 
     private static PendingOperationMark Refused(string operationId, string refusalMessage) =>
         new() { OperationId = operationId, IsBindable = false, RefusalMessage = refusalMessage };
