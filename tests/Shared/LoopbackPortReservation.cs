@@ -29,4 +29,40 @@ internal static class LoopbackPortReservation
 #endif
         }
     }
+
+    /// <summary>
+    /// Reserves two distinct free loopback ports. Two <see cref="Reserve"/> calls cannot promise
+    /// distinctness: the first listener is released before the second binds, so the OS is free to
+    /// hand the very same ephemeral port straight back, which is what produced the equal-port
+    /// failure observed in <c>DriveManifestTests</c>. Holding both listeners until both are bound
+    /// makes the pair distinct by construction rather than by luck.
+    /// </summary>
+    public static (int First, int Second) ReservePair()
+    {
+        var first = new TcpListener(IPAddress.Loopback, 0);
+        try
+        {
+            first.Start();
+            var second = new TcpListener(IPAddress.Loopback, 0);
+            try
+            {
+                second.Start();
+                return (((IPEndPoint)first.LocalEndpoint).Port, ((IPEndPoint)second.LocalEndpoint).Port);
+            }
+            finally
+            {
+                second.Stop();
+#if NET
+                second.Dispose();
+#endif
+            }
+        }
+        finally
+        {
+            first.Stop();
+#if NET
+            first.Dispose();
+#endif
+        }
+    }
 }

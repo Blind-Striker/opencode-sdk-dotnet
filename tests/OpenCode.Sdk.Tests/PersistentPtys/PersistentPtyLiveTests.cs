@@ -105,16 +105,21 @@ public sealed class PersistentPtyLiveTests(PinnedOpenCodeServerFixture server)
         await Assert.That(read.Read).IsNull();
 
         var handoff = await client.PersistentPtys.HandoffAsync(cancellationToken: cancellationToken);
+        await Assert.That(handoff.IsError).IsFalse();
         await Assert.That(handoff.Handoff).IsNull();
 
         var shutdown = await client.PersistentPtys.ShutdownAsync(cancellationToken: cancellationToken);
         await Assert.That(shutdown.Status).IsEqualTo(204);
 
+        // Every value on this line is what the server answered, never a constant restating what
+        // the assertions above already required: evidence a reader can disbelieve is not evidence.
         Console.WriteLine(
             "ppty-live: arm=daemon-absent create=" + Number(created.Status) +
             " service=" + unavailable?.Service +
             " list=" + Number(listed.PersistentPtys.Count) +
-            " read=<null> handoff=<null> shutdown=" + Number(shutdown.Status));
+            " read=" + Describe(read.Read?.PtyId) +
+            " handoff=" + Describe(handoff.Handoff?.InstanceId) +
+            " shutdown=" + Number(shutdown.Status));
     }
 
     /// <summary>
@@ -150,16 +155,19 @@ public sealed class PersistentPtyLiveTests(PinnedOpenCodeServerFixture server)
             sessionId, cancellationToken: cancellationToken);
         await Assert.That(remaining.PersistentPtys.Select(static pty => pty.Id).ToArray()).DoesNotContain(ptyId);
 
+        // Every value is observed: the echo and read excerpts are what the terminal and the read
+        // route actually returned, so the line stays evidence rather than a restatement of the
+        // marker the assertions already matched.
         Console.WriteLine(
             "ppty-live: arm=round-trip id=" + ptyId +
             " status=" + created.PersistentPty.Status +
             " role=" + drive.Role +
             " inputProtocol=" + Number(drive.InputProtocol) +
-            " echo=" + EchoMarker +
+            " echo=" + Observed(drive.Echoed, EchoMarker) +
             " resize=" + Number(drive.Cols) + "x" + Number(drive.Rows) +
-            " read=" + EchoMarker +
+            " read=" + Observed(drive.Screen, EchoMarker) +
             " remove=" + Number(removed.Status) +
-            " listed-after=absent");
+            " listed-after=" + Describe(remaining.PersistentPtys.FirstOrDefault(pty => pty.Id == ptyId)?.Id));
     }
 
     /// <summary>
@@ -192,8 +200,9 @@ public sealed class PersistentPtyLiveTests(PinnedOpenCodeServerFixture server)
         // connection's controller attach is what selected it - so a payload here is the selection
         // observed, not merely the terminal's existence.
         var read = await client.PersistentPtys.ReadAsync(sessionId, cancellationToken: cancellationToken);
+        await Assert.That(read.IsError).IsFalse();
         await Assert.That(read.Read).IsNotNull();
-        await Assert.That(read.Read?.Screen.Text).Contains(EchoMarker);
+        await Assert.That(read.Read!.Screen.Text).Contains(EchoMarker);
 
         return new TerminalDrive
         {
@@ -201,6 +210,8 @@ public sealed class PersistentPtyLiveTests(PinnedOpenCodeServerFixture server)
             InputProtocol = attachment.InputProtocol,
             Cols = resized.Cols,
             Rows = resized.Rows,
+            Echoed = echoed,
+            Screen = read.Read.Screen.Text,
         };
     }
 
@@ -258,6 +269,17 @@ public sealed class PersistentPtyLiveTests(PinnedOpenCodeServerFixture server)
     /// <summary>Renders one number for the console line and the failure text, culture-free.</summary>
     private static string Number(int value) => value.ToString(CultureInfo.InvariantCulture);
 
+    /// <summary>
+    /// Renders where a marker was found inside a real answer, and how much of an answer there
+    /// was. Printing the marker constant instead would produce the same line whether the terminal
+    /// answered or not, which is exactly what stops such a line from being evidence.
+    /// </summary>
+    private static string Observed(string text, string marker) =>
+        marker + "@" + Number(text.LastIndexOf(marker, StringComparison.Ordinal)) + "/" + Number(text.Length);
+
+    /// <summary>Renders an observed nullable identity, so an absent one prints as absent.</summary>
+    private static string Describe(string? value) => value ?? "<null>";
+
     /// <summary>What the live drive observed; every member is printed evidence.</summary>
     private sealed record TerminalDrive
     {
@@ -272,5 +294,11 @@ public sealed class PersistentPtyLiveTests(PinnedOpenCodeServerFixture server)
 
         /// <summary>The rows the server reported after the resize.</summary>
         public required int Rows { get; init; }
+
+        /// <summary>The terminal output the echo read collected, decoded together.</summary>
+        public required string Echoed { get; init; }
+
+        /// <summary>The screen text the HTTP read route answered with.</summary>
+        public required string Screen { get; init; }
     }
 }

@@ -258,9 +258,22 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
     {
         var repositoryRoot = new PinnedServerCommand(_fileSystem).RepositoryRoot;
         var receiptPath = _fileSystem.Path.Combine(repositoryRoot, "spec", "receipt.json");
-        var receipt = _fileSystem.File.ReadAllText(receiptPath);
-        using var document = JsonDocument.Parse(receipt);
-        return document.RootElement.GetProperty("upstreamCommit").GetString()
-            ?? throw new InvalidOperationException($"'{receiptPath}' has no 'upstreamCommit' value.");
+        try
+        {
+            var receipt = _fileSystem.File.ReadAllText(receiptPath);
+            using var document = JsonDocument.Parse(receipt);
+            return document.RootElement.GetProperty("upstreamCommit").GetString()
+                ?? throw new InvalidOperationException($"'{receiptPath}' has no 'upstreamCommit' value.");
+        }
+        catch (Exception exception) when (
+            exception is IOException or JsonException or KeyNotFoundException or UnauthorizedAccessException)
+        {
+            // The banner is evidence, and a receipt this run cannot read is still an attach
+            // failure: it surfaces named, the way every other external-mode failure above does,
+            // rather than as a raw file or JSON fault escaping from behind a successful probe.
+            throw new InvalidOperationException(
+                $"The pinned upstream commit could not be read from '{receiptPath}': {exception.Message}",
+                exception);
+        }
     }
 }

@@ -9,13 +9,13 @@ namespace OpenCode.Sdk.Tests.Support;
 /// <summary>Serves deterministic HTTP/1.1 responses through the platform's real HTTP handler.</summary>
 internal sealed class LoopbackHttpServer : IAsyncDisposable
 {
+    private const string ContentLengthPrefix = "Content-Length:";
+
     private readonly Task _acceptLoop;
     private readonly TaskCompletionSource<object?> _clientDisconnected = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly ConcurrentBag<TcpClient> _clients = [];
     private readonly ConcurrentBag<Task> _connections = [];
     private readonly TcpListener _listener;
-    private const string contentLengthPrefix = "Content-Length:";
-
     private readonly ConcurrentQueue<LoopbackRequest> _requests = [];
     private readonly Func<string, LoopbackHttpResponse> _respond;
     private readonly CancellationTokenSource _shutdown = new();
@@ -148,10 +148,10 @@ internal sealed class LoopbackHttpServer : IAsyncDisposable
         var header = await reader.ReadLineAsync();
         while (!string.IsNullOrEmpty(header))
         {
-            if (header.StartsWith(contentLengthPrefix, StringComparison.OrdinalIgnoreCase))
+            if (header.StartsWith(ContentLengthPrefix, StringComparison.OrdinalIgnoreCase))
             {
                 contentLength = int.Parse(
-                    header[contentLengthPrefix.Length..].Trim(),
+                    header[ContentLengthPrefix.Length..].Trim(),
                     CultureInfo.InvariantCulture);
             }
 

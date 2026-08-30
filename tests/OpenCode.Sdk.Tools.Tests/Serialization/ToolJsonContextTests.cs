@@ -13,7 +13,7 @@ public sealed class ToolJsonContextTests
     private const string ManifestPath = "manifest.json";
 
     [Test]
-    public async Task Serialize_Should_Write_The_Receipt_With_No_Carriage_Returns_And_One_Trailing_Newline()
+    public async Task SnapshotReceipt_Should_Write_With_No_Carriage_Returns_And_One_Trailing_Newline()
     {
         var fileSystem = new MockFileSystem();
         var content = $"{JsonSerializer.Serialize(SampleReceipt(), ToolJsonContext.Default.SnapshotReceipt)}\n";
@@ -25,7 +25,7 @@ public sealed class ToolJsonContextTests
     }
 
     [Test]
-    public async Task Serialize_Should_Write_The_Manifest_With_No_Carriage_Returns_And_One_Trailing_Newline()
+    public async Task GenerationManifest_Should_Write_With_No_Carriage_Returns_And_One_Trailing_Newline()
     {
         var fileSystem = new MockFileSystem();
         var manifest = new GenerationManifest { Files = ["Models/Widget.cs"] };

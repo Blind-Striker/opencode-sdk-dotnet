@@ -30,6 +30,18 @@ dotnet run --project tests/OpenCode.Sdk.Sandbox -- --stream
 dotnet run --project tests/OpenCode.Sdk.Sandbox -- --events
 ```
 
+**Pointing the sandbox at a server that is not the checked-in one takes
+`--no-launch-profile`.** `Properties/launchSettings.json` prefills
+`OPENCODE_SANDBOX_ENDPOINT` at port 4096, and `dotnet run` applies the default profile unless
+told not to, so without the flag the run silently addresses 4096 whatever the environment says.
+The prefill stays: it is what makes the zero-argument F5 and `dotnet run` work against the local
+server every other line here assumes. A second fact belongs beside it — the standing walkthrough's
+earlier session legs answer 500 on a server with no provider configured, and because those legs
+run first, the PTY and persistent PTY legs are unreachable there. That is the real server's
+answer, not something the walkthrough should swallow: it asserts what the server says, so an
+isolated provider-less server is a server this leg cannot be driven against. `PersistentPtyLiveTests`
+is what proves the persistent PTY round trip; see the WSL2 recipe below.
+
 The stream example composes through the Extensions package:
 `AddOpenCode` registers one singleton client family, and the Generic Host injects its
 `SessionsClient` into `SessionLogWorker`. The worker creates a session, obtains its bound
@@ -50,7 +62,7 @@ create/get/reply round trip, the NoThrow spine over compact and a deliberately b
 boundary, the mechanism leg — the bodyless POSTs (interrupt, revert clear), the PUT
 family (mcp add, pty update, the instructions entry), and a typed `FormNotFoundError` over
 NoThrow — the envelope-completion leg (vcs branches' ref-to-array shape, the location sibling,
-the session-active dictionary, the server response's promoted-inline `ServerData`, and a
+the session-active dictionary, the server response's promoted-inline `Urls` list, and a
 session's context read), the PTY leg, and the persistent PTY leg, all through the same Extensions
 registration.
 

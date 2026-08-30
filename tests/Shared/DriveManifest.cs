@@ -22,8 +22,9 @@ internal sealed record DriveManifest(
         ArgumentException.ThrowIfNullOrWhiteSpace(registryDirectory);
 
         var name = "sdk" + Guid.NewGuid().ToString("N");
-        var backendPort = LoopbackPortReservation.Reserve();
-        var uiPort = LoopbackPortReservation.Reserve();
+        // Reserved as a pair: the upstream endpoint filter refuses a manifest whose two endpoints
+        // share a port, and two independent reservations can hand back the same one.
+        var (backendPort, uiPort) = LoopbackPortReservation.ReservePair();
         var backend = "ws://127.0.0.1:" + backendPort.ToString(CultureInfo.InvariantCulture);
         var ui = "ws://127.0.0.1:" + uiPort.ToString(CultureInfo.InvariantCulture);
         _ = fileSystem.Directory.CreateDirectory(registryDirectory);
