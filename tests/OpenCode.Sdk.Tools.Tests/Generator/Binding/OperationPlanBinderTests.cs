@@ -1549,6 +1549,27 @@ public sealed class OperationPlanBinderTests
             .IsFalse();
     }
 
+    /// <summary>
+    /// <c>EnvelopeClassifier</c> admits a single non-<c>data</c> key on key count alone,
+    /// whether or not that key is required — requiredness is deliberately a binding fact, not a
+    /// classification one. An inline single-key wrapper whose sole property is optional has no
+    /// payload the envelope can promise, so <c>EnvelopeFacetBinder.SingleKeyMember</c> is the
+    /// wall that refuses it by name instead of silently falling back to a bare body.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Refuse_An_Inline_Single_Key_Wrapper_Whose_Sole_Property_Is_Optional()
+    {
+        var document = await BindingTestHost.IngestAsync(InlinePayloadScenario(static schema => schema
+            .Property("handoff", static property => property.AnyOf(
+                static branch => branch.Ref("WidgetInfo"),
+                static branch => branch.Type("null")), required: false)));
+
+        await AssertWidgetRefusalAsync(
+            document,
+            "single-key envelope must reference an object requiring exactly one property",
+            "v2.widget.stats");
+    }
+
     [Test]
     public async Task Bind_Should_Name_A_Data_Envelope_Promoted_Payload_From_The_Operation()
     {
