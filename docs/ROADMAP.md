@@ -504,53 +504,12 @@ The `PtySession` read ladder was rerun across the extraction (`--job short`, bot
 shared core's added interface dispatch costs no allocation: `DecodeFrames` is byte-identical on
 every fixture and runtime, and `ReadFramesAsync` allocates 0–16 bytes less per read (Q156).
 
-**The coverage-to-full arc is complete** (2026-08-30; plan:
-`docs/superpowers/plans/2026-08-30-coverage-to-full.md`; designs, evidence, and the standing walls:
-research log Q159, with the hygiene batch's own account in Q158). It opened with a
-document-identical refresh of the accepted snapshot (`106629aa` → `b1e3a7b2`, 8 upstream commits,
-none touching `packages/protocol` or a watched door input) and then admitted operations through
-shape-keyed mechanisms rather than one-off rows. Curation alone selected `v2.vcs.base`
-(`VcsClient.GetBaseAsync`, a represented-nullable payload) and the new filesystem family's
-`v2.fs.list` (`FileSystemClient.ListEntriesAsync`). The query mechanism admits required,
-non-nullable, and enum-valued query parameters — a required parameter becomes a C# `required`
-non-nullable request property and makes `request` a required method and route argument, an optional
-parameter binds the same way whether or not its schema admits null, and a query enum binds to a
-generated C# enum whose wire spelling the route builder writes through a generated switch — selecting
-`v2.fs.find` (`FindEntriesAsync`), `v2.vcs.diff` (`GetDiffAsync`), and `v2.session.stats`
-(`GetStatsAsync`). The location envelope's last nominal-only arm then closed: a location wrapper
-whose `data` is an inline object is promoted into a model the name resolver claims from the
-operation (`{stem}Data`), exactly as the data wrapper's member and the location wrapper's list item
-already were, so no upstream wrapper spelling reaches the surface; it selects `v2.shell.output`
-(`ShellClient.GetOutputAsync` returning `ShellOutputResponse.Output` beside the location echo, with
-`cursor` and `limit` riding the query mechanism as the strings the wire declares). The error model
-then admitted its second wire dialect beside Effect's `_tag`: a `{name, data}` error binds under the
-same `IOpenCodeError` base with the `name` literal as its `Tag` (serialized under `name`) and its
-`data` struct as a nested generated model, the generated converter scans `_tag` first and then
-`name` without a JSON DOM for known arms, and an error dialect the policy does not name is still
-refused. The wire-shape wall widened with it: a DELETE that declares a request body now binds and
-sends it (RFC 9110 admits DELETE content where the origin server declares support, the pinned
-document declares it, and net472's `HttpWebRequest` was proven on a real socket to write it), while
-GET keeps refusing a body and HEAD stays refused at ingestion. Together these select the worktree
-family's whole pinned surface — `v2.worktree.create` (`ProjectWorktreesClient.CreateWorktreeAsync`),
-`v2.worktree.refresh` (`RefreshWorktreesAsync`), and `v2.worktree.remove`
-(`RemoveWorktreeAsync(WorktreeRemoveRequest)`) — giving `WorktreeError` and `WorktreeErrorData` and
-taking the profile to **131 selected / 3 pending / 2 transport-owned** of 136, the coverage goal's
-reachable end state; the three that remain are pending by decision, not by omission (Known Gaps).
-Four tooling changes rode along: `ToolJsonContext` pins `NewLine`, so the generation manifest and
-the snapshot receipt are LF-only; the bindability telltale now lists every independent wall instead
-of the first, which is what re-classified `config.get`; `StabilizeDuplicatePolicy` folds every
-reachable `<base>_<N>` component into `<base>` when `SchemaNodeComparer.DeepEquals` holds and
-refuses naming both when it does not, retiring all 24 `_N` `schemaAliases` rows against
-byte-identical generated source and recording 25 folds in `.generated-manifest.json`
-(`implicitAliases`); and `spec/source-watch.json` pins the 20 upstream files the hand-written PTY
-doors read, by path, sha256, and one content anchor, as a refresh-time review trigger that never
-reaches generation (ADR-0013). The single-key envelope facet flattens a success body the operation
-declares inline as an object requiring exactly one property that is not `data`, which is what closed
-the `{handoff}` accessor above and turned `ServerResponse.Server` into `ServerResponse.Urls`. The
-arc closed with the hygiene batch — 52 items fixed with the PublicApi baseline unchanged, two of
-them behavioural (Q158) — and a `PersistentPtySession` read-ladder rung beside the `PtySession` one.
-The full gate is green at **4,406 tests** on all TFMs, slopwatch at zero, `generate --verify` current
-and `refresh-spec --verify` reproducing the receipt.
+**The coverage-to-full arc is complete** (2026-08-30, branch `feature/coverage-to-full`). Profile
+**131 selected / 3 pending / 2 transport-owned** of 136 — the coverage goal's reachable end state;
+the three pending operations stay pending by decision, not by omission (Known Gaps, below). The
+full account and standing walls are research log Q159 (the hygiene batch's own account is Q158).
+Gate: **4,406 tests** green on all TFMs, slopwatch at zero, `generate --verify` and
+`refresh-spec --verify` both current.
 
 ## Milestones
 

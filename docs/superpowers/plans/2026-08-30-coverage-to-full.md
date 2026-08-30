@@ -4,6 +4,9 @@
 > (recommended) or deniz-process:executing-plans to implement this plan task-by-task. Steps use
 > checkbox (`- [ ]`) syntax for tracking.
 
+HANDOFF-2026-08-30.md was consumed and deleted at 445519d; the hygiene list it carried survives in
+`.superpowers/sdd/2026-08-30-coverage-to-full/task-9-report.md` §1.
+
 **Goal:** Close the pending map at accepted snapshot `b1e3a7b2` (profile 122 selected / 12 pending
 / 2 transport-owned of 136). Nine of the twelve pending operations are admitted — two through
 curation rows alone (`vcs.base`, `fs.list`), seven through three generator mechanisms decided per

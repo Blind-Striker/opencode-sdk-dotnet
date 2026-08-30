@@ -4705,7 +4705,7 @@ verified that the operations already bound produced byte-identical output.
   spine kinds and no dead enum is emitted; `QueryEnumWireValueEmitter` writes the route's switch from
   the same `EnumModelPlan` that supplies the model's `JsonStringEnumMemberName`, so wire drift
   between the two is not expressible. Selected `v2.fs.find`, `v2.vcs.diff`, `v2.session.stats`.
-  Evidence: existing routes byte-identical, PublicApi **+207/−0**.
+  Evidence: existing routes byte-identical, PublicApi **+206/−0**.
 - **Location-envelope object promotion** (`1c9ff31`, `2f35ede`, R5): a location wrapper whose `data`
   is an inline object is promoted into a model the name resolver claims under `{stem}Data`, exactly
   as the data wrapper's member and the location wrapper's list item already were.
@@ -4822,10 +4822,18 @@ when the response schema is not a schema reference. `PersistentPtyHandoffPostRes
 `PersistentPtyHandoff?` and `ServerResponse.Urls` is an `IReadOnlyList<string>`; `ServerData` and
 `PersistentPtyHandoffPostData` are gone. Both are pre-1.0 renames (Q131), and `EnvelopeKind.Data` was
 reused with a new `WireMemberName`, so the adapter emitter, the projecting helpers and the pagination
-facet needed no change at all.
+facet needed no change at all. **The facet also narrowed a shape that used to bind.** Before this
+task an inline 200 body with a single *optional* non-`data` property — `{x?: T}` — classified
+`Bare` and bound as a promoted bare-body model; after it, any inline object with exactly one
+non-`data` key classifies `SingleKey`, and an optional sole property now refuses at the binder
+(`EnvelopeFacetBinder.SingleKeyMember`, "single-key envelope must reference an object requiring
+exactly one property") instead of binding — fail-closed, not exercised by any operation in the pin
+today, and loud the day one declares the shape.
 
 **The hygiene batch and the benchmark rung closed the arc.** Q158 owns the batch's own account —
-**52 fixed, 3 doc-noted, 3 canon sentences proposed, 11 declined with reasons**, PublicApi unchanged
+**67 unique items (69 table rows, six of them pointers to another row): every item fixed,
+doc-noted, proposed, or declined with a reason** — the table in
+`.superpowers/sdd/2026-08-30-coverage-to-full/task-9-report.md` is the record — PublicApi unchanged
 and exactly one generated file changed (a documentation line). The new `PersistentPtySession`
 read-ladder rung (`2a84a9e`) measured, at `--job short` over both runtimes, `ReadFramesAsync` at
 **18,624 B** (net10.0) and **18,888 B** (net472) for `attached-x1`, and **2,772,096 B** /
