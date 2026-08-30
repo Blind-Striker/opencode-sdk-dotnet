@@ -129,7 +129,7 @@ public class PersistentPtyClient
 
         // Ownership stays local until the session has taken the socket over: an upgrade that
         // completed but never attached must not leave the connection open behind it.
-        ClientPtyWebSocket? socket = null;
+        ClientTerminalWebSocket? socket = null;
         try
         {
             socket = CreateSocket(connection, ptyId);
@@ -146,11 +146,11 @@ public class PersistentPtyClient
         }
     }
 
-    private static ClientPtyWebSocket CreateSocket(ConnectionSnapshot connection, string ptyId)
+    private static ClientTerminalWebSocket CreateSocket(ConnectionSnapshot connection, string ptyId)
     {
         try
         {
-            return new ClientPtyWebSocket(connection.Authorization);
+            return new ClientTerminalWebSocket(connection.Authorization);
         }
         catch (PlatformNotSupportedException exception)
         {

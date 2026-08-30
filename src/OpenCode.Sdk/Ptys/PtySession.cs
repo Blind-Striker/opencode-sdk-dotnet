@@ -14,7 +14,7 @@ public class PtySession : IAsyncDisposable
 {
     private readonly TerminalSocketCore<PtyFrame>? _core;
 
-    internal PtySession(IPtyWebSocket socket)
+    internal PtySession(ITerminalWebSocket socket)
     {
         ArgumentNullException.ThrowIfNull(socket);
 

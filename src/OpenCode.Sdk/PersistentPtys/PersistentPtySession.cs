@@ -80,6 +80,8 @@ public class PersistentPtySession : IAsyncDisposable
     /// <summary>
     /// Resizes the terminal through a control frame and records the viewport later writes carry.
     /// The server answers with a <see cref="PersistentPtyResizedFrame"/> on the read enumeration.
+    /// The recorded viewport moves only once the control frame has left: a send that failed
+    /// resized nothing, so a later write must not carry a size the server never saw.
     /// </summary>
     /// <param name="cols">The new column count; 1 through 65535.</param>
     /// <param name="rows">The new row count; 1 through 65535.</param>
@@ -95,9 +97,9 @@ public class PersistentPtySession : IAsyncDisposable
         ArgumentOutOfRangeException.ThrowIfLessThan(rows, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(rows, ushort.MaxValue);
 
-        Volatile.Write(ref _cols, cols);
-        Volatile.Write(ref _rows, rows);
-        return SendFrameAsync(PersistentPtyInputFrame.ControlType, ReadOnlyMemory<byte>.Empty, cancellationToken);
+        // The dimension guards stay synchronous: a misuse is the caller's mistake, not a
+        // connection failure, so it is raised where the mistake was made.
+        return ResizeCoreAsync(cols, rows, cancellationToken);
     }
 
     /// <summary>
@@ -128,7 +130,7 @@ public class PersistentPtySession : IAsyncDisposable
     /// <returns>The attached session.</returns>
     /// <exception cref="OpenCodeTransportException">The server closed before attaching, sent another frame first, or negotiated a protocol this SDK does not speak.</exception>
     internal static async Task<PersistentPtySession> AttachAsync(
-        IPtyWebSocket socket,
+        ITerminalWebSocket socket,
         string ptyId,
         CancellationToken cancellationToken)
     {
@@ -211,6 +213,17 @@ public class PersistentPtySession : IAsyncDisposable
 
             yield return frame;
         }
+    }
+
+    private async Task ResizeCoreAsync(int cols, int rows, CancellationToken cancellationToken)
+    {
+        var core = Core;
+        var frame = PersistentPtyInputFrame.Encode(PersistentPtyInputFrame.ControlType, cols, rows, []);
+        await core.SendAsync(new ArraySegment<byte>(frame), WebSocketMessageType.Binary, cancellationToken)
+            .ConfigureAwait(false);
+
+        Volatile.Write(ref _cols, cols);
+        Volatile.Write(ref _rows, rows);
     }
 
     private Task SendFrameAsync(byte type, ReadOnlyMemory<byte> data, CancellationToken cancellationToken)

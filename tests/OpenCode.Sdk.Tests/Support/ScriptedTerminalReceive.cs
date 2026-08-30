@@ -2,8 +2,8 @@ using System.Net.WebSockets;
 
 namespace OpenCode.Sdk.Tests.Support;
 
-/// <summary>One step of a scripted PTY WebSocket receive sequence: a frame, a close, a fault, or a park.</summary>
-internal sealed record ScriptedPtyReceive
+/// <summary>One step of a scripted terminal WebSocket receive sequence: a frame, a close, a fault, or a park.</summary>
+internal sealed record ScriptedTerminalReceive
 {
     /// <summary>Gets the message type the step reports.</summary>
     public WebSocketMessageType MessageType { get; init; } = WebSocketMessageType.Text;

@@ -4,7 +4,7 @@ using System.Net.WebSockets;
 namespace OpenCode.Sdk.Internal;
 
 /// <summary>
-/// The shipped <see cref="IPtyWebSocket"/>: a thin adapter over <see cref="ClientWebSocket"/>.
+/// The shipped <see cref="ITerminalWebSocket"/>: a thin adapter over <see cref="ClientWebSocket"/>.
 /// This is the SDK's one transport divergence — the upgrade builds its own socket, so a
 /// caller-supplied <see cref="HttpClient"/>, its proxy, and its handler chain do not apply. The
 /// Basic credential rides the upgrade request's <c>Authorization</c> header, which is the
@@ -12,11 +12,11 @@ namespace OpenCode.Sdk.Internal;
 /// URL carrying a ticket, and the SDK never mints a ticket for its own connection (a single-use
 /// credential in a URL that reaches logs is strictly worse than the header it already holds).
 /// </summary>
-internal sealed class ClientPtyWebSocket : IPtyWebSocket
+internal sealed class ClientTerminalWebSocket : ITerminalWebSocket
 {
     private readonly ClientWebSocket _socket = new();
 
-    public ClientPtyWebSocket(AuthenticationHeaderValue? authorization)
+    public ClientTerminalWebSocket(AuthenticationHeaderValue? authorization)
     {
         if (authorization is not null)
         {
@@ -36,13 +36,13 @@ internal sealed class ClientPtyWebSocket : IPtyWebSocket
 
     /// <summary>Performs the upgrade, mapping a refusal onto the failure that names its cause.</summary>
     /// <param name="uri">The <c>ws</c> or <c>wss</c> address to upgrade.</param>
-    /// <param name="ptyId">The terminal the upgrade addresses; it names the failure.</param>
+    /// <param name="terminalId">The terminal the upgrade addresses; it names the failure.</param>
     /// <param name="policy">The family's policy naming why an upgrade was refused.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task that completes once the connection is established.</returns>
     public async Task ConnectAsync(
         Uri uri,
-        string ptyId,
+        string terminalId,
         ITerminalUpgradeFailurePolicy policy,
         CancellationToken cancellationToken)
     {
@@ -58,12 +58,12 @@ internal sealed class ClientPtyWebSocket : IPtyWebSocket
             cancellationToken.ThrowIfCancellationRequested();
 #if NET
             var status = (int)_socket.HttpStatusCode;
-            throw policy.Map(exception, status is 0 ? null : status, ptyId);
+            throw policy.Map(exception, status is 0 ? null : status, terminalId);
 #else
             // CollectHttpResponseDetails and ClientWebSocket.HttpStatusCode are .NET 7 and later,
             // so neither downlevel leg can surface a refused upgrade's response status; the
             // failure names the connect context instead of guessing one.
-            throw policy.Map(exception, status: null, ptyId);
+            throw policy.Map(exception, status: null, terminalId);
 #endif
         }
     }

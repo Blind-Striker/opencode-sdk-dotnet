@@ -396,32 +396,21 @@ public sealed class PersistentPtysClientContractTests
         await Assert.That(exception.Error).IsTypeOf<PtyNotFoundError>();
     }
 
+    /// <summary>
+    /// The ticket header is the token door's alone (ADR-0021): it rides that one request and no
+    /// other. The declared 400 answers every door, so the responder does not have to satisfy ten
+    /// different success shapes to reach the header the request already carried.
+    /// </summary>
     [Test]
-    public async Task No_Family_Door_Other_Than_The_Token_Door_Should_Send_The_Ticket_Header()
+    [MethodDataSource(nameof(EveryDoor))]
+    public async Task Only_The_Token_Door_Should_Send_The_Ticket_Header((string Name, Func<OpenCodeClient, Task> Door) door)
     {
-        var payload = new FixtureLoader().LoadJson("Serialization.known-persistent-pty.json");
+        using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.InvalidRequestError);
 
-        // Remove and shutdown declare 204 alone, so a blanket 200 would fail materialization
-        // before the header assertion ever ran.
-        using var scenario = ContractScenario.Responding(request => request.Method == HttpMethod.Delete
-            ? new HttpResponseMessage(HttpStatusCode.NoContent)
-            : new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(WireBodyData.Envelope(payload)),
-            });
-        var terminals = scenario.Client.PersistentPtys;
-        var terminal = terminals.GetPersistentPtyClient(PtyId);
+        _ = await Assert.That(async () => await door.Door(scenario.Client)).Throws<OpenCodeApiException>();
 
-        _ = await terminals.CreatePersistentPtyAsync("ses_1", CreateRequest());
-        _ = await terminal.GetPersistentPtyAsync();
-        _ = await terminal.UpdatePersistentPtyAsync(UpdateRequest());
-        _ = await terminal.RemovePersistentPtyAsync();
-
-        await Assert.That(scenario.Requests.Count).IsEqualTo(4);
-        foreach (var request in scenario.Requests)
-        {
-            await Assert.That(request.Headers.ContainsKey(TicketHeader)).IsFalse();
-        }
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Headers.ContainsKey(TicketHeader)).IsEqualTo(door.Name is "connectToken");
     }
 
     [Test]

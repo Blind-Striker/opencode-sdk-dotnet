@@ -38,12 +38,6 @@ internal static class PersistentPtyConnectUriBuilder
     {
         ArgumentNullException.ThrowIfNull(connection);
         ArgumentException.ThrowIfNullOrWhiteSpace(ptyId);
-        if (ptyId is "." or "..")
-        {
-            // Escaping leaves a dot segment intact, and Uri then resolves it away, silently
-            // addressing a different route than the caller named.
-            throw new ArgumentException("Route values must not be dot segments.", nameof(ptyId));
-        }
 
         var query = new QueryStringBuilder();
         query.AddText(CursorParameterName, options?.Cursor?.ToString(CultureInfo.InvariantCulture));
@@ -59,7 +53,7 @@ internal static class PersistentPtyConnectUriBuilder
             string.Concat(
                 WebSocketSchemePolicy.ToWebSocketScheme(connection.EndpointBase),
                 PersistentPtyRoutePrefix,
-                RouteValuePolicy.Escape(ptyId, nameof(ptyId)),
+                RouteValuePolicy.EscapeSegment(ptyId, nameof(ptyId)),
                 ConnectRouteSuffix,
                 query.Value),
             UriKind.Absolute);

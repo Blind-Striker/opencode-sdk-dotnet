@@ -88,6 +88,21 @@ public sealed class PtyConnectUriBuilderTests
         await Assert.That(uri.OriginalString).IsEqualTo("ws://localhost:4096/api/pty/pty%201%2F2/connect");
     }
 
+    /// <summary>
+    /// The guard is <see cref="RouteValuePolicy.EscapeSegment"/>'s, so both connect builders
+    /// carry it identically; before it moved there this family had none.
+    /// </summary>
+    [Test]
+    public async Task Build_Should_Refuse_A_Dot_Segment_Route_Value()
+    {
+        var connection = Snapshot("http://localhost:4096");
+
+        _ = Assert.Throws<ArgumentException>(() => _ = PtyConnectUriBuilder.Build(connection, ".", options: null));
+        _ = Assert.Throws<ArgumentException>(() => _ = PtyConnectUriBuilder.Build(connection, "..", options: null));
+
+        await Task.CompletedTask;
+    }
+
     private static ConnectionSnapshot Snapshot(string endpoint, LocationSelector? location = null) =>
         new(EndpointPolicy.Normalize(new Uri(endpoint)), authorization: null, location);
 }

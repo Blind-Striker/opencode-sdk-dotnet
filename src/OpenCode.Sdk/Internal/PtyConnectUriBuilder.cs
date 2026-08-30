@@ -38,7 +38,7 @@ internal static class PtyConnectUriBuilder
             string.Concat(
                 WebSocketSchemePolicy.ToWebSocketScheme(connection.EndpointBase),
                 PtyRoutePrefix,
-                RouteValuePolicy.Escape(ptyId, nameof(ptyId)),
+                RouteValuePolicy.EscapeSegment(ptyId, nameof(ptyId)),
                 ConnectRouteSuffix,
                 query.Value),
             UriKind.Absolute);

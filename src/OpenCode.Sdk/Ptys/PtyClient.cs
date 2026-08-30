@@ -113,10 +113,10 @@ public class PtyClient
         var connection = Connection;
         var ptyId = PtyId;
         var address = PtyConnectUriBuilder.Build(connection, ptyId, options);
-        ClientPtyWebSocket socket;
+        ClientTerminalWebSocket socket;
         try
         {
-            socket = new ClientPtyWebSocket(connection.Authorization);
+            socket = new ClientTerminalWebSocket(connection.Authorization);
         }
         catch (PlatformNotSupportedException exception)
         {

@@ -10,14 +10,14 @@ namespace OpenCode.Sdk.Performance.Tests.Support;
 /// would produce. The run ends with a normal closure, mirroring how a session's read loop ends
 /// without a fault. No socket, no live server.
 /// </summary>
-internal sealed class CannedPtyWebSocket : IPtyWebSocket
+internal sealed class CannedTerminalWebSocket : ITerminalWebSocket
 {
     private readonly (WebSocketMessageType Type, byte[] Payload)[] _messages;
     private int _messageIndex;
     private int _offset;
     private bool _closed;
 
-    public CannedPtyWebSocket(IReadOnlyList<(WebSocketMessageType Type, byte[] Payload)> messages)
+    public CannedTerminalWebSocket(IReadOnlyList<(WebSocketMessageType Type, byte[] Payload)> messages)
     {
         ArgumentNullException.ThrowIfNull(messages);
         _messages = [.. messages];

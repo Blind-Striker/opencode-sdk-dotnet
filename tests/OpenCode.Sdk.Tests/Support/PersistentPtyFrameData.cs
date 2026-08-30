@@ -30,6 +30,16 @@ internal static class PersistentPtyFrameData
         "{\"type\":\"attached\",\"attachmentID\":null,\"inputProtocol\":1,\"info\":" + InfoJson +
         ",\"role\":\"controller\",\"generation\":3,\"replay\":{\"requestedOffset\":0,\"availableOffset\":0,\"endOffset\":42,\"truncated\":false}}";
 
+    /// <summary>An attach whose promised <c>role</c> string the server sent as JSON null.</summary>
+    public const string AttachedNullRoleJson =
+        "{\"type\":\"attached\",\"attachmentID\":\"att_4\",\"inputProtocol\":1,\"info\":" + InfoJson +
+        ",\"role\":null,\"generation\":3,\"replay\":{\"requestedOffset\":0,\"availableOffset\":0,\"endOffset\":42,\"truncated\":false}}";
+
+    /// <summary>An attach whose <c>role</c> is a spelling the wire's two literals do not carry.</summary>
+    public const string AttachedUnknownRoleJson =
+        "{\"type\":\"attached\",\"attachmentID\":\"att_5\",\"inputProtocol\":1,\"info\":" + InfoJson +
+        ",\"role\":\"supervisor\",\"generation\":3,\"replay\":{\"requestedOffset\":0,\"availableOffset\":0,\"endOffset\":42,\"truncated\":false}}";
+
     public const string ReplayCompleteJson = "{\"type\":\"replay_complete\",\"endOffset\":42}";
 
     /// <summary>The checkpoint is base64 of ESC c (0x1B 0x63).</summary>

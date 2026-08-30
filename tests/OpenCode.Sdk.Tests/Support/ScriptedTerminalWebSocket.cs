@@ -5,20 +5,21 @@ using OpenCode.Sdk.Internal;
 namespace OpenCode.Sdk.Tests.Support;
 
 /// <summary>
-/// Substitutes the PTY WebSocket seam: replays a scripted receive sequence, records every sent
-/// message, refuses overlapping sends, and parks on demand so a test drives a dispose or
-/// cancellation race without waiting on wall-clock time.
+/// Substitutes the terminal WebSocket seam both families run on: replays a scripted receive
+/// sequence, records every sent message, refuses overlapping sends, and parks on demand so a test
+/// drives a dispose or cancellation race without waiting on wall-clock time.
 /// </summary>
-internal sealed class ScriptedPtyWebSocket : IPtyWebSocket
+internal sealed class ScriptedTerminalWebSocket : ITerminalWebSocket
 {
     private readonly TaskCompletionSource<bool> _disposal = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource<bool> _parked = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private readonly Queue<ScriptedPtyReceive> _receives = new();
+    private readonly Queue<ScriptedTerminalReceive> _receives = new();
     private readonly List<byte[]> _sent = [];
     private readonly List<WebSocketMessageType> _sentTypes = [];
     private readonly TaskCompletionSource<bool> _sendEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int _activeSends;
     private Exception? _closeFault;
+    private Exception? _nextSendFault;
     private TaskCompletionSource<bool>? _sendGate;
 
     /// <summary>Gets the close status the scripted close step reported.</summary>
@@ -52,7 +53,7 @@ internal sealed class ScriptedPtyWebSocket : IPtyWebSocket
     public IReadOnlyList<string> SentText => [.. _sent.Select(static message => Encoding.UTF8.GetString(message))];
 
     /// <summary>Scripts one complete text message.</summary>
-    public ScriptedPtyWebSocket Text(string text)
+    public ScriptedTerminalWebSocket Text(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
 
@@ -60,7 +61,7 @@ internal sealed class ScriptedPtyWebSocket : IPtyWebSocket
     }
 
     /// <summary>Scripts one text message delivered as several fragments.</summary>
-    public ScriptedPtyWebSocket TextFragments(params string[] fragments)
+    public ScriptedTerminalWebSocket TextFragments(params string[] fragments)
     {
         ArgumentNullException.ThrowIfNull(fragments);
 
@@ -73,10 +74,10 @@ internal sealed class ScriptedPtyWebSocket : IPtyWebSocket
     }
 
     /// <summary>Scripts one complete binary message.</summary>
-    public ScriptedPtyWebSocket Binary(byte[] payload) => Bytes(WebSocketMessageType.Binary, payload, endOfMessage: true);
+    public ScriptedTerminalWebSocket Binary(byte[] payload) => Bytes(WebSocketMessageType.Binary, payload, endOfMessage: true);
 
     /// <summary>Scripts one binary message delivered as two fragments split at the given offset.</summary>
-    public ScriptedPtyWebSocket BinaryFragments(byte[] payload, int splitAt)
+    public ScriptedTerminalWebSocket BinaryFragments(byte[] payload, int splitAt)
     {
         ArgumentNullException.ThrowIfNull(payload);
 
@@ -85,9 +86,9 @@ internal sealed class ScriptedPtyWebSocket : IPtyWebSocket
     }
 
     /// <summary>Scripts a close frame carrying the given status and reason.</summary>
-    public ScriptedPtyWebSocket Closing(WebSocketCloseStatus status, string? description = null)
+    public ScriptedTerminalWebSocket Closing(WebSocketCloseStatus status, string? description = null)
     {
-        _receives.Enqueue(new ScriptedPtyReceive
+        _receives.Enqueue(new ScriptedTerminalReceive
         {
             MessageType = WebSocketMessageType.Close,
             CloseStatus = status,
@@ -97,34 +98,46 @@ internal sealed class ScriptedPtyWebSocket : IPtyWebSocket
     }
 
     /// <summary>Scripts a receive that throws instead of answering.</summary>
-    public ScriptedPtyWebSocket Faulting(Exception fault)
+    public ScriptedTerminalWebSocket Faulting(Exception fault)
     {
         ArgumentNullException.ThrowIfNull(fault);
 
-        _receives.Enqueue(new ScriptedPtyReceive { Fault = fault });
+        _receives.Enqueue(new ScriptedTerminalReceive { Fault = fault });
         return this;
     }
 
     /// <summary>Scripts a receive that parks until the socket is disposed or the read is canceled.</summary>
-    public ScriptedPtyWebSocket Parking()
+    public ScriptedTerminalWebSocket Parking()
     {
-        _receives.Enqueue(new ScriptedPtyReceive { Parks = true });
+        _receives.Enqueue(new ScriptedTerminalReceive { Parks = true });
         return this;
     }
 
     /// <summary>Holds every send inside the socket until <see cref="ReleaseSends"/> runs.</summary>
-    public ScriptedPtyWebSocket GatingSends()
+    public ScriptedTerminalWebSocket GatingSends()
     {
         _sendGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         return this;
     }
 
     /// <summary>Makes the graceful close fail with the given fault, after recording the call.</summary>
-    public ScriptedPtyWebSocket FailingCloseWith(Exception fault)
+    public ScriptedTerminalWebSocket FailingCloseWith(Exception fault)
     {
         ArgumentNullException.ThrowIfNull(fault);
 
         _closeFault = fault;
+        return this;
+    }
+
+    /// <summary>
+    /// Makes the next send fail with the given fault before it is recorded; every later send
+    /// proceeds normally, so a test can observe what the session did after a send that never left.
+    /// </summary>
+    public ScriptedTerminalWebSocket FailingNextSendWith(Exception fault)
+    {
+        ArgumentNullException.ThrowIfNull(fault);
+
+        _nextSendFault = fault;
         return this;
     }
 
@@ -136,7 +149,7 @@ internal sealed class ScriptedPtyWebSocket : IPtyWebSocket
     {
         if (_receives.Count is 0)
         {
-            throw new InvalidOperationException("The scripted PTY WebSocket ran out of receive steps.");
+            throw new InvalidOperationException("The scripted terminal WebSocket ran out of receive steps.");
         }
 
         var step = _receives.Dequeue();
@@ -170,7 +183,12 @@ internal sealed class ScriptedPtyWebSocket : IPtyWebSocket
             MaxConcurrentSends = Math.Max(MaxConcurrentSends, active);
             if (active > 1)
             {
-                throw new InvalidOperationException("The scripted PTY WebSocket saw two sends at once.");
+                throw new InvalidOperationException("The scripted terminal WebSocket saw two sends at once.");
+            }
+
+            if (Interlocked.Exchange(ref _nextSendFault, null) is { } fault)
+            {
+                throw fault;
             }
 
             var message = new byte[buffer.Count];
@@ -204,7 +222,7 @@ internal sealed class ScriptedPtyWebSocket : IPtyWebSocket
             if (active > 1)
             {
                 return Task.FromException(
-                    new InvalidOperationException("The scripted PTY WebSocket saw a close while a send was outstanding."));
+                    new InvalidOperationException("The scripted terminal WebSocket saw a close while a send was outstanding."));
             }
 
             return _closeFault is null ? Task.CompletedTask : Task.FromException(_closeFault);
@@ -223,11 +241,11 @@ internal sealed class ScriptedPtyWebSocket : IPtyWebSocket
         ReleaseSends();
     }
 
-    private ScriptedPtyWebSocket Bytes(WebSocketMessageType messageType, byte[] payload, bool endOfMessage)
+    private ScriptedTerminalWebSocket Bytes(WebSocketMessageType messageType, byte[] payload, bool endOfMessage)
     {
         ArgumentNullException.ThrowIfNull(payload);
 
-        _receives.Enqueue(new ScriptedPtyReceive
+        _receives.Enqueue(new ScriptedTerminalReceive
         {
             MessageType = messageType,
             Payload = payload,
@@ -244,6 +262,6 @@ internal sealed class ScriptedPtyWebSocket : IPtyWebSocket
         _ = _parked.TrySetResult(true);
         _ = await Task.WhenAny(_disposal.Task, canceled.Task);
         cancellationToken.ThrowIfCancellationRequested();
-        throw new ObjectDisposedException(nameof(ScriptedPtyWebSocket));
+        throw new ObjectDisposedException(nameof(ScriptedTerminalWebSocket));
     }
 }

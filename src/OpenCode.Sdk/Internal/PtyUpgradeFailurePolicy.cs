@@ -21,14 +21,14 @@ internal sealed class PtyUpgradeFailurePolicy : ITerminalUpgradeFailurePolicy
     public static PtyUpgradeFailurePolicy Instance { get; } = new();
 
     /// <inheritdoc />
-    public OpenCodeTransportException Map(WebSocketException exception, int? status, string ptyId)
+    public OpenCodeTransportException Map(WebSocketException exception, int? status, string terminalId)
     {
         ArgumentNullException.ThrowIfNull(exception);
 
         if (status is null)
         {
             return new OpenCodeTransportException(
-                $"The opencode PTY '{ptyId}' WebSocket upgrade failed before the connection was established.",
+                $"The opencode PTY '{terminalId}' WebSocket upgrade failed before the connection was established.",
                 exception);
         }
 
@@ -36,13 +36,13 @@ internal sealed class PtyUpgradeFailurePolicy : ITerminalUpgradeFailurePolicy
         return status switch
         {
             404 => new OpenCodeTransportException(
-                $"The opencode server answered the PTY '{ptyId}' WebSocket upgrade with HTTP {code}; the PTY session does not exist.",
+                $"The opencode server answered the PTY '{terminalId}' WebSocket upgrade with HTTP {code}; the PTY session does not exist.",
                 exception),
             401 or 403 => new OpenCodeTransportException(
-                $"The opencode server refused the PTY '{ptyId}' WebSocket upgrade with HTTP {code}; the request's credential was rejected.",
+                $"The opencode server refused the PTY '{terminalId}' WebSocket upgrade with HTTP {code}; the request's credential was rejected.",
                 exception),
             _ => new OpenCodeTransportException(
-                $"The opencode server answered the PTY '{ptyId}' WebSocket upgrade with HTTP {code} instead of completing the protocol upgrade.",
+                $"The opencode server answered the PTY '{terminalId}' WebSocket upgrade with HTTP {code} instead of completing the protocol upgrade.",
                 exception),
         };
     }

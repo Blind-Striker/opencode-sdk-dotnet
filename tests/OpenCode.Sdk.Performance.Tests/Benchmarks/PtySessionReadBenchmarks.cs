@@ -8,7 +8,7 @@ namespace OpenCode.Sdk.Performance.Tests.Benchmarks;
 
 /// <summary>
 /// The PTY WebSocket read path in isolation — frame decode, replay/cursor handling, and the
-/// delivered frame — with no live server and no real socket: a canned <see cref="IPtyWebSocket"/>
+/// delivered frame — with no live server and no real socket: a canned <see cref="ITerminalWebSocket"/>
 /// replays recorded messages, the same way <see cref="ServerSentEventReaderBenchmarks"/> replays
 /// recorded SSE frames over a canned stream. The complete rung drives
 /// <see cref="PtySession.ReadAsync"/> end to end (receive, cross-receive reassembly above the
@@ -36,7 +36,7 @@ public class PtySessionReadBenchmarks : IAsyncDisposable
     ];
 
     private (WebSocketMessageType Type, byte[] Payload)[] _messages = [];
-    private CannedPtyWebSocket? _socket;
+    private CannedTerminalWebSocket? _socket;
     private PtySession? _session;
 
     public static IEnumerable<WireFixture> Fixtures() => Cases.Select(static entry => entry.Fixture);
@@ -46,7 +46,7 @@ public class PtySessionReadBenchmarks : IAsyncDisposable
 
     /// <summary>
     /// Builds the one session and canned socket this fixture's benchmark invocations replay
-    /// against; <see cref="CannedPtyWebSocket.Reset"/> rewinds it before every read instead of
+    /// against; <see cref="CannedTerminalWebSocket.Reset"/> rewinds it before every read instead of
     /// paying for a fresh socket and session per iteration, which would count construction
     /// noise as part of the read path this class isolates.
     /// </summary>
@@ -54,7 +54,7 @@ public class PtySessionReadBenchmarks : IAsyncDisposable
     public async Task SetupAsync()
     {
         _messages = MessagesFor(Fixture);
-        _socket = new CannedPtyWebSocket(_messages);
+        _socket = new CannedTerminalWebSocket(_messages);
         _session = new PtySession(_socket);
 
         var delivered = await CollectFramesAsync(_session).ConfigureAwait(false);

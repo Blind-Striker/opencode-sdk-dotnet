@@ -17,12 +17,12 @@ internal sealed class TerminalSocketCore<TFrame> : IAsyncDisposable
     private readonly ITerminalFrameDecoder<TFrame> _decoder;
     private readonly Type _owner;
     private readonly SemaphoreSlim _sendGate = new(1, 1);
-    private readonly IPtyWebSocket _socket;
+    private readonly ITerminalWebSocket _socket;
     private int _disposed;
     private int _reading;
 
     public TerminalSocketCore(
-        IPtyWebSocket socket,
+        ITerminalWebSocket socket,
         ITerminalFrameDecoder<TFrame> decoder,
         ITerminalClosePolicy closePolicy,
         Type owner)

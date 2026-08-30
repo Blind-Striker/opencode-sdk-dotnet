@@ -1,9 +1,12 @@
 namespace OpenCode.Sdk;
 
 /// <summary>
-/// The first frame the server sends: what it granted this connection. A session consumes it
-/// during <see cref="PersistentPtyClient.ConnectAsync"/> and exposes it as
-/// <see cref="PersistentPtySession.Attachment"/>, so a read enumeration never yields it again.
+/// The first frame the server sends: what it granted this connection. A session consumes exactly
+/// that one during <see cref="PersistentPtyClient.ConnectAsync"/> and exposes it as
+/// <see cref="PersistentPtySession.Attachment"/>. Only the first is consumed: an <c>attached</c>
+/// the server sends later reaches the read enumeration like any other frame, and
+/// <see cref="PersistentPtySession.Attachment"/> still reports the grant the connection opened
+/// with.
 /// </summary>
 public sealed class PersistentPtyAttachedFrame : PersistentPtyFrame
 {

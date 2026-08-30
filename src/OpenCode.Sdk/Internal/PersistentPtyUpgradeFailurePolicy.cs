@@ -21,14 +21,14 @@ internal sealed class PersistentPtyUpgradeFailurePolicy : ITerminalUpgradeFailur
     public static PersistentPtyUpgradeFailurePolicy Instance { get; } = new();
 
     /// <inheritdoc />
-    public OpenCodeTransportException Map(WebSocketException exception, int? status, string ptyId)
+    public OpenCodeTransportException Map(WebSocketException exception, int? status, string terminalId)
     {
         ArgumentNullException.ThrowIfNull(exception);
 
         if (status is null)
         {
             return new OpenCodeTransportException(
-                $"The opencode persistent PTY '{ptyId}' WebSocket upgrade failed before the connection was established.",
+                $"The opencode persistent PTY '{terminalId}' WebSocket upgrade failed before the connection was established.",
                 exception);
         }
 
@@ -36,13 +36,13 @@ internal sealed class PersistentPtyUpgradeFailurePolicy : ITerminalUpgradeFailur
         return status switch
         {
             400 => new OpenCodeTransportException(
-                $"The opencode server answered the persistent PTY '{ptyId}' WebSocket upgrade with HTTP {code}; the connect query was rejected (the cursor must be a safe integer at or above zero).",
+                $"The opencode server answered the persistent PTY '{terminalId}' WebSocket upgrade with HTTP {code}; the connect query was rejected (the cursor must be a safe integer at or above zero).",
                 exception),
             401 or 403 => new OpenCodeTransportException(
-                $"The opencode server refused the persistent PTY '{ptyId}' WebSocket upgrade with HTTP {code}; the request's credential or origin was rejected.",
+                $"The opencode server refused the persistent PTY '{terminalId}' WebSocket upgrade with HTTP {code}; the request's credential or origin was rejected.",
                 exception),
             _ => new OpenCodeTransportException(
-                $"The opencode server answered the persistent PTY '{ptyId}' WebSocket upgrade with HTTP {code} instead of completing the protocol upgrade.",
+                $"The opencode server answered the persistent PTY '{terminalId}' WebSocket upgrade with HTTP {code} instead of completing the protocol upgrade.",
                 exception),
         };
     }

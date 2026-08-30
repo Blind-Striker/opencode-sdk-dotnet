@@ -896,11 +896,11 @@ dotnet_diagnostic.CA2000.severity = none
 [tests/OpenCode.Sdk.Tests/PersistentPtys/PersistentPtySessionTests.cs]
 dotnet_diagnostic.CA2000.severity = none
 
-# ScriptedPtyWebSocket parks on TaskCompletionSource handles the test itself completes; that
+# ScriptedTerminalWebSocket parks on TaskCompletionSource handles the test itself completes; that
 # externally-owned completion is exactly the mechanism that makes a dispose-versus-read or
 # cancellation-versus-read race deterministic without waiting on wall-clock time. Winner: the
 # scripted test double; VSTHRD003 remains enabled for every other file.
-[tests/OpenCode.Sdk.Tests/Support/ScriptedPtyWebSocket.cs]
+[tests/OpenCode.Sdk.Tests/Support/ScriptedTerminalWebSocket.cs]
 dotnet_diagnostic.VSTHRD003.severity = none
 
 # CliWrapServerAdapter parks on TaskCompletionSource handles the adapter itself completes — the
@@ -927,7 +927,7 @@ dotnet_diagnostic.MA0076.severity = none
 # StartAsync's readyLine TaskCompletionSource is completed only by this same method's own
 # OutputDataReceived handler, wired to the very child process this method spawns — there is no
 # externally-owned task lifetime for VSTHRD003 to protect against, the same shape already
-# arbitrated for ScriptedPtyWebSocket's TaskCompletionSource handles. Winner: the event-to-async
+# arbitrated for ScriptedTerminalWebSocket's TaskCompletionSource handles. Winner: the event-to-async
 # bridge for the readiness signal; VSTHRD003 remains enabled for every other file.
 # WaitForExitBestEffort must call the parameterless WaitForExit(), not WaitForExitAsync(): Polyfill's
 # downlevel WaitForExitAsync is Exited-event-only and never waits for the async output readers to

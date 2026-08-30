@@ -8,9 +8,10 @@ namespace OpenCode.Sdk.Internal;
 internal static class TerminalSocketBounds
 {
     /// <summary>
-    /// The replay is chunked at 64Ki UTF-16 code units, so one message can reach roughly 192 KiB
-    /// of UTF-8. Receiving it in fixed slices keeps the per-session buffer small; the read loop
-    /// assembles the fragments.
+    /// A message either family sends can be far larger than one receive. Taking it in fixed
+    /// slices keeps the per-session buffer small whatever the message size is; the read loop
+    /// assembles the fragments. <see cref="PtyFrameDecoder"/> records the normal family's replay
+    /// chunking, which is the largest message measured against this bound.
     /// </summary>
     public const int ReceiveBufferSize = 16 * 1024;
 

@@ -55,7 +55,7 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task AttachAsync_Should_Consume_The_Attached_Frame_And_Expose_The_Attachment()
     {
-        var socket = new ScriptedPtyWebSocket()
+        var socket = new ScriptedTerminalWebSocket()
             .Text(PersistentPtyFrameData.AttachedJson)
             .Closing(WebSocketCloseStatus.NormalClosure);
 
@@ -71,7 +71,7 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task AttachAsync_Should_Refuse_A_Terminal_Unavailable_Close_Before_Attached()
     {
-        var socket = new ScriptedPtyWebSocket().Closing(TerminalUnavailable, PersistentPtyFrameData.TerminalUnavailableReason);
+        var socket = new ScriptedTerminalWebSocket().Closing(TerminalUnavailable, PersistentPtyFrameData.TerminalUnavailableReason);
 
         var failure = await Assert
             .That(async () => _ = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None))
@@ -84,7 +84,7 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task AttachAsync_Should_Refuse_A_Raw_Input_Protocol()
     {
-        var socket = new ScriptedPtyWebSocket().Text(PersistentPtyFrameData.AttachedRawProtocolJson);
+        var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedRawProtocolJson);
 
         var failure = await Assert
             .That(async () => _ = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None))
@@ -97,7 +97,7 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task AttachAsync_Should_Refuse_A_First_Frame_That_Is_Not_Attached()
     {
-        var socket = new ScriptedPtyWebSocket().Text(PersistentPtyFrameData.ReplayCompleteJson);
+        var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.ReplayCompleteJson);
 
         var failure = await Assert
             .That(async () => _ = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None))
@@ -109,7 +109,7 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task AttachAsync_Should_Name_The_Frame_Kind_When_The_Attachment_Id_Is_Null()
     {
-        var socket = new ScriptedPtyWebSocket().Text(PersistentPtyFrameData.AttachedNullAttachmentIdJson);
+        var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedNullAttachmentIdJson);
 
         var failure = await Assert
             .That(async () => _ = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None))
@@ -119,12 +119,41 @@ public sealed class PersistentPtySessionTests
         // SDK already read, so it is named the same way an unreadable member is - not left to
         // surface as a bare null attachment identity.
         await Assert.That(failure!.Message).Contains("'attached'");
+        await Assert.That(failure.Message).Contains("could not read");
+    }
+
+    [Test]
+    public async Task AttachAsync_Should_Name_The_Frame_Kind_When_The_Role_Is_Null()
+    {
+        var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedNullRoleJson);
+
+        var failure = await Assert
+            .That(async () => _ = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(failure!.Message).Contains("'attached'");
+        await Assert.That(failure.Message).Contains("could not read");
+    }
+
+    [Test]
+    public async Task AttachAsync_Should_Name_The_Frame_Kind_When_The_Role_Is_Not_Recognized()
+    {
+        var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedUnknownRoleJson);
+
+        var failure = await Assert
+            .That(async () => _ = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None))
+            .Throws<OpenCodeTransportException>();
+
+        // The wire spells 'controller' and 'observer' and nothing else, so a third spelling is a
+        // protocol deviation - never a connection quietly reported as the controller it is not.
+        await Assert.That(failure!.Message).Contains("'attached'");
+        await Assert.That(failure.Message).Contains("could not read");
     }
 
     [Test]
     public async Task AttachAsync_Should_Refuse_A_Normal_Close_Before_Attached()
     {
-        var socket = new ScriptedPtyWebSocket().Closing(WebSocketCloseStatus.NormalClosure);
+        var socket = new ScriptedTerminalWebSocket().Closing(WebSocketCloseStatus.NormalClosure);
 
         var failure = await Assert
             .That(async () => _ = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None))
@@ -136,7 +165,7 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task AttachAsync_Should_Expose_A_Truncated_Observer_Replay()
     {
-        var socket = new ScriptedPtyWebSocket().Text(PersistentPtyFrameData.AttachedObserverJson);
+        var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedObserverJson);
 
         await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
 
@@ -150,7 +179,7 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task ReadAsync_Should_Yield_Output_As_Bytes_And_The_Replay_Bracket_In_Order()
     {
-        var socket = new ScriptedPtyWebSocket()
+        var socket = new ScriptedTerminalWebSocket()
             .Text(PersistentPtyFrameData.AttachedJson)
             .Binary(PersistentPtyFrameData.Output("$ "))
             .Text(PersistentPtyFrameData.ReplayCompleteJson)
@@ -173,7 +202,7 @@ public sealed class PersistentPtySessionTests
     public async Task ReadAsync_Should_Decode_Each_Control_Frame_Kind(
         (string Control, Func<PersistentPtyFrame, Task> Verify) control)
     {
-        var socket = new ScriptedPtyWebSocket()
+        var socket = new ScriptedTerminalWebSocket()
             .Text(PersistentPtyFrameData.AttachedJson)
             .Text(control.Control)
             .Closing(WebSocketCloseStatus.NormalClosure);
@@ -187,7 +216,7 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task ReadAsync_Should_Yield_An_Unknown_Control_Type_As_An_Unknown_Frame()
     {
-        var socket = new ScriptedPtyWebSocket()
+        var socket = new ScriptedTerminalWebSocket()
             .Text(PersistentPtyFrameData.AttachedJson)
             .Text(PersistentPtyFrameData.UnknownTypeJson)
             .Closing(WebSocketCloseStatus.NormalClosure);
@@ -203,7 +232,7 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task ReadAsync_Should_Refuse_A_Control_Frame_Without_A_Type()
     {
-        var socket = new ScriptedPtyWebSocket()
+        var socket = new ScriptedTerminalWebSocket()
             .Text(PersistentPtyFrameData.AttachedJson)
             .Text(PersistentPtyFrameData.TypelessJson);
         await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
@@ -216,7 +245,7 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task ReadAsync_Should_Name_The_Frame_Kind_When_A_Typed_Control_Frame_Is_Unreadable()
     {
-        var socket = new ScriptedPtyWebSocket()
+        var socket = new ScriptedTerminalWebSocket()
             .Text(PersistentPtyFrameData.AttachedJson)
             .Text(PersistentPtyFrameData.ResizedWithoutColsJson);
         await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
@@ -233,7 +262,7 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task ReadAsync_Should_Name_The_Frame_Kind_When_A_Title_Changed_Frame_Carries_A_Null_Title()
     {
-        var socket = new ScriptedPtyWebSocket()
+        var socket = new ScriptedTerminalWebSocket()
             .Text(PersistentPtyFrameData.AttachedJson)
             .Text(PersistentPtyFrameData.TitleChangedNullTitleJson);
         await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
@@ -246,7 +275,7 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task ReadAsync_Should_Refuse_Truncated_Control_Json()
     {
-        var socket = new ScriptedPtyWebSocket()
+        var socket = new ScriptedTerminalWebSocket()
             .Text(PersistentPtyFrameData.AttachedJson)
             .Text(PersistentPtyFrameData.TruncatedJson);
         await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
@@ -260,7 +289,7 @@ public sealed class PersistentPtySessionTests
     public async Task ReadAsync_Should_Assemble_A_Fragmented_Output_Message_Once()
     {
         var output = PersistentPtyFrameData.Output("frag-mented");
-        var socket = new ScriptedPtyWebSocket()
+        var socket = new ScriptedTerminalWebSocket()
             .Text(PersistentPtyFrameData.AttachedJson)
             .BinaryFragments(output, splitAt: 5)
             .Closing(WebSocketCloseStatus.NormalClosure);
@@ -274,7 +303,7 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task ReadAsync_Should_Assemble_A_Fragmented_Control_Frame_Once()
     {
-        var socket = new ScriptedPtyWebSocket()
+        var socket = new ScriptedTerminalWebSocket()
             .Text(PersistentPtyFrameData.AttachedJson)
             .TextFragments(PersistentPtyFrameData.ResizedJson[..20], PersistentPtyFrameData.ResizedJson[20..])
             .Closing(WebSocketCloseStatus.NormalClosure);
@@ -290,7 +319,7 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task ReadAsync_Should_Refuse_A_Terminal_Unavailable_Close_Mid_Stream()
     {
-        var socket = new ScriptedPtyWebSocket()
+        var socket = new ScriptedTerminalWebSocket()
             .Text(PersistentPtyFrameData.AttachedJson)
             .Binary(PersistentPtyFrameData.Output("live"))
             .Closing(TerminalUnavailable, PersistentPtyFrameData.TerminalUnavailableReason);
@@ -308,7 +337,7 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task ReadAsync_Should_Refuse_An_Abnormal_Close()
     {
-        var socket = new ScriptedPtyWebSocket()
+        var socket = new ScriptedTerminalWebSocket()
             .Text(PersistentPtyFrameData.AttachedJson)
             .Closing(WebSocketCloseStatus.InternalServerError);
         await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
@@ -321,7 +350,7 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task ReadAsync_Should_Track_The_Viewport_From_A_Resized_Frame()
     {
-        var socket = new ScriptedPtyWebSocket()
+        var socket = new ScriptedTerminalWebSocket()
             .Text(PersistentPtyFrameData.AttachedJson)
             .Text(PersistentPtyFrameData.ResizedJson)
             .Closing(WebSocketCloseStatus.NormalClosure);
@@ -337,7 +366,7 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task WriteAsync_Should_Send_A_Framed_Binary_Input_Carrying_The_Attached_Viewport()
     {
-        var socket = new ScriptedPtyWebSocket().Text(PersistentPtyFrameData.AttachedJson);
+        var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedJson);
         await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
 
         await session.WriteAsync(PersistentPtyFrameData.Output("ls\n"));
@@ -350,7 +379,7 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task WriteAsync_Should_Throw_After_Dispose()
     {
-        var socket = new ScriptedPtyWebSocket().Text(PersistentPtyFrameData.AttachedJson);
+        var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedJson);
         var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
         await session.DisposeAsync();
 
@@ -361,7 +390,7 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task ResizeAsync_Should_Send_A_Control_Frame_And_Track_The_Viewport()
     {
-        var socket = new ScriptedPtyWebSocket().Text(PersistentPtyFrameData.AttachedJson);
+        var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedJson);
         await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
 
         await session.ResizeAsync(100, 30);
@@ -375,7 +404,7 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task ResizeAsync_Should_Refuse_A_Zero_Or_Oversized_Dimension()
     {
-        var socket = new ScriptedPtyWebSocket().Text(PersistentPtyFrameData.AttachedJson);
+        var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedJson);
         await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
 
         _ = await Assert.That(async () => await session.ResizeAsync(0, 24)).Throws<ArgumentOutOfRangeException>();
@@ -388,9 +417,26 @@ public sealed class PersistentPtySessionTests
     }
 
     [Test]
+    public async Task ResizeAsync_Should_Leave_The_Viewport_Alone_When_The_Control_Frame_Never_Left()
+    {
+        var socket = new ScriptedTerminalWebSocket()
+            .Text(PersistentPtyFrameData.AttachedJson)
+            .FailingNextSendWith(new WebSocketException("the connection dropped"));
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        _ = await Assert.That(async () => await session.ResizeAsync(100, 30)).Throws<OpenCodeTransportException>();
+        await session.WriteAsync(PersistentPtyFrameData.Output("ls\n"));
+
+        // The write carries the attachment's own 80x24, not the size the failed resize asked for:
+        // a control frame that never left resized nothing on the server either.
+        await Assert.That(socket.SentMessages.Single())
+            .IsEquivalentTo(PersistentPtyFrameData.Framed(1, 80, 24, PersistentPtyFrameData.Output("ls\n")));
+    }
+
+    [Test]
     public async Task ReadAsync_Should_Refuse_A_Second_Concurrent_Enumeration()
     {
-        var socket = new ScriptedPtyWebSocket()
+        var socket = new ScriptedTerminalWebSocket()
             .Text(PersistentPtyFrameData.AttachedJson)
             .Binary(PersistentPtyFrameData.Output("live"))
             .Parking();
@@ -435,21 +481,27 @@ public sealed class PersistentPtySessionTests
     [Test]
     public async Task Frame_Constructors_Should_Be_Reachable_Without_Friend_Access()
     {
-        var constructors = new[]
-        {
-            typeof(PersistentPtyAttachedFrame).GetConstructor([typeof(PersistentPtyAttachment)]),
-            typeof(PersistentPtyOutputFrame).GetConstructor([typeof(ReadOnlyMemory<byte>)]),
-            typeof(PersistentPtyReplayCompleteFrame).GetConstructor([typeof(long)]),
-            typeof(PersistentPtyResizedFrame)
-                .GetConstructor([typeof(int), typeof(int), typeof(long), typeof(ReadOnlyMemory<byte>)]),
-            typeof(PersistentPtyExitedFrame).GetConstructor([typeof(int?), typeof(long)]),
-            typeof(PersistentPtyControllerChangedFrame).GetConstructor([typeof(string), typeof(long)]),
-            typeof(PersistentPtyTitleChangedFrame).GetConstructor([typeof(string)]),
-            typeof(PersistentPtyForegroundProcessChangedFrame).GetConstructor([typeof(string)]),
-            typeof(PersistentPtyUnknownFrame).GetConstructor([typeof(string), typeof(JsonElement)]),
-        };
+        (Type Frame, Type[] Parameters)[] frames =
+        [
+            (typeof(PersistentPtyAttachedFrame), [typeof(PersistentPtyAttachment)]),
+            (typeof(PersistentPtyOutputFrame), [typeof(ReadOnlyMemory<byte>)]),
+            (typeof(PersistentPtyReplayCompleteFrame), [typeof(long)]),
+            (typeof(PersistentPtyResizedFrame), [typeof(int), typeof(int), typeof(long), typeof(ReadOnlyMemory<byte>)]),
+            (typeof(PersistentPtyExitedFrame), [typeof(int?), typeof(long)]),
+            (typeof(PersistentPtyControllerChangedFrame), [typeof(string), typeof(long)]),
+            (typeof(PersistentPtyTitleChangedFrame), [typeof(string)]),
+            (typeof(PersistentPtyForegroundProcessChangedFrame), [typeof(string)]),
+            (typeof(PersistentPtyUnknownFrame), [typeof(string), typeof(JsonElement)]),
+        ];
 
-        await Assert.That(constructors.All(static constructor => constructor?.IsPublic is true)).IsTrue();
+        // The unreachable frames are named rather than folded into one boolean: a failure has to
+        // say which of the nine lost its public constructor, not merely that one of them did.
+        var unreachable = frames
+            .Where(frame => frame.Frame.GetConstructor(frame.Parameters)?.IsPublic is not true)
+            .Select(static frame => frame.Frame.Name)
+            .ToArray();
+
+        await Assert.That(unreachable).IsEmpty();
     }
 
     private static async Task<List<PersistentPtyFrame>> ReadAllAsync(PersistentPtySession session)

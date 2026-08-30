@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Internal;
 /// closes. It is the seam a session test scripts: connecting is the door's job, so it is
 /// deliberately absent here — what a session consumes is exactly this.
 /// </summary>
-internal interface IPtyWebSocket : IDisposable
+internal interface ITerminalWebSocket : IDisposable
 {
     /// <summary>Gets the status the peer closed with, once a close frame arrived.</summary>
     public WebSocketCloseStatus? CloseStatus { get; }

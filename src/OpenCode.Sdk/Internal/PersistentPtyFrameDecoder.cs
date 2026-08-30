@@ -102,8 +102,8 @@ internal sealed class PersistentPtyFrameDecoder : ITerminalFrameDecoder<Persiste
             "title_changed" => new PersistentPtyTitleChangedFrame(
                 root.GetProperty("title").GetString() ?? throw new OpenCodeTransportException(TypedFrameFailure(type))),
             "foreground_process_changed" => new PersistentPtyForegroundProcessChangedFrame(
-                root.GetProperty("process").ValueKind is JsonValueKind.String
-                    ? root.GetProperty("process").GetString()
+                root.GetProperty("process") is { ValueKind: JsonValueKind.String } process
+                    ? process.GetString()
                     : null),
 
             // The element is cloned because the frame outlives the document it was parsed from.
@@ -125,11 +125,24 @@ internal sealed class PersistentPtyFrameDecoder : ITerminalFrameDecoder<Persiste
             // type is already known, so it is named as one.
             Info = root.GetProperty("info").Deserialize(OpenCodeJsonContext.Default.PersistentPtyInfo)
                    ?? throw new OpenCodeTransportException(TypedFrameFailure(AttachedType)),
-            Role = string.Equals(root.GetProperty("role").GetString(), "observer", StringComparison.Ordinal)
-                ? PersistentPtyRole.Observer
-                : PersistentPtyRole.Controller,
+            Role = ReadRole(root),
             Generation = root.GetProperty("generation").GetInt64(),
             Replay = ReadReplay(root.GetProperty("replay")),
+        };
+
+    /// <summary>
+    /// Reads the granted role. The wire spells exactly two values, so anything else - a JSON
+    /// null, a spelling this SDK does not know - is a member-level failure of a frame whose type
+    /// is already known, named the same way every other unreadable member is. Mapping an
+    /// unreadable role onto a default would report an observer as a controller, and a caller
+    /// acting on that would write input the server silently drops.
+    /// </summary>
+    private static PersistentPtyRole ReadRole(JsonElement root) =>
+        root.GetProperty("role").GetString() switch
+        {
+            "controller" => PersistentPtyRole.Controller,
+            "observer" => PersistentPtyRole.Observer,
+            _ => throw new OpenCodeTransportException(TypedFrameFailure(AttachedType)),
         };
 
     private static PersistentPtyReplayBounds ReadReplay(JsonElement replay) =>

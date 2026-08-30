@@ -26,6 +26,24 @@ internal static class RouteValuePolicy
         return Uri.EscapeDataString(value);
     }
 
+    /// <summary>
+    /// Escapes a value that becomes one path segment. Escaping leaves a dot segment intact and
+    /// <see cref="Uri"/> then resolves it away, silently addressing a different route than the
+    /// caller named, so the refusal belongs here rather than at every call site that composes a
+    /// path. A query value takes <see cref="Escape"/> instead: a dot is an ordinary value there.
+    /// </summary>
+    public static string EscapeSegment(string value, string parameterName)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+
+        if (value is "." or "..")
+        {
+            throw new ArgumentException("Route values must not be dot segments.", parameterName);
+        }
+
+        return Escape(value, parameterName);
+    }
+
     /// <summary>Escapes an SDK-owned wire name whose representability is an internal invariant.</summary>
     public static string EscapeName(string value)
     {
