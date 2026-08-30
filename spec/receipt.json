@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "upstreamCommit": "106629aa118086be7def6123241a9bf056ba77b6",
+  "upstreamCommit": "b1e3a7b2228a75734d848e33eabc8e15a0efd780",
   "rawDocumentSha256": "c24fb10f8f0a2f802bffb47c9c7f393abf5f815cb1db9d8619377c31524bf52c",
   "generatedBaselineSha256": "c24fb10f8f0a2f802bffb47c9c7f393abf5f815cb1db9d8619377c31524bf52c",
   "patches": [
@@ -23,10 +23,7 @@
   "normalizedDocumentPath": null,
   "operationSetDigest": "3e664bd944898b25d01523c766fca7dbfb13000f4717ae4993f54735b9993baf",
   "operationCount": 136,
-  "addedOperations": [
-    "server.experimental.persistentPty.read",
-    "v2.vcs.base"
-  ],
+  "addedOperations": [],
   "removedOperations": [],
   "componentCount": 342,
   "contentSchemaCount": 2
