@@ -41,7 +41,7 @@ internal sealed class GenerationWriter(IFileSystem fileSystem, IProjectFormatter
 
         await WriteSourcesAsync(outputRoot, newSources, cancellationToken).ConfigureAwait(false);
         DeleteStaleSources(outputRoot, oldPaths, newSources.Keys);
-        await WriteManifestAsync(outputRoot, newSources.Keys, cancellationToken).ConfigureAwait(false);
+        await WriteManifestAsync(outputRoot, newSources.Keys, request.ImplicitSchemaAliases, cancellationToken).ConfigureAwait(false);
         await WriteMarkerAsync(outputRoot, request.PartialMarkerContent, cancellationToken).ConfigureAwait(false);
         var sourcePaths = newSources.Keys.Order(StringComparer.Ordinal).ToArray();
         await _formatter.FormatAsync(request.ProjectPath, sourcePaths, cancellationToken).ConfigureAwait(false);
@@ -183,11 +183,13 @@ internal sealed class GenerationWriter(IFileSystem fileSystem, IProjectFormatter
         }
     }
 
-    private async Task WriteManifestAsync(string outputRoot, IEnumerable<string> paths, CancellationToken cancellationToken)
+    private async Task WriteManifestAsync(string outputRoot, IEnumerable<string> paths,
+        IReadOnlyDictionary<string, string> implicitSchemaAliases, CancellationToken cancellationToken)
     {
         var manifest = new GenerationManifest
         {
             Files = [.. paths.Order(StringComparer.Ordinal)],
+            ImplicitAliases = implicitSchemaAliases,
         };
         var json = $"{JsonSerializer.Serialize(manifest, ToolJsonContext.Default.GenerationManifest)}\n";
         await WriteBytesAsync(

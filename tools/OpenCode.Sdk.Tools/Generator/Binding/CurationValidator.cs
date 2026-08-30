@@ -8,12 +8,13 @@ internal sealed class CurationValidator
     private readonly StringComparer _comparer = StringComparer.Ordinal;
 
     public void Validate(SpecDocument document, IReadOnlyList<SpecOperation> selected, ReachableSchemaSet reachable,
-        GenerationCuration curation, BindingErrorCollector errors)
+        GenerationCuration curation, StabilizeDuplicateCollapse collapse, BindingErrorCollector errors)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(selected);
         ArgumentNullException.ThrowIfNull(reachable);
         ArgumentNullException.ThrowIfNull(curation);
+        ArgumentNullException.ThrowIfNull(collapse);
         ArgumentNullException.ThrowIfNull(errors);
 
         var selectedIds = selected.Select(static operation => operation.OperationId).ToHashSet(_comparer);
@@ -24,7 +25,7 @@ internal sealed class CurationValidator
         ValidateOperationNames(selectedIds, documentIds, curation, errors);
         ValidateSchemaNames(document, reachable, curation, errors);
         ValidateEnvelopeNames(selectedIds, documentIds, curation, errors);
-        ValidateSchemaAliases(document, reachable, curation, errors);
+        ValidateSchemaAliases(document, reachable, curation, collapse, errors);
         ValidateTransportOwned(document, selectedIds, curation, errors);
     }
 
@@ -308,25 +309,31 @@ internal sealed class CurationValidator
     /// <summary>
     /// The alias walls carry the drift contract: a deleted source or target orphans the row,
     /// a dereferenced source goes dormant, and any structural divergence — the tag included —
-    /// breaks the identity check. Every upstream move on the duplicate is loud.
+    /// breaks the identity check. Every upstream move on the duplicate is loud. A row the
+    /// mechanical stabilize-duplicate collapse already implies is refused as redundant, so
+    /// curation carries only the duplicates no convention recognizes.
     /// </summary>
     private static void ValidateSchemaAliases(SpecDocument document, ReachableSchemaSet reachable,
-        GenerationCuration curation, BindingErrorCollector errors)
+        GenerationCuration curation, StabilizeDuplicateCollapse collapse, BindingErrorCollector errors)
     {
         var reachableKeys = reachable.GraphKeys.ToHashSet(StringComparer.Ordinal);
         var sources = new HashSet<string>(StringComparer.Ordinal);
         // Identity is judged on the graph as it will be bound, so one alias can be what makes
-        // a second pair identical.
+        // a second pair identical — the mechanical collapse included.
         // A duplicated source is reported below rather than throwing here.
-        var aliasTargets = curation
-            .SchemaAliases
-            .DistinctBy(static alias => alias.Schema, StringComparer.Ordinal)
-            .ToDictionary(static alias => alias.Schema, static alias => alias.AliasOf, StringComparer.Ordinal);
+        var aliasTargets = SchemaAliasApplier.Compose(collapse, curation.SchemaAliases);
         foreach (var alias in curation.SchemaAliases)
         {
             if (!sources.Add(alias.Schema))
             {
                 errors.Add(BindingErrorCategory.Curation, alias.Schema, "schema alias is duplicated");
+            }
+
+            if (collapse.Aliases.TryGetValue(alias.Schema, out var implied))
+            {
+                errors.Add(BindingErrorCategory.Curation, alias.Schema,
+                    $"schema alias is redundant: the stabilize-duplicate collapse already folds it into '{implied}'");
+                continue;
             }
 
             if (string.IsNullOrWhiteSpace(alias.Reason))
@@ -363,10 +370,12 @@ internal sealed class CurationValidator
             }
         }
 
+        // A target that is itself collapsed — by another row or by the mechanical policy — would
+        // rewrite into a key the applier has already removed from the graph.
         foreach (var alias in curation
                      .SchemaAliases
                      .Where(alias => !string.Equals(alias.Schema, alias.AliasOf, StringComparison.Ordinal)
-                                     && sources.Contains(alias.AliasOf))
+                                     && (sources.Contains(alias.AliasOf) || collapse.Aliases.ContainsKey(alias.AliasOf)))
                      .OrderBy(static alias => alias.Schema, StringComparer.Ordinal))
         {
             errors.Add(BindingErrorCategory.Curation, alias.Schema, "schema aliases cannot chain");

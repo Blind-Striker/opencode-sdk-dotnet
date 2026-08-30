@@ -1088,5 +1088,32 @@
     "Worktrees/WorktreeRefreshPostResponse.cs",
     "Worktrees/WorktreeRemoveResponse.cs",
     "Worktrees/WorktreesClient.cs"
-  ]
+  ],
+  "implicitAliases": {
+    "Form.Fields_1": "Form.Fields",
+    "Form.Fields_2": "Form.Fields",
+    "Session.Message.Assistant.Reasoning_1": "Session.Message.Assistant.Reasoning",
+    "Session.Message.Assistant.Text_1": "Session.Message.Assistant.Text",
+    "Session.Message.Assistant.Tool_1": "Session.Message.Assistant.Tool",
+    "Session.Message.ProviderState_1": "Session.Message.ProviderState",
+    "Session.Message.ProviderState_10": "Session.Message.ProviderState",
+    "Session.Message.ProviderState_11": "Session.Message.ProviderState",
+    "Session.Message.ProviderState_12": "Session.Message.ProviderState",
+    "Session.Message.ProviderState_13": "Session.Message.ProviderState",
+    "Session.Message.ProviderState_14": "Session.Message.ProviderState",
+    "Session.Message.ProviderState_15": "Session.Message.ProviderState",
+    "Session.Message.ProviderState_16": "Session.Message.ProviderState",
+    "Session.Message.ProviderState_2": "Session.Message.ProviderState",
+    "Session.Message.ProviderState_3": "Session.Message.ProviderState",
+    "Session.Message.ProviderState_4": "Session.Message.ProviderState",
+    "Session.Message.ProviderState_5": "Session.Message.ProviderState",
+    "Session.Message.ProviderState_6": "Session.Message.ProviderState",
+    "Session.Message.ProviderState_7": "Session.Message.ProviderState",
+    "Session.Message.ProviderState_8": "Session.Message.ProviderState",
+    "Session.Message.ProviderState_9": "Session.Message.ProviderState",
+    "Session.Message.ToolState.Completed_1": "Session.Message.ToolState.Completed",
+    "Session.Message.ToolState.Error_1": "Session.Message.ToolState.Error",
+    "Session.Message.ToolState.Running_1": "Session.Message.ToolState.Running",
+    "Session.StructuredError_1": "Session.StructuredError"
+  }
 }

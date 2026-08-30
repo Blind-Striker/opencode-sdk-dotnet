@@ -376,9 +376,35 @@ public sealed class GenerationWriterTests
         await Assert.That(removal.DeletedPaths).Contains(".generation-incomplete");
     }
 
+    [Test]
+    public async Task WriteAsync_Should_Record_The_Implicit_Aliases_In_The_Manifest()
+    {
+        var fileSystem = GenerationTestData.CreateFileSystem();
+        var writer = new GenerationWriter(fileSystem, new RecordingProjectFormatter(fileSystem));
+
+        _ = await writer.WriteAsync(
+            Request(
+                [GenerationTestData.Source("Models/Widget.cs", "widget")],
+                implicitSchemaAliases: new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["Widget_2"] = "Widget",
+                    ["Widget_1"] = "Widget",
+                }),
+            CancellationToken.None);
+
+        var manifest = await fileSystem.File.ReadAllTextAsync(GenerationTestData.ManifestPath, CancellationToken.None);
+        await Assert.That(manifest).Contains("\"implicitAliases\"");
+        await Assert.That(manifest).Contains("\"Widget_1\": \"Widget\"");
+        await Assert.That(manifest).Contains("\"Widget_2\": \"Widget\"");
+        await Assert
+            .That(manifest.IndexOf("\"Widget_1\"", StringComparison.Ordinal))
+            .IsLessThan(manifest.IndexOf("\"Widget_2\"", StringComparison.Ordinal));
+    }
+
     /// <summary>Assembles one write request over the shared test roots; flags default off.</summary>
     private static GenerationWriteRequest Request(IReadOnlyList<GeneratedSource> sources,
-        IReadOnlyList<string>? familyFolders = null, string? partialMarkerContent = null, bool verify = false) =>
+        IReadOnlyList<string>? familyFolders = null, string? partialMarkerContent = null, bool verify = false,
+        IReadOnlyDictionary<string, string>? implicitSchemaAliases = null) =>
         new()
         {
             OutputRoot = GenerationTestData.OutputRoot,
@@ -386,6 +412,7 @@ public sealed class GenerationWriterTests
             Sources = sources,
             FamilyFolders = familyFolders ?? [],
             PartialMarkerContent = partialMarkerContent,
+            ImplicitSchemaAliases = implicitSchemaAliases ?? new Dictionary<string, string>(StringComparer.Ordinal),
             Verify = verify,
         };
 }

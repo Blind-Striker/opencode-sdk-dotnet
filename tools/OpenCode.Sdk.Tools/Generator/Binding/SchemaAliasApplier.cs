@@ -4,27 +4,21 @@ using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 namespace OpenCode.Sdk.Tools.Generator.Binding;
 
 /// <summary>
-/// Collapses curated schema aliases before binding: every reference to an aliased key is
-/// rewritten to its target and the aliased schema leaves the graph, so downstream machinery
-/// never sees the duplicate. Container kinds without a rewrite rule pass through unchanged;
-/// a reference they might carry then dangles and fails reachability loudly.
+/// Collapses schema aliases before binding: every reference to an aliased key is rewritten to
+/// its target and the aliased schema leaves the graph, so downstream machinery never sees the
+/// duplicate. Container kinds without a rewrite rule pass through unchanged; a reference they
+/// might carry then dangles and fails reachability loudly.
 /// </summary>
 internal sealed class SchemaAliasApplier
 {
-    public SpecDocument Apply(SpecDocument document, IReadOnlyList<SchemaAlias> aliases)
+    public SpecDocument Apply(SpecDocument document, StabilizeDuplicateCollapse collapse, IReadOnlyList<SchemaAlias> aliases)
     {
         ArgumentNullException.ThrowIfNull(document);
-        ArgumentNullException.ThrowIfNull(aliases);
 
-        if (aliases.Count is 0)
+        var map = Compose(collapse, aliases);
+        if (map.Count is 0)
         {
             return document;
-        }
-
-        var map = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var alias in aliases)
-        {
-            map[alias.Schema] = alias.AliasOf;
         }
 
         var schemas = new Dictionary<string, SchemaNode>(StringComparer.Ordinal);
@@ -43,7 +37,27 @@ internal sealed class SchemaAliasApplier
         };
     }
 
-    private SpecOperation RewriteOperation(SpecOperation operation, Dictionary<string, string> map) =>
+    /// <summary>
+    /// Composes one collapse map: the mechanical stabilize rows first, curated rows last, so a
+    /// curated row is the deliberate act a reviewer reads. The curation validator refuses a
+    /// curated row the mechanical policy already implies, so the two never disagree over a key.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> Compose(StabilizeDuplicateCollapse collapse,
+        IReadOnlyList<SchemaAlias> aliases)
+    {
+        ArgumentNullException.ThrowIfNull(collapse);
+        ArgumentNullException.ThrowIfNull(aliases);
+
+        var map = new Dictionary<string, string>(collapse.Aliases, StringComparer.Ordinal);
+        foreach (var alias in aliases)
+        {
+            map[alias.Schema] = alias.AliasOf;
+        }
+
+        return map;
+    }
+
+    private SpecOperation RewriteOperation(SpecOperation operation, IReadOnlyDictionary<string, string> map) =>
         operation with
         {
             Parameters =
@@ -69,7 +83,7 @@ internal sealed class SchemaAliasApplier
             ],
         };
 
-    private SpecEffectStreamContract? RewriteEffectStream(SpecEffectStreamContract? contract, Dictionary<string, string> map)
+    private SpecEffectStreamContract? RewriteEffectStream(SpecEffectStreamContract? contract, IReadOnlyDictionary<string, string> map)
     {
         if (contract is null)
         {
@@ -85,7 +99,7 @@ internal sealed class SchemaAliasApplier
         };
     }
 
-    private SchemaNode Rewrite(SchemaNode node, Dictionary<string, string> map) => node switch
+    private SchemaNode Rewrite(SchemaNode node, IReadOnlyDictionary<string, string> map) => node switch
     {
         RefNode reference when map.TryGetValue(reference.Target, out var target) => reference with
         {
@@ -125,7 +139,7 @@ internal sealed class SchemaAliasApplier
     };
 
     /// <summary>Collapsed branches can duplicate a reference; the duplicates fold away mechanically.</summary>
-    private UnionNode RewriteUnion(UnionNode union, Dictionary<string, string> map)
+    private UnionNode RewriteUnion(UnionNode union, IReadOnlyDictionary<string, string> map)
     {
         var branches = new List<SchemaNode>(union.Branches.Count);
         var seen = new HashSet<string>(StringComparer.Ordinal);

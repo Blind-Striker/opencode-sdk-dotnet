@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using OpenCode.Sdk.Tools.Generator.Emission;
 
 namespace OpenCode.Sdk.Tools.Output;
@@ -43,6 +44,17 @@ internal sealed record GenerationWriteRequest
         {
             ArgumentNullException.ThrowIfNull(value);
             field = Array.AsReadOnly([.. value]);
+        }
+    }
+
+    /// <summary>Gets the stabilize duplicates the binder folded mechanically, recorded in the manifest as a telltale.</summary>
+    public required IReadOnlyDictionary<string, string> ImplicitSchemaAliases
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(value, StringComparer.Ordinal));
         }
     }
 

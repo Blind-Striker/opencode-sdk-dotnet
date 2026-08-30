@@ -535,6 +535,12 @@ select the worktree family's whole pinned surface — `v2.worktree.create`
 (`RemoveWorktreeAsync(WorktreeRemoveRequest)`, both 204 no-content envelopes) — giving
 `WorktreeError` and `WorktreeErrorData` and taking the profile to
 **131 selected / 3 pending / 2 transport-owned**.
+The stabilize-duplicate collapse then becomes mechanical: `StabilizeDuplicatePolicy` folds every
+reachable `<base>_<N>` component into `<base>` when `SchemaNodeComparer.DeepEquals` holds and
+refuses naming both keys when it does not, running to a fixpoint and never chaining. All 24 `_N`
+`schemaAliases` rows retire against byte-identical generated output, a curated row the collapse
+already implies is refused as redundant, and `.generated-manifest.json` carries the folds in an
+`implicitAliases` section as the committed telltale.
 
 ## Milestones
 
@@ -706,15 +712,15 @@ is revisited at each milestone boundary.
   `MedianNanoseconds` `compare-benchmarks` CSV column breaks the other columns' abbreviation
   convention.
 - **Approved generator/tooling mechanisms (maintainer, 2026-08-29):** (1) *stabilize-duplicate
-  collapse* — a mechanical `StabilizeDuplicatePolicy` folds a reachable `<base>_<N>` component
-  into `<base>` when `SchemaNodeComparer.DeepEquals` holds and refuses, naming both, when it does
-  not; runs to a fixpoint, never chains, records the implicit aliases in `.generated-manifest.json`
-  as a committed telltale, keeps explicit `schemaAliases` rows for non-`_N` cases, and retires 24
-  of today's 25 rows (19 of which exist only in the Restore patch's regenerated event tree). An
-  unrecognized naming convention gets no implicit alias and surfaces exactly as an undeclared
-  duplicate does today — a duplicate error tag refuses, a duplicate model breaks the PublicApi
-  baseline — so the worst case is loud. Same class of dialect-artifact rule as the `*Encoded`
-  strip (Q150); lands with a research-log entry and one curation-boundary sentence in canon.
+  collapse* — **landed 2026-08-30**: `StabilizeDuplicatePolicy` folds a reachable `<base>_<N>`
+  component into `<base>` when `SchemaNodeComparer.DeepEquals` holds and refuses, naming both,
+  when it does not; it runs to a fixpoint, never chains, and records the folds in
+  `.generated-manifest.json` (`implicitAliases`) as a committed telltale. All 24 `_N`
+  `schemaAliases` rows retired against byte-identical generated output; the one non-`_N` row (the
+  operation-scoped Effect cause union) stays explicit, and a curated row the collapse already
+  implies is refused as redundant. The manifest lists 25 folds — the 24 the rows spelled plus
+  `Form.Fields_1`, an array component that never needed a row because it emits no named model.
+  Still open: the research-log entry and one curation-boundary sentence in canon.
   (2) *source watch* — `spec/source-watch.json` pins the upstream files the hand-written doors
   depend on by path, sha256, and a content anchor (the patch manifests' predicate pattern);
   `refresh-spec` prepare reports each entry's hash and anchor in the receipt (`watchedSources`),
@@ -743,5 +749,4 @@ is revisited at each milestone boundary.
   retirement is a one-line diff), and the canon marker sentence reads "unselected and not
   transport-owned". The marker reads **122 selected / 12 pending / 2 transport-owned**, and the
   packing wall is satisfiable at full admission; the prerelease-versus-stable wording of that wall
-  stays a release-prep decision. Sequenced: (1) and (2) as the next tools touch, beside the
-  `ToolJsonContext` `NewLine` pin.
+  stays a release-prep decision. Sequenced: (2) as the next tools touch.

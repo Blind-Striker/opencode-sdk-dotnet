@@ -38,6 +38,7 @@ public static class ToolApp
         services.AddSingleton<OperationSelectionLoader>();
         services.AddSingleton<CurationLoader>();
         services.AddSingleton<ReachableSchemaCollector>();
+        services.AddSingleton<StabilizeDuplicatePolicy>();
         services.AddSingleton<CurationValidator>();
         services.AddSingleton<SchemaAliasApplier>();
         services.AddSingleton<SchemaNameResolver>();

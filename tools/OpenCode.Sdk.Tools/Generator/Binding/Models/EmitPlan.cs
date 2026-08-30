@@ -67,4 +67,10 @@ internal sealed record EmitPlan
             field = Array.AsReadOnly([.. value]);
         }
     } = Array.AsReadOnly(Array.Empty<string>());
+
+    /// <summary>
+    /// Gets the stabilize duplicates the binder folded mechanically, the committed telltale the
+    /// generation manifest carries in place of the curated rows the convention retires.
+    /// </summary>
+    public required StabilizeDuplicateCollapse ImplicitSchemaAliases { get; init; }
 }

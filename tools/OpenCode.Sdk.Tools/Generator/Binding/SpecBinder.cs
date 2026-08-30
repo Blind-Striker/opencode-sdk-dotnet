@@ -7,6 +7,7 @@ namespace OpenCode.Sdk.Tools.Generator.Binding;
 
 internal sealed class SpecBinder(
     ReachableSchemaCollector reachableSchemas,
+    StabilizeDuplicatePolicy stabilizeDuplicates,
     CurationValidator curationValidator,
     SchemaAliasApplier schemaAliases,
     SchemaNameResolver schemaNames,
@@ -19,6 +20,7 @@ internal sealed class SpecBinder(
     private readonly SchemaAliasApplier _schemaAliases = schemaAliases ?? throw new ArgumentNullException(nameof(schemaAliases));
     private readonly SchemaNameResolver _schemaNames = schemaNames ?? throw new ArgumentNullException(nameof(schemaNames));
     private readonly SchemaPlanBinder _schemaPlans = schemaPlans ?? throw new ArgumentNullException(nameof(schemaPlans));
+    private readonly StabilizeDuplicatePolicy _stabilizeDuplicates = stabilizeDuplicates ?? throw new ArgumentNullException(nameof(stabilizeDuplicates));
 
     public EmitPlan Bind(SpecDocument document, OperationSelection selection, GenerationCuration curation)
     {
@@ -30,13 +32,17 @@ internal sealed class SpecBinder(
         var operationsById = document.Operations.ToDictionary(static operation => operation.OperationId, StringComparer.Ordinal);
         var selected = SelectOperations(selection, operationsById, errors);
         var reachable = _reachableSchemas.Collect(document, selected, errors);
-        _curationValidator.Validate(document, selected, reachable, curation, errors);
+        // Upstream stabilize's per-site duplicates collapse mechanically, ahead of curation:
+        // curated rows are then judged against the graph as it will be bound, and a row that
+        // repeats a mechanical fold is refused as redundant instead of shadowing it.
+        var collapse = _stabilizeDuplicates.Resolve(document, reachable, errors);
+        _curationValidator.Validate(document, selected, reachable, curation, collapse, errors);
 
         // Aliases are validated against the raw document above; the collapse happens before
         // names resolve so the rest of the pipeline never sees the duplicates. Reachability
         // recollects on the transformed document because an alias target's promoted inline
         // children only become reachable through the rewritten references.
-        var aliased = _schemaAliases.Apply(document, curation.SchemaAliases);
+        var aliased = _schemaAliases.Apply(document, collapse, curation.SchemaAliases);
         if (!ReferenceEquals(aliased, document))
         {
             document = aliased;
@@ -77,6 +83,7 @@ internal sealed class SpecBinder(
             Clients = clients,
             PendingOperations = pending,
             TransportOwnedOperationIds = [.. transportOwnedIds.Order(StringComparer.Ordinal)],
+            ImplicitSchemaAliases = collapse,
         };
     }
 

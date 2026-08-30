@@ -1631,6 +1631,31 @@ public sealed class SpecBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Collapse_A_Stabilize_Duplicate_Without_A_Curation_Row()
+    {
+        var document = await IngestAsync(DuplicateTagScenario(duplicateName: "GadgetError_1"));
+
+        var plan = new BindingTestHost().Bind(document, Selection("v2.gadget.get"), GadgetCuration());
+
+        var gadget = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        var status = gadget.ErrorMap.Statuses.Single(static entry => entry.StatusCode == 400);
+        await Assert
+            .That(status
+                .Tags.Select(static tag => tag.TypeName)
+                .SequenceEqual(["GadgetError"], StringComparer.Ordinal))
+            .IsTrue();
+        await Assert.That(plan.ImplicitSchemaAliases.Aliases["GadgetError_1"]).IsEqualTo("GadgetError");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_An_Explicit_Alias_The_Stabilize_Collapse_Already_Implies()
+    {
+        var document = await IngestAsync(DuplicateTagScenario(duplicateName: "GadgetError_1"));
+
+        await AssertAliasRefusalAsync(document, Alias("GadgetError_1", "GadgetError"), "redundant");
+    }
+
+    [Test]
     public async Task Bind_Should_Refuse_A_Duplicate_Error_Tag_Without_An_Alias()
     {
         var document = await IngestAsync(DuplicateTagScenario());
@@ -1789,20 +1814,22 @@ public sealed class SpecBinderTests
                 .Response(400, "application/json", schema => schema.Ref("WorkError"))
                 .Response(404, "application/json", schema => schema.Ref("GoneError"))));
 
-    private static SpecScenario DuplicateTagScenario(Action<SchemaBuilder>? duplicate = null) =>
-        SpecScenario.Define(spec => DefineDuplicateTagSpec(spec, duplicate ?? DefaultDuplicate));
+    private static SpecScenario DuplicateTagScenario(Action<SchemaBuilder>? duplicate = null,
+        string duplicateName = "GadgetError1") =>
+        SpecScenario.Define(spec => DefineDuplicateTagSpec(spec, duplicate ?? DefaultDuplicate, duplicateName));
 
-    private static void DefineDuplicateTagSpec(SpecDocumentBuilder spec, Action<SchemaBuilder> duplicate) =>
+    private static void DefineDuplicateTagSpec(SpecDocumentBuilder spec, Action<SchemaBuilder> duplicate,
+        string duplicateName = "GadgetError1") =>
         _ = spec
             .WithSchema("GadgetInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
             .WithSchema("GadgetError", DefaultDuplicate)
-            .WithSchema("GadgetError1", duplicate)
+            .WithSchema(duplicateName, duplicate)
             .WithOperation("v2.gadget.get", path: "/api/gadget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("GadgetInfo"))
                 .Response(400, "application/json", schema => schema.AnyOf(
-                    static branch => branch.Ref("GadgetError1"),
+                    branch => branch.Ref(duplicateName),
                     static branch => branch.Ref("GadgetError"))));
 
     private static void DefaultDuplicate(SchemaBuilder schema) => schema
