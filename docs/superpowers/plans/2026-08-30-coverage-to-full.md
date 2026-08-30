@@ -173,6 +173,14 @@ handoff for the maintainer to confirm or reverse.
   ladders as the increment check; the full default-job run is milestone evidence the maintainer
   schedules on a quiet machine.
 
+- **R13 — DELETE operations that declare a request body are admitted** (2026-08-30, ruled during
+  Task 4): `worktree.remove` is `DELETE /api/worktree/{projectID}` with a required body; the
+  wire-shape wall's DELETE-body refusal was an M1 dialect restriction. The pin declares the body,
+  upstream's own client sends it, and RFC 9110 §9.3.5 permits a DELETE body when the origin
+  server supports it — this is the server's own API. GET bodies keep refusing and HEAD never
+  reaches the wall (ingestion refuses the path item). Cost if wrong: one wall flip and
+  `worktree.remove` returns to pending.
+
 ## Mechanism facts the tasks argue from (verified 2026-08-30 at `b1e3a7b2`)
 
 - **Marker (`src/OpenCode.Sdk/.generation-incomplete`)**: `v2.vcs.base [bindable]`; every other
@@ -241,7 +249,7 @@ handoff for the maintainer to confirm or reverse.
   `packages/core/src/git.ts:64`'s `Schema.TaggedError("Git.WorktreeError")`. The three worktree
   operations: `create` POST `/api/worktree/{projectID}` body `{strategy, directory (required),
   from?, branch?, name?}` → 200 bare `Worktree.Info`, 400 `anyOf[WorktreeError,
-  InvalidRequestError]`, 401; `remove` POST body → 204; `refresh` POST no body → 204. Group row
+  InvalidRequestError]`, 401; `remove` DELETE `/api/worktree/{projectID}` with a REQUIRED body → 204 (admitted by R13); `refresh` POST no body → 204. Group row
   `worktree` exists (`Worktrees` / `ProjectWorktreesClient` on `projectID`).
 - **Single-key bare objects** (scan of every inline 200 object with exactly one required
   property): `v2.server.get` `{urls}` (selected today) and `persistentPty.handoff` `{handoff:
@@ -279,7 +287,7 @@ handoff for the maintainer to confirm or reverse.
 | `session.stats` | `SessionsClient.GetStatsAsync(SessionStatsRequest? …)` → `SessionStatsResponse.Stats` (`SessionStatsInfo`); `SessionStatsRequest { string? From; string? To; string? Project; string? Timezone; SessionStatsRequestTools? Tools }` |
 | `shell.output` | `ShellClient.GetOutputAsync(ShellOutputRequest? …)` → `ShellOutputResponse.Output` (`ShellOutputData { Output, Cursor, Size, Truncated }`) + `Location` |
 | `worktree.create` | `ProjectWorktreesClient.CreateWorktreeAsync(WorktreeCreateRequest request)` → `WorktreeCreateResponse.Worktree` (`WorktreeInfo`) |
-| `worktree.remove` / `refresh` | `RemoveWorktreeAsync(WorktreeRemoveRequest request)` / `RefreshWorktreesAsync(…)` (row), both 204 no-content responses |
+| `worktree.remove` / `refresh` | `RemoveWorktreeAsync(WorktreeRemoveRequest request)` / `RefreshWorktreesAsync(…)` (row), both 204 no-content responses; `remove` is a DELETE that carries its JSON body (R13) |
 | The `{name, data}` error | `WorktreeError : IOpenCodeError { Tag => "WorktreeError" (wire `name`); WorktreeErrorData Data }`, `WorktreeErrorData { string Message; bool? ForceRequired }` |
 | Query enums | `VcsMode` (component), `FsFindRequestType`, `SessionStatsRequestTools` |
 | New query kind | `QueryValueKind.Enum` carrying the enum type name |
