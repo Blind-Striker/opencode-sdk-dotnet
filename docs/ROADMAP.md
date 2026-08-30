@@ -654,13 +654,14 @@ is revisited at each milestone boundary.
   for decode alone, `cursor-x1`/net10.0): pre-existing, previously unmeasured, now isolated on its
   own rung. Queued as a named, benchmark-gated optimization candidate (an `ArrayPool` rent is the
   obvious shape), not a defect.
-- **Hosted Windows net472 scheduling** — run `33276305571` was red on that leg alone: the pipeline
-  progress-window test in attempt 1, the fixture's external-mode attach test in the re-run. The
-  run's per-test timings show the mechanism — three or four server-process tests starting and
-  killing real processes in parallel stalled the net472 host in ten-second slices, and each failure
-  was the timing-bounded test a slice landed on (Q157). Fixed by one shared `NotInParallel` key for
-  every server-process test and keyless `[NotInParallel]` for every timing-bounded test; the hosted
-  run after that commit verifies it and closes this entry.
+- **Hosted net472 host stalls on a server-process start** — the scheduling defect behind run
+  `33276305571`'s red Windows leg is fixed and verified (run `33288967119` green on all three legs;
+  Q157), but the same report shows that one server-process start still stalls whichever in-process
+  tests are running for about ten seconds (three `FailureClassificationTests` cases at 10.2 s,
+  milliseconds locally). Harmless now that every timing-bounded test runs alone, and queued as a
+  hygiene candidate: the first suspect is .NET Framework's pipe reads, synchronous on a pool thread
+  under an async signature, holding thread-pool threads for every piped child. Measure before
+  changing anything.
 - **Sandbox against an isolated external server** — `dotnet run --project
   tests/OpenCode.Sdk.Sandbox` needs `--no-launch-profile`, because the checked-in
   `launchSettings.json` prefills `OPENCODE_SANDBOX_ENDPOINT` at port 4096; and the walkthrough's

@@ -4585,4 +4585,18 @@ assertion depends on a wall-clock bound the host can miss under load — a progr
 `PipelineTests`, `PipelineStreamTests`, `ResponseBufferingPolicyTests`, `SessionClientContractTests`,
 and `PinnedOpenCodeServerFixtureExternalModeTests`). Budgets are unchanged: 200 ms against 10 s is
 a 50× margin that only scheduling could defeat. Cost: the keyless tail grows by about a second.
-Verification is the hosted run after this commit; it is recorded here when it lands.
+
+**Verification:** run `33288967119` (commit `4324f3e`) is green on all three legs — the Windows job
+in 9m42s against 13m40s for the red attempt. Its Windows net472 report shows the mechanism gone: the
+seventeen keyless tests ran strictly one after another in the last 8.3 s of the 106 s test span,
+overlapping nothing; the two formerly failing tests took 0.2 s and under 0.1 s; and the
+server-process tests fell back to local-like timings
+(`DisposeAsync_Should_Be_Idempotent_When_Called_Twice` 44.2 s → 20.4 s, the stdin-lease disposal
+43.7 s → 5.1 s, the forced-kill escalations 19 s → 5–8 s). One residual stays visible and is queued
+rather than fixed: while the run's first server-process test was starting its child, three
+`FailureClassificationTests` cases that happened to be running took 10.1–10.2 s each (milliseconds
+locally) — a single process start still stalls the net472 host once, just no longer under a test
+with a wall-clock bound. The shape (several tests released together after the same ten seconds)
+points at thread-pool starvation, and the first suspect is .NET Framework's pipe streams, whose
+`ReadAsync` is a synchronous read on a pool thread, so every piped child holds pool threads while it
+runs; measure that before changing anything.
