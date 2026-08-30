@@ -38,13 +38,18 @@ internal sealed class OperationWireShapeWall(OperationFacetContext context, Emis
             _context.Refuse("WebSocket operations are not supported in M1");
         }
 
-        if ((isGet || isDelete) && operation.RequestBody is not null)
+        // A GET body has no defined semantics on any origin server and stays refused. DELETE is
+        // different: RFC 9110 admits content when the origin server declares support, and this
+        // origin server declares it in the pinned document, so the shape binds and the body is
+        // sent. Every other method the wall admits is refused before this check.
+        if (isGet && operation.RequestBody is not null)
         {
             _context.Refuse($"{operation.Method.ToUpperInvariant()} operations must not carry a request body");
         }
 
         // The pin demonstrates bodyless POST across twelve operations, so POST admits both
-        // shapes; PATCH and PUT keep the body requirement until the pin shows otherwise.
+        // shapes; DELETE admits both for the same reason; PATCH and PUT keep the body
+        // requirement until the pin shows otherwise.
         if ((isPatch || isPut) && operation.RequestBody is null)
         {
             _context.Refuse($"{operation.Method.ToUpperInvariant()} operations must carry a request body");

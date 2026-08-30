@@ -1,4 +1,5 @@
 using OpenCode.Sdk.Tools.Generator.Binding.Models;
+using OpenCode.Sdk.Tools.Generator.Ingestion;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 using OpenCode.Sdk.Tools.Tests.Support;
 using static OpenCode.Sdk.Tools.Tests.Support.BindingScenarioData;
@@ -2226,18 +2227,29 @@ public sealed class OperationPlanBinderTests
         await Assert.That(remove.Envelope!.Kind).IsEqualTo(EnvelopeKind.NoContent);
     }
 
+    /// <summary>
+    /// RFC 9110 admits DELETE content when the origin server declares support, and this origin
+    /// server declares it in the pinned document, so the shape binds and the body rides the call.
+    /// </summary>
     [Test]
-    public async Task Bind_Should_Refuse_A_Request_Body_On_A_Delete_Operation()
+    public async Task Bind_Should_Bind_A_Request_Body_On_A_Delete_Operation()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
             .WithOperation("v2.widget.remove", method: "delete", path: "/api/widget", configure: operation => operation
-                .RequestBody("application/json", schema => schema
-                    .Type("object")
-                    .Property("id", property => property.Type("string"), required: true))
+                .RequestBody(
+                    "application/json",
+                    schema => schema.Type("object").Property("id", property => property.Type("string"), required: true),
+                    required: true)
                 .WithoutResponse(200)
                 .Response(204))));
 
-        await AssertWidgetRefusalAsync(document, "must not carry a request body", "v2.widget.remove");
+        var plan = BindWidgets(document, "v2.widget.remove");
+
+        var remove = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(remove.HttpMethod).IsEqualTo("delete");
+        await Assert.That(remove.RequestBody!.TypeName).IsEqualTo("WidgetRemoveRequest");
+        await Assert.That(remove.RequestBody.IsOptional).IsFalse();
+        await Assert.That(remove.Envelope!.Kind).IsEqualTo(EnvelopeKind.NoContent);
     }
 
     [Test]
@@ -2264,6 +2276,31 @@ public sealed class OperationPlanBinderTests
                 .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
 
         await AssertWidgetRefusalAsync(document, "must carry a request body", "v2.widget.update");
+    }
+
+    /// <summary>
+    /// HEAD never reaches the body check at all: ingestion refuses the path item's method
+    /// outright, body or not, so relaxing the DELETE body arm cannot admit a HEAD body through
+    /// the side door.
+    /// </summary>
+    [Test]
+    public async Task Ingest_Should_Refuse_A_Head_Operation_Carrying_A_Request_Body()
+    {
+        var context = SpecScenario.Define(spec => spec
+            .WithOperation("v2.widget.remove", method: "head", path: "/api/widget", configure: operation => operation
+                .RequestBody(
+                    "application/json",
+                    schema => schema.Type("object").Property("id", property => property.Type("string"), required: true),
+                    required: true)
+                .WithoutResponse(200)
+                .Response(204)))
+            .Build();
+
+        var exception = await Assert
+            .That(async () => _ = await new SpecIngestion(context.FileSystem).IngestAsync(context.SpecPath, CancellationToken.None))
+            .Throws<IngestionException>();
+
+        await Assert.That(exception!.Message).Contains("path item method 'head' is not supported");
     }
 
     [Test]
