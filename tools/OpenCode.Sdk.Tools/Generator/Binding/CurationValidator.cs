@@ -370,17 +370,52 @@ internal sealed class CurationValidator
             }
         }
 
-        // A target that is itself collapsed — by another row or by the mechanical policy — would
-        // rewrite into a key the applier has already removed from the graph.
+        ValidateAliasChains(curation, collapse, sources, errors);
+    }
+
+    /// <summary>
+    /// A chain leaves the applier rewriting a reference onto a key it has already deleted from the
+    /// graph, so all three shapes of it refuse by name: a curated row whose target another curated
+    /// row aliases, a curated row whose target the mechanical collapse folds, and a curated row
+    /// over the very base the mechanical collapse folds duplicates into. The last two are mirror
+    /// images — a key-only lookup would catch one direction and leave the other to surface as an
+    /// unnamed reachability failure.
+    /// </summary>
+    private static void ValidateAliasChains(GenerationCuration curation, StabilizeDuplicateCollapse collapse,
+        HashSet<string> sources, BindingErrorCollector errors)
+    {
         foreach (var alias in curation
                      .SchemaAliases
-                     .Where(alias => !string.Equals(alias.Schema, alias.AliasOf, StringComparison.Ordinal)
-                                     && (sources.Contains(alias.AliasOf) || collapse.Aliases.ContainsKey(alias.AliasOf)))
+                     .Where(static alias => !string.Equals(alias.Schema, alias.AliasOf, StringComparison.Ordinal))
                      .OrderBy(static alias => alias.Schema, StringComparer.Ordinal))
         {
-            errors.Add(BindingErrorCategory.Curation, alias.Schema, "schema aliases cannot chain");
+            if (collapse.Aliases.TryGetValue(alias.AliasOf, out var foldedTarget))
+            {
+                errors.Add(BindingErrorCategory.Curation, alias.Schema,
+                    "schema aliases cannot chain: the stabilize-duplicate collapse already folds the target "
+                    + $"'{alias.AliasOf}' into '{foldedTarget}'");
+            }
+            else if (sources.Contains(alias.AliasOf))
+            {
+                errors.Add(BindingErrorCategory.Curation, alias.Schema, "schema aliases cannot chain");
+            }
+
+            if (FindDuplicateFoldedInto(collapse, alias.Schema) is { } duplicate)
+            {
+                errors.Add(BindingErrorCategory.Curation, alias.Schema,
+                    "schema aliases cannot chain: the stabilize-duplicate collapse already folds "
+                    + $"'{duplicate}' into '{alias.Schema}'");
+            }
         }
     }
+
+    /// <summary>The ordinally first stabilize duplicate the collapse folds into <paramref name="schema"/>, if any.</summary>
+    private static string? FindDuplicateFoldedInto(StabilizeDuplicateCollapse collapse, string schema) =>
+        collapse
+            .Aliases.Where(fold => string.Equals(fold.Value, schema, StringComparison.Ordinal))
+            .Select(static fold => fold.Key)
+            .Order(StringComparer.Ordinal)
+            .FirstOrDefault();
 
     /// <summary>
     /// A transport-owned row pins a fingerprint over an operation the profile never selects

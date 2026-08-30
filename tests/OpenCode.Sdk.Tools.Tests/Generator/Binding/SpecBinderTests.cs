@@ -1656,6 +1656,28 @@ public sealed class SpecBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Refuse_An_Explicit_Alias_Onto_A_Mechanically_Folded_Target()
+    {
+        var document = await IngestAsync(StabilizeAndCuratedDuplicateScenario());
+
+        await AssertAliasRefusalAsync(
+            document,
+            Alias("GadgetErrorAlt", "GadgetError_1"),
+            "cannot chain: the stabilize-duplicate collapse already folds the target 'GadgetError_1' into 'GadgetError'");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_An_Explicit_Alias_Over_A_Mechanical_Fold_Base()
+    {
+        var document = await IngestAsync(StabilizeAndCuratedDuplicateScenario());
+
+        await AssertAliasRefusalAsync(
+            document,
+            Alias("GadgetError", "GadgetErrorAlt"),
+            "cannot chain: the stabilize-duplicate collapse already folds 'GadgetError_1' into 'GadgetError'");
+    }
+
+    [Test]
     public async Task Bind_Should_Refuse_A_Duplicate_Error_Tag_Without_An_Alias()
     {
         var document = await IngestAsync(DuplicateTagScenario());
@@ -1813,6 +1835,26 @@ public sealed class SpecBinderTests
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo"))
                 .Response(400, "application/json", schema => schema.Ref("WorkError"))
                 .Response(404, "application/json", schema => schema.Ref("GoneError"))));
+
+    /// <summary>
+    /// Three spellings of one error in the same closure: <c>GadgetError_1</c>, which the stabilize
+    /// policy folds into <c>GadgetError</c> mechanically, and <c>GadgetErrorAlt</c>, which only a
+    /// curated row can collapse — so a curated row can be pointed at either end of the fold.
+    /// </summary>
+    private static SpecScenario StabilizeAndCuratedDuplicateScenario() =>
+        SpecScenario.Define(static spec => _ = spec
+            .WithSchema("GadgetInfo", static schema => schema
+                .Type("object")
+                .Property("id", static property => property.Type("string"), required: true))
+            .WithSchema("GadgetError", DefaultDuplicate)
+            .WithSchema("GadgetError_1", DefaultDuplicate)
+            .WithSchema("GadgetErrorAlt", DefaultDuplicate)
+            .WithOperation("v2.gadget.get", path: "/api/gadget", configure: static operation => operation
+                .Response(200, "application/json", static schema => schema.Ref("GadgetInfo"))
+                .Response(400, "application/json", static schema => schema.AnyOf(
+                    static branch => branch.Ref("GadgetError_1"),
+                    static branch => branch.Ref("GadgetErrorAlt"),
+                    static branch => branch.Ref("GadgetError")))));
 
     private static SpecScenario DuplicateTagScenario(Action<SchemaBuilder>? duplicate = null,
         string duplicateName = "GadgetError1") =>
