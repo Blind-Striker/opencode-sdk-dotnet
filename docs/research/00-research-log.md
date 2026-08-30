@@ -4466,10 +4466,9 @@ different one — the fixture's own external-mode attach test,
 again net472 only, "timed out after 00:00:15" against a purely in-process loopback server. Both
 attempts read 4,015 passed / 1 failed; Linux, macOS, and the Windows net8/net9/net10 legs were
 green in both, and both tests pass locally on net472. The net472 test executable took 2m15s on the
-hosted runner against roughly 1m18s locally. The finding is therefore
-not one flaky test but a contended hosted net472 leg with two under-budgeted timeouts — `master` is
-red there until both budgets are hardened; for the fixture test, .NET Framework's proxy
-auto-detection on the first request is the suspect.
+hosted runner against roughly 1m18s locally. The reading at the time — a contended leg with two
+under-budgeted timeouts, proxy auto-detection suspected for the fixture test — is superseded by
+Q157, which reads the same run's per-test timings and finds the mechanism the budgets could not fix.
 
 **The WSL2 recipe** (`tests/OpenCode.Sdk.Sandbox/README.md`) is the workstation-side answer: a
 server built from the same submodule commit inside WSL2, whose linux package does carry the daemon
@@ -4541,3 +4540,49 @@ net472 (`output-small-x1024`), **5,245,952 B** net10.0 and **5,253,264 B** net47
 net10.0 and **205,788 → 205,772 B** net472 (`output-small-x1024`); **5,392,848 → 5,392,832 B**
 net10.0 and **5,403,568 B** unchanged on net472 (`output-large-x64`) — a per-read difference of
 one object, not a per-frame one. Timing is not evidence on this workstation and none is quoted.
+
+## Q157: Why was the hosted Windows net472 leg red, and what fixes it?
+
+**Method (2026-08-30):** the two failures of run `33276305571` (Q156) were re-read from the per-test
+timings in the run's TUnit JSON report (`OpenCode.Sdk.Tests-windows-net48.tunit-report.json`,
+attempt 1) against a local net472 TRX of the same tree, instead of from the two failure messages.
+
+**Found:** the slow tests were not the budgeted ones. In-process tests with no network and no timer
+— `PipelineTests.ExecuteAsync_Should_Send_The_Json_Body_With_The_Json_Content_Type` (14 ms locally,
+22.9 s hosted), `IntegrationClientContractTests.PostOauthConnectAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine`
+(187 ms, 10.35 s), `McpServersClientContractTests.PutAddAsync_Should_Send_The_Typed_Config_On_The_Put`
+(10.07 s) — ran 100–1,600× slower than locally, all inside the 21:42:45–21:43:48 window in which
+`CliWrapServerAdapterTests.DisposeAsync_Should_Be_Idempotent_When_Called_Twice` (9.3 s locally,
+44.2 s hosted), `OpenCodeServerLifecycleTests.DisposeAsync_Should_End_The_Server_Through_The_Stdin_Lease`
+(9.4 s, 43.7 s), `PinnedOpenCodeServerFixtureFailureTests.InitializeAsync_Failure_Should_Retain_Logs_Under_The_Run_Root`
+(23.6 s), both forced-kill escalations (19 s each), and `PersistentPtyLiveTests` were starting and
+killing real `bun`/`opencode` processes **concurrently**. An overlap analysis of the report confirms
+the concurrency: the three keyed `NotInParallel` groups (`opencode-server-process`,
+`cliwrap-server-adapter`, `pinned-opencode-server`) serialized only within themselves, five
+`bun -e` lifecycle tests and the fixture-failure test carried no key at all, and one
+`CliWrapServerAdapterTests` test overlapped seven other process tests. The stalls come in
+ten-second slices (10.06, 10.35, 10.61, 12.9 s), and the failing test of each attempt was the
+timing-bounded test a slice landed on: the 200 ms progress window fired but its continuation found
+no thread before the 10 s caller token also fired, so classification read a caller cancellation; the
+attach test's 15 s test timeout expired on a probe that takes 83 ms locally. The same report shows
+what already worked: the keyless `NotInParallel` tests (`OwnedTransportTests`,
+`PipelineTests.ExecuteAsync_Should_Keep_A_Trickling_Body_That_Outlives_The_Window`) ran in the last
+5.5 s of the 95 s test span overlapping nothing — TUnit 1.63 schedules keyless `NotInParallel`
+alone, after every parallel and keyed test — and passed with local-like timings. The proxy
+auto-detection suspicion in Q156 is refuted by the no-network tests stalling identically. Why this
+branch: the suite grew from 3,530 to 4,016 cases and added one more pinned-server consumer on
+Windows, so the process storm now overlapped the budgeted tests where it previously had not; net472
+is the leg that shows it because its `HttpWebRequest`-based host has the least slack.
+
+**Decision:** two rules, applied in code. Every test that starts a real server process — the
+`opencode serve` lifecycle and adapter tests, the fixture-failure test, and every consumer of the
+per-session pinned or simulated-drive fixture — shares the one constraint key
+`ParallelConstraintKeys.ServerProcess` (`tests/Shared/ParallelConstraintKeys.cs`), so one process
+starts or dies at a time while the cheap in-process suite keeps running alongside. Every test whose
+assertion depends on a wall-clock bound the host can miss under load — a progress-window race, a
+`WaitAsync` on an in-process handoff, a `[Timeout]` measured in seconds — is keyless
+`[NotInParallel]`, which runs it alone at the end (seven methods and one class across
+`PipelineTests`, `PipelineStreamTests`, `ResponseBufferingPolicyTests`, `SessionClientContractTests`,
+and `PinnedOpenCodeServerFixtureExternalModeTests`). Budgets are unchanged: 200 ms against 10 s is
+a 50× margin that only scheduling could defeat. Cost: the keyless tail grows by about a second.
+Verification is the hosted run after this commit; it is recorded here when it lands.

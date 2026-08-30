@@ -3,6 +3,7 @@ using Testably.Abstractions;
 
 namespace OpenCode.Sdk.Tests;
 
+[NotInParallel(ParallelConstraintKeys.ServerProcess)]
 public sealed class CliWrapServerAdapterTests
 {
     private static readonly RealFileSystem FileSystem = new();
@@ -22,7 +23,6 @@ public sealed class CliWrapServerAdapterTests
 
     [Test]
     [Timeout(240_000)]
-    [NotInParallel("cliwrap-server-adapter")]
     public async Task DisposeAsync_Should_End_The_Server_Through_The_Forced_Kill_Escalation(CancellationToken cancellationToken)
     {
         var runRoot = new TestRunRoot(FileSystem);
@@ -49,7 +49,6 @@ public sealed class CliWrapServerAdapterTests
 
     [Test]
     [Timeout(240_000)]
-    [NotInParallel("cliwrap-server-adapter")]
     public async Task DisposeAsync_Should_Be_Idempotent_When_Called_Twice(CancellationToken cancellationToken)
     {
         var runRoot = new TestRunRoot(FileSystem);

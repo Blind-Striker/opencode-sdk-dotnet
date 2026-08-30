@@ -496,8 +496,9 @@ it merged fast-forward into `master` (`203595c..2801dd4`, pushed `66dba42..2801d
 test's round-trip arm executed on hosted Linux and macOS in run `33276305571` and against a WSL2
 server from this workstation, carrying the same `arm=round-trip` evidence line each time (Q156);
 Windows took the daemon-absent arm, as designed, and every `PersistentPty*` class passed there. That
-run's Windows job is red for an unrelated reason — the hosted net472 leg is slow enough to break two
-timing budgets, and the re-run failed a different one of them (Known Gaps). **Still open:** the
+run's Windows job was red for an unrelated reason — server-process tests scheduled in parallel
+stalled the net472 host under two timing-bounded tests, fixed by serializing them (Q157). **Still
+open:** the
 `handoff` door's promoted-body accessor (`response.Handoff.Handoff`), parked for the pre-1.0 surface
 review because flattening it needs an envelope-facet mechanism rather than a curation row.
 The `PtySession` read ladder was rerun across the extraction (`--job short`, both runtimes) and the
@@ -653,13 +654,13 @@ is revisited at each milestone boundary.
   for decode alone, `cursor-x1`/net10.0): pre-existing, previously unmeasured, now isolated on its
   own rung. Queued as a named, benchmark-gated optimization candidate (an `ArrayPool` rent is the
   obvious shape), not a defect.
-- **Hosted Windows net472 timing budgets** — `master` is red on that one CI leg. In run
-  `33276305571`, attempt 1 failed the pipeline progress-window test (a 200 ms window under a 10 s
-  caller token; the hosted call took 12.9 s), and the re-run passed that one and failed the
-  fixture's external-mode attach test on its 15 s test timeout instead. Both pass locally on net472,
-  and the net472 executable runs 2m15s hosted against roughly 1m18s locally. Harden both budgets —
-  and for the attach test, check .NET Framework's first-request proxy auto-detection — as the first
-  item of the hygiene batch (evidence: research log Q156).
+- **Hosted Windows net472 scheduling** — run `33276305571` was red on that leg alone: the pipeline
+  progress-window test in attempt 1, the fixture's external-mode attach test in the re-run. The
+  run's per-test timings show the mechanism — three or four server-process tests starting and
+  killing real processes in parallel stalled the net472 host in ten-second slices, and each failure
+  was the timing-bounded test a slice landed on (Q157). Fixed by one shared `NotInParallel` key for
+  every server-process test and keyless `[NotInParallel]` for every timing-bounded test; the hosted
+  run after that commit verifies it and closes this entry.
 - **Sandbox against an isolated external server** — `dotnet run --project
   tests/OpenCode.Sdk.Sandbox` needs `--no-launch-profile`, because the checked-in
   `launchSettings.json` prefills `OPENCODE_SANDBOX_ENDPOINT` at port 4096; and the walkthrough's

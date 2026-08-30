@@ -10,7 +10,8 @@ namespace OpenCode.Sdk.TestSupport;
 /// CliWrap control adapter, per-run home/state isolation, isolated workspaces, and logs
 /// retained on failure. Consumers declare
 /// <c>[ClassDataSource&lt;PinnedOpenCodeServerFixture&gt;(Shared = SharedType.PerTestSession)]</c>;
-/// process-global scenarios add <c>[NotInParallel("pinned-opencode-server")]</c>.
+/// every consumer adds <c>[NotInParallel(ParallelConstraintKeys.ServerProcess)]</c>, the key
+/// every server-process test shares.
 /// Fail-fast, never skip: a missing submodule/install/bun surfaces as an instructive error.
 /// </summary>
 /// <remarks>

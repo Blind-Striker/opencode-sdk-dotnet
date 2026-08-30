@@ -15,7 +15,7 @@ namespace OpenCode.Sdk.Tests;
 /// the arm, and the arm that ran names itself on the console.
 /// </summary>
 [ClassDataSource<PinnedOpenCodeServerFixture>(Shared = SharedType.PerTestSession)]
-[NotInParallel("pinned-opencode-server")]
+[NotInParallel(ParallelConstraintKeys.ServerProcess)]
 public sealed class PersistentPtyLiveTests(PinnedOpenCodeServerFixture server)
 {
     /// <summary>The framed input protocol this SDK speaks; the server negotiates it at attach.</summary>

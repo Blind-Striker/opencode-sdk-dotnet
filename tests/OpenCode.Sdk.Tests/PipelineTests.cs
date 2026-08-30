@@ -775,6 +775,7 @@ public sealed class PipelineTests
     }
 
     [Test]
+    [NotInParallel]
     public async Task ExecuteAsync_Should_Fail_A_Body_That_Stalls_Past_The_Progress_Window()
     {
         using var callerCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -830,6 +831,7 @@ public sealed class PipelineTests
     }
 
     [Test]
+    [NotInParallel]
     public async Task ExecuteAsync_Should_Fail_A_Stalled_Error_Body_At_The_Progress_Window_Under_NoThrow()
     {
         using var callerCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -857,6 +859,7 @@ public sealed class PipelineTests
     }
 
     [Test]
+    [NotInParallel]
     public async Task ExecuteAsync_Should_Settle_The_Body_Read_After_Caller_Cancellation()
     {
         using var callerCancellation = new CancellationTokenSource();

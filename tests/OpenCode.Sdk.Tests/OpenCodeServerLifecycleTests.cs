@@ -3,6 +3,7 @@ using Testably.Abstractions;
 
 namespace OpenCode.Sdk.Tests;
 
+[NotInParallel(ParallelConstraintKeys.ServerProcess)]
 public sealed class OpenCodeServerLifecycleTests
 {
     private static readonly RealFileSystem FileSystem = new();
@@ -53,7 +54,6 @@ public sealed class OpenCodeServerLifecycleTests
 
     [Test]
     [Timeout(240_000)]
-    [NotInParallel("opencode-server-process")]
     public async Task StartAsync_Should_Report_Readiness_And_Answer_Health(CancellationToken cancellationToken)
     {
         var (server, runRoot) = await StartPinnedAsync(cancellationToken: cancellationToken);
@@ -75,7 +75,6 @@ public sealed class OpenCodeServerLifecycleTests
 
     [Test]
     [Timeout(240_000)]
-    [NotInParallel("opencode-server-process")]
     public async Task DisposeAsync_Should_End_The_Server_Through_The_Stdin_Lease(CancellationToken cancellationToken)
     {
         var (server, runRoot) = await StartPinnedAsync(cancellationToken: cancellationToken);
@@ -89,7 +88,6 @@ public sealed class OpenCodeServerLifecycleTests
 
     [Test]
     [Timeout(240_000)]
-    [NotInParallel("opencode-server-process")]
     public async Task DisposeAsync_Should_End_The_Server_Through_The_Forced_Kill_Escalation(CancellationToken cancellationToken)
     {
         // Zero grace: the wait is already expired when disposal reaches it, so the forced

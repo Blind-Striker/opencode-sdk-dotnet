@@ -10,7 +10,7 @@ namespace OpenCode.Sdk.Tests;
 /// credentials and no outbound network.
 /// </summary>
 [ClassDataSource<SimulatedDriveServerFixture>(Shared = SharedType.PerTestSession)]
-[NotInParallel("pinned-opencode-server")]
+[NotInParallel(ParallelConstraintKeys.ServerProcess)]
 public sealed class SimulatedSessionWorkflowTests(SimulatedDriveServerFixture server)
 {
     private const string ScriptedReply = "Hello from the drive.";

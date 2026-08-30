@@ -12,6 +12,7 @@ namespace OpenCode.Sdk.Tests;
 /// <see cref="ExternalServerEndpoint"/> constructor over a real loopback socket, not the shared
 /// per-session instance <see cref="PinnedServerFixtureTests"/> shares.
 /// </summary>
+[NotInParallel]
 public sealed class PinnedOpenCodeServerFixtureExternalModeTests
 {
     [Test]

@@ -72,6 +72,7 @@ public sealed class ResponseBufferingPolicyTests
     }
 
     [Test]
+    [NotInParallel]
     public async Task ExecuteAsync_Should_Own_No_Arrays_After_Caller_Cancellation()
     {
         var pool = new TrackingByteArrayPool();

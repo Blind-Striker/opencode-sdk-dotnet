@@ -3,6 +3,7 @@ using OpenCode.Sdk.TestSupport;
 namespace OpenCode.Sdk.Tests;
 
 [ClassDataSource<PinnedOpenCodeServerFixture>(Shared = SharedType.PerTestSession)]
+[NotInParallel(ParallelConstraintKeys.ServerProcess)]
 public sealed class PinnedServerFixtureTests(PinnedOpenCodeServerFixture server)
 {
     [Test]

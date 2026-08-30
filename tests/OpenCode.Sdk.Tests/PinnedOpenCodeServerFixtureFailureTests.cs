@@ -9,6 +9,7 @@ namespace OpenCode.Sdk.Tests;
 /// adapter's own in-memory buffers. Drives the fixture itself (its internal command-override
 /// seam), not the shared per-session instance the other fixture tests share.
 /// </summary>
+[NotInParallel(ParallelConstraintKeys.ServerProcess)]
 public sealed class PinnedOpenCodeServerFixtureFailureTests
 {
     private static readonly RealFileSystem FileSystem = new();

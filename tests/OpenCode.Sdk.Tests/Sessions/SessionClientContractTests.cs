@@ -244,6 +244,7 @@ public sealed class SessionClientContractTests
     }
 
     [Test]
+    [NotInParallel]
     public async Task EnumerateMessagesAsync_Should_Send_The_Caller_Token_To_Each_Page_Request()
     {
         const string nextCursor = "cur_next";

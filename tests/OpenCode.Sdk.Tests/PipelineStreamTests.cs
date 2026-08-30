@@ -33,6 +33,7 @@ public sealed class PipelineStreamTests
     }
 
     [Test]
+    [NotInParallel]
     public async Task ExecuteStreamAsync_Should_Yield_The_First_Frame_Before_The_Body_Ends()
     {
         using var body = new BlockingStream(Encoding.UTF8.GetBytes(FirstFrame));
@@ -111,6 +112,7 @@ public sealed class PipelineStreamTests
     }
 
     [Test]
+    [NotInParallel]
     public async Task ExecuteStreamAsync_Should_Fail_A_Stalled_Error_Body_At_The_Progress_Window()
     {
         using var callerCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
