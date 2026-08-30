@@ -175,7 +175,9 @@
     "Internal/ResponseAdapters/WebsearchQueryPostResponseAdapter.cs",
     "Internal/ResponseAdapters/WorkspaceCreateResponseAdapter.cs",
     "Internal/ResponseAdapters/WorkspaceDestroyDeleteResponseAdapter.cs",
+    "Internal/ResponseAdapters/WorktreeCreateResponseAdapter.cs",
     "Internal/ResponseAdapters/WorktreeListResponseAdapter.cs",
+    "Internal/ResponseAdapters/WorktreeRefreshPostResponseAdapter.cs",
     "Internal/Serialization/AgentListResponseEnvelope.cs",
     "Internal/Serialization/AgentResponseEnvelope.cs",
     "Internal/Serialization/CommandListResponseEnvelope.cs",
@@ -927,7 +929,11 @@
     "Models/WebsearchUpdated.cs",
     "Models/WorkspaceCreateRequest.cs",
     "Models/WorkspaceDestroyResult.cs",
+    "Models/WorktreeCreateRequest.cs",
     "Models/WorktreeDirectory.cs",
+    "Models/WorktreeError.cs",
+    "Models/WorktreeErrorData.cs",
+    "Models/WorktreeInfo.cs",
     "Models/WorktreeResolved.cs",
     "Models/WorktreeResolvedData.cs",
     "Models/WorktreeResolvedDurable.cs",
@@ -1075,7 +1081,9 @@
     "Workspaces/WorkspaceDestroyDeleteResponse.cs",
     "Workspaces/WorkspacesClient.cs",
     "Worktrees/ProjectWorktreesClient.cs",
+    "Worktrees/WorktreeCreateResponse.cs",
     "Worktrees/WorktreeListResponse.cs",
+    "Worktrees/WorktreeRefreshPostResponse.cs",
     "Worktrees/WorktreesClient.cs"
   ]
 }

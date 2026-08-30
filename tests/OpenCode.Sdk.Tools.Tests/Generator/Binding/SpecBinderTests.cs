@@ -36,6 +36,7 @@ public sealed class SpecBinderTests
         "SkillNotFoundError",
         "UnauthorizedError",
         "UnknownError",
+        "WorktreeError",
     ];
 
     [Test]

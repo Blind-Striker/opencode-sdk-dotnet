@@ -522,6 +522,16 @@ were, so no upstream wrapper spelling reaches the surface. It selects `v2.shell.
 (`ShellClient.GetOutputAsync` returning `ShellOutputResponse.Output`, a `ShellOutputData` beside
 the location echo, with `cursor` and `limit` riding the query mechanism as the strings the wire
 declares) and takes the profile to **128 selected / 6 pending / 2 transport-owned**.
+The error model then admits its second wire dialect beside Effect's `_tag`: a `{name, data}`
+error binds under the same `IOpenCodeError` base with the `name` literal as its `Tag` (serialized
+under `name`) and its `data` struct as a nested generated model, the generated converter scans
+`_tag` first and then `name` without a JSON DOM for known arms, and an error dialect the policy
+does not name is still refused. It selects `v2.worktree.create`
+(`ProjectWorktreesClient.CreateWorktreeAsync` returning `WorktreeCreateResponse.Worktree`) and
+`v2.worktree.refresh` (`RefreshWorktreesAsync`, a 204 no-content envelope), giving `WorktreeError`
+and `WorktreeErrorData` and taking the profile to **130 selected / 4 pending / 2 transport-owned**.
+`v2.worktree.remove` stays pending on a second, independent wall: it is `DELETE` with a required
+request body, which `OperationWireShapeWall` refuses, and relaxing that wall is an open decision.
 
 ## Milestones
 

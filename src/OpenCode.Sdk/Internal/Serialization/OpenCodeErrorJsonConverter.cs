@@ -36,12 +36,17 @@ internal sealed class OpenCodeErrorJsonConverter : JsonConverter<IOpenCodeError>
         ["UnauthorizedError"] = typeof(UnauthorizedError),
         ["UnknownError"] = typeof(UnknownError)
     }.ToFrozenDictionary(StringComparer.Ordinal);
+    private static readonly FrozenDictionary<string, Type> TypesByName = new Dictionary<string, Type>(StringComparer.Ordinal)
+    {
+        ["WorktreeError"] = typeof(WorktreeError)
+    }.ToFrozenDictionary(StringComparer.Ordinal);
+    private static readonly UnionMarkerTable<Type>[] MarkerTables = [new UnionMarkerTable<Type>("_tag", TypesByTag), new UnionMarkerTable<Type>("name", TypesByName)];
     private static readonly UnionDiscriminatorReader DiscriminatorReader = new();
     public override IOpenCodeError Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        if (DiscriminatorReader.TryFindKnown(ref reader, "_tag", "OpenCodeError", TypesByTag, out var targetType, out var marker))
+        if (DiscriminatorReader.TryFindKnown(ref reader, "OpenCodeError", MarkerTables, out var targetType, out var marker))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for OpenCodeError.");
             return JsonSerializer.Deserialize(ref reader, typeInfo) as IOpenCodeError ?? throw new JsonException("The OpenCodeError payload deserialized to null.");

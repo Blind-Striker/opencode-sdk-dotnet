@@ -2,6 +2,8 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Internal.ResponseAdapters;
+using OpenCode.Sdk.Internal.Serialization;
+using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk;
 /// <summary>
@@ -35,6 +37,21 @@ public class ProjectWorktreesClient
     private string ProjectId => _projectId ?? throw MockSeam.CreateError("ProjectWorktreesClient", "ProjectId");
 
     /// <summary>
+    /// Create worktree. Create a worktree for a project and run its configured setup script.
+    /// </summary>
+    /// <param name = "request">The request body.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;WorktreeCreateResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<WorktreeCreateResponse> CreateWorktreeAsync(WorktreeCreateRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Worktrees.CreateWorktree(ProjectId), request, OpenCodeJsonContext.Default.WorktreeCreateRequest, WorktreeCreateResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
     /// List worktrees. List known local worktrees for a project.
     /// </summary>
     /// <param name = "requestOptions">The per-call options.</param>
@@ -45,5 +62,18 @@ public class ProjectWorktreesClient
     public virtual Task<WorktreeListResponse> ListWorktreesAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Worktrees.ListWorktrees(ProjectId), WorktreeListResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Refresh worktrees. Reconcile stored worktrees with the project repositories.
+    /// </summary>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;WorktreeRefreshPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<WorktreeRefreshPostResponse> RefreshWorktreesAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Worktrees.RefreshWorktrees(ProjectId), WorktreeRefreshPostResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }

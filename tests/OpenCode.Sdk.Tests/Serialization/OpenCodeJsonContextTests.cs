@@ -138,6 +138,64 @@ public sealed class OpenCodeJsonContextTests
     }
 
     [Test]
+    public async Task Deserialize_Should_Create_The_Name_Tagged_Error_Variant()
+    {
+        var json = _fixtures.LoadJson("Serialization.known-worktree-error.json");
+
+        var result = _serializer.Deserialize<IOpenCodeError>(json);
+
+        await Assert.That(result).IsTypeOf<WorktreeError>();
+        var worktree = (WorktreeError)result;
+        await Assert.That(worktree.Tag).IsEqualTo("WorktreeError");
+        await Assert.That(worktree.Data.Message).IsEqualTo("the worktree has uncommitted changes");
+        await Assert.That(worktree.Data.ForceRequired).IsTrue();
+        await Assert.That(_serializer.Serialize(result)).IsEqualTo(json);
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Still_Create_The_Tag_Tagged_Error_Variant()
+    {
+        const string json = "{\"_tag\":\"ShellNotFoundError\",\"id\":\"sh_9\",\"message\":\"gone\"}";
+
+        var result = _serializer.Deserialize<IOpenCodeError>(json);
+
+        await Assert.That(result).IsTypeOf<ShellNotFoundError>();
+        await Assert.That(result.Tag).IsEqualTo("ShellNotFoundError");
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Carry_An_Unknown_Name_Marker_On_The_Error_Carrier()
+    {
+        var json = _fixtures.LoadJson("Serialization.unknown-name-tagged-error.json");
+
+        var result = _serializer.Deserialize<IOpenCodeError>(json);
+
+        await Assert.That(result).IsTypeOf<UnknownOpenCodeError>();
+        await Assert.That(result.Tag).IsEqualTo("BrandNewNamedError");
+        await Assert.That(_serializer.Serialize(result)).IsEqualTo(json);
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Refuse_An_Error_Payload_Carrying_Neither_Marker()
+    {
+        var json = _fixtures.LoadJson("Serialization.unknown-error-without-marker.json");
+
+        _ = await Assert.That(() => _serializer.Deserialize<IOpenCodeError>(json)).Throws<JsonException>();
+    }
+
+    [Test]
+    public async Task Carrier_Constructor_Should_Accept_A_Payload_Whose_Name_Marker_Agrees()
+    {
+        var json = _fixtures.LoadJson("Serialization.unknown-name-tagged-error.json");
+        using var document = JsonDocument.Parse(json);
+
+        var unknown = new UnknownOpenCodeError("BrandNewNamedError", document.RootElement);
+
+        await Assert.That(unknown.Tag).IsEqualTo("BrandNewNamedError");
+        await Assert.That(_serializer.Serialize<IOpenCodeError>(unknown)).IsEqualTo(json);
+    }
+
+    [Test]
     public async Task Carrier_Constructor_Should_Refuse_An_Unparsed_Payload()
     {
         var exception = Assert.Throws<ArgumentException>(() => _ = new UnknownOpenCodeError("future", default));

@@ -39,6 +39,10 @@ internal static class WireBodyData
 
     public const string ShellNotFoundError = "{\"_tag\":\"ShellNotFoundError\",\"id\":\"sh_9\",\"message\":\"gone\"}";
 
+    /// <summary>The pinned {name, data} error dialect, which tags itself under 'name' instead of '_tag'.</summary>
+    public const string WorktreeError =
+        "{\"name\":\"WorktreeError\",\"data\":{\"message\":\"the worktree has uncommitted changes\",\"forceRequired\":true}}";
+
     public const string PermissionNotFoundError =
         "{\"_tag\":\"PermissionNotFoundError\",\"requestID\":\"req_9\",\"message\":\"gone\"}";
 

@@ -3025,6 +3025,26 @@ public static class OpenCodeRoutes
     public static class Worktrees
     {
         /// <summary>
+        /// The &apos;POST /api/worktree/{projectID}&apos; route template.
+        /// </summary>
+        public const string CreateWorktreeTemplate = "/api/worktree/{projectID}";
+        /// <summary>
+        /// Builds the &apos;/api/worktree/{projectID}&apos; route.
+        /// </summary>
+        /// <param name = "projectId">The &apos;projectID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string CreateWorktree(string projectId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(projectId);
+            if (projectId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(projectId));
+            }
+
+            return "/api/worktree/" + RouteValuePolicy.Escape(projectId, nameof(projectId));
+        }
+
+        /// <summary>
         /// The &apos;GET /api/worktree/{projectID}&apos; route template.
         /// </summary>
         public const string ListWorktreesTemplate = "/api/worktree/{projectID}";
@@ -3042,6 +3062,26 @@ public static class OpenCodeRoutes
             }
 
             return "/api/worktree/" + RouteValuePolicy.Escape(projectId, nameof(projectId));
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/worktree/{projectID}/refresh&apos; route template.
+        /// </summary>
+        public const string RefreshWorktreesTemplate = "/api/worktree/{projectID}/refresh";
+        /// <summary>
+        /// Builds the &apos;/api/worktree/{projectID}/refresh&apos; route.
+        /// </summary>
+        /// <param name = "projectId">The &apos;projectID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string RefreshWorktrees(string projectId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(projectId);
+            if (projectId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(projectId));
+            }
+
+            return "/api/worktree/" + RouteValuePolicy.Escape(projectId, nameof(projectId)) + "/refresh";
         }
     }
 

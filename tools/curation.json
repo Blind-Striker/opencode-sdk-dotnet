@@ -154,7 +154,7 @@
       "clientName": "Worktrees",
       "handleName": "ProjectWorktreesClient",
       "handleParameter": "projectID",
-      "reason": "The family's full pinned surface (list, create, remove, refresh) all chain on the same projectID, so ADR-0019's full-surface rule gives it a handle now even though only list is selected this batch. The handle is keyed by a project id, not a worktree id, so it is named for what it actually holds: one project's worktree registry."
+      "reason": "The family's full pinned surface (list, create, remove, refresh) all chain on the same projectID, so ADR-0019's full-surface rule gives it a handle; list, create, and refresh are selected, and remove is pending on the wire-shape wall that refuses its DELETE request body. The handle is keyed by a project id, not a worktree id, so it is named for what it actually holds: one project's worktree registry."
     },
     "form": {
       "placement": "client",
@@ -319,6 +319,11 @@
       "operationId": "v2.fs.find",
       "methodName": "FindEntriesAsync",
       "reason": "The operation's own verb is find; the mechanical GET prefix is transport detail, not part of the reviewed surface, exactly like v2.credential.update's own 'update' verb. The subject is the directory's entries, matching v2.fs.list's reviewed subject in the same client family."
+    },
+    {
+      "operationId": "v2.worktree.refresh",
+      "methodName": "RefreshWorktreesAsync",
+      "reason": "The operation's own verb is refresh; the mechanical POST prefix is transport detail, not part of the reviewed surface, exactly like v2.credential.update's own 'update' verb. The subject is the project's worktrees in the plural, matching v2.worktree.list's reviewed subject in the same client family."
     }
   ],
   "schemaNames": [

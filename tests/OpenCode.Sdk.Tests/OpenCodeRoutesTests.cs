@@ -152,4 +152,23 @@ public sealed class OpenCodeRoutesTests
             .IsEqualTo("/api/shell/sh_100/output");
         await Assert.That(OpenCodeRoutes.Shells.GetOutput("sh_100")).IsEqualTo("/api/shell/sh_100/output");
     }
+
+    [Test]
+    public async Task Worktree_Routes_Should_Escape_The_Project_Segment()
+    {
+        await Assert.That(OpenCodeRoutes.Worktrees.CreateWorktree("a b")).IsEqualTo("/api/worktree/a%20b");
+        await Assert.That(OpenCodeRoutes.Worktrees.ListWorktrees("a b")).IsEqualTo("/api/worktree/a%20b");
+        await Assert.That(OpenCodeRoutes.Worktrees.RefreshWorktrees("a b")).IsEqualTo("/api/worktree/a%20b/refresh");
+    }
+
+    [Test]
+    [Arguments(".")]
+    [Arguments("..")]
+    [Arguments(" ")]
+    public async Task RefreshWorktrees_Should_Refuse_An_Unsafe_Project_Segment(string projectId)
+    {
+        var exception = Assert.Throws<ArgumentException>(() => _ = OpenCodeRoutes.Worktrees.RefreshWorktrees(projectId));
+
+        await Assert.That(exception.ParamName).IsEqualTo("projectId");
+    }
 }

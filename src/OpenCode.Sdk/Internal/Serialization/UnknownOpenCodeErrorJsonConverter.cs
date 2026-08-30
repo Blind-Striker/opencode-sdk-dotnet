@@ -19,20 +19,20 @@ internal sealed class UnknownOpenCodeErrorJsonConverter : JsonConverter<UnknownO
             throw new JsonException("The OpenCodeError payload must be a JSON object.");
         }
 
-        if (!payload.TryGetProperty("_tag", out var markerElement))
+        if (!payload.TryGetProperty("_tag", out var markerElement) && !payload.TryGetProperty("name", out markerElement))
         {
-            throw new JsonException("The OpenCodeError payload must contain '_tag'.");
+            throw new JsonException("The OpenCodeError payload must contain '_tag' or 'name'.");
         }
 
         if (markerElement.ValueKind != JsonValueKind.String)
         {
-            throw new JsonException("The '_tag' marker must be a string.");
+            throw new JsonException("The '_tag' or 'name' marker must be a string.");
         }
 
         var marker = markerElement.GetString();
         if (marker is null || string.IsNullOrWhiteSpace(marker))
         {
-            throw new JsonException("The '_tag' marker must be a non-empty string.");
+            throw new JsonException("The '_tag' or 'name' marker must be a non-empty string.");
         }
 
         return new UnknownOpenCodeError(marker, payload);
