@@ -212,6 +212,128 @@ public sealed class SnapshotSynchronizerTests
         await Assert.That(outcome.Problems.Any(static problem => problem.Contains("checkout", StringComparison.Ordinal))).IsTrue();
     }
 
+    [Test]
+    public async Task Prepare_Should_Record_Every_Watched_Source_In_The_Receipt()
+    {
+        const string handler = "closeAccepted(new Socket.CloseEvent(4404, \"session not found\"))";
+        var fileSystem = await CreateRepositoryAsync();
+        var pinned = RefreshScenarioData.Watched("packages/server/src/handlers/pty.ts", handler, "4404");
+        await WriteSourceWatchAsync(fileSystem, pinned);
+        var runner = new ScriptedProcessRunner()
+            .Expect("git", "fetch origin")
+            .Expect("git", "rev-parse", ScriptedProcessRunner.Ok(RefreshScenarioData.Commit + "\n"))
+            .Expect("git", $"show {RefreshScenarioData.Commit}:{SnapshotPaths.UpstreamArtifact}",
+                ScriptedProcessRunner.Ok(CandidateDocument))
+            .Expect("git", $"show {RefreshScenarioData.Commit}:{pinned.Path}", ScriptedProcessRunner.Ok(handler));
+        var synchronizer = CreateSynchronizer(fileSystem, runner);
+
+        var outcome = await synchronizer.PrepareAsync("origin/v2", CancellationToken.None);
+
+        var watched = outcome.Receipt.WatchedSources.Single();
+        await Assert.That(watched.Path).IsEqualTo(pinned.Path);
+        await Assert.That(watched.Sha256).IsEqualTo(pinned.Sha256);
+        await Assert.That(watched.AnchorMatched).IsTrue();
+    }
+
+    [Test]
+    public async Task Prepare_Should_Refuse_A_Watched_Source_The_Candidate_Lost()
+    {
+        var fileSystem = await CreateRepositoryAsync();
+        var pinned = RefreshScenarioData.Watched("packages/core/src/pty/ticket.ts", "Duration.seconds(60)", "seconds(60)");
+        await WriteSourceWatchAsync(fileSystem, pinned);
+        var runner = new ScriptedProcessRunner()
+            .Expect("git", "fetch origin")
+            .Expect("git", "rev-parse", ScriptedProcessRunner.Ok(RefreshScenarioData.Commit + "\n"))
+            .Expect("git", $"show {RefreshScenarioData.Commit}:{SnapshotPaths.UpstreamArtifact}",
+                ScriptedProcessRunner.Ok(CandidateDocument))
+            .Expect("git", $"show {RefreshScenarioData.Commit}:{pinned.Path}",
+                ScriptedProcessRunner.Fail("fatal: path does not exist"));
+        var synchronizer = CreateSynchronizer(fileSystem, runner);
+
+        var exception = await Assert
+            .That(async () => _ = await synchronizer.PrepareAsync("origin/v2", CancellationToken.None))
+            .Throws<SnapshotRefreshException>();
+
+        await Assert.That(exception!.Message).Contains("watched source 'packages/core/src/pty/ticket.ts' cannot be read");
+    }
+
+    [Test]
+    public async Task Verify_Should_Report_A_Watched_Source_That_Moved()
+    {
+        var fileSystem = await CreateRepositoryAsync();
+        await fileSystem.File.WriteAllBytesAsync(SnapshotPaths.AcceptedDocument, CandidateDocument);
+        await fileSystem.File.WriteAllTextAsync(
+            SnapshotPaths.CommittedReceipt,
+            RefreshScenarioData.Serialize(CreateReceipt(CandidateDocument, normalizedDocumentPath: null)));
+        var pinned = RefreshScenarioData.Watched("packages/core/src/pty.ts", "const BUFFER_LIMIT = 1024 * 1024 * 2", "BUFFER_LIMIT");
+        await WriteSourceWatchAsync(fileSystem, pinned);
+        var runner = new ScriptedProcessRunner()
+            .Expect("git", "rev-parse HEAD", ScriptedProcessRunner.Ok(RefreshScenarioData.Commit + "\n"))
+            .Expect("git", $"show HEAD:{pinned.Path}", ScriptedProcessRunner.Ok("const BUFFER_LIMIT = 4 * 1024 * 1024"));
+        var synchronizer = CreateSynchronizer(fileSystem, runner);
+
+        var outcome = await synchronizer.VerifyAsync(CancellationToken.None);
+
+        await Assert.That(outcome.Problems.Single()).Contains("watched source 'packages/core/src/pty.ts' changed: pinned");
+    }
+
+    [Test]
+    public async Task Apply_Should_Repin_The_Watch_Over_The_Reviewed_Receipt()
+    {
+        var fileSystem = await CreateRepositoryAsync();
+        var pinned = RefreshScenarioData.Watched("packages/core/src/pty.ts", "const BUFFER_LIMIT = 1024 * 1024 * 2", "BUFFER_LIMIT");
+        await WriteSourceWatchAsync(fileSystem, pinned);
+        var moved = RefreshScenarioData.Watched(pinned.Path, "const BUFFER_LIMIT = 1024 * 1024 * 4", "BUFFER_LIMIT");
+        var receipt = CreateReceipt(CandidateDocument, "scratch/openapi.json") with
+        {
+            WatchedSources = [Observation(moved.Path, moved.Sha256, anchorMatched: true)],
+        };
+        _ = fileSystem.Directory.CreateDirectory("scratch");
+        await fileSystem.File.WriteAllBytesAsync("scratch/openapi.json", CandidateDocument);
+        await fileSystem.File.WriteAllTextAsync("scratch/receipt.json", RefreshScenarioData.Serialize(receipt));
+        var runner = new ScriptedProcessRunner()
+            .Expect("git", "fetch origin")
+            .Expect("git", "rev-parse --verify")
+            .Expect("git", "checkout --detach");
+        var synchronizer = CreateSynchronizer(fileSystem, runner);
+
+        _ = await synchronizer.ApplyAsync("scratch/receipt.json", CancellationToken.None);
+
+        var repinned = await new SourceWatchLoader(fileSystem).LoadAsync(CancellationToken.None);
+        await Assert.That(repinned.Sources.Single().Sha256).IsEqualTo(moved.Sha256);
+        await Assert.That(repinned.Sources.Single().Behavior).IsEqualTo(pinned.Behavior);
+    }
+
+    [Test]
+    public async Task Apply_Should_Refuse_A_Receipt_Whose_Anchor_Was_Lost()
+    {
+        var fileSystem = await CreateRepositoryAsync();
+        var pinned = RefreshScenarioData.Watched("packages/core/src/pty.ts", "const BUFFER_LIMIT = 1024 * 1024 * 2", "BUFFER_LIMIT");
+        await WriteSourceWatchAsync(fileSystem, pinned);
+        var receipt = CreateReceipt(CandidateDocument, "scratch/openapi.json") with
+        {
+            WatchedSources = [Observation(pinned.Path, new string('d', 64), anchorMatched: false)],
+        };
+        _ = fileSystem.Directory.CreateDirectory("scratch");
+        await fileSystem.File.WriteAllBytesAsync("scratch/openapi.json", CandidateDocument);
+        await fileSystem.File.WriteAllTextAsync("scratch/receipt.json", RefreshScenarioData.Serialize(receipt));
+        var synchronizer = CreateSynchronizer(fileSystem, new ScriptedProcessRunner());
+
+        var exception = await Assert
+            .That(async () => _ = await synchronizer.ApplyAsync("scratch/receipt.json", CancellationToken.None))
+            .Throws<SnapshotRefreshException>();
+
+        await Assert.That(exception!.Message).Contains("lost anchors in packages/core/src/pty.ts");
+    }
+
+    private static ReceiptWatchedSource Observation(string path, string sha256, bool anchorMatched) =>
+        new()
+        {
+            Path = path,
+            Sha256 = sha256,
+            AnchorMatched = anchorMatched,
+        };
+
     private static async Task<MockFileSystem> CreateRepositoryAsync()
     {
         var fileSystem = new MockFileSystem();
@@ -234,7 +356,12 @@ public sealed class SnapshotSynchronizerTests
     }
 
     private static SnapshotSynchronizer CreateSynchronizer(MockFileSystem fileSystem, ScriptedProcessRunner runner) =>
-        new(fileSystem, runner, new PatchSetLoader(fileSystem));
+        new(fileSystem, runner, new PatchSetLoader(fileSystem), new SourceWatchLoader(fileSystem),
+            new WatchedSourceReader(fileSystem, runner));
+
+    private static async Task WriteSourceWatchAsync(MockFileSystem fileSystem, params WatchedSource[] sources) =>
+        await fileSystem.File.WriteAllTextAsync(
+            SnapshotPaths.SourceWatch, RefreshScenarioData.Serialize(RefreshScenarioData.Watch(1, sources)));
 
     private static SnapshotReceipt CreateReceipt(byte[] normalizedBytes, string? normalizedDocumentPath)
     {

@@ -14,18 +14,29 @@ namespace OpenCode.Sdk.Tools.Generator.Refresh;
 /// the exact pinned upstream generator over Restore patches otherwise), and writes only scratch
 /// artifacts. Verify reproduces the accepted identity observationally. Apply is a human act over
 /// one reviewed receipt: it refuses time-of-check/time-of-use drift, updates only the accepted
-/// snapshot paths and the submodule checkout, and never stages, commits, or pushes.
+/// snapshot paths and the submodule checkout, and never stages, commits, or pushes. Every form
+/// also carries the source watch — the upstream files the hand-written doors read as inputs —
+/// as a review trigger beside the document: prepare observes it, verify checks the pins, apply
+/// re-pins over the reviewed receipt. It never feeds generation (ADR-0013).
 /// </summary>
 internal sealed partial class SnapshotSynchronizer(
     IFileSystem fileSystem,
     IProcessRunner processRunner,
-    PatchSetLoader patchSetLoader)
+    PatchSetLoader patchSetLoader,
+    SourceWatchLoader sourceWatchLoader,
+    WatchedSourceReader watchedSourceReader)
 {
     private const int ReceiptSchemaVersion = 1;
 
     private readonly IFileSystem _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
     private readonly IProcessRunner _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
     private readonly PatchSetLoader _patchSetLoader = patchSetLoader ?? throw new ArgumentNullException(nameof(patchSetLoader));
+
+    private readonly SourceWatchLoader _sourceWatchLoader =
+        sourceWatchLoader ?? throw new ArgumentNullException(nameof(sourceWatchLoader));
+
+    private readonly WatchedSourceReader _watchedSourceReader =
+        watchedSourceReader ?? throw new ArgumentNullException(nameof(watchedSourceReader));
 
     public async Task<PrepareOutcome> PrepareAsync(string reference, CancellationToken cancellationToken)
     {
@@ -49,6 +60,8 @@ internal sealed partial class SnapshotSynchronizer(
         var rawBytes = raw.StandardOutput;
         var patches = await _patchSetLoader.LoadAsync(cancellationToken).ConfigureAwait(false);
         CheckRepairPredicates(rawBytes, patches);
+        var watch = await _sourceWatchLoader.LoadAsync(cancellationToken).ConfigureAwait(false);
+        var watchedSources = await _watchedSourceReader.ObserveAsync(commit, watch.Sources, cancellationToken).ConfigureAwait(false);
 
         var scratchDirectory = _fileSystem.Path.Combine(SnapshotPaths.ScratchRoot, commit);
         string? baselineSha = null;
@@ -67,7 +80,17 @@ internal sealed partial class SnapshotSynchronizer(
                 await RepairAsync(commit, scratchDirectory, patches, cancellationToken).ConfigureAwait(false);
         }
 
-        return await WriteScratchArtifactsAsync(commit, scratchDirectory, rawBytes, baselineSha, normalizedBytes, receiptPatches,
+        return await WriteScratchArtifactsAsync(
+                new PreparedCandidate
+                {
+                    Commit = commit,
+                    ScratchDirectory = scratchDirectory,
+                    RawBytes = rawBytes,
+                    BaselineSha = baselineSha,
+                    NormalizedBytes = normalizedBytes,
+                    Patches = receiptPatches,
+                    WatchedSources = watchedSources,
+                },
                 cancellationToken)
             .ConfigureAwait(false);
     }
@@ -113,6 +136,7 @@ internal sealed partial class SnapshotSynchronizer(
             problems.Add(exception.Message);
         }
 
+        problems.AddRange(await CheckWatchedSourcesAsync(cancellationToken).ConfigureAwait(false));
         return new VerifyOutcome
         {
             UpstreamCommit = receipt.UpstreamCommit,
@@ -162,6 +186,9 @@ internal sealed partial class SnapshotSynchronizer(
             throw new SnapshotRefreshException($"the prepared document disagrees with its receipt: {string.Join("; ", driftProblems)}");
         }
 
+        var watch = await _sourceWatchLoader.LoadAsync(cancellationToken).ConfigureAwait(false);
+        var repinned = SourceWatchRepinner.Repin(watch, receipt.WatchedSources);
+
         var submodule = _fileSystem.Path.GetFullPath(SnapshotPaths.Submodule);
         _ = await RunCheckedAsync("git", ["fetch", "origin"], submodule, "fetching upstream", cancellationToken).ConfigureAwait(false);
         _ = await RunCheckedAsync(
@@ -183,6 +210,7 @@ internal sealed partial class SnapshotSynchronizer(
                 JsonSerializer.Serialize(committedReceipt, ToolJsonContext.Default.SnapshotReceipt) + "\n",
                 cancellationToken)
             .ConfigureAwait(false);
+        await RepinSourceWatchAsync(repinned, cancellationToken).ConfigureAwait(false);
         return committedReceipt;
     }
 
@@ -323,27 +351,26 @@ internal sealed partial class SnapshotSynchronizer(
         return receiptPatches;
     }
 
-    private async Task<PrepareOutcome> WriteScratchArtifactsAsync(string commit, string scratchDirectory, byte[] rawBytes,
-        string? baselineSha, byte[] normalizedBytes, IReadOnlyList<ReceiptPatch> receiptPatches, CancellationToken cancellationToken)
+    private async Task<PrepareOutcome> WriteScratchArtifactsAsync(PreparedCandidate candidate, CancellationToken cancellationToken)
     {
-        var stats = DocumentInspector.Inspect(normalizedBytes);
+        var stats = DocumentInspector.Inspect(candidate.NormalizedBytes);
         var acceptedBytes = await _fileSystem.File.ReadAllBytesAsync(SnapshotPaths.AcceptedDocument, cancellationToken)
             .ConfigureAwait(false);
         var acceptedIds = DocumentInspector.Inspect(acceptedBytes).OperationIds.ToHashSet(StringComparer.Ordinal);
         var candidateIds = stats.OperationIds.ToHashSet(StringComparer.Ordinal);
 
-        _ = _fileSystem.Directory.CreateDirectory(scratchDirectory);
-        var normalizedPath = _fileSystem.Path.Combine(scratchDirectory, "openapi.json");
-        await _fileSystem.File.WriteAllBytesAsync(normalizedPath, normalizedBytes, cancellationToken).ConfigureAwait(false);
+        _ = _fileSystem.Directory.CreateDirectory(candidate.ScratchDirectory);
+        var normalizedPath = _fileSystem.Path.Combine(candidate.ScratchDirectory, "openapi.json");
+        await _fileSystem.File.WriteAllBytesAsync(normalizedPath, candidate.NormalizedBytes, cancellationToken).ConfigureAwait(false);
 
         var receipt = new SnapshotReceipt
         {
             SchemaVersion = ReceiptSchemaVersion,
-            UpstreamCommit = commit,
-            RawDocumentSha256 = DocumentInspector.Sha256Hex(rawBytes),
-            GeneratedBaselineSha256 = baselineSha,
-            Patches = receiptPatches,
-            NormalizedDocumentSha256 = DocumentInspector.Sha256Hex(normalizedBytes),
+            UpstreamCommit = candidate.Commit,
+            RawDocumentSha256 = DocumentInspector.Sha256Hex(candidate.RawBytes),
+            GeneratedBaselineSha256 = candidate.BaselineSha,
+            Patches = candidate.Patches,
+            NormalizedDocumentSha256 = DocumentInspector.Sha256Hex(candidate.NormalizedBytes),
             NormalizedDocumentPath = normalizedPath,
             OperationSetDigest = stats.OperationSetDigest,
             OperationCount = stats.OperationIds.Count,
@@ -351,9 +378,10 @@ internal sealed partial class SnapshotSynchronizer(
             RemovedOperations = [.. acceptedIds.Where(id => !candidateIds.Contains(id)).Order(StringComparer.Ordinal)],
             ComponentCount = stats.ComponentCount,
             ContentSchemaCount = stats.ContentSchemaCount,
+            WatchedSources = candidate.WatchedSources,
         };
 
-        var receiptPath = _fileSystem.Path.Combine(scratchDirectory, "receipt.json");
+        var receiptPath = _fileSystem.Path.Combine(candidate.ScratchDirectory, "receipt.json");
         await _fileSystem.File
             .WriteAllTextAsync(receiptPath, JsonSerializer.Serialize(receipt, ToolJsonContext.Default.SnapshotReceipt) + "\n",
                 cancellationToken)
@@ -364,6 +392,35 @@ internal sealed partial class SnapshotSynchronizer(
             ReceiptPath = receiptPath,
             NormalizedDocumentPath = normalizedPath,
         };
+    }
+
+    private async Task<IReadOnlyList<string>> CheckWatchedSourcesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var watch = await _sourceWatchLoader.LoadAsync(cancellationToken).ConfigureAwait(false);
+            var observed = await _watchedSourceReader.ObserveAsync("HEAD", watch.Sources, cancellationToken).ConfigureAwait(false);
+            return SourceWatchVerifier.Compare(watch.Sources, observed);
+        }
+        catch (SnapshotRefreshException exception)
+        {
+            return [exception.Message];
+        }
+    }
+
+    private async Task RepinSourceWatchAsync(SourceWatch repinned, CancellationToken cancellationToken)
+    {
+        if (repinned.Sources.Count is 0)
+        {
+            return;
+        }
+
+        var text = JsonSerializer.Serialize(repinned, ToolJsonContext.Default.SourceWatch) + "\n";
+        var current = await _fileSystem.File.ReadAllTextAsync(SnapshotPaths.SourceWatch, cancellationToken).ConfigureAwait(false);
+        if (!string.Equals(current, text, StringComparison.Ordinal))
+        {
+            await _fileSystem.File.WriteAllTextAsync(SnapshotPaths.SourceWatch, text, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private async Task UpdateSnapshotMarkdownAsync(string commit, CancellationToken cancellationToken)

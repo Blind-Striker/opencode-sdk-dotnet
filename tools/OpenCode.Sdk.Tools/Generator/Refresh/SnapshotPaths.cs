@@ -11,6 +11,8 @@ internal static class SnapshotPaths
 
     public const string SnapshotMarkdown = "spec/SNAPSHOT.md";
 
+    public const string SourceWatch = "spec/source-watch.json";
+
     public const string Submodule = "external/opencode";
 
     public const string UpstreamArtifact = "packages/protocol/openapi.json";

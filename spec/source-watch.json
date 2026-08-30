@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "path": "packages/server/src/handlers/pty.ts",
+      "sha256": "490a47b0be7092d652f1b578125e2972c55e9897ac18808289e83860f507850a",
+      "behavior": "The PTY connect handler closes 4404 when the session is not found or has exited and 1000 on a normal end, consumes the single-use ticket, accepts a cursor at or above -1, and sends the replay as PtyProtocol.chunks followed by the meta frame.",
+      "anchor": {
+        "type": "contains",
+        "text": "new Socket.CloseEvent(4404"
+      }
+    },
+    {
+      "path": "packages/server/src/middleware/authorization.ts",
+      "sha256": "7d3f8af2408e23ae35cf45d3693db034fd73d6ac8c07843154e3c8b3449529de",
+      "behavior": "A non-empty ticket query on a PTY connect skips the credential check, so the hand-written door authenticates the WebSocket upgrade with the ticket alone.",
+      "anchor": {
+        "type": "contains",
+        "text": "hasPtyConnectTicketURL(url) || hasPersistentPtyConnectTicketURL(url)"
+      }
+    },
+    {
+      "path": "packages/protocol/src/groups/pty.ts",
+      "sha256": "fc5c3e39167a4d87e457365f3d36a8223a024ef345abbd26324cb7a36ca3b886",
+      "behavior": "The ticket-issuing request carries the x-opencode-ticket header and the connect URL carries the ticket query.",
+      "anchor": {
+        "type": "contains",
+        "text": "x-opencode-ticket"
+      }
+    },
+    {
+      "path": "packages/core/src/pty/protocol.ts",
+      "sha256": "f5e822d5bff1ccfe3bb94c753b448a94e0bdab5b0115177f61225ff40bfb474c",
+      "behavior": "The control frame is one 0x00 byte followed by UTF-8 JSON carrying the absolute cursor after replay, and replay arrives in REPLAY_CHUNK-sized frames.",
+      "anchor": {
+        "type": "contains",
+        "text": "export function metaFrame(cursor: number)"
+      }
+    },
+    {
+      "path": "packages/core/src/pty/ticket.ts",
+      "sha256": "8a8e5ca2d5081d38e0c4200fe41de3d95d91830309c40aa26d5f4485c70853c7",
+      "behavior": "PTY connect tickets are single-use and live 60 seconds.",
+      "anchor": {
+        "type": "contains",
+        "text": "const DEFAULT_TTL = Duration.seconds(60)"
+      }
+    },
+    {
+      "path": "packages/core/src/pty.ts",
+      "sha256": "7d5ef3ebd36c473cc2acf047b99f8566011ccb64385bc04e9c771bc291367d59",
+      "behavior": "The retained replay buffer is capped, exited sessions stay observable until they are removed, and attach replays from the requested cursor.",
+      "anchor": {
+        "type": "contains",
+        "text": "const BUFFER_LIMIT = 1024 * 1024 * 2"
+      }
+    },
+    {
+      "path": "packages/server/src/routes.ts",
+      "sha256": "2e5f38936737737658baaa12c502c90a1644b231525cc5881cee3b1f4579566f",
+      "behavior": "The PTY ticket service and the persistent-PTY service are wired into the server layer graph.",
+      "anchor": {
+        "type": "contains",
+        "text": "PtyTicket.node,"
+      }
+    },
+    {
+      "path": "packages/protocol/src/groups/persistent-pty.ts",
+      "sha256": "114bf302f9542e7d1212886e9df04087c8a4315a1394884023d7c85e44ab683e",
+      "behavior": "The handoff response is a single-key body whose handoff value is nullable, and the persistent connect endpoint reuses the PTY ticket query and header.",
+      "anchor": {
+        "type": "contains",
+        "text": "success: Schema.Struct({ handoff: Schema.NullOr(PersistentPty.Handoff) })"
+      }
+    },
+    {
+      "path": "packages/server/src/handlers/persistent-pty.ts",
+      "sha256": "e136831973bea78e4ea1318b18a1a9ab170fc06dd66ef9d2d9a4b5b2bf08039e",
+      "behavior": "The persistent connect handler closes 4404 when the terminal is unavailable and 1000 on a normal end, consumes the ticket, and requires a cursor at or above 0.",
+      "anchor": {
+        "type": "contains",
+        "text": "new Socket.CloseEvent(4404"
+      }
+    },
+    {
+      "path": "packages/core/src/persistent-pty/index.ts",
+      "sha256": "412ae5596a7faee4fdc5e3912cb060581e38c7ca1a2670283c4600b6765008e6",
+      "behavior": "The handoff call yields null when no daemon is running, and the service reports NotFoundError and UnavailableError.",
+      "anchor": {
+        "type": "contains",
+        "text": "PersistentPty.handoff"
+      }
+    },
+    {
+      "path": "packages/core/src/persistent-pty/daemon.ts",
+      "sha256": "446c6b28268a1155d07b22f5767885f32e126a00659cee6f51723d5dbd4b81d7",
+      "behavior": "The opencode-pty daemon wire protocol is version 7; the client refuses a daemon that registers another version.",
+      "anchor": {
+        "type": "contains",
+        "text": "const ProtocolVersion = 7"
+      }
+    },
+    {
+      "path": "packages/schema/src/persistent-pty.ts",
+      "sha256": "5c8de85db025c1be1d06693f86fb2297632c7043079e656247e1cbfb1cae094b",
+      "behavior": "The handoff record is the component PersistentPty.Handoff carrying the running daemon directory.",
+      "anchor": {
+        "type": "contains",
+        "text": "PersistentPty.Handoff"
+      }
+    },
+    {
+      "path": "packages/core/src/persistent-pty/binary.bun.ts",
+      "sha256": "5cb653dd3dc3dfc912f8d4d64499503f17596b37824d628a1e55cb0383a93e67",
+      "behavior": "OPENCODE_PTY_BIN overrides the daemon executable; otherwise the embedded asset is installed under an opencode-pty directory keyed by version and checksum.",
+      "anchor": {
+        "type": "contains",
+        "text": "if (process.env.OPENCODE_PTY_BIN) return process.env.OPENCODE_PTY_BIN"
+      }
+    },
+    {
+      "path": "packages/core/src/persistent-pty/binary.node.ts",
+      "sha256": "78d7d54778f3104d7313db6906cdd5208cf04e86167e08f747830c67661c87e8",
+      "behavior": "Under Node the daemon executable is OPENCODE_PTY_BIN or opencode-pty resolved on PATH.",
+      "anchor": {
+        "type": "contains",
+        "text": "process.env.OPENCODE_PTY_BIN ||"
+      }
+    },
+    {
+      "path": "packages/core/src/persistent-pty/pty-binding.ts",
+      "sha256": "843092936a62d5fbe0c43d24604786ed77c04d0ad60a96c19ca31508b69bc1cd",
+      "behavior": "The embedded daemon asset comes from the binaryPath export of the pty package.",
+      "anchor": {
+        "type": "contains",
+        "text": "binaryPath"
+      }
+    },
+    {
+      "path": "packages/core/package.json",
+      "sha256": "5d420328eae3e481e5c9da21905a39623a637e48bd38073e6b89584f305b8959",
+      "behavior": "The opencode-pty daemon dependency is pinned at 0.1.13, which fixes the daemon protocol the persistent-PTY door speaks.",
+      "anchor": {
+        "type": "contains",
+        "text": "0.1.13"
+      }
+    },
+    {
+      "path": "packages/server/src/process.ts",
+      "sha256": "2afe7e840e603501d5f8783bd0dc0defe9e9e8348d0f2439f5f6e51c139ee103",
+      "behavior": "A ticketed PTY connect is admitted before the server reports ready.",
+      "anchor": {
+        "type": "contains",
+        "text": "!hasPtyConnectTicketURL(url)"
+      }
+    },
+    {
+      "path": "packages/server/test/persistent-pty.test.ts",
+      "sha256": "025b44d37795c227ccd9b7f14762ecad3ef3100c9c413f39e8ab709e3b53f22b",
+      "behavior": "Behavioral oracle: the upstream suite asserts the 4404 close code, the null handoff body, and terminal survival across an explicit restart handoff.",
+      "anchor": {
+        "type": "contains",
+        "text": "expect(closed.code).toBe(4404)"
+      }
+    },
+    {
+      "path": "packages/client/src/solid/pty.ts",
+      "sha256": "40151599a91df6321f4f391b86c908eb0b738beb0d5c7bdd592d362c3e438a78",
+      "behavior": "Behavioral oracle: the reference client sends the ticket and cursor query parameters when it opens a PTY socket.",
+      "anchor": {
+        "type": "contains",
+        "text": "String(input.cursor)"
+      }
+    },
+    {
+      "path": "packages/tui/src/component/terminal-pane.tsx",
+      "sha256": "7b613272b8c01b067d985de1e660303f7d10ed3ea0ecdbfc9e7a63fd41fd4e36",
+      "behavior": "Behavioral oracle: the TUI resumes a terminal from the snapshot tail cursor.",
+      "anchor": {
+        "type": "contains",
+        "text": "cursor: snapshot.info.output.tail"
+      }
+    }
+  ]
+}

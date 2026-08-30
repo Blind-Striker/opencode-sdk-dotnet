@@ -53,6 +53,8 @@ public static class ToolApp
         services.AddSingleton<GenerationCoordinator>();
         services.AddSingleton<IProcessRunner, CliWrapProcessRunner>();
         services.AddSingleton<PatchSetLoader>();
+        services.AddSingleton<SourceWatchLoader>();
+        services.AddSingleton<WatchedSourceReader>();
         services.AddSingleton<SnapshotSynchronizer>();
         services.AddSingleton<BenchmarkRunReader>();
         services.AddSingleton<ICommandInterceptor, GlobalOptionsInterceptor>();

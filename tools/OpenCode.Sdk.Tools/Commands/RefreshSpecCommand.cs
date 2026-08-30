@@ -104,6 +104,22 @@ internal sealed partial class RefreshSpecCommand : AsyncCommand<RefreshSpecComma
         _console.MarkupLine(receipt.Patches.Count is 0
             ? "[grey]Patch list:[/] empty (identity transform)"
             : $"[yellow]Patch list:[/] {receipt.Patches.Count.ToString(CultureInfo.InvariantCulture)} Restore patch(es) applied");
+        WriteWatchedSourceSummary(receipt);
+    }
+
+    private void WriteWatchedSourceSummary(SnapshotReceipt receipt)
+    {
+        if (receipt.WatchedSources.Count is 0)
+        {
+            _console.MarkupLine("[grey]Watched sources:[/] none");
+            return;
+        }
+
+        var lost = receipt.WatchedSources.Count(static source => !source.AnchorMatched);
+        var count = receipt.WatchedSources.Count.ToString(CultureInfo.InvariantCulture);
+        _console.MarkupLine(lost is 0
+            ? $"[grey]Watched sources:[/] {count}, every anchor still matches"
+            : $"[yellow]Watched sources:[/] {count}, {lost.ToString(CultureInfo.InvariantCulture)} lost anchor(s) — read the doors");
     }
 
     internal sealed class Settings : GlobalSettings

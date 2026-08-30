@@ -67,4 +67,20 @@ internal sealed record SnapshotReceipt
 
     /// <summary>Gets the document-wide <c>contentSchema</c> occurrence count — the #56 stream-link signal.</summary>
     [JsonPropertyName("contentSchemaCount")] public required int ContentSchemaCount { get; init; }
+
+    /// <summary>
+    /// Gets the watched upstream sources as prepare observed them at the candidate commit: the
+    /// hand-written doors' inputs, hashed, with each anchor's verdict. A review trigger the
+    /// human reads beside the pins in <c>spec/source-watch.json</c>, never a generation input.
+    /// </summary>
+    [JsonPropertyName("watchedSources")]
+    public IReadOnlyList<ReceiptWatchedSource> WatchedSources
+    {
+        get;
+
+        // Unlike its required siblings this member is optional: a receipt written before the
+        // source watch existed carries none, and the deserializer hands the creator a null for
+        // it. An absent watch is an empty one, never a null list.
+        init => field = value is null ? Array.AsReadOnly(Array.Empty<ReceiptWatchedSource>()) : Array.AsReadOnly([.. value]);
+    } = Array.AsReadOnly(Array.Empty<ReceiptWatchedSource>());
 }

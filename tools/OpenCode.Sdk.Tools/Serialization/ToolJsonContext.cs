@@ -18,4 +18,5 @@ namespace OpenCode.Sdk.Tools.Serialization;
 [JsonSerializable(typeof(GenerationManifest))]
 [JsonSerializable(typeof(PatchManifest))]
 [JsonSerializable(typeof(SnapshotReceipt))]
+[JsonSerializable(typeof(SourceWatch))]
 internal sealed partial class ToolJsonContext : JsonSerializerContext;

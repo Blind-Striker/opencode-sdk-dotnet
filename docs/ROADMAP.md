@@ -721,27 +721,20 @@ is revisited at each milestone boundary.
   implies is refused as redundant. The manifest lists 25 folds — the 24 the rows spelled plus
   `Form.Fields_1`, an array component that never needed a row because it emits no named model.
   Still open: the research-log entry and one curation-boundary sentence in canon.
-  (2) *source watch* — `spec/source-watch.json` pins the upstream files the hand-written doors
-  depend on by path, sha256, and a content anchor (the patch manifests' predicate pattern);
-  `refresh-spec` prepare reports each entry's hash and anchor in the receipt (`watchedSources`),
-  verify checks the pins, apply re-pins over the reviewed receipt. A review trigger only, never a
-  generation input (ADR-0013); its stated blind spot is behavior added in a file the list does
-  not name, backstopped by the sandbox PTY legs today and the M6 canary later. Both hand-written
-  families now supply their input list. **Normal PTY:** `packages/server/src/handlers/pty.ts`
-  (4404 not-found/exited, 1000 normal end, ticket consume, cursor coercion at or above −1,
-  `PtyProtocol.chunks` and the meta frame), `packages/server/src/middleware/authorization.ts` (a
-  non-empty `ticket` query skips credentials), `packages/protocol/src/groups/pty.ts` (the
-  `x-opencode-ticket` header name and the ticket query), `packages/core/src/pty/protocol.ts` (the
-  `0x00` control marker and replay chunking), `packages/core/src/pty/ticket.ts` (60 s TTL,
-  single-use consume), `packages/core/src/pty.ts` (replay buffer limit, exit handling, attach),
-  and `packages/server/src/routes.ts` (handler wiring). **Persistent PTY** adds
-  `packages/protocol/src/groups/persistent-pty.ts`,
-  `packages/server/src/handlers/persistent-pty.ts`, `packages/core/src/persistent-pty/index.ts`,
-  `packages/core/src/persistent-pty/daemon.ts`, `packages/schema/src/persistent-pty.ts`, the
-  daemon's location and pin (`packages/core/src/persistent-pty/binary.bun.ts`, `binary.node.ts`,
-  `pty-binding.ts`, and `packages/core/package.json`), `packages/server/src/process.ts`, and — as
-  behavioral oracles rather than contracts — `packages/server/test/persistent-pty.test.ts`,
-  `packages/client/src/solid/pty.ts`, and `packages/tui/src/component/terminal-pane.tsx`. (3)
+  (2) *source watch* — **landed 2026-08-30**: `spec/source-watch.json` pins the 20 upstream files
+  the hand-written PTY doors read — 7 for the normal family, 13 more for persistent PTY, including
+  the daemon's location and `packages/core/package.json` pin and the three behavioral oracles
+  (`packages/server/test/persistent-pty.test.ts`, `packages/client/src/solid/pty.ts`,
+  `packages/tui/src/component/terminal-pane.tsx`) — by path, sha256, and one `contains` anchor
+  naming the behavior that door depends on. `refresh-spec` prepare observes every entry at the
+  candidate commit and records its hash and anchor verdict in the receipt (`watchedSources`),
+  verify checks the pins against the submodule checkout and refuses a missing file, a moved blob,
+  or a lost anchor, and apply re-pins over the reviewed receipt — refusing a receipt whose anchors
+  the reviewer saw fail. A review trigger only, never a generation input (ADR-0013); its stated
+  blind spot is behavior added in a file the list does not name, backstopped by the sandbox PTY
+  legs today and the M6 canary later. Still open: the research-log entry and the two proposed canon
+  sentences (`spec/SNAPSHOT.md` §Refresh procedure, `protocol-and-generation.md` §Snapshot
+  production). (3)
   *transport-owned leaves pending* — **landed 2026-08-29**: `SpecBinder` derives pending as the
   unselected operations without a fingerprint-pinned `transportOwned` row (a selected operation
   with such a row refuses), the marker carries a fixed `Transport-owned operations:` count and a
@@ -749,4 +742,4 @@ is revisited at each milestone boundary.
   retirement is a one-line diff), and the canon marker sentence reads "unselected and not
   transport-owned". The marker reads **122 selected / 12 pending / 2 transport-owned**, and the
   packing wall is satisfiable at full admission; the prerelease-versus-stable wording of that wall
-  stays a release-prep decision. Sequenced: (2) as the next tools touch.
+  stays a release-prep decision.

@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using OpenCode.Sdk.Tools.Generator.Refresh;
 using OpenCode.Sdk.Tools.Generator.Refresh.Models;
 using OpenCode.Sdk.Tools.Serialization;
 
@@ -50,7 +51,27 @@ internal static class RefreshScenarioData
             Retirement = "Raw upstream carries the keyword.",
         };
 
+    /// <summary>Builds one watched upstream source pinned to the given content's hash.</summary>
+    public static WatchedSource Watched(string path, string content, string anchor, string anchorType = SourceAnchor.Contains)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+
+        return new WatchedSource
+        {
+            Path = path,
+            Sha256 = DocumentInspector.Sha256Hex(Encoding.UTF8.GetBytes(content)),
+            Behavior = $"the door's dependency on {anchor}",
+            Anchor = new SourceAnchor { Type = anchorType, Text = anchor },
+        };
+    }
+
+    /// <summary>Builds a source watch over the given entries.</summary>
+    public static SourceWatch Watch(int schemaVersion, params WatchedSource[] sources) =>
+        new() { SchemaVersion = schemaVersion, Sources = sources };
+
     public static string Serialize(PatchManifest manifest) => JsonSerializer.Serialize(manifest, ToolJsonContext.Default.PatchManifest);
+
+    public static string Serialize(SourceWatch watch) => JsonSerializer.Serialize(watch, ToolJsonContext.Default.SourceWatch);
 
     public static string Serialize(SnapshotReceipt receipt) => JsonSerializer.Serialize(receipt, ToolJsonContext.Default.SnapshotReceipt);
 }
