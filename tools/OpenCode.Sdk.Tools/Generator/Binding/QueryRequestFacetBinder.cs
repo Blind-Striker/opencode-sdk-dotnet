@@ -72,13 +72,13 @@ internal sealed class QueryRequestFacetBinder(OperationFacetContext context)
         }
 
         var value = declared is NullableNode nullable ? nullable.Inner : parameter.Schema;
-        var enumTypeName = ResolveEnumTypeName(parameter, value, out var isEnum);
-        if (isEnum && enumTypeName is null)
+        var binding = ResolveEnumBinding(parameter, value);
+        if (binding is { IsEnum: true, TypeName: null })
         {
             return null;
         }
 
-        var kind = isEnum ? QueryValueKind.Enum : ResolveQueryValueKind(value);
+        var kind = binding.IsEnum ? QueryValueKind.Enum : ResolveQueryValueKind(value);
         if (kind is null)
         {
             return _context.RefuseNull<QueryPropertyPlan>($"query parameter '{parameter.Name}' has an unsupported schema shape");
@@ -89,7 +89,7 @@ internal sealed class QueryRequestFacetBinder(OperationFacetContext context)
             WireName = parameter.Name,
             PropertyName = CSharpNamePolicy.ToPascalCase(parameter.Name),
             Kind = kind.Value,
-            EnumTypeName = enumTypeName,
+            EnumTypeName = binding.TypeName,
             Description = declared.Description ?? _context.Resolve(value).Description,
             IsRequired = parameter.IsRequired,
             IsInherited = false,
@@ -101,18 +101,39 @@ internal sealed class QueryRequestFacetBinder(OperationFacetContext context)
     /// model closure emits from, so a key the map does not carry means the enum has no model
     /// and the operation refuses rather than typing a property against a missing type.
     /// </summary>
-    private string? ResolveEnumTypeName(SpecParameter parameter, SchemaNode value, out bool isEnum)
+    private QueryEnumBinding ResolveEnumBinding(SpecParameter parameter, SchemaNode value)
     {
         var key = QueryEnumShapePolicy.ResolveModelKey(value, _context.Document.Schemas);
-        isEnum = key is not null;
         if (key is null)
         {
-            return null;
+            return QueryEnumBinding.NotAnEnum;
         }
 
-        return _context.TypeNames.TryGetValue(key, out var typeName)
-            ? typeName
-            : _context.RefuseNull($"query parameter '{parameter.Name}' binds an enum that has no generated model");
+        if (_context.TypeNames.TryGetValue(key, out var typeName))
+        {
+            return QueryEnumBinding.Named(typeName);
+        }
+
+        _ = _context.RefuseNull($"query parameter '{parameter.Name}' binds an enum that has no generated model");
+        return QueryEnumBinding.Refused;
+    }
+
+    /// <summary>
+    /// What the enum lookup found for one query parameter. Three outcomes ride one value - the
+    /// parameter is not enum-valued, it binds a named generated enum, or it is an enum whose
+    /// model is missing and has already been refused by name - so a caller cannot read the
+    /// "is it an enum" answer apart from the name that belongs with it.
+    /// </summary>
+    private readonly record struct QueryEnumBinding(bool IsEnum, string? TypeName)
+    {
+        /// <summary>The parameter is not enum-valued; the ordinary value path owns it.</summary>
+        public static QueryEnumBinding NotAnEnum => new(IsEnum: false, TypeName: null);
+
+        /// <summary>The parameter is an enum with no generated model; the refusal is recorded.</summary>
+        public static QueryEnumBinding Refused => new(IsEnum: true, TypeName: null);
+
+        /// <summary>The parameter binds the named generated enum.</summary>
+        public static QueryEnumBinding Named(string typeName) => new(IsEnum: true, typeName);
     }
 
     /// <summary>The one admitted deep-object encoding is the optional nullable location selector.</summary>

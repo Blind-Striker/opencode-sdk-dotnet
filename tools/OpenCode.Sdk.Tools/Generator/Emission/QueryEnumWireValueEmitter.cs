@@ -34,6 +34,11 @@ internal static class QueryEnumWireValueEmitter
         var enums = models.OfType<EnumModelPlan>().ToDictionary(static model => model.Name, StringComparer.Ordinal);
         return Array.AsReadOnly<MemberDeclarationSyntax>(
         [
+            // Unreachable through the binder: QueryRequestFacetBinder refuses a query enum whose
+            // model the type-name map does not carry, so an operation reaching emission always
+            // has one. It stays a throw rather than a skip because the alternative is emitting a
+            // converter set that silently omits one enum, which fails at run time in the caller's
+            // process instead of here.
             .. EnumTypeNames(operations).Select(typeName => EmitConverter(
                 enums.TryGetValue(typeName, out var model)
                     ? model
