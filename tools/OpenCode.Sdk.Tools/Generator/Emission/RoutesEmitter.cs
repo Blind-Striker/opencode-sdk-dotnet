@@ -14,6 +14,7 @@ internal static class RoutesEmitter
         ArgumentNullException.ThrowIfNull(models);
 
         var operations = clients.SelectMany(static client => client.Operations).ToArray();
+        var hasQueryEnums = QueryEnumWireValueEmitter.EnumTypeNames(operations).Any();
         var members = new List<MemberDeclarationSyntax>(operations
             .GroupBy(static operation => operation.RouteContainerName, StringComparer.Ordinal)
             .OrderBy(static container => container.Key, StringComparer.Ordinal)
@@ -29,9 +30,9 @@ internal static class RoutesEmitter
 
         // System carries the route-value guards, the required-request guard, and the
         // out-of-range refusal an enum converter falls through to.
-        if (operations.Any(static operation => operation.Parameters.Count > 0
-                                               || operation.QueryRequest is { HasRequiredMember: true })
-            || QueryEnumWireValueEmitter.EnumTypeNames(operations).Any())
+        if (hasQueryEnums
+            || operations.Any(static operation => operation.Parameters.Count > 0
+                                                  || operation.QueryRequest is { HasRequiredMember: true }))
         {
             usings.Add("System");
         }
@@ -43,8 +44,7 @@ internal static class RoutesEmitter
 
         // A merged request types its route builder with the body model, and an enum query
         // member types its converter with the generated enum.
-        if (operations.Any(static operation => operation.QueryRequest is { RidesRequestBody: true })
-            || QueryEnumWireValueEmitter.EnumTypeNames(operations).Any())
+        if (hasQueryEnums || operations.Any(static operation => operation.QueryRequest is { RidesRequestBody: true }))
         {
             usings.Add("OpenCode.Sdk.Models");
         }
