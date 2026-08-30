@@ -2654,6 +2654,37 @@ public static class OpenCodeRoutes
         }
 
         /// <summary>
+        /// The &apos;GET /api/shell/{id}/output&apos; route template.
+        /// </summary>
+        public const string GetOutputTemplate = "/api/shell/{id}/output";
+        /// <summary>
+        /// Builds the &apos;/api/shell/{id}/output&apos; route.
+        /// </summary>
+        /// <param name = "id">The &apos;id&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetOutput(string id, ShellOutputRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(id);
+            if (id is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(id));
+            }
+
+            var path = "/api/shell/" + RouteValuePolicy.Escape(id, nameof(id)) + "/output";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            query.AddText("cursor", request.Cursor);
+            query.AddText("limit", request.Limit);
+            return path + query.Value;
+        }
+
+        /// <summary>
         /// The &apos;GET /api/shell/{id}&apos; route template.
         /// </summary>
         public const string GetShellTemplate = "/api/shell/{id}";

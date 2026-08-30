@@ -589,6 +589,8 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(ShellInfoTime))]
 [JsonSerializable(typeof(ShellListResponseEnvelope))]
 [JsonSerializable(typeof(ShellNotFoundError))]
+[JsonSerializable(typeof(ShellOutputData))]
+[JsonSerializable(typeof(ShellOutputResponseEnvelope))]
 [JsonSerializable(typeof(ShellResponseEnvelope))]
 [JsonSerializable(typeof(ShellTimeoutRequest))]
 [JsonSerializable(typeof(ShellTimeoutResponseEnvelope))]

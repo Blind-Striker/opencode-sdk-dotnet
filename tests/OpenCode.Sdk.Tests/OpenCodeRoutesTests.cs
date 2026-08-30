@@ -127,4 +127,29 @@ public sealed class OpenCodeRoutesTests
         await Assert.That(OpenCodeRoutes.Sessions.GetStats(new SessionStatsRequest())).IsEqualTo("/api/session/stats");
         await Assert.That(OpenCodeRoutes.Sessions.GetStats()).IsEqualTo("/api/session/stats");
     }
+
+    /// <summary>
+    /// The wire declares 'cursor' and 'limit' as strings carrying a numeric pattern; patterns are
+    /// never validated client-side (ADR-0014), so the builder writes what the caller handed it.
+    /// </summary>
+    [Test]
+    public async Task GetOutput_Should_Carry_The_Cursor_And_Limit_As_The_Strings_They_Are()
+    {
+        var route = OpenCodeRoutes.Shells.GetOutput("sh_100", new ShellOutputRequest
+        {
+            Location = new LocationSelector { Workspace = "wrk_1" },
+            Cursor = "1.5e3",
+            Limit = "+0",
+        });
+
+        await Assert.That(route).IsEqualTo("/api/shell/sh_100/output?location[workspace]=wrk_1&cursor=1.5e3&limit=%2B0");
+    }
+
+    [Test]
+    public async Task GetOutput_Should_Return_The_Bare_Path_When_Nothing_Is_Set()
+    {
+        await Assert.That(OpenCodeRoutes.Shells.GetOutput("sh_100", new ShellOutputRequest()))
+            .IsEqualTo("/api/shell/sh_100/output");
+        await Assert.That(OpenCodeRoutes.Shells.GetOutput("sh_100")).IsEqualTo("/api/shell/sh_100/output");
+    }
 }

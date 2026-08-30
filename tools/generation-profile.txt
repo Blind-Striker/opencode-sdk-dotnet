@@ -112,6 +112,7 @@ v2.session.wait
 v2.shell.create
 v2.shell.get
 v2.shell.list
+v2.shell.output
 v2.shell.remove
 v2.shell.timeout
 v2.skill.list

@@ -357,7 +357,7 @@ public sealed class OperationPlanBinderTests
         await Assert
             .That(shell
                 .Operations.Select(static operation => operation.MethodName)
-                .SequenceEqual(["GetShellAsync", "RemoveShellAsync", "TimeoutShellAsync"], StringComparer.Ordinal))
+                .SequenceEqual(["GetOutputAsync", "GetShellAsync", "RemoveShellAsync", "TimeoutShellAsync"], StringComparer.Ordinal))
             .IsTrue();
 
         var timeout = shell.Operations.Single(static operation => operation.MethodName == "TimeoutShellAsync");
@@ -412,6 +412,30 @@ public sealed class OperationPlanBinderTests
                 .SequenceEqual(["MessageNotFoundError", "SessionNotFoundError"], StringComparer.Ordinal))
             .IsTrue();
         await Assert.That(message.ErrorMap.Statuses[2].Tags.All(static tag => tag.Tag == tag.TypeName)).IsTrue();
+    }
+
+    /// <summary>
+    /// The pin's only location envelope whose 'data' is an inline object: it promotes into a
+    /// model named from the operation and the envelope stays a single-value DataLocation.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Promote_The_Pinned_Shell_Output_Payload()
+    {
+        var plan = await new BindingTestHost().BindPinnedAsync();
+
+        var output = plan
+            .Clients.Single(static client => client.Name == "ShellClient")
+            .Operations.Single(static operation => operation.MethodName == "GetOutputAsync");
+
+        await Assert.That(output.QueryRequest!.TypeName).IsEqualTo("ShellOutputRequest");
+        await Assert.That(output.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocation);
+        await Assert.That(output.Envelope.PayloadName).IsEqualTo("Output");
+        await Assert.That(output.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
+        await Assert.That(((NamedTypeReferencePlan)output.Envelope.PayloadType!).Name).IsEqualTo("ShellOutputData");
+        await Assert.That(output.Envelope.LocationTypeName).IsEqualTo("LocationInfo");
+        await Assert
+            .That(plan.Models.Any(static model => string.Equals(model.Name, "ShellOutputData", StringComparison.Ordinal)))
+            .IsTrue();
     }
 
     [Test]

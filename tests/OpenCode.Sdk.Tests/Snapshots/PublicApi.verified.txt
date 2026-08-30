@@ -806,11 +806,13 @@
         public static class Shells
         {
             public const string CreateShellTemplate = "/api/shell";
+            public const string GetOutputTemplate = "/api/shell/{id}/output";
             public const string GetShellTemplate = "/api/shell/{id}";
             public const string ListShellsTemplate = "/api/shell";
             public const string RemoveShellTemplate = "/api/shell/{id}";
             public const string TimeoutShellTemplate = "/api/shell/{id}/timeout";
             public static string CreateShell(OpenCode.Sdk.Models.ShellCreateRequest? request = null) { }
+            public static string GetOutput(string id, OpenCode.Sdk.ShellOutputRequest? request = null) { }
             public static string GetShell(string id, OpenCode.Sdk.ShellRequest? request = null) { }
             public static string ListShells(OpenCode.Sdk.ShellListRequest? request = null) { }
             public static string RemoveShell(string id, OpenCode.Sdk.ShellRemoveRequest? request = null) { }
@@ -1665,6 +1667,7 @@
     public class ShellClient
     {
         protected ShellClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ShellOutputResponse> GetOutputAsync(OpenCode.Sdk.ShellOutputRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ShellResponse> GetShellAsync(OpenCode.Sdk.ShellRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ShellRemoveResponse> RemoveShellAsync(OpenCode.Sdk.ShellRemoveRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ShellTimeoutResponse> TimeoutShellAsync(OpenCode.Sdk.Models.ShellTimeoutRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
@@ -1686,6 +1689,20 @@
         public ShellListResponse() { }
         public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
         public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.ShellInfo> Shells { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class ShellOutputRequest : System.IEquatable<OpenCode.Sdk.ShellOutputRequest>
+    {
+        public ShellOutputRequest() { }
+        public string? Cursor { get; init; }
+        public string? Limit { get; init; }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class ShellOutputResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ShellOutputResponse>
+    {
+        public ShellOutputResponse() { }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        public required OpenCode.Sdk.Models.ShellOutputData Output { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class ShellRemoveRequest : System.IEquatable<OpenCode.Sdk.ShellRemoveRequest>
@@ -8380,6 +8397,18 @@ namespace OpenCode.Sdk.Models
         public required string Message { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("_tag")]
         public string Tag { get; }
+    }
+    public sealed class ShellOutputData : System.IEquatable<OpenCode.Sdk.Models.ShellOutputData>
+    {
+        public ShellOutputData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("cursor")]
+        public required long Cursor { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("output")]
+        public required string Output { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("size")]
+        public required long Size { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("truncated")]
+        public required bool Truncated { get; init; }
     }
     public sealed class ShellTimeoutRequest : System.IEquatable<OpenCode.Sdk.Models.ShellTimeoutRequest>
     {

@@ -37,6 +37,20 @@ public class ShellClient
     private string Id => _id ?? throw MockSeam.CreateError("ShellClient", "Id");
 
     /// <summary>
+    /// Read shell output. Page through captured combined output by absolute byte cursor.
+    /// </summary>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ShellOutputResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<ShellOutputResponse> GetOutputAsync(ShellOutputRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Shells.GetOutput(Id, request), ShellOutputResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
     /// Get shell command. Get one shell command, including its status and exit code once exited.
     /// </summary>
     /// <param name = "request">The request shaping the query.</param>

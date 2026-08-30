@@ -515,6 +515,13 @@ route builder writes through a generated switch — selecting `v2.fs.find`
 (`FileSystemClient.FindEntriesAsync`), `v2.vcs.diff` (`VcsClient.GetDiffAsync`), and
 `v2.session.stats` (`SessionsClient.GetStatsAsync`) and taking the profile to **127 selected / 7
 pending / 2 transport-owned**.
+The location envelope's last nominal-only arm then closes: a location wrapper whose `data` is an
+inline object is promoted into a model the name resolver claims from the operation
+(`{stem}Data`), exactly as the data wrapper's member and the location wrapper's list item already
+were, so no upstream wrapper spelling reaches the surface. It selects `v2.shell.output`
+(`ShellClient.GetOutputAsync` returning `ShellOutputResponse.Output`, a `ShellOutputData` beside
+the location echo, with `cursor` and `limit` riding the query mechanism as the strings the wire
+declares) and takes the profile to **128 selected / 6 pending / 2 transport-owned**.
 
 ## Milestones
 

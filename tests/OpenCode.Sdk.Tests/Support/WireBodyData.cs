@@ -68,6 +68,10 @@ internal static class WireBodyData
     /// <summary>One filesystem entry, the element both the fs list and fs find payloads carry.</summary>
     public const string FileSystemEntry = "{\"path\":\"src/App.cs\",\"type\":\"file\"}";
 
+    /// <summary>One page of captured shell output, the payload shell.output's location envelope carries.</summary>
+    public const string ShellOutputPage =
+        "{\"output\":\"build ok\\n\",\"cursor\":24,\"size\":96,\"truncated\":true}";
+
     public const string ResolvedLocation =
         "{\"directory\":\"/repo\",\"project\":{\"id\":\"prj_1\",\"directory\":\"/repo\",\"canonical\":\"/repo\"}}";
 
