@@ -48,7 +48,7 @@ jobs:
           submodules: true
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           # SDK version comes from the repo pin; 8.x/9.x are additionally installed so their
           # runtimes are present for the net8.0/net9.0 test legs.
@@ -174,3 +174,53 @@ jobs:
           name: test-results-${{ matrix.name }}-${{ github.event.pull_request.number || github.run_number }}
           path: test-results/**
           retention-days: 7
+
+  # Runs once green (needs the matrixed build-and-test job, which GitHub Actions only satisfies
+  # once every OS leg completes) and only on a real push to master, never on a PR. Publishes a
+  # -nightly package to GitHub Packages so the exact code at HEAD is always installable; the
+  # stable, human-triggered lane lives in publish-nuget.yml.
+  publish-nightly:
+    name: "Publish nightly (GitHub Packages)"
+    needs: [build-and-test]
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # No submodules: GenerationRequest.RepositoryDefault (tools/OpenCode.Sdk.Tools/Generator/
+      # GenerationRequest.cs) points generate --verify at spec/openapi.json, tools/curation.json,
+      # and tools/generation-profile.txt — all committed. Packing builds only src/OpenCode.Sdk and
+      # src/OpenCode.Sdk.Extensions, which never reference external/opencode; that submodule is a
+      # test-only fixture the release lane does not exercise.
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # Two-layer defense against a partial generated surface (Directory.Build.targets' header
+      # comment): that target refuses to pack on a missing or stale .generation-incomplete marker,
+      # and this step additionally reruns the generator in --verify mode first, so a hand-edited or
+      # stale marker is caught by regeneration rather than only by the marker's own text.
+      - name: Verify generated output
+        run: dotnet run --file tools/opencode-tool.cs -- generate --verify
+
+      - name: Compute nightly version suffix
+        id: version
+        run: echo "suffix=nightly.$(date -u +%Y%m%d).${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Pack
+        run: dotnet pack --configuration Release --version-suffix "${{ steps.version.outputs.suffix }}" --output packages
+
+      # dotnet nuget push implements its own glob expansion; the path is quoted so the shell does
+      # not expand it first (two packable projects produce two .nupkg files here).
+      - name: Push to GitHub Packages
+        run: >
+          dotnet nuget push "packages/*.nupkg"
+          --source https://nuget.pkg.github.com/Blind-Striker/index.json
+          --api-key ${{ secrets.GITHUB_TOKEN }}
+          --skip-duplicate

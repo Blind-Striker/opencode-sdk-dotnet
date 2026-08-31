@@ -1,0 +1,103 @@
+# Manual, human-triggered release lane. Nightlies publish automatically from ci.yml's
+# publish-nightly job on every master push; this workflow is the ONLY path to a stable version
+# number, and it is never triggered by a push, tag, or GitHub Release event.
+#
+# target: github pushes to GitHub Packages with GITHUB_TOKEN and works today.
+#
+# target: nuget publishes to NuGet.org via Trusted Publishing (OIDC through NuGet/login@v1, no
+# API key — mirrors localstack-dotnet-client's publish-nuget.yml, PR #54). This requires a Trusted
+# Publishing policy configured on the NuGet.org account that will own this package (package IDs
+# OpenCode.Sdk and OpenCode.Sdk.Extensions, repository Blind-Striker/opencode-sdk-dotnet, workflow
+# file publish-nuget.yml, no environment) — the maintainer must create that policy on nuget.org
+# BEFORE the first nuget run; until then only target: github succeeds. The NuGet.org profile (or
+# organization) name the policy is created under must also be set as the repository variable
+# NUGET_TRUSTED_PUBLISHING_USER (Settings > Secrets and variables > Actions > Variables tab): the
+# client's own workflow hardcodes its org name (`user: localstack-dotnet`), which is specific to
+# that NuGet.org account and does not carry over here, so it is parameterized instead of guessed.
+name: "Publish to NuGet"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Exact version to stamp on the packages (e.g. 0.1.0-preview.1 or 0.1.0)"
+        required: true
+      target:
+        type: choice
+        description: Publish target
+        required: true
+        default: "github"
+        options:
+        - nuget
+        - github
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_NOLOGO: true
+
+jobs:
+  publish-manual:
+    name: "Publish (${{ inputs.target }})"
+    runs-on: ubuntu-latest
+    # Job-level union: id-token: write is needed only for the nuget path, packages: write only for
+    # the github path. GitHub Actions grants permissions per job, not per step, so both are
+    # declared here; whichever path a given dispatch does not take leaves its permission unused.
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+
+    steps:
+      # No submodules: GenerationRequest.RepositoryDefault (tools/OpenCode.Sdk.Tools/Generator/
+      # GenerationRequest.cs) points generate --verify at spec/openapi.json, tools/curation.json,
+      # and tools/generation-profile.txt — all committed. Packing builds only src/OpenCode.Sdk and
+      # src/OpenCode.Sdk.Extensions, which never reference external/opencode.
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # Two-layer defense against a partial generated surface (Directory.Build.targets' header
+      # comment): that target refuses to pack on a missing or stale .generation-incomplete marker,
+      # and this step additionally reruns the generator in --verify mode first, so a hand-edited or
+      # stale marker is caught by regeneration rather than only by the marker's own text.
+      - name: Verify generated output
+        run: dotnet run --file tools/opencode-tool.cs -- generate --verify
+
+      # -p:Version overrides VersionPrefix (Directory.Build.props) entirely rather than combining
+      # with a suffix, so the operator's input becomes the exact stamped package version.
+      - name: Pack
+        run: dotnet pack --configuration Release -p:Version=${{ inputs.version }} --output packages
+
+      # Trusted Publishing exchanges a GitHub OIDC token for a short-lived nuget.org API key, so
+      # there is no long-lived NUGET_API_KEY secret to rotate or leak. The login step sits
+      # immediately before the push, not at the top of the job, because the exchanged key is
+      # short-lived.
+      - name: "NuGet.org login (OIDC)"
+        id: nuget-login
+        if: inputs.target == 'nuget'
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_TRUSTED_PUBLISHING_USER }}
+
+      # dotnet nuget push implements its own glob expansion; the path is quoted so the shell does
+      # not expand it first (two packable projects produce two .nupkg files here).
+      - name: Push to NuGet.org
+        if: inputs.target == 'nuget'
+        run: >
+          dotnet nuget push "packages/*.nupkg"
+          --source https://api.nuget.org/v3/index.json
+          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+          --skip-duplicate
+
+      - name: Push to GitHub Packages
+        if: inputs.target == 'github'
+        run: >
+          dotnet nuget push "packages/*.nupkg"
+          --source https://nuget.pkg.github.com/Blind-Striker/index.json
+          --api-key ${{ secrets.GITHUB_TOKEN }}
+          --skip-duplicate
