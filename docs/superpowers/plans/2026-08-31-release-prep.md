@@ -178,6 +178,18 @@ before the first run), README's install section updated if feed instructions shi
       `gh workflow list` after push is the controller's step); commit
       `ci: publish nightlies to GitHub Packages and add the manual NuGet lane`.
 
+### Task 5 addendum (maintainer requirements, 2026-08-31)
+
+- Bump `actions/setup-dotnet` v5 → v6 in `ci.yml` (the only action behind its latest major; every
+  other `uses:` is already latest — verified 2026-08-31). Any NEW workflow is born on latest
+  majors.
+- Standing constraint: any workflow that sets up Node uses `node-version: '24'` (24 LTS). No
+  current workflow sets up Node; do not add one.
+- TUnit's HTML report is on by default (`TestResults/{assembly}-{os}-{tfm}-report.html` + a
+  JSON sidecar; `TUNIT_ARTIFACT_RETENTION_DAYS: 7` already set in ci.yml so TUnit's own GitHub
+  Actions integration uploads them). Task 5 verifies the HTML reports actually appear in the next
+  master run's artifacts and, if they do not, adds them to the `test-results/**` upload path.
+
 ### Task 6: Record and handoff refresh
 
 - [ ] Research log entry (next Q number) for the release-prep arc: the reference-repo synthesis
