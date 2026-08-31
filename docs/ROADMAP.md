@@ -699,10 +699,10 @@ is revisited at each milestone boundary.
   collapse* and (2) *source watch* both **landed 2026-08-30**; research Q159 owns the account of
   what each does, `.generated-manifest.json` (`implicitAliases`) and `spec/source-watch.json` are
   the committed telltales, and the one non-`_N` `schemaAliases` row (the operation-scoped Effect
-  cause union) stays explicit. Still open on them: three proposed canon sentences — one
-  curation-boundary sentence in `protocol-and-generation.md` §Curation boundary for the collapse,
-  and for the watch `spec/SNAPSHOT.md` §Refresh procedure plus `protocol-and-generation.md`
-  §Snapshot production — and the maintainer's seal on the watch's apply-time refusal (below). (3)
+  cause union) stays explicit. The three canon sentences proposed for them — the collapse's
+  curation-boundary sentence and the watch's `spec/SNAPSHOT.md` §Refresh procedure plus
+  `protocol-and-generation.md` §Snapshot production pair — were applied by maintainer approval on
+  2026-08-31. Still open on them: the maintainer's seal on the watch's apply-time refusal (below). (3)
   *transport-owned leaves pending* — **landed 2026-08-29**: `SpecBinder` derives pending as the
   unselected operations without a fingerprint-pinned `transportOwned` row (a selected operation
   with such a row refuses), the marker carries a fixed `Transport-owned operations:` count and a

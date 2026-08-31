@@ -140,6 +140,12 @@ reviewed by a human before it is applied.
 A temporary, hash-verified snapshot-production patch recovering contract content upstream's
 projection lost; carries an upstream report and a retirement predicate.
 
+**Source watch**:
+The pinned set of upstream files a hand-written door reads as inputs — each a watched source
+recorded by path, SHA-256 blob hash, and one content anchor in `spec/source-watch.json` and the
+receipt's `watchedSources`. A refresh-time review trigger only; it never reaches ingestion,
+curation, or emission.
+
 **Contract inventory**:
 The complete operation set of the accepted document, each operation carrying its admission state
 (selected, pending, or transport-owned).
@@ -162,6 +168,12 @@ The generated types and serializer registry shipped inside `OpenCode.Sdk`.
 **Envelope**:
 The generated, typed per-operation response object carrying status/error state plus named
 payload properties.
+
+**Single-key envelope**:
+A success body an operation declares inline as an object requiring exactly one property that is
+not `data` (`SpecEnvelopeShape.SingleKey`); the payload flattens onto the response under that
+key's PascalCase name and the wrapper is never emitted as a model. An inline object whose sole
+property is optional has no payload the envelope can promise and refuses at bind time instead.
 
 **Bound handle**:
 A sub-client bound to one resource id (e.g. a session) — partial application over the
@@ -188,6 +200,12 @@ door that cannot ride its policies.
 **Curation config**:
 The generator's declarative, fail-closed input mapping spec constructs to public names and
 rules; an unmapped construct breaks generation.
+
+**Stabilize-duplicate collapse**:
+The mechanical fold of a reachable `<base>_<N>` component into `<base>` when
+`StabilizeDuplicatePolicy` finds the two structurally identical, refusing by name when it does
+not; recorded as an implicit alias in `.generated-manifest.json`'s `implicitAliases` section
+rather than a curated `schemaAliases` row.
 
 **Unknown variant carrier**:
 The per-union `Unknown*` variant absorbing unrecognized discriminators at runtime (tag

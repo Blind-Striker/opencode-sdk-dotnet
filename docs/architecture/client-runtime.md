@@ -1,6 +1,6 @@
 # Client Runtime Architecture
 
-Date: 2026-08-29
+Date: 2026-08-31
 
 Canonical current rules for client construction, transport ownership, API errors, streams, and the
 local server launcher. Protocol and generated-model rules live in
@@ -171,7 +171,10 @@ local server launcher. Protocol and generated-model rules live in
   server negotiating any input protocol but the framed one is a connect-time protocol failure. The
   upgrade is the same transport divergence the normal family's is; the address is
   `/api/experimental/persistent-pty/{ptyID}/connect` and its query carries no location, because
-  this family's terminals are keyed by id alone.
+  this family's terminals are keyed by id alone. The wire spells exactly two roles, `controller`
+  and `observer`; any other value — a JSON null included — is one of those member-level frame
+  failures, never a default, because reporting an observer as a controller would have a caller
+  writing input the server accepts and drops.
 - **Bytes, not text.** Output rides binary messages, so `PersistentPtyOutputFrame.Data` is
   `ReadOnlyMemory<byte>` and nothing is decoded: a frame is free to split a multi-byte character,
   and a caller feeding an emulator writes the bytes as they are. A screen checkpoint — the
@@ -183,9 +186,9 @@ local server launcher. Protocol and generated-model rules live in
   controller-changed, title-changed, and foreground-process-changed messages — plus
   `PersistentPtyUnknownFrame`, which carries a control `type` this SDK does not know together with
   its raw body instead of failing the read, because the socket is an experimental surface that may
-  grow kinds. A body that is not a JSON object
-  carrying a string `type`, and a known frame whose members cannot be read, are both protocol
-  failures, reported apart because they mean different things.
+  grow kinds. A body that is not a JSON object carrying a string `type`, and a known frame whose
+  members cannot be read, are both protocol failures, reported apart because they mean different
+  things.
 - **Input.** `WriteAsync(ReadOnlyMemory<byte>)` and `ResizeAsync(cols, rows)` each send one binary
   message in the framed input protocol's layout — `[type u8][cols u16 BE][rows u16 BE][data]`,
   type 1 for input and type 0 for a viewport change — which the SDK negotiates on every connection
@@ -222,9 +225,10 @@ local server launcher. Protocol and generated-model rules live in
 - **Shared core.** Both families' sessions run on the internal, family-neutral
   `TerminalSocketCore<TFrame>` — receive with fragment reassembly, serialized sends, a bounded
   graceful close, idempotent disposal, and one active read enumeration — and differ only behind
-  three named seams: `ITerminalFrameDecoder<TFrame>` for what a message carries,
-  `ITerminalClosePolicy` for what a close status means, and `ITerminalUpgradeFailurePolicy` for
-  what a refused upgrade means.
+  three named seams: `ITerminalFrameDecoder<TFrame>` for what a message carries and
+  `ITerminalClosePolicy` for what a close status means, both consumed by the core, and
+  `ITerminalUpgradeFailurePolicy` for what a refused upgrade means, consumed by the shipped
+  adapter at connect — before a core exists at all.
 
 ## Error channels
 

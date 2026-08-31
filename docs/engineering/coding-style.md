@@ -1,6 +1,6 @@
 # Coding Style — hand-written code
 
-Date: 2026-08-18
+Date: 2026-08-31
 
 Binding authoring style for every hand-written line in this repository — product code,
 `tools/`, and tests. Generated output is governed by the generator's emitters (ADR-0003);
@@ -128,7 +128,14 @@ for a pile of static steps.
   root. Public namespaces stay `OpenCode.Sdk` and `OpenCode.Sdk.Models` — a namespace
   is API surface, folders are placement (Stripe/Azure precedent) — so IDE0130's
   folder-matches-namespace rule is arbitrated for the SDK's public folders through the
-  standing per-rule pattern.
+  standing per-rule pattern. Admitting a brand-new family folder additionally requires
+  extending the IDE0130 arbitration globs in `.editorconfig` (both the
+  `src/OpenCode.Sdk/{...}` list and its `tests/OpenCode.Sdk.Tests/{...}` mirror) before
+  running `generate`: the writer accepts the new folder, but the post-generation
+  `dotnet format` pass otherwise crashes with `System.NotSupportedException: Changing
+  document properties is not supported` while trying to auto-fix the resulting IDE0130
+  diagnostic on a folder the glob doesn't yet cover, rather than reporting it as a style
+  diagnostic.
 - **A test project mirrors the layout of the project under test**: the folder path of a
   SUT predicts the folder path of its tests.
 - File = type (MA0048) is mechanical everywhere; folder = namespace (IDE0130) is

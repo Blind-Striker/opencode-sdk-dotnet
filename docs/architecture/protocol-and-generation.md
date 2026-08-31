@@ -1,6 +1,6 @@
 # Protocol and Generation Architecture
 
-Date: 2026-08-29
+Date: 2026-08-31
 
 Canonical current rules for the protocol surface, generator, generated models, and runtime
 materialization boundary. ADRs record why these decisions were made; dated research records the
@@ -27,8 +27,8 @@ evidence and may contain superseded positions.
   resolves a moving reference once to a full SHA and writes only scratch artifacts with a
   reviewed receipt; verify reproduces the committed identity observationally; apply is a human
   act over one reviewed receipt that refuses time-of-check/time-of-use drift, updates only
-  `spec/openapi.json`, `spec/SNAPSHOT.md`, `spec/receipt.json`, and the submodule checkout, and
-  never stages, commits, or pushes.
+  `spec/openapi.json`, `spec/SNAPSHOT.md`, `spec/receipt.json`, `spec/source-watch.json`
+  (re-pinned hashes only), and the submodule checkout, and never stages, commits, or pushes.
 - With an empty patch list, production is an identity transform over upstream's committed
   artifact; upstream generation is never run merely to copy the document. Restore patches —
   ordered and hash-pinned under `spec/patches/` with a manifest carrying the upstream report,
@@ -37,6 +37,9 @@ evidence and may contain superseded positions.
   satisfies, forcing an empty-patch retirement refresh.
 - The committed receipt records the exact inputs, hashes, patch preimages, operation-set digest,
   and operation delta of the accepted snapshot; `refresh-spec --verify` is its standing check.
+- The source watch (`spec/source-watch.json`) pins, by path, SHA-256 and one content anchor, the
+  upstream files the hand-written doors read as inputs; it is a refresh-time review trigger only
+  and never reaches ingestion, curation, or emission (ADR-0013).
 
 ## Construction pipeline
 
@@ -53,7 +56,7 @@ evidence and may contain superseded positions.
   folder or filename convention, identifies generator-owned files.
 - Pending (unselected and not transport-owned) operations are recorded in the committed
   `.generation-incomplete` marker, each carrying the bindability the same selection-path binder
-  finds today — `[bindable]`, or `[refused: <verbatim wall message>]` — so wall-free drift among
+  finds today — `[bindable]`, or `[refused: <verbatim wall messages>]` — so wall-free drift among
   pending operations surfaces as a reviewed diff instead of accumulating silently; the marker also
   lists the fingerprint-pinned transport-owned operations beside them while it exists.
 
@@ -70,6 +73,11 @@ Curation may:
 - map an operation whose upstream identity violates upstream's own conventions onto its intended
   identity through a reason-bearing operation-identity row carrying the upstream report; the row
   retires when upstream's fix makes it stale (ADR-0013).
+
+The structurally-equivalent collapse is mechanical wherever upstream's stabilize suffix names it:
+a reachable `<base>_<N>` component folds into `<base>` when the two are structurally identical and
+refuses by name when they are not, so a `schemaAliases` row remains only for a duplicate no
+convention recognizes.
 
 Curation may not add a wire type, format, constraint, cross-field rule, or runtime validation
 absent from the pin. Descriptions generate documentation, not executable semantics. Projection
@@ -99,8 +107,17 @@ implementation knowledge (ADR-0013).
   models, lists, dictionaries, inline objects promoted under deterministic operation-scoped
   names (reasoned naming rows override), and represented-nullable payloads — distinguished
   from the error path by response state, never by treating CLR null as an unset backing field.
-  Location-envelope data may reference an array component; the cursor-list item stays nominal
-  (ADR-0017). Unsupported nodes fail closed, and no family-specific shape exception exists.
+  Location-envelope data may reference an array component or promote an inline object; the
+  cursor-list item stays nominal (ADR-0017). Unsupported nodes fail closed, and no
+  family-specific shape exception exists. A success body the operation declares inline as an
+  object requiring exactly one property that is not `data` is envelope spine too: the payload
+  flattens onto the response under that key's PascalCase name and the wrapper is never emitted
+  as a model, while a named component with one property keeps its own identity. Requiredness is
+  the binder's wall, not the classifier's (final review S6/P4): an inline object whose sole
+  non-`data` property is optional still classifies this way but refuses at bind time
+  (`EnvelopeFacetBinder.SingleKeyMember`, "must reference an object requiring exactly one
+  property") rather than falling back to a promoted bare-body model — fail-closed, and not
+  exercised by any operation in the pin today.
 
 ## Runtime materialization boundary
 
@@ -131,6 +148,12 @@ dispatch instead of routing it through ADR-0009's unknown carrier (ADR-0015).
   the DOM needed by their lossless carrier. Public unknown-carrier construction requires the
   payload's discriminator (and any fixed outer marker) to agree with the exposed marker properties;
   serialization remains payload-only replay (ADR-0009).
+- A union whose branches are tagged by more than one wire dialect declares those marker properties
+  in a fixed scan order; a payload dispatches on the first of them it carries, one property is
+  scanned per attempt with no JSON DOM for known arms, and a payload carrying none of them is a
+  protocol failure. Its unknown carrier agrees with a payload when any one declared marker
+  property carries the carrier's marker. The error union is the only such union today: `_tag` then
+  `name` (ADR-0007, ADR-0009).
 - A marked union is emitted as an interface. One wire schema remains one sealed record implementing
   every marked union to which it belongs (ADR-0011).
 - A token-distinct structural union emits one sealed carrier record with a `Kind`, guarded typed
@@ -159,6 +182,12 @@ dispatch instead of routing it through ADR-0009's unknown carrier (ADR-0015).
   Generated response adapters project page items, the opaque next cursor, and the continuation
   request into one hand-written traversal core. Method names, descriptions, and upstream source do
   not independently confer pagination semantics (ADR-0013, ADR-0017).
+- A query parameter binds by shape: a required parameter becomes a `required`, non-nullable
+  request property and makes the request itself a required method and route argument; an optional
+  parameter binds nullable and is omitted from the wire when unset, whether or not its schema
+  admits JSON null; a string enum outside the spine's own value sets becomes a generated C# enum
+  whose wire spelling the route builder writes through a generated switch; every other query
+  shape refuses by name.
 - The SSE engine remains hand-written runtime behavior; generated stream methods bind their route,
   payload, frame, declared failure event, typed cause, and statuses from the pin. Cause models,
   converters, array metadata, and adapter metadata pass through the same emitted registry and
