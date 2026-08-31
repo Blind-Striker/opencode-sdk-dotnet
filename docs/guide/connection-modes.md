@@ -130,59 +130,76 @@ password expects anonymous requests, so leave `Password` as `null` for one.
 
 ## 🧩 Registering with dependency injection
 
-`OpenCode.Sdk.Extensions` adds `AddOpenCode` to `IServiceCollection`. It registers **one singleton
-`OpenCodeClient`** that owns its transport for the container's lifetime, plus all 27 sub-clients
-resolved from that same instance — so you can inject `SessionsClient`, `EventsClient`, or
-`PtysClient` directly instead of reaching through the root every time.
+`OpenCode.Sdk.Extensions` adds `AddOpenCode` to `IServiceCollection`. What lands in the container is
+deliberately small: **one `OpenCodeClient` singleton** holding the transport open for the
+container's lifetime, and **each of the 27 families registered as its own singleton resolved from
+that one client**. A service therefore asks for the family it actually uses — `EventsClient`,
+`PtysClient`, `WorktreesClient` — and all of them share a single pipeline and a single disposal at
+shutdown.
+
+There are two overloads, and the difference between them matters more than it looks:
+
+| Overload | Options come from | Trimming / native AOT |
+|---|---|---|
+| `AddOpenCode(Action<OpenCodeClientOptions>)` | a delegate you write | ✅ safe — no reflection |
+| `AddOpenCode(IConfiguration)` | a bound configuration section | ⚠️ annotated, see below |
+
+Both go through the standard options pattern, so `IOptions<OpenCodeClientOptions>`, options
+validation, and anything else layered on options behaves exactly as it does for any other library.
+
+Binding from configuration keeps the endpoint out of your code entirely:
 
 ```csharp
 var builder = Host.CreateApplicationBuilder(args);
 
-builder.Services.AddOpenCode(options =>
-{
-    options.Endpoint = new Uri("http://127.0.0.1:4096");
-    options.Password = Environment.GetEnvironmentVariable("OPENCODE_SERVER_PASSWORD");
-});
-
-builder.Services.AddHostedService<SessionWorker>();
+// Binds Endpoint, Password, Username, and Location from the "OpenCode" section.
+builder.Services.AddOpenCode(builder.Configuration.GetSection("OpenCode"));
+builder.Services.AddHostedService<EventLogger>();
 
 await builder.Build().RunAsync();
 ```
 
+```json
+{
+  "OpenCode": {
+    "Endpoint": "http://127.0.0.1:4096"
+  }
+}
+```
+
+Leave `Password` out of that file. Configuration is layered, so user secrets in development and an
+environment variable or a secret store in production bind onto the same section without the
+credential ever reaching source control.
+
+Then inject whichever family the service needs — here the event bus, straight into a hosted
+service:
+
 ```csharp
-internal sealed class SessionWorker(SessionsClient sessions) : BackgroundService
+internal sealed class EventLogger(EventsClient events, ILogger<EventLogger> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var page = await sessions.ListSessionsAsync(
-            new SessionListRequest { Limit = "10", Order = ListOrder.Descending },
-            cancellationToken: stoppingToken);
-
-        Console.WriteLine($"{page.Sessions.Count} sessions, next cursor {page.Cursor.Next ?? "<none>"}");
+        await foreach (var @event in events.SubscribeAsync(stoppingToken))
+        {
+            logger.LogInformation("opencode event {EventType}", @event.Type);
+        }
     }
 }
 ```
 
-The registration goes through the standard options pattern, so `IOptions<OpenCodeClientOptions>`
-and everything built on it works as usual, and the container disposes the one client at shutdown.
+> **⚡ Trimming and native AOT**: `AddOpenCode(IConfiguration)` carries `[RequiresDynamicCode]`
+> and `[RequiresUnreferencedCode]`, because configuration binding reflects over the options type —
+> so a trimmed or AOT publish reports **IL3050** and **IL2026** at that call. Nothing is wrong with
+> your code; the annotation is doing its job. Switch to the configure-action overload there, which
+> needs no reflection at all. Both packages declare `IsAotCompatible` on `net10.0`.
 
-### Binding from configuration
+The configure-action overload, with a `SessionsClient` worker doing a paged read, is the worked
+example in the root README's [dependency-injection quickstart](../../README.md#dependency-injection)
+— worth reading side by side with the binding above.
 
-The second overload binds the same options from a configuration section:
-
-```csharp
-builder.Services.AddOpenCode(builder.Configuration.GetSection("OpenCode"));
-```
-
-> **⚡ Trimming and native AOT**: this overload is annotated `[RequiresDynamicCode]` and
-> `[RequiresUnreferencedCode]`, because configuration binding reflects over the options type.
-> Calling it from a trimmed or AOT-published app produces **IL2026** and **IL3050** warnings by
-> design. Use the configure-action overload above there — it needs no reflection, and both packages
-> declare `IsAotCompatible` on `net10.0`.
-
-Nothing about DI changes which door you came in through: an `AddOpenCode` registration is an
-explicit endpoint, and a launcher-started server is registered by handing `CreateClient()`'s result
-to the container yourself.
+Nothing about DI changes which door you came in through: an `AddOpenCode` registration is the
+explicit-endpoint door, and a launcher-started server joins a container by registering
+`CreateClient()`'s result yourself.
 
 ## 🔜 Attaching to a background service
 
