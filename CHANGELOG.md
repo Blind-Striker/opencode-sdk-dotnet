@@ -7,7 +7,7 @@ Each released version links straight to its GitHub Release tag.
 
 > **The first release.** `0.1.0` has not shipped to NuGet.org yet — nightly builds of everything
 > below are on [GitHub Packages](README.md#nightly-builds-github-packages) today, versioned
-> `0.1.0-nightly.{yyyyMMdd}.{shortSha}` from every push to `master`.
+> `0.1.0-nightly.{yyyyMMdd}.{shortSha}` from every code push to `master`.
 
 ### ✨ New features
 
@@ -59,7 +59,7 @@ Each released version links straight to its GitHub Release tag.
   [`spec/SNAPSHOT.md`](spec/SNAPSHOT.md).
 - **Generated output is committed and reviewed as source**, locked by a public-API baseline and
   verified by regeneration, so a protocol refresh arrives as a readable diff.
-- **Test suite:** 4,407 tests green on Windows — the fullest leg, and the only one that adds the
+- **Test suite:** 4,418 tests green on Windows — the fullest leg, and the only one that adds the
   `net472` assemblies. Linux and macOS run the same suite on the three modern targets.
 
 ### 📋 Important Notes

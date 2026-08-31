@@ -22,7 +22,7 @@ thing missing is the first published package.
 - ✅ **131 of 136 operations** callable, across 27 client families — sessions, PTYs, persistent
   PTYs, shells, events, MCP servers, integrations, providers, permissions, credentials, VCS,
   worktrees, websearch, and more
-- ✅ **4,407 tests** green on Windows — the fullest leg, the only one that adds the `net472`
+- ✅ **4,418 tests** green on Windows — the fullest leg, the only one that adds the `net472`
   assemblies. Linux and macOS run the same suite on `net8.0`, `net9.0`, and `net10.0`
 - ✅ **Server-sent event streams**, global and per-session, over the same transport as one-shot calls
 - ✅ **PTY and persistent-PTY terminal sessions** through hand-written WebSocket doors
@@ -130,7 +130,7 @@ Until then, use the nightly feed below.
 
 ### Nightly builds (GitHub Packages)
 
-Every push to `master` publishes `0.1.0-nightly.{yyyyMMdd}.{shortSha}` to GitHub Packages:
+Every code push to `master` publishes `0.1.0-nightly.{yyyyMMdd}.{shortSha}` to GitHub Packages:
 
 ```bash
 # Add the GitHub Packages source
@@ -279,7 +279,8 @@ Architecture, decision records, and engineering policy live under [`docs/`](docs
 - **Nothing is on NuGet.org yet.** The `0.1.0` package is prepared but unpublished, so
   `dotnet add package OpenCode.Sdk` will not resolve. Use the
   [GitHub Packages nightly feed](#nightly-builds-github-packages) until the first stable release;
-  the nightly and stable packages are built from the same sources by the same workflow.
+  the nightly and stable packages are built from the same sources by two workflows that share the
+  same verify-and-pack steps.
 
 - **Response bodies larger than 1 MB allocate an extra copy on `net472` and `netstandard2.0`.**
   The downlevel array pool caps its buckets at 1 MB, so a rent above that cap falls through to a
