@@ -132,6 +132,7 @@ jobs:
           TUNIT_ARTIFACT_RETENTION_DAYS: 7
 
       - name: Publish test results
+        id: test-results
         uses: dorny/test-reporter@v3
         if: success() || failure()
         # Allow fork PRs to fail gracefully (permission error) without breaking the workflow.
@@ -142,6 +143,28 @@ jobs:
           reporter: dotnet-trx
           path-replace-backslashes: true
           fail-on-error: true
+
+      # Badge posting failure must not fail CI: the badgesmith.cs tool exits 0 on a failed post
+      # unless --fail-on-error is passed (which this action never does), and continue-on-error
+      # here is defense in depth against pre-flight validation failures. always() plus the
+      # ref/event guard mirrors badge-smith's own ci-cd.yml so a failing master run still posts
+      # the (failing) counts instead of leaving the badge stale.
+      - name: Update test badge via BadgeSmith API
+        if: always() && github.ref == 'refs/heads/master' && github.event_name == 'push'
+        continue-on-error: true
+        uses: localstack-dotnet/badge-smith/.github/workflows/update-test-badge@v1
+        with:
+          platform: ${{ matrix.name }}
+          test_passed: '${{ steps.test-results.outputs.passed || 0 }}'
+          test_failed: '${{ steps.test-results.outputs.failed || 0 }}'
+          test_skipped: '${{ steps.test-results.outputs.skipped || 0 }}'
+          test_url_html: ${{ steps.test-results.outputs.url_html || '' }}
+          commit_sha: '${{ github.sha }}'
+          run_id: '${{ github.run_id }}'
+          repository: '${{ github.repository }}'
+          server_url: '${{ github.server_url }}'
+          api_base_url: 'https://api.localstackfor.net'
+          hmac_secret: '${{ secrets.TESTDATASECRET }}'
 
       - name: Upload test artifacts
         uses: actions/upload-artifact@v7
