@@ -50,14 +50,17 @@ Each released version links straight to its GitHub Release tag.
 ### 🛠️ General
 
 - **Target frameworks:** `netstandard2.0`, `net472`, `net8.0`, `net9.0`, `net10.0` — for both
-  packages. The full test suite runs on every one of them, including the real-process launcher
-  tests on `net472`.
+  packages. The suite runs on `net472` on Windows, real-process launcher tests included, and on
+  `net8.0`/`net9.0`/`net10.0` on all three OSes. `netstandard2.0` is a consumption target rather
+  than a test target — it has no runtime to execute on, and the `net472` leg is what exercises its
+  compile surface.
 - **Protocol identity:** built against an accepted OpenAPI snapshot of upstream's `v2` branch, not
   a live branch. The exact commit, its digest, and the receipt-governed refresh procedure live in
   [`spec/SNAPSHOT.md`](spec/SNAPSHOT.md).
 - **Generated output is committed and reviewed as source**, locked by a public-API baseline and
   verified by regeneration, so a protocol refresh arrives as a readable diff.
-- **Test suite:** 4,407 tests green on all target frameworks across Linux, Windows, and macOS.
+- **Test suite:** 4,407 tests green on Windows — the fullest leg, and the only one that adds the
+  `net472` assemblies. Linux and macOS run the same suite on the three modern targets.
 
 ### 📋 Important Notes
 

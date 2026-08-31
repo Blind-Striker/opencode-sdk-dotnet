@@ -1,6 +1,6 @@
 # opencode SDK for .NET
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![NuGet Version](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Fpackages%2Fnuget%2FOpenCode.Sdk%3Fprerelease%3Dtrue)](https://www.nuget.org/packages/OpenCode.Sdk) [![Github Packages](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Fpackages%2Fgithub%2FBlind-Striker%2FOpenCode.Sdk%3Fprerelease%3Dtrue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCode.Sdk) [![CI](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml/badge.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml) [![Linux Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Flinux%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/linux/blind-striker/opencode-sdk-dotnet/master) [![Windows Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Fwindows%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/windows/blind-striker/opencode-sdk-dotnet/master) [![macOS Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Fmacos%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/macos/blind-striker/opencode-sdk-dotnet/master)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![NuGet Version](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Fpackages%2Fnuget%2FOpenCode.Sdk%3Fprerelease%3Dtrue)](https://www.nuget.org/packages/OpenCode.Sdk) [![CI](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml/badge.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml) [![Linux Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Flinux%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/linux/blind-striker/opencode-sdk-dotnet/master) [![Windows Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Fwindows%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/windows/blind-striker/opencode-sdk-dotnet/master) [![macOS Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Fmacos%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/macos/blind-striker/opencode-sdk-dotnet/master)
 
 > **🚀 Quick Start**: the first release is upcoming — [nightly builds](#-installation) are on GitHub Packages today | [Quick start](#-quick-start) | [Guide](docs/guide/getting-started.md)
 
@@ -22,7 +22,8 @@ thing missing is the first published package.
 - ✅ **131 of 136 operations** callable, across 27 client families — sessions, PTYs, persistent
   PTYs, shells, events, MCP servers, integrations, providers, permissions, credentials, VCS,
   worktrees, websearch, and more
-- ✅ **4,407 tests** green on every target framework, on Linux, Windows, and macOS
+- ✅ **4,407 tests** green on Windows — the fullest leg, the only one that adds the `net472`
+  assemblies. Linux and macOS run the same suite on `net8.0`, `net9.0`, and `net10.0`
 - ✅ **Server-sent event streams**, global and per-session, over the same transport as one-shot calls
 - ✅ **PTY and persistent-PTY terminal sessions** through hand-written WebSocket doors
 - ✅ **A launcher** — `OpenCodeServer.StartAsync()` starts, monitors, and stops a private
@@ -46,25 +47,26 @@ pin is `b1e3a7b2` on upstream's `v2` branch.
 - [.NET Framework 4.7.2 and Above](https://dotnet.microsoft.com/download/dotnet-framework)
 
 Both packages target the same set: `netstandard2.0;net472;net8.0;net9.0;net10.0`. The downlevel
-targets are not a compatibility shim — the whole test suite runs on `net472` beside the modern
-targets, real-process launcher acceptance included, and `netstandard2.0` is what carries the SDK
-into hosts that predate them.
+targets are not a compatibility shim — the whole suite runs on `net472` on Windows,
+real-process launcher acceptance included, and on `net8.0`/`net9.0`/`net10.0` on all three OSes.
+`netstandard2.0` is a consumption target rather than a test target: it has no runtime to execute
+on, and the `net472` leg is what exercises its compile surface.
 
 ### Build & Test Matrix
 
 | Category | Platform/Type | Status | Description |
 |----------|---------------|--------|-------------|
 | **🔧 Build** | Cross-Platform | [![CI](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml/badge.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml) | Matrix: Windows, Linux, macOS |
-| **🧪 Tests** | Linux | [![Linux Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Flinux%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/linux/blind-striker/opencode-sdk-dotnet/master) | All framework targets |
-| **🧪 Tests** | Windows | [![Windows Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Fwindows%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/windows/blind-striker/opencode-sdk-dotnet/master) | All framework targets |
-| **🧪 Tests** | macOS | [![macOS Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Fmacos%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/macos/blind-striker/opencode-sdk-dotnet/master) | All framework targets |
+| **🧪 Tests** | Linux | [![Linux Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Flinux%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/linux/blind-striker/opencode-sdk-dotnet/master) | `net8.0`, `net9.0`, `net10.0` |
+| **🧪 Tests** | Windows | [![Windows Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Fwindows%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/windows/blind-striker/opencode-sdk-dotnet/master) | `net472` plus every modern target |
+| **🧪 Tests** | macOS | [![macOS Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Fmacos%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/macos/blind-striker/opencode-sdk-dotnet/master) | `net8.0`, `net9.0`, `net10.0` |
 
 ## 📦 Package Status
 
 | Package | NuGet.org | GitHub Packages |
 |---------|-----------|-----------------|
-| **OpenCode.Sdk** | [![NuGet](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Fpackages%2Fnuget%2FOpenCode.Sdk%3Fprerelease%3Dtrue)](https://www.nuget.org/packages/OpenCode.Sdk) | [![GitHub Packages](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Fpackages%2Fgithub%2FBlind-Striker%2FOpenCode.Sdk%3Fprerelease%3Dtrue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCode.Sdk) |
-| **OpenCode.Sdk.Extensions** | [![NuGet](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Fpackages%2Fnuget%2FOpenCode.Sdk.Extensions%3Fprerelease%3Dtrue)](https://www.nuget.org/packages/OpenCode.Sdk.Extensions) | [![GitHub Packages](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Fpackages%2Fgithub%2FBlind-Striker%2FOpenCode.Sdk.Extensions%3Fprerelease%3Dtrue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCode.Sdk.Extensions) |
+| **OpenCode.Sdk** | [![NuGet](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Fpackages%2Fnuget%2FOpenCode.Sdk%3Fprerelease%3Dtrue)](https://www.nuget.org/packages/OpenCode.Sdk) | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCode.Sdk) |
+| **OpenCode.Sdk.Extensions** | [![NuGet](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Fpackages%2Fnuget%2FOpenCode.Sdk.Extensions%3Fprerelease%3Dtrue)](https://www.nuget.org/packages/OpenCode.Sdk.Extensions) | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCode.Sdk.Extensions) |
 
 ## Table of Contents
 
