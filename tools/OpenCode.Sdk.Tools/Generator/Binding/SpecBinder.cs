@@ -64,9 +64,16 @@ internal sealed class SpecBinder(
         // pending set hides no drift only because the curation validator above proves every
         // row on every bind — existence, reason, and the subtree fingerprint are that wall.
         var transportOwnedIds = curation.TransportOwned.Select(static row => row.OperationId).ToHashSet(StringComparer.Ordinal);
+        // A declined operation is likewise neither selected nor pending: a standing wall refuses
+        // it and the maintainer decided the wall stands. The validator above proves every row
+        // (existence, reason, no overlap with selection or a transport-owned row); the
+        // coordinator's probe proves the remaining claim — that the wall is real.
+        var declinedIds = curation.Declined.Select(static row => row.OperationId).ToHashSet(StringComparer.Ordinal);
         var pending = document
             .Operations
-            .Where(operation => !selectedIds.Contains(operation.OperationId) && !transportOwnedIds.Contains(operation.OperationId))
+            .Where(operation => !selectedIds.Contains(operation.OperationId)
+                                && !transportOwnedIds.Contains(operation.OperationId)
+                                && !declinedIds.Contains(operation.OperationId))
             .OrderBy(static operation => operation.OperationId, StringComparer.Ordinal)
             .Select(static operation => new PendingOperationPlan
             {
@@ -86,6 +93,14 @@ internal sealed class SpecBinder(
             Clients = clients,
             PendingOperations = pending,
             TransportOwnedOperationIds = [.. transportOwnedIds.Order(StringComparer.Ordinal)],
+            DeclinedOperations =
+            [
+                .. curation
+                    .Declined
+                    .DistinctBy(static row => row.OperationId, StringComparer.Ordinal)
+                    .OrderBy(static row => row.OperationId, StringComparer.Ordinal)
+                    .Select(static row => new DeclinedOperationPlan { OperationId = row.OperationId, Reason = row.Reason })
+            ],
             ImplicitAliases = collapse,
         };
     }

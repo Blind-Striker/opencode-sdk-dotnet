@@ -16,7 +16,8 @@ internal static class BindingScenarioData
         IReadOnlyList<OperationNameCuration>? operationNames = null,
         IReadOnlyList<SchemaNameCuration>? schemaNames = null,
         IReadOnlyList<OperationIdentityCuration>? operationIdentities = null,
-        IReadOnlyList<TransportOwnedCuration>? transportOwned = null) =>
+        IReadOnlyList<TransportOwnedCuration>? transportOwned = null,
+        IReadOnlyList<DeclinedCuration>? declined = null) =>
         new()
         {
             Groups = groups,
@@ -26,6 +27,15 @@ internal static class BindingScenarioData
             EnvelopePayloadNames = envelopePayloadNames ?? new Dictionary<string, string>(StringComparer.Ordinal),
             SchemaAliases = schemaAliases ?? [],
             TransportOwned = transportOwned ?? [],
+            Declined = declined ?? [],
+        };
+
+    public static DeclinedCuration Declined(string operationId,
+        string reason = "A standing wall refuses the operation and the maintainer decided the wall stands.") =>
+        new()
+        {
+            OperationId = operationId,
+            Reason = reason,
         };
 
     public static TransportOwnedCuration TransportOwned(string operationId, string subtreeSha256,

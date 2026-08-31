@@ -14,5 +14,6 @@
   "schemaNames": [],
   "envelopePayloadNames": {},
   "schemaAliases": [],
-  "transportOwned": []
+  "transportOwned": [],
+  "declined": []
 }

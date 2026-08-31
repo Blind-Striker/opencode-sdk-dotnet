@@ -69,6 +69,20 @@ internal sealed record EmitPlan
     } = Array.AsReadOnly(Array.Empty<string>());
 
     /// <summary>
+    /// Operations a <c>declined</c> curation row covers: neither selected nor pending, a standing
+    /// wall refuses them and the maintainer has decided the wall stands. Ordinal-sorted by id.
+    /// </summary>
+    public required IReadOnlyList<DeclinedOperationPlan> DeclinedOperations
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<DeclinedOperationPlan>());
+
+    /// <summary>
     /// Gets the stabilize duplicates the binder folded mechanically, the committed telltale the
     /// generation manifest carries in place of the curated rows the convention retires.
     /// </summary>

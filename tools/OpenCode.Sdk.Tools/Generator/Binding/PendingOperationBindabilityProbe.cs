@@ -8,7 +8,9 @@ namespace OpenCode.Sdk.Tools.Generator.Binding;
 /// Marks each pending operation with the bindability the real selection-path binder finds, so
 /// wall-free drift among pending operations surfaces as a committed diff instead of accumulating
 /// silently — the interim telltale bridging until the operation inventory/assurance-ledger lane
-/// standardizes pending-operation tracking.
+/// standardizes pending-operation tracking. Declined operations are probed the same way and for
+/// the same reason: a decline asserts a standing wall, and only this probe can confirm it still
+/// stands.
 ///
 /// Each probe binds one operation in isolation through the same <see cref="ISpecBinder"/>
 /// selection uses, under a synthetic single-group, root-placed curation row that answers "would
@@ -104,5 +106,6 @@ internal sealed class PendingOperationBindabilityProbe(ISpecBinder binder)
             EnvelopePayloadNames = new Dictionary<string, string>(StringComparer.Ordinal),
             SchemaAliases = [],
             TransportOwned = [],
+            Declined = [],
         };
 }

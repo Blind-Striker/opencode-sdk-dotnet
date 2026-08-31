@@ -25,6 +25,7 @@ internal sealed class CurationValidator
         ValidateSchemaNames(document, reachable, curation, errors);
         ValidateEnvelopeNames(selectedIds, documentIds, curation, errors);
         ValidateTransportOwned(document, selectedIds, curation, errors);
+        ValidateDeclined(documentIds, selectedIds, curation, errors);
     }
 
     private static void ValidateSchemaNames(SpecDocument document, ReachableSchemaSet reachable,
@@ -357,6 +358,53 @@ internal sealed class CurationValidator
                     row.OperationId,
                     "transport-owned operation subtree no longer matches the committed subtreeSha256 "
                     + $"(declared '{row.SubtreeSha256}', computed '{computed}'); review the reshaped operation and repin");
+            }
+        }
+    }
+
+    /// <summary>
+    /// A declined row records an operation the generator cannot reach and the maintainer has
+    /// decided to leave unreached, so — like a transport-owned row — it is judged against
+    /// <paramref name="documentIds"/>, the full ingested operation set, not the selected subset.
+    /// A row over an operation the document no longer declares refuses instead of lingering:
+    /// when upstream removes or reshapes the operation, retiring the row is a conscious diff.
+    /// A row over a selected operation refuses because the two states contradict, and a row that
+    /// repeats a transport-owned row refuses because both states would claim the same operation
+    /// and the marker would count it twice. The remaining wall — that a declined operation must
+    /// actually be walled — needs the bindability probe and therefore lives in
+    /// <see cref="GenerationCoordinator"/>, which owns the probe.
+    /// </summary>
+    private static void ValidateDeclined(HashSet<string> documentIds, HashSet<string> selectedIds, GenerationCuration curation,
+        BindingErrorCollector errors)
+    {
+        var transportOwnedIds = curation.TransportOwned.Select(static row => row.OperationId).ToHashSet(StringComparer.Ordinal);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var row in curation.Declined)
+        {
+            if (!seen.Add(row.OperationId))
+            {
+                errors.Add(BindingErrorCategory.Curation, row.OperationId, "declined curation is duplicated");
+            }
+
+            if (string.IsNullOrWhiteSpace(row.Reason))
+            {
+                errors.Add(BindingErrorCategory.Curation, row.OperationId, "declined curation must declare a reason");
+            }
+
+            if (!documentIds.Contains(row.OperationId))
+            {
+                errors.Add(BindingErrorCategory.Curation, row.OperationId, "curated operation does not exist in the spec");
+                continue;
+            }
+
+            if (selectedIds.Contains(row.OperationId))
+            {
+                errors.Add(BindingErrorCategory.Curation, row.OperationId, "declined operation cannot be selected");
+            }
+
+            if (transportOwnedIds.Contains(row.OperationId))
+            {
+                errors.Add(BindingErrorCategory.Curation, row.OperationId, "declined operation cannot also be transport-owned");
             }
         }
     }

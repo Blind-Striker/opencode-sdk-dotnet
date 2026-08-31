@@ -365,6 +365,20 @@
       "reason": "The persistent PTY WebSocket session door is hand-written over its own URL/query construction (ADR-0021 pattern, Task 4); the operation is never selected into the generation profile, so this fingerprint is the only generation-time check that a spec refresh reshaping method, path, the six connect queries, the x-websocket marker, or declared responses fails loudly instead of drifting silently under the hand-written door."
     }
   ],
+  "declined": [
+    {
+      "operationId": "v2.config.get",
+      "reason": "Config.InfoEncoded carries same-token-kind structural unions the ADR-0016 union mechanism cannot distinguish, so the operation does not bind; moving it needs a union mechanism, not a curation row, and the maintainer stood the wall on 2026-08-30."
+    },
+    {
+      "operationId": "v2.experimental.migration.v1.status",
+      "reason": "The status response is the same class of same-token-kind structural union wall as v2.config.get and does not bind; the maintainer stood the wall on 2026-08-28 and has not reopened it."
+    },
+    {
+      "operationId": "v2.fs.read",
+      "reason": "Upstream declares the route as the framework wildcard '/api/fs/read/*' rather than an OpenAPI path template, so the document gives the generator no path parameter to bind and inventing one is forbidden (ADR-0013); the upstream report is drafted and parked, maintainer 2026-08-30."
+    }
+  ],
   "envelopePayloadNames": {
     "v2.debug.location.list": "Locations",
     "v2.form.request.list": "Requests",

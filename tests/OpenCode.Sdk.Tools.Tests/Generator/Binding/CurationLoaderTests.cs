@@ -27,6 +27,19 @@ public sealed class CurationLoaderTests
         await Assert.That(curation.EnvelopePayloadNames).IsEmpty();
         await Assert.That(curation.SchemaAliases).IsEmpty();
         await Assert.That(curation.TransportOwned).IsEmpty();
+        await Assert.That(curation.Declined).IsEmpty();
+    }
+
+    [Test]
+    public async Task LoadAsync_Should_Read_Reasoned_Declined_Rows()
+    {
+        var fileSystem = CreateFileSystem("Binding.declined-curation.json");
+
+        var curation = await new CurationLoader(fileSystem).LoadAsync(CurationPath, CancellationToken.None);
+
+        var row = curation.Declined.Single();
+        await Assert.That(row.OperationId).IsEqualTo("v2.fs.read");
+        await Assert.That(row.Reason).Contains("wildcard");
     }
 
     [Test]
@@ -40,8 +53,10 @@ public sealed class CurationLoaderTests
 
         await Assert
             .That(sections)
-            .IsEquivalentTo(
-                ["envelopePayloadNames", "groups", "operationIdentities", "operationNames", "schemaAliases", "schemaNames", "transportOwned"]);
+            .IsEquivalentTo([
+                "declined", "envelopePayloadNames", "groups", "operationIdentities", "operationNames", "schemaAliases",
+                "schemaNames", "transportOwned"
+            ]);
     }
 
     [Test]

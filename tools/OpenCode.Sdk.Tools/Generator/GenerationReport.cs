@@ -34,5 +34,15 @@ internal sealed record GenerationReport
         }
     } = Array.AsReadOnly(Array.Empty<string>());
 
+    public required IReadOnlyList<string> DeclinedOperationIds
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<string>());
+
     public required WriteResult WriteResult { get; init; }
 }

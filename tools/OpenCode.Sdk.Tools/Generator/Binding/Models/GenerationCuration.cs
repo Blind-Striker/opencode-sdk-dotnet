@@ -82,4 +82,16 @@ internal sealed record GenerationCuration
             field = Array.AsReadOnly([.. value]);
         }
     } = Array.AsReadOnly(Array.Empty<TransportOwnedCuration>());
+
+    /// <summary>Operations a standing wall refuses and the maintainer has decided to leave out of the generated surface.</summary>
+    [JsonPropertyName("declined")]
+    public required IReadOnlyList<DeclinedCuration> Declined
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<DeclinedCuration>());
 }

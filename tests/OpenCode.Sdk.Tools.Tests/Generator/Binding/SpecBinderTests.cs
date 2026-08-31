@@ -47,7 +47,9 @@ public sealed class SpecBinderTests
         var plan = new BindingTestHost().Bind(document, selection, curation);
 
         await Assert.That(plan.SelectedOperationIds.SequenceEqual(selection.OperationIds, StringComparer.Ordinal)).IsTrue();
-        await Assert.That(plan.PendingOperations).IsNotEmpty();
+        // Every operation the pinned profile leaves unselected is declined or transport-owned by
+        // decision, so the pinned plan carries no pending operations at all.
+        await Assert.That(plan.PendingOperations).IsEmpty();
         await Assert.That(plan.Models.Any(static model => model.Name == "PromptFileSourceUri")).IsTrue();
         await Assert.That(plan.Models.Any(static model => model.Name == "ConfigInfo")).IsFalse();
 
@@ -1586,6 +1588,128 @@ public sealed class SpecBinderTests
             })
             .WithOperation("v2.health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("TransportOwnedScenarioHealth"))));
+
+    [Test]
+    public async Task Bind_Should_Move_A_Declined_Operation_Out_Of_The_Pending_Set()
+    {
+        var document = await IngestAsync(DeclinedScenario());
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(Groups("health", RootGroup()), declined: [Declined("v2.widget.tail")]));
+
+        await Assert.That(plan.PendingOperations).IsEmpty();
+        var declined = plan.DeclinedOperations.Single();
+        await Assert.That(declined.OperationId).IsEqualTo("v2.widget.tail");
+        await Assert.That(declined.Reason).Contains("maintainer", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Declined_Operation_That_Is_Also_Selected()
+    {
+        var document = await IngestAsync(DeclinedScenario());
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(Groups("health", RootGroup()), declined: [Declined("v2.health.get"), Declined("v2.widget.tail")])));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+                                                       && error.Subject == "v2.health.get"
+                                                       && error.Problem.Contains("declined operation cannot be selected", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Declined_Row_The_Spec_No_Longer_Declares()
+    {
+        // Staleness telltale: when upstream removes or renames the walled operation, the row has to
+        // be retired consciously instead of standing over an operation nobody can check any more.
+        var document = await IngestAsync(DeclinedScenario());
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(Groups("health", RootGroup()), declined: [Declined("v2.widget.tail"), Declined("v2.gadget.gone")])));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+                                                       && error.Subject == "v2.gadget.gone"
+                                                       && error.Problem.Contains("does not exist in the spec", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Declined_Row_Without_A_Reason()
+    {
+        var document = await IngestAsync(DeclinedScenario());
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(Groups("health", RootGroup()), declined: [Declined("v2.widget.tail", reason: " ")])));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+                                                       && error.Subject == "v2.widget.tail"
+                                                       && error.Problem.Contains("must declare a reason", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Duplicated_Declined_Row()
+    {
+        var document = await IngestAsync(DeclinedScenario());
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(Groups("health", RootGroup()), declined: [Declined("v2.widget.tail"), Declined("v2.widget.tail")])));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+                                                       && error.Subject == "v2.widget.tail"
+                                                       && error.Problem.Contains("duplicated", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_An_Operation_Declared_Both_Declined_And_Transport_Owned()
+    {
+        // Two admission states claiming one operation would double-count it in the marker and leave
+        // the reader without a single answer to "why is this operation not generated?".
+        var document = await IngestAsync(TransportOwnedScenario());
+        var operation = document.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
+        var hash = TransportOwnedFingerprint.ComputeSha256(operation);
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(
+                Groups("health", RootGroup()),
+                transportOwned: [TransportOwned("v2.pty.connect", hash)],
+                declined: [Declined("v2.pty.connect")])));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
+                                                       && error.Subject == "v2.pty.connect"
+                                                       && error.Problem.Contains("cannot also be transport-owned", StringComparison.Ordinal)))
+            .IsTrue();
+    }
+
+    /// <summary>A walled operation (wildcard path, WebSocket-marked) beside one selected root
+    /// operation — the only shape a decline is admitted over.</summary>
+    private static SpecScenario DeclinedScenario() =>
+        SpecScenario.Define(spec => spec
+            .WithSchema("DeclinedScenarioHealth", schema => schema
+                .Type("object")
+                .Property("healthy", property => property.Type("boolean"), required: true))
+            .WithOperation("v2.widget.tail", path: "/api/widget/*", configure: operation => operation
+                .Extension("x-websocket", "true"))
+            .WithOperation("v2.health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("DeclinedScenarioHealth"))));
 
     [Test]
     public async Task Ingest_Should_Refuse_A_Repeated_Path_Token()

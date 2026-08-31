@@ -201,6 +201,28 @@ public sealed class OperationPlanBinderTests
             .IsTrue();
     }
 
+    /// <summary>
+    /// The committed curation's declined rows against the pinned spec: the three operations a
+    /// standing wall refuses and the maintainer decided to leave out of the released surface. With
+    /// them out of the pending set the pinned profile reaches pending = 0, which is what opens the
+    /// packing wall — so a row added, dropped, or reordered must fail here rather than drift.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Report_The_Walled_Operations_As_Declined()
+    {
+        var plan = await new BindingTestHost().BindPinnedAsync();
+
+        await Assert
+            .That(plan
+                .DeclinedOperations.Select(static operation => operation.OperationId)
+                .SequenceEqual(
+                    ["v2.config.get", "v2.experimental.migration.v1.status", "v2.fs.read"],
+                    StringComparer.Ordinal))
+            .IsTrue();
+        await Assert.That(plan.DeclinedOperations.All(static operation => operation.Reason.Length > 0)).IsTrue();
+        await Assert.That(plan.PendingOperations).IsEmpty();
+    }
+
     [Test]
     public async Task Bind_Should_Create_The_Selected_Pinned_Session_Client_Plans()
     {

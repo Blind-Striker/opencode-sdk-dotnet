@@ -16,8 +16,8 @@ surface as committed source under `src/OpenCode.Sdk` (`OpenCodeClient.GetHealthA
 `OpenCodeRoutes`, response adapters), and one hand-written `Pipeline` owns endpoint authority,
 Basic-auth/User-Agent decoration, buffering, throw-versus-`NoThrow`, and transport-failure
 mapping. The public API is locked in a reviewed `PublicApiGenerator` baseline; the writer
-refuses unmanifested overwrites and headerless manifest entries; packing still fails on the
-partial-operation marker while breadth is pending. Demonstrated live 2026-08-13 against
+refuses unmanifested overwrites and headerless manifest entries; packing refuses while
+`.generation-incomplete` records a nonzero pending count. Demonstrated live 2026-08-13 against
 `opencode2 serve` v0.0.0-next-17403 (pin `a6a712a` — deliberate version skew accepted): both
 generated methods returned typed 200 payloads (`ServiceHealth`; `SessionMessageAssistant`
 with its wire `id`).
@@ -317,11 +317,10 @@ and its fifteen operations are landed — the profile stands at **82 selected / 
 The remaining mechanism batches follow — inline promotion, envelope extensions, and the query
 walls, each design-first — and the **M4 launcher** rides alongside as a small
 independent arc (1–2 page plan, approval before source). An **early prerelease packaging track**
-accompanies the breadth push: amend the deliberate partial-operation packing wall in
-`Directory.Build.targets` so prerelease packs are allowed while stable packs stay blocked
-(decision-first; it revises the wall recorded here and rides ADR-0006/#51), then stand up the
-ADR-0006 pipeline — per-merge GitHub Packages CD and the manual NuGet.org lane — whose CI legs
-can now validate against the restored hosted matrix. M4's launcher arc has since landed (below).
+accompanies the breadth push: revise the deliberate partial-operation packing wall in
+`Directory.Build.targets` (settled 2026-08-31 by the declined admission state, below), then stand
+up the ADR-0006 pipeline — per-merge GitHub Packages CD and the manual NuGet.org lane — whose CI
+legs can now validate against the restored hosted matrix. M4's launcher arc has since landed (below).
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family
@@ -567,7 +566,7 @@ is revisited at each milestone boundary.
    the refreshed surface: the no-wall sweep's 14-operation pool the C2 probe surfaced is closed
    (S2 batch A and S3 batch B both landed), and so are the persistentPty family and the
    coverage-to-full arc's mechanism batches, so what is left is the three operations that stay
-   pending by decision (Known Gaps), exclusion fingerprints (ADR-0008),
+   declined by decision (Known Gaps), exclusion fingerprints (ADR-0008),
    the operation inventory and assurance ledger — whose design also standardizes
    pending-operation bindability tracking, so a wall-free pending operation surfaces as a
    committed-artifact diff at every generate/refresh instead of accumulating unseen (maintainer
@@ -622,9 +621,9 @@ is revisited at each milestone boundary.
   the call must carry is invisible to any generated client — **draft ready** under
   `.scratchpad/upstream-issue-drafts/fs-read-wildcard-path.md`, like T3's.
 - **Release mechanics** — decided parts live in ADR-0006 (independent semver, per-merge
-  GitHub Packages CD, manual NuGet.org releases). Pre-1.0 numbering, `VersionPrefix`,
-  RELEASE_NOTES flow, and the concrete workflows are scheduled when the first publishable
-  increment approaches.
+  GitHub Packages CD, manual NuGet.org releases). `VersionPrefix` is the single version source and
+  reads `0.1.0` (`Directory.Build.props`, 2026-08-31); the RELEASE_NOTES flow and the concrete
+  publish workflows land with the release-preparation arc.
 - **A6 configuration/transport split** — deferred with a trigger: when M6 attaches
   telemetry/hook handlers to the transport, or when Extensions gains a concrete
   `IHttpClientFactory`/named-client need, the split of validated client configuration from
@@ -708,11 +707,12 @@ is revisited at each milestone boundary.
   with such a row refuses), the marker carries a fixed `Transport-owned operations:` count and a
   `Transport-owned:` section while it exists (emitted even when empty, so a row's arrival or
   retirement is a one-line diff), and the canon marker sentence reads "unselected and not
-  transport-owned". The marker reads **131 selected / 3 pending / 2 transport-owned**; the
-  packing wall and the three operations pending by decision now meet, which is the release-prep
-  decision recorded below.
-- **Three operations stay pending by decision, not by omission** (coverage-to-full arc, 2026-08-30;
-  evidence research Q159). `.generation-incomplete` is the current map; this is why each one stands.
+  transport-owned". (4) *declined admission state* — **landed 2026-08-31**, below. The marker
+  reads **131 selected / 0 pending / 3 declined / 2 transport-owned**.
+- **Three operations stay declined by decision, not by omission** (coverage-to-full arc,
+  2026-08-30; admitted as `declined` curation rows 2026-08-31; evidence research Q159).
+  `.generation-incomplete` carries each one's reason beside the walls the binder finds today;
+  this is why each one stands.
   (a) `v2.config.get` — the **ADR-0016 structural-union wall**: `Config.InfoEncoded` carries three
   same-token-kind unions (`lsp`'s map value `anyOf[{disabled:true}, Config.LSP.ServerEncoded]`,
   `references`' map value `anyOf[string, Git, Local]`), the identical class the maintainer let stand
@@ -729,15 +729,19 @@ is revisited at each milestone boundary.
   mean inventing a path parameter the document does not declare (ADR-0013). (c)
   `v2.experimental.migration.v1.status` — the same structural-union wall, stood by the maintainer on
   2026-08-28 and not reopened.
-- **Release preparation and the packing wall now meet, and the wall needs a decision.**
-  `Directory.Build.targets` refuses `pack` while `src/OpenCode.Sdk/.generation-incomplete` exists,
-  and the generator writes that marker whenever **any** operation is pending — so the wall keys on
-  pending = 0 while three operations stay pending by decision above. Full admission is therefore not
-  reachable by working the queue: the wall needs either a maintainer-acknowledged residual (a
-  declared pending set it tolerates) or a third admission state — "declined" beside selected and
-  pending — that leaves the marker publishable. That is a decision about what a released package is
-  allowed to omit, not a defect to fix, and it belongs with the prerelease-versus-stable wording
-  already queued for release prep (ADR-0006, #51).
+- **The packing wall opened on a declined admission state** (release-prep Task 4, 2026-08-31).
+  `tools/curation.json` gained a reasoned `declined` section; a declined operation leaves the
+  pending set the way a transport-owned one does, and the curation validator refuses a declined row
+  that is also selected, one over an operation the document no longer declares, and one that
+  duplicates a transport-owned row, while the coordinator's bindability probe refuses a declined row
+  over an operation that binds today (decline is only for walled operations). `.generation-incomplete`
+  gained a `Declined operations:` count and a `Declined:` section carrying
+  `[declined: <reason>] [refused: <walls>]` per row, and it now outlives a cleared pending set as
+  the committed record of what the released surface omits. `Directory.Build.targets` reads the
+  marker's pending count instead of the marker's existence, so `dotnet pack` succeeds at
+  **131 selected / 0 pending / 3 declined / 2 transport-owned** and refuses again the moment an
+  operation goes pending or the pending header cannot be read. The canon sentence for
+  `protocol-and-generation.md`'s marker paragraph is proposed and held for the maintainer (RP2).
 - **Two mechanism steps await the maintainer's seal** (coverage-to-full arc, 2026-08-30). The source
   watch's `apply` refuses a receipt whose anchor verdict failed — deliberate, beyond the approved
   proposal's literal wording, on the grounds that re-pinning a hash whose anchor moved installs the

@@ -1,8 +1,37 @@
 <Project>
-  <!-- A partial generated SDK surface blocks every publishable package, including Extensions. -->
+  <!--
+    A partial generated SDK surface blocks every publishable package, including Extensions. The
+    wall reads the marker's pending count, not the marker's existence: the marker outlives a
+    cleared pending set as the committed record of what the released surface omits by decision
+    (declined operations and transport-owned doors), and only a pending operation - one nobody has
+    decided anything about - must never reach a package. A marker whose pending header cannot be
+    read refuses too, so a reshaped marker fails loudly instead of opening the wall by accident.
+  -->
   <Target Name="RefuseIncompleteGenerationPack"
           BeforeTargets="GenerateNuspec"
-          Condition="'$(IsPackable)' == 'true' And Exists('$(MSBuildThisFileDirectory)src/OpenCode.Sdk/.generation-incomplete')">
-    <Error Text="Packages cannot be created while src/OpenCode.Sdk/.generation-incomplete records pending operations." />
+          Condition="'$(IsPackable)' == 'true'">
+    <PropertyGroup>
+      <_GenerationMarkerPath>$(MSBuildThisFileDirectory)src/OpenCode.Sdk/.generation-incomplete</_GenerationMarkerPath>
+    </PropertyGroup>
+
+    <ReadLinesFromFile File="$(_GenerationMarkerPath)" Condition="Exists('$(_GenerationMarkerPath)')">
+      <Output TaskParameter="Lines" ItemName="_GenerationMarkerLine" />
+    </ReadLinesFromFile>
+
+    <ItemGroup>
+      <_GenerationPendingHeaderLine Include="@(_GenerationMarkerLine)"
+                                    Condition="$([System.String]::Copy('%(Identity)').StartsWith('Pending operations:'))" />
+    </ItemGroup>
+
+    <PropertyGroup>
+      <_GenerationPendingHeader>@(_GenerationPendingHeaderLine)</_GenerationPendingHeader>
+      <_GenerationPendingCount>$(_GenerationPendingHeader.Replace('Pending operations:', '').Trim())</_GenerationPendingCount>
+    </PropertyGroup>
+
+    <Error Condition="Exists('$(_GenerationMarkerPath)') And '$(_GenerationPendingCount)' == ''"
+           Text="Packages cannot be created: $(_GenerationMarkerPath) exists but declares no 'Pending operations: &lt;count&gt;' header, so the pending set cannot be read. Run 'dotnet run --file tools/opencode-tool.cs -- generate' and review the marker." />
+
+    <Error Condition="'$(_GenerationPendingCount)' != '' And '$(_GenerationPendingCount)' != '0'"
+           Text="Packages cannot be created while $(_GenerationPendingCount) operation(s) are pending. $(_GenerationMarkerPath) lists them under 'Pending:'; select each one into tools/generation-profile.txt, or decline it in tools/curation.json with a reason, before packing." />
   </Target>
 </Project>

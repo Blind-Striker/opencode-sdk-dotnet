@@ -57,6 +57,7 @@ internal sealed partial class GenerateCommand : AsyncCommand<GenerateCommand.Set
     {
         _console.MarkupLine($"[grey]Selected operations:[/] {report.SelectedOperationIds.Count.ToString(CultureInfo.InvariantCulture)}");
         _console.MarkupLine($"[yellow]Pending operations:[/] {report.PendingOperationIds.Count.ToString(CultureInfo.InvariantCulture)}");
+        _console.MarkupLine($"[grey]Declined operations:[/] {report.DeclinedOperationIds.Count.ToString(CultureInfo.InvariantCulture)}");
         _console.MarkupLine($"[grey]Transport-owned operations:[/] {report.TransportOwnedOperationIds.Count.ToString(CultureInfo.InvariantCulture)}");
     }
 

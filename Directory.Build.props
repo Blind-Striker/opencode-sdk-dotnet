@@ -8,6 +8,9 @@
     <LangVersion>14.0</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- The single source of the package version. Prereleases add their suffix at pack time
+         (the pack command's version-suffix option); nothing else declares Version or PackageVersion. -->
+    <VersionPrefix>0.1.0</VersionPrefix>
     <Authors>Deniz İrgin</Authors>
     <Company>Deniz İrgin</Company>
     <Owners>Deniz İrgin</Owners>

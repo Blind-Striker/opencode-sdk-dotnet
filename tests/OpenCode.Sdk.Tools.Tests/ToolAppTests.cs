@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OpenCode.Sdk.Tools.Commands;
 using OpenCode.Sdk.Tools.Generator;
+using OpenCode.Sdk.Tools.Generator.Binding.Models;
 using OpenCode.Sdk.Tools.Infrastructure;
 using OpenCode.Sdk.Tools.Infrastructure.Logging;
 using OpenCode.Sdk.Tools.Output.Abstractions;
@@ -151,10 +152,94 @@ public sealed class ToolAppTests
         await Assert.That(result.ExitCode).IsEqualTo(0);
         await Assert.That(result.Output).Contains("Transport-owned operations: 1");
         var marker = await fileSystem.File.ReadAllTextAsync(GenerationTestData.MarkerPath, CancellationToken.None);
-        await Assert.That(marker).Contains("Pending operations: 3\nTransport-owned operations: 1\n");
+        await Assert.That(marker).Contains("Pending operations: 3\nDeclined operations: 0\nTransport-owned operations: 1\n");
         await Assert.That(marker).Contains("- v2.plugin.list [bindable]");
         await Assert.That(marker).Contains("Transport-owned:\n- v2.pty.connect [fingerprint-pinned]\n");
         await Assert.That(marker).DoesNotContain("- v2.pty.connect [refused");
+    }
+
+    [Test]
+    public async Task RunAsync_Should_List_Declined_Operations_With_Their_Reason_And_Walls()
+    {
+        var fileSystem = GenerationTestData.CreateDeclinedCommandFileSystem();
+        using var registrar = ToolApp.CreateRegistrar(services =>
+        {
+            services.AddSingleton<IFileSystem>(fileSystem);
+            services.AddSingleton<IAnsiConsole, TestConsole>();
+            services.AddSingleton<IProjectFormatter>(new RecordingProjectFormatter(fileSystem));
+        });
+        var tester = new CommandAppTester(registrar);
+        tester.Configure(ToolApp.Configure);
+
+        var result = await tester.RunAsync(["generate"]);
+
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(result.Output).Contains("Declined operations: 1");
+        var marker = await fileSystem.File.ReadAllTextAsync(GenerationTestData.MarkerPath, CancellationToken.None);
+        await Assert.That(marker).Contains("Pending operations: 2\nDeclined operations: 1\nTransport-owned operations: 0\n");
+        // The declined line carries the decision and the wall the binder finds today, so the two
+        // are reviewed against each other in one place.
+        await Assert.That(marker).Contains(
+            "Declined:\n- v2.widget.tail [declined: The route is an upstream wildcard and the operation is WebSocket-marked, "
+            + "so it does not bind; maintainer 2026-08-30.] "
+            + "[refused: wildcard paths are not supported in M1; WebSocket operations are not supported in M1]\n");
+        await Assert.That(marker).DoesNotContain("Pending:\n- v2.widget.tail");
+    }
+
+    [Test]
+    public async Task RunAsync_Should_Keep_The_Marker_When_Every_Gap_Is_Declined()
+    {
+        var fileSystem = GenerationTestData.CreateFullyDeclinedCommandFileSystem();
+        using var registrar = ToolApp.CreateRegistrar(services =>
+        {
+            services.AddSingleton<IFileSystem>(fileSystem);
+            services.AddSingleton<IAnsiConsole, TestConsole>();
+            services.AddSingleton<IProjectFormatter>(new RecordingProjectFormatter(fileSystem));
+        });
+        var tester = new CommandAppTester(registrar);
+        tester.Configure(ToolApp.Configure);
+
+        var result = await tester.RunAsync(["generate"]);
+
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        var marker = await fileSystem.File.ReadAllTextAsync(GenerationTestData.MarkerPath, CancellationToken.None);
+        // The marker outlives a cleared pending set: it is the committed record of what the
+        // released surface omits, and the packing wall reads its pending count, not its existence.
+        await Assert.That(marker).StartsWith("Generation is complete at the declared coverage; packages may be published.\n");
+        await Assert.That(marker).Contains("Pending operations: 0\nDeclined operations: 2\nTransport-owned operations: 0\n");
+        await Assert.That(marker).Contains("Pending:\nDeclined:\n- v2.session.list [declined: ");
+    }
+
+    [Test]
+    public async Task RunAsync_Should_Refuse_A_Declined_Row_Over_A_Bindable_Operation()
+    {
+        var fileSystem = GenerationTestData.CreateBindableDeclineCommandFileSystem();
+        using var registrar = ToolApp.CreateRegistrar(services =>
+        {
+            services.AddSingleton<IFileSystem>(fileSystem);
+            services.AddSingleton<IAnsiConsole, TestConsole>();
+            services.AddSingleton<IProjectFormatter>(new RecordingProjectFormatter(fileSystem));
+        });
+        var tester = new CommandAppTester(registrar);
+        // The refusal is the binder's own exception; propagating it keeps the assertion on the
+        // refusal rather than on Spectre's rendered crash output.
+        tester.Configure(configurator =>
+        {
+            ToolApp.Configure(configurator);
+            configurator.PropagateExceptions();
+        });
+
+        // Decline is only for walled operations: an operation that binds today has to be selected
+        // or left pending, so the row cannot outlive the wall it cites.
+        var exception = await Assert
+            .That(async () => _ = await tester.RunAsync(["generate"]))
+            .Throws<BindingException>();
+
+        var error = exception!.Errors.Single();
+        await Assert.That(error.Category).IsEqualTo(BindingErrorCategory.Curation);
+        await Assert.That(error.Subject).IsEqualTo("v2.plugin.list");
+        await Assert.That(error.Problem).Contains("a bindable operation cannot be declined");
+        await Assert.That(fileSystem.File.Exists(GenerationTestData.MarkerPath)).IsFalse();
     }
 
     [Test]

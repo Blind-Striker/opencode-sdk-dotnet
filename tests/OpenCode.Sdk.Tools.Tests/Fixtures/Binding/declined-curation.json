@@ -10,5 +10,10 @@
   "envelopePayloadNames": {},
   "schemaAliases": [],
   "transportOwned": [],
-  "declined": []
+  "declined": [
+    {
+      "operationId": "v2.fs.read",
+      "reason": "The route is an upstream wildcard, so there is nothing for the generator to bind; the maintainer left it out on 2026-08-30."
+    }
+  ]
 }
