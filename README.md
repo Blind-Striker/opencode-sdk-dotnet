@@ -263,6 +263,7 @@ hand-written `PtySession` and `PersistentPtySession` doors described in
 
 | Guide | What it covers |
 |---|---|
+| [**The guide**](docs/guide/README.md) | Index of every page below, in reading order |
 | [Getting started](docs/guide/getting-started.md) | Install, first call, and the shape of the client family |
 | [Connection modes](docs/guide/connection-modes.md) | The standalone launcher, an external server, and DI registration |
 | [Streaming](docs/guide/streaming.md) | The global event bus and per-session server-sent event streams |
