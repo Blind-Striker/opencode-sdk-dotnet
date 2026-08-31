@@ -162,7 +162,11 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: localstack-dotnet/badge-smith
-          ref: v1
+          # Pinned to the commit the live api.localstackfor.net deployment runs (not the v1 tag):
+          # the v1 tool's signing chain predates the deployed server and its posts answer 401
+          # "Invalid HMAC signature"; the same post from this commit answers 201. Re-pin when
+          # badge-smith deploys and tags a new release.
+          ref: f3ab12b93c9d55cb27c467945504ca90c87b3eed
           path: .badge-smith
 
       - name: Update test badge via BadgeSmith API
