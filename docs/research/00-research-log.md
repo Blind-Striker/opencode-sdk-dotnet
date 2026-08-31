@@ -1,6 +1,6 @@
 # Research log — 2026-08-08
 
-Date: 2026-08-30
+Date: 2026-08-31
 
 > Dated evidence and decision history, not current policy. Follow current canon through
 > `AGENTS.md`; later sessions in this log intentionally supersede some earlier conclusions.
@@ -4860,3 +4860,182 @@ only test that depends on a *refused* connect (loopback port 1) and so on an exc
 than on no network at all, and `LoopbackPortReservationTests.cs:21-27`, which performs 128 rapid
 ephemeral binds. The recipe for the next occurrence is to run the gates with
 `--report-trx --report-trx-filename <unique>` so a recurrence yields names instead of a count.
+
+## Q160: What did the release-preparation arc land, and what remains maintainer-only?
+
+**Method (2026-08-31):** the maintainer-approved plan
+(`docs/superpowers/plans/2026-08-31-release-prep.md`, `76ab368`, six tasks) ran subagent-driven
+**directly on `master`** — ruled so because this is a documentation and CI arc and both sibling
+repositories are trunk-based — with a fresh implementer per task, an independent review per
+dispatch, and a scoped re-review per fix round. Five reviews: Tasks 3 and 5 approved first pass,
+Tasks 1, 2 and 4 carried findings and took one fix round each. The rulings, every task's completion
+line, and the deferred minors are in the SDD ledger
+(`.superpowers/sdd/2026-08-31-release-prep/progress.md`); the briefs and reports sit beside it.
+Nine commits, `76ab368..11303e7`, none pushed: Task 1 `7c86fab` + `0c2c45c`, Task 2 `1c363ac` +
+`b5e82f5`, Task 3 `8ba9c40`, Task 4 `8e24638` + `1038247` (plus the controller's plan amendment
+`570f5ee`), Task 5 `11303e7`.
+
+**The style came from three of the maintainer's own repositories, and only one of them is a working
+example.** `localstack-dotnet-client` (the flagship SDK sibling), `dotnet-aspire-for-localstack`,
+and `badge-smith` were studied first, with verbatim excerpts recorded under
+`.scratchpad/release-prep-refs/`. Their release pattern is consistent and was adopted whole: a
+nightly on every master push to GitHub Packages, a stable version **only** through a manual
+`workflow_dispatch` to NuGet.org, no tag-triggered release anywhere, and the version single-sourced
+in `Directory.Build.props`. Their **badge** integrations, by contrast, are all stale: both siblings
+run copied per-repo composite actions carrying badge-smith's retired `api_domain` input, and the
+client does not reach BadgeSmith at all — it still PATCHes a GitHub Gist through an older action
+and has been failing silently since **2025-07-25** (an expired PAT, masked by
+`continue-on-error: true` and a swallowed non-zero exit), so
+`api.localstackfor.net/badges/tests/linux/localstack-dotnet/localstack-dotnet-client/master`
+answers 404 and that repository has never published a badge. The aspire README's redirect link is
+malformed on top of that (a `?package=` query instead of `/{owner}/{repo}/{branch}` path segments).
+The model for this repository is therefore badge-smith's **current** `@v1` reusable composite
+actions and its own `ci-cd.yml`, never either sibling's copy.
+
+**The public face landed first** (`7c86fab`, fix `0c2c45c`). The README was rewritten in the
+client's section order (badge row, project status, compatibility and test matrix, package status,
+why, prerequisites, installation, quickstart, coverage, documentation, root-caused known issues,
+developing, community, changelog, license); `CHANGELOG.md` follows the client's **custom
+emoji-headed per-release format** rather than Keep-a-Changelog, on the maintainer's instruction, and
+carries one `## [Unreleased]` section; and the community set —
+`.github/{CONTRIBUTING,SECURITY,CODE_OF_CONDUCT,PULL_REQUEST_TEMPLATE}.md` and
+`ISSUE_TEMPLATE/bug_report.md` — was adapted from the siblings with this repository's own gate,
+labels and prerequisites. Every quickstart snippet was compile-probed in a throwaway file-based C#
+app before it shipped. **Three findings were repository settings rather than code.** BadgeSmith's
+`GitHubPackageService` calls the GitHub *organizations* packages API and `Blind-Striker` is a
+**User** account, so the GitHub Packages badges could never resolve here (a second, independent
+blocker: only a `testdata` secret is seeded for this owner, and that handler needs a `Packages`
+one) — they were replaced with a static shields badge over the same package links, while the
+NuGet.org and test badges stayed as genuine RP1 not-fed-yet cases. Code scanning is
+`not-configured`, so the siblings' CodeQL badge was omitted rather than shipped broken. And private
+vulnerability reporting was **disabled** while `SECURITY.md` documents the advisories flow, so the
+controller enabled it — the one repository setting this arc changed. The fix round removed a
+shipped falsehood the review caught: `netstandard2.0` is never a test target and `net472` is
+Windows-gated, so Windows runs 9 test assemblies and Linux/macOS run 7; "N tests on every target
+framework" is a sentence this repository cannot write truthfully.
+
+**The public guide is a `docs/guide/` subset beside the internal canon** (`1c363ac`, fix `b5e82f5`),
+seven pages and 1,108 lines: an index plus getting-started, connection-modes, streaming, terminals,
+errors-and-responses and pagination, with exactly one link into the internal tree (`AGENTS.md`, from
+the index). **All 34 C# snippets compile**: they were assembled as method bodies into one file-based
+probe against both source projects, built to 0 errors, and each fenced block was then required to
+match the probe as an exact substring by script rather than by eye; 68 intra-repo links,
+GitHub-slugged anchors included, resolve. The probe's only two warnings were IL2026/IL3050 on
+`AddOpenCode(IConfiguration)` — the trim/AOT annotation the guide documents by name, so the build
+confirmed the claim instead of contradicting it. Two ownership rules came out of the fix round and
+now hold generally: **package availability and publish cadence are the root README's**, so
+`docs/guide/**` contains no publish verb at all and only one file changes when the workflows move;
+and where the README and the guide cover the same ground, **the README keeps the teaser and the
+guide owns the depth** in different words with a different worked example. The guide also corrects a
+framing the task brief got wrong: DI is a registration mechanism, not a third connection mode — the
+two landed doors are the standalone start and the explicit endpoint, and the queued third is the
+background service.
+
+**The test badges are wired to badge-smith's current pair** (`8ba9c40`), after the off-repository
+prerequisite was completed with the maintainer's authorization from their own machine and personal
+AWS profile: the local badge-smith checkout was fast-forwarded to `f3ab12b`, the HMAC secret for the
+`blind-striker` organization was seeded into production (the Secrets Manager entry is
+`badgesmith/github/blind-striker/testdata`), and the repository actions secret `TESTDATASECRET` was
+set. No secret value was displayed, logged, or recorded anywhere, this log included. In CI, **RP3
+was declined by its own criterion**: `run-dotnet-tests@v1` takes a single `project-path`, while this
+repository already builds once and runs one solution-wide `dotnet test` across three test projects
+and every TFM, so adopting it would mean three invocations or a test-layout restructure. Count
+extraction is not a hand-rolled TRX parser either — badge-smith's own `ci-cd.yml` feeds
+`update-test-badge@v1` from a `dorny/test-reporter@v3` step, and this repository already ran that
+exact step on the same glob, so the only change it needed was an `id:`. The badge step is gated
+`always() && github.event_name == 'push' && github.ref == 'refs/heads/master'`, matching the
+reference byte for byte; the `always()` is load-bearing, because a step's custom `if:` is otherwise
+implicitly ANDed with `success()` and a red master run — the case where the badge most needs to flip
+— would skip it and leave the last green state standing. `continue-on-error: true` rides along, and
+the tool's own exit contract was verified at source (`BadgeUpdateCommand` returns success on a
+failed POST unless `--fail-on-error` is passed, which the composite action never passes).
+
+**The packing wall opened on a third admission state** (`8e24638`, fix `1038247`), mirroring the
+transport-owned state member for member: a reasoned `declined` curation section, `DeclinedCuration`,
+a `required` `GenerationCuration.Declined`, `EmitPlan.DeclinedOperations` carrying id **and** reason
+(the marker line needs the reason), and a `Declined operations:` count beside a `Declined:` section
+in the marker. **Four walls guard it.** Three live in `CurationValidator` and are judged against the
+full ingested operation set — a declined operation that is also selected, one the document no longer
+declares (the staleness telltale), and one that duplicates a transport-owned row. The fourth, a
+declined row over an operation that **binds today**, lives in `GenerationCoordinator` instead,
+because `PendingOperationBindabilityProbe` is constructed from `ISpecBinder` and putting the probe
+in the validator closes a DI cycle the composition root cannot resolve; the coordinator already owns
+the probe, and the refusal rides the same collector, category and exit behaviour a validator wall
+would. The marker now reads **131 selected / 0 pending / 3 declined / 2 transport-owned**, each
+declined line carrying `[declined: <reason>]` from its curation row beside
+`[refused: <verbatim walls>]` from the probe, so a stale reason sits next to the live wall it
+claims. Two more changes came with it: the headline is conditional, reading "Generation is complete
+at the declared coverage; packages may be published." at pending 0 rather than asserting an
+incompleteness that `pack` no longer honours; and the marker now outlives a cleared pending set,
+which it did **not** before — the coordinator wrote it only while pending > 0, so a repository with
+transport-owned rows and no pending operations would have deleted its own record.
+`Directory.Build.targets` reads the marker's pending **count** instead of its existence and refuses
+fail-closed on a malformed header; the review's one Important finding was that it opened *silently*
+when the marker was **missing**, which the fix made the first `Error` in the chain. All four states
+— missing, malformed, `Pending operations: 3`, intact — were proven by mutating the real marker and
+running `dotnet pack`, with the tree restored byte-identical between each. That produced **the first
+successful pack in this repository's history**: `OpenCode.Sdk` and `OpenCode.Sdk.Extensions` at
+**0.1.0** with their `.snupkg` siblings, five TFMs each, from the new single-source `VersionPrefix`
+in `Directory.Build.props` (nothing had declared a version anywhere before). The suite grew to
+**4,418 tests** with the eleven tests those walls needed, none weakened.
+
+**Two MSBuild facts and one trap are worth keeping.** `%(Identity)` batching in a target
+`ItemGroup` condition is safe over the marker's apostrophe-bearing declined lines, because MSBuild
+escapes metadata expansion into conditions — the worry was checked rather than routed around. Item
+references do **not** expand inside property-function arguments, so the pending count is pulled out
+in two steps. And `--` is illegal inside an XML comment: the same trap fired twice in this task, once
+in `Directory.Build.props` as `NuGet.targets(198,5): error : Invalid framework identifier ''`
+against the *solution*, an error naming neither the file nor the cause.
+
+**The publish lanes landed last** (`11303e7`). `ci.yml` gained `publish-nightly`: it `needs` the
+single matrixed `build-and-test` job (which waits for every OS leg), runs on master pushes only,
+takes `contents: read` + `packages: write`, and checks out **without** submodules — `generate
+--verify` reads only `spec/openapi.json`, `tools/generation-profile.txt`, `tools/curation.json` and
+`src/OpenCode.Sdk`, traced through `GenerationRequest.RepositoryDefault` and `GenerationCoordinator`,
+so the release lane needs nothing under `external/`. It packs with a
+`nightly.{yyyyMMdd}.{shortSha}` version suffix computed inline and pushes `"packages/*.nupkg"` —
+quoted, because there are two packable ids and an unquoted glob would hand `dotnet nuget push` two
+positional arguments — to `https://nuget.pkg.github.com/Blind-Striker/index.json` with
+`GITHUB_TOKEN`. The new `publish-nuget.yml` is the manual lane: `workflow_dispatch` with a
+free-typed `version` and a `target` choice of `nuget|github`, `NuGet/login@v1` placed immediately
+before the push because the exchanged key is short-lived, and `id-token: write` for OIDC — the
+client's PR #54 shape, field for field. `-p:Version` was chosen over the prefix/suffix pair and
+verified empirically: it is a global property set before evaluation, so the SDK's own
+`Condition="'$(Version)' == ''"` assignment is skipped and the operator's typed string becomes the
+stamped version exactly. One deliberate parameterization: the client hardcodes
+`user: localstack-dotnet`, its own NuGet.org organization, which cannot transfer — this repository
+reads `vars.NUGET_TRUSTED_PUBLISHING_USER` instead of guessing a profile name whose only failure
+mode is at publish time. `actions/setup-dotnet` moved v5 to v6, the only action in the repository
+behind its latest major.
+
+**What remains maintainer-only is two steps on NuGet.org**, both recorded in the workflow's header
+comment and in ROADMAP's Known Gaps: create the Trusted Publishing policy under the account that
+will own `OpenCode.Sdk`/`OpenCode.Sdk.Extensions` — repository `Blind-Striker/opencode-sdk-dotnet`,
+workflow file `publish-nuget.yml`, no environment — and set the repository variable
+`NUGET_TRUSTED_PUBLISHING_USER` to the profile or organization name that policy is created under (a
+public name, hence a variable rather than a secret). Until both exist, `target: nuget` fails at the
+login step; `target: github` works today.
+
+**The gate was reduced twice this arc, both times by maintainer ruling, and both reductions are
+narrow.** A staged diff of only `.md` and other non-compiled documentation runs **slopwatch alone**,
+with `git diff --stat` pasted into the report as the docs-only proof; a diff touching **only**
+`.github/workflows/*.yml` runs slopwatch plus a YAML parse plus the same stat proof, because no test
+in this repository can validate workflow YAML and the real proof is the next push's run. The full
+gate applies unchanged the moment code, `csproj`/`props`/`targets`, `spec/`, or generated files join
+the diff — Task 4 ran it in full twice, at 4,418 green each time.
+
+**TUnit's HTML report needed no workflow change.** It is on by default at this pin
+(`TestResults/{assembly}-{os}-{tfm}-report.html` plus a JSON sidecar; `--report-html` is deprecated
+and `TUNIT_DISABLE_HTML_REPORTER` is the off switch), TUnit's own GitHub Actions integration uploads
+it, and `TUNIT_ARTIFACT_RETENTION_DAYS: 7` is already set in `ci.yml`. Nothing in this arc's diff
+touches the test, report-enable, or upload steps. Whether the artifacts actually appear is an
+observation for the first master run, not a code question.
+
+**Evidence:** the full gate is green at Task 4's two commits — **4,418 tests**, slopwatch **0**, a
+Release build with no warnings, both `dotnet format` verifications clean, `generate --verify`
+current at 131/0/3/2, and `dotnet pack` producing four artifacts — and every documentation-only and
+workflow-only commit carried slopwatch 0 beside its stat proof. **No canonical document was edited
+anywhere in the arc**: RP2 held Task 4's marker sentence as a proposal for
+`protocol-and-generation.md`, and it waits with the handoff's other canon proposals. Nothing is
+pushed, so the badge feed, the nightly packages, and the TUnit artifacts are all first observed on
+the next master run.

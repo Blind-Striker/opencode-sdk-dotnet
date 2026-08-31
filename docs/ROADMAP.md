@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-30
+Date: 2026-08-31
 
 Operational state: what is done, what is next, what is open. This file shrinks as work lands.
 `../AGENTS.md` routes to current architecture and engineering canon; decision records live in
@@ -316,11 +316,9 @@ complete** (research Q146): the wire-shape wall admits bodyless POST and body-ca
 and its fifteen operations are landed — the profile stands at **82 selected / 38 pending**.
 The remaining mechanism batches follow — inline promotion, envelope extensions, and the query
 walls, each design-first — and the **M4 launcher** rides alongside as a small
-independent arc (1–2 page plan, approval before source). An **early prerelease packaging track**
-accompanies the breadth push: revise the deliberate partial-operation packing wall in
-`Directory.Build.targets` (settled 2026-08-31 by the declined admission state, below), then stand
-up the ADR-0006 pipeline — per-merge GitHub Packages CD and the manual NuGet.org lane — whose CI
-legs can now validate against the restored hosted matrix. M4's launcher arc has since landed (below).
+independent arc (1–2 page plan, approval before source). The **early prerelease packaging track**
+that accompanied the breadth push — the partial-operation packing wall, then the ADR-0006 pipeline
+— has since landed with the release-preparation arc (below), as has M4's launcher arc.
 
 **The M2 second breadth batch is complete** — the design-prover batch:
 `session.remove`/`session.rename` and the `Shells` family
@@ -351,8 +349,8 @@ was dropped; persistentPty is ordinary target surface. The reordered queue was (
 (2) the typed per-call location plus normal-PTY ownership lane (ADR-0021); (3) envelope
 completion; (4) the operation inventory and assurance ledger; (5) M4's launcher/fixture arc
 with the deterministic simulated-model session workflow (ADR-0022). **Lanes (1) and (2) have
-landed, so the queue now opens at envelope completion.** The B3/B4 refactors, the
-deferred default-job benchmark, and the prerelease packaging track ride alongside unchanged.
+landed, so the queue now opens at envelope completion.** The B3/B4 refactors and the deferred
+default-job benchmark ride alongside unchanged.
 Canon-mechanics text (synchronizer internals, location runtime semantics, the assurance
 architecture document, quality-gate additions) lands with its implementing increments.
 
@@ -423,7 +421,7 @@ it; the `ComposeRegistry`/`RegistryPlan.PayloadEntries` doc one-liners; the
 `ToolJsonContext` `NewLine` pin so receipts and the generation manifest stop being written with
 mixed line endings on Windows, research log Q155) and a
 *vcs.status contract top-up* (empty-list, location-query, protocol-failure tests). The benchmark
-coverage batch (recorded above) and the release track remain queued.
+coverage batch (recorded above) remains queued; the release track has since landed (below).
 
 **The no-wall sweep is complete** (S1 telltale, S2 batch A, S3 batch B; 2026-08-29; task briefs
 and reports: `.superpowers/sdd/2026-08-29-no-wall-sweep/`). S1 landed the interim bindability
@@ -510,6 +508,15 @@ full account and standing walls are research log Q159 (the hygiene batch's own a
 Gate: **4,406 tests** green on all TFMs, slopwatch at zero, `generate --verify` and
 `refresh-spec --verify` both current.
 
+**The release-preparation arc is complete** (2026-08-31, six tasks landed directly on `master`,
+`76ab368..11303e7`, unpushed; account and the maintainer-only remainder: research log Q160). The
+repository has its public face (README, CHANGELOG, the `.github/` community set), a seven-page
+compile-proven consumer guide under `docs/guide/`, test badges posting to BadgeSmith on master
+pushes, and both publish lanes — a nightly to GitHub Packages and a manual Trusted-Publishing lane
+to NuGet.org. **Packing is open**: the `declined` admission state took the marker to **131 selected
+/ 0 pending / 3 declined / 2 transport-owned**, and `dotnet pack` produces both packages at the
+single-sourced `VersionPrefix 0.1.0`. Gate: **4,418 tests** green, slopwatch at zero.
+
 ## Milestones
 
 Deliverable-first: every milestone ends in something callable or demonstrable. The next
@@ -579,7 +586,7 @@ is revisited at each milestone boundary.
    deterministic fixture can reach are listed by name with their reason, never skipped
    silently (ADR-0022); runtime edges (cut streams, timeouts, malformed bodies, undeclared 3xx)
    stay pipeline-plane tests and are not repeated per operation — remaining ingestion/binding
-   walls (#52/#53), and package/API/TFM assurance (#51), packaging unblocked.
+   walls (#52/#53), and package/API/TFM assurance (#51). Packaging is unblocked as of 2026-08-31.
    The location design is sealed (#37 closed — ambient plus per-call, research log Q148), so
    the freeze review inherits a settled surface.
 6. **M6 — Operational closure.** The observation lanes' automation (tip detector, candidate
@@ -620,10 +627,9 @@ is revisited at each milestone boundary.
   on `/api/fs/read/*`, a framework wildcard rather than an OpenAPI path template, so the file path
   the call must carry is invisible to any generated client — **draft ready** under
   `.scratchpad/upstream-issue-drafts/fs-read-wildcard-path.md`, like T3's.
-- **Release mechanics** — decided parts live in ADR-0006 (independent semver, per-merge
-  GitHub Packages CD, manual NuGet.org releases). `VersionPrefix` is the single version source and
-  reads `0.1.0` (`Directory.Build.props`, 2026-08-31); the RELEASE_NOTES flow and the concrete
-  publish workflows land with the release-preparation arc.
+- **Release mechanics** — ADR-0006's shape is wired (independent semver, `VersionPrefix 0.1.0` as
+  the single version source, nightly GitHub Packages CD, the manual NuGet.org lane). Still open:
+  the RELEASE_NOTES flow and the prerelease-versus-stable wording for the first tagged release.
 - **A6 configuration/transport split** — deferred with a trigger: when M6 attaches
   telemetry/hook handlers to the transport, or when Extensions gains a concrete
   `IHttpClientFactory`/named-client need, the split of validated client configuration from
@@ -694,54 +700,48 @@ is revisited at each milestone boundary.
   inline copy of the same guard into every route builder and handle accessor. Folding those onto
   `EscapeSegment` is an emitter change with a large, purely mechanical generated diff; it was left
   out of the hygiene batch, whose generated output is otherwise byte-identical.
-- **Approved generator/tooling mechanisms (maintainer, 2026-08-29):** (1) *stabilize-duplicate
-  collapse* and (2) *source watch* both **landed 2026-08-30**; research Q159 owns the account of
-  what each does, `.generated-manifest.json` (`implicitAliases`) and `spec/source-watch.json` are
-  the committed telltales, and the one non-`_N` `schemaAliases` row (the operation-scoped Effect
-  cause union) stays explicit. The three canon sentences proposed for them — the collapse's
-  curation-boundary sentence and the watch's `spec/SNAPSHOT.md` §Refresh procedure plus
-  `protocol-and-generation.md` §Snapshot production pair — were applied by maintainer approval on
-  2026-08-31. Still open on them: the maintainer's seal on the watch's apply-time refusal (below). (3)
-  *transport-owned leaves pending* — **landed 2026-08-29**: `SpecBinder` derives pending as the
-  unselected operations without a fingerprint-pinned `transportOwned` row (a selected operation
-  with such a row refuses), the marker carries a fixed `Transport-owned operations:` count and a
-  `Transport-owned:` section while it exists (emitted even when empty, so a row's arrival or
-  retirement is a one-line diff), and the canon marker sentence reads "unselected and not
-  transport-owned". (4) *declined admission state* — **landed 2026-08-31**, below. The marker
-  reads **131 selected / 0 pending / 3 declined / 2 transport-owned**.
+- **Approved generator/tooling mechanisms (maintainer, 2026-08-29): all four have landed** —
+  (1) *stabilize-duplicate collapse* and (2) *source watch* (2026-08-30, research Q159; telltales
+  `.generated-manifest.json` `implicitAliases` and `spec/source-watch.json`, the one non-`_N`
+  `schemaAliases` row still explicit); (3) *transport-owned leaves pending* (2026-08-29; pending is
+  the unselected set without a fingerprint-pinned row, and the marker keeps the count and section
+  even when empty, so a row's arrival or retirement is a one-line diff); (4) *declined admission
+  state* (2026-08-31, research Q160). The marker reads **131 selected / 0 pending / 3 declined /
+  2 transport-owned**, `Directory.Build.targets` reads its pending count instead of its existence,
+  and `dotnet pack` succeeds there and refuses again the moment an operation goes pending or the
+  marker goes missing or unreadable. Every canon sentence proposed for these is applied except Task
+  4's marker paragraph, **proposed and held** (RP2); the seal on the watch's apply-time refusal is
+  open too (below).
 - **Three operations stay declined by decision, not by omission** (coverage-to-full arc,
-  2026-08-30; admitted as `declined` curation rows 2026-08-31; evidence research Q159).
-  `.generation-incomplete` carries each one's reason beside the walls the binder finds today;
-  this is why each one stands.
+  2026-08-30; admitted as reasoned `declined` curation rows 2026-08-31; evidence research Q159 and
+  Q160). `.generation-incomplete` carries each one's reason beside the walls the binder finds today.
   (a) `v2.config.get` — the **ADR-0016 structural-union wall**: `Config.InfoEncoded` carries three
-  same-token-kind unions (`lsp`'s map value `anyOf[{disabled:true}, Config.LSP.ServerEncoded]`,
-  `references`' map value `anyOf[string, Git, Local]`), the identical class the maintainer let stand
-  for `migration.v1.status`. Moving it needs a union mechanism, not a curation row; it was filed as
-  curation-only until the widened telltale showed otherwise. Two collisions in the same operation
-  *are* curation-fixable and are recorded here for the day that wall moves, because a row over an
-  unselected operation would be unvalidated: `ConfigModelCost` (the promoted
-  `Config.ModelEncoded#/properties/cost` `anyOf[Cost, Cost[]]` against the `Encoded`-stripped
-  `Config.Model.CostEncoded`) takes a `schemaNames` row, and `IMcp` (`mcp.add`'s inline request
-  union against `Config.InfoEncoded.mcp.servers`' `additionalProperties`, structurally identical)
-  takes a `schemaAliases` row. (b) `v2.fs.read` — the **path mechanism**: `/api/fs/read/*` is a
-  framework wildcard, not an OpenAPI path template, so there is nothing for a generator to bind. The
-  upstream report is drafted and parked (Open Questions); admitting it before upstream moves would
-  mean inventing a path parameter the document does not declare (ADR-0013). (c)
+  same-token-kind unions, the identical class the maintainer let stand for `migration.v1.status`, so
+  moving it needs a union mechanism rather than a curation row. Two collisions in the same operation
+  *are* curation-fixable and stay recorded in Q159 for the day that wall moves, because a row over
+  an unselected operation would be unvalidated: `ConfigModelCost` takes a `schemaNames` row and
+  `IMcp` takes a `schemaAliases` row. (b) `v2.fs.read` — the **path mechanism**: `/api/fs/read/*` is
+  a framework wildcard, not an OpenAPI path template, so there is nothing for a generator to bind.
+  The upstream report is drafted and parked (Open Questions); admitting it before upstream moves
+  would mean inventing a path parameter the document does not declare (ADR-0013). (c)
   `v2.experimental.migration.v1.status` — the same structural-union wall, stood by the maintainer on
   2026-08-28 and not reopened.
-- **The packing wall opened on a declined admission state** (release-prep Task 4, 2026-08-31).
-  `tools/curation.json` gained a reasoned `declined` section; a declined operation leaves the
-  pending set the way a transport-owned one does, and the curation validator refuses a declined row
-  that is also selected, one over an operation the document no longer declares, and one that
-  duplicates a transport-owned row, while the coordinator's bindability probe refuses a declined row
-  over an operation that binds today (decline is only for walled operations). `.generation-incomplete`
-  gained a `Declined operations:` count and a `Declined:` section carrying
-  `[declined: <reason>] [refused: <walls>]` per row, and it now outlives a cleared pending set as
-  the committed record of what the released surface omits. `Directory.Build.targets` reads the
-  marker's pending count instead of the marker's existence, so `dotnet pack` succeeds at
-  **131 selected / 0 pending / 3 declined / 2 transport-owned** and refuses again the moment an
-  operation goes pending or the pending header cannot be read. The canon sentence for
-  `protocol-and-generation.md`'s marker paragraph is proposed and held for the maintainer (RP2).
+- **Two NuGet.org steps are the maintainer's alone, and nothing this arc built has run yet**
+  (release-prep arc, 2026-08-31; account research Q160). Before the first `target: nuget` dispatch
+  of `publish-nuget.yml`: create the Trusted Publishing policy on the NuGet.org account that will
+  own `OpenCode.Sdk`/`OpenCode.Sdk.Extensions` — repository `Blind-Striker/opencode-sdk-dotnet`,
+  workflow file `publish-nuget.yml`, no environment — and set the repository variable
+  `NUGET_TRUSTED_PUBLISHING_USER` to that account's profile or organization name (public, hence a
+  variable rather than a secret). Until both exist `target: nuget` fails at the login step, while
+  `target: github` works today. Nothing is pushed, so the next master run is the first proof of the
+  three test badges feeding BadgeSmith, TUnit's HTML reports appearing in the artifacts, and the
+  nightly packages landing on GitHub Packages. Four operational minors ride the next touch of the
+  same files: `runs-on: ubuntu-latest` floats on both release jobs while the test matrix pins exact
+  images; `-p:Version` interpolates the dispatch input straight into a `run:` line
+  (trusted-actor-only today — route it through `env:`); the badge step posts 0/0/0 when something
+  fails before the test step, inherited from the reference wiring; and the pack wall has no
+  automated test, being MSBuild with no harness in the repository — its four states are proven by a
+  manual mutation run.
 - **Two mechanism steps await the maintainer's seal** (coverage-to-full arc, 2026-08-30). The source
   watch's `apply` refuses a receipt whose anchor verdict failed — deliberate, beyond the approved
   proposal's literal wording, on the grounds that re-pinning a hash whose anchor moved installs the
@@ -751,11 +751,9 @@ is revisited at each milestone boundary.
   R7's own named outcome for `server.get`'s inline `{urls: string[]}` forced. Both are landed and
   tested; both are wider than what was approved, so both are named here rather than treated as
   settled.
-- **Three unnamed one-off test failures, none reproduced** (coverage-to-full arc, 2026-08-30). Under
-  implementer gates: 3 of 4,139, 1 of 4,242 (no failure block printed), and 3 of 4,406. Controller
-  re-runs of the same binaries were green every time and no runner named a test, so there is nothing
-  to fix yet — this is a measurement item. Two candidates are named for exoneration rather than
-  chased: `ClientTerminalWebSocketTests.cs:44` (the suite's only test that depends on a *refused*
-  connect, so on an exception shape rather than on no network) and `LoopbackPortReservationTests.cs`
-  (128 rapid ephemeral binds). Run the gates with `--report-trx --report-trx-filename <unique>` so a
-  recurrence yields names instead of a count.
+- **Three unnamed one-off test failures, none reproduced** (coverage-to-full arc, 2026-08-30; the
+  counts, the two candidates named for exoneration, and the isolation argument are in research
+  Q159). Controller re-runs of the same binaries were green every time and no runner ever named a
+  test, so this is a measurement item rather than a defect, and the release-prep arc added no
+  recurrence. Run the gates with `--report-trx --report-trx-filename <unique>` so a recurrence
+  yields names instead of a count.
