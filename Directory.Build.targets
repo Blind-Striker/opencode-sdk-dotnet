@@ -4,8 +4,15 @@
     wall reads the marker's pending count, not the marker's existence: the marker outlives a
     cleared pending set as the committed record of what the released surface omits by decision
     (declined operations and transport-owned doors), and only a pending operation - one nobody has
-    decided anything about - must never reach a package. A marker whose pending header cannot be
-    read refuses too, so a reshaped marker fails loudly instead of opening the wall by accident.
+    decided anything about - must never reach a package. The marker must therefore be there to be
+    read: a missing marker refuses, and so does one whose pending header cannot be read, because a
+    deleted or reshaped marker is an accident, not a verdict. (The generator deletes the marker only
+    when nothing at all stands outside the generated surface - unreachable while ADR-0021's two
+    transport-owned doors exist.) This is the pack-time layer of a two-layer defense: the release
+    lane additionally runs the generator's verify mode (opencode-tool, generate command, verify
+    option) before packing, so a stale or hand-edited marker is caught by regeneration as well as
+    by this wall. Note that an XML comment cannot contain a double hyphen, so the exact command
+    lines live in the Error texts below rather than here.
   -->
   <Target Name="RefuseIncompleteGenerationPack"
           BeforeTargets="GenerateNuspec"
@@ -27,6 +34,9 @@
       <_GenerationPendingHeader>@(_GenerationPendingHeaderLine)</_GenerationPendingHeader>
       <_GenerationPendingCount>$(_GenerationPendingHeader.Replace('Pending operations:', '').Trim())</_GenerationPendingCount>
     </PropertyGroup>
+
+    <Error Condition="!Exists('$(_GenerationMarkerPath)')"
+           Text="Packages cannot be created: $(_GenerationMarkerPath) is missing. The marker is required while any operation is declined or transport-owned, and it is the record of what a released package omits - a package built without it makes no statement at all. Run 'dotnet run --file tools/opencode-tool.cs -- generate' to recreate it, and restore it if it was deleted." />
 
     <Error Condition="Exists('$(_GenerationMarkerPath)') And '$(_GenerationPendingCount)' == ''"
            Text="Packages cannot be created: $(_GenerationMarkerPath) exists but declares no 'Pending operations: &lt;count&gt;' header, so the pending set cannot be read. Run 'dotnet run --file tools/opencode-tool.cs -- generate' and review the marker." />
