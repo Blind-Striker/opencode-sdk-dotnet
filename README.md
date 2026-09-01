@@ -299,7 +299,8 @@ Architecture, decision records, and engineering policy live under [`docs/`](docs
 
 ## Known Issues
 
-- **Nothing is on NuGet.org yet.** The `0.1.0` package is prepared but unpublished, so
+- **Nothing is on NuGet.org yet.** The `0.1.0` package is prepared but unpublished —
+  publication is currently blocked by an upstream package-ID prefix reservation dispute — so
   `dotnet add package OpenCode.Sdk` will not resolve. Use the
   [GitHub Packages nightly feed](#nightly-builds-github-packages) until the first stable release;
   the nightly and stable packages are built from the same sources by two workflows that share the
