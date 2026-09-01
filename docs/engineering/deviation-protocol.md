@@ -38,8 +38,9 @@ untouched). Capture the evidence — commands, output, source references. Propos
 correction to the maintainer; on approval, the document is corrected in place and the
 task resumes. Findings worth keeping go to the research log.
 
-Vision/reference documents (`docs/superpowers/`) are not protocol subjects: contradicting
-one is a level-0 note in the PR, and the document is corrected opportunistically.
+Vision/reference documents (the plans and specs kept in the private companion repository) are
+not protocol subjects: contradicting one is a level-0 note in the PR, and the document is
+corrected opportunistically.
 
 ### Level 3 — Locked-decision challenge
 
@@ -58,4 +59,4 @@ evidence, never by convenience.
 - **A deviation without a trace is a defect**, even when the deviation itself was right.
 - **The docs pass is part of the deviation, not follow-up work:** whichever document
   carried the contradicted claim is corrected in the same change
-  (`../engineering/documentation.md`).
+  (`documentation.md`).

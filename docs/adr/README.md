@@ -8,8 +8,9 @@ maintained here; the directory listing is the index.
 
 Layering: `docs/architecture/` and `docs/engineering/` carry current normative rules. An ADR is
 the canonical record of one accepted decision - its context, trade-off, rationale, consequences,
-and reversal triggers where they exist. Dated evidence stays in `docs/research/` and is cited,
-not promoted into current policy. `AGENTS.md` routes each task to the relevant canon.
+and reversal triggers where they exist. Dated evidence lives in the private companion repository
+and is cited inline as prose, not promoted into current policy. `AGENTS.md` routes each task to
+the relevant canon.
 
 The current rule and its ADR must agree. If they appear to diverge, stop and use the deviation
 protocol rather than choosing one silently. A material decision reversal updates the current canon
@@ -25,8 +26,8 @@ All three must hold:
 3. **A real trade-off** — genuine alternatives existed and one was chosen for specific reasons.
 
 If any leg is missing, skip the ADR: current conventions and process rules belong in the relevant
-`docs/engineering/` or `docs/agents/` home, current architecture in `docs/architecture/`, and dated
-findings in `docs/research/`.
+`docs/engineering/` home, current architecture in `docs/architecture/`, and dated findings in the
+private companion repository.
 
 ## Format
 

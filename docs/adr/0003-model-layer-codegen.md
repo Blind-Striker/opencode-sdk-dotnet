@@ -8,7 +8,8 @@ regime and fail structurally: the spec's union dialect (discriminator-free `anyO
 required single-value literal markers) is invisible to their `discriminator`-keyed union
 handling, and none can emit the locked single source-generated `JsonSerializerContext`
 registry. System.Text.Json's name-based polymorphism matches the dialect exactly. Full verdict
-matrix and construct counts: `docs/research/08-codegen-spike.md`.
+matrix and construct counts: internal research, 2026-08-08, "Codegen spike: the model-layer
+mechanism".
 
 ## Ingestion: pinned Microsoft.OpenApi reader, own semantic projection
 

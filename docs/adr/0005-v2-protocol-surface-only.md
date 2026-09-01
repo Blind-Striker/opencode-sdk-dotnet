@@ -16,8 +16,9 @@ position; the difference now is evidence, not taste: the both-surfaces premise (
 block does not cover today's capability; the MCP-server goal needs all of it today") expired
 when the v2 surface absorbed the capability gap (`mcp`, `config`, `vcs`, `project`, `shell`,
 … are protocol groups now) and upstream's investment, distribution channels, and migration
-tooling all converged on v2. Evidence: `docs/research/15-opencode-v2-platform.md`, research
-log session 17; prior dated evidence: docs 09/10.
+tooling all converged on v2. Evidence: internal research, 2026-08-16, "The opencode v2 platform:
+branch, surface, architecture, distribution"; research log session 17; prior dated evidence:
+docs 09/10.
 
 ## Consequences
 

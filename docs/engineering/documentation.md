@@ -13,13 +13,13 @@ maintenance.
 | Current architecture | `docs/architecture/` | Normative current technical decisions |
 | Current engineering practice | `docs/engineering/` | Normative current authoring, quality, workflow, and documentation rules |
 | Decision rationale | `docs/adr/` | Accepted decision context, trade-offs, consequences, and reversal triggers |
-| Dated evidence | `docs/research/` | Historical question-to-finding-to-decision chain; may intentionally contain superseded positions |
 | Domain vocabulary | `CONTEXT.md` | Current terms and explicitly avoided synonyms |
 | Operational state | `docs/ROADMAP.md` | What is done, next, open, and known to be incomplete; shrinks as work lands |
 | Protocol provenance | `spec/SNAPSHOT.md` | Exact upstream pin and refresh procedure |
-| Agent-only operation | `docs/agents/` | Guidance needed only by coding agents |
-| Session continuation | `docs/agents/handover-prompts/` | Temporary live handoff, consumed against Git and deleted when its work ships |
-| Transient reference | `docs/superpowers/` | Vision, plans, and rationale that are not canonical or operational authority |
+
+Dated research evidence and session operations live in a private companion repository
+(`Blind-Striker/opencode-sdk-dotnet-internal`); the canonical documentation here is complete
+without it.
 
 Repository files and current canonical documents beat memory, dated research, transient plans, and
 handoffs. If two current canonical sources appear to disagree, do not pick a winner silently; use
@@ -61,9 +61,9 @@ References point one way: documentation may cite code, but code artifacts never 
 Comments in source, project files, `.editorconfig`, workflows, and generated files explain the
 status quo locally; they do not point to movable prose or narrate decision history.
 
-Audience decides placement. `docs/agents/` contains only agent-specific operation; knowledge shared
-by humans and agents belongs in architecture, engineering, ADR, research, domain, or operational
-documents.
+Audience decides placement. Knowledge shared by humans and agents belongs in architecture,
+engineering, ADR, domain, or operational documents; guidance needed only by coding agents belongs
+in `AGENTS.md` or the private companion repository.
 
 ADRs are created lazily under the criteria in `docs/adr/README.md`. Handovers are consumed against
 live Git and GitHub, then deleted when the follow-up ships or a newer handoff supersedes them.

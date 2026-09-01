@@ -17,7 +17,8 @@ their hash-pinned manifests.
 | Commit | `b1e3a7b2228a75734d848e33eabc8e15a0efd780` |
 | Upstream product channel | `opencode2` — npm `@opencode-ai/cli@next` (pre-release) |
 
-Platform evidence for the v2 line: `docs/research/15-opencode-v2-platform.md`.
+Platform evidence for the v2 line: internal research, 2026-08-16, "The opencode v2 platform:
+branch, surface, architecture, distribution".
 
 ## Refresh procedure
 

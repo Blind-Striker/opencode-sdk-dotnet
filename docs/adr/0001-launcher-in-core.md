@@ -6,8 +6,8 @@ Date: 2026-08-08
 stop), hand-rolled on `System.Diagnostics.Process` with no process library. Upstream sets the
 parity bar — `createOpencodeServer()` ships inside `@opencode-ai/sdk` — and the MCP C# SDK does
 the same (`StdioClientTransport` spawns inside `ModelContextProtocol.Core`; kept as reference
-implementation). Evidence and lifecycle anatomy: `docs/research/06-dotnet-sdk-design.md`,
-research log Q12.
+implementation). Evidence and lifecycle anatomy: internal research, 2026-08-08, ".NET SDK design
+decisions: packaging, process management, TFMs"; research log Q12.
 
 ## Considered options
 

@@ -20,7 +20,7 @@ a thin adapter over that SDK.
   options, recommend one, and ask.
 - Align on structure and direction before writing. Prefer the smallest correct change.
 - If implementation contradicts current canon, stop the affected work and follow
-  `docs/agents/deviation-protocol.md`; never silently code around it or reopen a decision for
+  `docs/engineering/deviation-protocol.md`; never silently code around it or reopen a decision for
   convenience.
 - Documentation refactors preserve useful, unique information. Relocate it to the right canonical,
   rationale, evidence, or operational home; do not discard it merely to shorten a file.
@@ -50,20 +50,20 @@ positions.
 | Analyzer, build, formatting, performance or completion gates | `docs/engineering/quality-gates.md` |
 | Documentation, research, ADRs or repository workflow | `docs/engineering/documentation.md`, `docs/engineering/workflow.md`, and `docs/adr/README.md` as applicable |
 | Domain terminology | `CONTEXT.md` |
-| Current status, queue, open questions or known gaps | `docs/ROADMAP.md` and any active handoff under `docs/agents/handover-prompts/` |
+| Current status, queue, open questions or known gaps | `docs/ROADMAP.md`; any active session handoff lives in the private companion repository |
 | Pinned protocol identity or refresh | `spec/SNAPSHOT.md` |
 
 ## Authority
 
 - `docs/architecture/` and `docs/engineering/` own current normative project rules.
 - `docs/adr/` records accepted decision context, trade-offs, consequences, and reversal triggers.
-- `docs/research/` is dated evidence and history, not current policy.
 - `docs/ROADMAP.md` is operational and expected to change and shrink as work lands.
 - `CONTEXT.md` owns current domain vocabulary.
 - `spec/SNAPSHOT.md` owns the exact OpenAPI pin and refresh procedure.
-- `docs/agents/` owns agent-only operation and temporary handovers.
-- `docs/superpowers/` is transient vision/reference material, not canonical or operational
-  authority. Contradicting it does not override current canon.
+- Dated research evidence, plans and specs, and session handovers live in the private companion
+  repository `Blind-Striker/opencode-sdk-dotnet-internal`. That material is non-normative history
+  and reference; contradicting it does not override current canon, and the canon here is complete
+  without it.
 
 Repository files and current canon beat memory, transient plans, dated research, and handoffs. If
 two current canonical sources appear to disagree, do not choose one silently; use the deviation
