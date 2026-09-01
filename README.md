@@ -133,21 +133,44 @@ Until then, use the nightly feed below.
 Every code push to `master` publishes `0.1.0-nightly.{yyyyMMdd}.{shortSha}` to GitHub Packages:
 
 ```bash
-# Add the GitHub Packages source
+# Add the GitHub Packages source (PAT: classic token with the read:packages scope)
 dotnet nuget add source https://nuget.pkg.github.com/Blind-Striker/index.json \
   --name github-opencode-sdk \
   --username YOUR_GITHUB_USERNAME \
-  --password YOUR_GITHUB_TOKEN
+  --password YOUR_GITHUB_PAT \
+  --store-password-in-clear-text
 
 # Install the nightly packages
 dotnet add package OpenCode.Sdk --prerelease --source github-opencode-sdk
 dotnet add package OpenCode.Sdk.Extensions --prerelease --source github-opencode-sdk
 ```
 
+Prefer keeping the token out of shell history? Commit a `nuget.config` next to your solution and
+keep the credentials in environment variables:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+    <add key="github-opencode-sdk" value="https://nuget.pkg.github.com/Blind-Striker/index.json" />
+  </packageSources>
+  <packageSourceCredentials>
+    <github-opencode-sdk>
+      <add key="Username" value="%GITHUB_USERNAME%" />
+      <add key="ClearTextPassword" value="%GITHUB_PAT%" />
+    </github-opencode-sdk>
+  </packageSourceCredentials>
+</configuration>
+```
+
 > **🔑 GitHub Packages Authentication**: GitHub Packages requires a
-> [Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
-> with the `read:packages` permission, even for public packages. Pass it as `--password`; the
-> username is your GitHub login.
+> [classic Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
+> with the `read:packages` scope, even for public packages (fine-grained tokens are not supported
+> by the NuGet registry). `--store-password-in-clear-text` is required on Linux and macOS, where
+> NuGet cannot encrypt stored credentials. Never commit a real token — the `nuget.config` above
+> reads it from the environment. Inside GitHub Actions you need no PAT at all: the workflow's own
+> `GITHUB_TOKEN` works as the password.
 
 ## 🚀 Quick Start
 
