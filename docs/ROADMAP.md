@@ -1,10 +1,11 @@
 # Roadmap
 
-Date: 2026-09-01
+Date: 2026-09-02
 
 Operational state: what ships today, what is queued next, what is still open, and what is known to
 be incomplete. This file is a summary and shrinks as work lands. `../AGENTS.md` routes to the
-current architecture and engineering canon; decision records live in `adr/`.
+current architecture and engineering canon; decision records live in `adr/`. The live operational
+queue is on the [project board](https://github.com/users/Blind-Striker/projects/1).
 
 ## Status
 
