@@ -9,53 +9,115 @@ project coins for itself.
 ### Upstream domain (as visible at the API surface)
 
 **Session**:
-A durable conversation with an agent; the API's central concept.
+A persistent conversation with an Agent; the API's central concept.
+
+**Session metadata**:
+Host-supplied annotations on a Session: arbitrary keys, JSON values, opaque to opencode, durable
+from creation. Children and forks inherit the parent's unless the creator supplies its own. The
+pinned document types it only as an object.
 
 **Message**:
-One entry in a Session's history (user or assistant), composed of Parts.
+One entry in a Session's projected history; a discriminated union keyed by a literal `type` marker
+(user, assistant, synthetic, system, skill, shell, compaction, and the agent/model/location
+selection records). Only an assistant Message carries a content list; the rest are flat.
 
-**Part**:
-A typed fragment of a Message (text, tool, file, reasoning, …); a discriminated union keyed by
-a literal `type` marker.
+**Assistant content**:
+A typed fragment of an assistant Message (text, reasoning, tool); a discriminated union keyed by a
+literal `type` marker, carried in that Message's `content` list. No other Message kind has one.
+_Avoid_: part (the retired 1.x term; survives only as a legacy `partID` on a revert record)
+
+**Session inbox**:
+The queue of pending work for one Session — a prompt, a synthetic message, a compaction, or a move
+— each item either queued behind the current turn or steered into it.
+
+**Compaction**:
+The summarize-and-truncate boundary in a Session's history. It appears as its own Message kind,
+and a Session's active context is the Messages after the last one.
 
 **Event**:
-Something that happened, delivered over SSE.
+Something that happened: an identified, typed record carrying its own `data` and, optionally, the
+Location it happened in. Every Event is either durable or ephemeral.
+
+**Durable / ephemeral Event**:
+The two durability classes every Event belongs to. A durable Event carries an envelope naming its
+Aggregate, its sequence in that Aggregate's log, and the schema version that committed it, so it
+can be read back later; an ephemeral Event carries none and exists only for subscribers attached
+at the time.
+
+**Aggregate**:
+The unit a durable Event log is kept per: an id read from a named field of the Event's own `data`,
+plus a monotonic sequence over the Events committed against it. Session Events aggregate on their
+Session; others aggregate elsewhere, such as worktree resolution on its Project.
 
 **Durable Session event stream**:
-The per-Session event stream; callers request continuation through the `after` cursor. Persistence,
-retention, and replay guarantees remain unestablished.
+One Session Aggregate's durable Event log, read back over SSE. `after` is an exclusive sequence
+taken from a durable envelope or a sync marker, `follow` continues into live Events, and a single
+`log.synced` marker separates replay from live. Retention remains unestablished.
 _Avoid_: session events (ambiguous with the live stream)
 
 **Live event stream**:
 The instance-wide event stream; the pinned operation has no filter, cursor, replay, or resume
-channel. Consumers refresh authoritative state and resubscribe after a disconnect.
+channel, and is volatile by contract — a slow consumer overflows and fails the stream, and Events
+during a disconnection are missed. It opens with a synthetic `server.connected` Event. Consumers
+refresh authoritative state and resubscribe after a disconnect.
 
 **Permission**:
-The user-approval gate for agent actions, surfaced as permission requests answered through the
-API.
+The gate on agent actions, expressed as rules matching an action and a resource to an effect —
+allow, deny, or ask. An `ask` raises a permission request answered through the API, and an answer
+may be kept as a standing Project-scoped grant. Every Agent carries its own ruleset.
+
+**Form**:
+A structured question the server raises and a client answers — typed fields, optional visibility
+conditions, and a state that ends answered or cancelled. Raised against a Session or a Location.
+
+**Integration**:
+A connectable upstream service and the authentication methods it offers — API key, OAuth, a
+command, or the environment. Connecting runs as an attempt with its own status and leaves a
+connection behind; a Provider names the Integration it is connected through.
 
 **Provider**:
-An LLM provider entry in the catalog, carrying its Models.
+An LLM provider entry in its own catalog, carrying activation state and request settings — not its
+Models, which form a separate catalog. A Provider names the Integration it is connected through.
 
 **Model**:
-One model offered by a Provider.
+One entry in the model catalog, naming the Provider it belongs to and carrying its capabilities,
+variants, costs, and limits. Sessions, Agents, and Messages reference a Model by id, provider, and
+optional variant rather than embedding the entry.
 
 **Agent**:
-A configured opencode working mode/persona (build, plan, …) selectable per Session.
+A configured opencode persona — `build` by default, others from config or plugins — selectable per
+Session or attachable to a single prompt. Carries its own Permission ruleset, an optional Model,
+and a step budget.
+_Avoid_: mode (an Agent's `mode` is its primary/subagent eligibility, not its persona)
 
 **Server process**:
 One running `opencode serve` process (one endpoint); the API is bound to a single Server
-process, and cross-process aggregation lives above the SDK. Owns process-global state (auth
-store, global config, the global event stream).
+process, and cross-process aggregation lives above the SDK. Owns process-global state (auth store,
+the live event stream and the durable Event log, Sessions, Projects, Workspaces, saved
+Permissions). Configuration is not among them; it belongs to the Instance.
+
+**Location**:
+The addressing pair every request, Session, and Event carries: an absolute directory plus an
+optional Workspace. Resolving one yields the Project it belongs to.
+
+**Project**:
+The repository root a Location resolves to, carrying its own id and canonical path. Sessions,
+saved Permissions, and worktrees are scoped to it.
+
+**Workspace**:
+A separately provisioned place a Location can point into, created and destroyed through the API;
+the optional second member of a Location.
 
 **Instance**:
-One project-directory context inside a Server process, selected per request via Directory
-targeting; a Server process hosts many.
+One Location's working context inside a Server process — its configuration, agents, tools, and MCP
+servers — selected per request via Directory targeting; a Server process hosts many, keyed by
+Location. The Project is resolved from the Location, not chosen alongside it.
 
 **Directory targeting**:
-Per-request project targeting via `location[...]` query parameters, with the
+Per-request Location targeting via `location[...]` query parameters, with the
 `x-opencode-directory`/`x-opencode-workspace` headers as the ambient channel the server resolves
-per member after any query value.
+per member after any query value; an unset directory falls back to the server's own working
+directory.
 
 **PTY**:
 A pseudo-terminal session managed through the API.
@@ -79,9 +141,16 @@ A terminal owned by the `opencode-pty` daemon rather than by the Server process;
 server restart through a handoff, is keyed to a Session, and is the source of `read`'s "current
 terminal".
 
+**Handoff**:
+The expiring, single-use ticket that transfers ownership of the `opencode-pty` daemon from an
+outgoing Server process to its replacement, which must claim it before becoming ready. Its
+`instanceID` identifies the daemon process, not an Instance.
+
 **Attachment**:
 One live connection to a Persistent PTY: its identity, its controller/observer role, the resize
 generation it attached at, and the replay bounds the server granted it.
+_Avoid_: attachment (unqualified — the `*Attachment` types on the surface are prompt attachments:
+files, agents, and skills carried on a Message)
 
 **Controller / Observer**:
 The two roles a Persistent PTY grants an Attachment. A Controller writes input and resizes; an

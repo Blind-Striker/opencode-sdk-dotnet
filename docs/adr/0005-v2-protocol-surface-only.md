@@ -18,7 +18,8 @@ when the v2 surface absorbed the capability gap (`mcp`, `config`, `vcs`, `projec
 … are protocol groups now) and upstream's investment, distribution channels, and migration
 tooling all converged on v2. Evidence: internal research, 2026-08-16, "The opencode v2 platform:
 branch, surface, architecture, distribution"; research log session 17; prior dated evidence:
-docs 09/10.
+internal research, 2026-08-08, "Upstream v1/v2: product version vs HTTP API surface" and
+"v2 → '2.0 branch' operation mapping — a genealogy correction".
 
 ## Consequences
 

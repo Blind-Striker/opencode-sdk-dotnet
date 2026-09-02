@@ -1,6 +1,6 @@
 # Documentation
 
-Date: 2026-08-18
+Date: 2026-09-02
 
 Canonical rules for documentation ownership, authority, lifecycle, references, and lossless
 maintenance.
@@ -48,8 +48,8 @@ Every hand-written document under `docs/` carries a `Date:` line.
 - In current-state and operational documents, `Date:` is the latest substantive update.
 - In ADRs, `Date:` is the date of the decision represented by the current record; a material
   decision revision moves it, while an editorial link correction does not.
-- In research, `Date:` identifies the evidence snapshot or the latest session included by a
-  chronological log. Editorial corrections do not rewrite the historical evidence date.
+- Where a `Date:` records a historical snapshot rather than a current state, an editorial
+  correction does not rewrite it.
 
 A sentence that must change when a task completes belongs in `docs/ROADMAP.md` or a temporary
 handoff, not in evergreen architecture or engineering canon. Keep affected documentation current in
