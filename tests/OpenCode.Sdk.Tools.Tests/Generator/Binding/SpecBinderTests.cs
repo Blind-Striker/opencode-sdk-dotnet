@@ -13,6 +13,9 @@ public sealed class SpecBinderTests
     /// <summary>Effect's projection of <c>TemplateLiteral(["rpc.", String])</c>.</summary>
     private const string RpcPrefixPattern = "^rpc\\.[\\s\\S]*?$";
 
+    /// <summary>A templated identifier: a prefix marker that discriminates nothing.</summary>
+    private const string EventIdPrefixPattern = "^evt_[\\s\\S]*?$";
+
     private static readonly string[] ExpectedErrorTypeNames =
     [
         "AgentNotFoundError",
@@ -1989,6 +1992,86 @@ public sealed class SpecBinderTests
         await Assert.That(type.IsLiteral).IsFalse();
     }
 
+    /// <summary>
+    /// A templated identifier discriminates nothing, so the branch that carries one beside its
+    /// literal tag stays a variant; only a prefix on the discriminating property makes an arm.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Keep_A_Literal_Branch_Carrying_A_Templated_Id_As_A_Variant()
+    {
+        var document = await IngestAsync(PrefixUnionScenario(static spec => _ = spec
+            .WithSchema("Created", static schema => schema
+                .Type("object")
+                .Property("type", static property => property.Type("string").Enum("created"), required: true)
+                .Property("id", static property => property.Type("string").Pattern(EventIdPrefixPattern), required: true))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+            {
+                ["health"] = RootGroup(),
+            }));
+
+        var events = plan.Unions.Single(static union => union.Name == "IEvent");
+        await Assert.That(events.MarkerWireName).IsEqualTo("type");
+        await Assert
+            .That(events
+                .Variants.Select(static variant => variant.Tag)
+                .Order(StringComparer.Ordinal)
+                .SequenceEqual(["created", "deleted"], StringComparer.Ordinal))
+            .IsTrue();
+        await Assert.That(events.PrefixVariant!.TypeName).IsEqualTo("RpcEvent");
+
+        var created = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "Created");
+        await Assert.That(created.ImplementedUnionNames).Contains("IEvent");
+    }
+
+    /// <summary>
+    /// The nested wall reads the nested union's own discriminator, so leaves that agree on a
+    /// templated identifier and differ by a literal tag are variants, not a buried arm.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Bind_A_Nested_Marked_Union_Whose_Leaves_Carry_A_Templated_Id()
+    {
+        var document = await IngestAsync(SpecScenario.Define(static spec => _ = spec
+            .WithSchema("Alpha", static schema => schema
+                .Type("object")
+                .Property("type", static property => property.Type("string").Enum("alpha"), required: true))
+            .WithSchema("WrapOne", static schema => WrapLeaf(schema, "one"))
+            .WithSchema("WrapTwo", static schema => WrapLeaf(schema, "two"))
+            .WithSchema("Wrap", static schema => schema.AnyOf(
+                static one => one.Ref("WrapOne"),
+                static two => two.Ref("WrapTwo")))
+            .WithSchema("Outer", static schema => schema.AnyOf(
+                static alpha => alpha.Ref("Alpha"),
+                static wrap => wrap.Ref("Wrap")))
+            .WithOperation("v2.health.get", configure: static operation => operation
+                .Response(200, "application/json", static schema => schema.Ref("Outer")))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+            {
+                ["health"] = RootGroup(),
+            }));
+
+        var outer = plan.Unions.Single(static union => union.Name == "IOuter");
+        await Assert.That(outer.MarkerWireName).IsEqualTo("type");
+        await Assert.That(outer.PrefixVariant).IsNull();
+
+        var nested = plan.Unions.Single(static union => union.Name == "IWrap");
+        await Assert.That(nested.MarkerWireName).IsEqualTo("status");
+        await Assert.That(nested.PrefixVariant).IsNull();
+        await Assert
+            .That(nested
+                .Variants.Select(static variant => variant.Tag)
+                .Order(StringComparer.Ordinal)
+                .SequenceEqual(["one", "two"], StringComparer.Ordinal))
+            .IsTrue();
+    }
+
     [Test]
     public async Task Bind_Should_Admit_A_Literal_Tag_That_Is_A_Prefix_Of_The_Arm_Prefix()
     {
@@ -2140,6 +2223,14 @@ public sealed class SpecBinderTests
                     .Response(200, "application/json", static schema => schema.Ref("Event")));
             extra?.Invoke(spec);
         });
+
+    /// <summary>A nested-union leaf that fixes the outer tag, carries a templated id, and
+    /// discriminates on <c>status</c>.</summary>
+    private static void WrapLeaf(SchemaBuilder schema, string status) => _ = schema
+        .Type("object")
+        .Property("type", static property => property.Type("string").Enum("wrap"), required: true)
+        .Property("status", property => property.Type("string").Enum(status), required: true)
+        .Property("id", static property => property.Type("string").Pattern(EventIdPrefixPattern), required: true);
 
     /// <summary>
     /// Binds a scenario and joins every refusal it raised, so a wall test asserts the exact

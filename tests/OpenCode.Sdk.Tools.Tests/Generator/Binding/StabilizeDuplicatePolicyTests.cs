@@ -54,12 +54,12 @@ public sealed class StabilizeDuplicatePolicyTests
 
         var collapse = await ResolveAsync(
             SpecScenario.Define(static spec => _ = spec
-                .WithSchema("RpcEvent", static schema => PrefixTagged(schema, "^rpc\\.[\\s\\S]*?$"))
-                .WithSchema("RpcEvent_1", static schema => PrefixTagged(schema, "^plugin\\.[\\s\\S]*?$"))
+                .WithSchema("Rpc.Event", static schema => PrefixTagged(schema, "^rpc\\.[\\s\\S]*?$"))
+                .WithSchema("Rpc.Event_1", static schema => PrefixTagged(schema, "^plugin\\.[\\s\\S]*?$"))
                 .WithSchema("Holder", static schema => schema
                     .Type("object")
-                    .Property("a", static property => property.Ref("RpcEvent"), required: true)
-                    .Property("b", static property => property.Ref("RpcEvent_1"), required: true))
+                    .Property("a", static property => property.Ref("Rpc.Event"), required: true)
+                    .Property("b", static property => property.Ref("Rpc.Event_1"), required: true))
                 .WithOperation("v2.holder.get", path: "/api/holder", configure: static operation => operation
                     .Response(200, "application/json", static schema => schema.Ref("Holder")))),
             errors);
@@ -67,9 +67,9 @@ public sealed class StabilizeDuplicatePolicyTests
         await Assert.That(collapse.Aliases.Count).IsEqualTo(0);
         var refusal = Refusals(errors).Single();
         await Assert.That(refusal.Category).IsEqualTo(BindingErrorCategory.Schema);
-        await Assert.That(refusal.Subject).IsEqualTo("RpcEvent_1");
-        await Assert.That(refusal.Problem).Contains("'RpcEvent_1'");
-        await Assert.That(refusal.Problem).Contains("'RpcEvent'");
+        await Assert.That(refusal.Subject).IsEqualTo("Rpc.Event_1");
+        await Assert.That(refusal.Problem).Contains("'Rpc.Event_1'");
+        await Assert.That(refusal.Problem).Contains("'Rpc.Event'");
     }
 
     [Test]
