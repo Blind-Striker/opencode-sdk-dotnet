@@ -7,6 +7,9 @@ internal sealed class SchemaPlanBinder(
     StructuralUnionPlanBinder structuralUnions,
     UnionMembershipValidator unionMemberships)
 {
+    /// <summary>The prefix-marker list every branch that is not a marked object resolves to.</summary>
+    private static readonly IReadOnlyList<PrefixMarker> NoPrefixMarkers = [];
+
     private readonly StringComparer _comparer = StringComparer.Ordinal;
 
     private readonly StructuralUnionPlanBinder _structuralUnions = structuralUnions
@@ -168,16 +171,64 @@ internal sealed class SchemaPlanBinder(
             return null;
         }
 
-        var marker = SelectDiscriminatingMarker(resolved);
+        // The discriminating marker is chosen from the literal tags alone: a prefix arm carries
+        // no value to tell apart, so it can only ride a marker the literal branches already fix.
+        var literalBranches = resolved.Where(static branch => branch.PrefixMarkers.Count is 0).ToArray();
+        var prefixBranches = resolved.Where(static branch => branch.PrefixMarkers.Count is not 0).ToArray();
+        var marker = literalBranches.Length is 0 ? null : SelectDiscriminatingMarker(literalBranches);
         if (marker is null)
         {
             errors.Add(BindingErrorCategory.Schema, key, "marked union branches share no discriminating marker property");
             return null;
         }
 
-        var variants = new List<UnionVariantPlan>(resolved.Count);
+        if (prefixBranches.Length > 1)
+        {
+            var arms = string.Join(", ", prefixBranches.Select(static branch => $"'{branch.TypeName}'").Order(StringComparer.Ordinal));
+            errors.Add(BindingErrorCategory.Schema, key, $"marked union declares more than one prefix-tagged arm ({arms}); at most one is admitted");
+            return null;
+        }
+
+        var (variants, knownImpossibleTags) = BindLiteralVariants(name, literalBranches, marker, inheritance, fixedMarkers, errors);
+        UnionPrefixVariantPlan? prefixVariant = null;
+        if (prefixBranches.Length is 1)
+        {
+            prefixVariant = BindPrefixVariant(key, name, prefixBranches[0], marker, variants, knownImpossibleTags, inheritance, errors);
+            if (prefixVariant is null)
+            {
+                return null;
+            }
+        }
+
+        var conceptName = CSharpNamePolicy.ToUnionConceptName(name);
+        return new UnionPlan
+        {
+            Name = name,
+            ConceptName = conceptName,
+            Namespace = GeneratedNamespace.Models,
+            UnknownTypeName = $"Unknown{conceptName}",
+            MarkerWireName = marker.PropertyName,
+            MarkerName = CSharpNamePolicy.ToPascalCase(marker.PropertyName),
+            MarkerKind = marker.Kind,
+            Variants = variants,
+            PrefixVariant = prefixVariant,
+            KnownImpossibleTags = [.. knownImpossibleTags.Order(StringComparer.Ordinal)],
+            Description = union.Description,
+        };
+    }
+
+    /// <summary>
+    /// Turns the literal-tagged branches into dispatch entries, recording each one's membership
+    /// and, for a nested union, the outer marker it fixes. A branch whose schema admits no JSON
+    /// value contributes its tag to the known-impossible set instead of a variant.
+    /// </summary>
+    private static (List<UnionVariantPlan> Variants, List<string> KnownImpossibleTags) BindLiteralVariants(string name,
+        IReadOnlyList<ResolvedUnionBranch> branches, LiteralMarker marker, IDictionary<string, List<string>> inheritance,
+        Dictionary<string, UnionFixedMarkerPlan> fixedMarkers, BindingErrorCollector errors)
+    {
+        var variants = new List<UnionVariantPlan>(branches.Count);
         var knownImpossibleTags = new List<string>();
-        foreach (var branch in resolved)
+        foreach (var branch in branches)
         {
             var tag = branch.Markers.First(candidate =>
                     string.Equals(candidate.PropertyName, marker.PropertyName, StringComparison.Ordinal))
@@ -209,19 +260,68 @@ internal sealed class SchemaPlanBinder(
             });
         }
 
-        var conceptName = CSharpNamePolicy.ToUnionConceptName(name);
-        return new UnionPlan
+        return (variants, knownImpossibleTags);
+    }
+
+    /// <summary>
+    /// Admits the one prefix-tagged arm of a marked union, or refuses naming the wall it hit.
+    /// The arm dispatches on the union's own marker after every literal tag, so it must be a
+    /// direct component branch, tag that same string marker, admit a JSON value, and claim no
+    /// value a declared literal tag already owns.
+    /// </summary>
+    private static UnionPrefixVariantPlan? BindPrefixVariant(string key, string name, ResolvedUnionBranch branch, LiteralMarker marker,
+        IReadOnlyList<UnionVariantPlan> variants, IReadOnlyList<string> knownImpossibleTags,
+        IDictionary<string, List<string>> inheritance, BindingErrorCollector errors)
+    {
+        if (branch.IsNestedUnion || branch.MemberKey.Contains('#', StringComparison.Ordinal))
         {
-            Name = name,
-            ConceptName = conceptName,
-            Namespace = GeneratedNamespace.Models,
-            UnknownTypeName = $"Unknown{conceptName}",
+            errors.Add(BindingErrorCategory.Schema, key,
+                $"prefix-tagged arm '{branch.TypeName}' must be a direct component branch of the marked union, not a promoted inline branch");
+            return null;
+        }
+
+        var prefixMarker = branch.PrefixMarkers.FirstOrDefault(candidate =>
+            string.Equals(candidate.PropertyName, marker.PropertyName, StringComparison.Ordinal));
+        if (prefixMarker is null)
+        {
+            errors.Add(BindingErrorCategory.Schema, key,
+                $"prefix-tagged arm '{branch.TypeName}' tags '{branch.PrefixMarkers[0].PropertyName}' "
+                + $"but the union discriminates on '{marker.PropertyName}'");
+            return null;
+        }
+
+        if (marker.Kind is not LiteralKind.String)
+        {
+            errors.Add(BindingErrorCategory.Schema, key,
+                $"prefix-tagged arm '{branch.TypeName}' requires a string marker; the union discriminates on a '{marker.Kind}' marker");
+            return null;
+        }
+
+        if (!branch.IsInhabited)
+        {
+            errors.Add(BindingErrorCategory.Schema, key, $"prefix-tagged arm '{branch.TypeName}' admits no JSON value");
+            return null;
+        }
+
+        // A literal tag inside the arm's span would be claimed by whichever dispatch ran first,
+        // so the overlap refuses rather than silently ordering one over the other.
+        var covered = variants.FirstOrDefault(variant => variant.Tag.StartsWith(prefixMarker.Prefix, StringComparison.Ordinal));
+        var coveredTag = covered?.Tag
+                         ?? knownImpossibleTags.FirstOrDefault(tag => tag.StartsWith(prefixMarker.Prefix, StringComparison.Ordinal));
+        if (coveredTag is not null)
+        {
+            errors.Add(BindingErrorCategory.Schema, key,
+                $"prefix-tagged arm '{branch.TypeName}' prefix '{prefixMarker.Prefix}' "
+                + $"is a prefix of literal tag '{coveredTag}' ('{covered?.TypeName ?? "(known-impossible)"}')");
+            return null;
+        }
+
+        AddInheritance(branch.MemberKey, name, inheritance, errors);
+        return new UnionPrefixVariantPlan
+        {
+            TypeName = branch.TypeName,
+            Prefix = prefixMarker.Prefix,
             MarkerWireName = marker.PropertyName,
-            MarkerName = CSharpNamePolicy.ToPascalCase(marker.PropertyName),
-            MarkerKind = marker.Kind,
-            Variants = variants,
-            KnownImpossibleTags = [.. knownImpossibleTags.Order(StringComparer.Ordinal)],
-            Description = union.Description,
         };
     }
 
@@ -238,7 +338,19 @@ internal sealed class SchemaPlanBinder(
                 errors.Add(
                     BindingErrorCategory.Schema,
                     key,
-                    "marked union branch must reference a named object or nested marked union with a literal marker");
+                    "marked union branch must reference a named object or nested marked union with a literal or prefix marker");
+                continue;
+            }
+
+            // A prefix tag is matched against the outer union's own marker, so an arm one level
+            // down would have to be reached through a converter that never sees that marker.
+            if (target is UnionNode nestedUnion && FindPrefixLeaf(nestedUnion, graph, names) is { } prefixLeaf)
+            {
+                errors.Add(
+                    BindingErrorCategory.Schema,
+                    key,
+                    $"prefix-tagged arm '{prefixLeaf}' must be a direct component branch of the marked union, "
+                    + $"not a branch of nested union '{typeName}'");
                 continue;
             }
 
@@ -268,18 +380,20 @@ internal sealed class SchemaPlanBinder(
                 UnionNode { Classification: UnionClassification.Marked } uniform => ResolveUniformNestedMarkers(uniform, graph),
                 _ => null,
             };
-            if (markers is not { Count: > 0 })
+            var prefixMarkers = target is ObjectNode prefixed ? prefixed.PrefixMarkers : NoPrefixMarkers;
+            if (markers is not { Count: > 0 } && prefixMarkers.Count is 0)
             {
                 errors.Add(
                     BindingErrorCategory.Schema,
                     key,
-                    "marked union branch must reference a named object or nested marked union with a literal marker");
+                    "marked union branch must reference a named object or nested marked union with a literal or prefix marker");
                 continue;
             }
 
             resolved.Add(new ResolvedUnionBranch(
                 typeName,
-                markers,
+                markers ?? [],
+                prefixMarkers,
                 target is UnionNode,
                 reference.Target,
                 inhabitation.IsInhabited(target)));
@@ -309,15 +423,36 @@ internal sealed class SchemaPlanBinder(
                 return null;
             }
 
+            // A prefix leaf under a nested union is refused before the spanning expansion runs,
+            // so every leaf reached here carries literal markers only.
             result.Add(new ResolvedUnionBranch(
                 typeName,
                 leaf.LiteralMarkers,
+                PrefixMarkers: [],
                 IsNestedUnion: false,
                 nestedKey,
                 inhabitation.IsInhabited(leaf)));
         }
 
         return result;
+    }
+
+    /// <summary>Names the first prefix-tagged leaf of a nested union, or null when it has none.</summary>
+    private static string? FindPrefixLeaf(UnionNode nested, IReadOnlyDictionary<string, SchemaNode> graph,
+        IReadOnlyDictionary<string, string> names)
+    {
+        foreach (var branch in nested.Branches)
+        {
+            if (branch is RefNode reference
+                && graph.TryGetValue(reference.Target, out var target)
+                && target is ObjectNode { PrefixMarkers.Count: > 0 }
+                && names.TryGetValue(reference.Target, out var leafName))
+            {
+                return leafName;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -391,6 +526,7 @@ internal sealed class SchemaPlanBinder(
     private sealed record ResolvedUnionBranch(
         string TypeName,
         IReadOnlyList<LiteralMarker> Markers,
+        IReadOnlyList<PrefixMarker> PrefixMarkers,
         bool IsNestedUnion,
         string MemberKey,
         bool IsInhabited);

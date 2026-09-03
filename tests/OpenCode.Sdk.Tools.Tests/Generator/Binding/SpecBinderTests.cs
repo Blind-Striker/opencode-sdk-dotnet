@@ -10,6 +10,9 @@ namespace OpenCode.Sdk.Tools.Tests.Generator.Binding;
 
 public sealed class SpecBinderTests
 {
+    /// <summary>Effect's projection of <c>TemplateLiteral(["rpc.", String])</c>.</summary>
+    private const string RpcPrefixPattern = "^rpc\\.[\\s\\S]*?$";
+
     private static readonly string[] ExpectedErrorTypeNames =
     [
         "AgentNotFoundError",
@@ -1951,6 +1954,215 @@ public sealed class SpecBinderTests
             Alias("LonelyError1", "LonelyError"),
             "not referenced",
             subject: "LonelyError1");
+    }
+
+    [Test]
+    public async Task Bind_Should_Bind_A_Prefix_Tagged_Arm_Beside_Literal_Tags()
+    {
+        var document = await IngestAsync(PrefixUnionScenario());
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.health.get"),
+            Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+            {
+                ["health"] = RootGroup(),
+            }));
+
+        var events = plan.Unions.Single(static union => union.Name == "IEvent");
+        await Assert.That(events.MarkerWireName).IsEqualTo("type");
+        await Assert
+            .That(events
+                .Variants.Select(static variant => variant.Tag)
+                .Order(StringComparer.Ordinal)
+                .SequenceEqual(["created", "deleted"], StringComparer.Ordinal))
+            .IsTrue();
+        await Assert.That(events.PrefixVariant).IsNotNull();
+        await Assert.That(events.PrefixVariant!.TypeName).IsEqualTo("RpcEvent");
+        await Assert.That(events.PrefixVariant.Prefix).IsEqualTo("rpc.");
+        await Assert.That(events.PrefixVariant.MarkerWireName).IsEqualTo("type");
+
+        var arm = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "RpcEvent");
+        await Assert.That(arm.ImplementedUnionNames).Contains("IEvent");
+        var type = arm.Properties.Single(static property => property.WireName == "type");
+        await Assert.That(type.IsRequired).IsTrue();
+        await Assert.That(type.IsLiteral).IsFalse();
+    }
+
+    [Test]
+    public async Task Bind_Should_Admit_A_Literal_Tag_That_Is_A_Prefix_Of_The_Arm_Prefix()
+    {
+        var problems = await BindProblemsAsync(PrefixUnionScenario(static spec => _ = spec
+            .WithSchema("Rpc", static schema => schema
+                .Type("object")
+                .Property("type", static property => property.Type("string").Enum("rpc"), required: true))
+            .WithSchema("Event", static schema => schema.AnyOf(
+                static branch => branch.Ref("Created"),
+                static branch => branch.Ref("Rpc"),
+                static branch => branch.Ref("RpcEvent")))));
+
+        await Assert.That(problems).IsEmpty();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_Two_Prefix_Tagged_Arms()
+    {
+        var problems = await BindProblemsAsync(PrefixUnionScenario(static spec => _ = spec
+            .WithSchema("PluginEvent", static schema => schema
+                .Type("object")
+                .Property("type", static property => property.Type("string").Pattern("^plugin\\.[\\s\\S]*?$"), required: true))
+            .WithSchema("Event", static schema => schema.AnyOf(
+                static branch => branch.Ref("Created"),
+                static branch => branch.Ref("RpcEvent"),
+                static branch => branch.Ref("PluginEvent")))));
+
+        await Assert
+            .That(problems)
+            .Contains("marked union declares more than one prefix-tagged arm ('PluginEvent', 'RpcEvent'); at most one is admitted");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Prefix_That_Covers_A_Literal_Tag()
+    {
+        var problems = await BindProblemsAsync(PrefixUnionScenario(static spec => _ = spec
+            .WithSchema("RpcPing", static schema => schema
+                .Type("object")
+                .Property("type", static property => property.Type("string").Enum("rpc.ping"), required: true))
+            .WithSchema("Event", static schema => schema.AnyOf(
+                static branch => branch.Ref("Created"),
+                static branch => branch.Ref("RpcPing"),
+                static branch => branch.Ref("RpcEvent")))));
+
+        await Assert.That(problems).Contains("prefix-tagged arm 'RpcEvent' prefix 'rpc.' is a prefix of literal tag 'rpc.ping' ('RpcPing')");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Prefix_Tagged_Arm_On_A_Non_Discriminating_Property()
+    {
+        var problems = await BindProblemsAsync(PrefixUnionScenario(static spec => _ = spec
+            .WithSchema("RpcEvent", static schema => schema
+                .Type("object")
+                .Property("kind", static property => property.Type("string").Pattern(RpcPrefixPattern), required: true))));
+
+        await Assert.That(problems).Contains("prefix-tagged arm 'RpcEvent' tags 'kind' but the union discriminates on 'type'");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Prefix_Tagged_Arm_On_A_Non_String_Marker()
+    {
+        var problems = await BindProblemsAsync(SpecScenario.Define(static spec => _ = spec
+            .WithSchema("Accepted", static schema => schema
+                .Type("object")
+                .Property("tag", static property => property.Type("boolean").BooleanEnum(true), required: true))
+            .WithSchema("Rejected", static schema => schema
+                .Type("object")
+                .Property("tag", static property => property.Type("boolean").BooleanEnum(false), required: true))
+            .WithSchema("RpcEvent", static schema => schema
+                .Type("object")
+                .Property("tag", static property => property.Type("string").Pattern(RpcPrefixPattern), required: true))
+            .WithSchema("Event", static schema => schema.AnyOf(
+                static branch => branch.Ref("Accepted"),
+                static branch => branch.Ref("Rejected"),
+                static branch => branch.Ref("RpcEvent")))
+            .WithOperation("v2.health.get", configure: static operation => operation
+                .Response(200, "application/json", static schema => schema.Ref("Event")))));
+
+        await Assert
+            .That(problems)
+            .Contains("prefix-tagged arm 'RpcEvent' requires a string marker; the union discriminates on a 'Boolean' marker");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Prefix_Tagged_Arm_Inside_A_Nested_Marked_Union()
+    {
+        var problems = await BindProblemsAsync(SpecScenario.Define(static spec => _ = spec
+            .WithSchema("Alpha", static schema => schema
+                .Type("object")
+                .Property("type", static property => property.Type("string").Enum("alpha"), required: true))
+            .WithSchema("WrapOne", static schema => schema
+                .Type("object")
+                .Property("type", static property => property.Type("string").Enum("wrap"), required: true)
+                .Property("status", static property => property.Type("string").Enum("one"), required: true))
+            .WithSchema("WrapRpc", static schema => schema
+                .Type("object")
+                .Property("type", static property => property.Type("string").Enum("wrap"), required: true)
+                .Property("status", static property => property.Type("string").Pattern(RpcPrefixPattern), required: true))
+            .WithSchema("Wrap", static schema => schema.AnyOf(
+                static one => one.Ref("WrapOne"),
+                static rpc => rpc.Ref("WrapRpc")))
+            .WithSchema("Outer", static schema => schema.AnyOf(
+                static alpha => alpha.Ref("Alpha"),
+                static wrap => wrap.Ref("Wrap")))
+            .WithOperation("v2.health.get", configure: static operation => operation
+                .Response(200, "application/json", static schema => schema.Ref("Outer")))));
+
+        await Assert
+            .That(problems)
+            .Contains("prefix-tagged arm 'WrapRpc' must be a direct component branch of the marked union, not a branch of nested union 'IWrap'");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_An_Uninhabited_Prefix_Tagged_Arm()
+    {
+        var problems = await BindProblemsAsync(PrefixUnionScenario(static spec => _ = spec
+            .WithSchema("RpcEvent", static schema => schema
+                .Type("object")
+                .Property("type", static property => property.Type("string").Pattern(RpcPrefixPattern), required: true)
+                .Property("never", static property => property.Raw("not", "{}"), required: true))));
+
+        await Assert.That(problems).Contains("prefix-tagged arm 'RpcEvent' admits no JSON value");
+    }
+
+    /// <summary>
+    /// A marked union of two literal-tagged branches beside one branch tagged by an Effect
+    /// template-literal prefix, so every wall below reads as a single delta from the admitted
+    /// shape. <paramref name="extra"/> redeclares whichever component the wall varies.
+    /// </summary>
+    private static SpecScenario PrefixUnionScenario(Action<SpecDocumentBuilder>? extra = null) =>
+        SpecScenario.Define(spec =>
+        {
+            _ = spec
+                .WithSchema("Created", static schema => schema
+                    .Type("object")
+                    .Property("type", static property => property.Type("string").Enum("created"), required: true))
+                .WithSchema("Deleted", static schema => schema
+                    .Type("object")
+                    .Property("type", static property => property.Type("string").Enum("deleted"), required: true))
+                .WithSchema("RpcEvent", static schema => schema
+                    .Type("object")
+                    .Property("type", static property => property.Type("string").Pattern(RpcPrefixPattern), required: true)
+                    .Property("data", static property => property.Type("object"), required: true))
+                .WithSchema("Event", static schema => schema.AnyOf(
+                    static branch => branch.Ref("Created"),
+                    static branch => branch.Ref("Deleted"),
+                    static branch => branch.Ref("RpcEvent")))
+                .WithOperation("v2.health.get", configure: static operation => operation
+                    .Response(200, "application/json", static schema => schema.Ref("Event")));
+            extra?.Invoke(spec);
+        });
+
+    /// <summary>
+    /// Binds a scenario and joins every refusal it raised, so a wall test asserts the exact
+    /// problem text and the admitted shape asserts that binding raised nothing at all.
+    /// </summary>
+    private static async Task<string> BindProblemsAsync(SpecScenario scenario)
+    {
+        var document = await IngestAsync(scenario);
+        try
+        {
+            _ = new BindingTestHost().Bind(
+                document,
+                Selection("v2.health.get"),
+                Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
+                {
+                    ["health"] = RootGroup(),
+                }));
+            return string.Empty;
+        }
+        catch (BindingException exception)
+        {
+            return string.Join('\n', exception.Errors.Select(static error => error.Problem));
+        }
     }
 
     private static async Task AssertAliasRefusalAsync(SpecDocument document, SchemaAlias alias, string expectedProblem,

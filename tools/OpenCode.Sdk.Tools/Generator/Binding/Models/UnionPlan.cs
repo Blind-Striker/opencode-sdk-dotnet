@@ -45,6 +45,12 @@ internal sealed record UnionPlan
     } = Array.AsReadOnly(Array.Empty<UnionVariantPlan>());
 
     /// <summary>
+    /// Gets the prefix-tagged arm, dispatched after every literal tag and before the unknown
+    /// carrier; null for a union without one.
+    /// </summary>
+    public UnionPrefixVariantPlan? PrefixVariant { get; init; }
+
+    /// <summary>
     /// Gets declared marker values whose branch schemas admit no JSON value. They remain
     /// known protocol input and must be refused rather than routed to the unknown carrier.
     /// </summary>

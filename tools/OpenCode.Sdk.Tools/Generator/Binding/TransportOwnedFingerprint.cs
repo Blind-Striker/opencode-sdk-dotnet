@@ -175,7 +175,7 @@ internal static class TransportOwnedFingerprint
             });
         }
 
-        return new JsonObject
+        var result = new JsonObject
         {
             ["kind"] = "object",
             ["properties"] = properties,
@@ -185,5 +185,24 @@ internal static class TransportOwnedFingerprint
             ["errorStyle"] = node.ErrorStyle.ToString(),
             ["format"] = node.Format,
         };
+
+        // Emitted only when the object carries one, so every hash pinned before prefix markers
+        // existed still describes the same wire subtree.
+        if (node.PrefixMarkers.Count > 0)
+        {
+            var prefixMarkers = new JsonArray();
+            foreach (var marker in node.PrefixMarkers.OrderBy(static marker => marker.PropertyName, StringComparer.Ordinal))
+            {
+                prefixMarkers.Add(new JsonObject
+                {
+                    ["propertyName"] = marker.PropertyName,
+                    ["prefix"] = marker.Prefix,
+                });
+            }
+
+            result["prefixMarkers"] = prefixMarkers;
+        }
+
+        return result;
     }
 }

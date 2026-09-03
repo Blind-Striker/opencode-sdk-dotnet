@@ -104,7 +104,9 @@ internal static class SchemaNodeComparer
             && left.Properties.Count == right.Properties.Count
             && left.Properties.Zip(right.Properties).All(pair => PropertiesEqual(pair.First, pair.Second))
             && left.LiteralMarkers.Count == right.LiteralMarkers.Count
-            && left.LiteralMarkers.Zip(right.LiteralMarkers).All(static pair => MarkersEqual(pair.First, pair.Second));
+            && left.LiteralMarkers.Zip(right.LiteralMarkers).All(static pair => MarkersEqual(pair.First, pair.Second))
+            && left.PrefixMarkers.Count == right.PrefixMarkers.Count
+            && left.PrefixMarkers.Zip(right.PrefixMarkers).All(static pair => pair.First == pair.Second);
 
         private bool AdditionalSchemasEqual(ObjectNode left, ObjectNode right) =>
             (left.AdditionalPropertiesSchema, right.AdditionalPropertiesSchema) switch

@@ -42,6 +42,36 @@ public sealed class StabilizeDuplicatePolicyTests
         await Assert.That(refusal.Problem).Contains("'Widget'");
     }
 
+    /// <summary>
+    /// The projected nodes are identical property for property — only the template-literal
+    /// prefix each one tags differs — so the collapse sees the difference only because the
+    /// comparer reads prefix markers.
+    /// </summary>
+    [Test]
+    public async Task Resolve_Should_Refuse_A_Duplicate_Whose_Prefix_Marker_Differs()
+    {
+        var errors = new BindingErrorCollector();
+
+        var collapse = await ResolveAsync(
+            SpecScenario.Define(static spec => _ = spec
+                .WithSchema("RpcEvent", static schema => PrefixTagged(schema, "^rpc\\.[\\s\\S]*?$"))
+                .WithSchema("RpcEvent_1", static schema => PrefixTagged(schema, "^plugin\\.[\\s\\S]*?$"))
+                .WithSchema("Holder", static schema => schema
+                    .Type("object")
+                    .Property("a", static property => property.Ref("RpcEvent"), required: true)
+                    .Property("b", static property => property.Ref("RpcEvent_1"), required: true))
+                .WithOperation("v2.holder.get", path: "/api/holder", configure: static operation => operation
+                    .Response(200, "application/json", static schema => schema.Ref("Holder")))),
+            errors);
+
+        await Assert.That(collapse.Aliases.Count).IsEqualTo(0);
+        var refusal = Refusals(errors).Single();
+        await Assert.That(refusal.Category).IsEqualTo(BindingErrorCategory.Schema);
+        await Assert.That(refusal.Subject).IsEqualTo("RpcEvent_1");
+        await Assert.That(refusal.Problem).Contains("'RpcEvent_1'");
+        await Assert.That(refusal.Problem).Contains("'RpcEvent'");
+    }
+
     [Test]
     public async Task Resolve_Should_Run_To_A_Fixpoint_When_A_Refused_Duplicate_Breaks_A_Dependent_Pair()
     {
@@ -253,6 +283,10 @@ public sealed class StabilizeDuplicatePolicyTests
     private static SchemaBuilder Widget(SchemaBuilder schema) => schema
         .Type("object")
         .Property("id", static property => property.Type("string"), required: true);
+
+    private static void PrefixTagged(SchemaBuilder schema, string pattern) => _ = schema
+        .Type("object")
+        .Property("type", property => property.Type("string").Pattern(pattern), required: true);
 
     private static SchemaBuilder Part(SchemaBuilder schema) => schema
         .Type("object")

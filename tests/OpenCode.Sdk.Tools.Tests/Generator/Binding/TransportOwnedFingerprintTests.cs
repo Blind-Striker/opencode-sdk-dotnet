@@ -1,4 +1,5 @@
 using OpenCode.Sdk.Tools.Generator.Binding;
+using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 using OpenCode.Sdk.Tools.Tests.Support;
 
 namespace OpenCode.Sdk.Tools.Tests.Generator.Binding;
@@ -81,6 +82,60 @@ public sealed class TransportOwnedFingerprintTests
             .That(TransportOwnedFingerprint.ComputeSha256(extendedOperation))
             .IsNotEqualTo(TransportOwnedFingerprint.ComputeSha256(baselineOperation));
     }
+
+    [Test]
+    public async Task Canonicalize_Should_Omit_PrefixMarkers_When_An_Object_Has_None()
+    {
+        var text = TransportOwnedFingerprint.Canonicalize(ResponseOf(new ObjectNode
+        {
+            Properties = [new SpecProperty { Name = "id", Schema = new PrimitiveNode { Kind = PrimitiveKind.String, }, IsRequired = true, },],
+            AdditionalProperties = AdditionalPropertiesKind.Forbidden,
+            LiteralMarkers = [],
+            ErrorStyle = ErrorStyle.None,
+        }));
+
+        await Assert.That(text).DoesNotContain("prefixMarkers");
+    }
+
+    [Test]
+    public async Task Canonicalize_Should_Hash_PrefixMarkers_When_Present()
+    {
+        var text = TransportOwnedFingerprint.Canonicalize(ResponseOf(new ObjectNode
+        {
+            Properties = [new SpecProperty { Name = "type", Schema = new PrimitiveNode { Kind = PrimitiveKind.String, }, IsRequired = true, },],
+            AdditionalProperties = AdditionalPropertiesKind.Forbidden,
+            LiteralMarkers = [],
+            PrefixMarkers = [new PrefixMarker { PropertyName = "type", Prefix = "rpc.", },],
+            ErrorStyle = ErrorStyle.None,
+        }));
+
+        await Assert.That(text).Contains("\"prefixMarkers\":[{\"propertyName\":\"type\",\"prefix\":\"rpc.\"}]");
+    }
+
+    /// <summary>Wraps a schema in the smallest operation whose canonical text carries it.</summary>
+    private static SpecOperation ResponseOf(SchemaNode schema) =>
+        new()
+        {
+            OperationId = "v2.probe.get",
+            Segments = ["probe", "get"],
+            Method = "get",
+            Path = "/api/probe",
+            HasWildcardPath = false,
+            IsWebSocket = false,
+            IsSse = false,
+            IsDeprecated = false,
+            Parameters = [],
+            Responses =
+            [
+                new SpecResponse
+                {
+                    StatusCode = 200,
+                    Schema = schema,
+                    EnvelopeShape = SpecEnvelopeShape.Bare,
+                    IsSse = false,
+                },
+            ],
+        };
 
     private static SpecScenario Scenario() =>
         SpecScenario.Define(spec => spec
