@@ -94,9 +94,11 @@ public sealed class OpenCodeJsonContextTests
             events.Add(item ?? throw new JsonException("The streamed fixture contained a null event."));
         }
 
-        await Assert.That(events.Count).IsEqualTo(2);
+        await Assert.That(events.Count).IsEqualTo(3);
         await Assert.That(events[0]).IsTypeOf<SessionCreated>();
-        await Assert.That(events[1]).IsTypeOf<UnknownEvent>();
+        await Assert.That(events[1]).IsTypeOf<EventRpc>();
+        await Assert.That(((EventRpc)events[1]).Type).IsEqualTo("rpc.foo");
+        await Assert.That(events[2]).IsTypeOf<UnknownEvent>();
     }
 
     [Test]
