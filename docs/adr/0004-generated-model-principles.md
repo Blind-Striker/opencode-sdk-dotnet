@@ -20,7 +20,8 @@ a deep-immutability guarantee; caller-supplied collection ownership stays with t
 (ADR-0014).
 
 A literal used for union dispatch emits as a constant/get-only property because successful
-dispatch already proved it. Other boolean, numeric, and string literals remain ordinary primitive
+dispatch already proved it; a prefix-tagged discriminator emits as a required string because
+dispatch proved only its prefix. Other boolean, numeric, and string literals remain ordinary primitive
 properties so the SDK preserves the wire value instead of validating or silently normalizing a
 representable server contradiction.
 

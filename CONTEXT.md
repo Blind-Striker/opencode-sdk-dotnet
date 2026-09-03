@@ -276,9 +276,22 @@ The mechanical fold of a reachable `<base>_<N>` component into `<base>` when
 not; recorded as an implicit alias in `.generated-manifest.json`'s `implicitAliases` section
 rather than a curated `schemaAliases` row.
 
+**Prefix-tagged arm**:
+The at-most-one branch of a tagged union whose discriminator is a string prefix — Effect's
+`TemplateLiteral` projected as `^<prefix>[\s\S]*?$` — rather than a literal; `rpc.*` events on the
+live event stream. Dispatch tries literal tags, then the prefix, then the Unknown variant carrier.
+_Avoid_: pattern arm (a general regex is never admitted); catch-all (the Unknown variant carrier is
+the catch-all).
+
 **Unknown variant carrier**:
-The per-union `Unknown*` variant absorbing unrecognized discriminators at runtime (tag
-string + raw payload).
+The per-union `Unknown*` variant absorbing discriminators that match neither a literal tag nor the
+union's prefix-tagged arm at runtime (tag string + raw payload).
+
+**Plugin RPC**:
+A method surface a server-side plugin registers under an `rpcID`; `v2.rpc.call` dispatches one
+`method` to it at a Location with an untyped JSON `input` and returns an untyped `output`, and the
+plugin's notifications ride the live event stream as `rpc.*` events (the prefix-tagged arm).
+_Avoid_: RPC alone (the SDK's own HTTP calls are not RPC).
 
 **Fingerprint pin**:
 The committed hash of an excluded operation's full spec subtree; CI breaks when the pinned

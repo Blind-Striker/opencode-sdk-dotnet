@@ -4,9 +4,10 @@ Date: 2026-08-09
 
 A consumer's SDK being older than the server it talks to is normal operation (upstream
 ships hourly betas), so an unknown discriminator value must never kill a stream or a
-call and must never be silently dropped: every generated union deserializes
-unrecognized tags into that union's explicit `Unknown*` variant carrying the tag string
-and the raw payload (`JsonElement`). One mechanical generator rule, no curation; it
+call and must never be silently dropped: every generated union deserializes tags that are
+neither declared literals nor claimed by the union's prefix-tagged arm into that union's
+explicit `Unknown*` variant carrying the tag string and the raw payload (`JsonElement`). One
+mechanical generator rule, no curation; it
 applies to events, error unions, and every other tagged union alike. Mechanism: a
 generator-emitted custom converter per union base — System.Text.Json's
 `UnknownDerivedTypeHandling` is serialization-side only and cannot express
@@ -26,5 +27,6 @@ this ADR protects is a new variant inside a frame whose kind is understood.
 Known variants may scan a copied reader for position-independent dispatch and deserialize the
 original reader directly; only an actually unknown variant pays for the retained `JsonElement`.
 Because an unknown carrier writes that payload verbatim rather than synthesizing markers, its public
-constructor refuses a missing or disagreeing discriminator (and a disagreeing fixed outer marker).
+constructor refuses a missing or disagreeing discriminator, a disagreeing fixed outer marker, and a
+discriminator the union's prefix-tagged arm claims.
 Wire-read carriers already derive their marker from the same payload and remain unchanged.
