@@ -15,7 +15,7 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
 - **Protocol pin** — generation reads an accepted snapshot of upstream's `v2` OpenAPI document,
   never a live branch, and refreshes are receipt-governed (ADR-0020). `../spec/SNAPSHOT.md` owns
   the exact commit and the refresh procedure.
-- **Coverage** — **131 of 136 operations selected** across 27 client families, with 3 declined by
+- **Coverage** — **135 of 140 operations selected** across 28 client families, with 3 declined by
   decision and 2 transport-owned (Known Gaps below); `src/OpenCode.Sdk/.generation-incomplete` is
   the committed marker and names every one. One-shot calls, server-sent event streams (the global
   bus and the per-session log), PTY and persistent-PTY WebSocket sessions, cursor pagination, typed

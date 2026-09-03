@@ -11,13 +11,27 @@ Each released version links straight to its GitHub Release tag.
 
 ### ✨ New features
 
-- **`OpenCode.Sdk` — the typed client.** **131 of the 136 operations** in the pinned OpenAPI
-  snapshot are callable across **27 client families**: sessions, PTYs, persistent PTYs, shells,
+- **`OpenCode.Sdk` — the typed client.** **135 of the 140 operations** in the pinned OpenAPI
+  snapshot are callable across **28 client families**: sessions, PTYs, persistent PTYs, shells,
   events, MCP servers, integrations, projects, worktrees, workspaces, providers, language models,
-  agents, skills, commands, forms, permissions, credentials, plugins, references, VCS, websearch,
-  file system, generation, server, debug, and experimental. Every operation carries a generated
-  request type and a generated response envelope; bound handles (`SessionClient`, `PtyClient`,
-  `PersistentPtyClient`) partially apply a resource id over the shared pipeline.
+  agents, skills, commands, forms, permissions, credentials, plugins, RPC, references, VCS,
+  websearch, file system, generation, server, debug, and experimental. Every operation carries a
+  generated request type and a generated response envelope; bound handles (`SessionClient`,
+  `PtyClient`, `PersistentPtyClient`) partially apply a resource id over the shared pipeline.
+- **Refreshed to upstream `48f2466`.** The pinned snapshot moved, and the surface moved with it.
+  The live event stream gained its first prefix-tagged arm: every `rpc.*` event dispatches to
+  `EventRpc`, tried after the declared literal tags and before the unknown carrier, and
+  `UnknownEvent` refuses an `rpc.*` tag rather than absorbing it. Four operations arrived —
+  `v2.plugin.awaitActivation`, `v2.plugin.check`, and `v2.plugin.update` as
+  `PluginsClient.PostAwaitActivationAsync`, `PostCheckAsync`, and `PostUpdateAsync`, and
+  `v2.rpc.call` as `PostCallAsync` on the new `RpcClient` family. Upstream also removed and
+  reshaped the plugin types, which nightly consumers will meet as compile breaks: the
+  `plugin.added` event arm is gone, and `PluginAdded` and `PluginAddedData` with it; `IPluginInfo`
+  and its `PluginInfoActive`, `PluginInfoFailed`, and `UnknownPluginInfo` variants are replaced by
+  the `PluginInfo` record, whose `State` is the new `IPluginState` union (`PluginStateActive`,
+  `PluginStateFailed`, `UnknownPluginState`) — match on the state where you matched on the info
+  variant; `PluginSourcePackage.Package` is now `Target`, joined by `Version`, `Outdated`, and
+  `Updating`; and `PluginListResponse.Plugins` is an `IReadOnlyList<PluginInfo>`.
 - **A standalone server launcher.** `OpenCodeServer.StartAsync()` starts, monitors, and stops a
   private `opencode serve` child — generated lease credential, stdin-EOF ownership, bounded tree
   termination — and `CreateClient()` hands back a client already bound to it. Real-process

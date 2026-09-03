@@ -19,9 +19,9 @@ so what you call is exactly what the server declares.
 **Pre-release, and the surface is complete.** Everything below is landed and covered; the only
 thing missing is the first published package.
 
-- ✅ **131 of 136 operations** callable, across 27 client families — sessions, PTYs, persistent
+- ✅ **135 of 140 operations** callable, across 28 client families — sessions, PTYs, persistent
   PTYs, shells, events, MCP servers, integrations, providers, permissions, credentials, VCS,
-  worktrees, websearch, and more
+  worktrees, websearch, RPC, and more
 - ✅ **4,418 tests** green on Windows — the fullest leg, the only one that adds the `net472`
   assemblies. Linux and macOS run the same suite on `net8.0`, `net9.0`, and `net10.0`
 - ✅ **Server-sent event streams**, global and per-session, over the same transport as one-shot calls
@@ -36,7 +36,7 @@ thing missing is the first published package.
 
 **Versioning**: the SDK builds against an accepted OpenAPI snapshot, never a live branch. The exact
 upstream commit and the refresh procedure live in [`spec/SNAPSHOT.md`](spec/SNAPSHOT.md); today's
-pin is `b1e3a7b2` on upstream's `v2` branch.
+pin is `48f24669` on upstream's `v2` branch.
 
 ## 🚀 Platform Compatibility & Quality Status
 
@@ -260,7 +260,7 @@ overload shown above.
 
 ## 🧭 API Coverage
 
-**131 of the 136 operations** in the pinned snapshot are callable. The remaining five are not
+**135 of the 140 operations** in the pinned snapshot are callable. The remaining five are not
 omissions — each one is a recorded decision with a named cause, and
 [`src/OpenCode.Sdk/.generation-incomplete`](src/OpenCode.Sdk/.generation-incomplete) is the
 machine-readable map that the build itself reads.
