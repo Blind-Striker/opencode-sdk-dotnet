@@ -1,5 +1,3 @@
-using System.Text.Json.Nodes;
-using Microsoft.OpenApi;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
 using OpenCode.Sdk.Tools.Tests.Support;
@@ -112,17 +110,12 @@ public sealed class LiteralClassifierTests
     [Test]
     public async Task FindFirstPrefixMarker_Should_Return_The_First_Required_Prefix_And_Ignore_Literals()
     {
-        var schema = new OpenApiSchema
-        {
-            Type = JsonSchemaType.Object,
-            Required = new HashSet<string>(StringComparer.Ordinal) { "kind", "type" },
-            Properties = new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal)
-            {
-                ["kind"] = new OpenApiSchema { Type = JsonSchemaType.String, Enum = [JsonValue.Create("fixed")] },
-                ["type"] = new OpenApiSchema { Type = JsonSchemaType.String, Pattern = "^rpc\\.[\\s\\S]*?$" },
-                ["later"] = new OpenApiSchema { Type = JsonSchemaType.String, Pattern = "^x\\.[\\s\\S]*?$" },
-            },
-        };
+        var scenario = SpecScenario.Define(spec => spec.WithSchema("Event", schema => schema
+            .Type("object")
+            .Property("kind", property => property.Type("string").Enum("fixed"), required: true)
+            .Property("type", property => property.Type("string").Pattern("^rpc\\.[\\s\\S]*?$"), required: true)
+            .Property("later", property => property.Type("string").Pattern("^x\\.[\\s\\S]*?$"))));
+        var schema = await SchemaProjectionTestHost.LoadSchemaAsync(scenario, "Event");
 
         var marker = new LiteralClassifier().FindFirstPrefixMarker(schema);
 

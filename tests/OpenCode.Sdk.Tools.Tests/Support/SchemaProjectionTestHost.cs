@@ -1,3 +1,4 @@
+using Microsoft.OpenApi;
 using OpenCode.Sdk.Tools.Generator.Ingestion;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
@@ -20,6 +21,22 @@ internal sealed class SchemaProjectionTestHost
     {
         var result = await ProjectCoreAsync(scenario);
         return result.Refusal ?? throw new InvalidOperationException("The schema projection was expected to be refused.");
+    }
+
+    /// <summary>
+    /// Reads one component schema as the pinned reader's DOM, for classifiers that walk the raw
+    /// document rather than the projected graph.
+    /// </summary>
+    public static async Task<IOpenApiSchema> LoadSchemaAsync(SpecScenario scenario, string name)
+    {
+        ArgumentNullException.ThrowIfNull(scenario);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        var context = scenario.Build();
+        var loaded = await new SpecReader(context.FileSystem).LoadAsync(context.SpecPath, new IngestionErrorCollector(), CancellationToken.None);
+        return loaded.Document.Components?.Schemas is { } schemas && schemas.TryGetValue(name, out var schema)
+            ? schema
+            : throw new InvalidOperationException($"The scenario declares no component schema named '{name}'.");
     }
 
     private async Task<SchemaProjectionResult> ProjectCoreAsync(SpecScenario scenario)
