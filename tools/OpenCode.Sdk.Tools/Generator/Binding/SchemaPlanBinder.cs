@@ -5,7 +5,8 @@ namespace OpenCode.Sdk.Tools.Generator.Binding;
 
 internal sealed class SchemaPlanBinder(
     StructuralUnionPlanBinder structuralUnions,
-    UnionMembershipValidator unionMemberships)
+    UnionMembershipValidator unionMemberships,
+    UnionDiscriminatorSelector discriminators)
 {
     /// <summary>The prefix-marker list every branch that is not a marked object resolves to.</summary>
     private static readonly IReadOnlyList<PrefixMarker> NoPrefixMarkers = [];
@@ -17,6 +18,9 @@ internal sealed class SchemaPlanBinder(
 
     private readonly UnionMembershipValidator _unionMemberships = unionMemberships
                                                                   ?? throw new ArgumentNullException(nameof(unionMemberships));
+
+    private readonly UnionDiscriminatorSelector _discriminators = discriminators
+                                                                  ?? throw new ArgumentNullException(nameof(discriminators));
 
     public SchemaBindingResult Bind(SpecDocument document, ReachableSchemaSet reachable, GenerationCuration curation,
         IReadOnlyDictionary<string, string> typeNames, BindingErrorCollector errors)
@@ -102,7 +106,7 @@ internal sealed class SchemaPlanBinder(
         };
     }
 
-    private static List<UnionPlan> BindExplicitUnions(SpecDocument document, ReachableSchemaSet reachable, HashSet<string> responseRoots,
+    private List<UnionPlan> BindExplicitUnions(SpecDocument document, ReachableSchemaSet reachable, HashSet<string> responseRoots,
         HashSet<string> streamCauseKeys, IReadOnlyDictionary<string, string> names, Dictionary<string, List<string>> inheritance,
         SchemaInhabitationPolicy inhabitation, BindingErrorCollector errors)
     {
@@ -161,7 +165,7 @@ internal sealed class SchemaPlanBinder(
         return result;
     }
 
-    private static UnionPlan? BindUnion(string name, string key, UnionNode union, IReadOnlyDictionary<string, SchemaNode> graph,
+    private UnionPlan? BindUnion(string name, string key, UnionNode union, IReadOnlyDictionary<string, SchemaNode> graph,
         IReadOnlyDictionary<string, string> names, Dictionary<string, List<string>> inheritance,
         Dictionary<string, UnionFixedMarkerPlan> fixedMarkers, SchemaInhabitationPolicy inhabitation, BindingErrorCollector errors)
     {
@@ -171,14 +175,13 @@ internal sealed class SchemaPlanBinder(
             return null;
         }
 
-        var discriminator = SelectDiscriminator(resolved);
+        var discriminator = _discriminators.Select(resolved);
         if (discriminator is null)
         {
             errors.Add(BindingErrorCategory.Schema, key, "marked union branches share no discriminating marker property");
             return null;
         }
 
-        var marker = discriminator.Marker;
         var prefixBranches = discriminator.PrefixBranches;
         if (prefixBranches.Count > 1)
         {
@@ -187,18 +190,27 @@ internal sealed class SchemaPlanBinder(
             return null;
         }
 
-        var (variants, knownImpossibleTags) =
-            BindLiteralVariants(name, discriminator.LiteralBranches, marker, inheritance, fixedMarkers, errors);
+        var context = new UnionBindingContext
+        {
+            Key = key,
+            Name = name,
+            Marker = discriminator.Marker,
+            Inheritance = inheritance,
+            FixedMarkers = fixedMarkers,
+            Errors = errors,
+        };
+        var literals = BindLiteralVariants(context, discriminator.LiteralBranches);
         UnionPrefixVariantPlan? prefixVariant = null;
         if (prefixBranches.Count is 1)
         {
-            prefixVariant = BindPrefixVariant(key, name, prefixBranches[0], marker, variants, knownImpossibleTags, inheritance, errors);
+            prefixVariant = BindPrefixVariant(context, prefixBranches[0], literals);
             if (prefixVariant is null)
             {
                 return null;
             }
         }
 
+        var marker = discriminator.Marker;
         var conceptName = CSharpNamePolicy.ToUnionConceptName(name);
         return new UnionPlan
         {
@@ -209,9 +221,9 @@ internal sealed class SchemaPlanBinder(
             MarkerWireName = marker.PropertyName,
             MarkerName = CSharpNamePolicy.ToPascalCase(marker.PropertyName),
             MarkerKind = marker.Kind,
-            Variants = variants,
+            Variants = literals.Variants,
             PrefixVariant = prefixVariant,
-            KnownImpossibleTags = [.. knownImpossibleTags.Order(StringComparer.Ordinal)],
+            KnownImpossibleTags = [.. literals.KnownImpossibleTags.Order(StringComparer.Ordinal)],
             Description = union.Description,
         };
     }
@@ -221,10 +233,9 @@ internal sealed class SchemaPlanBinder(
     /// and, for a nested union, the outer marker it fixes. A branch whose schema admits no JSON
     /// value contributes its tag to the known-impossible set instead of a variant.
     /// </summary>
-    private static (List<UnionVariantPlan> Variants, List<string> KnownImpossibleTags) BindLiteralVariants(string name,
-        IReadOnlyList<ResolvedUnionBranch> branches, LiteralMarker marker, IDictionary<string, List<string>> inheritance,
-        Dictionary<string, UnionFixedMarkerPlan> fixedMarkers, BindingErrorCollector errors)
+    private static UnionLiteralVariants BindLiteralVariants(UnionBindingContext context, IReadOnlyList<ResolvedUnionBranch> branches)
     {
+        var marker = context.Marker;
         var variants = new List<UnionVariantPlan>(branches.Count);
         var knownImpossibleTags = new List<string>();
         foreach (var branch in branches)
@@ -238,10 +249,10 @@ internal sealed class SchemaPlanBinder(
                 continue;
             }
 
-            AddInheritance(branch.MemberKey, name, inheritance, errors);
+            AddInheritance(branch.MemberKey, context.Name, context.Inheritance, context.Errors);
             if (branch.IsNestedUnion)
             {
-                fixedMarkers[branch.MemberKey] = new UnionFixedMarkerPlan
+                context.FixedMarkers[branch.MemberKey] = new UnionFixedMarkerPlan
                 {
                     WireName = marker.PropertyName,
                     Name = CSharpNamePolicy.ToPascalCase(marker.PropertyName),
@@ -259,7 +270,7 @@ internal sealed class SchemaPlanBinder(
             });
         }
 
-        return (variants, knownImpossibleTags);
+        return new UnionLiteralVariants(variants, knownImpossibleTags);
     }
 
     /// <summary>
@@ -268,10 +279,13 @@ internal sealed class SchemaPlanBinder(
     /// direct component branch, tag that same string marker, admit a JSON value, and claim no
     /// value a declared literal tag already owns.
     /// </summary>
-    private static UnionPrefixVariantPlan? BindPrefixVariant(string key, string name, ResolvedUnionBranch branch, LiteralMarker marker,
-        IReadOnlyList<UnionVariantPlan> variants, IReadOnlyList<string> knownImpossibleTags,
-        IDictionary<string, List<string>> inheritance, BindingErrorCollector errors)
+    private static UnionPrefixVariantPlan? BindPrefixVariant(UnionBindingContext context, ResolvedUnionBranch branch,
+        UnionLiteralVariants literals)
     {
+        var key = context.Key;
+        var marker = context.Marker;
+        var errors = context.Errors;
+
         // Only an object carries prefix markers, so a nested-union branch can never be the arm;
         // a promoted inline object can, and its member key is the only thing that says so.
         if (branch.MemberKey.Contains('#', StringComparison.Ordinal))
@@ -306,9 +320,9 @@ internal sealed class SchemaPlanBinder(
 
         // A literal tag inside the arm's span would be claimed by whichever dispatch ran first,
         // so the overlap refuses rather than silently ordering one over the other.
-        var covered = variants.FirstOrDefault(variant => variant.Tag.StartsWith(prefixMarker.Prefix, StringComparison.Ordinal));
+        var covered = literals.Variants.FirstOrDefault(variant => variant.Tag.StartsWith(prefixMarker.Prefix, StringComparison.Ordinal));
         var coveredTag = covered?.Tag
-                         ?? knownImpossibleTags.FirstOrDefault(tag => tag.StartsWith(prefixMarker.Prefix, StringComparison.Ordinal));
+                         ?? literals.KnownImpossibleTags.FirstOrDefault(tag => tag.StartsWith(prefixMarker.Prefix, StringComparison.Ordinal));
         if (coveredTag is not null)
         {
             errors.Add(BindingErrorCategory.Schema, key,
@@ -317,7 +331,7 @@ internal sealed class SchemaPlanBinder(
             return null;
         }
 
-        AddInheritance(branch.MemberKey, name, inheritance, errors);
+        AddInheritance(branch.MemberKey, context.Name, context.Inheritance, errors);
         return new UnionPrefixVariantPlan
         {
             TypeName = branch.TypeName,
@@ -326,7 +340,7 @@ internal sealed class SchemaPlanBinder(
         };
     }
 
-    private static List<ResolvedUnionBranch>? ResolveBranches(string key, UnionNode union, IReadOnlyDictionary<string, SchemaNode> graph,
+    private List<ResolvedUnionBranch>? ResolveBranches(string key, UnionNode union, IReadOnlyDictionary<string, SchemaNode> graph,
         IReadOnlyDictionary<string, string> names, SchemaInhabitationPolicy inhabitation, BindingErrorCollector errors)
     {
         var resolved = new List<ResolvedUnionBranch>(union.Branches.Count);
@@ -444,7 +458,7 @@ internal sealed class SchemaPlanBinder(
     /// whose prefix markers sit on other properties — a templated identifier beside a literal
     /// tag — is an ordinary variant of the nested union rather than an arm buried one level down.
     /// </summary>
-    private static string? FindPrefixLeaf(UnionNode nested, IReadOnlyDictionary<string, SchemaNode> graph,
+    private string? FindPrefixLeaf(UnionNode nested, IReadOnlyDictionary<string, SchemaNode> graph,
         IReadOnlyDictionary<string, string> names, SchemaInhabitationPolicy inhabitation)
     {
         var leaves = new List<ResolvedUnionBranch>(nested.Branches.Count);
@@ -467,7 +481,7 @@ internal sealed class SchemaPlanBinder(
                 inhabitation.IsInhabited(leaf)));
         }
 
-        var arms = leaves.Count is 0 ? null : SelectDiscriminator(leaves)?.PrefixBranches;
+        var arms = leaves.Count is 0 ? null : _discriminators.Select(leaves)?.PrefixBranches;
         return arms is { Count: > 0 } ? arms[0].TypeName : null;
     }
 
@@ -502,98 +516,6 @@ internal sealed class SchemaPlanBinder(
                         && string.Equals(other.Value, candidate.Value, StringComparison.Ordinal)))),
         ];
     }
-
-    /// <summary>
-    /// Selects the property the union dispatches on, and with it the branches that tag the
-    /// property with a literal and the branch that tags it with a prefix instead. Candidates are
-    /// the first branch's literal marker properties in document order, then its prefix marker
-    /// properties, so a union whose first branch is the arm still finds its discriminator.
-    /// </summary>
-    /// <remarks>
-    /// Membership of the arm is decided by the discriminating property alone: a literal-tagged
-    /// branch that also carries an unrelated prefix marker — a templated identifier, say — stays
-    /// an ordinary variant, because that marker discriminates nothing.
-    /// </remarks>
-    private static UnionDiscriminator? SelectDiscriminator(IReadOnlyList<ResolvedUnionBranch> branches)
-    {
-        var candidates = branches[0]
-            .Markers.Select(static candidate => candidate.PropertyName)
-            .Concat(branches[0].PrefixMarkers.Select(static candidate => candidate.PropertyName));
-        foreach (var property in candidates)
-        {
-            if (QualifyDiscriminator(branches, property) is { } discriminator)
-            {
-                return discriminator;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Qualifies one candidate property: every branch must tag it with a literal — one kind, and
-    /// a value distinct from every other literal carrier — or stand as a prefix carrier, meaning
-    /// it tags the property with no literal but does tag something with a prefix. A branch that
-    /// tags the property neither way disqualifies the candidate outright. Several prefix carriers
-    /// still qualify, so the arity refusal can name them.
-    /// </summary>
-    private static UnionDiscriminator? QualifyDiscriminator(IReadOnlyList<ResolvedUnionBranch> branches, string property)
-    {
-        var literalBranches = new List<ResolvedUnionBranch>(branches.Count);
-        var prefixBranches = new List<ResolvedUnionBranch>();
-        var values = new HashSet<string>(StringComparer.Ordinal);
-        LiteralMarker? marker = null;
-        foreach (var branch in branches)
-        {
-            var literal = branch.Markers.FirstOrDefault(candidate =>
-                string.Equals(candidate.PropertyName, property, StringComparison.Ordinal));
-            if (literal is null)
-            {
-                if (branch.PrefixMarkers.Count is 0)
-                {
-                    return null;
-                }
-
-                prefixBranches.Add(branch);
-                continue;
-            }
-
-            if ((marker is not null && literal.Kind != marker.Kind) || !values.Add(literal.Value))
-            {
-                return null;
-            }
-
-            marker ??= literal;
-            literalBranches.Add(branch);
-        }
-
-        // The kind comes from a literal carrier, so a candidate every branch tags with a prefix
-        // names no kind and cannot discriminate.
-        return marker is null ? null : new UnionDiscriminator(marker, literalBranches, prefixBranches);
-    }
-
-    /// <summary>
-    /// The property a marked union dispatches on, with its branches already split by how they
-    /// tag it: <paramref name="LiteralBranches"/> become variants, and a lone
-    /// <paramref name="PrefixBranches"/> entry is the candidate arm.
-    /// </summary>
-    private sealed record UnionDiscriminator(
-        LiteralMarker Marker,
-        IReadOnlyList<ResolvedUnionBranch> LiteralBranches,
-        IReadOnlyList<ResolvedUnionBranch> PrefixBranches);
-
-    /// <summary>
-    /// One dispatch entry of a union. <paramref name="MemberKey"/> is the schema that records
-    /// membership; when a nested union spans the outer marker, that member differs from the
-    /// leaf represented by <paramref name="TypeName"/>.
-    /// </summary>
-    private sealed record ResolvedUnionBranch(
-        string TypeName,
-        IReadOnlyList<LiteralMarker> Markers,
-        IReadOnlyList<PrefixMarker> PrefixMarkers,
-        bool IsNestedUnion,
-        string MemberKey,
-        bool IsInhabited);
 
     private static UnionPlan? BindErrorUnion(SpecDocument document, ReachableSchemaSet reachable, HashSet<string> responseRoots,
         HashSet<string> streamCauseKeys, IReadOnlyDictionary<string, string> names,
