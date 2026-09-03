@@ -15,8 +15,29 @@ public sealed record PluginSourcePackage : IPluginSource
     public string Type => "package";
 
     /// <summary>
-    /// Gets the package value.
+    /// Gets the target value.
     /// </summary>
-    [JsonPropertyName("package")]
-    public required string Package { get; init; }
+    [JsonPropertyName("target")]
+    public required string Target { get; init; }
+
+    /// <summary>
+    /// Gets the version value.
+    /// </summary>
+    [JsonPropertyName("version")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Version { get; init; }
+
+    /// <summary>
+    /// Gets the outdated value.
+    /// </summary>
+    [JsonPropertyName("outdated")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Outdated { get; init; }
+
+    /// <summary>
+    /// Gets the updating value.
+    /// </summary>
+    [JsonPropertyName("updating")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Updating { get; init; }
 }

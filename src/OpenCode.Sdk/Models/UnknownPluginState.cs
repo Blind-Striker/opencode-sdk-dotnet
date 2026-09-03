@@ -6,17 +6,17 @@ using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Preserves an unknown plugin info payload.
+/// Preserves an unknown plugin state payload.
 /// </summary>
-[JsonConverter(typeof(UnknownPluginInfoJsonConverter))]
-public sealed record UnknownPluginInfo : IPluginInfo
+[JsonConverter(typeof(UnknownPluginStateJsonConverter))]
+public sealed record UnknownPluginState : IPluginState
 {
     private readonly string _marker;
     /// <summary>
     /// Initializes an unknown union value from its marker and raw payload.
     /// </summary>
     [JsonConstructor]
-    public UnknownPluginInfo(string status, JsonElement payload)
+    public UnknownPluginState(string status, JsonElement payload)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(status);
         if (payload.ValueKind is JsonValueKind.Undefined)

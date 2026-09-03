@@ -35,6 +35,8 @@ public sealed class SpecBinderTests
         "ProjectNotFoundError",
         "ProviderNotFoundError",
         "PtyNotFoundError",
+        "RpcError",
+        "RpcInternalError",
         "ServiceUnavailableError",
         "SessionBusyError",
         "SessionNotFoundError",

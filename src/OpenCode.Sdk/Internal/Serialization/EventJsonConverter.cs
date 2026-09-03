@@ -31,7 +31,6 @@ internal sealed class EventJsonConverter : JsonConverter<IEvent>
         ["permission.replied"] = typeof(PermissionReplied),
         ["persistent-pty.added"] = typeof(PersistentPtyAdded),
         ["persistent-pty.removed"] = typeof(PersistentPtyRemoved),
-        ["plugin.added"] = typeof(PluginAdded),
         ["plugin.updated"] = typeof(PluginUpdated),
         ["project.updated"] = typeof(ProjectUpdated),
         ["pty.created"] = typeof(PtyCreated),
@@ -112,6 +111,11 @@ internal sealed class EventJsonConverter : JsonConverter<IEvent>
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for Event.");
             return JsonSerializer.Deserialize(ref reader, typeInfo) as IEvent ?? throw new JsonException("The Event payload deserialized to null.");
+        }
+
+        if (marker.StartsWith("rpc.", StringComparison.Ordinal))
+        {
+            return JsonSerializer.Deserialize(ref reader, OpenCodeJsonContext.Default.EventRpc) ?? throw new JsonException("The Event payload deserialized to null.");
         }
 
         using var document = JsonDocument.ParseValue(ref reader);

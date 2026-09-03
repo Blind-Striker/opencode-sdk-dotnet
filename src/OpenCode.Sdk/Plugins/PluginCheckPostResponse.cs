@@ -6,16 +6,16 @@ using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk;
 /// <summary>
-/// Represents the response of the &apos;GET /api/plugin&apos; operation.
+/// Represents the response of the &apos;POST /api/plugin/check&apos; operation.
 /// </summary>
-public sealed record PluginListResponse : OpenCodeResponse
+public sealed record PluginCheckPostResponse : OpenCodeResponse
 {
-    private readonly IReadOnlyList<PluginInfo>? _plugins;
+    private readonly IReadOnlyList<PluginInfo>? _check;
     private readonly LocationInfo? _location;
     /// <summary>
-    /// Initializes a success instance of the &apos;PluginListResponse&apos; envelope.
+    /// Initializes a success instance of the &apos;PluginCheckPostResponse&apos; envelope.
     /// </summary>
-    public PluginListResponse()
+    public PluginCheckPostResponse()
     {
     }
 
@@ -23,20 +23,20 @@ public sealed record PluginListResponse : OpenCodeResponse
     /// Initializes an error-path instance; the payload stays unset behind its guard.
     /// </summary>
     [SetsRequiredMembers]
-    internal PluginListResponse(int status, IOpenCodeError? error, string? rawBody)
+    internal PluginCheckPostResponse(int status, IOpenCodeError? error, string? rawBody)
     {
         Status = status;
         IsError = true;
         Error = error;
         RawBody = rawBody;
-        Plugins = null!;
+        Check = null!;
         Location = null!;
     }
 
     /// <summary>
-    /// Gets the Plugins payload; guarded on the error path.
+    /// Gets the Check payload; guarded on the error path.
     /// </summary>
-    public required IReadOnlyList<PluginInfo> Plugins { get => _plugins ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Plugins."); init => _plugins = value; }
+    public required IReadOnlyList<PluginInfo> Check { get => _check ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Check."); init => _check = value; }
     /// <summary>
     /// Gets the location the server resolved for the request; guarded on the error path.
     /// </summary>
@@ -49,7 +49,7 @@ public sealed record PluginListResponse : OpenCodeResponse
     {
         ArgumentNullException.ThrowIfNull(builder);
         var printed = base.PrintMembers(builder);
-        if (_plugins is null)
+        if (_check is null)
         {
             return printed;
         }
@@ -59,7 +59,7 @@ public sealed record PluginListResponse : OpenCodeResponse
             _ = builder.Append(", ");
         }
 
-        _ = builder.Append("Plugins = ").Append(_plugins);
+        _ = builder.Append("Check = ").Append(_check);
         return true;
     }
 }

@@ -28,6 +28,8 @@ internal sealed class OpenCodeErrorJsonConverter : JsonConverter<IOpenCodeError>
         ["ProjectNotFoundError"] = typeof(ProjectNotFoundError),
         ["ProviderNotFoundError"] = typeof(ProviderNotFoundError),
         ["PtyNotFoundError"] = typeof(PtyNotFoundError),
+        ["RpcError"] = typeof(RpcError),
+        ["RpcInternalError"] = typeof(RpcInternalError),
         ["ServiceUnavailableError"] = typeof(ServiceUnavailableError),
         ["SessionBusyError"] = typeof(SessionBusyError),
         ["SessionNotFoundError"] = typeof(SessionNotFoundError),

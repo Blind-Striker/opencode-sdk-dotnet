@@ -5,9 +5,9 @@ using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk.Internal.Serialization;
 /// <summary>
-/// Carries the wire body of &apos;PluginListResponse&apos; through one deserialization pass.
+/// Carries the wire body of &apos;PluginCheckPostResponse&apos; through one deserialization pass.
 /// </summary>
-internal sealed record PluginListResponseEnvelope
+internal sealed record PluginCheckPostResponseEnvelope
 {
     [JsonPropertyName("data")]
     public required IReadOnlyList<PluginInfo> Data { get; init; }

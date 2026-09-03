@@ -1206,6 +1206,72 @@ public static class OpenCodeRoutes
             query.AddLocation("location", request.Location);
             return path + query.Value;
         }
+
+        /// <summary>
+        /// The &apos;POST /api/plugin/await-activation&apos; route template.
+        /// </summary>
+        public const string PostAwaitActivationTemplate = "/api/plugin/await-activation";
+        /// <summary>
+        /// Builds the &apos;/api/plugin/await-activation&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostAwaitActivation(PluginAwaitActivationPostRequest? request = null)
+        {
+            var path = "/api/plugin/await-activation";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/plugin/check&apos; route template.
+        /// </summary>
+        public const string PostCheckTemplate = "/api/plugin/check";
+        /// <summary>
+        /// Builds the &apos;/api/plugin/check&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostCheck(PluginCheckPostRequest? request = null)
+        {
+            var path = "/api/plugin/check";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/plugin/update&apos; route template.
+        /// </summary>
+        public const string PostUpdateTemplate = "/api/plugin/update";
+        /// <summary>
+        /// Builds the &apos;/api/plugin/update&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostUpdate(PluginUpdatePostRequest? request = null)
+        {
+            var path = "/api/plugin/update";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
     }
 
     /// <summary>
@@ -1500,6 +1566,48 @@ public static class OpenCodeRoutes
         public static string ListReferences(ReferenceListRequest? request = null)
         {
             var path = "/api/reference";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+    }
+
+    /// <summary>
+    /// Defines the &apos;Rpc&apos; routes.
+    /// </summary>
+    public static class Rpc
+    {
+        /// <summary>
+        /// The &apos;POST /api/rpc/{rpcID}/{method}&apos; route template.
+        /// </summary>
+        public const string PostCallTemplate = "/api/rpc/{rpcID}/{method}";
+        /// <summary>
+        /// Builds the &apos;/api/rpc/{rpcID}/{method}&apos; route.
+        /// </summary>
+        /// <param name = "rpcId">The &apos;rpcID&apos; route value.</param>
+        /// <param name = "method">The &apos;method&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PostCall(string rpcId, string method, RpcCallPostRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(rpcId);
+            if (rpcId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(rpcId));
+            }
+
+            ArgumentException.ThrowIfNullOrWhiteSpace(method);
+            if (method is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(method));
+            }
+
+            var path = "/api/rpc/" + RouteValuePolicy.Escape(rpcId, nameof(rpcId)) + "/" + RouteValuePolicy.Escape(method, nameof(method));
             if (request is null)
             {
                 return path;

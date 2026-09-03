@@ -7,41 +7,41 @@ using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk.Internal.Serialization;
 
-internal sealed class PluginInfoJsonConverter : JsonConverter<IPluginInfo>
+internal sealed class PluginStateJsonConverter : JsonConverter<IPluginState>
 {
     private static readonly FrozenDictionary<string, Type> TypesByTag = new Dictionary<string, Type>(StringComparer.Ordinal)
     {
-        ["active"] = typeof(PluginInfoActive),
-        ["failed"] = typeof(PluginInfoFailed)
+        ["active"] = typeof(PluginStateActive),
+        ["failed"] = typeof(PluginStateFailed)
     }.ToFrozenDictionary(StringComparer.Ordinal);
     private static readonly UnionDiscriminatorReader DiscriminatorReader = new();
-    public override IPluginInfo Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override IPluginState Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        if (DiscriminatorReader.TryFindKnown(ref reader, "status", "PluginInfo", TypesByTag, out var targetType, out var marker))
+        if (DiscriminatorReader.TryFindKnown(ref reader, "status", "PluginState", TypesByTag, out var targetType, out var marker))
         {
-            var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for PluginInfo.");
-            return JsonSerializer.Deserialize(ref reader, typeInfo) as IPluginInfo ?? throw new JsonException("The PluginInfo payload deserialized to null.");
+            var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for PluginState.");
+            return JsonSerializer.Deserialize(ref reader, typeInfo) as IPluginState ?? throw new JsonException("The PluginState payload deserialized to null.");
         }
 
         using var document = JsonDocument.ParseValue(ref reader);
         var payload = document.RootElement;
-        return new UnknownPluginInfo(marker, payload);
+        return new UnknownPluginState(marker, payload);
     }
 
-    public override void Write(Utf8JsonWriter writer, IPluginInfo value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, IPluginState value, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);
         ArgumentNullException.ThrowIfNull(options);
-        if (value is UnknownPluginInfo unknown)
+        if (value is UnknownPluginState unknown)
         {
             unknown.Payload.WriteTo(writer);
             return;
         }
 
-        var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(value.GetType()) ?? throw new JsonException("The generated context has no metadata for PluginInfo.");
+        var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(value.GetType()) ?? throw new JsonException("The generated context has no metadata for PluginState.");
         JsonSerializer.Serialize(writer, value, typeInfo);
     }
 }

@@ -28,6 +28,13 @@ public sealed record ModelInfo
     public required string ProviderId { get; init; }
 
     /// <summary>
+    /// Gets the canonical value.
+    /// </summary>
+    [JsonPropertyName("canonical")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Canonical { get; init; }
+
+    /// <summary>
     /// Gets the family value.
     /// </summary>
     [JsonPropertyName("family")]

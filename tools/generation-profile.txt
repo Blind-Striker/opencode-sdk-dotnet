@@ -46,7 +46,10 @@ v2.persistentPty.remove
 v2.persistentPty.shutdown
 v2.persistentPty.snapshot
 v2.persistentPty.update
+v2.plugin.awaitActivation
+v2.plugin.check
 v2.plugin.list
+v2.plugin.update
 v2.project.current
 v2.project.list
 v2.project.update
@@ -59,6 +62,7 @@ v2.pty.list
 v2.pty.remove
 v2.pty.update
 v2.reference.list
+v2.rpc.call
 v2.server.get
 v2.session.active
 v2.session.background

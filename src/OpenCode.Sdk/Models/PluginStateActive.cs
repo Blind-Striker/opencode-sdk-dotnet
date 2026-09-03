@@ -4,13 +4,13 @@ using System.Text.Json.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a plugin added data value.
+/// Represents a plugin state active value.
 /// </summary>
-public sealed record PluginAddedData
+public sealed record PluginStateActive : IPluginState
 {
     /// <summary>
-    /// Gets the id value.
+    /// Gets the status value.
     /// </summary>
-    [JsonPropertyName("id")]
-    public required string Id { get; init; }
+    [JsonPropertyName("status")]
+    public string Status => "active";
 }

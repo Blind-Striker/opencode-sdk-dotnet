@@ -16,6 +16,13 @@ public sealed record ProviderInfo
     public required string Id { get; init; }
 
     /// <summary>
+    /// Gets the canonical value.
+    /// </summary>
+    [JsonPropertyName("canonical")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Canonical { get; init; }
+
+    /// <summary>
     /// Gets the integration id value.
     /// </summary>
     [JsonPropertyName("integrationID")]

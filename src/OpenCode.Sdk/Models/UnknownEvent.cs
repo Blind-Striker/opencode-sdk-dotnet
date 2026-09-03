@@ -19,6 +19,11 @@ public sealed record UnknownEvent : IEvent
     public UnknownEvent(string type, JsonElement payload)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(type);
+        if (type.StartsWith("rpc.", StringComparison.Ordinal))
+        {
+            throw new ArgumentException("The 'type' marker is claimed by the 'rpc.' prefix-tagged arm and cannot be carried as unknown.", nameof(type));
+        }
+
         if (payload.ValueKind is JsonValueKind.Undefined)
         {
             throw new ArgumentException("The payload must be a parsed JSON element.", nameof(payload));

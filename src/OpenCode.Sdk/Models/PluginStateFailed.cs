@@ -4,23 +4,10 @@ using System.Text.Json.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a plugin info failed value.
+/// Represents a plugin state failed value.
 /// </summary>
-public sealed record PluginInfoFailed : IPluginInfo
+public sealed record PluginStateFailed : IPluginState
 {
-    /// <summary>
-    /// Gets the id value.
-    /// </summary>
-    [JsonPropertyName("id")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Id { get; init; }
-
-    /// <summary>
-    /// Gets the source value.
-    /// </summary>
-    [JsonPropertyName("source")]
-    public required IPluginSource Source { get; init; }
-
     /// <summary>
     /// Gets the status value.
     /// </summary>
@@ -34,8 +21,9 @@ public sealed record PluginInfoFailed : IPluginInfo
     public required string Error { get; init; }
 
     /// <summary>
-    /// Gets the tui value.
+    /// Gets the ref value.
     /// </summary>
-    [JsonPropertyName("tui")]
-    public required bool Tui { get; init; }
+    [JsonPropertyName("ref")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Ref { get; init; }
 }

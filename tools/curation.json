@@ -165,6 +165,11 @@
       "placement": "client",
       "clientName": "FileSystem",
       "reason": "The three fs operations (list, find, read) carry no per-id operation, so a flat container holds the calls (ADR-0019); the client is named for the upstream tag and the FileSystem.Entry component, not the abbreviation."
+    },
+    "rpc": {
+      "placement": "client",
+      "clientName": "Rpc",
+      "reason": "v2.rpc.call is the family's only pinned operation and its two route values (rpcID, method) ride as arguments, exactly like agent.get and provider.get (ADR-0019); the initialism does not pluralize, so the flat container keeps the domain name, exactly like vcs."
     }
   },
   "operationIdentities": [
@@ -335,6 +340,11 @@
     {
       "schema": "V2Event.server.connected",
       "dotnetName": "EventServerConnected",
+      "reason": "The v2 prefix identifies the selected transport line and is not part of the reviewed .NET domain name."
+    },
+    {
+      "schema": "V2Event.rpc",
+      "dotnetName": "EventRpc",
       "reason": "The v2 prefix identifies the selected transport line and is not part of the reviewed .NET domain name."
     },
     {

@@ -4,15 +4,16 @@ using System.Text.Json.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a plugin info active value.
+/// Represents a plugin info value.
 /// </summary>
-public sealed record PluginInfoActive : IPluginInfo
+public sealed record PluginInfo
 {
     /// <summary>
     /// Gets the id value.
     /// </summary>
     [JsonPropertyName("id")]
-    public required string Id { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Id { get; init; }
 
     /// <summary>
     /// Gets the source value.
@@ -21,14 +22,14 @@ public sealed record PluginInfoActive : IPluginInfo
     public required IPluginSource Source { get; init; }
 
     /// <summary>
-    /// Gets the status value.
+    /// Gets the features value.
     /// </summary>
-    [JsonPropertyName("status")]
-    public string Status => "active";
+    [JsonPropertyName("features")]
+    public required PluginFeatures Features { get; init; }
 
     /// <summary>
-    /// Gets the tui value.
+    /// Gets the state value.
     /// </summary>
-    [JsonPropertyName("tui")]
-    public required bool Tui { get; init; }
+    [JsonPropertyName("state")]
+    public required IPluginState State { get; init; }
 }

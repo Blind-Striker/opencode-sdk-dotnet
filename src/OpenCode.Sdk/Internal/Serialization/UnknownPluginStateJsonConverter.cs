@@ -6,9 +6,9 @@ using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk.Internal.Serialization;
 
-internal sealed class UnknownPluginInfoJsonConverter : JsonConverter<UnknownPluginInfo>
+internal sealed class UnknownPluginStateJsonConverter : JsonConverter<UnknownPluginState>
 {
-    public override UnknownPluginInfo Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override UnknownPluginState Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
@@ -16,12 +16,12 @@ internal sealed class UnknownPluginInfoJsonConverter : JsonConverter<UnknownPlug
         var payload = document.RootElement;
         if (payload.ValueKind != JsonValueKind.Object)
         {
-            throw new JsonException("The PluginInfo payload must be a JSON object.");
+            throw new JsonException("The PluginState payload must be a JSON object.");
         }
 
         if (!payload.TryGetProperty("status", out var markerElement))
         {
-            throw new JsonException("The PluginInfo payload must contain 'status'.");
+            throw new JsonException("The PluginState payload must contain 'status'.");
         }
 
         if (markerElement.ValueKind != JsonValueKind.String)
@@ -35,10 +35,10 @@ internal sealed class UnknownPluginInfoJsonConverter : JsonConverter<UnknownPlug
             throw new JsonException("The 'status' marker must be a non-empty string.");
         }
 
-        return new UnknownPluginInfo(marker, payload);
+        return new UnknownPluginState(marker, payload);
     }
 
-    public override void Write(Utf8JsonWriter writer, UnknownPluginInfo value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, UnknownPluginState value, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);

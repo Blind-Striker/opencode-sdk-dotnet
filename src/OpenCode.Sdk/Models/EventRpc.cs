@@ -5,9 +5,9 @@ using System.Text.Json.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a plugin added value.
+/// Represents a event rpc value.
 /// </summary>
-public sealed record PluginAdded : IEvent
+public sealed record EventRpc : IEvent
 {
     /// <summary>
     /// Gets the id value.
@@ -32,18 +32,30 @@ public sealed record PluginAdded : IEvent
     /// Gets the type value.
     /// </summary>
     [JsonPropertyName("type")]
-    public string Type => "plugin.added";
+    public required string Type
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            if (!value.StartsWith("rpc.", StringComparison.Ordinal))
+            {
+                throw new ArgumentException("The 'type' marker must carry the 'rpc.' prefix.", nameof(value));
+            }
+
+            field = value;
+        }
+    }
 
     /// <summary>
     /// Gets the location value.
     /// </summary>
     [JsonPropertyName("location")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public LocationRef? Location { get; init; }
+    public required LocationRef Location { get; init; }
 
     /// <summary>
     /// Gets the data value.
     /// </summary>
     [JsonPropertyName("data")]
-    public required PluginAddedData Data { get; init; }
+    public required IReadOnlyDictionary<string, JsonElement> Data { get; init; }
 }

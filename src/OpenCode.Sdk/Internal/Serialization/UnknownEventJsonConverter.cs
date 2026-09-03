@@ -35,6 +35,11 @@ internal sealed class UnknownEventJsonConverter : JsonConverter<UnknownEvent>
             throw new JsonException("The 'type' marker must be a non-empty string.");
         }
 
+        if (marker.StartsWith("rpc.", StringComparison.Ordinal))
+        {
+            throw new JsonException("The Event payload carries the 'rpc.' prefix-tagged arm and is not an unknown event.");
+        }
+
         return new UnknownEvent(marker, payload);
     }
 

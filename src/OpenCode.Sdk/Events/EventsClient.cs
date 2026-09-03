@@ -27,7 +27,7 @@ public class EventsClient
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("EventsClient", "Pipeline");
 
     /// <summary>
-    /// Subscribe to events. Subscribe to native event payloads for the server. Volatile by contract: a slow consumer overflows and fails the stream, and events during disconnection are missed.
+    /// Subscribe to events. Subscribe to native events and plugin RPC events across all server locations. Volatile by contract: a slow consumer overflows and fails the stream, and events during disconnection are missed.
     /// </summary>
     /// <param name = "cancellationToken">The cancellation token.</param>
     /// <returns>The &apos;IEvent&apos; stream.</returns>

@@ -5,10 +5,10 @@ using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a plugin info union.
+/// Represents a plugin state union.
 /// </summary>
-[JsonConverter(typeof(PluginInfoJsonConverter))]
-public interface IPluginInfo
+[JsonConverter(typeof(PluginStateJsonConverter))]
+public interface IPluginState
 {
     /// <summary>
     /// Gets the &apos;status&apos; union marker.
