@@ -33,4 +33,39 @@ public sealed class UnionEmitterTests
         await Assert.That(carrier).DoesNotContain("payload cannot be null");
         await Assert.That(carrier).Contains("must be 'phase'");
     }
+
+    [Test]
+    public async Task Emit_Should_Dispatch_Literal_Tags_Then_The_Prefix_Arm_Then_The_Unknown_Carrier()
+    {
+        var sources = UnionEmitter.Emit(EmitterPlanFixture.CreateUnionSnapshot());
+        var converter = EmitterSnapshot.Content(sources, "Internal/Serialization/ExampleEventJsonConverter.cs");
+
+        var known = converter.IndexOf("TryFindKnown(", StringComparison.Ordinal);
+        var prefix = converter.IndexOf("marker.StartsWith(\"rpc.\", StringComparison.Ordinal)", StringComparison.Ordinal);
+        var unknown = converter.IndexOf("new UnknownExampleEvent(marker, payload)", StringComparison.Ordinal);
+        await Assert.That(known).IsGreaterThan(-1);
+        await Assert.That(prefix).IsGreaterThan(known);
+        await Assert.That(unknown).IsGreaterThan(prefix);
+        await Assert.That(converter).Contains("OpenCodeJsonContext.Default.RpcEvent");
+    }
+
+    [Test]
+    public async Task Emit_Should_Make_The_Unknown_Carrier_Refuse_A_Prefix_Claimed_Marker()
+    {
+        var sources = UnionEmitter.Emit(EmitterPlanFixture.CreateUnionSnapshot());
+        var carrier = EmitterSnapshot.Content(sources, "Models/UnknownExampleEvent.cs");
+        var carrierConverter = EmitterSnapshot.Content(sources, "Internal/Serialization/UnknownExampleEventJsonConverter.cs");
+
+        await Assert.That(carrier).Contains("The 'type' marker is claimed by the 'rpc.' prefix-tagged arm and cannot be carried as unknown.");
+        await Assert.That(carrierConverter).Contains("The ExampleEvent payload carries the 'rpc.' prefix-tagged arm and is not an unknown example event.");
+    }
+
+    [Test]
+    public async Task Emit_Should_Leave_A_Union_Without_A_Prefix_Arm_Unchanged()
+    {
+        var sources = UnionEmitter.Emit(EmitterPlanFixture.CreateUnionSnapshot());
+        var phase = EmitterSnapshot.Content(sources, "Internal/Serialization/ExamplePhaseJsonConverter.cs");
+
+        await Assert.That(phase).DoesNotContain("StartsWith(");
+    }
 }

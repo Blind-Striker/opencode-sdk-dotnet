@@ -14,6 +14,7 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(ExamplePlace))]
 [JsonSerializable(typeof(IExampleEvent))]
 [JsonSerializable(typeof(IOpenCodeError))]
+[JsonSerializable(typeof(RpcEvent))]
 [JsonSerializable(typeof(UnknownExampleEvent))]
 [JsonSerializable(typeof(UnknownOpenCodeError))]
 [JsonSerializable(typeof(WidgetCreateRequest))]

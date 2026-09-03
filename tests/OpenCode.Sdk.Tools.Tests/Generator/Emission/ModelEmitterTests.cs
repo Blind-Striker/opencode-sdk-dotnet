@@ -35,4 +35,18 @@ public sealed class ModelEmitterTests
         await Assert.That(source).Contains("public required string? RequiredNullable { get; init; }");
         await Assert.That(source).DoesNotContain("WireNullRejecting");
     }
+
+    [Test]
+    public async Task Emit_Should_Emit_A_Prefix_Discriminator_As_A_Guarded_Required_String()
+    {
+        var sources = ModelEmitter.Emit(EmitterPlanFixture.Create());
+        var arm = EmitterSnapshot.Content(sources, "Models/RpcEvent.cs");
+
+        await Assert.That(arm).Contains("[JsonPropertyName(\"type\")]");
+        await Assert.That(arm).Contains("public required string Type");
+        await Assert.That(arm).Contains("if (!value.StartsWith(\"rpc.\", StringComparison.Ordinal))");
+        await Assert.That(arm).Contains("The 'type' marker must carry the 'rpc.' prefix.");
+        await Assert.That(arm).Contains("field = value;");
+        await Assert.That(arm).DoesNotContain("public string Type => \"");
+    }
 }

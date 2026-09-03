@@ -41,6 +41,11 @@ public sealed record UnknownExampleEvent : IExampleEvent
     public UnknownExampleEvent(string type, JsonElement payload)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(type);
+        if (type.StartsWith("rpc.", StringComparison.Ordinal))
+        {
+            throw new ArgumentException("The 'type' marker is claimed by the 'rpc.' prefix-tagged arm and cannot be carried as unknown.", nameof(type));
+        }
+
         if (payload.ValueKind is JsonValueKind.Undefined)
         {
             throw new ArgumentException("The payload must be a parsed JSON element.", nameof(payload));
@@ -91,6 +96,11 @@ internal sealed class ExampleEventJsonConverter : JsonConverter<IExampleEvent>
             return JsonSerializer.Deserialize(ref reader, typeInfo) as IExampleEvent ?? throw new JsonException("The ExampleEvent payload deserialized to null.");
         }
 
+        if (marker.StartsWith("rpc.", StringComparison.Ordinal))
+        {
+            return JsonSerializer.Deserialize(ref reader, OpenCodeJsonContext.Default.RpcEvent) ?? throw new JsonException("The ExampleEvent payload deserialized to null.");
+        }
+
         using var document = JsonDocument.ParseValue(ref reader);
         var payload = document.RootElement;
         return new UnknownExampleEvent(marker, payload);
@@ -138,6 +148,8 @@ internal sealed class UnknownExampleEventJsonConverter : JsonConverter<UnknownEx
         var marker = markerElement.GetString();
         if (marker is null || string.IsNullOrWhiteSpace(marker))
             throw new JsonException("The 'type' marker must be a non-empty string.");
+        if (marker.StartsWith("rpc.", StringComparison.Ordinal))
+            throw new JsonException("The ExampleEvent payload carries the 'rpc.' prefix-tagged arm and is not an unknown example event.");
         return new UnknownExampleEvent(marker, payload);
     }
 

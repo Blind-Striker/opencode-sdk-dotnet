@@ -149,6 +149,7 @@ internal static class UnionEmitter
         readStatements.AddRange(EmitFixedMarkerCheck(union));
         readStatements.Add(EmitMarkerPresenceCheck(union));
         readStatements.AddRange(EmitMarkerRead(union));
+        readStatements.AddRange(EmitCarrierPrefixRefusal(union));
         readStatements.Add(EmitUnknownReturn(union));
         var read = SyntaxFactory
             .MethodDeclaration(TypeSyntaxEmitter.EmitNamed(union.UnknownTypeName), "Read")
@@ -239,6 +240,8 @@ internal static class UnionEmitter
             statements.AddRange(EmissionSyntax.ArgumentNullOrWhiteSpaceGuard(markerParameterName));
         }
 
+        statements.AddRange(EmitUnknownPrefixRefusal(union, markerParameterName));
+
         // default(JsonElement) has no backing document; Clone would surface a bare
         // InvalidOperationException instead of an argument refusal.
         statements.Add(SyntaxFactory.IfStatement(
@@ -247,18 +250,7 @@ internal static class UnionEmitter
                 SyntaxFactory.ConstantPattern(EmissionSyntax.MemberAccess(
                     SyntaxFactory.IdentifierName("JsonValueKind"),
                     "Undefined"))),
-            SyntaxFactory.Block(SyntaxFactory.ThrowStatement(SyntaxFactory
-                .ObjectCreationExpression(
-                    SyntaxFactory.IdentifierName("ArgumentException"))
-                .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(
-                [
-                    SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
-                        SyntaxKind.StringLiteralExpression,
-                        SyntaxFactory.Literal("The payload must be a parsed JSON element."))),
-                    SyntaxFactory.Argument(EmissionSyntax.Invocation(
-                        SyntaxFactory.IdentifierName("nameof"),
-                        SyntaxFactory.Argument(SyntaxFactory.IdentifierName("payload")))),
-                ])))))));
+            SyntaxFactory.Block(EmissionSyntax.ThrowArgumentException("The payload must be a parsed JSON element.", "payload"))));
 
         statements.AddRange(EmitPayloadMarkerChecks(union, markerParameterName));
 
@@ -281,6 +273,48 @@ internal static class UnionEmitter
             ])))
             .WithBody(SyntaxFactory.Block(statements))
             .WithLeadingTrivia(EmissionSyntax.Documentation("Initializes an unknown union value from its marker and raw payload."));
+    }
+
+    /// <summary>
+    /// The carrier holds markers no arm claims, so a marker the prefix-tagged arm claims is
+    /// refused at construction: the untyped twin of that arm's own marker refusing a value
+    /// outside its prefix.
+    /// </summary>
+    private static IReadOnlyList<StatementSyntax> EmitUnknownPrefixRefusal(UnionPlan union, string markerParameterName)
+    {
+        if (union.PrefixVariant is not { } prefix)
+        {
+            return [];
+        }
+
+        return
+        [
+            SyntaxFactory.IfStatement(
+                EmissionSyntax.StartsWithOrdinal(SyntaxFactory.IdentifierName(markerParameterName), prefix.Prefix),
+                SyntaxFactory.Block(EmissionSyntax.ThrowArgumentException(
+                    $"The '{union.MarkerWireName}' marker is claimed by the '{prefix.Prefix}' prefix-tagged arm and cannot be carried as unknown.",
+                    markerParameterName))),
+        ];
+    }
+
+    /// <summary>
+    /// The carrier converter refuses a prefix-claimed marker as malformed JSON before the
+    /// carrier's constructor can, so the refusal surfaces as the converter's own exception
+    /// rather than as a BCL argument escape.
+    /// </summary>
+    private static IReadOnlyList<StatementSyntax> EmitCarrierPrefixRefusal(UnionPlan union)
+    {
+        if (union.PrefixVariant is not { } prefix)
+        {
+            return [];
+        }
+
+        return
+        [
+            SyntaxFactory.IfStatement(
+                EmissionSyntax.StartsWithOrdinal(SyntaxFactory.IdentifierName("marker"), prefix.Prefix),
+                ThrowJson($"The {union.ConceptName} payload carries the '{prefix.Prefix}' prefix-tagged arm and is not an unknown {DisplayName(union.ConceptName)}.")),
+        ];
     }
 
     private static List<StatementSyntax> EmitPayloadMarkerChecks(UnionPlan union, string markerParameterName)
@@ -565,6 +599,7 @@ internal static class UnionEmitter
         }
 
         statements.Add(EmitKnownDispatch(union));
+        statements.AddRange(EmitPrefixDispatch(union));
         statements.Add(EmitPayloadDocument());
         statements.Add(Local("payload", EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("document"), "RootElement")));
         statements.Add(SyntaxFactory.ReturnStatement(SyntaxFactory
@@ -905,6 +940,43 @@ internal static class UnionEmitter
         statements.Add(Local("typeInfo", typeInfo));
         statements.Add(SyntaxFactory.ReturnStatement(result));
         return SyntaxFactory.IfStatement(tryGet, SyntaxFactory.Block(statements));
+    }
+
+    /// <summary>
+    /// The prefix-tagged arm dispatches after every literal tag has missed and before the
+    /// unknown carrier: <c>marker</c> is the string the known-dispatch probe materialized on
+    /// its miss, and the arm reads through its own registered metadata.
+    /// </summary>
+    private static IReadOnlyList<StatementSyntax> EmitPrefixDispatch(UnionPlan union)
+    {
+        if (union.PrefixVariant is not { } prefix)
+        {
+            return [];
+        }
+
+        if (union.MarkerKind is not LiteralKind.String)
+        {
+            throw new InvalidOperationException(
+                $"Union '{union.ConceptName}' carries a prefix-tagged arm on a '{union.MarkerKind}' marker, which has no emission consumer.");
+        }
+
+        var deserialize = EmissionSyntax.Invocation(
+            EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("JsonSerializer"), "Deserialize"),
+            SyntaxFactory.Argument(SyntaxFactory.IdentifierName("reader"))
+                .WithRefKindKeyword(SyntaxFactory.Token(SyntaxKind.RefKeyword)),
+            SyntaxFactory.Argument(EmissionSyntax.MemberAccess(
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("OpenCodeJsonContext"), "Default"),
+                prefix.TypeName)));
+        var result = SyntaxFactory.BinaryExpression(
+            SyntaxKind.CoalesceExpression,
+            deserialize,
+            SyntaxFactory.ThrowExpression(JsonException($"The {union.ConceptName} payload deserialized to null.")));
+        return
+        [
+            SyntaxFactory.IfStatement(
+                EmissionSyntax.StartsWithOrdinal(SyntaxFactory.IdentifierName("marker"), prefix.Prefix),
+                SyntaxFactory.Block(SyntaxFactory.ReturnStatement(result))),
+        ];
     }
 
     private static MethodDeclarationSyntax EmitWrite(UnionPlan union)

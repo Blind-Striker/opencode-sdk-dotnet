@@ -22,4 +22,13 @@ internal static class EmitterSnapshot
 
         return result.ToString();
     }
+
+    /// <summary>One emitted file's text, for assertions that read a single source rather than the joined snapshot.</summary>
+    public static string Content(IReadOnlyList<GeneratedSource> sources, string relativePath)
+    {
+        ArgumentNullException.ThrowIfNull(sources);
+        ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
+        var source = sources.Single(candidate => string.Equals(candidate.RelativePath, relativePath, StringComparison.Ordinal));
+        return Encoding.UTF8.GetString(source.Utf8Source.Span);
+    }
 }

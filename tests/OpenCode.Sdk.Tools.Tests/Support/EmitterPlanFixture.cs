@@ -30,7 +30,8 @@ internal static class EmitterPlanFixture
         {
             CreateExampleItem(), CreateExamplePlace(), CreateExampleMode(),
             CreateVariant("CreatedEvent", "created", "item", "Item", Named("ExampleItem")),
-            CreateVariant("DeletedEvent", "deleted", "id", "ID", Named("string")), CreateError(), CreateWidgetCreateRequest(),
+            CreateVariant("DeletedEvent", "deleted", "id", "ID", Named("string")),
+            CreateRpcEvent(), CreateError(), CreateWidgetCreateRequest(),
         };
         var unions = new[] { CreateExampleEvent(), CreateOpenCodeError(), };
 
@@ -53,6 +54,7 @@ internal static class EmitterPlanFixture
                     "ExampleMode",
                     "ExamplePlace",
                     "IOpenCodeError",
+                    "RpcEvent",
                     "UnknownExampleEvent",
                     "UnknownOpenCodeError",
                     "WidgetCreateRequest",
@@ -823,6 +825,25 @@ internal static class EmitterPlanFixture
             ],
         };
 
+    /// <summary>
+    /// The example event union's prefix-tagged arm: it carries the union's marker as a required
+    /// string the prefix claims rather than as a literal, so it is never one of the union's
+    /// literal variants.
+    /// </summary>
+    private static ObjectModelPlan CreateRpcEvent() =>
+        new()
+        {
+            Name = "RpcEvent",
+            Namespace = "OpenCode.Sdk.Models",
+            Description = null,
+            ImplementedUnionNames = ["IExampleEvent"],
+            Properties =
+            [
+                Property("type", "Type", Named("string"), isRequired: true, description: null),
+                Property("item", "Item", Named("ExampleItem"), isRequired: true, description: null),
+            ],
+        };
+
     private static ObjectModelPlan CreateError() =>
         new()
         {
@@ -862,6 +883,12 @@ internal static class EmitterPlanFixture
                     MarkerWireName = "type",
                 },
             ],
+            PrefixVariant = new UnionPrefixVariantPlan
+            {
+                TypeName = "RpcEvent",
+                Prefix = "rpc.",
+                MarkerWireName = "type",
+            },
             Description = "Represents an example event.",
         };
 

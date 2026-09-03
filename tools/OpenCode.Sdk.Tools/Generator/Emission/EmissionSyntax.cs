@@ -189,18 +189,40 @@ internal static class EmissionSyntax
                     SyntaxFactory.ConstantPattern(SyntaxFactory.LiteralExpression(
                         SyntaxKind.StringLiteralExpression,
                         SyntaxFactory.Literal(".."))))),
-            SyntaxFactory.Block(SyntaxFactory.ThrowStatement(SyntaxFactory.ObjectCreationExpression(
-                    SyntaxFactory.IdentifierName("ArgumentException"))
-                .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(
-                [
-                    SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
-                        SyntaxKind.StringLiteralExpression,
-                        SyntaxFactory.Literal("Route values must not be dot segments."))),
-                    SyntaxFactory.Argument(Invocation(
-                        SyntaxFactory.IdentifierName("nameof"),
-                        SyntaxFactory.Argument(parameter))),
-                ]))))));
+            SyntaxFactory.Block(ThrowArgumentException("Route values must not be dot segments.", parameterName)));
         return Array.AsReadOnly<StatementSyntax>([whitespaceGuard, dotSegmentGuard]);
+    }
+
+    /// <summary><c>throw new ArgumentException("message", nameof(parameterName));</c>, the refusal every emitted argument guard throws.</summary>
+    public static ThrowStatementSyntax ThrowArgumentException(string message, string parameterName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+        ArgumentException.ThrowIfNullOrWhiteSpace(parameterName);
+        return SyntaxFactory.ThrowStatement(SyntaxFactory
+            .ObjectCreationExpression(SyntaxFactory.IdentifierName("ArgumentException"))
+            .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(
+            [
+                SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression, SyntaxFactory.Literal(message))),
+                SyntaxFactory.Argument(Invocation(
+                    SyntaxFactory.IdentifierName("nameof"),
+                    SyntaxFactory.Argument(SyntaxFactory.IdentifierName(parameterName)))),
+            ]))));
+    }
+
+    /// <summary>
+    /// <c>subject.StartsWith("prefix", StringComparison.Ordinal)</c>: the one test a prefix-tagged
+    /// arm's claim takes, emitted identically where the union converter dispatches to the arm,
+    /// where the unknown carrier refuses a marker the arm claims, and where the arm's own marker
+    /// refuses a value it does not claim, so the three can never disagree on the claim.
+    /// </summary>
+    public static InvocationExpressionSyntax StartsWithOrdinal(ExpressionSyntax subject, string prefix)
+    {
+        ArgumentNullException.ThrowIfNull(subject);
+        ArgumentException.ThrowIfNullOrEmpty(prefix);
+        return Invocation(
+            MemberAccess(subject, "StartsWith"),
+            SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression, SyntaxFactory.Literal(prefix))),
+            SyntaxFactory.Argument(MemberAccess(SyntaxFactory.IdentifierName("StringComparison"), "Ordinal")));
     }
 
     private static string NormalizeDocumentation(string value)

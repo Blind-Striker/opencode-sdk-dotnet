@@ -37,14 +37,14 @@ internal static class ModelEmitter
         IReadOnlyDictionary<string, UnionPlan> unions)
     {
         // A variant overrides one abstract marker per level of its union chain: a nested
-        // union's variant carries both its own tag and the fixed outer tag.
+        // union's variant carries both its own tag and the fixed outer tag. A union's one
+        // prefix-tagged arm carries that union's marker as a guarded string in place of a tag.
         var chainMarkers = GetChainMarkers(model.Name, implemented, unions);
         var unmatched = chainMarkers
-            .Select(static marker => marker.WireName)
-            .FirstOrDefault(wireName => model.Properties.Count(property => IsDiscriminator(property, wireName)) is not 1);
+            .FirstOrDefault(marker => model.Properties.Count(property => IsDiscriminator(property, marker)) is not 1);
         if (unmatched is not null)
         {
-            throw new InvalidOperationException($"Union variant '{model.Name}' must carry exactly one '{unmatched}' marker.");
+            throw new InvalidOperationException($"Union variant '{model.Name}' must carry exactly one '{unmatched.WireName}' marker.");
         }
 
         var declaration = SyntaxFactory
@@ -56,7 +56,7 @@ internal static class ModelEmitter
             .WithCloseBraceToken(SyntaxFactory.Token(SyntaxKind.CloseBraceToken))
             .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>(
             [
-                .. model.Properties.Select(property => EmitProperty(property, MarkerMemberName(chainMarkers, property))),
+                .. model.Properties.Select(property => EmitProperty(property, CarriedMarker(chainMarkers, property))),
                 .. model.RequestQueryProperties.Select(static property => EmitRequestQueryProperty(property)),
             ]))
             .WithLeadingTrivia(EmissionSyntax.Documentation(model.Description ?? $"Represents a {DisplayName(model.Name)} value."));
@@ -69,7 +69,8 @@ internal static class ModelEmitter
             ])));
         }
 
-        var unit = EmissionSyntax.CompilationUnit(model.Namespace, CollectUsings(model), [declaration]);
+        var guardsPrefix = chainMarkers.Any(static marker => marker.Prefix is not null);
+        var unit = EmissionSyntax.CompilationUnit(model.Namespace, CollectUsings(model, guardsPrefix), [declaration]);
         return EmissionSyntax.CreateSource($"Models/{model.Name}.cs", unit);
     }
 
@@ -111,10 +112,12 @@ internal static class ModelEmitter
     /// A discriminator is emitted under the marker member its union promises rather than under
     /// the property's own derived name, so a variant tagged by a second dialect's wire property
     /// still satisfies the one interface member. The wire name it serializes as is untouched.
+    /// A literal tag is a constant; the prefix-tagged arm's marker is a required string whose
+    /// initializer refuses any value outside the prefix.
     /// </summary>
-    private static PropertyDeclarationSyntax EmitProperty(ModelPropertyPlan property, string? markerMemberName)
+    private static PropertyDeclarationSyntax EmitProperty(ModelPropertyPlan property, ChainMarker? marker)
     {
-        var memberName = markerMemberName ?? property.Name;
+        var memberName = marker?.MemberName ?? property.Name;
         var declaration = SyntaxFactory
             .PropertyDeclaration(TypeSyntaxEmitter.Emit(property.Type), memberName)
             .AddAttributeLists(EmissionSyntax.Attribute("JsonPropertyName", EmissionSyntax.StringArgument(property.WireName)))
@@ -139,7 +142,21 @@ internal static class ModelEmitter
                     .WithNameEquals(SyntaxFactory.NameEquals("Condition"))));
         }
 
-        if (markerMemberName is not null)
+        if (marker?.Prefix is { } prefix)
+        {
+            if (!property.IsRequired)
+            {
+                throw new InvalidOperationException($"Property '{property.Name}' carries a prefix-tagged marker but is not required.");
+            }
+
+            return declaration
+                .WithModifiers(SyntaxFactory.TokenList(
+                    SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                    SyntaxFactory.Token(SyntaxKind.RequiredKeyword)))
+                .WithAccessorList(EmitPrefixGuardedAccessors(property.WireName, prefix));
+        }
+
+        if (marker is not null)
         {
             return declaration
                 .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
@@ -172,6 +189,40 @@ internal static class ModelEmitter
             .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
     ]));
 
+    /// <summary>
+    /// <c>get; init { … }</c> for the prefix-tagged arm's marker. The initializer refuses null
+    /// and any value outside the prefix — the typed twin of the unknown carrier refusing a
+    /// marker the prefix claims — and stores through the <c>field</c> keyword.
+    /// </summary>
+    private static AccessorListSyntax EmitPrefixGuardedAccessors(string wireName, string prefix)
+    {
+        var refusal = SyntaxFactory.IfStatement(
+            SyntaxFactory.PrefixUnaryExpression(
+                SyntaxKind.LogicalNotExpression,
+                EmissionSyntax.StartsWithOrdinal(SyntaxFactory.IdentifierName("value"), prefix)),
+            SyntaxFactory.Block(EmissionSyntax.ThrowArgumentException(
+                $"The '{wireName}' marker must carry the '{prefix}' prefix.",
+                "value")));
+        var store = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
+            SyntaxKind.SimpleAssignmentExpression,
+            SyntaxFactory.FieldExpression(),
+            SyntaxFactory.IdentifierName("value")));
+        return SyntaxFactory.AccessorList(SyntaxFactory.List(
+        [
+            SyntaxFactory
+                .AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
+            SyntaxFactory
+                .AccessorDeclaration(SyntaxKind.InitAccessorDeclaration)
+                .WithBody(SyntaxFactory.Block(SyntaxFactory.List(
+                [
+                    .. EmissionSyntax.ArgumentNullGuard("value"),
+                    refusal,
+                    store,
+                ]))),
+        ]));
+    }
+
     private static LiteralExpressionSyntax EmitLiteral(ModelPropertyPlan property) => property.LiteralKind switch
     {
         LiteralKind.String => SyntaxFactory.LiteralExpression(
@@ -184,12 +235,18 @@ internal static class ModelEmitter
         _ => throw new InvalidOperationException($"Property '{property.Name}' has an invalid literal plan."),
     };
 
-    private static IReadOnlyList<string> CollectUsings(ObjectModelPlan model)
+    private static IReadOnlyList<string> CollectUsings(ObjectModelPlan model, bool guardsPrefix)
     {
         var result = new HashSet<string>(StringComparer.Ordinal);
         if (model.Properties.Count > 0)
         {
             _ = result.Add("System.Text.Json.Serialization");
+        }
+
+        // The guarded marker's initializer throws BCL argument exceptions and compares ordinally.
+        if (guardsPrefix)
+        {
+            _ = result.Add("System");
         }
 
         foreach (var property in model.Properties)
@@ -239,26 +296,29 @@ internal static class ModelEmitter
             : throw new InvalidOperationException($"Model '{model.Name}' references absent union '{name}'.")),
     ];
 
-    private static bool IsDiscriminator(ModelPropertyPlan property, string markerWireName) =>
-        property.IsLiteral && string.Equals(property.WireName, markerWireName, StringComparison.Ordinal);
+    /// <summary>
+    /// A variant carries a chain marker as the literal its tag fixes or, as the union's one
+    /// prefix-tagged arm, as the plain string the prefix claims — never as both.
+    /// </summary>
+    private static bool IsDiscriminator(ModelPropertyPlan property, ChainMarker marker) =>
+        string.Equals(property.WireName, marker.WireName, StringComparison.Ordinal)
+        && (marker.Prefix is null ? property.IsLiteral : !property.IsLiteral);
 
-    private static string? MarkerMemberName(IEnumerable<(string WireName, string MemberName)> markers, ModelPropertyPlan property) =>
-        markers
-            .Where(marker => IsDiscriminator(property, marker.WireName))
-            .Select(static marker => marker.MemberName)
-            .FirstOrDefault();
+    private static ChainMarker? CarriedMarker(IEnumerable<ChainMarker> markers, ModelPropertyPlan property) =>
+        markers.FirstOrDefault(marker => IsDiscriminator(property, marker));
 
     /// <summary>
     /// The marker each union in the schema's membership expects it to carry, walking every
-    /// chain, paired with the member name that union promises for it. Two unions may name
+    /// chain, paired with the member name that union promises for it and, when the schema is
+    /// that union's prefix-tagged arm, the prefix its value must carry. Two unions may name
     /// different markers, and the schema then carries both; the same name is one property
     /// serving both contracts. A union that dispatches on more than one wire property reads
     /// this schema's own variant entry, so each variant answers under the union's one member.
     /// </summary>
-    private static List<(string WireName, string MemberName)> GetChainMarkers(string modelName,
+    private static List<ChainMarker> GetChainMarkers(string modelName,
         IReadOnlyList<UnionPlan> implemented, IReadOnlyDictionary<string, UnionPlan> unions)
     {
-        var result = new List<(string WireName, string MemberName)>();
+        var result = new List<ChainMarker>();
         foreach (var union in implemented)
         {
             var current = union;
@@ -267,7 +327,7 @@ internal static class ModelEmitter
                 var wireName = VariantMarkerWireName(current, modelName);
                 if (!result.Any(entry => string.Equals(entry.WireName, wireName, StringComparison.Ordinal)))
                 {
-                    result.Add((wireName, current.MarkerName));
+                    result.Add(new ChainMarker(wireName, current.MarkerName, PrefixOf(current, modelName, wireName)));
                 }
 
                 current = current.BaseTypeName is not null && unions.TryGetValue(current.BaseTypeName, out var outer)
@@ -285,6 +345,21 @@ internal static class ModelEmitter
             ?.MarkerWireName
         ?? union.MarkerWireName;
 
+    /// <summary>The prefix a union's prefix-tagged arm must carry on its marker; null for every other variant.</summary>
+    private static string? PrefixOf(UnionPlan union, string modelName, string wireName) =>
+        union.PrefixVariant is { } prefix
+        && string.Equals(prefix.TypeName, modelName, StringComparison.Ordinal)
+        && string.Equals(prefix.MarkerWireName, wireName, StringComparison.Ordinal)
+            ? prefix.Prefix
+            : null;
+
     private static string DisplayName(string name) =>
         string.Join(' ', CSharpNamePolicy.SplitWords(name).Select(static word => word.ToLowerInvariant()));
+
+    /// <summary>
+    /// One marker a union in the schema's chain expects it to carry: the wire property, the
+    /// member the union promises for it, and — for the union's prefix-tagged arm — the prefix
+    /// the member's value must carry in place of a literal tag.
+    /// </summary>
+    private sealed record ChainMarker(string WireName, string MemberName, string? Prefix);
 }
