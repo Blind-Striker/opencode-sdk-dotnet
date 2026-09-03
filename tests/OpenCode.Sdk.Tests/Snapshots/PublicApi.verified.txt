@@ -479,6 +479,7 @@
         public virtual OpenCode.Sdk.ProvidersClient Providers { get; }
         public virtual OpenCode.Sdk.PtysClient Ptys { get; }
         public virtual OpenCode.Sdk.ReferencesClient References { get; }
+        public virtual OpenCode.Sdk.RpcClient Rpc { get; }
         public virtual OpenCode.Sdk.ServerClient Server { get; }
         public virtual OpenCode.Sdk.SessionsClient Sessions { get; }
         public virtual OpenCode.Sdk.ShellsClient Shells { get; }
@@ -662,7 +663,13 @@
         public static class Plugins
         {
             public const string ListPluginsTemplate = "/api/plugin";
+            public const string PostAwaitActivationTemplate = "/api/plugin/await-activation";
+            public const string PostCheckTemplate = "/api/plugin/check";
+            public const string PostUpdateTemplate = "/api/plugin/update";
             public static string ListPlugins(OpenCode.Sdk.PluginListRequest? request = null) { }
+            public static string PostAwaitActivation(OpenCode.Sdk.PluginAwaitActivationPostRequest? request = null) { }
+            public static string PostCheck(OpenCode.Sdk.Models.PluginCheckPostRequest? request = null) { }
+            public static string PostUpdate(OpenCode.Sdk.Models.PluginUpdatePostRequest? request = null) { }
         }
         public static class Projects
         {
@@ -698,6 +705,11 @@
         {
             public const string ListReferencesTemplate = "/api/reference";
             public static string ListReferences(OpenCode.Sdk.ReferenceListRequest? request = null) { }
+        }
+        public static class Rpc
+        {
+            public const string PostCallTemplate = "/api/rpc/{rpcID}/{method}";
+            public static string PostCall(string rpcId, string method, OpenCode.Sdk.Models.RpcCallPostRequest? request = null) { }
         }
         public static class Server
         {
@@ -1108,6 +1120,22 @@
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PersistentPtyReadResponse> ReadAsync(string sessionId, OpenCode.Sdk.PersistentPtyReadRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PersistentPtyShutdownPostResponse> ShutdownAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
+    public sealed class PluginAwaitActivationPostRequest : System.IEquatable<OpenCode.Sdk.PluginAwaitActivationPostRequest>
+    {
+        public PluginAwaitActivationPostRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class PluginAwaitActivationPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PluginAwaitActivationPostResponse>
+    {
+        public PluginAwaitActivationPostResponse() { }
+    }
+    public sealed class PluginCheckPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PluginCheckPostResponse>
+    {
+        public PluginCheckPostResponse() { }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.PluginInfo> Check { get; init; }
+        public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
     public sealed class PluginListRequest : System.IEquatable<OpenCode.Sdk.PluginListRequest>
     {
         public PluginListRequest() { }
@@ -1117,13 +1145,20 @@
     {
         public PluginListResponse() { }
         public required OpenCode.Sdk.Models.LocationInfo Location { get; init; }
-        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.IPluginInfo> Plugins { get; init; }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.PluginInfo> Plugins { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class PluginUpdatePostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PluginUpdatePostResponse>
+    {
+        public PluginUpdatePostResponse() { }
     }
     public class PluginsClient
     {
         protected PluginsClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PluginListResponse> ListPluginsAsync(OpenCode.Sdk.PluginListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PluginAwaitActivationPostResponse> PostAwaitActivationAsync(OpenCode.Sdk.PluginAwaitActivationPostRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PluginCheckPostResponse> PostCheckAsync(OpenCode.Sdk.Models.PluginCheckPostRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PluginUpdatePostResponse> PostUpdateAsync(OpenCode.Sdk.Models.PluginUpdatePostRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class ProjectCurrentRequest : System.IEquatable<OpenCode.Sdk.ProjectCurrentRequest>
     {
@@ -1313,6 +1348,17 @@
     {
         protected ReferencesClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ReferenceListResponse> ListReferencesAsync(OpenCode.Sdk.ReferenceListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class RpcCallPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.RpcCallPostResponse>
+    {
+        public RpcCallPostResponse() { }
+        public required OpenCode.Sdk.Models.RpcOutput Call { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public class RpcClient
+    {
+        protected RpcClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.RpcCallPostResponse> PostCallAsync(string rpcId, string method, OpenCode.Sdk.Models.RpcCallPostRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public class ServerClient
     {
@@ -2155,6 +2201,23 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
     }
+    public sealed class EventRpc : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.EventRpc>
+    {
+        public EventRpc() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public required OpenCode.Sdk.Models.LocationRef Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public required string Type { get; init; }
+    }
     public sealed class EventServerConnected : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.EventServerConnected>
     {
         public EventServerConnected() { }
@@ -2755,17 +2818,17 @@ namespace OpenCode.Sdk.Models
         string Tag { get; }
     }
     public interface IOpenCodeStreamFailureCause { }
-    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.PluginInfoJsonConverter))]
-    public interface IPluginInfo
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("status")]
-        string Status { get; }
-    }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.PluginSourceJsonConverter))]
     public interface IPluginSource
     {
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         string Type { get; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.PluginStateJsonConverter))]
+    public interface IPluginState
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        string Status { get; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.PromptFileSourceJsonConverter))]
     public interface IPromptFileSource
@@ -3664,6 +3727,9 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("body")]
         public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Body { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("canonical")]
+        public string? Canonical { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("capabilities")]
         public required OpenCode.Sdk.Models.ModelCapabilities Capabilities { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -4155,56 +4221,40 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("size")]
         public required OpenCode.Sdk.Models.PersistentPtyUpdateInputSize Size { get; init; }
     }
-    public sealed class PluginAdded : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.PluginAdded>
+    public sealed class PluginCheckPostRequest : System.IEquatable<OpenCode.Sdk.Models.PluginCheckPostRequest>
     {
-        public PluginAdded() { }
-        [System.Text.Json.Serialization.JsonPropertyName("created")]
-        public required double Created { get; init; }
-        [System.Text.Json.Serialization.JsonPropertyName("data")]
-        public required OpenCode.Sdk.Models.PluginAddedData Data { get; init; }
-        [System.Text.Json.Serialization.JsonPropertyName("id")]
-        public required string Id { get; init; }
+        public PluginCheckPostRequest() { }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-        [System.Text.Json.Serialization.JsonPropertyName("location")]
-        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("target")]
+        public string? Target { get; init; }
+    }
+    public sealed class PluginFeatures : System.IEquatable<OpenCode.Sdk.Models.PluginFeatures>
+    {
+        public PluginFeatures() { }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
-        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
-        [System.Text.Json.Serialization.JsonPropertyName("type")]
-        public string Type { get; }
-    }
-    public sealed class PluginAddedData : System.IEquatable<OpenCode.Sdk.Models.PluginAddedData>
-    {
-        public PluginAddedData() { }
-        [System.Text.Json.Serialization.JsonPropertyName("id")]
-        public required string Id { get; init; }
-    }
-    public sealed class PluginInfoActive : OpenCode.Sdk.Models.IPluginInfo, System.IEquatable<OpenCode.Sdk.Models.PluginInfoActive>
-    {
-        public PluginInfoActive() { }
-        [System.Text.Json.Serialization.JsonPropertyName("id")]
-        public required string Id { get; init; }
-        [System.Text.Json.Serialization.JsonPropertyName("source")]
-        public required OpenCode.Sdk.Models.IPluginSource Source { get; init; }
-        [System.Text.Json.Serialization.JsonPropertyName("status")]
-        public string Status { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("rpc")]
+        public bool? Rpc { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("server")]
+        public bool? Server { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("tui")]
-        public required bool Tui { get; init; }
+        public bool? Tui { get; init; }
     }
-    public sealed class PluginInfoFailed : OpenCode.Sdk.Models.IPluginInfo, System.IEquatable<OpenCode.Sdk.Models.PluginInfoFailed>
+    public sealed class PluginInfo : System.IEquatable<OpenCode.Sdk.Models.PluginInfo>
     {
-        public PluginInfoFailed() { }
-        [System.Text.Json.Serialization.JsonPropertyName("error")]
-        public required string Error { get; init; }
+        public PluginInfo() { }
+        [System.Text.Json.Serialization.JsonPropertyName("features")]
+        public required OpenCode.Sdk.Models.PluginFeatures Features { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("id")]
         public string? Id { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("source")]
         public required OpenCode.Sdk.Models.IPluginSource Source { get; init; }
-        [System.Text.Json.Serialization.JsonPropertyName("status")]
-        public string Status { get; }
-        [System.Text.Json.Serialization.JsonPropertyName("tui")]
-        public required bool Tui { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("state")]
+        public required OpenCode.Sdk.Models.IPluginState State { get; init; }
     }
     public sealed class PluginSourceBuiltin : OpenCode.Sdk.Models.IPluginSource, System.IEquatable<OpenCode.Sdk.Models.PluginSourceBuiltin>
     {
@@ -4223,16 +4273,50 @@ namespace OpenCode.Sdk.Models
     public sealed class PluginSourcePackage : OpenCode.Sdk.Models.IPluginSource, System.IEquatable<OpenCode.Sdk.Models.PluginSourcePackage>
     {
         public PluginSourcePackage() { }
-        [System.Text.Json.Serialization.JsonPropertyName("package")]
-        public required string Package { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("outdated")]
+        public bool? Outdated { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("target")]
+        public required string Target { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("updating")]
+        public bool? Updating { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("version")]
+        public string? Version { get; init; }
     }
     public sealed class PluginSourceSdk : OpenCode.Sdk.Models.IPluginSource, System.IEquatable<OpenCode.Sdk.Models.PluginSourceSdk>
     {
         public PluginSourceSdk() { }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
+    }
+    public sealed class PluginStateActive : OpenCode.Sdk.Models.IPluginState, System.IEquatable<OpenCode.Sdk.Models.PluginStateActive>
+    {
+        public PluginStateActive() { }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; }
+    }
+    public sealed class PluginStateFailed : OpenCode.Sdk.Models.IPluginState, System.IEquatable<OpenCode.Sdk.Models.PluginStateFailed>
+    {
+        public PluginStateFailed() { }
+        [System.Text.Json.Serialization.JsonPropertyName("error")]
+        public required string Error { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("ref")]
+        public string? Ref { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; }
+    }
+    public sealed class PluginUpdatePostRequest : System.IEquatable<OpenCode.Sdk.Models.PluginUpdatePostRequest>
+    {
+        public PluginUpdatePostRequest() { }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("targets")]
+        public required System.Collections.Generic.IReadOnlyList<string> Targets { get; init; }
     }
     public sealed class PluginUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.PluginUpdated>
     {
@@ -4480,6 +4564,9 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("body")]
         public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Body { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("canonical")]
+        public string? Canonical { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("headers")]
         public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
@@ -4776,6 +4863,56 @@ namespace OpenCode.Sdk.Models
         public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
+    }
+    public sealed class RpcCallPostRequest : System.IEquatable<OpenCode.Sdk.Models.RpcCallPostRequest>
+    {
+        public RpcCallPostRequest() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("input")]
+        public System.Text.Json.JsonElement? Input { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class RpcError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.RpcError>
+    {
+        public RpcError() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public System.Text.Json.JsonElement? Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public required string Message { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("_tag")]
+        public string Tag { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public required string Type { get; init; }
+    }
+    public sealed class RpcInternalError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.RpcInternalError>
+    {
+        public RpcInternalError() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public System.Text.Json.JsonElement? Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public required string Message { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("_tag")]
+        public string Tag { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public required OpenCode.Sdk.Models.RpcInternalErrorType Type { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.RpcInternalErrorType>))]
+    public enum RpcInternalErrorType
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("rpc.internal")]
+        RpcInternal = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("rpc.invalid_output")]
+        RpcInvalidOutput = 1,
+    }
+    public sealed class RpcOutput : System.IEquatable<OpenCode.Sdk.Models.RpcOutput>
+    {
+        public RpcOutput() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("output")]
+        public System.Text.Json.JsonElement? Output { get; init; }
     }
     public sealed class ServiceHealth : System.IEquatable<OpenCode.Sdk.Models.ServiceHealth>
     {
@@ -8760,15 +8897,6 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("_tag")]
         public string Tag { get; }
     }
-    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownPluginInfoJsonConverter))]
-    public sealed class UnknownPluginInfo : OpenCode.Sdk.Models.IPluginInfo, System.IEquatable<OpenCode.Sdk.Models.UnknownPluginInfo>
-    {
-        [System.Text.Json.Serialization.JsonConstructor]
-        public UnknownPluginInfo(string status, System.Text.Json.JsonElement payload) { }
-        public System.Text.Json.JsonElement Payload { get; }
-        [System.Text.Json.Serialization.JsonPropertyName("status")]
-        public string Status { get; }
-    }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownPluginSourceJsonConverter))]
     public sealed class UnknownPluginSource : OpenCode.Sdk.Models.IPluginSource, System.IEquatable<OpenCode.Sdk.Models.UnknownPluginSource>
     {
@@ -8777,6 +8905,15 @@ namespace OpenCode.Sdk.Models
         public System.Text.Json.JsonElement Payload { get; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownPluginStateJsonConverter))]
+    public sealed class UnknownPluginState : OpenCode.Sdk.Models.IPluginState, System.IEquatable<OpenCode.Sdk.Models.UnknownPluginState>
+    {
+        [System.Text.Json.Serialization.JsonConstructor]
+        public UnknownPluginState(string status, System.Text.Json.JsonElement payload) { }
+        public System.Text.Json.JsonElement Payload { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownPromptFileSourceJsonConverter))]
     public sealed class UnknownPromptFileSource : OpenCode.Sdk.Models.IPromptFileSource, System.IEquatable<OpenCode.Sdk.Models.UnknownPromptFileSource>

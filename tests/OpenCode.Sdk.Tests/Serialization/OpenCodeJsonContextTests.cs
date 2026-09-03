@@ -693,6 +693,95 @@ public sealed class OpenCodeJsonContextTests
         await Assert.That(_serializer.GetTypeInfo(typeof(ISessionMessageToolState))).IsNotNull();
     }
 
+    [Test]
+    public async Task Deserialize_Should_Create_The_Prefix_Tagged_Event_Arm()
+    {
+        var json = _fixtures.LoadJson("Serialization.known-rpc-event.json");
+
+        var result = _serializer.Deserialize<IEvent>(json);
+
+        await Assert.That(result).IsTypeOf<EventRpc>();
+        var rpc = (EventRpc)result;
+        await Assert.That(rpc.Type).IsEqualTo("rpc.foo");
+        await Assert.That(rpc.Data["answer"].GetInt32()).IsEqualTo(42);
+        var written = _serializer.Serialize<IEvent>(rpc);
+        var reread = _serializer.Deserialize<IEvent>(written);
+        await Assert.That(reread).IsTypeOf<EventRpc>();
+        await Assert.That(((EventRpc)reread).Type).IsEqualTo("rpc.foo");
+    }
+
+    [Test]
+    [Arguments("rpc")]
+    [Arguments("rpcx.foo")]
+    [Arguments("xrpc.foo")]
+    public async Task Deserialize_Should_Not_Route_A_Near_Miss_Marker_To_The_Prefix_Arm(string marker)
+    {
+        var json = CreateRpcEventJson(marker);
+
+        var result = _serializer.Deserialize<IEvent>(json);
+
+        await Assert.That(result).IsTypeOf<UnknownEvent>();
+        await Assert.That(((UnknownEvent)result).Type).IsEqualTo(marker);
+    }
+
+    [Test]
+    public async Task UnknownEvent_Should_Refuse_A_Prefix_Claimed_Marker()
+    {
+        using var document = JsonDocument.Parse(_fixtures.LoadJson("Serialization.known-rpc-event.json"));
+
+        var exception = Assert.Throws<ArgumentException>(() => _ = new UnknownEvent("rpc.foo", document.RootElement));
+
+        await Assert.That(exception.ParamName).IsEqualTo("type");
+        await Assert.That(exception.Message).Contains("claimed by the 'rpc.' prefix-tagged arm");
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Refuse_A_Prefix_Claimed_Marker_On_The_Concrete_Carrier()
+    {
+        var json = _fixtures.LoadJson("Serialization.known-rpc-event.json");
+        var typeInfo = (JsonTypeInfo<UnknownEvent>)_serializer.GetTypeInfo(typeof(UnknownEvent));
+
+        var exception = Assert.Throws<JsonException>(() => _ = JsonSerializer.Deserialize(json, typeInfo));
+
+        await Assert.That(exception.Message).Contains("prefix-tagged arm");
+    }
+
+    [Test]
+    public async Task EventRpc_Should_Refuse_A_Type_Without_The_Prefix()
+    {
+        var exception = Assert.Throws<ArgumentException>(() => _ = CreateRpcEvent("session.created"));
+
+        await Assert.That(exception.ParamName).IsEqualTo("value");
+        await Assert.That(exception.Message).Contains("must carry the 'rpc.' prefix");
+    }
+
+    [Test]
+    public async Task EventRpc_Should_Refuse_A_Null_Type()
+    {
+        var exception = Assert.Throws<ArgumentNullException>(() => _ = CreateRpcEvent(null!));
+
+        await Assert.That(exception.ParamName).IsEqualTo("value");
+    }
+
+    private static EventRpc CreateRpcEvent(string type) =>
+        new()
+        {
+            Id = "evt_1",
+            Created = 1,
+            Type = type,
+            Location = new LocationRef { Directory = "/repo" },
+            Data = new Dictionary<string, JsonElement>(StringComparer.Ordinal),
+        };
+
+    private string CreateRpcEventJson(string marker)
+    {
+        var json = _fixtures.LoadJson("Serialization.known-rpc-event.json");
+        var payload = JsonNode.Parse(json)?.AsObject()
+                      ?? throw new InvalidOperationException("The rpc event fixture must contain a JSON object.");
+        payload["type"] = marker;
+        return payload.ToJsonString();
+    }
+
     private string CreateShellJson(JsonNode? exit)
     {
         var json = _fixtures.LoadJson("Serialization.known-session-message-shell.json");
