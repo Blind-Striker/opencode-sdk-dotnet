@@ -2,6 +2,10 @@
 # publish-nightly job on every master push; this workflow is the ONLY path to a stable version
 # number, and it is never triggered by a push, tag, or GitHub Release event.
 #
+# The lane refuses any ref but master: "Run workflow" offers every branch in its selector, so a
+# wrong pick would otherwise ship a feature or review branch as an exact stable version that
+# NuGet.org can only unlist, never delete.
+#
 # target: github pushes to GitHub Packages with GITHUB_TOKEN and works today.
 #
 # target: nuget publishes to NuGet.org via Trusted Publishing (OIDC through NuGet/login@v1, no
@@ -39,6 +43,9 @@ env:
 jobs:
   publish-manual:
     name: "Publish (${{ inputs.target }})"
+    # workflow_dispatch is the lane's only trigger, so the ref is whatever the operator picked in
+    # "Run workflow" - no event_name clause is needed here, only the branch guard itself.
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     # Job-level union: id-token: write is needed only for the nuget path, packages: write only for
     # the github path. GitHub Actions grants permissions per job, not per step, so both are
@@ -71,7 +78,9 @@ jobs:
       # -p:Version overrides VersionPrefix (Directory.Build.props) entirely rather than combining
       # with a suffix, so the operator's input becomes the exact stamped package version.
       - name: Pack
-        run: dotnet pack --configuration Release -p:Version=${{ inputs.version }} --output packages
+        env:
+          PACKAGE_VERSION: ${{ inputs.version }}
+        run: dotnet pack --configuration Release -p:Version="$PACKAGE_VERSION" --output packages
 
       # Trusted Publishing exchanges a GitHub OIDC token for a short-lived nuget.org API key, so
       # there is no long-lived NUGET_API_KEY secret to rotate or leak. The login step sits
