@@ -1,6 +1,6 @@
 # OpenAPI Snapshot
 
-Date: 2026-08-31
+Date: 2026-09-03
 
 `openapi.json` is the accepted snapshot of the upstream opencode OpenAPI 3.1 document — the v2
 protocol surface (ADR-0005). The SDK is built against this snapshot, never against a live
@@ -14,7 +14,7 @@ their hash-pinned manifests.
 |---|---|
 | Upstream file | `packages/protocol/openapi.json` |
 | Upstream branch | `v2` (active successor line; no release tags yet) |
-| Commit | `b1e3a7b2228a75734d848e33eabc8e15a0efd780` |
+| Commit | `48f246695e97a0014f57399f7603df0b1b2b85d4` |
 | Upstream product channel | `opencode2` — npm `@opencode-ai/cli@next` (pre-release) |
 
 Platform evidence for the v2 line: internal research, 2026-08-16, "The opencode v2 platform:

@@ -3,7 +3,7 @@
   "sources": [
     {
       "path": "packages/server/src/handlers/pty.ts",
-      "sha256": "490a47b0be7092d652f1b578125e2972c55e9897ac18808289e83860f507850a",
+      "sha256": "4414c9709c4a66efbd2a24d49400022e4154587f3b94785871dfd2eca9220a30",
       "behavior": "The PTY connect handler closes 4404 when the session is not found or has exited and 1000 on a normal end, consumes the single-use ticket, accepts a cursor at or above -1, and sends the replay as PtyProtocol.chunks followed by the meta frame.",
       "anchor": {
         "type": "contains",
@@ -57,7 +57,7 @@
     },
     {
       "path": "packages/server/src/routes.ts",
-      "sha256": "2e5f38936737737658baaa12c502c90a1644b231525cc5881cee3b1f4579566f",
+      "sha256": "1f2cb97373ad5c154cc34b3882faf57fa23446aed6678637d6037a2fca728f9c",
       "behavior": "The PTY ticket service and the persistent-PTY service are wired into the server layer graph.",
       "anchor": {
         "type": "contains",
@@ -75,7 +75,7 @@
     },
     {
       "path": "packages/server/src/handlers/persistent-pty.ts",
-      "sha256": "e136831973bea78e4ea1318b18a1a9ab170fc06dd66ef9d2d9a4b5b2bf08039e",
+      "sha256": "181266261e78117a9c09233cacd807cb853883f83e70024f612001fa0ef7885b",
       "behavior": "The persistent connect handler closes 4404 when the terminal is unavailable and 1000 on a normal end, consumes the ticket, and requires a cursor at or above 0.",
       "anchor": {
         "type": "contains",
@@ -84,7 +84,7 @@
     },
     {
       "path": "packages/core/src/persistent-pty/index.ts",
-      "sha256": "412ae5596a7faee4fdc5e3912cb060581e38c7ca1a2670283c4600b6765008e6",
+      "sha256": "d34b09f60dbe8ddc9f2ca23550f57f24a8ac240a923d3d9790b7d154d343c754",
       "behavior": "The handoff call yields null when no daemon is running, and the service reports NotFoundError and UnavailableError.",
       "anchor": {
         "type": "contains",
@@ -133,21 +133,21 @@
       "behavior": "The embedded daemon asset comes from the binaryPath export of the pty package.",
       "anchor": {
         "type": "contains",
-        "text": "import { binaryPath } from \"@opencode-ai/pty\""
+        "text": "import { binaryPath } from \u0022@opencode-ai/pty\u0022"
       }
     },
     {
       "path": "packages/core/package.json",
-      "sha256": "5d420328eae3e481e5c9da21905a39623a637e48bd38073e6b89584f305b8959",
+      "sha256": "82df23aad60157df407b113bb4a6a8ae06e7ff9e875bcb472bed2f505ed815b8",
       "behavior": "The opencode-pty daemon dependency is pinned at 0.1.13, which fixes the daemon protocol the persistent-PTY door speaks.",
       "anchor": {
         "type": "contains",
-        "text": "\"@opencode-ai/pty\": \"0.1.13\""
+        "text": "\u0022@opencode-ai/pty\u0022: \u00220.1.13\u0022"
       }
     },
     {
       "path": "packages/server/src/process.ts",
-      "sha256": "2afe7e840e603501d5f8783bd0dc0defe9e9e8348d0f2439f5f6e51c139ee103",
+      "sha256": "ec105dccd27afbfe55724ca8201dd7cb4ea0dd410055f7ffe0ef90568a1b1144",
       "behavior": "A ticketed PTY connect is admitted before the server reports ready.",
       "anchor": {
         "type": "contains",

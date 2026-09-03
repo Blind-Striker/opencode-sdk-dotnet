@@ -486,6 +486,321 @@
         "summary": "List plugins"
       }
     },
+    "/api/plugin/await-activation": {
+      "post": {
+        "tags": ["plugin"],
+        "operationId": "v2.plugin.awaitActivation",
+        "parameters": [
+          {
+            "name": "location",
+            "in": "query",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "directory": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "workspace": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "required": false,
+            "style": "deepObject",
+            "explode": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "204": {
+            "description": "<No Content>"
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestErrorEncoded"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorEncoded"
+                }
+              }
+            }
+          }
+        },
+        "description": "Wait for configured plugin activation at a Location to settle, including missing-package installs. Completion does not imply every plugin succeeded or background resource discovery finished. Cancelling this wait does not cancel activation.",
+        "summary": "Wait for plugin activation"
+      }
+    },
+    "/api/plugin/check": {
+      "post": {
+        "tags": ["plugin"],
+        "operationId": "v2.plugin.check",
+        "parameters": [
+          {
+            "name": "location",
+            "in": "query",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "directory": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "workspace": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "required": false,
+            "style": "deepObject",
+            "explode": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "location": {
+                      "$ref": "#/components/schemas/Location.InfoEncoded"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Plugin.Info"
+                      }
+                    }
+                  },
+                  "required": ["location", "data"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestErrorEncoded"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestErrorEncoded"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorEncoded"
+                }
+              }
+            }
+          }
+        },
+        "description": "Check one or all package plugins for available updates.",
+        "summary": "Check plugin updates",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "target": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/plugin/update": {
+      "post": {
+        "tags": ["plugin"],
+        "operationId": "v2.plugin.update",
+        "parameters": [
+          {
+            "name": "location",
+            "in": "query",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "directory": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "workspace": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "required": false,
+            "style": "deepObject",
+            "explode": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "204": {
+            "description": "<No Content>"
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestErrorEncoded"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestErrorEncoded"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorEncoded"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorEncoded"
+                }
+              }
+            }
+          }
+        },
+        "description": "Update package plugins concurrently and notify active locations to reload them. Responds once every update has finished; fails when any update fails.",
+        "summary": "Update plugins",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "targets": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": ["targets"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
     "/api/session": {
       "get": {
         "tags": ["session"],
@@ -8950,6 +9265,132 @@
         "summary": "List skills"
       }
     },
+    "/api/rpc/{rpcID}/{method}": {
+      "post": {
+        "tags": ["rpc"],
+        "operationId": "v2.rpc.call",
+        "parameters": [
+          {
+            "name": "rpcID",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "name": "method",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "name": "location",
+            "in": "query",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "directory": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "workspace": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "required": false,
+            "style": "deepObject",
+            "explode": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Rpc.Output",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Rpc.Output"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "RpcError | InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/RpcErrorEncoded"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestErrorEncoded"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorEncoded"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "RpcInternalError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcInternalErrorEncoded"
+                }
+              }
+            }
+          }
+        },
+        "description": "Dispatch a method to the currently registered RPC at the requested location.",
+        "summary": "Call a plugin RPC",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Rpc.Input"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
     "/api/event": {
       "get": {
         "tags": ["event"],
@@ -9069,7 +9510,7 @@
             }
           }
         },
-        "description": "Subscribe to native event payloads for the server. Volatile by contract: a slow consumer overflows and fails the stream, and events during disconnection are missed.",
+        "description": "Subscribe to native events and plugin RPC events across all server locations. Volatile by contract: a slow consumer overflows and fails the stream, and events during disconnection are missed.",
         "summary": "Subscribe to events"
       }
     },
@@ -13456,16 +13897,9 @@
           "default_agent": {
             "type": "string"
           },
-          "autoupdate": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "string",
-                "enum": ["notify"]
-              }
-            ]
+          "update": {
+            "type": "string",
+            "enum": ["disable", "notify", "auto"]
           },
           "share": {
             "type": "string",
@@ -13938,6 +14372,9 @@
       "Config.ProviderEncoded": {
         "type": "object",
         "properties": {
+          "canonical": {
+            "type": "string"
+          },
           "name": {
             "type": "string"
           },
@@ -15890,6 +16327,9 @@
           "providerID": {
             "type": "string"
           },
+          "canonical": {
+            "type": "string"
+          },
           "family": {
             "type": "string"
           },
@@ -16448,52 +16888,42 @@
         "required": ["size"],
         "additionalProperties": false
       },
-      "Plugin.Info": {
-        "anyOf": [
-          {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "source": {
-                "$ref": "#/components/schemas/Plugin.Source"
-              },
-              "status": {
-                "type": "string",
-                "enum": ["active"]
-              },
-              "tui": {
-                "type": "boolean"
-              }
-            },
-            "required": ["id", "source", "status", "tui"],
-            "additionalProperties": false
+      "Plugin.Features": {
+        "type": "object",
+        "properties": {
+          "server": {
+            "type": "boolean",
+            "enum": [true]
           },
-          {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "source": {
-                "$ref": "#/components/schemas/Plugin.Source"
-              },
-              "status": {
-                "type": "string",
-                "enum": ["failed"]
-              },
-              "error": {
-                "type": "string"
-              },
-              "tui": {
-                "type": "boolean"
-              }
-            },
-            "required": ["source", "status", "error", "tui"],
-            "additionalProperties": false
+          "tui": {
+            "type": "boolean",
+            "enum": [true]
+          },
+          "rpc": {
+            "type": "boolean",
+            "enum": [true]
           }
-        ]
+        },
+        "additionalProperties": false
+      },
+      "Plugin.Info": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Plugin.Source"
+          },
+          "features": {
+            "$ref": "#/components/schemas/Plugin.Features"
+          },
+          "state": {
+            "$ref": "#/components/schemas/Plugin.State"
+          }
+        },
+        "required": ["source", "features", "state"],
+        "additionalProperties": false
       },
       "Plugin.Source": {
         "anyOf": [
@@ -16515,11 +16945,22 @@
                 "type": "string",
                 "enum": ["package"]
               },
-              "package": {
+              "target": {
                 "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "outdated": {
+                "type": "boolean",
+                "enum": [true]
+              },
+              "updating": {
+                "type": "boolean",
+                "enum": [true]
               }
             },
-            "required": ["type", "package"],
+            "required": ["type", "target"],
             "additionalProperties": false
           },
           {
@@ -16545,6 +16986,38 @@
               }
             },
             "required": ["type"],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Plugin.State": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": ["active"]
+              }
+            },
+            "required": ["status"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": ["failed"]
+              },
+              "error": {
+                "type": "string"
+              },
+              "ref": {
+                "type": "string"
+              }
+            },
+            "required": ["status", "error"],
             "additionalProperties": false
           }
         ]
@@ -16808,6 +17281,9 @@
           "id": {
             "type": "string"
           },
+          "canonical": {
+            "type": "string"
+          },
           "integrationID": {
             "type": "string"
           },
@@ -17019,6 +17495,71 @@
             "$ref": "#/components/schemas/Reference.GitSource"
           }
         ]
+      },
+      "Rpc.Input": {
+        "type": "object",
+        "properties": {
+          "input": {}
+        },
+        "additionalProperties": false
+      },
+      "Rpc.Output": {
+        "type": "object",
+        "properties": {
+          "output": {}
+        },
+        "additionalProperties": false
+      },
+      "RpcErrorEncoded": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": ["RpcError"]
+          },
+          "type": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": ["_tag", "type", "message"],
+        "additionalProperties": false
+      },
+      "RpcInternalErrorEncoded": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": ["RpcInternalError"]
+          },
+          "type": {
+            "type": "string",
+            "enum": ["rpc.internal", "rpc.invalid_output"]
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": ["_tag", "type", "message"],
+        "additionalProperties": false
       },
       "ServiceHealth": {
         "type": "object",
@@ -19674,9 +20215,6 @@
             "$ref": "#/components/schemas/permission.replied"
           },
           {
-            "$ref": "#/components/schemas/plugin.added"
-          },
-          {
             "$ref": "#/components/schemas/plugin.updated"
           },
           {
@@ -19770,9 +20308,46 @@
             "$ref": "#/components/schemas/mcp.resources.changed"
           },
           {
+            "$ref": "#/components/schemas/V2Event.rpc"
+          },
+          {
             "$ref": "#/components/schemas/V2Event.server.connected"
           }
         ]
+      },
+      "V2Event.rpc": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "created": {
+            "type": "number"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "type": {
+            "type": "string",
+            "pattern": "^rpc\\.[\\s\\S]*?$"
+          },
+          "location": {
+            "$ref": "#/components/schemas/Location.Ref"
+          },
+          "data": {
+            "type": "object"
+          }
+        },
+        "required": ["id", "created", "type", "location", "data"],
+        "additionalProperties": false
       },
       "V2Event.server.connected": {
         "type": "object",
@@ -20768,40 +21343,6 @@
               }
             },
             "required": ["sessionID", "ptyID"],
-            "additionalProperties": false
-          }
-        },
-        "required": ["id", "created", "type", "data"],
-        "additionalProperties": false
-      },
-      "plugin.added": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^evt_"
-          },
-          "created": {
-            "type": "number"
-          },
-          "metadata": {
-            "type": "object"
-          },
-          "type": {
-            "type": "string",
-            "enum": ["plugin.added"]
-          },
-          "location": {
-            "$ref": "#/components/schemas/Location.Ref"
-          },
-          "data": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              }
-            },
-            "required": ["id"],
             "additionalProperties": false
           }
         },
@@ -24685,6 +25226,10 @@
     {
       "name": "skill",
       "description": "Experimental skill routes."
+    },
+    {
+      "name": "rpc",
+      "description": "Plugin RPC routes."
     },
     {
       "name": "event",
