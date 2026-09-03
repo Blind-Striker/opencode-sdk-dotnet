@@ -377,6 +377,21 @@ public sealed class PersistentPtySessionTests
     }
 
     [Test]
+    public async Task WriteAsync_Should_Frame_At_The_Viewport_The_Server_Reported()
+    {
+        var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedWideViewportJson);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        await session.WriteAsync(PersistentPtyFrameData.Output("ls\n"));
+
+        // The attach is the only place the viewport comes from before a resize, and this terminal
+        // is not at the server's default: a write that framed 80x24 anyway would resize the
+        // caller's terminal on the very first keystroke.
+        await Assert.That(socket.SentMessages.Single())
+            .IsEquivalentTo(PersistentPtyFrameData.Framed(1, 132, 50, PersistentPtyFrameData.Output("ls\n")));
+    }
+
+    [Test]
     public async Task WriteAsync_Should_Throw_After_Dispose()
     {
         var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedJson);
