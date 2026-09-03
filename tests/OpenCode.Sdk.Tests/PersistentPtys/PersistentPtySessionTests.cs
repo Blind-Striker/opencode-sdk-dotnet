@@ -40,6 +40,14 @@ public sealed class PersistentPtySessionTests
             await Assert.That(changed.AttachmentId).IsEqualTo("att_9");
             await Assert.That(changed.Generation).IsEqualTo(5L);
         }),
+        static () => (PersistentPtyFrameData.ControllerChangedWithoutAttachmentIdJson, static async frame =>
+        {
+            // Upstream omits the member outright when the terminal has no controller, so the
+            // absent-member arm is a real wire state, not a defensive read of a promised member.
+            var changed = (PersistentPtyControllerChangedFrame)frame;
+            await Assert.That(changed.AttachmentId).IsNull();
+            await Assert.That(changed.Generation).IsEqualTo(6L);
+        }),
         static () => (PersistentPtyFrameData.TitleChangedJson, static async frame =>
         {
             var changed = (PersistentPtyTitleChangedFrame)frame;
@@ -49,6 +57,11 @@ public sealed class PersistentPtySessionTests
         {
             var changed = (PersistentPtyForegroundProcessChangedFrame)frame;
             await Assert.That(changed.Process).IsNull();
+        }),
+        static () => (PersistentPtyFrameData.ForegroundProcessChangedWithProcessJson, static async frame =>
+        {
+            var changed = (PersistentPtyForegroundProcessChangedFrame)frame;
+            await Assert.That(changed.Process).IsEqualTo("vim");
         }),
     ];
 

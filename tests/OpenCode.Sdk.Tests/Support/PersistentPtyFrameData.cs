@@ -75,12 +75,22 @@ internal static class PersistentPtyFrameData
 
     public const string ControllerChangedJson = "{\"type\":\"controller_changed\",\"attachmentID\":\"att_9\",\"generation\":5}";
 
+    /// <summary>
+    /// A controller change leaving the terminal with no controller at all: upstream omits the
+    /// <c>attachmentID</c> member entirely in that state rather than sending it as null
+    /// (daemon.ts:552).
+    /// </summary>
+    public const string ControllerChangedWithoutAttachmentIdJson = "{\"type\":\"controller_changed\",\"generation\":6}";
+
     public const string TitleChangedJson = "{\"type\":\"title_changed\",\"title\":\"vim\"}";
 
     /// <summary>A title change whose promised <c>title</c> string the server sent as JSON null.</summary>
     public const string TitleChangedNullTitleJson = "{\"type\":\"title_changed\",\"title\":null}";
 
     public const string ForegroundProcessChangedJson = "{\"type\":\"foreground_process_changed\",\"process\":null}";
+
+    /// <summary>A foreground-process change naming the process that took the terminal.</summary>
+    public const string ForegroundProcessChangedWithProcessJson = "{\"type\":\"foreground_process_changed\",\"process\":\"vim\"}";
 
     public const string UnknownTypeJson = "{\"type\":\"scrollback_trimmed\",\"bytes\":1024}";
 
