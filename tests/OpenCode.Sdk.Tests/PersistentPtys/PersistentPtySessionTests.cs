@@ -92,6 +92,11 @@ public sealed class PersistentPtySessionTests
 
         await Assert.That(failure!.Message).Contains("input protocol");
         await Assert.That(failure.Message).Contains("protocol 1");
+
+        // An attach that never produced a session still owns the socket it was handed, so the
+        // refusal has to leave the connection released rather than leaked to the finalizer.
+        await Assert.That(socket.CloseOutputCalls).IsEqualTo(1);
+        await Assert.That(socket.DisposeCalls).IsEqualTo(1);
     }
 
     [Test]
@@ -104,6 +109,11 @@ public sealed class PersistentPtySessionTests
             .Throws<OpenCodeTransportException>();
 
         await Assert.That(failure!.Message).Contains("attached");
+
+        // The second distinct exit through the same release path: a first frame the SDK read but
+        // did not want must release the socket exactly as the protocol refusal above does.
+        await Assert.That(socket.CloseOutputCalls).IsEqualTo(1);
+        await Assert.That(socket.DisposeCalls).IsEqualTo(1);
     }
 
     [Test]
