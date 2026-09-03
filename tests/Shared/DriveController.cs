@@ -168,9 +168,14 @@ internal sealed class DriveController : IAsyncDisposable
             // caller whose in-flight wait is racing this teardown reads the state below.
             RecordLoopState("still unwinding when disposal stopped waiting for it");
         }
-
-        _socket.Dispose();
-        _lifetime.Dispose();
+        finally
+        {
+            // Unconditional: _disposed is already latched, so a wait that ended in anything but
+            // the timeout above would otherwise leave the socket and the lifetime alive with no
+            // second pass able to release them.
+            _socket.Dispose();
+            _lifetime.Dispose();
+        }
     }
 
     /// <summary>
@@ -331,6 +336,18 @@ internal sealed class DriveController : IAsyncDisposable
         {
             // Disposal already tore the socket down; the loop simply stops.
             RecordLoopState("the socket was already disposed");
+        }
+        catch (Exception exception)
+        {
+            // Deliberately total. The concrete shapes this exists for are JsonException from
+            // JsonDocument.Parse on a malformed frame, and KeyNotFoundException or
+            // InvalidOperationException from Dispatch's GetProperty walk over a notification whose
+            // shape drifted after a spec refresh - but a fault of any type here is worse than the
+            // three named ones deserve: it leaves _loopState unset, so every bounded wait reports
+            // "the backend did not answer" and sends a reader to the backend when the connection is
+            // what broke. Recorded with its type and message instead, which is what those waits
+            // quote. CA1031 is off repo-wide (.editorconfig §6.1) for exactly this shape.
+            RecordLoopState($"the loop faulted ({exception.GetType().Name}: {exception.Message})");
         }
     }
 

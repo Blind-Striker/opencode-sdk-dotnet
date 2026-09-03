@@ -128,25 +128,33 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
                        Environment.GetEnvironmentVariable("OPENCODE_SDK_TESTS_KEEP_LOGS"),
                        "1",
                        StringComparison.Ordinal);
-        if (_controller is not null)
+        // The controller's teardown is the one that can misbehave - it awaits a receive loop it
+        // does not fully own - and ending the child process is the step that must never be
+        // skipped, so the adapter and the run root are torn down in a finally rather than after.
+        try
         {
-            await _controller.DisposeAsync();
-        }
-
-        if (_adapter is not null)
-        {
-            if (keep && _runRoot is not null)
+            if (_controller is not null)
             {
-                _adapter.WriteLogs(_fileSystem, _fileSystem.Path.Combine(_runRoot.Path, "logs"));
-                Console.WriteLine($"Simulated server logs retained under: {_runRoot.Path}");
+                await _controller.DisposeAsync();
+            }
+        }
+        finally
+        {
+            if (_adapter is not null)
+            {
+                if (keep && _runRoot is not null)
+                {
+                    _adapter.WriteLogs(_fileSystem, _fileSystem.Path.Combine(_runRoot.Path, "logs"));
+                    Console.WriteLine($"Simulated server logs retained under: {_runRoot.Path}");
+                }
+
+                await _adapter.DisposeAsync();
             }
 
-            await _adapter.DisposeAsync();
-        }
-
-        if (!keep)
-        {
-            _runRoot?.Dispose();
+            if (!keep)
+            {
+                _runRoot?.Dispose();
+            }
         }
     }
 }
