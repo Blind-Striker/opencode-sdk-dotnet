@@ -132,19 +132,8 @@ internal sealed class ObjectSchemaProjector
             }
         }
 
-        var markers = projectedProperties
-            .Where(static property => property is { IsRequired: true, Schema: LiteralNode })
-            .Select(static property =>
-            {
-                var literal = (LiteralNode)property.Schema;
-                return new LiteralMarker
-                {
-                    PropertyName = property.Name,
-                    Kind = literal.Kind,
-                    Value = literal.Value,
-                };
-            })
-            .ToArray();
+        var markers = CollectLiteralMarkers(projectedProperties);
+        var prefixMarkers = CollectPrefixMarkers(projectedProperties, properties);
 
         var additionalProperties = AdditionalPropertiesKind.Open;
         if (additionalPropertiesSchema is not null)
@@ -164,7 +153,45 @@ internal sealed class ObjectSchemaProjector
             AdditionalProperties = additionalProperties,
             AdditionalPropertiesSchema = additionalPropertiesSchema,
             LiteralMarkers = markers,
+            PrefixMarkers = prefixMarkers,
             ErrorStyle = _errorStyleClassifier.Classify(projectedProperties),
         };
+    }
+
+    private static LiteralMarker[] CollectLiteralMarkers(IReadOnlyList<SpecProperty> projectedProperties) =>
+    [
+        .. projectedProperties
+            .Where(static property => property is { IsRequired: true, Schema: LiteralNode })
+            .Select(static property =>
+            {
+                var literal = (LiteralNode)property.Schema;
+                return new LiteralMarker
+                {
+                    PropertyName = property.Name,
+                    Kind = literal.Kind,
+                    Value = literal.Value,
+                };
+            }),
+    ];
+
+    private static List<PrefixMarker> CollectPrefixMarkers(IReadOnlyList<SpecProperty> projectedProperties,
+        IDictionary<string, IOpenApiSchema> properties)
+    {
+        var prefixMarkers = new List<PrefixMarker>();
+        foreach (var projected in projectedProperties)
+        {
+            if (!projected.IsRequired
+                || projected.Schema is not PrimitiveNode { Kind: PrimitiveKind.String, Format: null }
+                || !properties.TryGetValue(projected.Name, out var rawProperty)
+                || rawProperty is not OpenApiSchema { Pattern: { } pattern }
+                || TemplateLiteralPrefixPolicy.TryDecodePrefix(pattern) is not { } prefix)
+            {
+                continue;
+            }
+
+            prefixMarkers.Add(new PrefixMarker { PropertyName = projected.Name, Prefix = prefix });
+        }
+
+        return prefixMarkers;
     }
 }

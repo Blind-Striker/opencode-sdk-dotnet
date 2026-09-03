@@ -148,6 +148,7 @@ internal sealed class UnionNormalizer
         {
             var source = sourceBranches[index];
             var marker = _literalClassifier.FindFirstMarker(source);
+            var prefixMarker = marker is null ? _literalClassifier.FindFirstPrefixMarker(source) : null;
             var isMarkedUnionReference = marker is null && IsMarkedUnionReference(source);
             var branchPointer = _keys.UnionBranch(pointer, keyword, index, marker);
             var branchLocation = string.Concat(root, branchPointer);
@@ -175,7 +176,7 @@ internal sealed class UnionNormalizer
                 continue;
             }
 
-            branches.Add(new ProjectedBranch(projected, marker, IsNull: false, isMarkedUnionReference));
+            branches.Add(new ProjectedBranch(projected, marker, IsNull: false, isMarkedUnionReference, prefixMarker));
         }
 
         return failed ? null : [.. branches];
@@ -218,7 +219,7 @@ internal sealed class UnionNormalizer
             return branches[0].Node ?? throw new InvalidOperationException("A non-null union branch had no projected node.");
         }
 
-        var classification = branches.All(static branch => branch.Marker is not null || branch.IsMarkedUnionReference)
+        var classification = branches.All(static branch => branch.Marker is not null || branch.PrefixMarker is not null || branch.IsMarkedUnionReference)
             ? UnionClassification.Marked
             : UnionClassification.Structural;
         return new UnionNode
@@ -327,5 +328,5 @@ internal sealed class UnionNormalizer
         || schema.ContentMediaType is not null
         || schema.ContentSchema is not null;
 
-    private sealed record ProjectedBranch(SchemaNode? Node, LiteralMarker? Marker, bool IsNull, bool IsMarkedUnionReference);
+    private sealed record ProjectedBranch(SchemaNode? Node, LiteralMarker? Marker, bool IsNull, bool IsMarkedUnionReference, PrefixMarker? PrefixMarker = null);
 }

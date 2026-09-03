@@ -261,4 +261,43 @@ public sealed class UnionNormalizerTests
         await Assert.That(exception.Message).Contains("zero");
         await Assert.That(exception.Message).Contains("Bad");
     }
+
+    [Test]
+    public async Task Project_Should_Classify_A_Union_With_One_Prefix_Tagged_Branch_As_Marked()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec
+            .WithSchema("Created", schema => schema
+                .Type("object")
+                .Property("type", property => property.Type("string").Enum("created"), required: true))
+            .WithSchema("RpcEvent", schema => schema
+                .Type("object")
+                .Property("type", property => property.Type("string").Pattern("^rpc\\.[\\s\\S]*?$"), required: true))
+            .WithSchema("Event", schema => schema.AnyOf(branch => branch.Ref("Created"), branch => branch.Ref("RpcEvent"))));
+
+        var result = await host.ProjectAsync(scenario);
+
+        var union = (UnionNode)result.Schemas["Event"];
+        await Assert.That(union.Classification).IsEqualTo(UnionClassification.Marked);
+        await Assert.That(union.Branches).Count().IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task Project_Should_Keep_A_Union_Structural_When_A_Branch_Has_Neither_Literal_Nor_Prefix()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec
+            .WithSchema("Created", schema => schema
+                .Type("object")
+                .Property("type", property => property.Type("string").Enum("created"), required: true))
+            .WithSchema("Loose", schema => schema
+                .Type("object")
+                .Property("type", property => property.Type("string").Pattern("^evt_"), required: true))
+            .WithSchema("Event", schema => schema.AnyOf(branch => branch.Ref("Created"), branch => branch.Ref("Loose"))));
+
+        var result = await host.ProjectAsync(scenario);
+
+        var union = (UnionNode)result.Schemas["Event"];
+        await Assert.That(union.Classification).IsEqualTo(UnionClassification.Structural);
+    }
 }

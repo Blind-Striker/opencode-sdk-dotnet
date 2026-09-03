@@ -1,4 +1,7 @@
+using System.Text.Json.Nodes;
+using Microsoft.OpenApi;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
+using OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
 using OpenCode.Sdk.Tools.Tests.Support;
 
 namespace OpenCode.Sdk.Tools.Tests.Generator.Ingestion;
@@ -104,5 +107,27 @@ public sealed class LiteralClassifierTests
         await Assert.That(markers[1].PropertyName).IsEqualTo("success");
         await Assert.That(markers[1].Kind).IsEqualTo(LiteralKind.Boolean);
         await Assert.That(markers[1].Value).IsEqualTo("false");
+    }
+
+    [Test]
+    public async Task FindFirstPrefixMarker_Should_Return_The_First_Required_Prefix_And_Ignore_Literals()
+    {
+        var schema = new OpenApiSchema
+        {
+            Type = JsonSchemaType.Object,
+            Required = new HashSet<string>(StringComparer.Ordinal) { "kind", "type" },
+            Properties = new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal)
+            {
+                ["kind"] = new OpenApiSchema { Type = JsonSchemaType.String, Enum = [JsonValue.Create("fixed")] },
+                ["type"] = new OpenApiSchema { Type = JsonSchemaType.String, Pattern = "^rpc\\.[\\s\\S]*?$" },
+                ["later"] = new OpenApiSchema { Type = JsonSchemaType.String, Pattern = "^x\\.[\\s\\S]*?$" },
+            },
+        };
+
+        var marker = new LiteralClassifier().FindFirstPrefixMarker(schema);
+
+        await Assert.That(marker).IsNotNull();
+        await Assert.That(marker.PropertyName).IsEqualTo("type");
+        await Assert.That(marker.Prefix).IsEqualTo("rpc.");
     }
 }

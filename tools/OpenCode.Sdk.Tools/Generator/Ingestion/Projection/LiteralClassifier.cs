@@ -33,6 +33,31 @@ internal sealed class LiteralClassifier
         return null;
     }
 
+    public PrefixMarker? FindFirstPrefixMarker(IOpenApiSchema schema)
+    {
+        ArgumentNullException.ThrowIfNull(schema);
+
+        var candidate = schema is OpenApiSchemaReference reference ? reference.Target : schema;
+        if (candidate is not OpenApiSchema { Properties: not null, Required: not null } objectSchema)
+        {
+            return null;
+        }
+
+        foreach (var property in objectSchema.Properties)
+        {
+            if (!objectSchema.Required.Contains(property.Key)
+                || property.Value is not OpenApiSchema { Type: JsonSchemaType.String, Enum: null, Const: null, Format: null, Pattern: { } pattern }
+                || TemplateLiteralPrefixPolicy.TryDecodePrefix(pattern) is not { } prefix)
+            {
+                continue;
+            }
+
+            return new PrefixMarker { PropertyName = property.Key, Prefix = prefix };
+        }
+
+        return null;
+    }
+
     public LiteralNode? Project(OpenApiSchema schema, string location, IngestionErrorCollector errors)
     {
         ArgumentNullException.ThrowIfNull(schema);

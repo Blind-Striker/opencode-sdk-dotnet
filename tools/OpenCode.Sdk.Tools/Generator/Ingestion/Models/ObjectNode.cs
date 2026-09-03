@@ -31,6 +31,20 @@ public sealed record ObjectNode : SchemaNode
         }
     } = Array.AsReadOnly(Array.Empty<LiteralMarker>());
 
+    /// <summary>
+    /// Gets the required string properties constrained to a literal prefix, in document order;
+    /// empty for every object that carries none.
+    /// </summary>
+    public IReadOnlyList<PrefixMarker> PrefixMarkers
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<PrefixMarker>());
+
     /// <summary>Gets the recognized error payload convention.</summary>
     public required ErrorStyle ErrorStyle { get; init; }
 

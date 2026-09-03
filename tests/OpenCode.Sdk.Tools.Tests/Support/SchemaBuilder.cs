@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace OpenCode.Sdk.Tools.Tests.Support;
@@ -242,6 +243,8 @@ internal sealed class SchemaBuilder
         _schema["format"] = format;
         return this;
     }
+
+    public SchemaBuilder Pattern(string pattern) => Raw("pattern", JsonSerializer.Serialize(pattern));
 
     internal JsonObject Build() => _schema.DeepClone().AsObject();
 

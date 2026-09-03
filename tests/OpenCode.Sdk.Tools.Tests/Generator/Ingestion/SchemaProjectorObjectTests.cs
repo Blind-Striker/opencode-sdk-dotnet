@@ -229,4 +229,39 @@ public sealed class SchemaProjectorObjectTests
         await Assert.That(node.AdditionalProperties).IsEqualTo(AdditionalPropertiesKind.Open);
         await Assert.That(node.AdditionalPropertiesSchema).IsNull();
     }
+
+    [Test]
+    public async Task Project_Should_Record_A_Required_Template_Literal_Prefix_Marker()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema("RpcEvent", schema => schema
+            .Type("object")
+            .Property("type", property => property.Type("string").Pattern("^rpc\\.[\\s\\S]*?$"), required: true)
+            .Property("data", property => property.Type("object"), required: true)));
+
+        var result = await host.ProjectAsync(scenario);
+
+        var node = (ObjectNode)result.Schemas["RpcEvent"];
+        await Assert.That(node.LiteralMarkers).IsEmpty();
+        await Assert.That(node.PrefixMarkers).Count().IsEqualTo(1);
+        await Assert.That(node.PrefixMarkers[0].PropertyName).IsEqualTo("type");
+        await Assert.That(node.PrefixMarkers[0].Prefix).IsEqualTo("rpc.");
+        await Assert.That(node.Properties.Single(static property => property.Name == "type").Schema).IsTypeOf<PrimitiveNode>();
+    }
+
+    [Test]
+    public async Task Project_Should_Ignore_Optional_Formatted_Or_Ordinary_Patterns()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema("Plain", schema => schema
+            .Type("object")
+            .Property("id", property => property.Type("string").Pattern("^evt_"), required: true)
+            .Property("optional", property => property.Type("string").Pattern("^rpc\\.[\\s\\S]*?$"))
+            .Property("formatted", property => property.Type("string").Format("date-time").Pattern("^rpc\\.[\\s\\S]*?$"), required: true)));
+
+        var result = await host.ProjectAsync(scenario);
+
+        var node = (ObjectNode)result.Schemas["Plain"];
+        await Assert.That(node.PrefixMarkers).IsEmpty();
+    }
 }
