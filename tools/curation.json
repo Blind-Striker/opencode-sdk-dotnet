@@ -338,16 +338,6 @@
       "reason": "The v2 prefix identifies the selected transport line and is not part of the reviewed .NET domain name."
     },
     {
-      "schema": "op:v2.session.permission.create#/responses/200/content/application~1json/schema/properties/data",
-      "dotnetName": "SessionPermissionCreateData",
-      "reason": "The promoted inline payload inherits its operation-scoped key's v2 prefix; the prefix identifies the selected transport line and is not part of the reviewed .NET domain name."
-    },
-    {
-      "schema": "op:v2.pty.update#/requestBody/content/application~1json/schema/properties/size",
-      "dotnetName": "PtyUpdateSize",
-      "reason": "The promoted inline body member inherits its operation-scoped key's v2 prefix; the prefix identifies the selected transport line and is not part of the reviewed .NET domain name."
-    },
-    {
       "schema": "Provider.Request",
       "dotnetName": "ProviderRequestOptions",
       "reason": "The generated operation request records own the '<Subject>Request' names; this model shapes the outbound provider request (settings, headers, body), so it takes the options suffix instead of colliding with v2.provider.get's request record."

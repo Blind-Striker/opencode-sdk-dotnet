@@ -321,6 +321,33 @@ public sealed class SpecBinderTests
     }
 
     [Test]
+    public async Task Bind_Should_Strip_The_Protocol_Prefix_From_An_Operation_Scoped_Derived_Name()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("WidgetInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true))
+            .WithOperation("v2.widget.update", method: "put", path: "/api/widget", configure: operation => operation
+                .RequestBody("application/json", body => body
+                    .Type("object")
+                    .Property("size", property => property
+                        .Type("object")
+                        .Property("cols", cols => cols.Type("integer"), required: true)
+                        .Property("rows", rows => rows.Type("integer"), required: true), required: true), required: true)
+                .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
+        var curation = Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)));
+
+        var plan = new BindingTestHost().Bind(document, Selection("v2.widget.update"), curation);
+
+        // A promoted inline member under an operation-scoped root has nowhere to take a name from
+        // but the operation identity, which carries the transport's v2. prefix. The resolver strips
+        // it the same mechanical way every other public identifier does, so no curation row exists
+        // to undo it. The pinned guard above proves the shipped surface; this proves the mechanism.
+        await Assert.That(plan.Models.Any(static model => model.Name == "WidgetUpdateSize")).IsTrue();
+        await Assert.That(plan.Registry.TypeNames.Any(static name => name.Contains("V2", StringComparison.Ordinal))).IsFalse();
+    }
+
+    [Test]
     public async Task Bind_Should_Keep_The_Encoded_Suffix_When_The_Unsuffixed_Component_Exists()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec

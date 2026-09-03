@@ -2,7 +2,13 @@ namespace OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
 
 internal static class OperationIdentityParser
 {
-    private const string ProtocolPrefix = "v2.";
+    /// <summary>
+    /// The transport prefix every well-formed operation identity carries. Shared rather than
+    /// respelled because binding strips it from operation-scoped schema roots too: public
+    /// identifiers never carry <c>V2</c> merely because upstream used that transport prefix
+    /// (ADR-0005), and one literal keeps the two strips from drifting apart.
+    /// </summary>
+    internal const string ProtocolPrefix = "v2.";
 
     /// <summary>Checks whether an operation identity satisfies the protocol-prefix convention.</summary>
     public static bool IsWellFormed(string operationId)

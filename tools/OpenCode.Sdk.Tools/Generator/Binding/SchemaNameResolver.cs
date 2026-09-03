@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using OpenCode.Sdk.Tools.Generator.Binding.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
+using OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
 
 namespace OpenCode.Sdk.Tools.Generator.Binding;
 
@@ -391,10 +392,25 @@ internal sealed class SchemaNameResolver
 
     /// <summary>
     /// Operation-scoped roots carry no component identity, so artifact suffixes apply only to
-    /// component roots.
+    /// component roots. What an operation-scoped root does carry is the operation identity, and a
+    /// name derived from one strips the transport's <c>v2.</c> prefix the same mechanical way
+    /// every other public identifier does: <c>V2</c> never appears merely because upstream used
+    /// that prefix (protocol-and-generation.md, ADR-0005). The strip belongs here beside the
+    /// projection-artifact strip, never to a per-row curation act.
     /// </summary>
-    private static string NormalizeRoot(string root, ProjectionArtifactNamePolicy artifacts) =>
-        root.StartsWith("op:", StringComparison.Ordinal) ? root[3..] : artifacts.Normalize(root);
+    private static string NormalizeRoot(string root, ProjectionArtifactNamePolicy artifacts)
+    {
+        const string operationPrefix = "op:";
+        if (!root.StartsWith(operationPrefix, StringComparison.Ordinal))
+        {
+            return artifacts.Normalize(root);
+        }
+
+        var operationId = root[operationPrefix.Length..];
+        return operationId.StartsWith(OperationIdentityParser.ProtocolPrefix, StringComparison.Ordinal)
+            ? operationId[OperationIdentityParser.ProtocolPrefix.Length..]
+            : operationId;
+    }
 
     private static string DecodePointer(string segment) => segment
         .Replace("~1", "/", StringComparison.Ordinal)
