@@ -54,6 +54,11 @@ public sealed class PluginsClientLiveTests(PinnedOpenCodeServerFixture server)
     {
         using var client = server.CreateClient();
 
+        // plugin.list reads the inventory as it stands (handlers/plugin.ts:11-13) while check and
+        // update settle activation first (:20, :60); a cold server lists nothing until the builtins
+        // activate, so this test settles activation itself before it asserts the inventory.
+        _ = await client.Plugins.PostAwaitActivationAsync(cancellationToken: cancellationToken);
+
         var listed = await client.Plugins.ListPluginsAsync(cancellationToken: cancellationToken);
 
         await Assert.That(listed.Status).IsEqualTo(200);
