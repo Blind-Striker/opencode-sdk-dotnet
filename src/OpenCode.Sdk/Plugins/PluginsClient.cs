@@ -29,6 +29,34 @@ public class PluginsClient
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("PluginsClient", "Pipeline");
 
     /// <summary>
+    /// Wait for plugin activation. Wait for configured plugin activation at a Location to settle, including missing-package installs. Completion does not imply every plugin succeeded or background resource discovery finished. Cancelling this wait does not cancel activation.
+    /// </summary>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;PluginAwaitActivationPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<PluginAwaitActivationPostResponse> AwaitPluginActivationAsync(PluginAwaitActivationPostRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Plugins.AwaitPluginActivation(request), PluginAwaitActivationPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Check plugin updates. Check one or all package plugins for available updates.
+    /// </summary>
+    /// <param name = "request">The request body; an empty body is sent when omitted.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;PluginCheckPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<PluginCheckPostResponse> CheckPluginUpdatesAsync(PluginCheckPostRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Plugins.CheckPluginUpdates(request), request ?? EmptyPluginCheckPostRequest, OpenCodeJsonContext.Default.PluginCheckPostRequest, PluginCheckPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
     /// List plugins. Retrieve enabled server plugins and their current status.
     /// </summary>
     /// <param name = "request">The request shaping the query.</param>
@@ -43,34 +71,6 @@ public class PluginsClient
     }
 
     /// <summary>
-    /// Wait for plugin activation. Wait for configured plugin activation at a Location to settle, including missing-package installs. Completion does not imply every plugin succeeded or background resource discovery finished. Cancelling this wait does not cancel activation.
-    /// </summary>
-    /// <param name = "request">The request shaping the query.</param>
-    /// <param name = "requestOptions">The per-call options.</param>
-    /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;PluginAwaitActivationPostResponse&apos; envelope.</returns>
-    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
-    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<PluginAwaitActivationPostResponse> PostAwaitActivationAsync(PluginAwaitActivationPostRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
-    {
-        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Plugins.PostAwaitActivation(request), PluginAwaitActivationPostResponseAdapter.Instance, requestOptions, cancellationToken);
-    }
-
-    /// <summary>
-    /// Check plugin updates. Check one or all package plugins for available updates.
-    /// </summary>
-    /// <param name = "request">The request body; an empty body is sent when omitted.</param>
-    /// <param name = "requestOptions">The per-call options.</param>
-    /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;PluginCheckPostResponse&apos; envelope.</returns>
-    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
-    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<PluginCheckPostResponse> PostCheckAsync(PluginCheckPostRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
-    {
-        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Plugins.PostCheck(request), request ?? EmptyPluginCheckPostRequest, OpenCodeJsonContext.Default.PluginCheckPostRequest, PluginCheckPostResponseAdapter.Instance, requestOptions, cancellationToken);
-    }
-
-    /// <summary>
     /// Update plugins. Update package plugins concurrently and notify active locations to reload them. Responds once every update has finished; fails when any update fails.
     /// </summary>
     /// <param name = "request">The request body.</param>
@@ -79,9 +79,9 @@ public class PluginsClient
     /// <returns>The &apos;PluginUpdatePostResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 503) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<PluginUpdatePostResponse> PostUpdateAsync(PluginUpdatePostRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    public virtual Task<PluginUpdatePostResponse> UpdatePluginsAsync(PluginUpdatePostRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Plugins.PostUpdate(request), request, OpenCodeJsonContext.Default.PluginUpdatePostRequest, PluginUpdatePostResponseAdapter.Instance, requestOptions, cancellationToken);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Plugins.UpdatePlugins(request), request, OpenCodeJsonContext.Default.PluginUpdatePostRequest, PluginUpdatePostResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }

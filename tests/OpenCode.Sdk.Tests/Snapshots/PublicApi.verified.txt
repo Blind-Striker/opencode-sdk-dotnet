@@ -662,14 +662,14 @@
         }
         public static class Plugins
         {
+            public const string AwaitPluginActivationTemplate = "/api/plugin/await-activation";
+            public const string CheckPluginUpdatesTemplate = "/api/plugin/check";
             public const string ListPluginsTemplate = "/api/plugin";
-            public const string PostAwaitActivationTemplate = "/api/plugin/await-activation";
-            public const string PostCheckTemplate = "/api/plugin/check";
-            public const string PostUpdateTemplate = "/api/plugin/update";
+            public const string UpdatePluginsTemplate = "/api/plugin/update";
+            public static string AwaitPluginActivation(OpenCode.Sdk.PluginAwaitActivationPostRequest? request = null) { }
+            public static string CheckPluginUpdates(OpenCode.Sdk.Models.PluginCheckPostRequest? request = null) { }
             public static string ListPlugins(OpenCode.Sdk.PluginListRequest? request = null) { }
-            public static string PostAwaitActivation(OpenCode.Sdk.PluginAwaitActivationPostRequest? request = null) { }
-            public static string PostCheck(OpenCode.Sdk.Models.PluginCheckPostRequest? request = null) { }
-            public static string PostUpdate(OpenCode.Sdk.Models.PluginUpdatePostRequest? request = null) { }
+            public static string UpdatePlugins(OpenCode.Sdk.Models.PluginUpdatePostRequest? request = null) { }
         }
         public static class Projects
         {
@@ -708,8 +708,8 @@
         }
         public static class Rpc
         {
-            public const string PostCallTemplate = "/api/rpc/{rpcID}/{method}";
-            public static string PostCall(string rpcId, string method, OpenCode.Sdk.Models.RpcCallPostRequest? request = null) { }
+            public const string CallTemplate = "/api/rpc/{rpcID}/{method}";
+            public static string Call(string rpcId, string method, OpenCode.Sdk.Models.RpcCallPostRequest? request = null) { }
         }
         public static class Server
         {
@@ -1155,10 +1155,10 @@
     public class PluginsClient
     {
         protected PluginsClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PluginAwaitActivationPostResponse> AwaitPluginActivationAsync(OpenCode.Sdk.PluginAwaitActivationPostRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PluginCheckPostResponse> CheckPluginUpdatesAsync(OpenCode.Sdk.Models.PluginCheckPostRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PluginListResponse> ListPluginsAsync(OpenCode.Sdk.PluginListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PluginAwaitActivationPostResponse> PostAwaitActivationAsync(OpenCode.Sdk.PluginAwaitActivationPostRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PluginCheckPostResponse> PostCheckAsync(OpenCode.Sdk.Models.PluginCheckPostRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PluginUpdatePostResponse> PostUpdateAsync(OpenCode.Sdk.Models.PluginUpdatePostRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.PluginUpdatePostResponse> UpdatePluginsAsync(OpenCode.Sdk.Models.PluginUpdatePostRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class ProjectCurrentRequest : System.IEquatable<OpenCode.Sdk.ProjectCurrentRequest>
     {
@@ -1358,7 +1358,7 @@
     public class RpcClient
     {
         protected RpcClient() { }
-        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.RpcCallPostResponse> PostCallAsync(string rpcId, string method, OpenCode.Sdk.Models.RpcCallPostRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.RpcCallPostResponse> CallAsync(string rpcId, string method, OpenCode.Sdk.Models.RpcCallPostRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public class ServerClient
     {

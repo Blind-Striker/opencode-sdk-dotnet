@@ -35,12 +35,12 @@ public sealed class PluginsClientLiveTests(PinnedOpenCodeServerFixture server)
 
     [Test]
     [Timeout(60_000)]
-    public async Task PostAwaitActivationAsync_Should_Answer_204_Once_Activation_Settles(
+    public async Task AwaitPluginActivationAsync_Should_Answer_204_Once_Activation_Settles(
         CancellationToken cancellationToken)
     {
         using var client = server.CreateClient();
 
-        var settled = await client.Plugins.PostAwaitActivationAsync(cancellationToken: cancellationToken);
+        var settled = await client.Plugins.AwaitPluginActivationAsync(cancellationToken: cancellationToken);
 
         await Assert.That(settled.Status).IsEqualTo(204);
         await Assert.That(settled.IsError).IsFalse();
@@ -57,7 +57,7 @@ public sealed class PluginsClientLiveTests(PinnedOpenCodeServerFixture server)
         // plugin.list reads the inventory as it stands (handlers/plugin.ts:11-13) while check and
         // update settle activation first (:20, :60); a cold server lists nothing until the builtins
         // activate, so this test settles activation itself before it asserts the inventory.
-        _ = await client.Plugins.PostAwaitActivationAsync(cancellationToken: cancellationToken);
+        _ = await client.Plugins.AwaitPluginActivationAsync(cancellationToken: cancellationToken);
 
         var listed = await client.Plugins.ListPluginsAsync(cancellationToken: cancellationToken);
 
@@ -78,12 +78,12 @@ public sealed class PluginsClientLiveTests(PinnedOpenCodeServerFixture server)
 
     [Test]
     [Timeout(60_000)]
-    public async Task PostCheckAsync_Should_Answer_The_Inventory_When_No_Target_Is_Named(
+    public async Task CheckPluginUpdatesAsync_Should_Answer_The_Inventory_When_No_Target_Is_Named(
         CancellationToken cancellationToken)
     {
         using var client = server.CreateClient();
 
-        var inventory = await client.Plugins.PostCheckAsync(cancellationToken: cancellationToken);
+        var inventory = await client.Plugins.CheckPluginUpdatesAsync(cancellationToken: cancellationToken);
 
         await Assert.That(inventory.Status).IsEqualTo(200);
         await Assert.That(inventory.IsError).IsFalse();
@@ -101,11 +101,12 @@ public sealed class PluginsClientLiveTests(PinnedOpenCodeServerFixture server)
 
     [Test]
     [Timeout(60_000)]
-    public async Task PostCheckAsync_Should_Refuse_A_Target_Outside_The_Inventory(CancellationToken cancellationToken)
+    public async Task CheckPluginUpdatesAsync_Should_Refuse_A_Target_Outside_The_Inventory(
+        CancellationToken cancellationToken)
     {
         using var client = server.CreateClient();
 
-        var refused = await client.Plugins.PostCheckAsync(
+        var refused = await client.Plugins.CheckPluginUpdatesAsync(
             new PluginCheckPostRequest { Target = AbsentTarget }, OpenCodeRequestOptions.NoThrow, cancellationToken);
 
         await Assert.That(refused.Status).IsEqualTo(400);
@@ -123,11 +124,11 @@ public sealed class PluginsClientLiveTests(PinnedOpenCodeServerFixture server)
 
     [Test]
     [Timeout(60_000)]
-    public async Task PostUpdateAsync_Should_Answer_204_When_No_Targets_Are_Named(CancellationToken cancellationToken)
+    public async Task UpdatePluginsAsync_Should_Answer_204_When_No_Targets_Are_Named(CancellationToken cancellationToken)
     {
         using var client = server.CreateClient();
 
-        var updated = await client.Plugins.PostUpdateAsync(
+        var updated = await client.Plugins.UpdatePluginsAsync(
             new PluginUpdatePostRequest { Targets = [] }, cancellationToken: cancellationToken);
 
         await Assert.That(updated.Status).IsEqualTo(204);
@@ -138,11 +139,12 @@ public sealed class PluginsClientLiveTests(PinnedOpenCodeServerFixture server)
 
     [Test]
     [Timeout(60_000)]
-    public async Task PostUpdateAsync_Should_Refuse_A_Target_Outside_The_Inventory(CancellationToken cancellationToken)
+    public async Task UpdatePluginsAsync_Should_Refuse_A_Target_Outside_The_Inventory(
+        CancellationToken cancellationToken)
     {
         using var client = server.CreateClient();
 
-        var refused = await client.Plugins.PostUpdateAsync(
+        var refused = await client.Plugins.UpdatePluginsAsync(
             new PluginUpdatePostRequest { Targets = [AbsentTarget] }, OpenCodeRequestOptions.NoThrow, cancellationToken);
 
         await Assert.That(refused.Status).IsEqualTo(400);

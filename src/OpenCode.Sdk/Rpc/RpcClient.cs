@@ -39,10 +39,10 @@ public class RpcClient
     /// <returns>The &apos;RpcCallPostResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 500) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<RpcCallPostResponse> PostCallAsync(string rpcId, string method, RpcCallPostRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    public virtual Task<RpcCallPostResponse> CallAsync(string rpcId, string method, RpcCallPostRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(rpcId);
         ArgumentException.ThrowIfNullOrEmpty(method);
-        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Rpc.PostCall(rpcId, method, request), request ?? EmptyRpcCallPostRequest, OpenCodeJsonContext.Default.RpcCallPostRequest, RpcCallPostResponseAdapter.Instance, requestOptions, cancellationToken);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Rpc.Call(rpcId, method, request), request ?? EmptyRpcCallPostRequest, OpenCodeJsonContext.Default.RpcCallPostRequest, RpcCallPostResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }

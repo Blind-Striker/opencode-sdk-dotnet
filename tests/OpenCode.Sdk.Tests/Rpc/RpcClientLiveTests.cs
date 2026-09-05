@@ -29,12 +29,12 @@ public sealed class RpcClientLiveTests(PinnedOpenCodeServerFixture server)
 
     [Test]
     [Timeout(60_000)]
-    public async Task PostCallAsync_Should_Answer_The_Unavailable_Arm_On_The_NoThrow_Spine_When_No_Rpc_Is_Registered(
+    public async Task CallAsync_Should_Answer_The_Unavailable_Arm_On_The_NoThrow_Spine_When_No_Rpc_Is_Registered(
         CancellationToken cancellationToken)
     {
         using var client = server.CreateClient();
 
-        var response = await client.Rpc.PostCallAsync(
+        var response = await client.Rpc.CallAsync(
             UnregisteredRpcId, Method, CallRequest(), OpenCodeRequestOptions.NoThrow, cancellationToken);
 
         await Assert.That(response.Status).IsEqualTo(400);
@@ -58,13 +58,13 @@ public sealed class RpcClientLiveTests(PinnedOpenCodeServerFixture server)
 
     [Test]
     [Timeout(60_000)]
-    public async Task PostCallAsync_Should_Throw_The_Unavailable_Arm_When_No_Rpc_Is_Registered(
+    public async Task CallAsync_Should_Throw_The_Unavailable_Arm_When_No_Rpc_Is_Registered(
         CancellationToken cancellationToken)
     {
         using var client = server.CreateClient();
 
         var exception = await Assert
-            .That(async () => _ = await client.Rpc.PostCallAsync(
+            .That(async () => _ = await client.Rpc.CallAsync(
                 UnregisteredRpcId, Method, CallRequest(), cancellationToken: cancellationToken))
             .Throws<OpenCodeApiException>();
 
