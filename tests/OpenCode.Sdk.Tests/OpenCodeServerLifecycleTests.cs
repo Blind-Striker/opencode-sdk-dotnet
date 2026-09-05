@@ -152,6 +152,45 @@ public sealed class OpenCodeServerLifecycleTests
 
     [Test]
     [Timeout(120_000)]
+    public async Task StartupTreeScenario_Should_Clean_Observed_Tree_When_Handshake_Fails(
+        CancellationToken cancellationToken)
+    {
+        var scenario = ServerStartupTreeScenario.BeginHandshakeFailure(cancellationToken);
+        InvalidOperationException? cleanupFailure = null;
+        try
+        {
+            var observationFailure = await Assert.That(
+                async () => await scenario.ObserveAndAcknowledgeAsync(cancellationToken))
+                .Throws<InvalidOperationException>();
+            _ = await Assert.That(
+                async () => _ = await scenario.WaitForStartupAsync(cancellationToken))
+                .Throws<OpenCodeServerException>();
+
+            await Assert.That(scenario.RootProcess.HasExited).IsTrue();
+            await Assert.That(scenario.ChildProcess.HasExited).IsTrue();
+
+            await Assert.That(observationFailure!.Message)
+                .Contains("intentionally rejected for cleanup verification");
+        }
+        finally
+        {
+            try
+            {
+                await scenario.DisposeAsync();
+            }
+            catch (InvalidOperationException exception)
+            {
+                cleanupFailure = exception;
+            }
+        }
+
+        await Assert.That(cleanupFailure).IsNotNull();
+        await Assert.That(cleanupFailure!.Message)
+            .Contains("intentionally rejected for cleanup verification");
+    }
+
+    [Test]
+    [Timeout(120_000)]
     public async Task StartAsync_Should_Refuse_A_Missing_Executable(CancellationToken cancellationToken)
     {
         var failure = await Assert.That(async () => await OpenCodeServer.StartAsync(

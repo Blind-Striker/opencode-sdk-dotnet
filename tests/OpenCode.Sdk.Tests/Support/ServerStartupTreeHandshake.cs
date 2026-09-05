@@ -14,13 +14,15 @@ internal sealed class ServerStartupTreeHandshake : IDisposable
 {
     private static readonly TimeSpan HandshakeTimeout = TimeSpan.FromSeconds(15);
 
+    private readonly bool _acknowledge;
     private readonly Task _observation;
     private readonly TcpListener _listener;
     private Process? _childProcess;
     private Process? _rootProcess;
 
-    public ServerStartupTreeHandshake(CancellationToken cancellationToken)
+    public ServerStartupTreeHandshake(bool acknowledge, CancellationToken cancellationToken)
     {
+        _acknowledge = acknowledge;
         Nonce = Guid.NewGuid().ToString("N");
         _listener = new TcpListener(IPAddress.Loopback, 0);
         _listener.Start();
@@ -46,27 +48,6 @@ internal sealed class ServerStartupTreeHandshake : IDisposable
     {
         var observation = _observation;
         await observation.WaitAsync(cancellationToken);
-    }
-
-    public async Task AwaitCleanupAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            var observation = _observation;
-            await observation.WaitAsync(cancellationToken);
-        }
-        catch (OperationCanceledException exception)
-        {
-            _ = exception;
-        }
-        catch (ObjectDisposedException exception)
-        {
-            _ = exception;
-        }
-        catch (SocketException exception)
-        {
-            _ = exception;
-        }
     }
 
     public void Stop() => _listener.Stop();
@@ -116,6 +97,12 @@ internal sealed class ServerStartupTreeHandshake : IDisposable
                 _rootProcess = root;
                 _childProcess = child;
                 transferred = true;
+                if (!_acknowledge)
+                {
+                    throw new InvalidOperationException(
+                        "The child-tree handshake was intentionally rejected for cleanup verification.");
+                }
+
                 await WriteAcknowledgementAsync(stream, bound.Token);
             }
             finally
