@@ -1,3 +1,4 @@
+using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
 using Testably.Abstractions;
 
@@ -82,6 +83,7 @@ public sealed class OpenCodeServerLifecycleTests
         var processId = server.ProcessId;
 
         await server.DisposeAsync();
+        await server.DisposeAsync();
 
         await Assert.That(IsProcessRunning(processId)).IsFalse();
     }
@@ -121,29 +123,31 @@ public sealed class OpenCodeServerLifecycleTests
     [Timeout(120_000)]
     public async Task StartAsync_Should_Refuse_A_Server_That_Never_Reports_Readiness(CancellationToken cancellationToken)
     {
-        var failure = await Assert.That(async () => await OpenCodeServer.StartAsync(
-            new OpenCodeServerOptions
-            {
-                Command = ["bun", "-e", "setTimeout(() => {}, 120000)"],
-                ReadinessTimeout = TimeSpan.FromSeconds(2),
-            },
-            cancellationToken)).Throws<OpenCodeServerException>();
+        await using var scenario = ServerStartupTreeScenario.BeginSilent(
+            TimeSpan.FromSeconds(15), cancellationToken);
+        await scenario.ObserveAndAcknowledgeAsync(cancellationToken);
+
+        var failure = await Assert.That(
+            async () => _ = await scenario.WaitForStartupAsync(cancellationToken)).Throws<OpenCodeServerException>();
 
         await Assert.That(failure!.Message).Contains("did not report readiness");
+        await Assert.That(scenario.RootProcess.HasExited).IsTrue();
+        await Assert.That(scenario.ChildProcess.HasExited).IsTrue();
     }
 
     [Test]
     [Timeout(120_000)]
     public async Task StartAsync_Should_Refuse_A_Non_Contract_First_Line(CancellationToken cancellationToken)
     {
-        var failure = await Assert.That(async () => await OpenCodeServer.StartAsync(
-            new OpenCodeServerOptions
-            {
-                Command = ["bun", "-e", "console.log('hello'); setTimeout(() => {}, 120000)"],
-            },
-            cancellationToken)).Throws<OpenCodeServerException>();
+        await using var scenario = ServerStartupTreeScenario.BeginInvalidLine(cancellationToken);
+        await scenario.ObserveAndAcknowledgeAsync(cancellationToken);
+
+        var failure = await Assert.That(
+            async () => _ = await scenario.WaitForStartupAsync(cancellationToken)).Throws<OpenCodeServerException>();
 
         await Assert.That(failure!.Message).Contains("readiness contract");
+        await Assert.That(scenario.RootProcess.HasExited).IsTrue();
+        await Assert.That(scenario.ChildProcess.HasExited).IsTrue();
     }
 
     [Test]
@@ -164,17 +168,16 @@ public sealed class OpenCodeServerLifecycleTests
     [Timeout(120_000)]
     public async Task StartAsync_Should_Surface_Caller_Cancellation(CancellationToken cancellationToken)
     {
-        // Linked to the test's own injected token so the manufactured 200ms caller-cancellation
-        // still composes with whatever the [Timeout] attribute (or an external test-run
-        // cancellation) also asks for, rather than replacing it outright.
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cancellation.CancelAfter(TimeSpan.FromMilliseconds(200));
+        await using var scenario = ServerStartupTreeScenario.BeginSilent(
+            TimeSpan.FromMinutes(2), cancellation.Token);
+        await scenario.ObserveAndAcknowledgeAsync(cancellationToken);
 
-        _ = await Assert.That(async () => await OpenCodeServer.StartAsync(
-            new OpenCodeServerOptions
-            {
-                Command = ["bun", "-e", "setTimeout(() => {}, 120000)"],
-            },
-            cancellation.Token)).Throws<OperationCanceledException>();
+        await cancellation.CancelAsync();
+
+        _ = await Assert.That(
+            async () => _ = await scenario.WaitForStartupAsync(cancellationToken)).Throws<OperationCanceledException>();
+        await Assert.That(scenario.RootProcess.HasExited).IsTrue();
+        await Assert.That(scenario.ChildProcess.HasExited).IsTrue();
     }
 }
