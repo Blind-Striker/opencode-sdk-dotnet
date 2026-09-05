@@ -123,31 +123,39 @@ public sealed class OpenCodeServerLifecycleTests
     [Timeout(120_000)]
     public async Task StartAsync_Should_Refuse_A_Server_That_Never_Reports_Readiness(CancellationToken cancellationToken)
     {
-        await using var scenario = ServerStartupTreeScenario.BeginSilent(
-            TimeSpan.FromSeconds(15), cancellationToken);
-        await scenario.ObserveAndAcknowledgeAsync(cancellationToken);
+        await using var scenario = ServerStartupTreeScenario.CreateSilent(
+            TimeSpan.FromSeconds(15));
+        await scenario.StartAndObserveAsync(cancellationToken);
 
         var failure = await Assert.That(
             async () => _ = await scenario.WaitForStartupAsync(cancellationToken)).Throws<OpenCodeServerException>();
 
         await Assert.That(failure!.Message).Contains("did not report readiness");
-        await Assert.That(scenario.RootProcess.HasExited).IsTrue();
-        await Assert.That(scenario.ChildProcess.HasExited).IsTrue();
+        // Take both immediate observations before any diagnostic I/O or fallback cleanup.
+        var rootExited = scenario.RootProcess.HasExited;
+        var childExited = scenario.ChildProcess.HasExited;
+        var evidence = rootExited && childExited ? string.Empty : await scenario.DescribeProcessesAsync();
+        await Assert.That(rootExited).IsTrue().Because(evidence);
+        await Assert.That(childExited).IsTrue().Because(evidence);
     }
 
     [Test]
     [Timeout(120_000)]
     public async Task StartAsync_Should_Refuse_A_Non_Contract_First_Line(CancellationToken cancellationToken)
     {
-        await using var scenario = ServerStartupTreeScenario.BeginInvalidLine(cancellationToken);
-        await scenario.ObserveAndAcknowledgeAsync(cancellationToken);
+        await using var scenario = ServerStartupTreeScenario.CreateInvalidLine();
+        await scenario.StartAndObserveAsync(cancellationToken);
 
         var failure = await Assert.That(
             async () => _ = await scenario.WaitForStartupAsync(cancellationToken)).Throws<OpenCodeServerException>();
 
         await Assert.That(failure!.Message).Contains("readiness contract");
-        await Assert.That(scenario.RootProcess.HasExited).IsTrue();
-        await Assert.That(scenario.ChildProcess.HasExited).IsTrue();
+        // Take both immediate observations before any diagnostic I/O or fallback cleanup.
+        var rootExited = scenario.RootProcess.HasExited;
+        var childExited = scenario.ChildProcess.HasExited;
+        var evidence = rootExited && childExited ? string.Empty : await scenario.DescribeProcessesAsync();
+        await Assert.That(rootExited).IsTrue().Because(evidence);
+        await Assert.That(childExited).IsTrue().Because(evidence);
     }
 
     [Test]
@@ -155,12 +163,12 @@ public sealed class OpenCodeServerLifecycleTests
     public async Task StartupTreeScenario_Should_Clean_Observed_Tree_When_Handshake_Fails(
         CancellationToken cancellationToken)
     {
-        var scenario = ServerStartupTreeScenario.BeginHandshakeFailure(cancellationToken);
+        await using var scenario = ServerStartupTreeScenario.CreateHandshakeFailure();
         InvalidOperationException? cleanupFailure = null;
         try
         {
             var observationFailure = await Assert.That(
-                async () => await scenario.ObserveAndAcknowledgeAsync(cancellationToken))
+                async () => await scenario.StartAndObserveAsync(cancellationToken))
                 .Throws<InvalidOperationException>();
             _ = await Assert.That(
                 async () => _ = await scenario.WaitForStartupAsync(cancellationToken))
@@ -191,6 +199,29 @@ public sealed class OpenCodeServerLifecycleTests
 
     [Test]
     [Timeout(120_000)]
+    public async Task StartupTreeScenario_Should_Release_Each_Owned_Lease_Independently(
+        CancellationToken cancellationToken)
+    {
+        await using var scenario = ServerStartupTreeScenario.CreateSilent(TimeSpan.FromMinutes(2));
+        await scenario.StartAndObserveAsync(cancellationToken);
+        await Assert.That(scenario.RootProcess.HasExited).IsFalse();
+        await Assert.That(scenario.ChildProcess.HasExited).IsFalse();
+
+        // Exercise cooperative cleanup while startup is still waiting. This is fixture evidence,
+        // not launcher-reaping evidence: the latter tests keep both leases open until assertions.
+        scenario.ReleaseChildLease();
+        await scenario.ChildProcess.WaitForExitAsync(cancellationToken);
+        await Assert.That(scenario.ChildProcess.HasExited).IsTrue();
+        await Assert.That(scenario.RootProcess.HasExited).IsFalse();
+
+        scenario.ReleaseRootLease();
+        _ = await Assert.That(async () => _ = await scenario.WaitForStartupAsync(cancellationToken))
+            .Throws<OpenCodeServerException>();
+        await Assert.That(scenario.RootProcess.HasExited).IsTrue();
+    }
+
+    [Test]
+    [Timeout(120_000)]
     public async Task StartAsync_Should_Refuse_A_Missing_Executable(CancellationToken cancellationToken)
     {
         var failure = await Assert.That(async () => await OpenCodeServer.StartAsync(
@@ -208,15 +239,19 @@ public sealed class OpenCodeServerLifecycleTests
     public async Task StartAsync_Should_Surface_Caller_Cancellation(CancellationToken cancellationToken)
     {
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        await using var scenario = ServerStartupTreeScenario.BeginSilent(
-            TimeSpan.FromMinutes(2), cancellation.Token);
-        await scenario.ObserveAndAcknowledgeAsync(cancellationToken);
+        await using var scenario = ServerStartupTreeScenario.CreateSilent(
+            TimeSpan.FromMinutes(2));
+        await scenario.StartAndObserveAsync(cancellation.Token);
 
         await cancellation.CancelAsync();
 
         _ = await Assert.That(
             async () => _ = await scenario.WaitForStartupAsync(cancellationToken)).Throws<OperationCanceledException>();
-        await Assert.That(scenario.RootProcess.HasExited).IsTrue();
-        await Assert.That(scenario.ChildProcess.HasExited).IsTrue();
+        // Take both immediate observations before any diagnostic I/O or fallback cleanup.
+        var rootExited = scenario.RootProcess.HasExited;
+        var childExited = scenario.ChildProcess.HasExited;
+        var evidence = rootExited && childExited ? string.Empty : await scenario.DescribeProcessesAsync();
+        await Assert.That(rootExited).IsTrue().Because(evidence);
+        await Assert.That(childExited).IsTrue().Because(evidence);
     }
 }

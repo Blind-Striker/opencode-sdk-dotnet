@@ -1,169 +1,116 @@
 using System.Diagnostics;
+using System.IO.Abstractions;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
-using System.Text.Json;
 
 namespace OpenCode.Sdk.Tests.Support;
 
 /// <summary>
-/// Owns the loopback handshake that validates a nonce and captures the Bun root and child as live
-/// process handles before acknowledging the startup peer.
+/// Owns independent root and child control leases, authenticated and observed live before ACK.
+/// Neither lease is released by a successful handshake or a launcher's failure result.
 /// </summary>
 internal sealed class ServerStartupTreeHandshake : IDisposable
 {
     private static readonly TimeSpan HandshakeTimeout = TimeSpan.FromSeconds(15);
 
-    private readonly bool _acknowledge;
-    private readonly Task _observation;
-    private readonly TcpListener _listener;
-    private Process? _childProcess;
-    private Process? _rootProcess;
+    private TcpListener? _listener;
+    private ServerStartupTreeLease? _child;
+    private ServerStartupTreeLease? _root;
+    private readonly IFileSystem _fileSystem;
 
-    public ServerStartupTreeHandshake(bool acknowledge, CancellationToken cancellationToken)
+    public ServerStartupTreeHandshake(IFileSystem fileSystem) => _fileSystem = fileSystem;
+
+    public Process ChildProcess => Child.Process;
+
+    public Process RootProcess => Root.Process;
+
+    public string Nonce { get; private set; } = string.Empty;
+
+    public int Port { get; private set; }
+
+    private TcpListener Listener =>
+        _listener ?? throw new InvalidOperationException("The handshake listener has not been started.");
+
+    private ServerStartupTreeLease Child =>
+        _child ?? throw new InvalidOperationException("The child lease has not been captured.");
+
+    private ServerStartupTreeLease Root =>
+        _root ?? throw new InvalidOperationException("The root lease has not been captured.");
+
+    public void Start()
     {
-        _acknowledge = acknowledge;
         Nonce = Guid.NewGuid().ToString("N");
         _listener = new TcpListener(IPAddress.Loopback, 0);
-        _listener.Start();
-        Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
-        _observation = CaptureAndAcknowledgeAsync(cancellationToken);
+        Listener.Start();
+        Port = ((IPEndPoint)Listener.LocalEndpoint).Port;
     }
 
-    public Process ChildProcess =>
-        _childProcess ?? throw new InvalidOperationException("The child process has not been captured.");
-
-    public Process? CapturedChildProcess => _childProcess;
-
-    public Process? CapturedRootProcess => _rootProcess;
-
-    public string Nonce { get; }
-
-    public int Port { get; }
-
-    public Process RootProcess =>
-        _rootProcess ?? throw new InvalidOperationException("The root process has not been captured.");
-
-    public async Task ObserveAndAcknowledgeAsync(CancellationToken cancellationToken)
-    {
-        var observation = _observation;
-        await observation.WaitAsync(cancellationToken);
-    }
-
-    public void Stop() => _listener.Stop();
-
-    public void Dispose()
-    {
-        _childProcess?.Dispose();
-        _rootProcess?.Dispose();
-#if NET
-        _listener.Dispose();
-#endif
-    }
-
-    private async Task CaptureAndAcknowledgeAsync(CancellationToken cancellationToken)
+    public async Task CaptureAndAcknowledgeAsync(bool acknowledge, CancellationToken cancellationToken)
     {
         using var bound = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         bound.CancelAfter(HandshakeTimeout);
-        using var client = await AcceptTcpClientAsync(_listener, bound.Token);
-        using var stream = client.GetStream();
-        using var reader = new StreamReader(
-            stream,
-            Encoding.UTF8,
-            detectEncodingFromByteOrderMarks: false,
-            bufferSize: 1024,
-            leaveOpen: true);
-        var line = await ReadLineAsync(reader, bound.Token)
-                   ?? throw new InvalidOperationException("The child-tree handshake ended before process identity arrived.");
-        using var document = JsonDocument.Parse(line);
-        var root = CaptureProcess(document.RootElement, "rootPid");
-        var transferred = false;
+        _root = new ServerStartupTreeLease(await AcceptTcpClientAsync(bound.Token), _fileSystem);
         try
         {
-            var child = CaptureProcess(document.RootElement, "childPid");
-            try
+            var childPid = await Root.AuthenticateAsync(Nonce, "root", bound.Token);
+            _child = new ServerStartupTreeLease(await AcceptTcpClientAsync(bound.Token), _fileSystem);
+            _ = await Child.AuthenticateAsync(Nonce, "child", bound.Token);
+            if (RootProcess.Id == ChildProcess.Id || childPid != ChildProcess.Id
+                || RootProcess.HasExited || ChildProcess.HasExited)
             {
-                var receivedNonce = document.RootElement.GetProperty("nonce").GetString();
-                if (!string.Equals(receivedNonce, Nonce, StringComparison.Ordinal))
-                {
-                    throw new InvalidOperationException("The child-tree handshake nonce did not match this scenario.");
-                }
-
-                if (root.Id == child.Id || root.HasExited || child.HasExited)
-                {
-                    throw new InvalidOperationException("The child-tree handshake did not identify two live processes.");
-                }
-
-                _rootProcess = root;
-                _childProcess = child;
-                transferred = true;
-                if (!_acknowledge)
-                {
-                    throw new InvalidOperationException(
-                        "The child-tree handshake was intentionally rejected for cleanup verification.");
-                }
-
-                await WriteAcknowledgementAsync(stream, bound.Token);
+                throw new InvalidOperationException("The handshake did not identify the live root and its child.");
             }
-            finally
+
+            if (!acknowledge)
             {
-                if (!transferred)
-                {
-                    child.Dispose();
-                }
+                throw new InvalidOperationException(
+                    "The child-tree handshake was intentionally rejected for cleanup verification.");
             }
+
+            await Child.AcknowledgeAsync(bound.Token);
+            await Root.AcknowledgeAsync(bound.Token);
         }
-        finally
+        catch
         {
-            if (!transferred)
-            {
-                root.Dispose();
-            }
+            // Keep the child lease open: pre-ACK rejection must prove the root reaps its own
+            // child, without child-lease fallback supplying the result.
+            Root.Release();
+            throw;
         }
     }
 
-    private static Process CaptureProcess(JsonElement handshake, string propertyName)
-    {
-        var processId = handshake.GetProperty(propertyName).GetInt32();
-        try
-        {
-            return Process.GetProcessById(processId);
-        }
-        catch (ArgumentException exception)
-        {
-            throw new InvalidOperationException(
-                $"The child-tree handshake process '{propertyName}' was not alive when captured.", exception);
-        }
-    }
+    public void Stop() => _listener?.Stop();
 
-    private static Task<TcpClient> AcceptTcpClientAsync(
-        TcpListener listener,
-        CancellationToken cancellationToken)
+    public void ReleaseChild() => _child?.Release();
+
+    public void ReleaseRoot() => _root?.Release();
+
+    public async Task<string> DescribeProcessesAsync(CancellationToken cancellationToken) =>
+        $"Root: {await Root.DescribeProcessAsync(cancellationToken)}; "
+        + $"child: {await Child.DescribeProcessAsync(cancellationToken)}";
+
+    public Task WaitForChildExitAsync(CancellationToken cancellationToken) =>
+        _child?.WaitForExitAsync(cancellationToken) ?? Task.CompletedTask;
+
+    public Task WaitForRootExitAsync(CancellationToken cancellationToken) =>
+        _root?.WaitForExitAsync(cancellationToken) ?? Task.CompletedTask;
+
+    public void Dispose()
     {
+        _child?.Dispose();
+        _root?.Dispose();
+        _listener?.Stop();
 #if NET
-        return listener.AcceptTcpClientAsync(cancellationToken).AsTask();
-#else
-        return listener.AcceptTcpClientAsync().WaitAsync(cancellationToken);
+        _listener?.Dispose();
 #endif
     }
 
-    private static Task<string?> ReadLineAsync(StreamReader reader, CancellationToken cancellationToken)
+    private Task<TcpClient> AcceptTcpClientAsync(CancellationToken cancellationToken)
     {
 #if NET
-        return reader.ReadLineAsync(cancellationToken).AsTask();
+        return Listener.AcceptTcpClientAsync(cancellationToken).AsTask();
 #else
-        return reader.ReadLineAsync().WaitAsync(cancellationToken);
+        return Listener.AcceptTcpClientAsync().WaitAsync(cancellationToken);
 #endif
-    }
-
-    private static async Task WriteAcknowledgementAsync(Stream stream, CancellationToken cancellationToken)
-    {
-        var acknowledgement = Encoding.ASCII.GetBytes("ACK\n");
-#if NET
-        await stream.WriteAsync(acknowledgement, cancellationToken);
-#else
-        await stream.WriteAsync(acknowledgement, 0, acknowledgement.Length, cancellationToken);
-#endif
-        await stream.FlushAsync(cancellationToken);
     }
 }

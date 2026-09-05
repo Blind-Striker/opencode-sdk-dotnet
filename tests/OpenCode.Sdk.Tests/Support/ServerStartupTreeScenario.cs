@@ -2,12 +2,13 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.ExceptionServices;
 using OpenCode.Sdk.TestSupport;
+using Testably.Abstractions;
 
 namespace OpenCode.Sdk.Tests.Support;
 
 /// <summary>
 /// Starts the launcher against a cooperating Bun process tree and owns the startup and bounded
-/// cleanup around the handshake's verified process handles.
+/// cleanup around the handshake's independently owned control leases.
 /// </summary>
 internal sealed class ServerStartupTreeScenario : IAsyncDisposable
 {
@@ -16,19 +17,48 @@ internal sealed class ServerStartupTreeScenario : IAsyncDisposable
 
     private static readonly TimeSpan CleanupTimeout = TimeSpan.FromSeconds(10);
 
-    private readonly ServerStartupTreeHandshake _handshake;
-    private readonly Task<OpenCodeServer> _startup;
-    private readonly CancellationTokenSource _startupCancellation;
+    private readonly ServerStartupTreeHandshake _handshake = new(new RealFileSystem());
+    private readonly string _mode;
+    private readonly TimeSpan _readinessTimeout;
+    private readonly bool _acknowledge;
+    private Task<OpenCodeServer>? _startup;
+    private Task? _observation;
+    private CancellationTokenSource? _startupCancellation;
+    private readonly List<Exception> _cleanupFailures = [];
+    private string? _diagnosticEvidence;
     private int _disposed;
 
     private ServerStartupTreeScenario(
         string mode,
         TimeSpan readinessTimeout,
-        bool acknowledge,
-        CancellationToken cancellationToken)
+        bool acknowledge)
+    {
+        _mode = mode;
+        _readinessTimeout = readinessTimeout;
+        _acknowledge = acknowledge;
+    }
+
+    public Process ChildProcess => _handshake.ChildProcess;
+
+    public Process RootProcess => _handshake.RootProcess;
+
+    /// <summary>
+    /// Composes inert scenario state. Process/network work starts through StartAndObserveAsync.
+    /// </summary>
+    public static ServerStartupTreeScenario CreateInvalidLine() =>
+        new(InvalidLineMode, TimeSpan.FromMinutes(2), acknowledge: true);
+
+    public static ServerStartupTreeScenario CreateHandshakeFailure() =>
+        new(SilentMode, TimeSpan.FromMinutes(2), acknowledge: false);
+
+    public static ServerStartupTreeScenario CreateSilent(TimeSpan readinessTimeout) =>
+        new(SilentMode, readinessTimeout, acknowledge: true);
+
+    public async Task StartAndObserveAsync(CancellationToken cancellationToken)
     {
         _startupCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _handshake = new ServerStartupTreeHandshake(acknowledge, _startupCancellation.Token);
+        _handshake.Start();
+        _observation = _handshake.CaptureAndAcknowledgeAsync(_acknowledge, _startupCancellation.Token);
         _startup = OpenCodeServer.StartAsync(
             new OpenCodeServerOptions
             {
@@ -37,34 +67,29 @@ internal sealed class ServerStartupTreeScenario : IAsyncDisposable
                 {
                     ["OPENCODE_SDK_TEST_TREE_PORT"] = _handshake.Port.ToString(CultureInfo.InvariantCulture),
                     ["OPENCODE_SDK_TEST_TREE_NONCE"] = _handshake.Nonce,
-                    ["OPENCODE_SDK_TEST_TREE_MODE"] = mode,
+                    ["OPENCODE_SDK_TEST_TREE_MODE"] = _mode,
                 },
-                ReadinessTimeout = readinessTimeout,
+                ReadinessTimeout = _readinessTimeout,
             },
             _startupCancellation.Token);
+        var observation = _observation;
+        await observation.WaitAsync(cancellationToken);
     }
 
-    public Process ChildProcess => _handshake.ChildProcess;
+    public void ReleaseChildLease() => _handshake.ReleaseChild();
 
-    public Process RootProcess => _handshake.RootProcess;
+    public void ReleaseRootLease() => _handshake.ReleaseRoot();
 
-    public static ServerStartupTreeScenario BeginInvalidLine(CancellationToken cancellationToken) =>
-        new(InvalidLineMode, TimeSpan.FromMinutes(2), acknowledge: true, cancellationToken);
-
-    public static ServerStartupTreeScenario BeginHandshakeFailure(CancellationToken cancellationToken) =>
-        new(SilentMode, TimeSpan.FromMinutes(2), acknowledge: false, cancellationToken);
-
-    public static ServerStartupTreeScenario BeginSilent(
-        TimeSpan readinessTimeout,
-        CancellationToken cancellationToken) =>
-        new(SilentMode, readinessTimeout, acknowledge: true, cancellationToken);
-
-    public Task ObserveAndAcknowledgeAsync(CancellationToken cancellationToken) =>
-        _handshake.ObserveAndAcknowledgeAsync(cancellationToken);
+    public async Task<string> DescribeProcessesAsync()
+    {
+        using var diagnosticBound = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        _diagnosticEvidence = await _handshake.DescribeProcessesAsync(diagnosticBound.Token);
+        return _diagnosticEvidence;
+    }
 
     public async Task<OpenCodeServer> WaitForStartupAsync(CancellationToken cancellationToken)
     {
-        var startup = _startup;
+        var startup = _startup ?? throw new InvalidOperationException("The scenario has not been started.");
         return await startup.WaitAsync(cancellationToken);
     }
 
@@ -75,20 +100,26 @@ internal sealed class ServerStartupTreeScenario : IAsyncDisposable
             return;
         }
 
-        var failures = new List<Exception>();
         using var cleanup = new CancellationTokenSource(CleanupTimeout);
         try
         {
-            await CaptureFailureAsync(_startupCancellation.CancelAsync, failures);
-            CaptureFailure(_handshake.Stop, failures);
+            // Close both owned connections even if pending observation failed. Releasing these
+            // leases is fallback cleanup and only happens after the test's immediate assertions.
+            CaptureFailure(_handshake.ReleaseChild);
+            CaptureFailure(_handshake.ReleaseRoot);
+            if (_startupCancellation is { } startupCancellation)
+            {
+                await CaptureFailureAsync(startupCancellation.CancelAsync);
+            }
+
+            CaptureFailure(_handshake.Stop);
+            await CaptureFailureAsync(() => AwaitObservationCleanupAsync(cleanup.Token));
             await CaptureFailureAsync(
-                () => _handshake.ObserveAndAcknowledgeAsync(cleanup.Token), failures);
+                () => AwaitStartupCleanupAsync(cleanup.Token));
             await CaptureFailureAsync(
-                () => AwaitStartupCleanupAsync(cleanup.Token), failures);
+                () => _handshake.WaitForChildExitAsync(cleanup.Token));
             await CaptureFailureAsync(
-                () => EndCapturedProcessAsync(_handshake.CapturedChildProcess, cleanup.Token), failures);
-            await CaptureFailureAsync(
-                () => EndCapturedProcessAsync(_handshake.CapturedRootProcess, cleanup.Token), failures);
+                () => _handshake.WaitForRootExitAsync(cleanup.Token));
         }
         finally
         {
@@ -98,23 +129,23 @@ internal sealed class ServerStartupTreeScenario : IAsyncDisposable
             }
             catch (Exception exception)
             {
-                failures.Add(exception);
+                _cleanupFailures.Add(exception);
             }
 
             try
             {
-                _startupCancellation.Dispose();
+                _startupCancellation?.Dispose();
             }
             catch (Exception exception)
             {
-                failures.Add(exception);
+                _cleanupFailures.Add(exception);
             }
         }
 
-        ThrowCleanupFailures(failures);
+        ThrowCleanupFailures(_cleanupFailures);
     }
 
-    private static void CaptureFailure(Action cleanup, List<Exception> failures)
+    private void CaptureFailure(Action cleanup)
     {
         try
         {
@@ -122,11 +153,11 @@ internal sealed class ServerStartupTreeScenario : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            failures.Add(exception);
+            _cleanupFailures.Add(exception);
         }
     }
 
-    private static async Task CaptureFailureAsync(Func<Task> cleanup, List<Exception> failures)
+    private async Task CaptureFailureAsync(Func<Task> cleanup)
     {
         try
         {
@@ -134,15 +165,21 @@ internal sealed class ServerStartupTreeScenario : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            failures.Add(exception);
+            _cleanupFailures.Add(exception);
         }
     }
 
-    private static void ThrowCleanupFailures(List<Exception> failures)
+    private void ThrowCleanupFailures(List<Exception> failures)
     {
         if (failures.Count is 0)
         {
             return;
+        }
+
+        if (_diagnosticEvidence is { } evidence)
+        {
+            throw new AggregateException(
+                "Startup tree cleanup failed after immediate exit observations failed. " + evidence, failures);
         }
 
         if (failures.Count is 1)
@@ -159,10 +196,15 @@ internal sealed class ServerStartupTreeScenario : IAsyncDisposable
         try
         {
             var startup = _startup;
+            if (startup is null)
+            {
+                return;
+            }
+
             var server = await startup.WaitAsync(cancellationToken);
             await server.DisposeAsync();
         }
-        catch (OperationCanceledException exception) when (_startup.IsCanceled)
+        catch (OperationCanceledException exception) when (_startup?.IsCanceled is true)
         {
             _ = exception;
         }
@@ -172,14 +214,12 @@ internal sealed class ServerStartupTreeScenario : IAsyncDisposable
         }
     }
 
-    private static async Task EndCapturedProcessAsync(Process? process, CancellationToken cancellationToken)
+    private async Task AwaitObservationCleanupAsync(CancellationToken cancellationToken)
     {
-        if (process is null || process.HasExited)
+        var observation = _observation;
+        if (observation is not null)
         {
-            return;
+            await observation.WaitAsync(cancellationToken);
         }
-
-        process.Kill();
-        await process.WaitForExitAsync(cancellationToken);
     }
 }
