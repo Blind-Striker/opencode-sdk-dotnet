@@ -33,8 +33,6 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
     private bool _retainLogs;
     private ServerFailureArtifacts? _artifacts;
     private int _disposed;
-    private readonly List<LateCleanupFailureReport> _lateReports = [];
-
     public Uri Endpoint => Adapter.Endpoint;
 
     public int Order => 0;
@@ -142,19 +140,6 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
 
     public TestWorkspace CreateWorkspace() => new(_fileSystem, RunRoot.Path);
 
-    internal async Task DrainDiagnosticsAsync(CancellationToken cancellationToken)
-    {
-        foreach (var report in _lateReports)
-        {
-            await report.WaitForAllAsync(cancellationToken);
-        }
-
-        if (_adapter?.LateFailures is { } adapterReport)
-        {
-            await adapterReport.WaitForAllAsync(cancellationToken);
-        }
-    }
-
     private ServerFailureArtifacts Artifacts => _artifacts ??= new ServerFailureArtifacts(
         _fileSystem, new TestResultsDirectory(_fileSystem).Resolve(Environment.GetCommandLineArgs()));
 
@@ -219,11 +204,6 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
             failure = exception;
         }
 
-        if (teardown.LateFailures is { } late)
-        {
-            _lateReports.Add(late);
-        }
-
         if (failure is not null || keep)
         {
             if (failure is not null && !Artifacts.Failures.Any(item => ReferenceEquals(item.Exception, failure)))
@@ -234,7 +214,6 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
             var capture = new ServerFailureCapture(
                 Artifacts, _fileSystem, new OwnedOperationDeadline());
             failure = await capture.CaptureAsync(_adapter, external: false, failure, teardown.OperationFailures);
-            _lateReports.AddRange(capture.LateReports);
             Console.WriteLine("Simulated server diagnostics: " + Artifacts.Directory);
         }
 
