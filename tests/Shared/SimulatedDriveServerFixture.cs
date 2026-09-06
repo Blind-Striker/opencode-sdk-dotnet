@@ -75,8 +75,8 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
     private async Task<DriveController> StartAsync(TestRunRoot runRoot)
     {
         var registry = runRoot.CreateSubdirectory("drive");
-        var pinnedCommand = new PinnedServerCommand(_fileSystem);
-        var command = pinnedCommand.Resolve();
+        var persistentHost = new PersistentSimulationServerCommand(_fileSystem);
+        var command = persistentHost.Resolve();
         using var gate = await DrivePortGate.AcquireAsync(_fileSystem, GateTimeout);
         var manifest = DriveManifest.Write(_fileSystem, registry);
         var environment = ServerIsolation.Environment(_fileSystem, runRoot.Path);
@@ -95,7 +95,7 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
             // global root the server touches stays isolated through the environment above
             // regardless of this directory.
             _fileSystem.Path.Combine(
-                pinnedCommand.RepositoryRoot, "external", "opencode", "packages", "cli"),
+                persistentHost.RepositoryRoot, "external", "opencode", "packages", "cli"),
             ReadinessTimeout,
 
             // Captured the instant the adapter object exists so a startup failure still has

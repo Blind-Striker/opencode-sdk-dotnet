@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using OpenCode.Sdk.Models;
 using OpenCode.Sdk.Tests.Support;
@@ -96,7 +95,7 @@ public sealed class SessionMessagePaginationLiveTests(SimulatedDriveServerFixtur
         }
         finally
         {
-            await CleanupAsync(session, turnCompleted, primaryFailure);
+            await CompleteCleanupAsync(session, turnCompleted, primaryFailure);
         }
     }
 
@@ -107,20 +106,20 @@ public sealed class SessionMessagePaginationLiveTests(SimulatedDriveServerFixtur
         var removalFailure = new InvalidOperationException("removal failure");
         var removalTokenWasCancelled = true;
 
-        var thrown = await Assert.That(async () => await CleanupOperationsAsync(
+        var cleanup = new OwnedSessionCleanup(
                 WaitForCancellationAsync,
                 token =>
                 {
                     removalTokenWasCancelled = token.IsCancellationRequested;
                     return Task.FromException(removalFailure);
                 },
-                TimeSpan.FromMilliseconds(50),
-                primaryFailure))
+                TimeSpan.FromMilliseconds(50));
+        var thrown = await Assert.That(async () => await cleanup.CompleteAsync(primaryFailure))
             .Throws<InvalidOperationException>();
 
         await Assert.That(thrown).IsSameReferenceAs(primaryFailure);
         await Assert.That(removalTokenWasCancelled).IsFalse();
-        var cleanupFailures = primaryFailure.Data[CleanupFailuresKey] as AggregateException;
+        var cleanupFailures = primaryFailure.Data[OwnedSessionCleanup.FailuresKey] as AggregateException;
         await Assert.That(cleanupFailures).IsNotNull();
         await Assert.That(cleanupFailures!.InnerExceptions.Count).IsEqualTo(2);
         await Assert.That(cleanupFailures.InnerExceptions[0]).IsTypeOf<OperationCanceledException>();
@@ -143,59 +142,18 @@ public sealed class SessionMessagePaginationLiveTests(SimulatedDriveServerFixtur
         return created.Session.Id;
     }
 
-    private const string CleanupFailuresKey = "SessionMessagePaginationLiveTests.CleanupFailures";
-
-    private static async Task CleanupAsync(
+    private static async Task CompleteCleanupAsync(
         SessionClient session,
         bool turnCompleted,
         Exception? primaryFailure)
     {
-        Func<CancellationToken, Task>? interrupt = turnCompleted
-            ? null
-            : async token =>
-            {
-                _ = await session.PostInterruptAsync(cancellationToken: token);
-            };
-        await CleanupOperationsAsync(
-            interrupt,
-            async token =>
-            {
-                _ = await session.RemoveSessionAsync(cancellationToken: token);
-            },
-            CleanupTimeout,
-            primaryFailure);
-    }
-
-    private static async Task CleanupOperationsAsync(
-        Func<CancellationToken, Task>? interrupt,
-        Func<CancellationToken, Task> remove,
-        TimeSpan timeout,
-        Exception? primaryFailure)
-    {
-        var failures = new List<Exception>();
-        if (interrupt is not null)
+        var cleanup = new OwnedSessionCleanup(session, CleanupTimeout);
+        if (turnCompleted)
         {
-            await CaptureCleanupFailureAsync(interrupt, timeout, failures);
+            cleanup.MarkTurnCompleted();
         }
 
-        await CaptureCleanupFailureAsync(remove, timeout, failures);
-        ThrowCleanupFailures(primaryFailure, failures);
-    }
-
-    private static async Task CaptureCleanupFailureAsync(
-        Func<CancellationToken, Task> operation,
-        TimeSpan timeout,
-        List<Exception> failures)
-    {
-        using var cleanup = new CancellationTokenSource(timeout);
-        try
-        {
-            await operation(cleanup.Token);
-        }
-        catch (Exception exception)
-        {
-            failures.Add(exception);
-        }
+        await cleanup.CompleteAsync(primaryFailure);
     }
 
     private static async Task WaitForCancellationAsync(CancellationToken cancellationToken)
@@ -204,29 +162,6 @@ public sealed class SessionMessagePaginationLiveTests(SimulatedDriveServerFixtur
         using var registration = cancellationToken.Register(
             () => _ = cancellation.TrySetCanceled(cancellationToken));
         _ = await cancellation.Task;
-    }
-
-    private static void ThrowCleanupFailures(Exception? primaryFailure, List<Exception> failures)
-    {
-        if (primaryFailure is not null)
-        {
-            if (failures.Count > 0)
-            {
-                primaryFailure.Data[CleanupFailuresKey] = new AggregateException(failures);
-            }
-
-            ExceptionDispatchInfo.Capture(primaryFailure).Throw();
-        }
-
-        if (failures.Count is 1)
-        {
-            ExceptionDispatchInfo.Capture(failures[0]).Throw();
-        }
-
-        if (failures.Count > 1)
-        {
-            throw new AggregateException("Multiple failures occurred while cleaning the session.", failures);
-        }
     }
 
     private static async Task<List<ISessionMessageInfo>> EnumerateMessagesAsync(
