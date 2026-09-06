@@ -93,6 +93,7 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
         environment["OPENCODE_DRIVE"] = manifest.InstanceName;
         environment["DRIVE_REGISTRY_DIR"] = registry;
         environment["OPENCODE_CONFIG_CONTENT"] = SimulationConfig;
+        environment["OPENCODE_LOG_LEVEL"] = "INFO";
         environment["OPENCODE_PRINT_LOGS"] = "1";
         _adapter = await CliWrapServerAdapter.StartAsync(
             command,
