@@ -12,7 +12,8 @@ public sealed class TestWorkspace : IDisposable
         ArgumentNullException.ThrowIfNull(fileSystem);
 
         _fileSystem = fileSystem;
-        Path = fileSystem.Path.Combine(runRoot, "workspaces", Guid.NewGuid().ToString("N"));
+        Path = fileSystem.Path.GetFullPath(
+            fileSystem.Path.Combine(runRoot, "workspaces", Guid.NewGuid().ToString("N")));
         _ = fileSystem.Directory.CreateDirectory(Path);
     }
 
@@ -24,7 +25,21 @@ public sealed class TestWorkspace : IDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
         ArgumentNullException.ThrowIfNull(content);
 
+        if (_fileSystem.Path.IsPathRooted(relativePath))
+        {
+            throw new ArgumentException("The path must remain below the workspace.", nameof(relativePath));
+        }
+
         var filePath = _fileSystem.Path.GetFullPath(_fileSystem.Path.Combine(Path, relativePath));
+        var workspacePrefix = Path + _fileSystem.Path.DirectorySeparatorChar;
+        var comparison = _fileSystem.Path.DirectorySeparatorChar == '\\'
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        if (!filePath.StartsWith(workspacePrefix, comparison))
+        {
+            throw new ArgumentException("The path must remain below the workspace.", nameof(relativePath));
+        }
+
         var directory = _fileSystem.Path.GetDirectoryName(filePath)!;
         _ = _fileSystem.Directory.CreateDirectory(directory);
         _fileSystem.File.WriteAllText(filePath, content);
