@@ -14,8 +14,19 @@ namespace OpenCode.Sdk.TestSupport;
 /// </summary>
 internal sealed partial class SimulationConfigSeed
 {
+    internal const string CommandDescription = "The deterministic SDK live command.";
+    internal const string CommandName = "sdk-live-command";
+    internal const string CommandTemplate = "Report the live catalog for $ARGUMENTS";
+    internal const string ModelId = "sim-model";
+    internal const string ModelName = "Simulated Model";
     internal const string PermissionProbeAction = "sdk.live.permission";
     internal const string PermissionProbeAgentId = "permission-probe";
+    internal const string ProviderId = "sim";
+    internal const string ProviderName = "Simulated";
+    internal const string ProviderPackage = "@opencode-ai/ai/providers/openai-compatible";
+    internal const string ReferenceDescription = "The deterministic SDK live reference.";
+    internal const string ReferenceName = "sdk-live-reference";
+    internal const string ReferencePath = ".";
 
     internal static string Json { get; } = JsonSerializer.Serialize(
         new Configuration
@@ -35,12 +46,25 @@ internal sealed partial class SimulationConfigSeed
                     ],
                 },
             },
+            Commands = new Dictionary<string, CommandConfiguration>(StringComparer.Ordinal)
+            {
+                [CommandName] = new CommandConfiguration
+                {
+                    Template = CommandTemplate,
+                    Description = CommandDescription,
+                },
+            },
+            Model = new ModelSelectionConfiguration
+            {
+                ProviderIdentifier = ProviderId,
+                ModelIdentifier = ModelId,
+            },
             Providers = new Dictionary<string, ProviderConfiguration>(StringComparer.Ordinal)
             {
-                ["sim"] = new ProviderConfiguration
+                [ProviderId] = new ProviderConfiguration
                 {
-                    Name = "Simulated",
-                    Package = "@opencode-ai/ai/providers/openai-compatible",
+                    Name = ProviderName,
+                    Package = ProviderPackage,
                     Settings = new ProviderSettings
                     {
                         BaseUrl = "https://api.openai.com/v1",
@@ -48,8 +72,16 @@ internal sealed partial class SimulationConfigSeed
                     },
                     Models = new Dictionary<string, ModelConfiguration>(StringComparer.Ordinal)
                     {
-                        ["sim-model"] = new ModelConfiguration { Name = "Simulated Model" },
+                        [ModelId] = new ModelConfiguration { Name = ModelName },
                     },
+                },
+            },
+            References = new Dictionary<string, ReferenceLocalConfiguration>(StringComparer.Ordinal)
+            {
+                [ReferenceName] = new ReferenceLocalConfiguration
+                {
+                    Path = ReferencePath,
+                    Description = ReferenceDescription,
                 },
             },
         },
@@ -59,12 +91,34 @@ internal sealed partial class SimulationConfigSeed
     {
         public required IReadOnlyDictionary<string, AgentConfiguration> Agents { get; init; }
 
+        public required IReadOnlyDictionary<string, CommandConfiguration> Commands { get; init; }
+
+        public required ModelSelectionConfiguration Model { get; init; }
+
         public required IReadOnlyDictionary<string, ProviderConfiguration> Providers { get; init; }
+
+        public required IReadOnlyDictionary<string, ReferenceLocalConfiguration> References { get; init; }
     }
 
     private sealed record AgentConfiguration
     {
         public required IReadOnlyList<PermissionRule> Permissions { get; init; }
+    }
+
+    private sealed record CommandConfiguration
+    {
+        public required string Template { get; init; }
+
+        public required string Description { get; init; }
+    }
+
+    private sealed record ModelSelectionConfiguration
+    {
+        [JsonPropertyName("providerID")]
+        public required string ProviderIdentifier { get; init; }
+
+        [JsonPropertyName("model")]
+        public required string ModelIdentifier { get; init; }
     }
 
     private sealed record ProviderConfiguration
@@ -89,6 +143,13 @@ internal sealed partial class SimulationConfigSeed
     private sealed record ModelConfiguration
     {
         public required string Name { get; init; }
+    }
+
+    private sealed record ReferenceLocalConfiguration
+    {
+        public required string Path { get; init; }
+
+        public required string Description { get; init; }
     }
 
     [JsonSourceGenerationOptions(
