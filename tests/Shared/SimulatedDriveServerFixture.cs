@@ -172,7 +172,7 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
             {
                 try
                 {
-                    _adapter.WriteLogs(_fileSystem, _fileSystem.Path.Combine(_runRoot.Path, "logs"));
+                    await _adapter.WriteLogsAsync(_fileSystem, _fileSystem.Path.Combine(_runRoot.Path, "logs"));
                     Console.WriteLine($"Simulated server logs retained under: {_runRoot.Path}");
                 }
                 catch (Exception exception)

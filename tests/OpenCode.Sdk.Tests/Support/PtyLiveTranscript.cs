@@ -19,6 +19,7 @@ internal sealed class PtyLiveTranscript
     private readonly StringBuilder _currentRecord = new();
     private readonly List<string> _records = [];
     private readonly StringBuilder _text = new();
+    private readonly Lock _gate = new();
     private TerminalControl _control;
     private long? _cursor;
     private bool _skipLineFeed;
@@ -26,7 +27,10 @@ internal sealed class PtyLiveTranscript
     public bool ContainsRecord(string record)
     {
         ArgumentNullException.ThrowIfNull(record);
-        return _records.Contains(record, StringComparer.Ordinal);
+        lock (_gate)
+        {
+            return _records.Contains(record, StringComparer.Ordinal);
+        }
     }
 
     /// <summary>
@@ -115,10 +119,17 @@ internal sealed class PtyLiveTranscript
         }
     }
 
-    public string Describe() =>
-        "records=[" + string.Join(", ", _records.Select(static record => "'" + record + "'")) +
-        "] cursor=" + (_cursor?.ToString(CultureInfo.InvariantCulture) ?? "<none>") +
-        " text=" + Excerpt();
+    public string Describe()
+    {
+        lock (_gate)
+        {
+            return "cursor=" + (_cursor?.ToString(CultureInfo.InvariantCulture) ?? "<none>") +
+                   " record-count=" + _records.Count.ToString(CultureInfo.InvariantCulture) +
+                   " last-records=[" + string.Join(", ", _records.Skip(Math.Max(0, _records.Count - 8))
+                       .Select(static record => "'" + (record.Length <= 128 ? record : record[..116] + " [truncated]") + "'")) +
+                   "] text-characters=" + _text.Length.ToString(CultureInfo.InvariantCulture) + " text-tail=" + Excerpt();
+        }
+    }
 
     private static string DescribeTargets(IReadOnlyList<string> records) =>
         "[" + string.Join(", ", records.Select(static record => "'" + record + "'")) + "]";
@@ -128,15 +139,18 @@ internal sealed class PtyLiveTranscript
 
     private void Observe(PtyFrame frame)
     {
-        if (frame is PtyCursorFrame cursor)
+        lock (_gate)
         {
-            _cursor = cursor.Cursor;
-            return;
-        }
+            if (frame is PtyCursorFrame cursor)
+            {
+                _cursor = cursor.Cursor;
+                return;
+            }
 
-        if (frame is PtyOutputFrame output)
-        {
-            Append(output.Text);
+            if (frame is PtyOutputFrame output)
+            {
+                Append(output.Text);
+            }
         }
     }
 

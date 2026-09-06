@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace OpenCode.Sdk.Tests.Support;
+namespace OpenCode.Sdk.TestSupport.Ownership;
 
 internal sealed class LateCleanupFailureReport
 {

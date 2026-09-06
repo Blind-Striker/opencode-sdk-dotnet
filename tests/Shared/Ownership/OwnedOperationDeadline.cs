@@ -1,6 +1,6 @@
-using OpenCode.Sdk.Tests.Support.Abstractions;
+using OpenCode.Sdk.TestSupport.Ownership.Abstractions;
 
-namespace OpenCode.Sdk.Tests.Support;
+namespace OpenCode.Sdk.TestSupport.Ownership;
 
 internal sealed class OwnedOperationDeadline : IOwnedOperationDeadline
 {

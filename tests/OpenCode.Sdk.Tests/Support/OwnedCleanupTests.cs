@@ -1,3 +1,4 @@
+using OpenCode.Sdk.TestSupport.Ownership;
 namespace OpenCode.Sdk.Tests.Support;
 
 public sealed class OwnedCleanupTests

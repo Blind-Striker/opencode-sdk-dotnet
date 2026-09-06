@@ -1,4 +1,5 @@
 using NSubstitute;
+using OpenCode.Sdk.TestSupport.Ownership;
 
 namespace OpenCode.Sdk.Tests.Support;
 

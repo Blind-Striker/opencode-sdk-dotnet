@@ -907,14 +907,14 @@ dotnet_diagnostic.VSTHRD003.severity = none
 # fault-observation continuations. The bridge lets a deterministic test await an otherwise-late
 # cleanup failure without sleeping. Winner: the bounded cleanup reporting contract; VSTHRD003
 # remains enabled elsewhere.
-[tests/OpenCode.Sdk.Tests/Support/LateCleanupFailureReport.cs]
+[tests/Shared/Ownership/LateCleanupFailureReport.cs]
 dotnet_diagnostic.VSTHRD003.severity = none
 
 # Cleanup owners retain raw tasks until actual completion and separately bound observation.
 # Awaiting those owned tasks directly preserves their original result/cancellation identity;
 # callback invocation is isolated on the thread pool, with no foreign synchronization-context
 # dependency. Winner: owned cleanup observation; VSTHRD003 remains enabled elsewhere.
-[tests/OpenCode.Sdk.Tests/Support/OwnedCleanup.cs]
+[tests/Shared/Ownership/OwnedCleanup.cs]
 dotnet_diagnostic.VSTHRD003.severity = none
 
 [tests/OpenCode.Sdk.Tests/Support/OwnedEventReader.cs]
@@ -957,6 +957,19 @@ dotnet_diagnostic.VSTHRD003.severity = none
 [tests/OpenCode.Sdk.Tests/Sessions/SessionMessagePaginationLiveTests.cs]
 dotnet_diagnostic.VSTHRD003.severity = none
 
+# This fixture proof owns the disposal task and controls its deadline delivery. Its finally
+# releases all signals and drains the raw operations. Winner: causal owned-process failure proof;
+# VSTHRD003 remains enabled outside this exact file.
+[tests/OpenCode.Sdk.Tests/PinnedOpenCodeServerFixtureFailureTests.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+# These diagnostic proofs control their own operation deadlines and retain supplied disposal
+# tasks until finally releases and drains them. Winner: causal fixture/status ownership proofs;
+# the rule remains enabled outside these exact files.
+[tests/OpenCode.Sdk.Tests/Support/PtyFailureDiagnosticsTests.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+[tests/OpenCode.Sdk.Tests/Support/ServerDiagnosticScenario.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
 # CliWrapServerAdapter parks on TaskCompletionSource handles the adapter itself completes — the
 # stdin lease that holds the child's ownership pipe open until disposal, and the first stdout
 # line that carries the readiness contract — plus the CliWrap execution task it started. That

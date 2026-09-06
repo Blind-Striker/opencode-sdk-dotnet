@@ -62,6 +62,7 @@ public sealed class PtySessionLiveTests(PinnedOpenCodeServerFixture server)
 
     private async Task<PtyHttpEvidence> AssertHttpLifecycleAsync(CancellationToken cancellationToken)
     {
+        _scenario.Diagnostics.Enter("create");
         var created = await _scenario.Client.Ptys.CreatePtyAsync(
             new PtyCreateRequest
             {
@@ -74,6 +75,8 @@ public sealed class PtySessionLiveTests(PinnedOpenCodeServerFixture server)
             cancellationToken: cancellationToken);
 
         var ptyId = created.Pty.Id;
+        _scenario.Diagnostics.Created(ptyId, created.Pty.Pid, created.Status);
+        _scenario.Diagnostics.Enter("HTTP lifecycle");
         var terminal = _scenario.Client.Ptys.GetPtyClient(ptyId);
         _scenario.Own(terminal);
 
@@ -155,10 +158,13 @@ public sealed class PtySessionLiveTests(PinnedOpenCodeServerFixture server)
     {
         var nonce = Guid.NewGuid().ToString("N");
         var acknowledgement = "ACK:" + nonce;
+        _scenario.Diagnostics.Enter("initial connect");
         var session = _scenario.Own(await terminal.ConnectAsync(
             new PtyConnectOptions { Location = _scenario.Location }, cancellationToken));
         var transcript = new PtyLiveTranscript();
+        _scenario.Diagnostics.Enter("initial READY", transcript);
         _ = await transcript.ReadThroughReplayAsync(session, [ReadyRecord], cancellationToken);
+        _scenario.Diagnostics.Enter("initial input acknowledgement", transcript);
         await session.WriteAsync("RUN " + nonce + "\r", cancellationToken);
         await transcript.ReadUntilRecordAsync(session, acknowledgement, cancellationToken);
         await session.DisposeAsync();
@@ -170,22 +176,27 @@ public sealed class PtySessionLiveTests(PinnedOpenCodeServerFixture server)
         string acknowledgementA,
         CancellationToken cancellationToken)
     {
+        _scenario.Diagnostics.Enter("replay connect");
         var replay = _scenario.Own(await terminal.ConnectAsync(
             new PtyConnectOptions { Location = _scenario.Location }, cancellationToken));
         var replayTranscript = new PtyLiveTranscript();
+        _scenario.Diagnostics.Enter("replay records", replayTranscript);
         var replayCursor = await replayTranscript.ReadThroughReplayAsync(replay, [], cancellationToken);
         await Assert.That(replayTranscript.ContainsRecord(ReadyRecord)).IsTrue();
         await Assert.That(replayTranscript.ContainsRecord(acknowledgementA)).IsTrue();
 
         var nonceB = Guid.NewGuid().ToString("N");
         var acknowledgementB = "ACK:" + nonceB;
+        _scenario.Diagnostics.Enter("replay input acknowledgement", replayTranscript);
         await replay.WriteAsync("RUN " + nonceB + "\r", cancellationToken);
         await replayTranscript.ReadUntilRecordAsync(replay, acknowledgementB, cancellationToken);
         await replay.DisposeAsync();
 
+        _scenario.Diagnostics.Enter("resume connect");
         var resumed = _scenario.Own(await terminal.ConnectAsync(
             new PtyConnectOptions { Location = _scenario.Location, Cursor = replayCursor }, cancellationToken));
         var resumedTranscript = new PtyLiveTranscript();
+        _scenario.Diagnostics.Enter("resume records", resumedTranscript);
         var resumeCursor = await resumedTranscript.ReadThroughReplayAsync(resumed, [], cancellationToken);
         await Assert.That(resumedTranscript.ContainsRecord(acknowledgementB)).IsTrue();
         await Assert.That(resumedTranscript.ContainsRecord(ReadyRecord)).IsFalse();
@@ -207,6 +218,7 @@ public sealed class PtySessionLiveTests(PinnedOpenCodeServerFixture server)
         PtyReplayEvidence replay,
         CancellationToken cancellationToken)
     {
+        _scenario.Diagnostics.Enter("removal and socket close", replay.Transcript);
         var completion = replay.Transcript.ReadToCompletionAsync(replay.Session, cancellationToken);
         _scenario.Observe(completion);
         var removed = await terminal.RemovePtyAsync(

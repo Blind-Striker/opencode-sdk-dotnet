@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Runtime.ExceptionServices;
 using OpenCode.Sdk.TestSupport;
+using OpenCode.Sdk.TestSupport.Ownership;
 
 namespace OpenCode.Sdk.Tests.Support;
 
@@ -11,6 +12,8 @@ namespace OpenCode.Sdk.Tests.Support;
 internal sealed class PtyLiveScenario
 {
     private static readonly TimeSpan CleanupTimeout = TimeSpan.FromSeconds(10);
+
+    public PtyFailureDiagnostics Diagnostics { get; } = new();
 
     private readonly List<Task> _pendingOperations = [];
     private readonly List<PtySession> _sessions = [];
@@ -100,107 +103,55 @@ internal sealed class PtyLiveScenario
                 primaryFailure ?? new InvalidOperationException("The PTY live scenario was cleaned twice.")).Throw();
         }
 
-        var failures = new List<Exception>();
-        using var cleanup = new CancellationTokenSource(CleanupTimeout);
-        await RemoveTerminalAsync(failures, cleanup.Token);
-        await ObservePendingOperationsAsync(failures, cleanup.Token);
-        await DisposeSessionsAsync(failures);
-        DisposeOwners(failures);
-
         if (primaryFailure is not null)
         {
-            if (failures.Count > 0)
+            await Diagnostics.CaptureStatusAsync(_server, _location, primaryFailure);
+        }
+
+        var cleanup = new OwnedCleanup(CleanupTimeout);
+        if (!_removed && _terminal is not null)
+        {
+            cleanup.Own("PTY removal", async token =>
             {
-                primaryFailure.Data["PtyLiveScenario.CleanupFailures"] = new AggregateException(failures);
-            }
-
-            ExceptionDispatchInfo.Capture(primaryFailure).Throw();
+                var response = await _terminal.RemovePtyAsync(
+                    new PtyRemoveRequest { Location = Location }, OpenCodeRequestOptions.NoThrow, token);
+                if (response.Status is not 204 and not 404)
+                {
+                    throw new InvalidOperationException("PTY cleanup answered HTTP " +
+                        response.Status.ToString(CultureInfo.InvariantCulture) + ".");
+                }
+            });
         }
 
-        if (failures.Count is 1)
-        {
-            ExceptionDispatchInfo.Capture(failures[0]).Throw();
-        }
-
-        if (failures.Count > 1)
-        {
-            throw new AggregateException("Multiple failures occurred while cleaning the PTY live scenario.", failures);
-        }
-    }
-
-    private async Task RemoveTerminalAsync(List<Exception> failures, CancellationToken cancellationToken)
-    {
-        if (_removed || _terminal is null)
-        {
-            return;
-        }
-
-        try
-        {
-            var removed = await _terminal.RemovePtyAsync(
-                new PtyRemoveRequest { Location = Location },
-                OpenCodeRequestOptions.NoThrow,
-                cancellationToken);
-            if (removed.Status is not 204 and not 404)
-            {
-                failures.Add(new InvalidOperationException(
-                    "PTY cleanup answered HTTP " + removed.Status.ToString(CultureInfo.InvariantCulture) + "."));
-            }
-        }
-        catch (Exception exception)
-        {
-            failures.Add(exception);
-        }
-    }
-
-    private async Task ObservePendingOperationsAsync(List<Exception> failures, CancellationToken cancellationToken)
-    {
         foreach (var operation in _pendingOperations)
         {
-            try
-            {
-                await operation.WaitAsync(cancellationToken);
-            }
-            catch (Exception exception)
-            {
-                failures.Add(exception);
-            }
+            cleanup.Own("PTY pending read", operation);
         }
-    }
 
-    private async Task DisposeSessionsAsync(List<Exception> failures)
-    {
         foreach (var session in _sessions)
         {
-            try
-            {
-                await session.DisposeAsync();
-            }
-            catch (Exception exception)
-            {
-                failures.Add(exception);
-            }
+            cleanup.Own("PTY socket disposal", async _ => await session.DisposeAsync());
         }
-    }
 
-    private void DisposeOwners(List<Exception> failures)
-    {
-        try
+        cleanup.Own("PTY client disposal", _ =>
         {
             _client?.Dispose();
-        }
-        catch (Exception exception)
-        {
-            failures.Add(exception);
-        }
-
-        try
+            return Task.CompletedTask;
+        });
+        cleanup.Own("PTY workspace disposal", _ =>
         {
             _workspace?.Dispose();
+            return Task.CompletedTask;
+        });
+        try
+        {
+            await cleanup.CompleteAsync(primaryFailure);
         }
         catch (Exception exception)
         {
-            failures.Add(exception);
+            _server.MarkFailure(exception, "PtySessionLiveTests.Pty_Should_Create_Execute_Replay_Resume_And_Remove",
+                Diagnostics.Describe());
+            throw;
         }
     }
 }

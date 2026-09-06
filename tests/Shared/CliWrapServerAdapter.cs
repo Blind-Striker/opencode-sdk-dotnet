@@ -3,6 +3,8 @@ using System.IO.Abstractions;
 using System.Security.Cryptography;
 using CliWrap;
 using OpenCode.Sdk.Internal;
+using OpenCode.Sdk.TestSupport.Ownership;
+using OpenCode.Sdk.TestSupport.Ownership.Abstractions;
 
 namespace OpenCode.Sdk.TestSupport;
 
@@ -25,21 +27,14 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
     /// </summary>
     private static readonly TimeSpan ForcedExitTimeout = TimeSpan.FromSeconds(10);
 
-    /// <summary>
-    /// Bounded well above the 40-line exception tail (<see cref="DescribeLogs"/>): the
-    /// failure-path log write wants enough context to diagnose without letting a chatty
-    /// PerTestSession-lifetime server grow these files unbounded.
-    /// </summary>
-    private const int RetainedLogLines = 500;
-
     private readonly TaskCompletionSource<object?> _stdinLease =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource<string> _firstLine =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly CancellationTokenSource _forceKill = new();
     private readonly Lock _logGate = new();
-    private readonly Queue<string> _stdout = new();
-    private readonly Queue<string> _stderr = new();
+    private readonly ServerLogTail _stdout = new();
+    private readonly ServerLogTail _stderr = new();
     private TaskCompletionSource<object?> _stderrChanged = NewSignal();
     private TimeSpan _gracefulShutdownTimeout = DefaultGracefulShutdownTimeout;
     private Task? _execution;
@@ -47,6 +42,7 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
     private string? _password;
     private int _processId;
     private int _disposed;
+    private IOwnedOperationDeadline _deadline = new OwnedOperationDeadline();
 
     private CliWrapServerAdapter()
     {
@@ -58,14 +54,15 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
 
     public int ProcessId => _processId;
 
+    public LateCleanupFailureReport? LateFailures { get; private set; }
+
     /// <summary>
     /// Starts the adapter and waits for readiness. <paramref name="onConstructed"/> runs
     /// synchronously the instant the adapter object exists - before the process is even spawned -
     /// so a caller can retain the reference regardless of whether this method later throws. That
     /// is what lets <see cref="PinnedOpenCodeServerFixture"/> write out the captured stdout/stderr
-    /// on a startup failure: every failure path below still disposes the adapter itself before
-    /// throwing (the child is always ended), but the object - and its log buffers - survive for
-    /// the caller to inspect.
+    /// on a startup failure: teardown is bounded, and the adapter retains its buffers and any
+    /// pending execution until that work actually ends.
     /// </summary>
     public static async Task<CliWrapServerAdapter> StartAsync(
         IReadOnlyList<string> command,
@@ -74,11 +71,13 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
         TimeSpan readinessTimeout,
         TimeSpan? gracefulShutdownTimeout = null,
         Action<CliWrapServerAdapter>? onConstructed = null,
+        IOwnedOperationDeadline? deadline = null,
         CancellationToken cancellationToken = default)
     {
         var adapter = new CliWrapServerAdapter
         {
             _password = GeneratePassword(),
+            _deadline = deadline ?? new OwnedOperationDeadline(),
             _gracefulShutdownTimeout = gracefulShutdownTimeout ?? DefaultGracefulShutdownTimeout,
         };
         onConstructed?.Invoke(adapter);
@@ -123,29 +122,25 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
         }
         catch (OperationCanceledException exception)
         {
-            await adapter.DisposeAsync();
-            if (cancellationToken.IsCancellationRequested)
-            {
-                throw new OperationCanceledException("The adapter start was canceled.", exception, cancellationToken);
-            }
-
-            throw new InvalidOperationException(
-                $"The pinned server did not report readiness within {readinessTimeout.TotalSeconds.ToString("F0", CultureInfo.InvariantCulture)}s.{adapter.DescribeLogs()}");
+            var failure = cancellationToken.IsCancellationRequested
+                ? (Exception)new OperationCanceledException("The adapter start was canceled.", exception, cancellationToken)
+                : new InvalidOperationException(
+                    $"The pinned server did not report readiness within {readinessTimeout.TotalSeconds.ToString("F0", CultureInfo.InvariantCulture)}s.");
+            await adapter.ThrowAfterTeardownAsync(failure);
+            throw;
         }
 
         if (!adapter._firstLine.Task.IsCompleted)
         {
-            await adapter.DisposeAsync();
-            throw new InvalidOperationException(
-                $"The pinned server exited before reporting readiness.{adapter.DescribeLogs()}");
+            await adapter.ThrowAfterTeardownAsync(new InvalidOperationException(
+                "The pinned server exited before reporting readiness."));
         }
 
         var line = await adapter._firstLine.Task;
         if (!ServerReadyLine.TryParse(line, out var endpoint))
         {
-            await adapter.DisposeAsync();
-            throw new InvalidOperationException(
-                $"The pinned server's first stdout line is not the readiness contract: '{line}'.{adapter.DescribeLogs()}");
+            await adapter.ThrowAfterTeardownAsync(new InvalidOperationException(
+                $"The pinned server's first stdout line is not the readiness contract: '{line}'."));
         }
 
         adapter._endpoint = endpoint;
@@ -156,10 +151,8 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
     {
         lock (_logGate)
         {
-            var tail = _stderr.Skip(Math.Max(0, _stderr.Count - 40));
-            return _stderr.Count == 0
-                ? string.Empty
-                : string.Concat(" Recent stderr: ", string.Join(" | ", tail));
+            var tail = _stderr.Describe();
+            return tail.Length == 0 ? string.Empty : " Recent stderr: " + tail;
         }
     }
 
@@ -168,7 +161,7 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(fragment);
         lock (_logGate)
         {
-            return _stderr.Any(line => line.Contains(fragment, StringComparison.Ordinal));
+            return _stderr.Find(fragment) is not null;
         }
     }
 
@@ -180,7 +173,7 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
             Task signal;
             lock (_logGate)
             {
-                var match = _stderr.FirstOrDefault(line => line.Contains(fragment, StringComparison.Ordinal));
+                var match = _stderr.Find(fragment);
                 if (match is not null)
                 {
                     return match;
@@ -193,14 +186,21 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
         }
     }
 
-    public void WriteLogs(IFileSystem fileSystem, string directory)
+    public ServerLogSnapshot SnapshotLogs()
     {
-        _ = fileSystem.Directory.CreateDirectory(directory);
         lock (_logGate)
         {
-            fileSystem.File.WriteAllLines(fileSystem.Path.Combine(directory, "stdout.log"), _stdout);
-            fileSystem.File.WriteAllLines(fileSystem.Path.Combine(directory, "stderr.log"), _stderr);
+            return new ServerLogSnapshot { StandardOutput = _stdout.Snapshot(), StandardError = _stderr.Snapshot() };
         }
+    }
+
+    public async Task WriteLogsAsync(IFileSystem fileSystem, string directory)
+    {
+        var snapshot = SnapshotLogs();
+        _ = fileSystem.Directory.CreateDirectory(directory);
+        var writer = new DiagnosticFileWriter(fileSystem);
+        await writer.WriteAsync(fileSystem.Path.Combine(directory, "stdout.log"), string.Join(Environment.NewLine, snapshot.StandardOutput));
+        await writer.WriteAsync(fileSystem.Path.Combine(directory, "stderr.log"), string.Join(Environment.NewLine, snapshot.StandardError));
     }
 
     public async ValueTask DisposeAsync()
@@ -217,64 +217,89 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
         }
 
         _ = _stdinLease.TrySetResult(null);
-        if (_execution is not null)
+        var cancellation = Task.CompletedTask;
+        try
         {
-            // The grace is a bounded wait on the execution itself rather than a race against a
-            // timer: the child exiting on its own is the condition, and the bound is only what
-            // stops disposal waiting forever for it.
-            if (!await TryAwaitExitAsync(_execution, _gracefulShutdownTimeout))
+            if (_execution is not null && !await TryAwaitExitAsync(_execution, _gracefulShutdownTimeout))
             {
-                await _forceKill.CancelAsync();
+                cancellation = Task.Run(_forceKill.CancelAsync, CancellationToken.None);
+                var forced = new OwnedCleanup(ForcedExitTimeout, _deadline);
+                forced.Own("pinned server forced cancellation", cancellation);
+                forced.Own("pinned server forced exit", _execution, _ => _forceKill.IsCancellationRequested);
+                try
+                {
+                    await forced.CompleteAsync(null);
+                }
+                finally
+                {
+                    LateFailures = forced.LateFailures;
+                }
             }
-
-            // Bounded the same way as the graceful wait above: the kill was issued, but CliWrap's
-            // own tree-kill confirming it is not guaranteed prompt, so this second wait gets its
-            // own bound rather than trusting it unconditionally
-            // (OpenCodeServer.EndOwnedChildAsync's double-layered escalation, mirrored here).
-            _ = await TryAwaitExitAsync(_execution, ForcedExitTimeout);
         }
-
-        _forceKill.Dispose();
+        finally
+        {
+            // A timed-out fixture still owns the execution and cancellation. Release the source
+            // only when neither can use it; the continuation also observes a late execution fault.
+            var pending = Task.WhenAll(_execution ?? Task.CompletedTask, cancellation);
+            if (pending.IsCompleted)
+            {
+                _ = pending.Exception;
+                _forceKill.Dispose();
+            }
+            else
+            {
+                _ = pending.ContinueWith(
+                    completed =>
+                    {
+                        _ = completed.Exception;
+                        _forceKill.Dispose();
+                    }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            }
+        }
     }
 
     /// <summary>
     /// Waits for the execution to finish inside a bound of its own.
     /// </summary>
     /// <returns>
-    /// True when the child exited inside the bound; false when the bound expired with it still
-    /// running, or when the execution reported the forced cancellation it was handed. The second
-    /// wait discards this because there is no third escalation to reach for: the tree kill has
-    /// already been issued, and a disposal must return to its caller regardless.
+    /// True when execution succeeds inside the bound; false when its observation deadline wins.
+    /// An execution failure remains distinct from a deadline failure.
     /// </returns>
-    private static async Task<bool> TryAwaitExitAsync(Task execution, TimeSpan bound)
+    private async Task<bool> TryAwaitExitAsync(Task execution, TimeSpan bound)
     {
         try
         {
-            await execution.WaitAsync(bound);
-            return true;
+            await _deadline.WaitAsync("pinned server graceful exit", execution, bound, CancellationToken.None);
         }
         catch (TimeoutException)
         {
-            // The bound expired with the child still running.
             return false;
         }
-        catch (OperationCanceledException)
-        {
-            // The forced teardown reporting through the cancellation token it was given.
-            return false;
-        }
+
+        await execution;
+        return true;
     }
 
+    private async Task ThrowAfterTeardownAsync(Exception primary)
+    {
+        var cleanup = new OwnedCleanup(TimeSpan.FromSeconds(25), _deadline);
+        cleanup.Own("pinned server startup teardown", async _ => await DisposeAsync());
+        try
+        {
+            await cleanup.CompleteAsync(primary);
+        }
+        catch (Exception exception) when (ReferenceEquals(exception, primary))
+        {
+            primary.Data["PinnedServer.StartupLogs"] = DescribeLogs();
+            throw;
+        }
+    }
     private void OnOutputLine(string line)
     {
         _ = _firstLine.TrySetResult(line);
         lock (_logGate)
         {
-            _stdout.Enqueue(line);
-            if (_stdout.Count > RetainedLogLines)
-            {
-                _ = _stdout.Dequeue();
-            }
+            _stdout.Append(line);
         }
     }
 
@@ -283,11 +308,7 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
         TaskCompletionSource<object?> changed;
         lock (_logGate)
         {
-            _stderr.Enqueue(line);
-            if (_stderr.Count > RetainedLogLines)
-            {
-                _ = _stderr.Dequeue();
-            }
+            _stderr.Append(line);
 
             changed = _stderrChanged;
             _stderrChanged = NewSignal();

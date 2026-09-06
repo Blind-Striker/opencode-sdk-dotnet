@@ -1,4 +1,4 @@
-namespace OpenCode.Sdk.Tests.Support.Abstractions;
+namespace OpenCode.Sdk.TestSupport.Ownership.Abstractions;
 
 internal interface IOwnedOperationDeadline
 {

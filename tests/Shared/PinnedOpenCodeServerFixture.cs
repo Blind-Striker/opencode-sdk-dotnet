@@ -1,5 +1,7 @@
 using System.Globalization;
+using System.Runtime.ExceptionServices;
 using System.Text.Json;
+using OpenCode.Sdk.TestSupport.Ownership;
 using Testably.Abstractions;
 using TUnit.Core.Interfaces;
 
@@ -18,7 +20,7 @@ namespace OpenCode.Sdk.TestSupport;
 /// Environment variables this fixture and its neighbors respond to, one line each:
 /// <list type="bullet">
 /// <item><c>OPENCODE_SDK_TESTS_KEEP_LOGS=1</c> - retain the spawned server's stdout/stderr (and
-/// the run root) under the OS temp root instead of deleting them on dispose.</item>
+/// the run root); bounded log files are written beneath the runner's results directory.</item>
 /// <item><c>OPENCODE_SDK_TESTS_ENDPOINT</c> - an operator-supplied server to attach to instead of
 /// spawning one (paired with <c>OPENCODE_SDK_TESTS_PASSWORD</c>; see below).</item>
 /// <item><c>OPENCODE_SDK_TESTS_PASSWORD</c> - the Basic-auth password for
@@ -34,7 +36,7 @@ namespace OpenCode.Sdk.TestSupport;
 /// starting <see cref="Adapter"/>, so <see cref="Adapter"/> stays unset and every member below
 /// reads from the external pair.
 /// </remarks>
-public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDisposable
+public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDisposable, ITestEndEventReceiver
 {
     private static readonly TimeSpan ReadinessTimeout = TimeSpan.FromMinutes(3);
 
@@ -48,6 +50,11 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
     private TestRunRoot? _runRoot;
     private ExternalServerEndpoint? _external;
     private bool _retainLogs;
+    private bool _externalMode;
+    private ServerFailureArtifacts? _artifacts;
+    private readonly ServerFixtureDiagnosticsOptions? _diagnostics;
+    private int _disposed;
+    private readonly List<LateCleanupFailureReport> _lateReports = [];
 
     public PinnedOpenCodeServerFixture()
     {
@@ -59,8 +66,9 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
     /// forced through this fixture itself - pinning the failure-path log-retention contract rather
     /// than only exercising it through the lower-level adapter.
     /// </summary>
-    internal PinnedOpenCodeServerFixture(IReadOnlyList<string> command, string workingDirectory)
+    internal PinnedOpenCodeServerFixture(IReadOnlyList<string> command, string workingDirectory, ServerFixtureDiagnosticsOptions? diagnostics = null)
     {
+        _diagnostics = diagnostics;
         _commandOverride = command;
         _workingDirectoryOverride = workingDirectory;
     }
@@ -78,6 +86,8 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
     }
 
     public Uri Endpoint => _external?.Endpoint ?? Adapter.Endpoint;
+
+    public int Order => 0;
 
     internal bool IsExternal
     {
@@ -117,6 +127,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
             var external = _externalOverride ?? ExternalServerEndpoint.FromEnvironment();
             if (external is not null)
             {
+                _externalMode = true;
                 await AttachToExternalAsync(external).ConfigureAwait(false);
                 return;
             }
@@ -158,11 +169,13 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
                 // disposes its own local on every failure path before throwing, but never hands it
                 // back through its return value), which made the WriteLogs call below unreachable
                 // dead code on exactly the failure it exists for.
-                onConstructed: created => _adapter = created);
+                onConstructed: created => _adapter = created,
+                deadline: _diagnostics?.Deadline);
         }
-        catch
+        catch (Exception exception)
         {
             _retainLogs = true;
+            MarkFailure(exception, "fixture initialization", "phase=server startup");
             throw;
         }
     }
@@ -177,30 +190,104 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
 
     public TestWorkspace CreateWorkspace() => new(_fileSystem, RunRoot.Path);
 
-    public async ValueTask DisposeAsync()
-    {
-        var keep = _retainLogs ||
-                   string.Equals(
-                       Environment.GetEnvironmentVariable("OPENCODE_SDK_TESTS_KEEP_LOGS"),
-                       "1",
-                       StringComparison.Ordinal);
-        if (_adapter is not null)
-        {
-            if (keep && _runRoot is not null)
-            {
-                _adapter.WriteLogs(_fileSystem, _fileSystem.Path.Combine(_runRoot.Path, "logs"));
-                Console.WriteLine($"Pinned server logs retained under: {_runRoot.Path}");
-            }
+    internal string DiagnosticsDirectory => Artifacts.Directory;
 
-            await _adapter.DisposeAsync();
+    internal async Task DrainDiagnosticsAsync(CancellationToken cancellationToken)
+    {
+        foreach (var report in _lateReports)
+        {
+            await report.WaitForAllAsync(cancellationToken);
         }
 
-        if (!keep)
+        if (_adapter?.LateFailures is { } adapterReport)
         {
-            _runRoot?.Dispose();
+            await adapterReport.WaitForAllAsync(cancellationToken);
         }
     }
 
+    private ServerFailureArtifacts Artifacts => _artifacts ??= new ServerFailureArtifacts(
+        _diagnostics?.FileSystem ?? _fileSystem,
+        _diagnostics?.ResultsDirectory ?? new TestResultsDirectory(_fileSystem).Resolve(Environment.GetCommandLineArgs()));
+
+    internal void MarkFailure(Exception exception, string test, string details)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+        _ = Artifacts.Mark(exception, test, details, TestContext.Current?.Id);
+    }
+
+    public ValueTask OnTestEnd(TestContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        if (context.Execution.Result?.Exception is { } failure)
+        {
+            var path = Artifacts.Mark(failure,
+                context.Metadata.TestDetails.ClassType.FullName + "." + context.Metadata.TestName,
+                "phase=test-body; receiver observes the body result, before later teardown outcomes", context.Id);
+            if (Artifacts.Report(failure, context.Id))
+            {
+                context.Output.AttachArtifact(path, "Owned server failure diagnostics");
+            }
+        }
+
+        return default;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) is 1)
+        {
+            return;
+        }
+
+        var keep = _retainLogs || string.Equals(
+            Environment.GetEnvironmentVariable("OPENCODE_SDK_TESTS_KEEP_LOGS"), "1", StringComparison.Ordinal);
+        var recorded = _artifacts?.Failures;
+        var primary = recorded is { Count: > 0 } ? recorded[0].Exception : null;
+        var teardown = new OwnedCleanup(TimeSpan.FromSeconds(25),
+            _diagnostics?.Deadline ?? new OwnedOperationDeadline());
+        if (_adapter is not null)
+        {
+            teardown.Own("pinned server teardown", async _ => await _adapter.DisposeAsync());
+        }
+
+        Exception? failure = null;
+        try
+        {
+            await teardown.CompleteAsync(primary);
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
+
+        if (teardown.LateFailures is { } late)
+        {
+            _lateReports.Add(late);
+        }
+
+        if (failure is not null || keep)
+        {
+            if (failure is not null && !Artifacts.Failures.Any(item => ReferenceEquals(item.Exception, failure)))
+            {
+                _ = Artifacts.Mark(failure, "fixture disposal", "phase=owned-server-teardown");
+            }
+
+            var capture = new ServerFailureCapture(Artifacts, _diagnostics?.FileSystem ?? _fileSystem,
+                _diagnostics?.Deadline ?? new OwnedOperationDeadline());
+            failure = await capture.CaptureAsync(_adapter, _externalMode, failure);
+            _lateReports.AddRange(capture.LateReports);
+            Console.WriteLine("Pinned server diagnostics: " + Artifacts.Directory);
+        }
+
+        if (failure is null && !keep)
+        {
+            _runRoot?.Dispose();
+        }
+        if (failure is not null && !(_artifacts?.IsReported(failure) ?? false))
+        {
+            ExceptionDispatchInfo.Capture(failure).Throw();
+        }
+    }
     private Dictionary<string, string> BuildEnvironment(string runRoot) =>
         ServerIsolation.Environment(_fileSystem, runRoot);
 
