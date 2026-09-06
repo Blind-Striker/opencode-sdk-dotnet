@@ -18,6 +18,19 @@ public sealed class TestWorkspace : IDisposable
 
     public string Path { get; }
 
+    /// <summary>Writes one text file below the workspace, creating its parent directories.</summary>
+    public string WriteTextFile(string relativePath, string content)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
+        ArgumentNullException.ThrowIfNull(content);
+
+        var filePath = _fileSystem.Path.GetFullPath(_fileSystem.Path.Combine(Path, relativePath));
+        var directory = _fileSystem.Path.GetDirectoryName(filePath)!;
+        _ = _fileSystem.Directory.CreateDirectory(directory);
+        _fileSystem.File.WriteAllText(filePath, content);
+        return filePath;
+    }
+
     public void Dispose()
     {
         // Discarded deliberately: this workspace lives under the run root, so a tree a straggling

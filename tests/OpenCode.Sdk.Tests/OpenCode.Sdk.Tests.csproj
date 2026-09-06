@@ -47,6 +47,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Fixtures/**/*.json" />
     <EmbeddedResource Include="Fixtures/**/*.js" />
+    <EmbeddedResource Include="Fixtures/**/*.md" />
   </ItemGroup>
 
 </Project>
