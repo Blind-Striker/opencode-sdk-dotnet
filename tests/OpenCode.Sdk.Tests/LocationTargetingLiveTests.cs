@@ -104,10 +104,9 @@ public sealed class LocationTargetingLiveTests(SimulatedDriveServerFixture serve
         Exception? primaryFailure)
     {
         var failures = new List<Exception>();
-        using var cleanup = new CancellationTokenSource(CleanupTimeout);
         foreach (var session in sessions)
         {
-            await RemoveSessionAsync(session, failures, cleanup.Token);
+            await RemoveSessionAsync(session, failures);
         }
 
         if (primaryFailure is not null)
@@ -133,13 +132,13 @@ public sealed class LocationTargetingLiveTests(SimulatedDriveServerFixture serve
 
     private static async Task RemoveSessionAsync(
         OwnedSession session,
-        List<Exception> failures,
-        CancellationToken cancellationToken)
+        List<Exception> failures)
     {
+        using var cleanup = new CancellationTokenSource(CleanupTimeout);
         try
         {
             _ = await session.Client.Sessions.GetSessionClient(session.Id).RemoveSessionAsync(
-                cancellationToken: cancellationToken);
+                cancellationToken: cleanup.Token);
         }
         catch (Exception exception)
         {
