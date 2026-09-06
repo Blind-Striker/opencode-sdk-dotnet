@@ -13,7 +13,8 @@ internal sealed class ServerFailureCapture(
 
     public IReadOnlyList<LateCleanupFailureReport> LateReports => _lateReports;
 
-    public async Task<Exception?> CaptureAsync(CliWrapServerAdapter? adapter, bool external, Exception? failure)
+    public async Task<Exception?> CaptureAsync(CliWrapServerAdapter? adapter, bool external, Exception? failure,
+        IReadOnlyList<Exception> teardownFailures)
     {
         var capture = new OwnedCleanup(TimeSpan.FromSeconds(5), deadline);
         if (adapter is not null)
@@ -24,10 +25,16 @@ internal sealed class ServerFailureCapture(
         }
 
         failure = await CaptureFailureAsync(capture, failure);
+        if (failure is not null && artifacts.Failures.Count is 0)
+        {
+            _ = artifacts.Mark(failure, "fixture disposal", "phase=server diagnostic capture");
+        }
+
+        var lifecycleFailures = teardownFailures.Concat(capture.OperationFailures).ToArray();
         var metadata = new OwnedCleanup(TimeSpan.FromSeconds(5), deadline);
         metadata.Own("pinned server failure metadata", _ =>
             artifacts.WriteMetadataAsync(external ? "external" : "owned",
-                adapter?.ProcessId.ToString(CultureInfo.InvariantCulture) ?? "not-owned", failure));
+                adapter?.ProcessId.ToString(CultureInfo.InvariantCulture) ?? "not-owned", lifecycleFailures));
         return await CaptureFailureAsync(metadata, failure);
     }
 

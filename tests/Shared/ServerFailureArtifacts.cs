@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO.Abstractions;
 using System.Reflection;
 using System.Runtime.Versioning;
+using System.Text;
 
 namespace OpenCode.Sdk.TestSupport;
 
@@ -82,22 +83,27 @@ internal sealed class ServerFailureArtifacts
         }
     }
 
-    public async Task WriteMetadataAsync(string mode, string process, Exception? teardownFailure)
+    public async Task WriteMetadataAsync(string mode, string process, IReadOnlyList<Exception> lifecycleFailures)
     {
         _ = _fileSystem.Directory.CreateDirectory(Directory);
         foreach (var failure in Failures)
         {
-            var text = "test=" + failure.Test + "\ninvocation=" + new FailureDiagnosticText(256).Bound(failure.Invocation) +
+            var text = new StringBuilder("test=" + failure.Test + "\ninvocation=" + new FailureDiagnosticText(256).Bound(failure.Invocation) +
                        "\nassembly=" + _assembly + "\nframework=" + Framework + "\nmode=" + mode +
                        "\nserver-process=" + process + "\n" + failure.Details + "\nprimary:\n" +
-                       new FailureDiagnosticText(8_192).Describe(failure.Exception);
-            if (teardownFailure is not null && !ReferenceEquals(teardownFailure, failure.Exception))
+                       new FailureDiagnosticText(8_192).Describe(failure.Exception));
+            foreach (var lifecycleFailure in lifecycleFailures.Take(64).Where(item => !ReferenceEquals(item, failure.Exception)))
             {
-                text += "\nteardown:\n" + new FailureDiagnosticText(2_048).Describe(teardownFailure);
+                _ = text.Append("\nlifecycle:\n").Append(new FailureDiagnosticText(2_048).Describe(lifecycleFailure));
+            }
+
+            if (lifecycleFailures.Count > 64)
+            {
+                _ = text.Append("\n[truncated]");
             }
 
             await new DiagnosticFileWriter(_fileSystem).WriteAsync(
-                _fileSystem.Path.Combine(Directory, failure.Id + ".log"), _text.Bound(text));
+                _fileSystem.Path.Combine(Directory, failure.Id + ".log"), _text.Bound(text.ToString()));
         }
     }
 }

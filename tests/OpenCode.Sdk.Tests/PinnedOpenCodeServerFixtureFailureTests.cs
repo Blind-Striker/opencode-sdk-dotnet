@@ -13,6 +13,74 @@ namespace OpenCode.Sdk.Tests;
 [NotInParallel(ParallelConstraintKeys.ServerProcess)]
 public sealed class PinnedOpenCodeServerFixtureFailureTests
 {
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task DisposeAsync_Should_Not_Label_Another_Body_Failure_As_Teardown(bool captureFails)
+    {
+        var captureFailure = new IOException("Shared fixture stderr capture failed.");
+        var scenario = new ServerDiagnosticScenario { CaptureFailure = captureFails ? captureFailure : null };
+        var fixture = scenario.CreateFixture();
+        var first = new InvalidOperationException("First distinct body failure.");
+        var second = new IOException("Second distinct body failure.");
+        try
+        {
+            await fixture.InitializeAsync();
+            fixture.MarkFailure(first, "first consumer", "phase=first body");
+            fixture.MarkFailure(second, "second consumer", "phase=second body");
+
+            var observed = await Assert.That(async () => await fixture.DisposeAsync()).Throws<InvalidOperationException>();
+
+            await Assert.That(observed).IsSameReferenceAs(first);
+            var metadata = await scenario.ReadLogAsync(fixture, "2.log");
+            await Assert.That(metadata).Contains("test=second consumer");
+            await Assert.That(metadata).Contains(second.Message);
+            await Assert.That(metadata).DoesNotContain(first.Message);
+            await Assert.That(metadata).DoesNotContain("teardown:");
+            if (captureFails)
+            {
+                await Assert.That(metadata).Contains("lifecycle:");
+                await Assert.That(metadata).Contains(captureFailure.Message);
+            }
+            else
+            {
+                await Assert.That(metadata).DoesNotContain("lifecycle:");
+            }
+
+            await Assert.That(await scenario.ReadLogAsync(fixture, "stdout.log")).Contains("FINAL-STDOUT");
+        }
+        finally
+        {
+            await scenario.DisposeFixtureAsync(fixture, Task.CompletedTask);
+        }
+    }
+
+    [Test]
+    public async Task DisposeAsync_Should_Create_Identity_Metadata_For_A_Capture_Only_Failure()
+    {
+        var failure = new IOException("Only stderr capture failed.");
+        var scenario = new ServerDiagnosticScenario { CaptureFailure = failure, RetainLogs = true };
+        var fixture = scenario.CreateFixture();
+        try
+        {
+            await fixture.InitializeAsync();
+
+            var observed = await Assert.That(async () => await fixture.DisposeAsync()).Throws<IOException>();
+
+            await Assert.That(observed).IsSameReferenceAs(failure);
+            await Assert.That(await scenario.ReadLogAsync(fixture, "stdout.log")).Contains("FINAL-STDOUT");
+            var metadata = await scenario.ReadMetadataAsync(fixture);
+            await Assert.That(metadata).Contains("test=fixture disposal");
+            await Assert.That(metadata).Contains("framework=");
+            await Assert.That(metadata).Contains("mode=owned");
+            await Assert.That(metadata).Contains("phase=server diagnostic capture");
+            await Assert.That(metadata).Contains(failure.Message);
+        }
+        finally
+        {
+            await scenario.DisposeFixtureAsync(fixture, Task.CompletedTask);
+        }
+    }
 
     [Test]
     [Timeout(30_000)]

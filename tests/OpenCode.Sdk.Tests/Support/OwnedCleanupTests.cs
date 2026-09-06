@@ -16,6 +16,9 @@ public sealed class OwnedCleanupTests
         await Assert.That(thrown).IsSameReferenceAs(primary);
         var failures = (AggregateException)primary.Data[OwnedCleanup.FailuresKey]!;
         await Assert.That(failures.InnerExceptions.Single()).IsSameReferenceAs(secondary);
+        await Assert.That(cleanup.OperationFailures).Count().IsEqualTo(2);
+        await Assert.That(cleanup.OperationFailures[0]).IsSameReferenceAs(primary);
+        await Assert.That(cleanup.OperationFailures[1]).IsSameReferenceAs(secondary);
     }
 
     [Test]

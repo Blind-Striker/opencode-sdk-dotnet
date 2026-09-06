@@ -239,8 +239,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
             return;
         }
 
-        var keep = _retainLogs || string.Equals(
-            Environment.GetEnvironmentVariable("OPENCODE_SDK_TESTS_KEEP_LOGS"), "1", StringComparison.Ordinal);
+        var keep = ShouldRetainLogs;
         var recorded = _artifacts?.Failures;
         var primary = recorded is { Count: > 0 } ? recorded[0].Exception : null;
         var teardown = new OwnedCleanup(TimeSpan.FromSeconds(25),
@@ -274,7 +273,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
 
             var capture = new ServerFailureCapture(Artifacts, _diagnostics?.FileSystem ?? _fileSystem,
                 _diagnostics?.Deadline ?? new OwnedOperationDeadline());
-            failure = await capture.CaptureAsync(_adapter, _externalMode, failure);
+            failure = await capture.CaptureAsync(_adapter, _externalMode, failure, teardown.OperationFailures);
             _lateReports.AddRange(capture.LateReports);
             Console.WriteLine("Pinned server diagnostics: " + Artifacts.Directory);
         }
@@ -288,6 +287,9 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
             ExceptionDispatchInfo.Capture(failure).Throw();
         }
     }
+    private bool ShouldRetainLogs => _retainLogs || _diagnostics?.RetainLogs is true || string.Equals(
+        Environment.GetEnvironmentVariable("OPENCODE_SDK_TESTS_KEEP_LOGS"), "1", StringComparison.Ordinal);
+
     private Dictionary<string, string> BuildEnvironment(string runRoot) =>
         ServerIsolation.Environment(_fileSystem, runRoot);
 

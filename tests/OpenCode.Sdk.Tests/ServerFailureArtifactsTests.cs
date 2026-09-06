@@ -12,7 +12,7 @@ public sealed class ServerFailureArtifactsTests
         var artifacts = new ServerFailureArtifacts(fileSystem, fileSystem.Path.GetFullPath("results"));
         var path = artifacts.Mark(new InvalidOperationException("primary remains visible"), "bounded test", new string('x', 50_000));
 
-        await artifacts.WriteMetadataAsync("owned", "42", null);
+        await artifacts.WriteMetadataAsync("owned", "42", []);
 
         using var reader = fileSystem.File.OpenText(path);
         var text = await reader.ReadToEndAsync();
@@ -31,7 +31,7 @@ public sealed class ServerFailureArtifactsTests
         var duplicate = artifacts.Mark(failure, "first test", "phase=create", "first");
         var second = artifacts.Mark(failure, "second test", "phase=connect", "second");
 
-        await artifacts.WriteMetadataAsync("owned", "42", null);
+        await artifacts.WriteMetadataAsync("owned", "42", []);
 
         await Assert.That(first).IsEqualTo(duplicate);
         await Assert.That(second).IsNotEqualTo(first);

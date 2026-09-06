@@ -17,6 +17,12 @@ internal sealed class OwnedCleanup(TimeSpan timeout, IOwnedOperationDeadline dea
     public LateCleanupFailureReport? LateFailures =>
         _lateFailures.HasRegistrations ? _lateFailures : null;
 
+    /// <summary>
+    /// A copied snapshot of immediate operation failures from the completed observation pass,
+    /// before primary deduplication. Late failures remain in their existing owned report.
+    /// </summary>
+    public IReadOnlyList<Exception> OperationFailures { get; private set; } = [];
+
     public void Own(string name, Func<CancellationToken, Task> operation)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -40,6 +46,7 @@ internal sealed class OwnedCleanup(TimeSpan timeout, IOwnedOperationDeadline dea
             await CaptureFailureAsync(operation, failures);
         }
 
+        OperationFailures = [.. failures];
         failures.RemoveAll(failure => ReferenceEquals(failure, primaryFailure));
         ThrowFailures(primaryFailure, failures);
     }

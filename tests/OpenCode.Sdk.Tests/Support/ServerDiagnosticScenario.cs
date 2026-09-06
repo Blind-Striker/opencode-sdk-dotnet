@@ -36,6 +36,8 @@ internal sealed class ServerDiagnosticScenario
 
     public DiagnosticWriteBarrier? CaptureBarrier { get; set; }
 
+    public bool RetainLogs { get; init; }
+
     public OperationDeadlineScenario Deadlines { get; } = new();
 
     public async Task StartAdapterAsync(StartupDiagnosticMode mode, Action<CliWrapServerAdapter> constructed,
@@ -64,6 +66,7 @@ internal sealed class ServerDiagnosticScenario
             FileSystem = _captureFileSystem,
             ResultsDirectory = new TestResultsDirectory(_fileSystem).Resolve(Environment.GetCommandLineArgs()),
             Deadline = Deadlines.Deadline,
+            RetainLogs = RetainLogs,
         });
 
     public async Task DisposeFixtureAsync(PinnedOpenCodeServerFixture fixture, Task completion)
