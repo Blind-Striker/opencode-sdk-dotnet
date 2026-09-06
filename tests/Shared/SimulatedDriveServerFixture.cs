@@ -23,16 +23,6 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
     /// </summary>
     private static readonly TimeSpan GateTimeout = TimeSpan.FromMinutes(15);
 
-    /// <summary>
-    /// Schema: config.ts:106 ('providers'), config/provider.ts:59-65; the builtin package
-    /// resolves with no npm install (core provider.ts:69) and pins the chat route to the exact
-    /// URL the simulation network claims (openai-compatible.ts settings.baseURL +
-    /// openai-compatible-chat.ts:21 '/chat/completions' == openai-chat.ts:35-36
-    /// DEFAULT_BASE_URL + PATH, the pair backend/openai.ts:105 matches on).
-    /// </summary>
-    private const string SimulationConfig =
-        """{"providers":{"sim":{"name":"Simulated","package":"@opencode-ai/ai/providers/openai-compatible","settings":{"baseURL":"https://api.openai.com/v1","apiKey":"drive-lease"},"models":{"sim-model":{"name":"Simulated Model"}}}}}""";
-
     private readonly RealFileSystem _fileSystem = new();
     private CliWrapServerAdapter? _adapter;
     private DriveController? _controller;
@@ -92,7 +82,7 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
         environment["OPENCODE_SIMULATE"] = "1";
         environment["OPENCODE_DRIVE"] = manifest.InstanceName;
         environment["DRIVE_REGISTRY_DIR"] = registry;
-        environment["OPENCODE_CONFIG_CONTENT"] = SimulationConfig;
+        environment["OPENCODE_CONFIG_CONTENT"] = SimulationConfigSeed.Json;
         environment["OPENCODE_LOG_LEVEL"] = "INFO";
         environment["OPENCODE_PRINT_LOGS"] = "1";
         _adapter = await CliWrapServerAdapter.StartAsync(
