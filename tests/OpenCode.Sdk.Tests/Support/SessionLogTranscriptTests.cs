@@ -5,6 +5,64 @@ namespace OpenCode.Sdk.Tests.Support;
 public sealed class SessionLogTranscriptTests
 {
     [Test]
+    public async Task ReadToEndAsync_Should_Preserve_The_Failure_With_Bounded_Observations()
+    {
+        var failure = new InvalidOperationException("log enumeration failed");
+        var transcript = new SessionLogTranscript(new EventDiagnosticScenario { Failure = failure });
+
+        var thrown = await Assert.That(async () =>
+        {
+            _ = await transcript.ReadToEndAsync(
+                new SessionLogRequest { Follow = QueryBoolean.False }, CancellationToken.None);
+        })
+            .Throws<InvalidOperationException>();
+
+        await Assert.That(thrown).IsSameReferenceAs(failure);
+        var diagnostic = (string)failure.Data[EventDiagnosticSummary.DataKey]!;
+        await Assert.That(diagnostic.Length).IsLessThan(2000);
+        await Assert.That(diagnostic).Contains("event-0000-");
+        await Assert.That(diagnostic).Contains("event-0099-");
+        await Assert.That(diagnostic).Contains("84 events omitted");
+        await Assert.That(diagnostic).DoesNotContain("event-0050-");
+    }
+
+    [Test]
+    public async Task ReadToEndAsync_Should_Preserve_The_Complete_Successful_Transcript()
+    {
+        var transcript = new SessionLogTranscript(new EventDiagnosticScenario());
+
+        var items = await transcript.ReadToEndAsync(
+            new SessionLogRequest { Follow = QueryBoolean.False }, CancellationToken.None);
+
+        await Assert.That(items).Count().IsEqualTo(100);
+        await Assert.That(items.All(item => item.Type.Length > 4000)).IsTrue();
+        await Assert.That(items[50].Type).StartsWith("event-0050-");
+    }
+
+    [Test]
+    public async Task ReadTurnAsync_Should_Bound_Follow_Diagnostics_Without_Truncating_Observed_Items()
+    {
+        var transcript = new SessionLogTranscript(new EventDiagnosticScenario { IncludeMarker = true });
+        try
+        {
+            await transcript.AttachAsync("1", CancellationToken.None);
+            var thrown = await Assert.That(() => transcript.ReadTurnAsync("ses_owned", "reply"))
+                .Throws<InvalidOperationException>();
+
+            await Assert.That(thrown!.Message.Length).IsLessThan(2000);
+            await Assert.That(thrown.Message).Contains("log.synced");
+            await Assert.That(thrown.Message).Contains("event-0099-");
+            await Assert.That(thrown.Message).Contains("85 events omitted");
+            await Assert.That(transcript.LiveItems).Count().IsEqualTo(100);
+            await Assert.That(transcript.LiveItems[50].Type.Length).IsGreaterThan(4000);
+        }
+        finally
+        {
+            await transcript.DisposeAsync(CancellationToken.None);
+        }
+    }
+
+    [Test]
     public async Task Cleanup_Should_Bound_Stalled_Disposal_And_Retain_Its_Late_Failure()
     {
         var disposal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -35,7 +93,7 @@ public sealed class SessionLogTranscriptTests
         var failures = primaryFailure.Data[OwnedSessionCleanup.FailuresKey] as AggregateException;
         await Assert.That(failures).IsNotNull();
         await Assert.That(failures!.InnerExceptions).Count().IsEqualTo(2);
-        await Assert.That(failures.InnerExceptions[0]).IsTypeOf<OperationCanceledException>();
+        await Assert.That(failures.InnerExceptions[0]).IsTypeOf<TimeoutException>();
         await Assert.That(failures.InnerExceptions[1]).IsSameReferenceAs(removalFailure);
         var diagnosticFailures = primaryFailure.Data[OwnedSessionCleanup.LateFailuresKey]
             as IReadOnlyCollection<KeyValuePair<string, Exception>>;

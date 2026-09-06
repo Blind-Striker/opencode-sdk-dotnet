@@ -8,6 +8,7 @@ internal sealed class SessionLogTranscript
     private readonly List<ISessionLogItem> _liveItems = [];
     private readonly List<ISessionLogItem> _replayItems = [];
     private readonly SessionClient? _session;
+    private readonly EventDiagnosticSummary _observed = new();
     private CancellationToken _callerToken;
     private IAsyncEnumerator<ISessionLogItem>? _enumerator;
     private CancellationTokenSource? _window;
@@ -43,9 +44,19 @@ internal sealed class SessionLogTranscript
         CancellationToken cancellationToken)
     {
         var items = new List<ISessionLogItem>();
-        await foreach (var item in Session.GetLogAsync(request, cancellationToken))
+        var observed = new EventDiagnosticSummary();
+        try
         {
-            items.Add(item);
+            await foreach (var item in Session.GetLogAsync(request, cancellationToken))
+            {
+                items.Add(item);
+                observed.Add(item.Type);
+            }
+        }
+        catch (Exception exception)
+        {
+            exception.Data[EventDiagnosticSummary.DataKey] = observed.ToString();
+            throw;
         }
 
         return items;
@@ -143,20 +154,28 @@ internal sealed class SessionLogTranscript
                          ?? throw new InvalidOperationException("The session log transcript is not attached.");
         try
         {
-            return await enumerator.MoveNextAsync();
+            var moved = await enumerator.MoveNextAsync();
+            if (moved)
+            {
+                _observed.Add(enumerator.Current.Type);
+            }
+
+            return moved;
         }
         catch (OperationCanceledException exception)
             when (!_callerToken.IsCancellationRequested && _window!.IsCancellationRequested)
         {
             throw new TimeoutException(
-                $"The session log timed out before {target}. Items: {QuoteObservedItems()}.",
+                $"The session log timed out before {target}. Items: {_observed}.",
                 exception);
+        }
+        catch (Exception exception)
+        {
+            exception.Data[EventDiagnosticSummary.DataKey] = _observed.ToString();
+            throw;
         }
     }
 
     private InvalidOperationException EndedBefore(string target) =>
-        new($"The session log ended before {target}. Items: {QuoteObservedItems()}.");
-
-    private string QuoteObservedItems() =>
-        string.Join(", ", _replayItems.Concat(_liveItems).Select(item => $"'{item.Type}'"));
+        new($"The session log ended before {target}. Items: {_observed}.");
 }

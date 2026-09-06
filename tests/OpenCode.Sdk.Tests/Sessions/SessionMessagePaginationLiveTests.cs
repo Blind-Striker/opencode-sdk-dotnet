@@ -122,7 +122,7 @@ public sealed class SessionMessagePaginationLiveTests(SimulatedDriveServerFixtur
         var cleanupFailures = primaryFailure.Data[OwnedSessionCleanup.FailuresKey] as AggregateException;
         await Assert.That(cleanupFailures).IsNotNull();
         await Assert.That(cleanupFailures!.InnerExceptions.Count).IsEqualTo(2);
-        await Assert.That(cleanupFailures.InnerExceptions[0]).IsTypeOf<OperationCanceledException>();
+        await Assert.That(cleanupFailures.InnerExceptions[0]).IsTypeOf<TimeoutException>();
         await Assert.That(cleanupFailures.InnerExceptions[1]).IsSameReferenceAs(removalFailure);
     }
 

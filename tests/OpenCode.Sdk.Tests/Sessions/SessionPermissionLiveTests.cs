@@ -104,20 +104,11 @@ public sealed class SessionPermissionLiveTests(SimulatedDriveServerFixture serve
         PermissionCleanupState state)
     {
         var cleanup = new OwnedSessionCleanup(session, CleanupTimeout);
+        var pending = new PendingPermissionCleanup(session);
         cleanup.MarkTurnCompleted();
         cleanup.Own(
             "pending permission request",
-            async token =>
-            {
-                if (state.PermissionId is not null)
-                {
-                    _ = await session.PostPermissionReplyAsync(
-                        state.PermissionId,
-                        new SessionPermissionReplyPostRequest { Reply = PermissionReply.Reject },
-                        OpenCodeRequestOptions.NoThrow,
-                        token);
-                }
-            });
+            token => pending.RejectAsync(state.PermissionId, token));
         cleanup.Own(
             "saved permission discovery",
             async token =>

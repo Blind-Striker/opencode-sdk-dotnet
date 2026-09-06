@@ -4,10 +4,11 @@ namespace OpenCode.Sdk.Tests.Support;
 
 internal sealed class LateCleanupFailureReport
 {
-    private readonly ConcurrentQueue<KeyValuePair<string, Exception>> _failures = new();
+    private ConcurrentQueue<KeyValuePair<string, Exception>> _failures = new();
     private readonly TaskCompletionSource<KeyValuePair<string, Exception>> _firstFailure = new(
         TaskCreationOptions.RunContinuationsAsynchronously);
     private int _registrations;
+    private readonly List<Task> _observers = [];
 
     public bool HasRegistrations => Volatile.Read(ref _registrations) > 0;
 
@@ -15,24 +16,45 @@ internal sealed class LateCleanupFailureReport
 
     public IReadOnlyList<KeyValuePair<string, Exception>> Failures => [.. _failures];
 
-    public void Observe(string name, Task operation)
+    public void InheritDiagnostics(Exception? primaryFailure)
+    {
+        if (primaryFailure?.Data[OwnedCleanup.LateFailuresKey]
+            is ConcurrentQueue<KeyValuePair<string, Exception>> previous)
+        {
+            // Called before registering work. Nested owners append to the same attached queue.
+            _failures = previous;
+        }
+    }
+
+    public void Observe(string name, Task operation, Func<OperationCanceledException, bool>? expectedCancellation = null)
     {
         _ = Interlocked.Increment(ref _registrations);
-        _ = operation.ContinueWith(
+        var observer = operation.ContinueWith(
             completed =>
             {
-                foreach (var failure in completed.Exception!.Flatten().InnerExceptions)
+                var failures = completed.Exception?.Flatten().InnerExceptions.AsEnumerable()
+                    ?? (completed.IsCanceled ? [new TaskCanceledException(completed)] : []);
+                foreach (var failure in failures)
                 {
+                    if (failure is OperationCanceledException cancelled && expectedCancellation?.Invoke(cancelled) is true)
+                    {
+                        continue;
+                    }
+
                     var entry = new KeyValuePair<string, Exception>(name, failure);
                     _failures.Enqueue(entry);
                     _ = _firstFailure.TrySetResult(entry);
                 }
             },
             CancellationToken.None,
-            TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnFaulted,
+            TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
+        _observers.Add(observer);
     }
 
     public async Task<KeyValuePair<string, Exception>> WaitForFailureAsync(CancellationToken cancellationToken) =>
         await _firstFailure.Task.WaitAsync(cancellationToken);
+
+    public async Task WaitForAllAsync(CancellationToken cancellationToken) =>
+        await Task.WhenAll(_observers).WaitAsync(cancellationToken);
 }

@@ -1,5 +1,7 @@
 # 🚀 Getting started
 
+Date: 2026-09-06
+
 Install the package, point a client at a server, and make three calls. Ten minutes, and the last
 one talks to a model.
 
