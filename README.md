@@ -355,6 +355,12 @@ dotnet build --configuration Release
 `external/` holds read-only upstream submodules used as protocol evidence and as the pinned-server
 test fixture; `--recurse-submodules` is what makes the fixture-backed tests runnable.
 
+Fixture-backed tests also require the Bun version named by `external/opencode/package.json`, the
+pinned server dependencies (`bun install --frozen-lockfile --ignore-scripts` from
+`external/opencode`), and ripgrep 15.1.0 on `PATH`. The simulated server deliberately denies
+unregistered network access, so its `fs.find` test cannot use upstream's fallback download. CI
+provisions the matching official ripgrep archive and verifies its SHA-256 digest before use.
+
 ### Sandbox Application
 
 [`tests/OpenCode.Sdk.Sandbox`](tests/OpenCode.Sdk.Sandbox) is a committed playground that drives

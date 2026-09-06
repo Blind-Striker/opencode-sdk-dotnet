@@ -18,7 +18,8 @@ public sealed class FileSystemClientLiveTests(SimulatedDriveServerFixture server
         CancellationToken cancellationToken)
     {
         using var workspace = server.CreateWorkspace();
-        _ = workspace.WriteTextFile(RootFile, "root entry");
+        var owner = Guid.NewGuid().ToString("N");
+        _ = workspace.WriteTextFile(RootFile, owner);
         _ = workspace.WriteTextFile(ChildFile, "find target");
         using var client = server.CreateClient(new LocationSelector { Directory = workspace.Path });
 
@@ -33,7 +34,6 @@ public sealed class FileSystemClientLiveTests(SimulatedDriveServerFixture server
 
         await Assert.That(found.Status).IsEqualTo(200);
         await Assert.That(found.IsError).IsFalse();
-        await Assert.That(found.Location.Directory).IsEqualTo(workspace.Path);
         var foundFile = found.Entries.Single(item => NormalizeSeparators(item.Path) == ChildFile);
         await Assert.That(foundFile.Type).IsEqualTo(FileSystemEntryType.File);
 
@@ -42,7 +42,8 @@ public sealed class FileSystemClientLiveTests(SimulatedDriveServerFixture server
 
         await Assert.That(listed.Status).IsEqualTo(200);
         await Assert.That(listed.IsError).IsFalse();
-        await Assert.That(listed.Location.Directory).IsEqualTo(workspace.Path);
+        await Assert.That(listed.Location.Directory).IsEqualTo(found.Location.Directory);
+        await Assert.That(workspace.HasTextFile(listed.Location.Directory, RootFile, owner)).IsTrue();
         var rootFile = listed.Entries.Single(item => NormalizeSeparators(item.Path) == RootFile);
         await Assert.That(rootFile.Type).IsEqualTo(FileSystemEntryType.File);
         var childDirectory = listed.Entries.Single(

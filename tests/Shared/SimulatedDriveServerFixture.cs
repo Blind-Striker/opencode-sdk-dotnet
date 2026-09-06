@@ -1,4 +1,5 @@
 using System.Runtime.ExceptionServices;
+using OpenCode.Sdk.TestSupport.Ownership;
 using Testably.Abstractions;
 using TUnit.Core.Interfaces;
 
@@ -10,7 +11,7 @@ namespace OpenCode.Sdk.TestSupport;
 /// attached drive controller. Simulation denies all unregistered outbound network by
 /// construction (backend/index.ts:29-35), so the workflow runs with no provider credentials.
 /// </summary>
-public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDisposable
+public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDisposable, ITestEndEventReceiver
 {
     private static readonly TimeSpan ReadinessTimeout = TimeSpan.FromMinutes(3);
 
@@ -30,8 +31,13 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
     private string? _preReadinessDiagnostic;
     private TestRunRoot? _runRoot;
     private bool _retainLogs;
+    private ServerFailureArtifacts? _artifacts;
+    private int _disposed;
+    private readonly List<LateCleanupFailureReport> _lateReports = [];
 
     public Uri Endpoint => Adapter.Endpoint;
+
+    public int Order => 0;
 
     internal DriveController Controller =>
         _controller ?? throw new InvalidOperationException("The fixture has not initialized.");
@@ -57,9 +63,10 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
             await _controller.HandshakeAsync();
             await _controller.AttachAsync();
         }
-        catch
+        catch (Exception exception)
         {
             _retainLogs = true;
+            MarkFailure(exception, "fixture initialization", "phase=server startup");
             throw;
         }
     }
@@ -135,72 +142,117 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
 
     public TestWorkspace CreateWorkspace() => new(_fileSystem, RunRoot.Path);
 
-    public async ValueTask DisposeAsync()
+    internal async Task DrainDiagnosticsAsync(CancellationToken cancellationToken)
     {
-        var keep = _retainLogs ||
-                   string.Equals(
-                       Environment.GetEnvironmentVariable("OPENCODE_SDK_TESTS_KEEP_LOGS"),
-                       "1",
-                       StringComparison.Ordinal);
-        var failures = new List<Exception>();
-        try
+        foreach (var report in _lateReports)
         {
-            if (_controller is not null)
+            await report.WaitForAllAsync(cancellationToken);
+        }
+
+        if (_adapter?.LateFailures is { } adapterReport)
+        {
+            await adapterReport.WaitForAllAsync(cancellationToken);
+        }
+    }
+
+    private ServerFailureArtifacts Artifacts => _artifacts ??= new ServerFailureArtifacts(
+        _fileSystem, new TestResultsDirectory(_fileSystem).Resolve(Environment.GetCommandLineArgs()));
+
+    private void MarkFailure(Exception exception, string test, string details)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+        _ = Artifacts.Mark(exception, test, details, TestContext.Current?.Id);
+    }
+
+    public ValueTask OnTestEnd(TestContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        if (context.Execution.Result?.Exception is { } failure)
+        {
+            var path = Artifacts.Mark(
+                failure,
+                context.Metadata.TestDetails.ClassType.FullName + "." + context.Metadata.TestName,
+                "phase=test-body; receiver observes the body result, before later teardown outcomes",
+                context.Id);
+            if (Artifacts.Report(failure, context.Id))
             {
-                await _controller.DisposeAsync();
+                context.Output.AttachArtifact(path, "Owned simulated server failure diagnostics");
             }
         }
-        catch (Exception exception)
+
+        return default;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) is 1)
         {
-            failures.Add(exception);
+            return;
+        }
+
+        var keep = ShouldRetainLogs;
+        var recorded = _artifacts?.Failures;
+        var primary = recorded is { Count: > 0 } ? recorded[0].Exception : null;
+        var teardown = new OwnedCleanup(TimeSpan.FromSeconds(25));
+        if (_controller is not null)
+        {
+            teardown.Own("simulation controller teardown", async _ => await _controller.DisposeAsync());
         }
 
         if (_adapter is not null)
         {
-            try
+            teardown.Own("simulated server teardown", async _ => await _adapter.DisposeAsync());
+            teardown.Own("simulated server diagnostic contract", _ =>
             {
-                await _adapter.DisposeAsync();
-            }
-            catch (Exception exception)
-            {
-                failures.Add(exception);
-            }
-
-            CaptureDiagnosticFailure(_adapter, failures);
-
-            if (keep && _runRoot is not null)
-            {
-                try
-                {
-                    await _adapter.WriteLogsAsync(_fileSystem, _fileSystem.Path.Combine(_runRoot.Path, "logs"));
-                    Console.WriteLine($"Simulated server logs retained under: {_runRoot.Path}");
-                }
-                catch (Exception exception)
-                {
-                    failures.Add(exception);
-                }
-            }
+                EnsureDiagnosticContract(_adapter);
+                return Task.CompletedTask;
+            });
         }
 
-        if (!keep)
+        Exception? failure = null;
+        try
+        {
+            await teardown.CompleteAsync(primary);
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
+
+        if (teardown.LateFailures is { } late)
+        {
+            _lateReports.Add(late);
+        }
+
+        if (failure is not null || keep)
+        {
+            if (failure is not null && !Artifacts.Failures.Any(item => ReferenceEquals(item.Exception, failure)))
+            {
+                _ = Artifacts.Mark(failure, "fixture disposal", "phase=owned-server-teardown");
+            }
+
+            var capture = new ServerFailureCapture(
+                Artifacts, _fileSystem, new OwnedOperationDeadline());
+            failure = await capture.CaptureAsync(_adapter, external: false, failure, teardown.OperationFailures);
+            _lateReports.AddRange(capture.LateReports);
+            Console.WriteLine("Simulated server diagnostics: " + Artifacts.Directory);
+        }
+
+        if (failure is null && !keep)
         {
             _runRoot?.Dispose();
         }
 
-        if (failures.Count is 1)
+        if (failure is not null && !(_artifacts?.IsReported(failure) ?? false))
         {
-            ExceptionDispatchInfo.Capture(failures[0]).Throw();
-        }
-
-        if (failures.Count > 1)
-        {
-            throw new AggregateException("Multiple simulated server teardown failures occurred.", failures);
+            ExceptionDispatchInfo.Capture(failure).Throw();
         }
     }
 
-    private void CaptureDiagnosticFailure(
-        CliWrapServerAdapter adapter,
-        List<Exception> failures)
+    private bool ShouldRetainLogs => _retainLogs || _artifacts?.Failures.Count > 0 || string.Equals(
+        Environment.GetEnvironmentVariable("OPENCODE_SDK_TESTS_KEEP_LOGS"), "1", StringComparison.Ordinal);
+
+    private void EnsureDiagnosticContract(CliWrapServerAdapter adapter)
     {
         var missing = new List<string>();
         if (_preReadinessDiagnostic is null)
@@ -220,9 +272,8 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
 
         if (missing.Count > 0)
         {
-            failures.Add(new InvalidOperationException(
-                "The persistent simulation host did not retain diagnostics: " + string.Join(", ", missing) + "."));
-            return;
+            throw new InvalidOperationException(
+                "The persistent simulation host did not retain diagnostics: " + string.Join(", ", missing) + ".");
         }
 
         Console.WriteLine(

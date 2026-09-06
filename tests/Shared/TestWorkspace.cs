@@ -25,24 +25,55 @@ public sealed class TestWorkspace : IDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
         ArgumentNullException.ThrowIfNull(content);
 
-        if (_fileSystem.Path.IsPathRooted(relativePath))
-        {
-            throw new ArgumentException("The path must remain below the workspace.", nameof(relativePath));
-        }
-
-        var filePath = _fileSystem.Path.GetFullPath(_fileSystem.Path.Combine(Path, relativePath));
-        var workspacePrefix = Path + _fileSystem.Path.DirectorySeparatorChar;
-        var comparison = _fileSystem.Path.DirectorySeparatorChar == '\\'
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-        if (!filePath.StartsWith(workspacePrefix, comparison))
-        {
-            throw new ArgumentException("The path must remain below the workspace.", nameof(relativePath));
-        }
-
+        var filePath = ResolvePathBelow(Path, relativePath);
         var directory = _fileSystem.Path.GetDirectoryName(filePath)!;
         _ = _fileSystem.Directory.CreateDirectory(directory);
         _fileSystem.File.WriteAllText(filePath, content);
+        return filePath;
+    }
+
+    /// <summary>Checks an independently seeded marker through a server-reported directory.</summary>
+    public bool HasTextFile(string directory, string relativePath, string expectedContent)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(directory);
+        ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
+        ArgumentNullException.ThrowIfNull(expectedContent);
+
+        try
+        {
+            return string.Equals(
+                _fileSystem.File.ReadAllText(ResolvePathBelow(directory, relativePath)),
+                expectedContent,
+                StringComparison.Ordinal);
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return false;
+        }
+    }
+
+    private string ResolvePathBelow(string root, string relativePath)
+    {
+        if (_fileSystem.Path.IsPathRooted(relativePath))
+        {
+            throw new ArgumentException("The path must remain below the supplied directory.", nameof(relativePath));
+        }
+
+        var absoluteRoot = _fileSystem.Path.GetFullPath(root);
+        var filePath = _fileSystem.Path.GetFullPath(_fileSystem.Path.Combine(absoluteRoot, relativePath));
+        var rootPrefix = absoluteRoot + _fileSystem.Path.DirectorySeparatorChar;
+        var comparison = _fileSystem.Path.DirectorySeparatorChar == '\\'
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        if (!filePath.StartsWith(rootPrefix, comparison))
+        {
+            throw new ArgumentException("The path must remain below the supplied directory.", nameof(relativePath));
+        }
+
         return filePath;
     }
 
