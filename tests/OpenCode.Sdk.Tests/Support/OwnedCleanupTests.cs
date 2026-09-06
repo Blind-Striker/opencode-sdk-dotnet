@@ -7,7 +7,7 @@ public sealed class OwnedCleanupTests
     {
         var primary = new InvalidOperationException("primary failed");
         var secondary = new InvalidOperationException("secondary failed");
-        var cleanup = new OwnedCleanup(TimeSpan.FromSeconds(1));
+        var cleanup = new OwnedCleanup(TimeSpan.FromSeconds(1), new OperationDeadlineScenario().Deadline);
         cleanup.Own("reader", Task.WhenAll(Task.FromException(primary), Task.FromException(secondary)));
 
         var thrown = await Assert.That(() => cleanup.CompleteAsync(primary)).Throws<InvalidOperationException>();
@@ -22,28 +22,41 @@ public sealed class OwnedCleanupTests
     {
         var first = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var second = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var inner = new OwnedCleanup(TimeSpan.FromMilliseconds(50));
-        var outer = new OwnedCleanup(TimeSpan.FromMilliseconds(50));
+        var scenario = new OperationDeadlineScenario();
+        var innerDeadline = scenario.Hold("inner read");
+        var outerDeadline = scenario.Hold("outer removal");
+        var inner = new OwnedCleanup(TimeSpan.FromMilliseconds(50), scenario.Deadline);
+        var outer = new OwnedCleanup(TimeSpan.FromMilliseconds(50), scenario.Deadline);
         inner.Own("inner read", first.Task);
         outer.Own("outer removal", second.Task);
         var primary = new InvalidOperationException("primary failed");
         var firstFailure = new InvalidOperationException("inner late failure");
         var secondFailure = new InvalidOperationException("outer late failure");
+        var innerCompletion = inner.CompleteAsync(primary);
+        var outerCompletion = Task.CompletedTask;
         try
         {
-            _ = await Assert.That(() => inner.CompleteAsync(primary)).Throws<InvalidOperationException>();
+            await innerDeadline.Entered;
+            innerDeadline.Expire();
+            innerDeadline.Deliver();
+            _ = await Assert.That(() => innerCompletion).Throws<InvalidOperationException>();
             var attached = primary.Data[OwnedCleanup.LateFailuresKey];
-            _ = await Assert.That(() => outer.CompleteAsync(primary)).Throws<InvalidOperationException>();
+            outerCompletion = outer.CompleteAsync(primary);
+            await outerDeadline.Entered;
+            outerDeadline.Expire();
+            outerDeadline.Deliver();
+            _ = await Assert.That(() => outerCompletion).Throws<InvalidOperationException>();
             await Assert.That(primary.Data[OwnedCleanup.LateFailuresKey]).IsSameReferenceAs(attached);
+            var immediate = (AggregateException)primary.Data[OwnedCleanup.FailuresKey]!;
+            await Assert.That(immediate.InnerExceptions).Count().IsEqualTo(2);
             first.SetException(firstFailure);
             second.SetException(secondFailure);
-            var innerReport = inner.LateFailures;
-            var outerReport = outer.LateFailures;
-            await Assert.That(innerReport).IsNotNull();
-            await Assert.That(outerReport).IsNotNull();
-            using var observation = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-            await innerReport.WaitForAllAsync(observation.Token);
-            await outerReport.WaitForAllAsync(observation.Token);
+            var innerLate = inner.LateFailures;
+            var outerLate = outer.LateFailures;
+            await Assert.That(innerLate).IsNotNull();
+            await Assert.That(outerLate).IsNotNull();
+            await innerLate.WaitForAllAsync(CancellationToken.None);
+            await outerLate.WaitForAllAsync(CancellationToken.None);
 
             var failures = (IReadOnlyCollection<KeyValuePair<string, Exception>>)attached!;
             await Assert.That(failures.Select(entry => entry.Value))
@@ -53,6 +66,16 @@ public sealed class OwnedCleanupTests
         {
             _ = first.TrySetResult(true);
             _ = second.TrySetResult(true);
+            await scenario.DrainAsync(Task.WhenAll(innerCompletion, outerCompletion));
+            if (inner.LateFailures is { } innerReport)
+            {
+                await innerReport.WaitForAllAsync(CancellationToken.None);
+            }
+
+            if (outer.LateFailures is { } outerReport)
+            {
+                await outerReport.WaitForAllAsync(CancellationToken.None);
+            }
         }
     }
 
@@ -60,45 +83,69 @@ public sealed class OwnedCleanupTests
     public async Task CompleteAsync_Should_Bound_An_Operation_And_Its_Stalled_Cancellation_Independently()
     {
         using var release = new ManualResetEventSlim();
-        TaskCompletionSource<bool>? pending = null;
+        var pending = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cancellationEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var primary = new InvalidOperationException("body failed");
         var late = new InvalidOperationException("late operation failed");
-        var cleanup = new OwnedCleanup(TimeSpan.FromMilliseconds(50));
+        var scenario = new OperationDeadlineScenario();
+        var operationDeadline = scenario.Hold("stalled operation");
+        var cancellationDeadline = scenario.Hold("stalled operation cancellation");
+        var cleanup = new OwnedCleanup(TimeSpan.FromMilliseconds(50), scenario.Deadline);
         var laterTokenCancelled = true;
         cleanup.Own("stalled operation", async token =>
         {
-            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            pending = completion;
-            using var registration = token.Register(() => _ = release.Wait(TimeSpan.FromSeconds(10)));
-            _ = await completion.Task;
+            using var registration = token.Register(() =>
+            {
+                _ = cancellationEntered.TrySetResult(true);
+                release.Wait(CancellationToken.None);
+            });
+            _ = entered.TrySetResult(true);
+            _ = await pending.Task;
         });
         cleanup.Own("later cleanup", token =>
         {
             laterTokenCancelled = token.IsCancellationRequested;
             return Task.CompletedTask;
         });
+        var completing = cleanup.CompleteAsync(primary);
         try
         {
-            var thrown = await Assert.That(() => cleanup.CompleteAsync(primary)).Throws<InvalidOperationException>();
+            await entered.Task;
+            await operationDeadline.Entered;
+            operationDeadline.Expire();
+            operationDeadline.Deliver();
+            await cancellationEntered.Task;
+            await cancellationDeadline.Entered;
+            cancellationDeadline.Expire();
+            cancellationDeadline.Deliver();
+            var thrown = await Assert.That(() => completing).Throws<InvalidOperationException>();
 
             await Assert.That(thrown).IsSameReferenceAs(primary);
             await Assert.That(laterTokenCancelled).IsFalse();
             var failures = (AggregateException)primary.Data[OwnedCleanup.FailuresKey]!;
-            await Assert.That(failures.InnerExceptions.OfType<TimeoutException>()).Count().IsEqualTo(2);
+            await Assert.That(failures.InnerExceptions).Count().IsEqualTo(2);
+            await Assert.That(failures.InnerExceptions[0].Message).Contains("'stalled operation'");
+            await Assert.That(failures.InnerExceptions[0].InnerException).IsSameReferenceAs(operationDeadline.Failure);
+            await Assert.That(failures.InnerExceptions[1].Message).Contains("'stalled operation cancellation'");
+            await Assert.That(failures.InnerExceptions[1].InnerException).IsSameReferenceAs(cancellationDeadline.Failure);
             release.Set();
-            await Assert.That(pending).IsNotNull();
             pending.SetException(late);
-            using var observation = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-            var report = cleanup.LateFailures;
-            await Assert.That(report).IsNotNull();
-            await report.WaitForAllAsync(observation.Token);
+            var lateReport = cleanup.LateFailures;
+            await Assert.That(lateReport).IsNotNull();
+            await lateReport.WaitForAllAsync(CancellationToken.None);
             var attached = (IReadOnlyCollection<KeyValuePair<string, Exception>>)primary.Data[OwnedCleanup.LateFailuresKey]!;
             await Assert.That(attached.Single().Value).IsSameReferenceAs(late);
         }
         finally
         {
             release.Set();
-            _ = pending?.TrySetResult(true);
+            _ = pending.TrySetResult(true);
+            await scenario.DrainAsync(completing);
+            if (cleanup.LateFailures is { } report)
+            {
+                await report.WaitForAllAsync(CancellationToken.None);
+            }
         }
     }
 }

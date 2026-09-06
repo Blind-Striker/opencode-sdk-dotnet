@@ -106,24 +106,51 @@ public sealed class SessionMessagePaginationLiveTests(SimulatedDriveServerFixtur
         var removalFailure = new InvalidOperationException("removal failure");
         var removalTokenWasCancelled = true;
 
+        var scenario = new OperationDeadlineScenario();
+        var deadline = scenario.Hold("session interrupt");
+        var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var cleanup = new OwnedSessionCleanup(
-                WaitForCancellationAsync,
+                token =>
+                {
+                    var interrupted = WaitForCancellationAsync(token);
+                    _ = entered.TrySetResult(true);
+                    return interrupted;
+                },
                 token =>
                 {
                     removalTokenWasCancelled = token.IsCancellationRequested;
                     return Task.FromException(removalFailure);
                 },
-                TimeSpan.FromMilliseconds(50));
-        var thrown = await Assert.That(async () => await cleanup.CompleteAsync(primaryFailure))
-            .Throws<InvalidOperationException>();
+                TimeSpan.FromMilliseconds(50), scenario.Deadline);
+        var completing = cleanup.CompleteAsync(primaryFailure);
+        try
+        {
+            await entered.Task;
+            await deadline.Entered;
+            deadline.Expire();
+            deadline.Deliver();
+            var thrown = await Assert.That(() => completing).Throws<InvalidOperationException>();
 
-        await Assert.That(thrown).IsSameReferenceAs(primaryFailure);
-        await Assert.That(removalTokenWasCancelled).IsFalse();
-        var cleanupFailures = primaryFailure.Data[OwnedSessionCleanup.FailuresKey] as AggregateException;
-        await Assert.That(cleanupFailures).IsNotNull();
-        await Assert.That(cleanupFailures!.InnerExceptions.Count).IsEqualTo(2);
-        await Assert.That(cleanupFailures.InnerExceptions[0]).IsTypeOf<TimeoutException>();
-        await Assert.That(cleanupFailures.InnerExceptions[1]).IsSameReferenceAs(removalFailure);
+            await Assert.That(thrown).IsSameReferenceAs(primaryFailure);
+            await Assert.That(removalTokenWasCancelled).IsFalse();
+            var cleanupFailures = (AggregateException)primaryFailure.Data[OwnedSessionCleanup.FailuresKey]!;
+            await Assert.That(cleanupFailures.InnerExceptions).Count().IsEqualTo(2);
+            await Assert.That(cleanupFailures.InnerExceptions[0]).IsTypeOf<TimeoutException>();
+            await Assert.That(cleanupFailures.InnerExceptions[0].InnerException).IsSameReferenceAs(deadline.Failure);
+            await Assert.That(cleanupFailures.InnerExceptions[1]).IsSameReferenceAs(removalFailure);
+            var lateReport = cleanup.LateFailures;
+            await Assert.That(lateReport).IsNotNull();
+            await lateReport.WaitForAllAsync(CancellationToken.None);
+            await Assert.That(lateReport.Failures.Single().Value).IsAssignableTo<OperationCanceledException>();
+        }
+        finally
+        {
+            await scenario.DrainAsync(completing);
+            if (cleanup.LateFailures is { } report)
+            {
+                await report.WaitForAllAsync(CancellationToken.None);
+            }
+        }
     }
 
     private static async Task<string> CreateOwnedSessionAsync(

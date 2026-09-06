@@ -29,27 +29,31 @@ internal sealed class LateCleanupFailureReport
     public void Observe(string name, Task operation, Func<OperationCanceledException, bool>? expectedCancellation = null)
     {
         _ = Interlocked.Increment(ref _registrations);
-        var observer = operation.ContinueWith(
-            completed =>
-            {
-                var failures = completed.Exception?.Flatten().InnerExceptions.AsEnumerable()
-                    ?? (completed.IsCanceled ? [new TaskCanceledException(completed)] : []);
-                foreach (var failure in failures)
-                {
-                    if (failure is OperationCanceledException cancelled && expectedCancellation?.Invoke(cancelled) is true)
-                    {
-                        continue;
-                    }
+        _observers.Add(ObserveCompletionAsync(name, operation, expectedCancellation));
+    }
 
-                    var entry = new KeyValuePair<string, Exception>(name, failure);
-                    _failures.Enqueue(entry);
-                    _ = _firstFailure.TrySetResult(entry);
+    private async Task ObserveCompletionAsync(string name, Task operation,
+        Func<OperationCanceledException, bool>? expectedCancellation)
+    {
+        try
+        {
+            await operation;
+        }
+        catch (Exception exception)
+        {
+            var failures = operation.Exception?.Flatten().InnerExceptions.AsEnumerable() ?? [exception];
+            foreach (var failure in failures)
+            {
+                if (failure is OperationCanceledException cancelled && expectedCancellation?.Invoke(cancelled) is true)
+                {
+                    continue;
                 }
-            },
-            CancellationToken.None,
-            TaskContinuationOptions.ExecuteSynchronously,
-            TaskScheduler.Default);
-        _observers.Add(observer);
+
+                var entry = new KeyValuePair<string, Exception>(name, failure);
+                _failures.Enqueue(entry);
+                _ = _firstFailure.TrySetResult(entry);
+            }
+        }
     }
 
     public async Task<KeyValuePair<string, Exception>> WaitForFailureAsync(CancellationToken cancellationToken) =>

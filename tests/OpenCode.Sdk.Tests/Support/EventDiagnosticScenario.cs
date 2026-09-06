@@ -14,6 +14,8 @@ internal sealed class EventDiagnosticScenario : SessionClient
 
     public TaskCompletionSource<bool>? Pending { get; private set; }
 
+    public TaskCompletionSource<bool> Stalled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     public override async IAsyncEnumerable<ISessionLogItem> GetLogAsync(
         SessionLogRequest? request = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
@@ -46,6 +48,7 @@ internal sealed class EventDiagnosticScenario : SessionClient
 
         if (Stall)
         {
+            _ = Stalled.TrySetResult(true);
             _ = await completion.Task;
         }
 

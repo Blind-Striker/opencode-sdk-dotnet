@@ -1,3 +1,5 @@
+using OpenCode.Sdk.Tests.Support.Abstractions;
+
 namespace OpenCode.Sdk.Tests.Support;
 
 internal sealed class OwnedSessionCleanup
@@ -31,13 +33,13 @@ internal sealed class OwnedSessionCleanup
     internal OwnedSessionCleanup(
         Func<CancellationToken, Task> interrupt,
         Func<CancellationToken, Task> remove,
-        TimeSpan timeout)
+        TimeSpan timeout, IOwnedOperationDeadline? deadline = null)
     {
         ArgumentNullException.ThrowIfNull(interrupt);
         ArgumentNullException.ThrowIfNull(remove);
         _interrupt = interrupt;
         _remove = remove;
-        _cleanup = new OwnedCleanup(timeout);
+        _cleanup = new OwnedCleanup(timeout, deadline ?? new OwnedOperationDeadline());
     }
 
     public void MarkTurnCompleted() => _turnCompleted = true;

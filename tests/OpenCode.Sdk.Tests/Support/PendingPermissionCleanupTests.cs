@@ -14,7 +14,7 @@ public sealed class PendingPermissionCleanupTests
         {
             removed = true;
             return Task.CompletedTask;
-        }, TimeSpan.FromSeconds(1));
+        }, TimeSpan.FromSeconds(1), new OperationDeadlineScenario().Deadline);
         cleanup.Own("pending permission", token => pending.RejectAsync("per_owned", token));
 
         var thrown = await Assert.That(() => cleanup.CompleteAsync(null)).Throws<OpenCodeApiException>();
@@ -39,7 +39,7 @@ public sealed class PendingPermissionCleanupTests
         {
             steps.Add("session");
             return Task.FromException(removalFailure);
-        }, TimeSpan.FromSeconds(1));
+        }, TimeSpan.FromSeconds(1), new OperationDeadlineScenario().Deadline);
         cleanup.Own("pending permission", token => pending.RejectAsync("per_owned", token));
         cleanup.Own("saved discovery", _ =>
         {

@@ -1,13 +1,18 @@
 using System.Runtime.ExceptionServices;
+using OpenCode.Sdk.Tests.Support.Abstractions;
 
 namespace OpenCode.Sdk.Tests.Support;
 
-internal sealed class OwnedCleanup(TimeSpan timeout)
+internal sealed class OwnedCleanup(TimeSpan timeout, IOwnedOperationDeadline deadline)
 {
     internal const string FailuresKey = "OwnedSessionCleanup.Failures";
     internal const string LateFailuresKey = "OwnedSessionCleanup.LateFailures";
     private readonly LateCleanupFailureReport _lateFailures = new();
     private readonly List<OwnedCleanupOperation> _operations = [];
+
+    public OwnedCleanup(TimeSpan timeout) : this(timeout, new OwnedOperationDeadline())
+    {
+    }
 
     public LateCleanupFailureReport? LateFailures =>
         _lateFailures.HasRegistrations ? _lateFailures : null;
@@ -49,14 +54,15 @@ internal sealed class OwnedCleanup(TimeSpan timeout)
             var token = budget.Token;
             // Invocation itself can block (including a synchronous cancellation callback).
             // The deadline must not depend on that work or on its cooperative token.
-            var pending = await ObserveAsync(operation.Name, () => operation.StartAsync(token),
-                failures, operation.ExpectedCancellation);
+            var pending = operation.StartAsync(token);
+            await ObserveAsync(operation.Name, pending, failures, operation.ExpectedCancellation);
             if (pending.IsCompleted)
             {
                 return;
             }
 
-            var cancellation = await ObserveAsync(operation.Name + " cancellation", budget.CancelAsync, failures);
+            var cancellation = Task.Run(budget.CancelAsync, CancellationToken.None);
+            await ObserveAsync(operation.Name + " cancellation", cancellation, failures);
             DisposeBudgetAfterCompletion(budget, pending, cancellation);
             budget = null;
         }
@@ -79,27 +85,35 @@ internal sealed class OwnedCleanup(TimeSpan timeout)
             TaskScheduler.Default);
     }
 
-    private async Task<Task> ObserveAsync(string name, Func<Task> start, List<Exception> failures,
+    private async Task ObserveAsync(string name, Task pending, List<Exception> failures,
         Func<OperationCanceledException, bool>? expectedCancellation = null)
     {
-        var pending = Task.Run(start, CancellationToken.None);
         try
         {
-            await pending.WaitAsync(timeout);
+            await deadline.WaitAsync(name, pending, timeout);
+        }
+        catch (TimeoutException exception)
+        {
+            failures.Add(new TimeoutException($"Owned operation '{name}' exceeded its cleanup deadline of {timeout}.", exception));
+            // The task may already be terminal when the deadline result reaches us.
+            // Always observe it once, including cancellation with no Task.Exception.
+            _lateFailures.Observe(name, pending, expectedCancellation);
+            return;
+        }
+
+        try
+        {
+            await pending;
         }
         catch (OperationCanceledException exception) when (expectedCancellation?.Invoke(exception) is true)
         {
             // An owned reader can identify its own cooperative teardown cancellation.
-            return pending;
+            return;
         }
         catch (Exception exception)
         {
             failures.Add(exception);
-            if (!pending.IsCompleted)
-            {
-                _lateFailures.Observe(name, pending, expectedCancellation);
-            }
-            else if (pending.Exception is { } aggregate)
+            if (pending.Exception is { } aggregate)
             {
                 foreach (var failure in aggregate.Flatten().InnerExceptions)
                 {
@@ -112,8 +126,6 @@ internal sealed class OwnedCleanup(TimeSpan timeout)
                 }
             }
         }
-
-        return pending;
     }
 
     private void ThrowFailures(Exception? primaryFailure, List<Exception> failures)

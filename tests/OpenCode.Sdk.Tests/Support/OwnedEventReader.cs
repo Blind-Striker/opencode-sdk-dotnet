@@ -1,3 +1,5 @@
+using OpenCode.Sdk.Tests.Support.Abstractions;
+
 namespace OpenCode.Sdk.Tests.Support;
 
 internal sealed class OwnedEventReader
@@ -7,18 +9,21 @@ internal sealed class OwnedEventReader
     private readonly CancellationToken _eventToken;
     private readonly OwnedCleanup _cleanup;
     private readonly TimeSpan _observationWindow;
+    private readonly IOwnedOperationDeadline _deadline;
     private bool _teardownCancellation;
     private Task _reader = Task.CompletedTask;
     private Task _cancellation = Task.CompletedTask;
 
-    public OwnedEventReader(TimeSpan observationWindow, TimeSpan cleanupTimeout, CancellationToken callerToken)
+    public OwnedEventReader(TimeSpan observationWindow, TimeSpan cleanupTimeout, CancellationToken callerToken,
+        IOwnedOperationDeadline? deadline = null)
     {
         _callerToken = callerToken;
         _observationWindow = observationWindow;
         _window = CancellationTokenSource.CreateLinkedTokenSource(callerToken);
         _eventToken = _window.Token;
         _window.CancelAfter(observationWindow);
-        _cleanup = new OwnedCleanup(cleanupTimeout);
+        _deadline = deadline ?? new OwnedOperationDeadline();
+        _cleanup = new OwnedCleanup(cleanupTimeout, _deadline);
     }
 
     public CancellationToken Token => _eventToken;
@@ -38,7 +43,7 @@ internal sealed class OwnedEventReader
         ArgumentNullException.ThrowIfNull(read);
         var pending = Task.Run(() => read(Token), CancellationToken.None);
         _reader = pending;
-        return pending.WaitAsync(_observationWindow, _callerToken);
+        return ObserveAsync(pending);
     }
 
     public Task Start(Func<CancellationToken, Task> read)
@@ -46,7 +51,19 @@ internal sealed class OwnedEventReader
         ArgumentNullException.ThrowIfNull(read);
         var pending = Task.Run(() => read(Token), CancellationToken.None);
         _reader = pending;
-        return pending.WaitAsync(_observationWindow, _callerToken);
+        return ObserveAsync(pending);
+    }
+
+    private async Task<T> ObserveAsync<T>(Task<T> pending)
+    {
+        await _deadline.WaitAsync("event observation", pending, _observationWindow, _callerToken);
+        return await pending;
+    }
+
+    private async Task ObserveAsync(Task pending)
+    {
+        await _deadline.WaitAsync("event observation", pending, _observationWindow, _callerToken);
+        await pending;
     }
 
     public void Own(Task reader)

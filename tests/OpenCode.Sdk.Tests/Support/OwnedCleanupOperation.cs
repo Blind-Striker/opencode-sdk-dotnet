@@ -22,5 +22,6 @@ internal sealed class OwnedCleanupOperation
 
     public Func<OperationCanceledException, bool>? ExpectedCancellation { get; }
 
-    public Task StartAsync(CancellationToken cancellationToken) => _pending ?? _operation!(cancellationToken);
+    public Task StartAsync(CancellationToken cancellationToken) =>
+        _pending ?? Task.Run(() => _operation!(cancellationToken), CancellationToken.None);
 }

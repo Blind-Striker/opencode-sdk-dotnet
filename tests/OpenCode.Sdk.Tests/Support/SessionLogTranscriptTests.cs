@@ -73,6 +73,8 @@ public sealed class SessionLogTranscriptTests
         var removalFailure = new InvalidOperationException("removal failure");
         var lateDisposalFailure = new InvalidOperationException("late disposal failure");
         var removalTokenWasCancelled = true;
+        var scenario = new OperationDeadlineScenario();
+        var deadline = scenario.Hold("session log enumerator");
         var cleanup = new OwnedSessionCleanup(
             _ => Task.CompletedTask,
             token =>
@@ -80,55 +82,76 @@ public sealed class SessionLogTranscriptTests
                 removalTokenWasCancelled = token.IsCancellationRequested;
                 return Task.FromException(removalFailure);
             },
-            TimeSpan.FromMilliseconds(50));
+            TimeSpan.FromMilliseconds(50), scenario.Deadline);
         cleanup.MarkTurnCompleted();
         cleanup.Own("session log enumerator", transcript.DisposeAsync);
 
-        var thrown = await Assert.That(async () => await cleanup.CompleteAsync(primaryFailure))
-            .Throws<InvalidOperationException>();
+        var completing = cleanup.CompleteAsync(primaryFailure);
+        try
+        {
+            await enumerator.Entered;
+            await deadline.Entered;
+            deadline.Expire();
+            deadline.Deliver();
+            var thrown = await Assert.That(() => completing)
+                .Throws<InvalidOperationException>();
 
-        await Assert.That(thrown).IsSameReferenceAs(primaryFailure);
-        await Assert.That(enumerator.DisposeCalls).IsEqualTo(1);
-        await Assert.That(removalTokenWasCancelled).IsFalse();
-        var failures = primaryFailure.Data[OwnedSessionCleanup.FailuresKey] as AggregateException;
-        await Assert.That(failures).IsNotNull();
-        await Assert.That(failures!.InnerExceptions).Count().IsEqualTo(2);
-        await Assert.That(failures.InnerExceptions[0]).IsTypeOf<TimeoutException>();
-        await Assert.That(failures.InnerExceptions[1]).IsSameReferenceAs(removalFailure);
-        var diagnosticFailures = primaryFailure.Data[OwnedSessionCleanup.LateFailuresKey]
-            as IReadOnlyCollection<KeyValuePair<string, Exception>>;
-        await Assert.That(diagnosticFailures).IsNotNull();
-        var late = cleanup.LateFailures;
-        await Assert.That(late).IsNotNull();
+            await Assert.That(thrown).IsSameReferenceAs(primaryFailure);
+            await Assert.That(enumerator.DisposeCalls).IsEqualTo(1);
+            await Assert.That(removalTokenWasCancelled).IsFalse();
+            var failures = primaryFailure.Data[OwnedSessionCleanup.FailuresKey] as AggregateException;
+            await Assert.That(failures).IsNotNull();
+            await Assert.That(failures!.InnerExceptions).Count().IsEqualTo(2);
+            await Assert.That(failures.InnerExceptions[0]).IsTypeOf<TimeoutException>();
+            await Assert.That(failures.InnerExceptions[1]).IsSameReferenceAs(removalFailure);
+            var diagnosticFailures = primaryFailure.Data[OwnedSessionCleanup.LateFailuresKey]
+                as IReadOnlyCollection<KeyValuePair<string, Exception>>;
+            await Assert.That(diagnosticFailures).IsNotNull();
+            var late = cleanup.LateFailures;
+            await Assert.That(late).IsNotNull();
 
-        disposal.SetException(lateDisposalFailure);
-        using var observationBudget = new CancellationTokenSource(TimeSpan.FromSeconds(1));
-        var observed = await late.WaitForFailureAsync(observationBudget.Token);
+            disposal.SetException(lateDisposalFailure);
+            var observed = await late.WaitForFailureAsync(CancellationToken.None);
 
-        await Assert.That(observed.Key).IsEqualTo("session log enumerator");
-        await Assert.That(observed.Value).IsSameReferenceAs(lateDisposalFailure);
-        await Assert.That(late.Failures).Count().IsEqualTo(1);
-        await Assert.That(late.Failures[0].Value).IsSameReferenceAs(lateDisposalFailure);
-        await Assert.That(diagnosticFailures!).Count().IsEqualTo(1);
-        await Assert.That(diagnosticFailures!.Single().Key).IsEqualTo("session log enumerator");
-        await Assert.That(diagnosticFailures.Single().Value).IsSameReferenceAs(lateDisposalFailure);
-        _ = await Assert.That(window.Cancel).Throws<ObjectDisposedException>();
-        Console.WriteLine(
-            "session-log-cleanup: immediate-failures=" + failures.InnerExceptions.Count.ToString(
-                System.Globalization.CultureInfo.InvariantCulture) +
-            " removal-token-cancelled=" + removalTokenWasCancelled.ToString() +
-            " late-operation=" + observed.Key);
+            await Assert.That(observed.Key).IsEqualTo("session log enumerator");
+            await Assert.That(observed.Value).IsSameReferenceAs(lateDisposalFailure);
+            await Assert.That(late.Failures).Count().IsEqualTo(1);
+            await Assert.That(late.Failures[0].Value).IsSameReferenceAs(lateDisposalFailure);
+            await Assert.That(diagnosticFailures!).Count().IsEqualTo(1);
+            await Assert.That(diagnosticFailures!.Single().Key).IsEqualTo("session log enumerator");
+            await Assert.That(diagnosticFailures.Single().Value).IsSameReferenceAs(lateDisposalFailure);
+            _ = await Assert.That(window.Cancel).Throws<ObjectDisposedException>();
+            Console.WriteLine(
+                "session-log-cleanup: immediate-failures=" + failures.InnerExceptions.Count.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture) +
+                " removal-token-cancelled=" + removalTokenWasCancelled.ToString() +
+                " late-operation=" + observed.Key);
+        }
+        finally
+        {
+            _ = disposal.TrySetResult(true);
+            await scenario.DrainAsync(completing);
+            if (cleanup.LateFailures is { } report)
+            {
+                await report.WaitForAllAsync(CancellationToken.None);
+            }
+        }
     }
 
     private sealed class ControlledAsyncEnumerator(Task disposal) : IAsyncEnumerator<ISessionLogItem>
     {
         public ISessionLogItem Current => throw new InvalidOperationException("No item is available.");
 
+        private readonly TaskCompletionSource<bool> _entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task Entered => _entered.Task;
+
         public int DisposeCalls { get; private set; }
 
         public ValueTask DisposeAsync()
         {
             DisposeCalls++;
+            _ = _entered.TrySetResult(true);
             return new ValueTask(disposal);
         }
 

@@ -6,7 +6,10 @@ public sealed class ScriptedTurnEventsTests
     public async Task CompleteAsync_Should_Bound_A_Noncooperative_Reader_And_Reach_Later_Cleanup()
     {
         var scenario = new EventDiagnosticScenario { Stall = true };
-        var reader = new OwnedEventReader(TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(50), CancellationToken.None);
+        var deadlines = new OperationDeadlineScenario();
+        var observationDeadline = deadlines.Hold("event observation");
+        var cleanupDeadline = deadlines.Hold("event reader");
+        var reader = new OwnedEventReader(TimeSpan.FromMinutes(1), TimeSpan.FromMilliseconds(50), CancellationToken.None, deadlines.Deadline);
         var events = new ScriptedTurnEvents("reply", "ses_owned", reader);
         var connected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var removed = false;
@@ -14,13 +17,16 @@ public sealed class ScriptedTurnEventsTests
         {
             removed = !token.IsCancellationRequested;
             return Task.CompletedTask;
-        }, TimeSpan.FromSeconds(1));
+        }, TimeSpan.FromSeconds(1), deadlines.Deadline);
+        Task observing = events.CompleteAsync(scenario.EventsAsync(), connected);
+        Task? completing = null;
         try
         {
-            var primary = await Assert.That(async () =>
-            {
-                _ = await events.CompleteAsync(scenario.EventsAsync(), connected);
-            }).Throws<TimeoutException>();
+            await scenario.Stalled.Task;
+            await observationDeadline.Entered;
+            observationDeadline.Expire();
+            observationDeadline.Deliver();
+            var primary = await Assert.That(() => observing).Throws<TimeoutException>();
             var observed = (string)primary!.Data[EventDiagnosticSummary.DataKey]!;
             await Assert.That(observed.Length).IsLessThan(2000);
             await Assert.That(observed).Contains("84 events omitted");
@@ -29,7 +35,11 @@ public sealed class ScriptedTurnEventsTests
             await Assert.That(scenario.Pending).IsNotNull();
             await Assert.That(scenario.Pending.Task.IsCompleted).IsFalse();
 
-            var thrown = await Assert.That(() => reader.CompleteAsync(primary)).Throws<TimeoutException>();
+            completing = reader.CompleteAsync(primary);
+            await cleanupDeadline.Entered;
+            cleanupDeadline.Expire();
+            cleanupDeadline.Deliver();
+            var thrown = await Assert.That(() => completing).Throws<TimeoutException>();
             var propagated = await Assert.That(() => sessionCleanup.CompleteAsync(thrown)).Throws<TimeoutException>();
             await Assert.That(propagated).IsSameReferenceAs(primary);
             await Assert.That(removed).IsTrue();
@@ -38,14 +48,19 @@ public sealed class ScriptedTurnEventsTests
             scenario.Pending.SetException(lateFailure);
             var report = reader.LateFailures;
             await Assert.That(report).IsNotNull();
-            using var observation = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-            await report.WaitForAllAsync(observation.Token);
+            await report.WaitForAllAsync(CancellationToken.None);
             var attached = (IReadOnlyCollection<KeyValuePair<string, Exception>>)primary.Data[OwnedCleanup.LateFailuresKey]!;
             await Assert.That(attached.Single().Value).IsSameReferenceAs(lateFailure);
         }
         finally
         {
             _ = scenario.Pending?.TrySetResult(true);
+            completing ??= reader.CompleteAsync(null);
+            await deadlines.DrainAsync(Task.WhenAll(observing, completing));
+            if (reader.LateFailures is { } report)
+            {
+                await report.WaitForAllAsync(CancellationToken.None);
+            }
         }
     }
 
@@ -53,7 +68,7 @@ public sealed class ScriptedTurnEventsTests
     public async Task ObserveAsync_Should_Bound_First_And_Tail_Diagnostics_When_The_Stream_Ends()
     {
         var scenario = new EventDiagnosticScenario();
-        var reader = new OwnedEventReader(TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(1), CancellationToken.None);
+        var reader = new OwnedEventReader(TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(1), CancellationToken.None, new OperationDeadlineScenario().Deadline);
         var events = new ScriptedTurnEvents("reply", "ses_owned", reader);
         var connected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var thrown = await Assert.That(async () =>
@@ -74,7 +89,7 @@ public sealed class ScriptedTurnEventsTests
     {
         var failure = new InvalidOperationException("reader transport failed");
         var scenario = new EventDiagnosticScenario { Failure = failure };
-        var reader = new OwnedEventReader(TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(1), CancellationToken.None);
+        var reader = new OwnedEventReader(TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(1), CancellationToken.None, new OperationDeadlineScenario().Deadline);
         var events = new ScriptedTurnEvents("reply", "ses_owned", reader);
         var connected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var thrown = await Assert.That(async () =>

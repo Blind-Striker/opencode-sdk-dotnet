@@ -910,6 +910,53 @@ dotnet_diagnostic.VSTHRD003.severity = none
 [tests/OpenCode.Sdk.Tests/Support/LateCleanupFailureReport.cs]
 dotnet_diagnostic.VSTHRD003.severity = none
 
+# Cleanup owners retain raw tasks until actual completion and separately bound observation.
+# Awaiting those owned tasks directly preserves their original result/cancellation identity;
+# callback invocation is isolated on the thread pool, with no foreign synchronization-context
+# dependency. Winner: owned cleanup observation; VSTHRD003 remains enabled elsewhere.
+[tests/OpenCode.Sdk.Tests/Support/OwnedCleanup.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+[tests/OpenCode.Sdk.Tests/Support/OwnedEventReader.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+# These per-scenario deadline helpers retain task handles and explicitly control entry, expiry
+# and result delivery. Their caller releases signals and drains all owned work in finally;
+# there is no foreign synchronization-context dependency. Winner: deterministic deadline control.
+[tests/OpenCode.Sdk.Tests/Support/ControlledOperationDeadline.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+[tests/OpenCode.Sdk.Tests/Support/OperationDeadlineScenario.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+# These cleanup proofs await their own externally-completed barriers/tasks to establish the
+# exact ordering under test. Finally releases and observes stalled work and deadline signals;
+# no foreign synchronization context is involved. Winner: causal owned-work proofs. Each entry
+# names one file; VSTHRD003 remains enabled outside these explicitly owned proof families.
+[tests/OpenCode.Sdk.Tests/Support/OwnedCleanupTests.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+[tests/OpenCode.Sdk.Tests/Support/OwnedCleanupDeadlineTests.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+[tests/OpenCode.Sdk.Tests/Support/OwnedEventReaderTests.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+[tests/OpenCode.Sdk.Tests/Support/OwnedOperationDeadlineTests.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+[tests/OpenCode.Sdk.Tests/Support/ScriptedTurnEventsTests.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+[tests/OpenCode.Sdk.Tests/Support/SessionLogTranscriptTests.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+# The session-removal fault proof controls interrupt entry and expiry, then drains cancellation
+# and removal in finally. Its task handles have no foreign synchronization-context dependency.
+# Winner: the same causal cleanup proof embedded beside its actual live consumer.
+[tests/OpenCode.Sdk.Tests/Sessions/SessionMessagePaginationLiveTests.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
 # CliWrapServerAdapter parks on TaskCompletionSource handles the adapter itself completes — the
 # stdin lease that holds the child's ownership pipe open until disposal, and the first stdout
 # line that carries the readiness contract — plus the CliWrap execution task it started. That
