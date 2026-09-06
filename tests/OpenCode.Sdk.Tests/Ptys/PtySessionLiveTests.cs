@@ -134,8 +134,7 @@ public sealed class PtySessionLiveTests(PinnedOpenCodeServerFixture server)
     {
         var acknowledgementA = await AssertInitialExecutionAsync(terminal, cancellationToken);
         var replay = await AssertReplayAndResumeAsync(terminal, acknowledgementA, cancellationToken);
-        var removal = await AssertRemovalAsync(
-            terminal, ptyId, replay.Session, replay.Transcript, cancellationToken);
+        var removal = await AssertRemovalAsync(terminal, ptyId, replay, cancellationToken);
 
         return new PtySocketEvidence
         {
@@ -205,11 +204,10 @@ public sealed class PtySessionLiveTests(PinnedOpenCodeServerFixture server)
     private async Task<PtyRemovalEvidence> AssertRemovalAsync(
         PtyClient terminal,
         string ptyId,
-        PtySession session,
-        PtyLiveTranscript transcript,
+        PtyReplayEvidence replay,
         CancellationToken cancellationToken)
     {
-        var completion = transcript.ReadToCompletionAsync(session, cancellationToken);
+        var completion = replay.Transcript.ReadToCompletionAsync(replay.Session, cancellationToken);
         _scenario.Observe(completion);
         var removed = await terminal.RemovePtyAsync(
             new PtyRemoveRequest { Location = _scenario.Location },
