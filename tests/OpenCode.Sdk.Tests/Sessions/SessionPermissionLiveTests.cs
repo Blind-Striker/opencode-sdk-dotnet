@@ -19,69 +19,69 @@ public sealed class SessionPermissionLiveTests(SimulatedDriveServerFixture serve
         using var workspace = server.CreateWorkspace();
         using var client = server.CreateClient(new LocationSelector { Directory = workspace.Path });
         var location = (await client.GetLocationAsync(cancellationToken: cancellationToken)).ResolvedLocation;
-        await AssertPermissionProbeAsync(client, location.Directory, cancellationToken);
-
-        var sessionId = await CreateOwnedSessionAsync(client, workspace.Path, cancellationToken);
-        var session = client.Sessions.GetSessionClient(sessionId);
+        var agentId = SimulationConfigSeed.PermissionProbeAgentId;
+        var permissionAction = SimulationConfigSeed.PermissionProbeAction;
+        var activation = await client.Plugins.AwaitPluginActivationAsync(cancellationToken: cancellationToken);
+        await Assert.That(activation.Status).IsEqualTo(204);
+        var agent = (await client.Agents.GetAgentAsync(agentId, cancellationToken: cancellationToken)).Agent;
+        await Assert.That(agent.Id).IsEqualTo(agentId);
+        await Assert.That(agent.Permissions.Any(rule => (rule.Action, rule.Resource, rule.Effect) == (permissionAction, "*", PermissionEffect.Ask))).IsTrue();
+        var createdSession = await client.Sessions.CreateSessionAsync(new SessionCreateRequest
+        {
+            Title = "session-permission-live",
+            Agent = agentId,
+            Location = new LocationRef { Directory = workspace.Path },
+        }, cancellationToken: cancellationToken);
+        var session = client.Sessions.GetSessionClient(createdSession.Session.Id);
         var cleanupState = new PermissionCleanupState();
         var cleanup = CreateCleanup(session, client, location.Project.Id, cleanupState);
         Exception? primaryFailure = null;
 
         try
         {
-            var createdPermission = await session.CreatePermissionAsync(
-                new SessionPermissionCreateRequest
-                {
-                    Action = SimulationConfigSeed.PermissionProbeAction,
-                    Resources = [PermissionResource],
-                    Save = [PermissionResource],
-                    Agent = SimulationConfigSeed.PermissionProbeAgentId,
-                },
-                cancellationToken: cancellationToken);
+            var createdPermission = await session.CreatePermissionAsync(new SessionPermissionCreateRequest
+            {
+                Action = permissionAction,
+                Resources = [PermissionResource],
+                Save = [PermissionResource],
+                Agent = agentId,
+            }, cancellationToken: cancellationToken);
             cleanupState.PermissionId = createdPermission.Permission.Id;
-
             await Assert.That(createdPermission.Permission.Effect).IsEqualTo(PermissionEffect.Ask);
-
-            var pending = (await session.GetPermissionAsync(
-                cleanupState.PermissionId,
+            var pending = (await session.GetPermissionAsync(cleanupState.PermissionId,
                 cancellationToken: cancellationToken)).Permission;
-            await AssertPermissionRequestAsync(pending, cleanupState.PermissionId, sessionId);
-
             var listed = await session.ListRequestsAsync(cancellationToken: cancellationToken);
             var listedMatches = listed.Requests.Where(request => request.Id == cleanupState.PermissionId).ToList();
             await Assert.That(listedMatches).Count().IsEqualTo(1);
-            await AssertPermissionRequestAsync(listedMatches[0], cleanupState.PermissionId, sessionId);
+            foreach (var observed in new[] { pending, listedMatches[0] })
+            {
+                await Assert.That(observed.Id).IsEqualTo(cleanupState.PermissionId);
+                await Assert.That(observed.SessionId).IsEqualTo(createdSession.Session.Id);
+                await Assert.That(observed.Action).IsEqualTo(permissionAction);
+                await Assert.That(observed.Resources).IsEquivalentTo([PermissionResource]);
+                await Assert.That(observed.Save).IsEquivalentTo([PermissionResource]);
+            }
 
             var replied = await session.PostPermissionReplyAsync(
-                cleanupState.PermissionId,
-                new SessionPermissionReplyPostRequest { Reply = PermissionReply.Always },
+                cleanupState.PermissionId, new SessionPermissionReplyPostRequest { Reply = PermissionReply.Always },
                 cancellationToken: cancellationToken);
             await Assert.That(replied.Status).IsEqualTo(204);
-
-            var consumed = await session.GetPermissionAsync(
-                cleanupState.PermissionId,
-                OpenCodeRequestOptions.NoThrow,
-                cancellationToken);
+            var consumed = await session.GetPermissionAsync(cleanupState.PermissionId, OpenCodeRequestOptions.NoThrow, cancellationToken);
             await Assert.That(consumed.Status).IsEqualTo(404);
             await Assert.That(consumed.Error).IsTypeOf<PermissionNotFoundError>();
-            var notFound = consumed.Error as PermissionNotFoundError;
-            await Assert.That(notFound?.RequestId).IsEqualTo(cleanupState.PermissionId);
+            await Assert.That((consumed.Error as PermissionNotFoundError)?.RequestId).IsEqualTo(cleanupState.PermissionId);
 
             var saved = await client.Permissions.ListSavedAsync(
-                new PermissionSavedListRequest { ProjectId = location.Project.Id },
-                cancellationToken: cancellationToken);
+                new PermissionSavedListRequest { ProjectId = location.Project.Id }, cancellationToken: cancellationToken);
             var savedMatches = OwnedSavedPermissions(saved.Saved, location.Project.Id);
             await Assert.That(savedMatches).Count().IsEqualTo(1);
             cleanupState.SavedId = savedMatches[0].Id;
-
             var removed = await client.Permissions.RemoveSavedAsync(
-                cleanupState.SavedId,
-                cancellationToken: cancellationToken);
+                cleanupState.SavedId, cancellationToken: cancellationToken);
             await Assert.That(removed.Status).IsEqualTo(204);
 
             var afterRemoval = await client.Permissions.ListSavedAsync(
-                new PermissionSavedListRequest { ProjectId = location.Project.Id },
-                cancellationToken: cancellationToken);
+                new PermissionSavedListRequest { ProjectId = location.Project.Id }, cancellationToken: cancellationToken);
             await Assert.That(afterRemoval.Saved.Any(info => info.Id == cleanupState.SavedId)).IsFalse();
             await Assert.That(OwnedSavedPermissions(afterRemoval.Saved, location.Project.Id)).IsEmpty();
 
@@ -95,44 +95,6 @@ public sealed class SessionPermissionLiveTests(SimulatedDriveServerFixture serve
         {
             await cleanup.CompleteAsync(primaryFailure);
         }
-    }
-
-    private static async Task AssertPermissionProbeAsync(
-        OpenCodeClient client,
-        string directory,
-        CancellationToken cancellationToken)
-    {
-        var activation = await client.Plugins.AwaitPluginActivationAsync(
-            new PluginAwaitActivationPostRequest
-            {
-                Location = new LocationSelector { Directory = directory },
-            },
-            cancellationToken: cancellationToken);
-        await Assert.That(activation.Status).IsEqualTo(204);
-        var agent = (await client.Agents.GetAgentAsync(
-            SimulationConfigSeed.PermissionProbeAgentId,
-            cancellationToken: cancellationToken)).Agent;
-        await Assert.That(agent.Id).IsEqualTo(SimulationConfigSeed.PermissionProbeAgentId);
-        await Assert.That(agent.Permissions.Any(rule =>
-            rule.Action == SimulationConfigSeed.PermissionProbeAction &&
-            rule.Resource == "*" &&
-            rule.Effect == PermissionEffect.Ask)).IsTrue();
-    }
-
-    private static async Task<string> CreateOwnedSessionAsync(
-        OpenCodeClient client,
-        string directory,
-        CancellationToken cancellationToken)
-    {
-        var created = await client.Sessions.CreateSessionAsync(
-            new SessionCreateRequest
-            {
-                Title = "session-permission-live",
-                Agent = SimulationConfigSeed.PermissionProbeAgentId,
-                Location = new LocationRef { Directory = directory },
-            },
-            cancellationToken: cancellationToken);
-        return created.Session.Id;
     }
 
     private static OwnedSessionCleanup CreateCleanup(
@@ -175,18 +137,6 @@ public sealed class SessionPermissionLiveTests(SimulatedDriveServerFixture serve
                 }
             });
         return cleanup;
-    }
-
-    private static async Task AssertPermissionRequestAsync(
-        PermissionRequest request,
-        string permissionId,
-        string sessionId)
-    {
-        await Assert.That(request.Id).IsEqualTo(permissionId);
-        await Assert.That(request.SessionId).IsEqualTo(sessionId);
-        await Assert.That(request.Action).IsEqualTo(SimulationConfigSeed.PermissionProbeAction);
-        await Assert.That(request.Resources).IsEquivalentTo([PermissionResource]);
-        await Assert.That(request.Save).IsEquivalentTo([PermissionResource]);
     }
 
     private static List<PermissionSavedInfo> OwnedSavedPermissions(
