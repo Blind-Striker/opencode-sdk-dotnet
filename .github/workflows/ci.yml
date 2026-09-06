@@ -69,8 +69,8 @@ jobs:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('external/opencode/bun.lock') }}
 
-      # --ignore-scripts skips the root postinstall (a node-pty fixup); M4's scenarios create
-      # no pty, and skipping scripts keeps the install deterministic and fast.
+      # --ignore-scripts skips the root postinstall, which repairs the separate Node PTY
+      # implementation. Normal PTYs in this lane use Bun's bun-pty implementation.
       - name: Install pinned server dependencies
         run: bun install --frozen-lockfile --ignore-scripts
         working-directory: external/opencode

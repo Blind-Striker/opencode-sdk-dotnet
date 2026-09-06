@@ -79,6 +79,24 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
 
     public Uri Endpoint => _external?.Endpoint ?? Adapter.Endpoint;
 
+    internal bool IsExternal
+    {
+        get
+        {
+            if (_external is not null)
+            {
+                return true;
+            }
+
+            if (_adapter is null)
+            {
+                throw new InvalidOperationException("The fixture has not initialized.");
+            }
+
+            return false;
+        }
+    }
+
     internal CliWrapServerAdapter Adapter =>
         _adapter ?? throw new InvalidOperationException("The fixture has not initialized.");
 
