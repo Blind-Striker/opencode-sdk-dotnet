@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text.Json;
 using OpenCode.Sdk.Models;
 using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
@@ -17,6 +16,7 @@ public sealed class SessionsClientLiveTests(SimulatedDriveServerFixture server)
     private const string StatsPrompt = "task-two statistics prompt";
     private const string StatsReply = "Task two statistics reply.";
     private static readonly TimeSpan CleanupTimeout = TimeSpan.FromSeconds(15);
+    private readonly SessionMessageEvidenceProjector _messageEvidence = new();
 
     [Test]
     [Timeout(180_000)]
@@ -63,7 +63,7 @@ public sealed class SessionsClientLiveTests(SimulatedDriveServerFixture server)
                 cancellationToken: cancellationToken);
             await Assert.That(importedMessages.Status).IsEqualTo(200);
             await Assert.That(importedMessages.IsError).IsFalse();
-            var importedEvidence = ProjectMessages(importedMessages.Messages);
+            var importedEvidence = _messageEvidence.Project(importedMessages.Messages);
             await Assert.That(importedEvidence.SequenceEqual(exportedEvidence)).IsTrue();
 
             Console.WriteLine(
@@ -101,7 +101,7 @@ public sealed class SessionsClientLiveTests(SimulatedDriveServerFixture server)
             var messages = await session.ListMessagesAsync(
                 new MessageListRequest { Order = ListOrder.Ascending },
                 cancellationToken: cancellationToken);
-            var observed = ProjectMessages(messages.Messages);
+            var observed = _messageEvidence.Project(messages.Messages);
             await Assert.That(observed.Count).IsGreaterThan(0);
             var from = observed.Min(message => message.Created) - 1;
             var to = observed.Max(message => message.Created) + 1;
@@ -163,7 +163,7 @@ public sealed class SessionsClientLiveTests(SimulatedDriveServerFixture server)
         return cleanup;
     }
 
-    private static async Task<List<(string Type, string Id, string Text, double Created)>> AssertRawExportAsync(
+    private async Task<IReadOnlyList<SessionMessageEvidence>> AssertRawExportAsync(
         SessionExportResponse response,
         string sessionId)
     {
@@ -173,7 +173,7 @@ public sealed class SessionsClientLiveTests(SimulatedDriveServerFixture server)
         await Assert.That(response.Export.Messages.Count).IsGreaterThan(0);
         await Assert.That(response.Export.Messages.OfType<SessionMessageUser>().Any()).IsTrue();
         await Assert.That(response.Export.Messages.OfType<SessionMessageAssistant>().Any()).IsTrue();
-        var evidence = ProjectMessages(response.Export.Messages);
+        var evidence = _messageEvidence.Project(response.Export.Messages);
         await Assert.That(evidence.Any(message =>
             message is { Type: "user", Text: TransferPrompt })).IsTrue();
         await Assert.That(evidence.Any(message =>
@@ -206,42 +206,6 @@ public sealed class SessionsClientLiveTests(SimulatedDriveServerFixture server)
             Messages = exported.Messages,
             Location = new LocationRef { Directory = destination },
         };
-
-    private static List<(string Type, string Id, string Text, double Created)> ProjectMessages(
-        IEnumerable<ISessionMessageInfo> messages)
-    {
-        var serializer = new GeneratedJsonSerializer();
-        var evidence = new List<(string Type, string Id, string Text, double Created)>();
-        foreach (var message in messages)
-        {
-            using var document = JsonDocument.Parse(serializer.Serialize(message));
-            var root = document.RootElement;
-            evidence.Add((
-                root.GetProperty("type").GetString()!,
-                root.GetProperty("id").GetString()!,
-                ReadText(root),
-                root.GetProperty("time").GetProperty("created").GetDouble()));
-        }
-
-        return evidence;
-    }
-
-    private static string ReadText(JsonElement message)
-    {
-        if (message.TryGetProperty("text", out var text))
-        {
-            return text.GetString()!;
-        }
-
-        if (!message.TryGetProperty("content", out var content))
-        {
-            return string.Empty;
-        }
-
-        return string.Concat(content.EnumerateArray()
-            .Where(item => item.GetProperty("type").GetString() == "text")
-            .Select(item => item.GetProperty("text").GetString()));
-    }
 
     private static async Task RemoveOwnedSessionAsync(
         SessionClient session,

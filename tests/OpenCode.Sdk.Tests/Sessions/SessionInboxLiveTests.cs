@@ -2,7 +2,6 @@ using System.Globalization;
 using OpenCode.Sdk.Models;
 using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
-using OpenCode.Sdk.TestSupport.Ownership;
 
 namespace OpenCode.Sdk.Tests.Sessions;
 
@@ -25,13 +24,12 @@ public sealed class SessionInboxLiveTests(SimulatedDriveServerFixture server)
         using var client = server.CreateClient(new LocationSelector { Directory = workspace.Path });
         var sessionId = await CreateOwnedSessionAsync(client, workspace.Path, "session-inbox-cancel", cancellationToken);
         var session = client.Sessions.GetSessionClient(sessionId);
-        var cleanup = CreateCleanup(session, sessionId);
+        var cleanup = new OwnedSessionInboxCleanup(session, sessionId, server.Controller, CleanupTimeout);
         var suffix = Guid.NewGuid().ToString("N");
         var promptA = "task-seven cancel active prompt " + suffix;
         var replyA = "Task seven cancel active reply " + suffix + ".";
         var inboxId = "msg_task7_cancel_" + suffix;
         var promptB = "task-seven queued cancellation prompt " + suffix;
-        OwnedDriveInvocation? invocationA = null;
         Exception? primaryFailure = null;
 
         try
@@ -39,8 +37,7 @@ public sealed class SessionInboxLiveTests(SimulatedDriveServerFixture server)
             _ = await session.PostPromptAsync(
                 new SessionPromptPostRequest { Text = promptA },
                 cancellationToken: cancellationToken);
-            invocationA = new OwnedDriveInvocation(
-                server.Controller,
+            var invocationA = cleanup.RetainInvocation(
                 await server.Controller.WaitForRequestAsync(RequestWait));
 
             await RequireSimulatedInvocationAsync(invocationA.Invocation);
@@ -65,6 +62,7 @@ public sealed class SessionInboxLiveTests(SimulatedDriveServerFixture server)
             await AssertPendingPromptAsync(pending, sessionId, inboxId, promptB, SessionInboxDelivery.Queue);
 
             var wait = session.PostWaitAsync(cancellationToken: cancellationToken);
+            cleanup.RetainWait(wait);
 
             var cancelled = await session.DeleteInboxCancelAsync(inboxId, cancellationToken: cancellationToken);
             await AssertNoContentAsync(cancelled);
@@ -97,7 +95,7 @@ public sealed class SessionInboxLiveTests(SimulatedDriveServerFixture server)
         }
         finally
         {
-            await CompleteCleanupAsync(cleanup, primaryFailure, invocationA);
+            await cleanup.CompleteAsync(primaryFailure);
         }
     }
 
@@ -110,15 +108,13 @@ public sealed class SessionInboxLiveTests(SimulatedDriveServerFixture server)
         using var client = server.CreateClient(new LocationSelector { Directory = workspace.Path });
         var sessionId = await CreateOwnedSessionAsync(client, workspace.Path, "session-inbox-steer", cancellationToken);
         var session = client.Sessions.GetSessionClient(sessionId);
-        var cleanup = CreateCleanup(session, sessionId);
+        var cleanup = new OwnedSessionInboxCleanup(session, sessionId, server.Controller, CleanupTimeout);
         var suffix = Guid.NewGuid().ToString("N");
         var promptA = "task-seven steer active prompt " + suffix;
         var replyA = "Task seven steer first reply " + suffix + ".";
         var inboxId = "msg_task7_steer_" + suffix;
         var promptB = "task-seven queued steer prompt " + suffix;
         var replyB = "Task seven steer second reply " + suffix + ".";
-        OwnedDriveInvocation? invocationA = null;
-        OwnedDriveInvocation? invocationB = null;
         Exception? primaryFailure = null;
 
         try
@@ -126,8 +122,7 @@ public sealed class SessionInboxLiveTests(SimulatedDriveServerFixture server)
             _ = await session.PostPromptAsync(
                 new SessionPromptPostRequest { Text = promptA },
                 cancellationToken: cancellationToken);
-            invocationA = new OwnedDriveInvocation(
-                server.Controller,
+            var invocationA = cleanup.RetainInvocation(
                 await server.Controller.WaitForRequestAsync(RequestWait));
 
             await RequireSimulatedInvocationAsync(invocationA.Invocation);
@@ -158,8 +153,7 @@ public sealed class SessionInboxLiveTests(SimulatedDriveServerFixture server)
 
             await invocationA.ChunkTextAsync(replyA);
             await invocationA.FinishAsync();
-            invocationB = new OwnedDriveInvocation(
-                server.Controller,
+            var invocationB = cleanup.RetainInvocation(
                 await server.Controller.WaitForRequestAsync(RequestWait));
 
             await RequireSimulatedInvocationAsync(invocationB.Invocation);
@@ -183,7 +177,7 @@ public sealed class SessionInboxLiveTests(SimulatedDriveServerFixture server)
         }
         finally
         {
-            await CompleteCleanupAsync(cleanup, primaryFailure, invocationA, invocationB);
+            await cleanup.CompleteAsync(primaryFailure);
         }
     }
 
@@ -202,91 +196,6 @@ public sealed class SessionInboxLiveTests(SimulatedDriveServerFixture server)
             },
             cancellationToken: cancellationToken);
         return response.Session.Id;
-    }
-
-    private static OwnedCleanup CreateCleanup(SessionClient session, string sessionId)
-    {
-        var cleanup = new OwnedCleanup(CleanupTimeout);
-        cleanup.Own("session interrupt", token => CleanupInterruptAsync(session, sessionId, token));
-        cleanup.Own("session wait", token => CleanupWaitAsync(session, sessionId, token));
-        cleanup.Own("session removal", token => CleanupRemovalAsync(session, sessionId, token));
-        return cleanup;
-    }
-
-    private static async Task CleanupInterruptAsync(
-        SessionClient session,
-        string sessionId,
-        CancellationToken cancellationToken)
-    {
-        var response = await session.PostInterruptAsync(
-            requestOptions: OpenCodeRequestOptions.NoThrow,
-            cancellationToken: cancellationToken);
-        RequireCleanupResponse(response, sessionId, "interrupt", 200);
-    }
-
-    private static async Task CleanupWaitAsync(
-        SessionClient session,
-        string sessionId,
-        CancellationToken cancellationToken)
-    {
-        var response = await session.PostWaitAsync(OpenCodeRequestOptions.NoThrow, cancellationToken);
-        RequireCleanupResponse(response, sessionId, "wait", 204);
-    }
-
-    private static async Task CleanupRemovalAsync(
-        SessionClient session,
-        string sessionId,
-        CancellationToken cancellationToken)
-    {
-        var response = await session.RemoveSessionAsync(OpenCodeRequestOptions.NoThrow, cancellationToken);
-        RequireCleanupResponse(response, sessionId, "removal", 204);
-    }
-
-    private static void RequireCleanupResponse(
-        OpenCodeResponse response,
-        string sessionId,
-        string operation,
-        int successStatus)
-    {
-        if ((response.Status == successStatus && !response.IsError)
-            || (response is { Status: 404, Error: SessionNotFoundError missing }
-                && missing.SessionId == sessionId))
-        {
-            return;
-        }
-
-        throw new InvalidOperationException(
-            "Owned session " + operation + " returned status " + Number(response.Status) +
-            ", error " + response.Error?.GetType().Name + ", body " + response.RawBody + ".");
-    }
-
-    private static async Task CompleteCleanupAsync(
-        OwnedCleanup cleanup,
-        Exception? primaryFailure,
-        params OwnedDriveInvocation?[] invocations)
-    {
-        Exception cleanupFailure;
-        try
-        {
-            await cleanup.CompleteAsync(primaryFailure);
-            return;
-        }
-        catch (Exception exception)
-        {
-            cleanupFailure = exception;
-            if (cleanup.OperationFailures.Count == 0)
-            {
-                throw;
-            }
-        }
-
-        var driveCleanup = new OwnedCleanup(CleanupTimeout);
-        foreach (var invocation in invocations.Where(invocation => invocation is { IsFinished: false }))
-        {
-            driveCleanup.Own("drive invocation " + invocation!.Invocation.Id, invocation.DisconnectAsync);
-        }
-
-        await driveCleanup.CompleteAsync(cleanupFailure);
     }
 
     private static async Task<List<ISessionLogItem>> ReadFiniteLogAsync(
