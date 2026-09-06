@@ -7,11 +7,11 @@ const input = readline.createInterface({
 });
 
 input.on("line", (line) => {
+  // Readiness is requested after attachment, so the PTY host already owns the output listener.
+  // A leading delimiter keeps the response distinct from echoed input and terminal controls.
+  if (line === "READY?") process.stdout.write("\nREADY\n");
   const match = /^RUN ([0-9a-f]+)$/.exec(line);
   if (match) process.stdout.write(`\nACK:${match[1]}\n`);
 });
 
-// A leading delimiter keeps the record distinct from terminal-mode controls emitted by a PTY
-// host before the child produces its first byte.
-process.stdout.write("\nREADY\n");
 await new Promise((resolve) => input.once("close", resolve));

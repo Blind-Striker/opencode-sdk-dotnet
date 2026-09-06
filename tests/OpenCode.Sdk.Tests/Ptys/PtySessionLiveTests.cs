@@ -162,6 +162,8 @@ public sealed class PtySessionLiveTests(PinnedOpenCodeServerFixture server)
         var session = _scenario.Own(await terminal.ConnectAsync(
             new PtyConnectOptions { Location = _scenario.Location }, cancellationToken));
         var transcript = new PtyLiveTranscript();
+        _scenario.Diagnostics.Enter("readiness request", transcript);
+        await session.WriteAsync("READY?\r", cancellationToken);
         _scenario.Diagnostics.Enter("initial READY", transcript);
         _ = await transcript.ReadThroughReplayAsync(session, [ReadyRecord], cancellationToken);
         _scenario.Diagnostics.Enter("initial input acknowledgement", transcript);
