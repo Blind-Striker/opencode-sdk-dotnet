@@ -11,6 +11,8 @@ internal sealed class LateCleanupFailureReport
 
     public bool HasRegistrations => Volatile.Read(ref _registrations) > 0;
 
+    public IReadOnlyCollection<KeyValuePair<string, Exception>> DiagnosticFailures => _failures;
+
     public IReadOnlyList<KeyValuePair<string, Exception>> Failures => [.. _failures];
 
     public void Observe(string name, Task operation)

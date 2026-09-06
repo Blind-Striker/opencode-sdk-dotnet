@@ -14,6 +14,9 @@ internal sealed class OwnedSessionCleanup
     private readonly TimeSpan _timeout;
     private bool _turnCompleted;
 
+    internal LateCleanupFailureReport? LateFailures =>
+        _lateFailures.HasRegistrations ? _lateFailures : null;
+
     public OwnedSessionCleanup(SessionClient session, TimeSpan timeout)
         : this(
             async token =>
@@ -132,7 +135,7 @@ internal sealed class OwnedSessionCleanup
     {
         if (_lateFailures.HasRegistrations)
         {
-            exception.Data[LateFailuresKey] = _lateFailures;
+            exception.Data[LateFailuresKey] = _lateFailures.DiagnosticFailures;
         }
     }
 }

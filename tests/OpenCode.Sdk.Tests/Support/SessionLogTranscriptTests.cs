@@ -37,7 +37,10 @@ public sealed class SessionLogTranscriptTests
         await Assert.That(failures!.InnerExceptions).Count().IsEqualTo(2);
         await Assert.That(failures.InnerExceptions[0]).IsTypeOf<OperationCanceledException>();
         await Assert.That(failures.InnerExceptions[1]).IsSameReferenceAs(removalFailure);
-        var late = primaryFailure.Data[OwnedSessionCleanup.LateFailuresKey] as LateCleanupFailureReport;
+        var diagnosticFailures = primaryFailure.Data[OwnedSessionCleanup.LateFailuresKey]
+            as IReadOnlyCollection<KeyValuePair<string, Exception>>;
+        await Assert.That(diagnosticFailures).IsNotNull();
+        var late = cleanup.LateFailures;
         await Assert.That(late).IsNotNull();
 
         disposal.SetException(lateDisposalFailure);
@@ -48,6 +51,9 @@ public sealed class SessionLogTranscriptTests
         await Assert.That(observed.Value).IsSameReferenceAs(lateDisposalFailure);
         await Assert.That(late.Failures).Count().IsEqualTo(1);
         await Assert.That(late.Failures[0].Value).IsSameReferenceAs(lateDisposalFailure);
+        await Assert.That(diagnosticFailures!).Count().IsEqualTo(1);
+        await Assert.That(diagnosticFailures!.Single().Key).IsEqualTo("session log enumerator");
+        await Assert.That(diagnosticFailures.Single().Value).IsSameReferenceAs(lateDisposalFailure);
         _ = await Assert.That(window.Cancel).Throws<ObjectDisposedException>();
         Console.WriteLine(
             "session-log-cleanup: immediate-failures=" + failures.InnerExceptions.Count.ToString(
