@@ -29,7 +29,6 @@ public sealed class OperationPlanBinderTests
         "PersistentPtyRawClient",
         "PersistentPtysRawClient",
         "PluginsClient",
-        "ProjectWorktreesClient",
         "ProjectsClient",
         "ProvidersClient",
         "PtyRawClient",

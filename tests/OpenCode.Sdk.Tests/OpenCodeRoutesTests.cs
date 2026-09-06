@@ -166,22 +166,11 @@ public sealed class OpenCodeRoutesTests
     }
 
     [Test]
-    public async Task Worktree_Routes_Should_Escape_The_Project_Segment()
+    public async Task Worktree_Routes_Should_Use_Location_Scoped_Paths()
     {
-        await Assert.That(OpenCodeRoutes.Worktrees.CreateWorktree("a b")).IsEqualTo("/api/worktree/a%20b");
-        await Assert.That(OpenCodeRoutes.Worktrees.ListWorktrees("a b")).IsEqualTo("/api/worktree/a%20b");
-        await Assert.That(OpenCodeRoutes.Worktrees.RefreshWorktrees("a b")).IsEqualTo("/api/worktree/a%20b/refresh");
-        await Assert.That(OpenCodeRoutes.Worktrees.RemoveWorktree("a b")).IsEqualTo("/api/worktree/a%20b");
-    }
-
-    [Test]
-    [Arguments(".")]
-    [Arguments("..")]
-    [Arguments(" ")]
-    public async Task RefreshWorktrees_Should_Refuse_An_Unsafe_Project_Segment(string projectId)
-    {
-        var exception = Assert.Throws<ArgumentException>(() => _ = OpenCodeRoutes.Worktrees.RefreshWorktrees(projectId));
-
-        await Assert.That(exception.ParamName).IsEqualTo("projectId");
+        await Assert.That(OpenCodeRoutes.Worktrees.CreateWorktree()).IsEqualTo("/api/worktree");
+        await Assert.That(OpenCodeRoutes.Worktrees.ListWorktrees()).IsEqualTo("/api/worktree");
+        await Assert.That(OpenCodeRoutes.Worktrees.RefreshWorktrees()).IsEqualTo("/api/worktree/refresh");
+        await Assert.That(OpenCodeRoutes.Worktrees.RemoveWorktree()).IsEqualTo("/api/worktree");
     }
 }

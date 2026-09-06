@@ -11,6 +11,12 @@ Each released version links straight to its GitHub Release tag.
 
 ### ✨ New features
 
+- **Refreshed to upstream `b2cecc6`.** Worktree operations now resolve their project through an
+  optional location query. Call create, list, remove, and refresh directly on `WorktreesClient`;
+  the project-bound `ProjectWorktreesClient` and its factory have been removed. Create accepts
+  the upstream's optional string strategy and inputs; remove retains its required JSON body.
+  The list operation also exposes its declared `WorktreeError` failure arm. Compaction completion
+  payloads now expose the optional model and provider state supplied by the upstream schema.
 - **`OpenCode.Sdk` — the typed client.** **135 of the 140 operations** in the pinned OpenAPI
   snapshot are callable across **28 client families**: sessions, PTYs, persistent PTYs, shells,
   events, MCP servers, integrations, projects, worktrees, workspaces, providers, language models,

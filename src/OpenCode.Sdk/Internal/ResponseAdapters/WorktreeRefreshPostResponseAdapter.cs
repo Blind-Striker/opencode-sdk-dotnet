@@ -2,7 +2,7 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 namespace OpenCode.Sdk.Internal.ResponseAdapters;
 /// <summary>
-/// Adapts the &apos;POST /api/worktree/{projectID}/refresh&apos; responses onto &apos;WorktreeRefreshPostResponse&apos;.
+/// Adapts the &apos;POST /api/worktree/refresh&apos; responses onto &apos;WorktreeRefreshPostResponse&apos;.
 /// </summary>
 internal sealed class WorktreeRefreshPostResponseAdapter : ResponseAdapter<WorktreeRefreshPostResponse>
 {

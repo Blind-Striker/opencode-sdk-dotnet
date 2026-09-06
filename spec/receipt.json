@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "upstreamCommit": "48f246695e97a0014f57399f7603df0b1b2b85d4",
-  "rawDocumentSha256": "72904ec26d51c93161c0dc7d6420ff90a7e3e810f6c0ec1a5fadea3611aa4606",
-  "generatedBaselineSha256": "72904ec26d51c93161c0dc7d6420ff90a7e3e810f6c0ec1a5fadea3611aa4606",
+  "upstreamCommit": "b2cecc6350d377c382e1ec32ee66ec63ad68f715",
+  "rawDocumentSha256": "359c859bc9edd76059d271d7e5f4e2485d84974cb87b9c3d6d90fb77916bd077",
+  "generatedBaselineSha256": "359c859bc9edd76059d271d7e5f4e2485d84974cb87b9c3d6d90fb77916bd077",
   "patches": [
     {
       "manifest": "001-restore-sse-payloads.json",
@@ -19,18 +19,13 @@
       ]
     }
   ],
-  "normalizedDocumentSha256": "28e5f973eedf2b0d38a13f9b59babed9b3196ea01244fa4bd52e0bf249728663",
+  "normalizedDocumentSha256": "ea918cde7be4037bee1e7315d9555c2278aed754feaae944983aa530a993f2ce",
   "normalizedDocumentPath": null,
   "operationSetDigest": "038fa8d3b8cf12a9a3db9320f5945e5c7aaa5d07158cebc6a0527e4c56a0a2f8",
   "operationCount": 140,
-  "addedOperations": [
-    "v2.plugin.awaitActivation",
-    "v2.plugin.check",
-    "v2.plugin.update",
-    "v2.rpc.call"
-  ],
+  "addedOperations": [],
   "removedOperations": [],
-  "componentCount": 348,
+  "componentCount": 352,
   "contentSchemaCount": 2,
   "watchedSources": [
     {
@@ -65,7 +60,7 @@
     },
     {
       "path": "packages/server/src/routes.ts",
-      "sha256": "1f2cb97373ad5c154cc34b3882faf57fa23446aed6678637d6037a2fca728f9c",
+      "sha256": "4a0f61b114eb087e422dc593a58634bef2b75947dafb48f1941cdfaaa613df95",
       "anchorMatched": true
     },
     {
@@ -110,12 +105,12 @@
     },
     {
       "path": "packages/core/package.json",
-      "sha256": "82df23aad60157df407b113bb4a6a8ae06e7ff9e875bcb472bed2f505ed815b8",
+      "sha256": "0e44b780c50ee09630574b1bbc49777420e0811fd534057d6cf6bef0fe947813",
       "anchorMatched": true
     },
     {
       "path": "packages/server/src/process.ts",
-      "sha256": "ec105dccd27afbfe55724ca8201dd7cb4ea0dd410055f7ffe0ef90568a1b1144",
+      "sha256": "2e7b36c11d53e947a4fa15ce0271b03664031125ffac77036975881c6a9de6ec",
       "anchorMatched": true
     },
     {
@@ -130,7 +125,7 @@
     },
     {
       "path": "packages/tui/src/component/terminal-pane.tsx",
-      "sha256": "7b613272b8c01b067d985de1e660303f7d10ed3ea0ecdbfc9e7a63fd41fd4e36",
+      "sha256": "973e352937fe66c218e7ca1c955cdd335eaedf81dc1f57f1a97ba0777e4578ae",
       "anchorMatched": true
     }
   ]

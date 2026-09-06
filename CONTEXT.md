@@ -104,6 +104,15 @@ optional Workspace. Resolving one yields the Project it belongs to.
 The repository root a Location resolves to, carrying its own id and canonical path. Sessions,
 saved Permissions, and worktrees are scoped to it.
 
+**Worktree**:
+A managed local directory in a Project's worktree inventory. The API resolves that Project
+through a requested Location; create, list, remove, and refresh are location-scoped operations.
+
+**Worktree strategy**:
+A server-registered strategy used to discover and create Worktrees. Creation may select one by
+its string identifier; removal uses the recorded strategy. The SDK does not define a closed
+strategy list or choose server defaults.
+
 **Workspace**:
 A separately provisioned place a Location can point into, created and destroyed through the API;
 the optional second member of a Location.

@@ -35,7 +35,7 @@ public sealed class OwnedTransportTests
         });
         using var client = new OpenCodeClient(new OpenCodeClientOptions { Endpoint = server.Endpoint });
 
-        var response = await client.Worktrees.GetProjectWorktreesClient("prj_1").RemoveWorktreeAsync(new WorktreeRemoveRequest
+        var response = await client.Worktrees.RemoveWorktreeAsync(new WorktreeRemoveRequest
         {
             Directory = "/repo/feature",
             Force = true,
@@ -44,7 +44,7 @@ public sealed class OwnedTransportTests
         await Assert.That(response.Status).IsEqualTo(204);
         var request = server.Requests.Single();
         await Assert.That(request.Method).IsEqualTo("DELETE");
-        await Assert.That(request.Path).IsEqualTo("/api/worktree/prj_1");
+        await Assert.That(request.Path).IsEqualTo("/api/worktree");
         await Assert.That(request.Body).IsEqualTo("{\"directory\":\"/repo/feature\",\"force\":true}");
     }
 

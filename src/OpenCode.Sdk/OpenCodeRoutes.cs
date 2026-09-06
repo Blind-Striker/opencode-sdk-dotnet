@@ -3133,83 +3133,91 @@ public static class OpenCodeRoutes
     public static class Worktrees
     {
         /// <summary>
-        /// The &apos;POST /api/worktree/{projectID}&apos; route template.
+        /// The &apos;POST /api/worktree&apos; route template.
         /// </summary>
-        public const string CreateWorktreeTemplate = "/api/worktree/{projectID}";
+        public const string CreateWorktreeTemplate = "/api/worktree";
         /// <summary>
-        /// Builds the &apos;/api/worktree/{projectID}&apos; route.
+        /// Builds the &apos;/api/worktree&apos; route.
         /// </summary>
-        /// <param name = "projectId">The &apos;projectID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
         /// <returns>The escaped route.</returns>
-        public static string CreateWorktree(string projectId)
+        public static string CreateWorktree(WorktreeCreateRequest? request = null)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(projectId);
-            if (projectId is "." or "..")
+            var path = "/api/worktree";
+            if (request is null)
             {
-                throw new ArgumentException("Route values must not be dot segments.", nameof(projectId));
+                return path;
             }
 
-            return "/api/worktree/" + RouteValuePolicy.Escape(projectId, nameof(projectId));
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
         }
 
         /// <summary>
-        /// The &apos;GET /api/worktree/{projectID}&apos; route template.
+        /// The &apos;GET /api/worktree&apos; route template.
         /// </summary>
-        public const string ListWorktreesTemplate = "/api/worktree/{projectID}";
+        public const string ListWorktreesTemplate = "/api/worktree";
         /// <summary>
-        /// Builds the &apos;/api/worktree/{projectID}&apos; route.
+        /// Builds the &apos;/api/worktree&apos; route.
         /// </summary>
-        /// <param name = "projectId">The &apos;projectID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
         /// <returns>The escaped route.</returns>
-        public static string ListWorktrees(string projectId)
+        public static string ListWorktrees(WorktreeListRequest? request = null)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(projectId);
-            if (projectId is "." or "..")
+            var path = "/api/worktree";
+            if (request is null)
             {
-                throw new ArgumentException("Route values must not be dot segments.", nameof(projectId));
+                return path;
             }
 
-            return "/api/worktree/" + RouteValuePolicy.Escape(projectId, nameof(projectId));
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
         }
 
         /// <summary>
-        /// The &apos;POST /api/worktree/{projectID}/refresh&apos; route template.
+        /// The &apos;POST /api/worktree/refresh&apos; route template.
         /// </summary>
-        public const string RefreshWorktreesTemplate = "/api/worktree/{projectID}/refresh";
+        public const string RefreshWorktreesTemplate = "/api/worktree/refresh";
         /// <summary>
-        /// Builds the &apos;/api/worktree/{projectID}/refresh&apos; route.
+        /// Builds the &apos;/api/worktree/refresh&apos; route.
         /// </summary>
-        /// <param name = "projectId">The &apos;projectID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
         /// <returns>The escaped route.</returns>
-        public static string RefreshWorktrees(string projectId)
+        public static string RefreshWorktrees(WorktreeRefreshPostRequest? request = null)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(projectId);
-            if (projectId is "." or "..")
+            var path = "/api/worktree/refresh";
+            if (request is null)
             {
-                throw new ArgumentException("Route values must not be dot segments.", nameof(projectId));
+                return path;
             }
 
-            return "/api/worktree/" + RouteValuePolicy.Escape(projectId, nameof(projectId)) + "/refresh";
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
         }
 
         /// <summary>
-        /// The &apos;DELETE /api/worktree/{projectID}&apos; route template.
+        /// The &apos;DELETE /api/worktree&apos; route template.
         /// </summary>
-        public const string RemoveWorktreeTemplate = "/api/worktree/{projectID}";
+        public const string RemoveWorktreeTemplate = "/api/worktree";
         /// <summary>
-        /// Builds the &apos;/api/worktree/{projectID}&apos; route.
+        /// Builds the &apos;/api/worktree&apos; route.
         /// </summary>
-        /// <param name = "projectId">The &apos;projectID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
         /// <returns>The escaped route.</returns>
-        public static string RemoveWorktree(string projectId)
+        public static string RemoveWorktree(WorktreeRemoveRequest? request = null)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(projectId);
-            if (projectId is "." or "..")
+            var path = "/api/worktree";
+            if (request is null)
             {
-                throw new ArgumentException("Route values must not be dot segments.", nameof(projectId));
+                return path;
             }
 
-            return "/api/worktree/" + RouteValuePolicy.Escape(projectId, nameof(projectId));
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
         }
     }
 

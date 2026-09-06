@@ -57,7 +57,7 @@
     },
     {
       "path": "packages/server/src/routes.ts",
-      "sha256": "1f2cb97373ad5c154cc34b3882faf57fa23446aed6678637d6037a2fca728f9c",
+      "sha256": "4a0f61b114eb087e422dc593a58634bef2b75947dafb48f1941cdfaaa613df95",
       "behavior": "The PTY ticket service and the persistent-PTY service are wired into the server layer graph.",
       "anchor": {
         "type": "contains",
@@ -138,7 +138,7 @@
     },
     {
       "path": "packages/core/package.json",
-      "sha256": "82df23aad60157df407b113bb4a6a8ae06e7ff9e875bcb472bed2f505ed815b8",
+      "sha256": "0e44b780c50ee09630574b1bbc49777420e0811fd534057d6cf6bef0fe947813",
       "behavior": "The opencode-pty daemon dependency is pinned at 0.1.13, which fixes the daemon protocol the persistent-PTY door speaks.",
       "anchor": {
         "type": "contains",
@@ -147,7 +147,7 @@
     },
     {
       "path": "packages/server/src/process.ts",
-      "sha256": "ec105dccd27afbfe55724ca8201dd7cb4ea0dd410055f7ffe0ef90568a1b1144",
+      "sha256": "2e7b36c11d53e947a4fa15ce0271b03664031125ffac77036975881c6a9de6ec",
       "behavior": "A ticketed PTY connect is admitted before the server reports ready.",
       "anchor": {
         "type": "contains",
@@ -174,7 +174,7 @@
     },
     {
       "path": "packages/tui/src/component/terminal-pane.tsx",
-      "sha256": "7b613272b8c01b067d985de1e660303f7d10ed3ea0ecdbfc9e7a63fd41fd4e36",
+      "sha256": "973e352937fe66c218e7ca1c955cdd335eaedf81dc1f57f1a97ba0777e4578ae",
       "behavior": "Behavioral oracle: the TUI resumes a terminal from the snapshot tail cursor.",
       "anchor": {
         "type": "contains",
