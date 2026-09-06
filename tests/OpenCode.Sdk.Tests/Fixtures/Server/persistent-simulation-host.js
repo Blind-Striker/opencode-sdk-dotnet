@@ -1,9 +1,10 @@
 import { NodeServices } from "@effect/platform-node";
 import { LayerNode } from "@opencode-ai/util/effect/layer-node";
 import { Global } from "@opencode-ai/util/global";
+import { Observability } from "@opencode-ai/util/observability";
 import { AppProcess } from "@opencode-ai/util/process";
 import { start } from "@opencode-ai/server/process";
-import { Effect, References } from "effect";
+import { Effect } from "effect";
 import { HttpServer } from "effect/unstable/http";
 
 const password = process.env.OPENCODE_PASSWORD ?? process.env.OPENCODE_SERVER_PASSWORD;
@@ -30,6 +31,7 @@ const waitForStdinClose = Effect.callback((resume) => {
 
 const application = Effect.scoped(
   Effect.gen(function* () {
+    yield* Effect.logInfo("persistent simulation host starting");
     const server = yield* start({
       app: { name: "cli", version: "local", channel: "local" },
       hostname: "127.0.0.1",
@@ -60,12 +62,15 @@ const application = Effect.scoped(
             : !truthy(process.env.OPENCODE_DISABLE_FFF),
       },
     });
-    console.log(JSON.stringify({ url: HttpServer.formatAddress(server.address) }));
+    const url = HttpServer.formatAddress(server.address);
+    console.log(JSON.stringify({ url }));
+    yield* Effect.logWarning("persistent simulation host ready", { url });
     yield* waitForStdinClose;
+    yield* Effect.logInfo("persistent simulation host stdin closed");
   }),
 ).pipe(
-  Effect.provideService(References.MinimumLogLevel, "None"),
   Effect.provide(LayerNode.compile(LayerNode.group([Global.node, AppProcess.node]))),
+  Effect.provide(Observability.layer({ client: "cli", version: "local", channel: "local" })),
   Effect.provide(NodeServices.layer),
 );
 

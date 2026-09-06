@@ -903,12 +903,11 @@ dotnet_diagnostic.CA2000.severity = none
 [tests/OpenCode.Sdk.Tests/Support/ScriptedTerminalWebSocket.cs]
 dotnet_diagnostic.VSTHRD003.severity = none
 
-# OwnedOperation starts and retains the live turn task, exposes its only normal await, and owns the
-# bounded cancel-and-observe cleanup path. If that budget expires, its registered completion
-# observer consumes and reports the eventual fault; the deterministic support test exercises that
-# branch. VSTHRD003 cannot follow the start factory into this owner and labels its own retained task
-# as foreign. Winner: the explicit operation-lifetime owner; VSTHRD003 remains enabled elsewhere.
-[tests/OpenCode.Sdk.Tests/Support/OwnedOperation*.cs]
+# LateCleanupFailureReport owns the TaskCompletionSource completed only by its registered
+# fault-observation continuations. The bridge lets a deterministic test await an otherwise-late
+# cleanup failure without sleeping. Winner: the bounded cleanup reporting contract; VSTHRD003
+# remains enabled elsewhere.
+[tests/OpenCode.Sdk.Tests/Support/LateCleanupFailureReport.cs]
 dotnet_diagnostic.VSTHRD003.severity = none
 
 # CliWrapServerAdapter parks on TaskCompletionSource handles the adapter itself completes — the

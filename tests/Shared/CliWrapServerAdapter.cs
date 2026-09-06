@@ -40,6 +40,7 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
     private readonly Lock _logGate = new();
     private readonly Queue<string> _stdout = new();
     private readonly Queue<string> _stderr = new();
+    private TaskCompletionSource<object?> _stderrChanged = NewSignal();
     private TimeSpan _gracefulShutdownTimeout = DefaultGracefulShutdownTimeout;
     private Task? _execution;
     private Uri? _endpoint;
@@ -162,6 +163,36 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
         }
     }
 
+    public bool HasErrorLine(string fragment)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fragment);
+        lock (_logGate)
+        {
+            return _stderr.Any(line => line.Contains(fragment, StringComparison.Ordinal));
+        }
+    }
+
+    public async Task<string> WaitForErrorLineAsync(string fragment, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fragment);
+        while (true)
+        {
+            Task signal;
+            lock (_logGate)
+            {
+                var match = _stderr.FirstOrDefault(line => line.Contains(fragment, StringComparison.Ordinal));
+                if (match is not null)
+                {
+                    return match;
+                }
+
+                signal = _stderrChanged.Task;
+            }
+
+            await signal.WaitAsync(cancellationToken);
+        }
+    }
+
     public void WriteLogs(IFileSystem fileSystem, string directory)
     {
         _ = fileSystem.Directory.CreateDirectory(directory);
@@ -249,6 +280,7 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
 
     private void OnErrorLine(string line)
     {
+        TaskCompletionSource<object?> changed;
         lock (_logGate)
         {
             _stderr.Enqueue(line);
@@ -256,8 +288,16 @@ internal sealed class CliWrapServerAdapter : IAsyncDisposable
             {
                 _ = _stderr.Dequeue();
             }
+
+            changed = _stderrChanged;
+            _stderrChanged = NewSignal();
         }
+
+        _ = changed.TrySetResult(null);
     }
+
+    private static TaskCompletionSource<object?> NewSignal() =>
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private static string GeneratePassword()
     {

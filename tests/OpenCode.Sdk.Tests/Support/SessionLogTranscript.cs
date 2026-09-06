@@ -2,14 +2,31 @@ using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk.Tests.Support;
 
-internal sealed class SessionLogTranscript(SessionClient session)
+internal sealed class SessionLogTranscript
 {
     private static readonly TimeSpan FollowWindow = TimeSpan.FromSeconds(120);
     private readonly List<ISessionLogItem> _liveItems = [];
     private readonly List<ISessionLogItem> _replayItems = [];
+    private readonly SessionClient? _session;
     private CancellationToken _callerToken;
     private IAsyncEnumerator<ISessionLogItem>? _enumerator;
     private CancellationTokenSource? _window;
+
+    public SessionLogTranscript(SessionClient session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        _session = session;
+    }
+
+    internal SessionLogTranscript(
+        IAsyncEnumerator<ISessionLogItem> enumerator,
+        CancellationTokenSource window)
+    {
+        ArgumentNullException.ThrowIfNull(enumerator);
+        ArgumentNullException.ThrowIfNull(window);
+        _enumerator = enumerator;
+        _window = window;
+    }
 
     public IReadOnlyList<ISessionLogItem> LiveItems => _liveItems;
 
@@ -26,7 +43,7 @@ internal sealed class SessionLogTranscript(SessionClient session)
         CancellationToken cancellationToken)
     {
         var items = new List<ISessionLogItem>();
-        await foreach (var item in session.GetLogAsync(request, cancellationToken))
+        await foreach (var item in Session.GetLogAsync(request, cancellationToken))
         {
             items.Add(item);
         }
@@ -44,7 +61,7 @@ internal sealed class SessionLogTranscript(SessionClient session)
         _callerToken = cancellationToken;
         _window = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _window.CancelAfter(FollowWindow);
-        _enumerator = session.GetLogAsync(
+        _enumerator = Session.GetLogAsync(
                 new SessionLogRequest { After = after, Follow = QueryBoolean.True },
                 _window.Token)
             .GetAsyncEnumerator(_window.Token);
@@ -95,7 +112,7 @@ internal sealed class SessionLogTranscript(SessionClient session)
         throw EndedBefore("the followed turn completed");
     }
 
-    public async Task DisposeAsync(CancellationToken cancellationToken)
+    public async Task DisposeAsync(CancellationToken _)
     {
         var enumerator = Interlocked.Exchange(ref _enumerator, null);
         var window = Interlocked.Exchange(ref _window, null);
@@ -104,12 +121,11 @@ internal sealed class SessionLogTranscript(SessionClient session)
             return;
         }
 
-        await window.CancelAsync();
         try
         {
             if (enumerator is not null)
             {
-                await enumerator.DisposeAsync().AsTask().WaitAsync(cancellationToken);
+                await enumerator.DisposeAsync();
             }
         }
         finally
@@ -117,6 +133,9 @@ internal sealed class SessionLogTranscript(SessionClient session)
             window.Dispose();
         }
     }
+
+    private SessionClient Session =>
+        _session ?? throw new InvalidOperationException("The injected transcript has no session client.");
 
     private async Task<bool> MoveNextAsync(string target)
     {

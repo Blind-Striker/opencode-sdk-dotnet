@@ -5,10 +5,12 @@ namespace OpenCode.Sdk.Tests.Support;
 internal sealed class OwnedSessionCleanup
 {
     internal const string FailuresKey = "OwnedSessionCleanup.Failures";
+    internal const string LateFailuresKey = "OwnedSessionCleanup.LateFailures";
 
     private readonly Func<CancellationToken, Task> _interrupt;
     private readonly Func<CancellationToken, Task> _remove;
-    private readonly List<Func<CancellationToken, Task>> _resources = [];
+    private readonly LateCleanupFailureReport _lateFailures = new();
+    private readonly List<KeyValuePair<string, Func<CancellationToken, Task>>> _resources = [];
     private readonly TimeSpan _timeout;
     private bool _turnCompleted;
 
@@ -43,19 +45,11 @@ internal sealed class OwnedSessionCleanup
 
     public void MarkTurnStarted() => _turnCompleted = false;
 
-    public void Own(Func<CancellationToken, Task> resourceCleanup)
+    public void Own(string name, Func<CancellationToken, Task> resourceCleanup)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(resourceCleanup);
-        _resources.Add(resourceCleanup);
-    }
-
-    public OwnedOperation<T> Own<T>(Func<Task<T>> start, Func<Task> cancel)
-    {
-        ArgumentNullException.ThrowIfNull(start);
-        ArgumentNullException.ThrowIfNull(cancel);
-        var operation = new OwnedOperation<T>(start, cancel);
-        _resources.Add(operation.CleanupAsync);
-        return operation;
+        _resources.Add(new KeyValuePair<string, Func<CancellationToken, Task>>(name, resourceCleanup));
     }
 
     public async Task CompleteAsync(Exception? primaryFailure)
@@ -63,34 +57,51 @@ internal sealed class OwnedSessionCleanup
         var failures = new List<Exception>();
         foreach (var cleanup in _resources)
         {
-            await CaptureFailureAsync(cleanup, failures);
+            await CaptureFailureAsync(cleanup.Key, cleanup.Value, failures);
         }
 
         if (!_turnCompleted)
         {
-            await CaptureFailureAsync(_interrupt, failures);
+            await CaptureFailureAsync("session interrupt", _interrupt, failures);
         }
 
-        await CaptureFailureAsync(_remove, failures);
+        await CaptureFailureAsync("session removal", _remove, failures);
         ThrowFailures(primaryFailure, failures);
     }
 
     private async Task CaptureFailureAsync(
+        string name,
         Func<CancellationToken, Task> operation,
         List<Exception> failures)
     {
         using var budget = new CancellationTokenSource(_timeout);
+        Task? pending = null;
         try
         {
-            await operation(budget.Token);
+            pending = operation(budget.Token);
+            await pending.WaitAsync(budget.Token);
         }
         catch (Exception exception)
         {
             failures.Add(exception);
+            if (pending is { IsCompleted: false })
+            {
+                _lateFailures.Observe(name, pending);
+            }
+            else if (pending?.Exception is { } aggregate)
+            {
+                foreach (var failure in aggregate.Flatten().InnerExceptions)
+                {
+                    if (!ReferenceEquals(failure, exception))
+                    {
+                        failures.Add(failure);
+                    }
+                }
+            }
         }
     }
 
-    private static void ThrowFailures(Exception? primaryFailure, List<Exception> failures)
+    private void ThrowFailures(Exception? primaryFailure, List<Exception> failures)
     {
         if (primaryFailure is not null)
         {
@@ -99,17 +110,29 @@ internal sealed class OwnedSessionCleanup
                 primaryFailure.Data[FailuresKey] = new AggregateException(failures);
             }
 
+            AttachLateFailureReport(primaryFailure);
             ExceptionDispatchInfo.Capture(primaryFailure).Throw();
         }
 
         if (failures.Count is 1)
         {
+            AttachLateFailureReport(failures[0]);
             ExceptionDispatchInfo.Capture(failures[0]).Throw();
         }
 
         if (failures.Count > 1)
         {
-            throw new AggregateException("Multiple failures occurred while cleaning the session.", failures);
+            var aggregate = new AggregateException("Multiple failures occurred while cleaning the session.", failures);
+            AttachLateFailureReport(aggregate);
+            throw aggregate;
+        }
+    }
+
+    private void AttachLateFailureReport(Exception exception)
+    {
+        if (_lateFailures.HasRegistrations)
+        {
+            exception.Data[LateFailuresKey] = _lateFailures;
         }
     }
 }

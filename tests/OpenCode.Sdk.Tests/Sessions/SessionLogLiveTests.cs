@@ -109,8 +109,7 @@ public sealed class SessionLogLiveTests(SimulatedDriveServerFixture server)
         var session = client.Sessions.GetSessionClient(sessionId);
         var cleanup = new OwnedSessionCleanup(session, CleanupTimeout);
         var transcript = new SessionLogTranscript(session);
-        cleanup.Own(transcript.DisposeAsync);
-        using var turnCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cleanup.Own("session log enumerator", transcript.DisposeAsync);
         Exception? primaryFailure = null;
 
         try
@@ -136,12 +135,12 @@ public sealed class SessionLogLiveTests(SimulatedDriveServerFixture server)
 
             cleanup.MarkTurnStarted();
             var followedTurn = new SimulatedSessionTurn(server, client, session, sessionId);
-            var secondTurn = cleanup.Own(
-                () => followedTurn.CompleteAsync(FollowSecondPrompt, FollowSecondReply, turnCancellation.Token),
-                turnCancellation.CancelAsync);
-            await transcript.ReadTurnAsync(sessionId, FollowSecondReply);
-            var terminal = await secondTurn.CompleteAsync();
+            var terminal = await followedTurn.CompleteAsync(
+                FollowSecondPrompt,
+                FollowSecondReply,
+                cancellationToken);
             cleanup.MarkTurnCompleted();
+            await transcript.ReadTurnAsync(sessionId, FollowSecondReply);
 
             await Assert.That(transcript.TextEnded).IsNotNull();
             await Assert.That(transcript.Succeeded).IsNotNull();
