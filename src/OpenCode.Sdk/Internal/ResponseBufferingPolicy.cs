@@ -90,6 +90,17 @@ internal sealed class ResponseBufferingPolicy : PipelinePolicy
         {
             throw FailureClassification.Map(exception, FailurePhase.ResponseBodyRead, message.CancellationToken);
         }
+        catch (Exception exception) when (progress.IsCancellationRequested)
+        {
+            // The interruption above disposed the content while HttpContent's own buffering path
+            // was still materializing it; the BCL then fails with whatever its torn-down state
+            // yields rather than ObjectDisposedException. Knowledge source: on .NET 10 the buffer
+            // is a pooled stream that Dispose returns, and the read stream is then built over a
+            // null array (ArgumentNullException) when disposal lands mid-materialization. The
+            // interruption is the cause, so the fault is classified as one — caller cancellation
+            // or the window expiring.
+            throw FailureClassification.MapFault(exception, FailurePhase.ResponseBodyRead, message.CancellationToken);
+        }
     }
 
     private async Task<ResponseBody> CopyToPooledAsync(Stream body, long? declaredLength,

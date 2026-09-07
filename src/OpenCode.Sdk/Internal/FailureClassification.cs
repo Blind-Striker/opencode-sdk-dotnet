@@ -56,6 +56,20 @@ internal static class FailureClassification
                 : new OpenCodeTransportException(TimeoutMessage(phase), exception);
         }
 
+        return MapFault(exception, phase, cancellationToken);
+    }
+
+    /// <summary>
+    /// Classifies a non-cancellation fault against the caller's token: the shared tail of
+    /// <see cref="Map"/>, and the whole mapping for a fault the phase's own interruption caused.
+    /// Once the SDK has interrupted a phase itself — disposing the content under a cancelled
+    /// progress window — whatever the BCL throws afterwards is a consequence of that
+    /// interruption, not a new fault, and needs no place in <see cref="Handles"/>.
+    /// </summary>
+    public static Exception MapFault(Exception exception, FailurePhase phase, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
         return cancellationToken.IsCancellationRequested
             ? new OperationCanceledException(CanceledMessage(phase), exception, cancellationToken)
             : new OpenCodeTransportException(FaultMessage(phase), exception);
