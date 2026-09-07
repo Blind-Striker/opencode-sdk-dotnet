@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using OpenCode.Sdk.Models;
 using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
@@ -40,19 +41,15 @@ public sealed class EventsClientLiveTests(PinnedOpenCodeServerFixture server)
 
         var nonce = "rpc-event-live-" + Guid.NewGuid().ToString("N");
         var reader = new OwnedEventReader(EventWait, CleanupTimeout, cancellationToken);
-        var connected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var events = new RpcObservedEvents(ObservedEventType, nonce, reader);
-        var observedTask = events.CompleteAsync(client.Events.SubscribeAsync(reader.Token), connected);
+        var probe = new SessionEventProbe(reader);
         Exception? primaryFailure = null;
 
         try
         {
-            var attached = await Task.WhenAny(connected.Task, observedTask);
-            if (attached == observedTask)
-            {
-                _ = await observedTask;
-                throw new InvalidOperationException("The event subscription ended before server.connected.");
-            }
+            // The subscription is attached before the emit call, so the proof rests on a causal
+            // barrier rather than on replay.
+            probe.Start(client.Events.SubscribeAsync(reader.Token));
+            await probe.WaitForConnectedAsync(cancellationToken);
 
             var emitted = await client.Rpc.CallAsync(
                 TestRpcPlugin.Id,
@@ -64,9 +61,13 @@ public sealed class EventsClientLiveTests(PinnedOpenCodeServerFixture server)
             var output = emitted.Call.Output ?? throw new InvalidOperationException("The emit response had no output.");
             await Assert.That(output.GetProperty("nonce").GetString()).IsEqualTo(nonce);
 
-            var observed = await observedTask;
-            await Assert.That(observed.Type).IsEqualTo(ObservedEventType);
-            await Assert.That(observed.Data["nonce"].GetString()).IsEqualTo(nonce);
+            using var barrier = SessionEventProbe.Barrier(cancellationToken);
+            var observed = await probe.WaitForAsync<EventRpc>(
+                rpc => string.Equals(rpc.Type, ObservedEventType, StringComparison.Ordinal)
+                    && rpc.Data.TryGetValue("nonce", out var carried)
+                    && carried.ValueKind == JsonValueKind.String
+                    && string.Equals(carried.GetString(), nonce, StringComparison.Ordinal),
+                "the rpc event '" + ObservedEventType + "' carrying the nonce", barrier.Token);
             await Assert.That(observed.Data.Count).IsEqualTo(1);
             await Assert.That(observed.Location.Directory).IsEqualTo(resolved.Directory);
             await Assert.That(observed.Location.WorkspaceId).IsEqualTo(resolved.WorkspaceId);
@@ -83,7 +84,7 @@ public sealed class EventsClientLiveTests(PinnedOpenCodeServerFixture server)
             primaryFailure = exception;
             if (!exception.Data.Contains(EventDiagnosticSummary.DataKey))
             {
-                exception.Data[EventDiagnosticSummary.DataKey] = events.DiagnosticSummary;
+                exception.Data[EventDiagnosticSummary.DataKey] = probe.DiagnosticSummary;
             }
         }
         finally

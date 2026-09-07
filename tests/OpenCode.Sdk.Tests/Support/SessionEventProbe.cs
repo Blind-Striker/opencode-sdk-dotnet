@@ -7,9 +7,14 @@ namespace OpenCode.Sdk.Tests.Support;
 /// order for subsequence assertions, the connected frame is signalled so a caller can act only
 /// once the subscription is attached, and typed barriers wait for the first event matching a
 /// predicate, already retained or still to come. The loop runs until the owning reader ends it.
+/// Every wait races that loop, so a reader that faults or a subscription that ends reports its own
+/// cause at once instead of expiring a barrier on an event that can never arrive.
 /// </summary>
 internal sealed class SessionEventProbe
 {
+    /// <summary>The bound this probe gives one typed event barrier.</summary>
+    private static readonly TimeSpan BarrierWait = TimeSpan.FromSeconds(60);
+
     private readonly OwnedEventReader _reader;
     private readonly EventDiagnosticSummary _summary = new();
     private readonly List<IEvent> _events = [];
@@ -41,6 +46,17 @@ internal sealed class SessionEventProbe
         }
     }
 
+    /// <summary>
+    /// One bounded barrier for this probe's waits. A caller settling several correlated events in
+    /// sequence shares a single barrier, so the whole sequence has one budget rather than one each.
+    /// </summary>
+    public static CancellationTokenSource Barrier(CancellationToken cancellationToken)
+    {
+        var barrier = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        barrier.CancelAfter(BarrierWait);
+        return barrier;
+    }
+
     /// <summary>Starts the single reader; the caller awaits <see cref="WaitForConnectedAsync"/> before acting.</summary>
     public void Start(IAsyncEnumerable<IEvent> events)
     {
@@ -58,7 +74,7 @@ internal sealed class SessionEventProbe
     /// </summary>
     public async Task WaitForConnectedAsync(CancellationToken cancellationToken)
     {
-        var loop = _loop ?? throw new InvalidOperationException("The event probe has not started.");
+        var loop = RunningLoop();
         var attached = await Task.WhenAny(_connected.Task, loop).WaitAsync(cancellationToken);
         if (attached != loop)
         {
@@ -81,18 +97,33 @@ internal sealed class SessionEventProbe
 
     /// <summary>
     /// The first event of <typeparamref name="T"/> matching <paramref name="predicate"/>, retained
-    /// already or arriving later; a wait that ends by cancellation reports what did arrive.
+    /// already or arriving later.
     /// </summary>
-    public async Task<T> WaitForAsync<T>(Func<T, bool> predicate, string description, CancellationToken cancellationToken)
+    public Task<T> WaitForAsync<T>(Func<T, bool> predicate, string description, CancellationToken cancellationToken)
+        where T : IEvent =>
+        WaitForAsync(predicate, description, after: null, cancellationToken);
+
+    /// <summary>
+    /// The same barrier restricted to what arrived after <paramref name="after"/>, an event this
+    /// probe returned earlier. An earlier match belongs to something that preceded that anchor and
+    /// must not settle this wait.
+    /// </summary>
+    public async Task<T> WaitForAsync<T>(
+        Func<T, bool> predicate,
+        string description,
+        IEvent? after,
+        CancellationToken cancellationToken)
         where T : IEvent
     {
         ArgumentNullException.ThrowIfNull(predicate);
         ArgumentException.ThrowIfNullOrWhiteSpace(description);
 
-        var scanned = 0;
+        var loop = RunningLoop();
+        var scanned = after is null ? 0 : IndexAfter(after);
+        var ended = false;
         while (true)
         {
-            Task signal;
+            Task arrival;
             lock (_gate)
             {
                 for (; scanned < _events.Count; scanned++)
@@ -103,19 +134,55 @@ internal sealed class SessionEventProbe
                     }
                 }
 
-                signal = _arrival.Task;
+                arrival = _arrival.Task;
             }
 
+            // The loop stopped and everything it delivered has now been scanned.
+            if (ended)
+            {
+                throw new InvalidOperationException(
+                    $"The event subscription ended before any event satisfied '{description}'. " +
+                    $"Events: {DiagnosticSummary}.");
+            }
+
+            Task settled;
             try
             {
-                await signal.WaitAsync(cancellationToken);
+                settled = await Task.WhenAny(arrival, loop).WaitAsync(cancellationToken);
             }
-            catch (OperationCanceledException exception)
+            catch (OperationCanceledException exception) when (!_reader.CallerCancellationRequested)
             {
                 throw new TimeoutException(
                     $"No event satisfied '{description}' before the wait ended. Events: {DiagnosticSummary}.", exception);
             }
+
+            if (settled == loop)
+            {
+                // A faulted reader surfaces its own cause here rather than as a barrier expiry.
+                await loop;
+                ended = true;
+            }
         }
+    }
+
+    private Task RunningLoop() =>
+        _loop ?? throw new InvalidOperationException("The event probe has not started.");
+
+    /// <summary>The retained position just past an anchor this probe returned earlier.</summary>
+    private int IndexAfter(IEvent anchor)
+    {
+        lock (_gate)
+        {
+            for (var index = 0; index < _events.Count; index++)
+            {
+                if (ReferenceEquals(_events[index], anchor))
+                {
+                    return index + 1;
+                }
+            }
+        }
+
+        throw new InvalidOperationException("The anchor event was never observed by this probe.");
     }
 
     private async Task ObserveAsync(IAsyncEnumerable<IEvent> events)

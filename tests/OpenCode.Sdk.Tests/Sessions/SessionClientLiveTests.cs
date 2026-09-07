@@ -33,19 +33,15 @@ public sealed class SessionClientLiveTests(SimulatedDriveServerFixture server)
         var sourceSession = sourceClient.Sessions.GetSessionClient(sessionId);
         var cleanup = CreateCleanup(sourceSession, sessionId);
         var reader = new OwnedEventReader(EventWait, CleanupTimeout, cancellationToken);
-        var connected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var events = new SessionMoveEvents(sessionId, destination.Path, reader);
-        var movedTask = events.CompleteAsync(sourceClient.Events.SubscribeAsync(reader.Token), connected);
+        var probe = new SessionEventProbe(reader);
         Exception? primaryFailure = null;
 
         try
         {
-            var attached = await Task.WhenAny(connected.Task, movedTask);
-            if (attached == movedTask)
-            {
-                _ = await movedTask;
-                throw new InvalidOperationException("The event subscription ended before server.connected.");
-            }
+            // The subscription is attached before the move is admitted, so the applied event is
+            // observed by construction rather than by racing the subscription.
+            probe.Start(sourceClient.Events.SubscribeAsync(reader.Token));
+            await probe.WaitForConnectedAsync(cancellationToken);
 
             var admitted = await sourceSession.PostMoveAsync(
                 new SessionMovePostRequest { Directory = destination.Path },
@@ -53,17 +49,19 @@ public sealed class SessionClientLiveTests(SimulatedDriveServerFixture server)
             await Assert.That(admitted.Status).IsEqualTo(204);
             await Assert.That(admitted.IsError).IsFalse();
 
-            var moved = await movedTask;
-            await Assert.That(moved.Data.SessionId).IsEqualTo(sessionId);
-            await Assert.That(moved.Data.Location.Directory).IsEqualTo(destination.Path);
+            using var barrier = SessionEventProbe.Barrier(cancellationToken);
+            var moved = await probe.WaitForAsync<SessionMoved>(
+                applied => applied.Data.SessionId == sessionId
+                    && applied.Data.Location.Directory == destination.Path,
+                "session.moved carrying the owned session at the destination", barrier.Token);
             await Assert.That(moved.Data.ProjectId).IsNotEmpty();
 
             var destinationSession = destinationClient.Sessions.GetSessionClient(sessionId);
-            var applied = await destinationSession.GetSessionAsync(cancellationToken: cancellationToken);
-            await Assert.That(applied.Status).IsEqualTo(200);
-            await Assert.That(applied.Session.Id).IsEqualTo(sessionId);
-            await Assert.That(applied.Session.Location.Directory).IsEqualTo(destination.Path);
-            await Assert.That(applied.Session.ProjectId).IsEqualTo(moved.Data.ProjectId);
+            var read = await destinationSession.GetSessionAsync(cancellationToken: cancellationToken);
+            await Assert.That(read.Status).IsEqualTo(200);
+            await Assert.That(read.Session.Id).IsEqualTo(sessionId);
+            await Assert.That(read.Session.Location.Directory).IsEqualTo(destination.Path);
+            await Assert.That(read.Session.ProjectId).IsEqualTo(moved.Data.ProjectId);
 
             Console.WriteLine(
                 "session-move-live: admission=" + Number(admitted.Status) +
@@ -74,7 +72,7 @@ public sealed class SessionClientLiveTests(SimulatedDriveServerFixture server)
             primaryFailure = exception;
             if (!exception.Data.Contains(EventDiagnosticSummary.DataKey))
             {
-                exception.Data[EventDiagnosticSummary.DataKey] = events.DiagnosticSummary;
+                exception.Data[EventDiagnosticSummary.DataKey] = probe.DiagnosticSummary;
             }
         }
         finally

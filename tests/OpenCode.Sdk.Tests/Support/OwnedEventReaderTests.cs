@@ -111,12 +111,11 @@ public sealed class OwnedEventReaderTests
     public async Task CompleteAsync_Should_Accept_Only_Its_Own_Cooperative_Reader_Cancellation()
     {
         var owner = new OwnedEventReader(TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(1), CancellationToken.None, new OperationDeadlineScenario().Deadline);
-        var pending = owner.Start(async token =>
-        {
-            var cancellation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            using var registration = token.Register(() => _ = cancellation.TrySetCanceled(token));
-            _ = await cancellation.Task;
-        });
+        var cancellation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var token = owner.Token;
+        using var registration = token.Register(() => _ = cancellation.TrySetCanceled(token));
+        Task pending = cancellation.Task;
+        owner.Own(pending);
 
         await owner.CompleteAsync(null);
 

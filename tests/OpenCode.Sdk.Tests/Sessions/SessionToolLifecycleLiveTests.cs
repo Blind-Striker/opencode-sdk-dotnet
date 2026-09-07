@@ -39,8 +39,7 @@ public sealed class SessionToolLifecycleLiveTests(SimulatedDriveServerFixture se
 
             await scenario.FailToolAsync(tool, failureMessage);
 
-            using var barrier = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            barrier.CancelAfter(OwnedToolScenario.BarrierWait);
+            using var barrier = SessionEventProbe.Barrier(cancellationToken);
             var failed = await scenario.Probe.WaitForAsync<SessionToolFailed>(
                 failed => failed.Data.SessionId == sessionId && failed.Data.Id == OwnedToolScenario.DriveCallId,
                 "session.tool.failed for call_drive", barrier.Token);
@@ -99,8 +98,7 @@ public sealed class SessionToolLifecycleLiveTests(SimulatedDriveServerFixture se
             var waited = await scenario.Session.PostWaitAsync(cancellationToken: cancellationToken);
             await Assert.That(waited.Status).IsEqualTo(204);
 
-            using var barrier = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            barrier.CancelAfter(OwnedToolScenario.BarrierWait);
+            using var barrier = SessionEventProbe.Barrier(cancellationToken);
             var failed = await scenario.Probe.WaitForAsync<SessionToolFailed>(
                 failed => failed.Data.SessionId == sessionId && failed.Data.Id == OwnedToolScenario.DriveCallId,
                 "session.tool.failed (aborted) for call_drive", barrier.Token);

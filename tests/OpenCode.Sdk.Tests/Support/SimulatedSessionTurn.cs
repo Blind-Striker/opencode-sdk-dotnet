@@ -3,6 +3,11 @@ using OpenCode.Sdk.TestSupport;
 
 namespace OpenCode.Sdk.Tests.Support;
 
+/// <summary>
+/// One scripted turn against the simulated server: the subscription is attached before the prompt,
+/// the drive controller answers the model request with the caller's reply, and the turn is settled
+/// from the live event bus rather than by polling.
+/// </summary>
 internal sealed class SimulatedSessionTurn(
     SimulatedDriveServerFixture server,
     OpenCodeClient client,
@@ -11,6 +16,7 @@ internal sealed class SimulatedSessionTurn(
 {
     private const string SimulatedModelId = "sim-model";
     private static readonly TimeSpan EventWait = TimeSpan.FromSeconds(120);
+    private static readonly TimeSpan CleanupTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan RequestWait = TimeSpan.FromSeconds(60);
 
     public async Task<SessionExecutionSucceeded> CompleteAsync(
@@ -18,20 +24,14 @@ internal sealed class SimulatedSessionTurn(
         string reply,
         CancellationToken cancellationToken)
     {
-        var reader = new OwnedEventReader(EventWait, TimeSpan.FromSeconds(15), cancellationToken);
-        var connected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var events = new ScriptedTurnEvents(reply, sessionId, reader);
-        var eventTask = events.CompleteAsync(client.Events.SubscribeAsync(reader.Token), connected);
+        var reader = new OwnedEventReader(EventWait, CleanupTimeout, cancellationToken);
+        var probe = new SessionEventProbe(reader);
         Exception? primaryFailure = null;
 
         try
         {
-            var attached = await Task.WhenAny(connected.Task, eventTask);
-            if (attached == eventTask)
-            {
-                _ = await eventTask;
-                throw new InvalidOperationException("The event subscription ended before server.connected.");
-            }
+            probe.Start(client.Events.SubscribeAsync(reader.Token));
+            await probe.WaitForConnectedAsync(cancellationToken);
 
             _ = await session.PostPromptAsync(
                 new SessionPromptPostRequest { Text = prompt },
@@ -49,18 +49,37 @@ internal sealed class SimulatedSessionTurn(
                 () => server.Controller.FinishAsync(invocation.Id),
                 "finishing the model turn");
 
-            return await eventTask;
+            return await SettleAsync(probe, reply, cancellationToken);
         }
         catch (Exception exception)
         {
             primaryFailure = exception;
-            exception.Data[EventDiagnosticSummary.DataKey] = events.DiagnosticSummary;
+            exception.Data[EventDiagnosticSummary.DataKey] = probe.DiagnosticSummary;
             throw;
         }
         finally
         {
             await reader.CompleteAsync(primaryFailure);
         }
+    }
+
+    /// <summary>
+    /// The scripted reply's text end, then the success that followed it. Anchoring the second wait
+    /// keeps a success that preceded the reply, which belongs to some other execution, from
+    /// settling this turn.
+    /// </summary>
+    private async Task<SessionExecutionSucceeded> SettleAsync(
+        SessionEventProbe probe,
+        string reply,
+        CancellationToken cancellationToken)
+    {
+        using var barrier = SessionEventProbe.Barrier(cancellationToken);
+        var ended = await probe.WaitForAsync<SessionTextEnded>(
+            text => text.Data.SessionId == sessionId && text.Data.Text == reply,
+            "session.text.ended carrying the scripted reply", barrier.Token);
+        return await probe.WaitForAsync<SessionExecutionSucceeded>(
+            executed => executed.Data.SessionId == sessionId,
+            "session.execution.succeeded for the owned session", ended, barrier.Token);
     }
 
     private static void RequireSimulatedInvocation(DriveInvocation invocation)
@@ -96,5 +115,4 @@ internal sealed class SimulatedSessionTurn(
             throw new TimeoutException($"The drive controller was torn down while {description}.", exception);
         }
     }
-
 }

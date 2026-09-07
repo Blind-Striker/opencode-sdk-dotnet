@@ -23,9 +23,6 @@ internal sealed class OwnedToolScenario
     internal const string DriveCallId = "call_drive";
     internal const string ReadCallId = "call_read";
 
-    /// <summary>The bound a consuming test gives one typed event barrier.</summary>
-    internal static readonly TimeSpan BarrierWait = TimeSpan.FromSeconds(60);
-
     private static readonly TimeSpan EventWait = TimeSpan.FromSeconds(180);
     private static readonly TimeSpan CleanupTimeout = TimeSpan.FromSeconds(15);
 

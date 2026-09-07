@@ -9,8 +9,6 @@ internal sealed class OwnedEventReader
     private readonly CancellationTokenSource _window;
     private readonly CancellationToken _eventToken;
     private readonly OwnedCleanup _cleanup;
-    private readonly TimeSpan _observationWindow;
-    private readonly IOwnedOperationDeadline _deadline;
     private bool _teardownCancellation;
     private Task _reader = Task.CompletedTask;
     private Task _cancellation = Task.CompletedTask;
@@ -19,53 +17,25 @@ internal sealed class OwnedEventReader
         IOwnedOperationDeadline? deadline = null)
     {
         _callerToken = callerToken;
-        _observationWindow = observationWindow;
         _window = CancellationTokenSource.CreateLinkedTokenSource(callerToken);
         _eventToken = _window.Token;
         _window.CancelAfter(observationWindow);
-        _deadline = deadline ?? new OwnedOperationDeadline();
-        _cleanup = new OwnedCleanup(cleanupTimeout, _deadline);
+        _cleanup = new OwnedCleanup(cleanupTimeout, deadline ?? new OwnedOperationDeadline());
     }
 
     public CancellationToken Token => _eventToken;
+
+    /// <summary>
+    /// Whether the caller's own token fired. A wait that ends this way is a cancellation and keeps
+    /// that identity; only the reader's own window expiring is a timeout.
+    /// </summary>
+    public bool CallerCancellationRequested => _callerToken.IsCancellationRequested;
 
     public LateCleanupFailureReport? LateFailures => _cleanup.LateFailures;
 
     public bool IsTeardownCancellation(OperationCanceledException exception) =>
         _teardownCancellation && !_callerToken.IsCancellationRequested
         && exception.CancellationToken == Token && Token.IsCancellationRequested;
-
-    public bool ObservationTimedOut(OperationCanceledException exception) =>
-        !_callerToken.IsCancellationRequested && Token.IsCancellationRequested
-        && !IsTeardownCancellation(exception);
-
-    public Task<T> Start<T>(Func<CancellationToken, Task<T>> read)
-    {
-        ArgumentNullException.ThrowIfNull(read);
-        var pending = Task.Run(() => read(Token), CancellationToken.None);
-        _reader = pending;
-        return ObserveAsync(pending);
-    }
-
-    public Task Start(Func<CancellationToken, Task> read)
-    {
-        ArgumentNullException.ThrowIfNull(read);
-        var pending = Task.Run(() => read(Token), CancellationToken.None);
-        _reader = pending;
-        return ObserveAsync(pending);
-    }
-
-    private async Task<T> ObserveAsync<T>(Task<T> pending)
-    {
-        await _deadline.WaitAsync("event observation", pending, _observationWindow, _callerToken);
-        return await pending;
-    }
-
-    private async Task ObserveAsync(Task pending)
-    {
-        await _deadline.WaitAsync("event observation", pending, _observationWindow, _callerToken);
-        await pending;
-    }
 
     public void Own(Task reader)
     {
@@ -97,5 +67,4 @@ internal sealed class OwnedEventReader
                 TaskScheduler.Default);
         }
     }
-
 }

@@ -40,8 +40,7 @@ public sealed class SessionToolPermissionLiveTests(SimulatedDriveServerFixture s
             await Assert.That(OwnedToolScenario.RequireToolResult(second, OwnedToolScenario.DriveCallId)).Contains(nonce);
             await scenario.ScriptToolCallAsync(second, OwnedToolScenario.ReadCallId, "read", new JsonObject { ["path"] = "." });
 
-            using var barrier = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            barrier.CancelAfter(OwnedToolScenario.BarrierWait);
+            using var barrier = SessionEventProbe.Barrier(cancellationToken);
             var readCalled = await scenario.Probe.WaitForAsync<SessionToolCalled>(
                 called => called.Data.SessionId == sessionId && called.Data.Id == OwnedToolScenario.ReadCallId,
                 "session.tool.called for call_read", barrier.Token);
