@@ -41,7 +41,7 @@ internal sealed class OperationDeadlineScenario
         _operations.Enqueue(operation);
         if (_deadlines.TryGetValue(name, out var deadline))
         {
-            await deadline.WaitAsync();
+            await deadline.WaitAsync(operation);
             return;
         }
 

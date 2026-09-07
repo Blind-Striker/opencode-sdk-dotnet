@@ -6,9 +6,11 @@ namespace OpenCode.Sdk.Tests;
 
 /// <summary>
 /// Pins the failure-path log-retention contract: a real <see cref="PinnedOpenCodeServerFixture"/>
-/// failures retain bounded stdout/stderr and identity beneath the results root, beyond the lower-level
-/// adapter's own in-memory buffers. Drives the fixture itself (its internal command-override
-/// seam), not the shared per-session instance the other fixture tests share.
+/// failure retains bounded stdout/stderr and identity beneath the results root, beyond the
+/// launcher's own in-memory collector. Drives the fixture itself (its internal command-override
+/// seam), not the shared per-session instance the other fixture tests share. Where a proof holds
+/// the fixture's teardown deadline, it first waits for the owned server's actual disposal to
+/// settle, so the final output it reads back is the launcher's final collection.
 /// </summary>
 [NotInParallel(ParallelConstraintKeys.ServerProcess)]
 public sealed class PinnedOpenCodeServerFixtureFailureTests
@@ -122,87 +124,35 @@ public sealed class PinnedOpenCodeServerFixtureFailureTests
 
     [Test]
     [Timeout(30_000)]
-    public async Task DisposeAsync_Should_Report_An_Unconfirmed_Forced_Exit_Without_A_Body_Failure(CancellationToken cancellationToken)
+    public async Task DisposeAsync_Should_Report_A_Teardown_Timeout_Without_A_Body_Failure(CancellationToken cancellationToken)
     {
         var scenario = new ServerDiagnosticScenario();
-        var grace = scenario.Deadlines.Hold("pinned server graceful exit");
-        var forced = scenario.Deadlines.Hold("pinned server forced exit");
+        var teardown = scenario.Deadlines.Hold("pinned server teardown");
         await using var fixture = scenario.CreateFixture();
         var completion = Task.CompletedTask;
         try
         {
             await fixture.InitializeAsync();
             completion = fixture.DisposeAsync().AsTask();
-            await grace.Entered.WaitAsync(cancellationToken);
-            _ = await fixture.Adapter.WaitForErrorLineAsync("FINAL-STDERR", cancellationToken);
-            grace.Release();
-            await forced.Entered.WaitAsync(cancellationToken);
-            forced.Release();
+            await teardown.Entered.WaitAsync(cancellationToken);
+
+            // The owned server's disposal runs on regardless of the held deadline; let it settle
+            // (its final output is then collected) before the controlled timeout is delivered.
+            _ = await Task.WhenAny(await teardown.Operation);
+            teardown.Expire();
+            await teardown.Won.WaitAsync(cancellationToken);
+            teardown.Deliver();
 
             var observed = await Assert.That(async () => await completion).Throws<TimeoutException>();
-            await Assert.That(observed!.Message).Contains("pinned server forced exit");
-            await Assert.That(observed.InnerException).IsSameReferenceAs(forced.Failure);
+            await Assert.That(observed!.Message).Contains("pinned server teardown");
+            await Assert.That(observed.InnerException).IsSameReferenceAs(teardown.Failure);
             await fixture.DrainDiagnosticsAsync(cancellationToken);
             await Assert.That(await scenario.ReadLogAsync(fixture, "stderr.log")).Contains("FINAL-STDERR");
-            await Assert.That(await scenario.ReadMetadataAsync(fixture)).Contains("pinned server forced exit");
+            await Assert.That(await scenario.ReadMetadataAsync(fixture)).Contains("pinned server teardown");
         }
         finally
         {
             await scenario.DisposeFixtureAsync(fixture, completion);
-        }
-    }
-
-    [Test]
-    [Arguments(StartupDiagnosticMode.InvalidReadiness)]
-    [Arguments(StartupDiagnosticMode.ReadinessTimeout)]
-    [Arguments(StartupDiagnosticMode.CallerCancellation)]
-    [Arguments(StartupDiagnosticMode.EarlyExit)]
-    [Timeout(30_000)]
-    public async Task StartAsync_Should_Preserve_Startup_Failure_When_Teardown_Also_Times_Out(
-        StartupDiagnosticMode mode, CancellationToken cancellationToken)
-    {
-        var scenario = new ServerDiagnosticScenario();
-        var deadline = scenario.Deadlines.Hold("pinned server startup teardown");
-        using var caller = new CancellationTokenSource();
-        if (mode is StartupDiagnosticMode.CallerCancellation)
-        {
-            await caller.CancelAsync();
-        }
-
-        CliWrapServerAdapter? adapter = null;
-        var startup = scenario.StartAdapterAsync(mode, created => adapter = created, caller.Token);
-        try
-        {
-            await deadline.Entered.WaitAsync(cancellationToken);
-            var ownedAdapter = adapter ?? throw new InvalidOperationException("The startup adapter was not constructed.");
-            _ = await ownedAdapter.WaitForErrorLineAsync("FINAL-STDERR", cancellationToken);
-            deadline.Expire();
-            await deadline.Won.WaitAsync(cancellationToken);
-            deadline.Deliver();
-
-            var failure = await Assert.That(async () => await startup).ThrowsException();
-            if (mode is StartupDiagnosticMode.CallerCancellation)
-            {
-                await Assert.That(failure).IsTypeOf<OperationCanceledException>();
-                await Assert.That(((OperationCanceledException)failure!).CancellationToken).IsEqualTo(caller.Token);
-            }
-            else
-            {
-                await Assert.That(failure).IsTypeOf<InvalidOperationException>();
-            }
-
-            var secondary = failure!.Data[OwnedCleanup.FailuresKey] as AggregateException;
-            await Assert.That(secondary!.InnerExceptions.OfType<TimeoutException>().Single().InnerException)
-                .IsSameReferenceAs(deadline.Failure);
-            await Assert.That(failure.Data["PinnedServer.StartupLogs"] as string).Contains("FINAL-STDERR");
-        }
-        finally
-        {
-            await scenario.Deadlines.DrainAsync(startup);
-            if (adapter is not null)
-            {
-                await adapter.DisposeAsync();
-            }
         }
     }
 
@@ -250,7 +200,10 @@ public sealed class PinnedOpenCodeServerFixtureFailureTests
             fixture.MarkFailure(primary, "controlled teardown", "pty-phase=initial READY");
             completion = fixture.DisposeAsync().AsTask();
             await deadline.Entered.WaitAsync(cancellationToken);
-            _ = await fixture.Adapter.WaitForErrorLineAsync("FINAL-STDERR", cancellationToken);
+
+            // Let the owned server's disposal settle so its final output is collected, then
+            // deliver the controlled teardown timeout on top of the body failure.
+            _ = await Task.WhenAny(await deadline.Operation);
             deadline.Expire();
             await deadline.Won.WaitAsync(cancellationToken);
             deadline.Deliver();
@@ -276,8 +229,8 @@ public sealed class PinnedOpenCodeServerFixtureFailureTests
         await using var fixture = scenario.CreateFixture("Server.exited-diagnostic-peer.js");
         try
         {
-            var startup = await Assert.That(fixture.InitializeAsync).Throws<InvalidOperationException>();
-            var disposal = await Assert.That(async () => await fixture.DisposeAsync()).Throws<InvalidOperationException>();
+            var startup = await Assert.That(fixture.InitializeAsync).Throws<OpenCodeServerException>();
+            var disposal = await Assert.That(async () => await fixture.DisposeAsync()).Throws<OpenCodeServerException>();
             await Assert.That(disposal).IsSameReferenceAs(startup);
             await Assert.That(await scenario.ReadLogAsync(fixture, "stderr.log")).Contains("FINAL-STDERR");
             await Assert.That(await scenario.ReadMetadataAsync(fixture)).Contains("phase=server startup");

@@ -27,32 +27,25 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
 
     private readonly RealFileSystem _fileSystem = new();
     private readonly IGitProcess _gitProcess = new GitProcess();
-    private CliWrapServerAdapter? _adapter;
+    private OpenCodeServer? _server;
+    private OpenCodeServerOutput? _output;
     private DriveController? _controller;
-    private string? _postReadinessDiagnostic;
-    private string? _preReadinessDiagnostic;
     private TestRunRoot? _runRoot;
     private bool _retainLogs;
     private ServerFailureArtifacts? _artifacts;
     private int _disposed;
-    public Uri Endpoint => Adapter.Endpoint;
+    public Uri Endpoint => Server.Endpoint;
 
     public int Order => 0;
 
     internal DriveController Controller =>
         _controller ?? throw new InvalidOperationException("The fixture has not initialized.");
 
-    internal CliWrapServerAdapter Adapter =>
-        _adapter ?? throw new InvalidOperationException("The fixture has not initialized.");
+    internal OpenCodeServer Server =>
+        _server ?? throw new InvalidOperationException("The fixture has not initialized.");
 
     internal TestRunRoot RunRoot =>
         _runRoot ?? throw new InvalidOperationException("The fixture has not initialized.");
-
-    internal string PostReadinessDiagnostic =>
-        _postReadinessDiagnostic ?? throw new InvalidOperationException("The fixture has not captured readiness diagnostics.");
-
-    internal string PreReadinessDiagnostic =>
-        _preReadinessDiagnostic ?? throw new InvalidOperationException("The fixture has not captured readiness diagnostics.");
 
     public async Task InitializeAsync()
     {
@@ -80,49 +73,25 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
     /// </summary>
     private async Task<DriveController> StartAsync(TestRunRoot runRoot)
     {
-        var registry = runRoot.CreateSubdirectory("drive");
-        var persistentHost = new PersistentSimulationServerCommand(_fileSystem);
-        var command = persistentHost.Resolve();
         using var gate = await DrivePortGate.AcquireAsync(_fileSystem, GateTimeout);
-        var manifest = DriveManifest.Write(_fileSystem, registry);
-        var environment = ServerIsolation.Environment(_fileSystem, runRoot.Path);
-        environment["OPENCODE_SIMULATE"] = "1";
-        environment["OPENCODE_DRIVE"] = manifest.InstanceName;
-        environment["DRIVE_REGISTRY_DIR"] = registry;
-        environment["OPENCODE_CONFIG_CONTENT"] = SimulationConfigSeed.Json;
-        environment["OPENCODE_LOG_LEVEL"] = "INFO";
-        environment["OPENCODE_PRINT_LOGS"] = "1";
-        _adapter = await CliWrapServerAdapter.StartAsync(
-            command,
-            environment,
+        var launch = SimulatedServerLaunch.Prepare(_fileSystem, runRoot);
 
-            // Anchored at the pinned CLI package for the same reason
-            // PinnedOpenCodeServerFixture is: bun resolves the monorepo's workspace and tsconfig
-            // from the process working directory, not from the absolute entry-file path, and a
-            // scratch directory outside the checkout fails the source run before readiness. Every
-            // global root the server touches stays isolated through the environment above
-            // regardless of this directory.
-            _fileSystem.Path.Combine(
-                persistentHost.RepositoryRoot, "external", "opencode", "packages", "cli"),
-            ReadinessTimeout,
-
-            // Captured the instant the adapter object exists so a startup failure still has
-            // stdout/stderr to write out on teardown; StartAsync disposes its own local on every
-            // failure path but never returns it (PinnedOpenCodeServerFixture, same reason).
-            onConstructed: created => _adapter = created);
-
-        // Capture the two startup milestones while they are current. The adapter intentionally
-        // retains only a bounded stderr tail, so a later test class must not depend on finding old
-        // lines after other per-session consumers have produced more diagnostics.
-        using (var diagnosticWindow = new CancellationTokenSource(ControllerTimeout))
+        // The collector exists before the start and stays readable when the start fails, so a
+        // startup failure still has stdout/stderr to write out on teardown.
+        _output = new OpenCodeServerOutput();
+        _server = await OpenCodeServer.StartAsync(new OpenCodeServerOptions
         {
-            _preReadinessDiagnostic = await _adapter.WaitForErrorLineAsync(
-                "persistent simulation host starting",
-                diagnosticWindow.Token);
-            _postReadinessDiagnostic = await _adapter.WaitForErrorLineAsync(
-                "persistent simulation host ready",
-                diagnosticWindow.Token);
-        }
+            Command = launch.Command,
+            WorkingDirectory = launch.WorkingDirectory,
+            Environment = launch.Environment,
+            ReadinessTimeout = ReadinessTimeout,
+
+            // The source-run host needs longer than the launcher's 3-second default to leave on
+            // stdin EOF; ten seconds is the policy the retired test adapter already applied.
+            GracefulShutdownTimeout = TimeSpan.FromSeconds(10),
+            Output = _output,
+        });
+        var manifest = launch.Manifest;
 
         // The backend control socket is already listening when the readiness line is printed -
         // simulation builds the network layer eagerly at server start (backend/index.ts,
@@ -135,8 +104,8 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
     public OpenCodeClient CreateClient(LocationSelector? location = null) =>
         new(new OpenCodeClientOptions
         {
-            Endpoint = Adapter.Endpoint,
-            Password = Adapter.Password,
+            Endpoint = Server.Endpoint,
+            Password = Server.Password,
             Location = location,
         });
 
@@ -189,12 +158,15 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
             teardown.Own("simulation controller teardown", async _ => await _controller.DisposeAsync());
         }
 
-        if (_adapter is not null)
+        if (_server is not null && _output is not null)
         {
-            teardown.Own("simulated server teardown", async _ => await _adapter.DisposeAsync());
+            teardown.Own("simulated server teardown", async _ => await _server.DisposeAsync());
+
+            // Runs after the teardown above has settled, so the collector is final: the last
+            // milestone is written only once the stdin lease is released.
             teardown.Own("simulated server diagnostic contract", _ =>
             {
-                EnsureDiagnosticContract(_adapter);
+                EnsureDiagnosticContract(_server, _output);
                 return Task.CompletedTask;
             });
         }
@@ -218,7 +190,7 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
 
             var capture = new ServerFailureCapture(
                 Artifacts, _fileSystem, new OwnedOperationDeadline());
-            failure = await capture.CaptureAsync(_adapter, external: false, failure, teardown.OperationFailures);
+            failure = await capture.CaptureAsync(_output, _server?.ProcessId, external: false, failure, teardown.OperationFailures);
             Console.WriteLine("Simulated server diagnostics: " + Artifacts.Directory);
         }
 
@@ -236,32 +208,32 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
     private bool ShouldRetainLogs => _retainLogs || _artifacts?.Failures.Count > 0 || string.Equals(
         Environment.GetEnvironmentVariable("OPENCODE_SDK_TESTS_KEEP_LOGS"), "1", StringComparison.Ordinal);
 
-    private void EnsureDiagnosticContract(CliWrapServerAdapter adapter)
+    private static void EnsureDiagnosticContract(OpenCodeServer server, OpenCodeServerOutput output)
     {
+        var snapshot = output.GetSnapshot();
         var missing = new List<string>();
-        if (_preReadinessDiagnostic is null)
+        foreach (var milestone in new[]
+                 {
+                     "persistent simulation host starting",
+                     "persistent simulation host ready",
+                     "persistent simulation host stdin closed",
+                 })
         {
-            missing.Add("persistent simulation host starting");
-        }
-
-        if (_postReadinessDiagnostic is null)
-        {
-            missing.Add("persistent simulation host ready");
-        }
-
-        if (!adapter.HasErrorLine("persistent simulation host stdin closed"))
-        {
-            missing.Add("persistent simulation host stdin closed");
+            if (!snapshot.StandardError.Any(line => line.Contains(milestone, StringComparison.Ordinal)))
+            {
+                missing.Add(milestone);
+            }
         }
 
         if (missing.Count > 0)
         {
             throw new InvalidOperationException(
-                "The persistent simulation host did not retain diagnostics: " + string.Join(", ", missing) + ".");
+                "The persistent simulation host did not retain diagnostics: " + string.Join(", ", missing) +
+                " (stderr truncated: " + snapshot.StandardErrorTruncated + ").");
         }
 
         Console.WriteLine(
             "Persistent simulation host retained pre-readiness, post-readiness, and stdin-EOF diagnostics for process " +
-            adapter.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture) + ".");
+            server.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture) + ".");
     }
 }

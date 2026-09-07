@@ -40,24 +40,6 @@ internal sealed class ServerDiagnosticScenario
 
     public OperationDeadlineScenario Deadlines { get; } = new();
 
-    public async Task StartAdapterAsync(StartupDiagnosticMode mode, Action<CliWrapServerAdapter> constructed,
-        CancellationToken cancellationToken)
-    {
-        var fixture = mode switch
-        {
-            StartupDiagnosticMode.InvalidReadiness => "invalid-diagnostic-peer.js",
-            StartupDiagnosticMode.EarlyExit => "exited-diagnostic-peer.js",
-            StartupDiagnosticMode.CallerCancellation or StartupDiagnosticMode.ReadinessTimeout => "silent-diagnostic-peer.js",
-            _ => throw new ArgumentOutOfRangeException(nameof(mode)),
-        };
-        await using var adapter = await CliWrapServerAdapter.StartAsync(
-            ["bun", "-e", _fixtures.LoadText("Server." + fixture)],
-            new Dictionary<string, string>(StringComparer.Ordinal),
-            new PinnedServerCommand(_fileSystem).RepositoryRoot,
-            mode is StartupDiagnosticMode.ReadinessTimeout ? TimeSpan.Zero : TimeSpan.FromSeconds(10),
-            onConstructed: constructed, deadline: Deadlines.Deadline, cancellationToken: cancellationToken);
-    }
-
     public PinnedOpenCodeServerFixture CreateFixture(string peer = "Server.diagnostic-peer.js") => new(
         ["bun", "-e", _fixtures.LoadText(peer)],
         new PinnedServerCommand(_fileSystem).RepositoryRoot,
