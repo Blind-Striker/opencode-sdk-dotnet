@@ -21,6 +21,14 @@ internal sealed partial class SimulationConfigSeed
     internal const string ModelName = "Simulated Model";
     internal const string PermissionProbeAction = "sdk.live.permission";
     internal const string PermissionProbeAgentId = "permission-probe";
+
+    /// <summary>
+    /// The agent whose builtin <c>read</c> is gated by a real permission prompt: the live tool
+    /// proofs run their session under it so the read tool's own <c>permission.assert</c> parks
+    /// execution until the SDK replies.
+    /// </summary>
+    internal const string ReadAskAgentId = "c16";
+    internal const string ReadPermissionAction = "read";
     internal const string ProviderId = "sim";
     internal const string ProviderName = "Simulated";
     internal const string ProviderPackage = "@opencode-ai/ai/providers/openai-compatible";
@@ -40,6 +48,18 @@ internal sealed partial class SimulationConfigSeed
                         new PermissionRule
                         {
                             Action = PermissionProbeAction,
+                            Resource = "*",
+                            Effect = PermissionEffect.Ask,
+                        },
+                    ],
+                },
+                [ReadAskAgentId] = new AgentConfiguration
+                {
+                    Permissions =
+                    [
+                        new PermissionRule
+                        {
+                            Action = ReadPermissionAction,
                             Resource = "*",
                             Effect = PermissionEffect.Ask,
                         },

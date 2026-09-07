@@ -8,9 +8,10 @@ namespace OpenCode.Sdk.TestSupport;
 /// <summary>
 /// The repository-owned drive controller (design §7.4): a WebSocket JSON-RPC client for the
 /// simulation backend. One JSON-RPC message per WebSocket text message
-/// (control-server.ts:149-169); responses correlate by numeric id; llm.request arrives as an
-/// id-less notification (simulated-provider.ts:334). Every wait is bounded — an unattached or
-/// wedged controller must fail the suite fast, never hang it.
+/// (control-server.ts:149-169); responses correlate by numeric id; llm.request,
+/// tool.invocation, and tool.cancel arrive as id-less notifications, each on its own FIFO so
+/// one kind can never be mistaken for another. Every wait is bounded — an unattached or wedged
+/// controller must fail the suite fast, never hang it.
 /// </summary>
 internal sealed class DriveController : IAsyncDisposable
 {
@@ -21,8 +22,9 @@ internal sealed class DriveController : IAsyncDisposable
 
     private readonly ClientWebSocket _socket;
     private readonly ConcurrentDictionary<long, TaskCompletionSource<JsonDocument>> _responses = new();
-    private readonly ConcurrentQueue<DriveInvocation> _invocations = new();
-    private readonly SemaphoreSlim _invocationSignal = new(0);
+    private readonly DriveNotificationQueue<DriveInvocation> _requests = new("llm.request");
+    private readonly DriveNotificationQueue<DriveToolInvocation> _toolInvocations = new("tool.invocation");
+    private readonly DriveNotificationQueue<DriveToolCancellation> _toolCancellations = new("tool.cancel");
     private readonly SemaphoreSlim _sendGate = new(1, 1);
     private readonly CancellationTokenSource _lifetime = new();
     private readonly Task _receiveLoop;
@@ -90,17 +92,53 @@ internal sealed class DriveController : IAsyncDisposable
         }
     }
 
-    public async Task<DriveInvocation> WaitForRequestAsync(TimeSpan timeout)
-    {
-        if (!await _invocationSignal.WaitAsync(timeout, _lifetime.Token))
-        {
-            throw new TimeoutException(
-                $"No llm.request arrived within {timeout.TotalSeconds.ToString("F0", CultureInfo.InvariantCulture)}s.{DescribeLoopState()}");
-        }
+    public Task<DriveInvocation> WaitForRequestAsync(TimeSpan timeout) =>
+        _requests.DequeueAsync(timeout, DescribeLoopState, _lifetime.Token);
 
-        return _invocations.TryDequeue(out var invocation)
-            ? invocation
-            : throw new InvalidOperationException("The invocation signal fired without a queued invocation.");
+    public Task<DriveToolInvocation> WaitForToolInvocationAsync(TimeSpan timeout) =>
+        _toolInvocations.DequeueAsync(timeout, DescribeLoopState, _lifetime.Token);
+
+    public Task<DriveToolCancellation> WaitForToolCancellationAsync(TimeSpan timeout) =>
+        _toolCancellations.DequeueAsync(timeout, DescribeLoopState, _lifetime.Token);
+
+    /// <summary>Registers exactly these direct tools with the backend; an empty list resets the registration.</summary>
+    public async Task AttachToolsAsync(IReadOnlyList<DriveToolRegistration> tools)
+    {
+        ArgumentNullException.ThrowIfNull(tools);
+
+        using var response = await RoundTripAsync(id => DriveProtocol.ToolAttach(id, tools), "tool.attach");
+        if (!response.RootElement.GetProperty("result").GetProperty("attached").GetBoolean())
+        {
+            throw new InvalidOperationException("The drive backend refused the tool registration.");
+        }
+    }
+
+    public async Task ChunkToolCallAsync(string invocationId, string callId, string name, JsonElement input)
+    {
+        using var response = await RoundTripAsync(
+            id => DriveProtocol.ChunkToolCall(id, invocationId, callId, name, input), "llm.chunk");
+        EnsureOk(response, "llm.chunk");
+    }
+
+    public async Task UpdateToolAsync(string toolId, int sequence, JsonElement update)
+    {
+        using var response = await RoundTripAsync(
+            id => DriveProtocol.ToolUpdate(id, toolId, sequence, update), "tool.update");
+        EnsureOk(response, "tool.update");
+    }
+
+    public async Task FinishToolAsync(string toolId, JsonElement structured, string text)
+    {
+        using var response = await RoundTripAsync(
+            id => DriveProtocol.ToolFinish(id, toolId, structured, text), "tool.finish");
+        EnsureOk(response, "tool.finish");
+    }
+
+    public async Task FailToolAsync(string toolId, string message)
+    {
+        using var response = await RoundTripAsync(
+            id => DriveProtocol.ToolFail(id, toolId, message), "tool.fail");
+        EnsureOk(response, "tool.fail");
     }
 
     public async Task ChunkTextAsync(string invocationId, params string[] deltas)
@@ -175,6 +213,9 @@ internal sealed class DriveController : IAsyncDisposable
             // second pass able to release them.
             _socket.Dispose();
             _lifetime.Dispose();
+            _requests.Dispose();
+            _toolInvocations.Dispose();
+            _toolCancellations.Dispose();
         }
     }
 
@@ -381,15 +422,41 @@ internal sealed class DriveController : IAsyncDisposable
 
         using (document)
         {
-            if (root.TryGetProperty("method", out var method) &&
-                string.Equals(method.GetString(), "llm.request", StringComparison.Ordinal))
+            if (!root.TryGetProperty("method", out var method))
             {
-                var parameters = root.GetProperty("params");
-                _invocations.Enqueue(new DriveInvocation(
-                    parameters.GetProperty("id").GetString()!,
-                    parameters.GetProperty("url").GetString()!,
-                    ReadModel(parameters)));
-                _ = _invocationSignal.Release();
+                return;
+            }
+
+            var parameters = root.GetProperty("params");
+            switch (method.GetString())
+            {
+                case "llm.request":
+                    _requests.Enqueue(new DriveInvocation(
+                        parameters.GetProperty("id").GetString()!,
+                        parameters.GetProperty("url").GetString()!,
+                        ReadModel(parameters),
+                        parameters.TryGetProperty("body", out var body) ? body.Clone() : default));
+                    break;
+                case "tool.invocation":
+                    var context = parameters.GetProperty("context");
+                    _toolInvocations.Enqueue(new DriveToolInvocation(
+                        parameters.GetProperty("id").GetString()!,
+                        parameters.GetProperty("name").GetString()!,
+                        parameters.GetProperty("input").Clone(),
+                        context.GetProperty("sessionID").GetString()!,
+                        context.GetProperty("agent").GetString()!,
+                        context.GetProperty("messageID").GetString()!,
+                        context.GetProperty("id").GetString()!));
+                    break;
+                case "tool.cancel":
+                    _toolCancellations.Enqueue(new DriveToolCancellation(
+                        parameters.GetProperty("id").GetString()!,
+                        parameters.GetProperty("reason").GetString()!));
+                    break;
+                default:
+                    // Other notifications are not this controller's business; they are neither
+                    // queued nor faulted on.
+                    break;
             }
         }
     }

@@ -4,9 +4,11 @@ namespace OpenCode.Sdk.TestSupport;
 
 /// <summary>
 /// Composes the drive backend's JSON-RPC requests (protocol source of truth:
-/// packages/protocol/src/simulation.ts at the pin — Handshake.Params :98-107, ChunkParams :549,
-/// FinishParams :552, DisconnectParams :564; llm.attach/llm.pending carry no params :576-579).
-/// Every request carries a numeric id: id-less requests get no response (simulation.ts:46-49).
+/// packages/protocol/src/simulation.ts at the pin — Handshake.Params, the model Item union,
+/// ToolRegistration/ToolAttachParams, ToolUpdateParams, ToolFinishParams, ToolFailParams;
+/// llm.attach/llm.pending carry no params). Every request carries a numeric id: id-less
+/// requests get no response. Supplied <see cref="JsonElement"/> values are written with
+/// <see cref="JsonElement.WriteTo"/>, never as encoded strings.
 /// </summary>
 internal static class DriveProtocol
 {
@@ -27,6 +29,12 @@ internal static class DriveProtocol
             writer.WriteStringValue("llm.request");
             writer.WriteStringValue("llm.chunk");
             writer.WriteStringValue("llm.finish");
+            writer.WriteStringValue("tool.attach");
+            writer.WriteStringValue("tool.update");
+            writer.WriteStringValue("tool.finish");
+            writer.WriteStringValue("tool.fail");
+            writer.WriteStringValue("tool.invocation");
+            writer.WriteStringValue("tool.cancel");
             writer.WriteEndArray();
             writer.WriteStartArray("optionalCapabilities");
             writer.WriteEndArray();
@@ -50,6 +58,93 @@ internal static class DriveProtocol
             }
 
             writer.WriteEndArray();
+            writer.WriteEndObject();
+        });
+
+    /// <summary>The canonical single <c>toolCall</c> model item: the simulator lowers it to a real streamed tool call.</summary>
+    public static byte[] ChunkToolCall(long id, string invocationId, string callId, string name, JsonElement input) =>
+        Compose(id, "llm.chunk", writer =>
+        {
+            writer.WriteStartObject("params");
+            writer.WriteString("id", invocationId);
+            writer.WriteStartArray("items");
+            writer.WriteStartObject();
+            writer.WriteString("type", "toolCall");
+            writer.WriteNumber("index", 0);
+            writer.WriteString("id", callId);
+            writer.WriteString("name", name);
+            writer.WritePropertyName("input");
+            input.WriteTo(writer);
+            writer.WriteEndObject();
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+        });
+
+    public static byte[] ToolAttach(long id, IReadOnlyList<DriveToolRegistration> tools) =>
+        Compose(id, "tool.attach", writer =>
+        {
+            writer.WriteStartObject("params");
+            writer.WriteStartArray("tools");
+            foreach (var tool in tools)
+            {
+                writer.WriteStartObject();
+                writer.WriteString("name", tool.Name);
+                writer.WriteString("description", tool.Description);
+                writer.WritePropertyName("inputSchema");
+                tool.InputSchema.WriteTo(writer);
+                if (tool.OutputSchema is { } output)
+                {
+                    writer.WritePropertyName("outputSchema");
+                    output.WriteTo(writer);
+                }
+
+                // Direct tools only: no namespace, and codemode off so the model calls the tool
+                // by its registered name.
+                writer.WriteStartObject("options");
+                writer.WriteBoolean("codemode", false);
+                writer.WriteEndObject();
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+        });
+
+    public static byte[] ToolUpdate(long id, string toolId, int sequence, JsonElement update) =>
+        Compose(id, "tool.update", writer =>
+        {
+            writer.WriteStartObject("params");
+            writer.WriteString("id", toolId);
+            writer.WriteNumber("sequence", sequence);
+            writer.WritePropertyName("update");
+            update.WriteTo(writer);
+            writer.WriteEndObject();
+        });
+
+    public static byte[] ToolFinish(long id, string toolId, JsonElement structured, string text) =>
+        Compose(id, "tool.finish", writer =>
+        {
+            writer.WriteStartObject("params");
+            writer.WriteString("id", toolId);
+            writer.WriteStartObject("output");
+            writer.WritePropertyName("structured");
+            structured.WriteTo(writer);
+            writer.WriteStartArray("content");
+            writer.WriteStartObject();
+            writer.WriteString("type", "text");
+            writer.WriteString("text", text);
+            writer.WriteEndObject();
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+            writer.WriteEndObject();
+        });
+
+    public static byte[] ToolFail(long id, string toolId, string message) =>
+        Compose(id, "tool.fail", writer =>
+        {
+            writer.WriteStartObject("params");
+            writer.WriteString("id", toolId);
+            writer.WriteString("message", message);
             writer.WriteEndObject();
         });
 

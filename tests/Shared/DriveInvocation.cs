@@ -1,10 +1,11 @@
+using System.Text.Json;
+
 namespace OpenCode.Sdk.TestSupport;
 
 /// <summary>
-/// One provider invocation pushed by the drive backend's llm.request notification.
-/// <paramref name="Model"/> is the model id read out of the provider request body, and is what
-/// discriminates one invocation from another when several share a chat route: the url alone
-/// cannot tell a scripted turn's request apart from a background model call the server made on
-/// its own. It is nullable because the body is provider shaped rather than protocol shaped.
+/// An <c>llm.request</c> notification: the pending provider invocation the controller answers
+/// through chunk/finish, the provider route it targets, the model the provider request named
+/// (null when the provider-shaped body carries none), and the cloned request body itself, so a
+/// proof can require the real content the model loop resumed with.
 /// </summary>
-internal sealed record DriveInvocation(string Id, string Url, string? Model);
+internal sealed record DriveInvocation(string Id, string Url, string? Model, JsonElement Body);

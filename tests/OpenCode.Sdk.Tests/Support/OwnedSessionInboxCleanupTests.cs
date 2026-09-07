@@ -43,7 +43,7 @@ public sealed class OwnedSessionInboxCleanupTests
                     operations.Add("drive disconnect");
                     return Task.FromException(disconnectFailure);
                 }));
-        _ = cleanup.RetainInvocation(new DriveInvocation("unfinished", "https://example.test", "sim"));
+        _ = cleanup.RetainInvocation(new DriveInvocation("unfinished", "https://example.test", "sim", default));
         cleanup.RetainWait(wait.Task);
 
         var thrown = await Assert.That(() => cleanup.CompleteAsync(primary)).Throws<InvalidOperationException>();
@@ -73,8 +73,8 @@ public sealed class OwnedSessionInboxCleanupTests
             _ => Task.CompletedTask,
             _ => Task.CompletedTask,
             invocation => CreateInvocation(invocation, disconnected));
-        var finished = cleanup.RetainInvocation(new DriveInvocation("finished", "https://example.test", "sim"));
-        _ = cleanup.RetainInvocation(new DriveInvocation("unfinished", "https://example.test", "sim"));
+        var finished = cleanup.RetainInvocation(new DriveInvocation("finished", "https://example.test", "sim", default));
+        _ = cleanup.RetainInvocation(new DriveInvocation("unfinished", "https://example.test", "sim", default));
         await finished.FinishAsync();
 
         var thrown = await Assert.That(() => cleanup.CompleteAsync(null)).Throws<InvalidOperationException>();
@@ -94,7 +94,7 @@ public sealed class OwnedSessionInboxCleanupTests
             _ => Task.CompletedTask,
             _ => Task.CompletedTask,
             invocation => CreateInvocation(invocation, disconnected));
-        _ = cleanup.RetainInvocation(new DriveInvocation("unfinished", "https://example.test", "sim"));
+        _ = cleanup.RetainInvocation(new DriveInvocation("unfinished", "https://example.test", "sim", default));
 
         var thrown = await Assert.That(() => cleanup.CompleteAsync(primary)).Throws<InvalidOperationException>();
 
