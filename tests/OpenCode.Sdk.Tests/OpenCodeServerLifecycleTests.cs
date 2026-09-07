@@ -84,6 +84,7 @@ public sealed class OpenCodeServerLifecycleTests
         var processId = server.ProcessId;
 
         await server.DisposeAsync();
+        // A second disposal is a no-op by contract; this is the idempotence proof, not a stray line.
         await server.DisposeAsync();
 
         await Assert.That(IsProcessRunning(processId)).IsFalse();
@@ -132,15 +133,7 @@ public sealed class OpenCodeServerLifecycleTests
             async () => _ = await scenario.WaitForStartupAsync(cancellationToken)).Throws<OpenCodeServerException>();
 
         await Assert.That(failure!.Message).Contains("did not report readiness");
-        // The direct child's exit is immediate: the startup result is returned only after it.
-        var rootExited = scenario.RootProcess.HasExited;
-        await Assert.That(rootExited).IsTrue().Because(rootExited ? string.Empty : await scenario.DescribeProcessesAsync());
-
-        // Bounded descendant termination evidence, both leases still held (disposal releases
-        // them, after this): a tree kill is asynchronous, so the grandchild is observed to
-        // terminate inside its own bound rather than asserted gone at that instant.
-        var descendantTerminated = await scenario.ObserveDescendantTerminationAsync(cancellationToken);
-        await Assert.That(descendantTerminated).IsTrue().Because(scenario.DescendantEvidence);
+        await AssertFailedStartEndedTheTreeAsync(scenario, cancellationToken);
     }
 
     [Test]
@@ -154,13 +147,23 @@ public sealed class OpenCodeServerLifecycleTests
             async () => _ = await scenario.WaitForStartupAsync(cancellationToken)).Throws<OpenCodeServerException>();
 
         await Assert.That(failure!.Message).Contains("readiness contract");
-        // The direct child's exit is immediate: the startup result is returned only after it.
+        await AssertFailedStartEndedTheTreeAsync(scenario, cancellationToken);
+    }
+
+    /// <summary>
+    /// The accepted completion contract after a failed start. The direct child's exit is
+    /// immediate: the startup result is returned only after it. The grandchild is bounded
+    /// descendant termination evidence, both leases still held (disposal releases them, after
+    /// this): a tree kill is asynchronous, so it is observed to terminate inside its own bound
+    /// rather than asserted gone at that instant.
+    /// </summary>
+    private static async Task AssertFailedStartEndedTheTreeAsync(
+        ServerStartupTreeScenario scenario,
+        CancellationToken cancellationToken)
+    {
         var rootExited = scenario.RootProcess.HasExited;
         await Assert.That(rootExited).IsTrue().Because(rootExited ? string.Empty : await scenario.DescribeProcessesAsync());
 
-        // Bounded descendant termination evidence, both leases still held (disposal releases
-        // them, after this): a tree kill is asynchronous, so the grandchild is observed to
-        // terminate inside its own bound rather than asserted gone at that instant.
         var descendantTerminated = await scenario.ObserveDescendantTerminationAsync(cancellationToken);
         await Assert.That(descendantTerminated).IsTrue().Because(scenario.DescendantEvidence);
     }
@@ -393,14 +396,6 @@ public sealed class OpenCodeServerLifecycleTests
 
         _ = await Assert.That(
             async () => _ = await scenario.WaitForStartupAsync(cancellationToken)).Throws<OperationCanceledException>();
-        // The direct child's exit is immediate: the startup result is returned only after it.
-        var rootExited = scenario.RootProcess.HasExited;
-        await Assert.That(rootExited).IsTrue().Because(rootExited ? string.Empty : await scenario.DescribeProcessesAsync());
-
-        // Bounded descendant termination evidence, both leases still held (disposal releases
-        // them, after this): a tree kill is asynchronous, so the grandchild is observed to
-        // terminate inside its own bound rather than asserted gone at that instant.
-        var descendantTerminated = await scenario.ObserveDescendantTerminationAsync(cancellationToken);
-        await Assert.That(descendantTerminated).IsTrue().Because(scenario.DescendantEvidence);
+        await AssertFailedStartEndedTheTreeAsync(scenario, cancellationToken);
     }
 }

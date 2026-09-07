@@ -212,7 +212,7 @@ internal sealed class ServerStartupTreeScenario : IAsyncDisposable
         if (_diagnosticEvidence is { } evidence)
         {
             throw new AggregateException(
-                "Startup tree cleanup failed after immediate exit observations failed. " + evidence, failures);
+                "Startup tree cleanup failed after an exit observation failed. " + evidence, failures);
         }
 
         if (failures.Count is 1)

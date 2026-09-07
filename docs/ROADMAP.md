@@ -118,3 +118,9 @@ is revisited at each boundary.
   defect: run the gates with `--report-trx --report-trx-filename <unique>` so a recurrence names it.
 - **`BuildOs`/`BuildArch` in `Directory.Build.props`** need their values adapted to opencode's
   release-asset naming when the binary-download need lands.
+- **The launcher's descendant-termination proof has a platform boundary.** The startup-tree tests
+  prove the direct child exits immediately and the grandchild terminates inside a ten-second bound
+  on the modern target frameworks (all three OSes) and on `net472` Windows (`taskkill /T`). The
+  downlevel non-Windows arm of the tree kill (a plain `Kill()`) is not exercised by any test project,
+  and the Linux/macOS behavior is established only by the three-OS CI run, never by a Windows-local
+  suite.
