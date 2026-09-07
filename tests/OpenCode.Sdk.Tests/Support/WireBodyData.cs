@@ -43,6 +43,10 @@ internal static class WireBodyData
     public const string WorktreeError =
         "{\"name\":\"WorktreeError\",\"data\":{\"message\":\"the worktree has uncommitted changes\",\"forceRequired\":true}}";
 
+    public const string Worktree = "{\"directory\":\"/repo/feature\"}";
+
+    public const string Worktrees = "[{\"directory\":\"/repo\",\"strategy\":\"branch\"},{\"directory\":\"/repo-2\"}]";
+
     public const string PermissionNotFoundError =
         "{\"_tag\":\"PermissionNotFoundError\",\"requestID\":\"req_9\",\"message\":\"gone\"}";
 

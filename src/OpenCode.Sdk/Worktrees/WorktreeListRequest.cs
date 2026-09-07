@@ -2,16 +2,12 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 namespace OpenCode.Sdk;
 /// <summary>
-/// Shapes the &apos;GET /api/fs/list&apos; query.
+/// Shapes the &apos;GET /api/worktree&apos; query.
 /// </summary>
-public sealed record FsListRequest
+public sealed record WorktreeListRequest
 {
     /// <summary>
     /// Gets the &apos;location&apos; query value; the server default applies when unset.
     /// </summary>
     public LocationSelector? Location { get; init; }
-    /// <summary>
-    /// An absolute path or a path relative to the requested location. Defaults to the location directory.
-    /// </summary>
-    public string? Path { get; init; }
 }

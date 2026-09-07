@@ -863,14 +863,14 @@
         }
         public static class Worktrees
         {
-            public const string CreateWorktreeTemplate = "/api/worktree/{projectID}";
-            public const string ListWorktreesTemplate = "/api/worktree/{projectID}";
-            public const string RefreshWorktreesTemplate = "/api/worktree/{projectID}/refresh";
-            public const string RemoveWorktreeTemplate = "/api/worktree/{projectID}";
-            public static string CreateWorktree(string projectId) { }
-            public static string ListWorktrees(string projectId) { }
-            public static string RefreshWorktrees(string projectId) { }
-            public static string RemoveWorktree(string projectId) { }
+            public const string CreateWorktreeTemplate = "/api/worktree";
+            public const string ListWorktreesTemplate = "/api/worktree";
+            public const string RefreshWorktreesTemplate = "/api/worktree/refresh";
+            public const string RemoveWorktreeTemplate = "/api/worktree";
+            public static string CreateWorktree(OpenCode.Sdk.Models.WorktreeCreateRequest? request = null) { }
+            public static string ListWorktrees(OpenCode.Sdk.WorktreeListRequest? request = null) { }
+            public static string RefreshWorktrees(OpenCode.Sdk.WorktreeRefreshPostRequest? request = null) { }
+            public static string RemoveWorktree(OpenCode.Sdk.Models.WorktreeRemoveRequest? request = null) { }
         }
     }
     public class OpenCodeServer : System.IAsyncDisposable
@@ -1182,14 +1182,6 @@
         public ProjectUpdatePatchResponse() { }
         public required OpenCode.Sdk.Models.Project Update { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
-    }
-    public class ProjectWorktreesClient
-    {
-        protected ProjectWorktreesClient() { }
-        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.WorktreeCreateResponse> CreateWorktreeAsync(OpenCode.Sdk.Models.WorktreeCreateRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.WorktreeListResponse> ListWorktreesAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.WorktreeRefreshPostResponse> RefreshWorktreesAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.WorktreeRemoveResponse> RemoveWorktreeAsync(OpenCode.Sdk.Models.WorktreeRemoveRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public class ProjectsClient
     {
@@ -1935,11 +1927,21 @@
         public required OpenCode.Sdk.Models.WorktreeInfo Worktree { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
+    public sealed class WorktreeListRequest : System.IEquatable<OpenCode.Sdk.WorktreeListRequest>
+    {
+        public WorktreeListRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
     public sealed class WorktreeListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.WorktreeListResponse>
     {
         public WorktreeListResponse() { }
         public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.WorktreeDirectory> Worktrees { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class WorktreeRefreshPostRequest : System.IEquatable<OpenCode.Sdk.WorktreeRefreshPostRequest>
+    {
+        public WorktreeRefreshPostRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
     }
     public sealed class WorktreeRefreshPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.WorktreeRefreshPostResponse>
     {
@@ -1952,7 +1954,10 @@
     public class WorktreesClient
     {
         protected WorktreesClient() { }
-        public virtual OpenCode.Sdk.ProjectWorktreesClient GetProjectWorktreesClient(string projectId) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.WorktreeCreateResponse> CreateWorktreeAsync(OpenCode.Sdk.Models.WorktreeCreateRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.WorktreeListResponse> ListWorktreesAsync(OpenCode.Sdk.WorktreeListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.WorktreeRefreshPostResponse> RefreshWorktreesAsync(OpenCode.Sdk.WorktreeRefreshPostRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.WorktreeRemoveResponse> RemoveWorktreeAsync(OpenCode.Sdk.Models.WorktreeRemoveRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
 }
 namespace OpenCode.Sdk.Models
@@ -4415,6 +4420,9 @@ namespace OpenCode.Sdk.Models
     {
         public ProjectUpdatePatchRequest() { }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("canonical")]
+        public string? Canonical { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("commands")]
         public OpenCode.Sdk.Models.ProjectCommands? Commands { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -5071,6 +5079,12 @@ namespace OpenCode.Sdk.Models
     public sealed class SessionCompactionEndedData : System.IEquatable<OpenCode.Sdk.Models.SessionCompactionEndedData>
     {
         public SessionCompactionEndedData() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("model")]
+        public OpenCode.Sdk.Models.ModelRef? Model { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("providerState")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? ProviderState { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("reason")]
         public required OpenCode.Sdk.Models.SessionCompactionEndedDataReason Reason { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("recent")]
@@ -5401,6 +5415,8 @@ namespace OpenCode.Sdk.Models
         Shutdown = 1,
         [System.Text.Json.Serialization.JsonStringEnumMemberName("superseded")]
         Superseded = 2,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("inactivity")]
+        Inactivity = 3,
     }
     public sealed class SessionExecutionInterruptedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionExecutionInterruptedDurable>
     {
@@ -6268,6 +6284,12 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("metadata")]
         public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("model")]
+        public OpenCode.Sdk.Models.ModelRef? Model { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("providerState")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? ProviderState { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("reason")]
         public required OpenCode.Sdk.Models.SessionMessageCompactionCompletedReason Reason { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("recent")]
@@ -9257,16 +9279,20 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("branch")]
         public string? Branch { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("directory")]
-        public required string Directory { get; init; }
+        public string? Directory { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("from")]
         public string? From { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("name")]
         public string? Name { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("strategy")]
-        public required string Strategy { get; init; }
+        public string? Strategy { get; init; }
     }
     public sealed class WorktreeDirectory : System.IEquatable<OpenCode.Sdk.Models.WorktreeDirectory>
     {
@@ -9307,6 +9333,8 @@ namespace OpenCode.Sdk.Models
         public required string Directory { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("force")]
         public required bool Force { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
     }
     public sealed class WorktreeResolved : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.WorktreeResolved>
     {

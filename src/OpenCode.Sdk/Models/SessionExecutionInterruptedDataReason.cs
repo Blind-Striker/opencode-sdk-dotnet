@@ -24,5 +24,10 @@ public enum SessionExecutionInterruptedDataReason
     /// Represents the &apos;superseded&apos; wire value.
     /// </summary>
     [JsonStringEnumMemberName("superseded")]
-    Superseded
+    Superseded,
+    /// <summary>
+    /// Represents the &apos;inactivity&apos; wire value.
+    /// </summary>
+    [JsonStringEnumMemberName("inactivity")]
+    Inactivity
 }

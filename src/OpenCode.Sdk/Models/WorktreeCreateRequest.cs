@@ -12,7 +12,8 @@ public sealed record WorktreeCreateRequest
     /// Gets the strategy value.
     /// </summary>
     [JsonPropertyName("strategy")]
-    public required string Strategy { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Strategy { get; init; }
 
     /// <summary>
     /// Gets the from value.
@@ -32,7 +33,8 @@ public sealed record WorktreeCreateRequest
     /// Gets the directory value.
     /// </summary>
     [JsonPropertyName("directory")]
-    public required string Directory { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Directory { get; init; }
 
     /// <summary>
     /// Gets the name value.
@@ -40,4 +42,10 @@ public sealed record WorktreeCreateRequest
     [JsonPropertyName("name")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Name { get; init; }
+
+    /// <summary>
+    /// Gets the &apos;location&apos; query value; the server default applies when unset.
+    /// </summary>
+    [JsonIgnore]
+    public LocationSelector? Location { get; init; }
 }

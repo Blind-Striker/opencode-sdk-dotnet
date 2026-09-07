@@ -152,9 +152,7 @@
     "worktree": {
       "placement": "client",
       "clientName": "Worktrees",
-      "handleName": "ProjectWorktreesClient",
-      "handleParameter": "projectID",
-      "reason": "The family's full pinned surface (list, create, remove, refresh) all chain on the same projectID, so ADR-0019's full-surface rule gives it a handle, and the whole surface is selected. The handle is keyed by a project id, not a worktree id, so it is named for what it actually holds: one project's worktree registry."
+      "reason": "The family's full pinned surface (list, create, remove, refresh) resolves the project through an optional location query and carries no required path id, so ADR-0019 yields a flat client. The whole surface is selected and retains the upstream worktree terminology."
     },
     "form": {
       "placement": "client",
@@ -328,7 +326,7 @@
     {
       "operationId": "v2.worktree.refresh",
       "methodName": "RefreshWorktreesAsync",
-      "reason": "The operation's own verb is refresh; the mechanical POST prefix is transport detail, not part of the reviewed surface, exactly like v2.credential.update's own 'update' verb. The subject is the project's worktrees in the plural, matching v2.worktree.list's reviewed subject in the same client family."
+      "reason": "The operation's own verb is refresh; the mechanical POST prefix is transport detail, not part of the reviewed surface. The plural subject matches ListWorktreesAsync in the same location-scoped client family."
     },
     {
       "operationId": "v2.rpc.call",

@@ -4,11 +4,11 @@ using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Internal.ResponseAdapters;
 /// <summary>
-/// Adapts the &apos;GET /api/worktree/{projectID}&apos; responses onto &apos;WorktreeListResponse&apos;.
+/// Adapts the &apos;GET /api/worktree&apos; responses onto &apos;WorktreeListResponse&apos;.
 /// </summary>
 internal sealed class WorktreeListResponseAdapter : ResponseAdapter<WorktreeListResponse>
 {
-    private static readonly string[] Status400Tags = ["InvalidRequestError"];
+    private static readonly string[] Status400Tags = ["InvalidRequestError", "WorktreeError"];
     private static readonly string[] Status401Tags = ["UnauthorizedError"];
     private WorktreeListResponseAdapter()
     {
