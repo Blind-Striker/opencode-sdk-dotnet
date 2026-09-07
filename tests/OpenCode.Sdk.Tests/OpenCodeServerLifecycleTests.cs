@@ -132,12 +132,15 @@ public sealed class OpenCodeServerLifecycleTests
             async () => _ = await scenario.WaitForStartupAsync(cancellationToken)).Throws<OpenCodeServerException>();
 
         await Assert.That(failure!.Message).Contains("did not report readiness");
-        // Take both immediate observations before any diagnostic I/O or fallback cleanup.
+        // The direct child's exit is immediate: the startup result is returned only after it.
         var rootExited = scenario.RootProcess.HasExited;
-        var childExited = scenario.ChildProcess.HasExited;
-        var evidence = rootExited && childExited ? string.Empty : await scenario.DescribeProcessesAsync();
-        await Assert.That(rootExited).IsTrue().Because(evidence);
-        await Assert.That(childExited).IsTrue().Because(evidence);
+        await Assert.That(rootExited).IsTrue().Because(rootExited ? string.Empty : await scenario.DescribeProcessesAsync());
+
+        // Bounded descendant termination evidence, both leases still held (disposal releases
+        // them, after this): a tree kill is asynchronous, so the grandchild is observed to
+        // terminate inside its own bound rather than asserted gone at that instant.
+        var descendantTerminated = await scenario.ObserveDescendantTerminationAsync(cancellationToken);
+        await Assert.That(descendantTerminated).IsTrue().Because(scenario.DescendantEvidence);
     }
 
     [Test]
@@ -151,12 +154,15 @@ public sealed class OpenCodeServerLifecycleTests
             async () => _ = await scenario.WaitForStartupAsync(cancellationToken)).Throws<OpenCodeServerException>();
 
         await Assert.That(failure!.Message).Contains("readiness contract");
-        // Take both immediate observations before any diagnostic I/O or fallback cleanup.
+        // The direct child's exit is immediate: the startup result is returned only after it.
         var rootExited = scenario.RootProcess.HasExited;
-        var childExited = scenario.ChildProcess.HasExited;
-        var evidence = rootExited && childExited ? string.Empty : await scenario.DescribeProcessesAsync();
-        await Assert.That(rootExited).IsTrue().Because(evidence);
-        await Assert.That(childExited).IsTrue().Because(evidence);
+        await Assert.That(rootExited).IsTrue().Because(rootExited ? string.Empty : await scenario.DescribeProcessesAsync());
+
+        // Bounded descendant termination evidence, both leases still held (disposal releases
+        // them, after this): a tree kill is asynchronous, so the grandchild is observed to
+        // terminate inside its own bound rather than asserted gone at that instant.
+        var descendantTerminated = await scenario.ObserveDescendantTerminationAsync(cancellationToken);
+        await Assert.That(descendantTerminated).IsTrue().Because(scenario.DescendantEvidence);
     }
 
     [Test]
@@ -387,11 +393,14 @@ public sealed class OpenCodeServerLifecycleTests
 
         _ = await Assert.That(
             async () => _ = await scenario.WaitForStartupAsync(cancellationToken)).Throws<OperationCanceledException>();
-        // Take both immediate observations before any diagnostic I/O or fallback cleanup.
+        // The direct child's exit is immediate: the startup result is returned only after it.
         var rootExited = scenario.RootProcess.HasExited;
-        var childExited = scenario.ChildProcess.HasExited;
-        var evidence = rootExited && childExited ? string.Empty : await scenario.DescribeProcessesAsync();
-        await Assert.That(rootExited).IsTrue().Because(evidence);
-        await Assert.That(childExited).IsTrue().Because(evidence);
+        await Assert.That(rootExited).IsTrue().Because(rootExited ? string.Empty : await scenario.DescribeProcessesAsync());
+
+        // Bounded descendant termination evidence, both leases still held (disposal releases
+        // them, after this): a tree kill is asynchronous, so the grandchild is observed to
+        // terminate inside its own bound rather than asserted gone at that instant.
+        var descendantTerminated = await scenario.ObserveDescendantTerminationAsync(cancellationToken);
+        await Assert.That(descendantTerminated).IsTrue().Because(scenario.DescendantEvidence);
     }
 }

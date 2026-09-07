@@ -330,6 +330,11 @@ operating system closes the lease even when the owner crashes before disposal ru
 with any other running server is safe by construction, since a started door never discovers or
 attaches to one.
 
+The forced-exit wait observes the directly owned process. A whole-tree kill is asynchronous: the
+direct process exiting does not guarantee that every descendant has finished exiting at that
+instant. Launcher acceptance separately proves bounded descendant termination before any test
+fallback cleanup.
+
 `CreateClient(Action<OpenCodeClientOptions>?)` pins the connection identity fail-closed: the
 delegate receives a fresh identity-unset options instance, and setting `Endpoint`, `Username`, or
 `Password` there is refused with `InvalidOperationException`. On success the door never mutates the

@@ -17,6 +17,13 @@ internal sealed class ServerStartupTreeScenario : IAsyncDisposable
 
     private static readonly TimeSpan CleanupTimeout = TimeSpan.FromSeconds(10);
 
+    /// <summary>
+    /// The bound inside which the already-observed descendant must terminate after the startup
+    /// result. A test observation bound of its own: it neither shares nor extends the launcher's
+    /// forced-exit budget, and no test-side signal, lease release, retry, or sleep can satisfy it.
+    /// </summary>
+    private static readonly TimeSpan DescendantTerminationBound = TimeSpan.FromSeconds(10);
+
     private readonly ServerStartupTreeHandshake _handshake = new(new RealFileSystem());
     private readonly string _mode;
     private readonly TimeSpan _readinessTimeout;
@@ -39,6 +46,9 @@ internal sealed class ServerStartupTreeScenario : IAsyncDisposable
     }
 
     public Process ChildProcess => _handshake.ChildProcess;
+
+    /// <summary>The evidence gathered when the descendant survived its bound; empty otherwise.</summary>
+    public string DescendantEvidence { get; private set; } = string.Empty;
 
     public Process RootProcess => _handshake.RootProcess;
 
@@ -74,6 +84,29 @@ internal sealed class ServerStartupTreeScenario : IAsyncDisposable
             _startupCancellation.Token);
         var observation = _observation;
         await observation.WaitAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Bounded descendant termination evidence with both leases still held: waits at most
+    /// <see cref="DescendantTerminationBound"/> for the observed grandchild to exit. A whole-tree
+    /// kill is asynchronous, so the direct process exiting proves nothing about this child at that
+    /// instant (client-runtime, Launcher); this never proves every descendant reaped at return.
+    /// </summary>
+    /// <returns>True when the descendant exited inside the bound; false with <see cref="DescendantEvidence"/> set.</returns>
+    public async Task<bool> ObserveDescendantTerminationAsync(CancellationToken cancellationToken)
+    {
+        using var bound = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        bound.CancelAfter(DescendantTerminationBound);
+        try
+        {
+            await _handshake.WaitForChildExitAsync(bound.Token);
+            return true;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            DescendantEvidence = await DescribeProcessesAsync();
+            return false;
+        }
     }
 
     public void ReleaseChildLease() => _handshake.ReleaseChild();
