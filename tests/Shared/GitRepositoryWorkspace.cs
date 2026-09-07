@@ -55,7 +55,7 @@ public sealed class GitRepositoryWorkspace : IDisposable
     public string WorktreeParentPath => _fileSystem.Path.Combine(Workspace.Path, WorktreeParentName);
 
     /// <summary>The fixed child name every create names; absent until the server creates it.</summary>
-    public static string WorktreeName => LinkedWorktreeName;
+    public const string WorktreeName = LinkedWorktreeName;
 
     /// <summary>The logical destination the linked worktree is expected at, for cleanup and existence checks.</summary>
     public string ExpectedWorktreePath => _fileSystem.Path.Combine(WorktreeParentPath, LinkedWorktreeName);

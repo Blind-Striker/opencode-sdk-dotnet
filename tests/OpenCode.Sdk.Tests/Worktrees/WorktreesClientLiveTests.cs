@@ -40,12 +40,7 @@ public sealed class WorktreesClientLiveTests(SimulatedDriveServerFixture server)
             await Assert.That(repository.OwnsDirectory(root.Directory)).IsTrue();
             await Assert.That(root.Strategy).IsNull();
 
-            var created = await client.Worktrees.CreateWorktreeAsync(
-                CreateRequest(repository, GitStrategy), cancellationToken: cancellationToken);
-            await Assert.That(created.Status).IsEqualTo(200);
-            await Assert.That(created.IsError).IsFalse();
-            await Assert.That(repository.OwnsWorktreeDirectory(created.Worktree.Directory)).IsTrue();
-            await Assert.That(repository.WorktreeExists).IsTrue();
+            var created = await CreateLinkedWorktreeAsync(client, repository, cancellationToken);
 
             var after = await client.Worktrees.ListWorktreesAsync(request, cancellationToken: cancellationToken);
             await Assert.That(after.Status).IsEqualTo(200);
@@ -90,12 +85,7 @@ public sealed class WorktreesClientLiveTests(SimulatedDriveServerFixture server)
         Exception? failure = null;
         try
         {
-            var created = await client.Worktrees.CreateWorktreeAsync(
-                CreateRequest(repository, GitStrategy), cancellationToken: cancellationToken);
-            await Assert.That(created.Status).IsEqualTo(200);
-            await Assert.That(created.IsError).IsFalse();
-            await Assert.That(repository.OwnsWorktreeDirectory(created.Worktree.Directory)).IsTrue();
-            await Assert.That(repository.WorktreeExists).IsTrue();
+            var created = await CreateLinkedWorktreeAsync(client, repository, cancellationToken);
             repository.WriteDirtyWorktreeFile();
 
             var remove = new WorktreeRemoveRequest
@@ -106,10 +96,7 @@ public sealed class WorktreesClientLiveTests(SimulatedDriveServerFixture server)
             };
             var refused = await client.Worktrees.RemoveWorktreeAsync(
                 remove, OpenCodeRequestOptions.NoThrow, cancellationToken);
-            await Assert.That(refused.Status).IsEqualTo(400);
-            await Assert.That(refused.IsError).IsTrue();
-            await Assert.That(refused.Error).IsTypeOf<WorktreeError>();
-            var error = refused.Error as WorktreeError ?? throw new InvalidOperationException("The WorktreeError arm was absent.");
+            var error = await RequireWorktreeErrorAsync(refused.Status, refused.IsError, refused.Error);
             await Assert.That(error.Data.ForceRequired).IsTrue();
             await Assert.That(string.IsNullOrWhiteSpace(error.Data.Message)).IsFalse();
             await Assert.That(string.IsNullOrWhiteSpace(refused.RawBody)).IsFalse();
@@ -156,10 +143,7 @@ public sealed class WorktreesClientLiveTests(SimulatedDriveServerFixture server)
         {
             var response = await client.Worktrees.CreateWorktreeAsync(
                 CreateRequest(repository, MissingStrategy), OpenCodeRequestOptions.NoThrow, cancellationToken);
-            await Assert.That(response.Status).IsEqualTo(400);
-            await Assert.That(response.IsError).IsTrue();
-            await Assert.That(response.Error).IsTypeOf<WorktreeError>();
-            var error = response.Error as WorktreeError ?? throw new InvalidOperationException("The WorktreeError arm was absent.");
+            var error = await RequireWorktreeErrorAsync(response.Status, response.IsError, response.Error);
             await Assert.That(error.Data.Message).IsEqualTo("Worktree strategy unavailable: " + MissingStrategy);
             await Assert.That(error.Data.ForceRequired).IsNull();
             await Assert.That(string.IsNullOrWhiteSpace(response.RawBody)).IsFalse();
@@ -173,6 +157,35 @@ public sealed class WorktreesClientLiveTests(SimulatedDriveServerFixture server)
         }
 
         await scenario.CompleteAsync(failure);
+    }
+
+    /// <summary>
+    /// Creates the linked Git worktree and proves the server created exactly the intended child:
+    /// the fixed name is observed absent first, the returned directory resolves to the owned
+    /// parent with that name, and the child physically exists afterwards.
+    /// </summary>
+    private static async Task<WorktreeCreateResponse> CreateLinkedWorktreeAsync(
+        OpenCodeClient client,
+        GitRepositoryWorkspace repository,
+        CancellationToken cancellationToken)
+    {
+        await Assert.That(repository.WorktreeExists).IsFalse();
+        var created = await client.Worktrees.CreateWorktreeAsync(
+            CreateRequest(repository, GitStrategy), cancellationToken: cancellationToken);
+        await Assert.That(created.Status).IsEqualTo(200);
+        await Assert.That(created.IsError).IsFalse();
+        await Assert.That(repository.OwnsWorktreeDirectory(created.Worktree.Directory)).IsTrue();
+        await Assert.That(repository.WorktreeExists).IsTrue();
+        return created;
+    }
+
+    /// <summary>The declared 400 <see cref="WorktreeError"/> arm, or a failure naming the arm that arrived instead.</summary>
+    private static async Task<WorktreeError> RequireWorktreeErrorAsync(int status, bool isError, IOpenCodeError? error)
+    {
+        await Assert.That(status).IsEqualTo(400);
+        await Assert.That(isError).IsTrue();
+        await Assert.That(error).IsTypeOf<WorktreeError>();
+        return error as WorktreeError ?? throw new InvalidOperationException("The WorktreeError arm was absent.");
     }
 
     /// <summary>
