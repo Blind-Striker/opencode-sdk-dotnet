@@ -52,7 +52,8 @@ Session; others aggregate elsewhere, such as worktree resolution on its Project.
 **Durable Session event stream**:
 One Session Aggregate's durable Event log, read back over SSE. `after` is an exclusive sequence
 taken from a durable envelope or a sync marker, `follow` continues into live Events, and a single
-`log.synced` marker separates replay from live. Retention remains unestablished.
+`log.synced` marker separates replay from live. The sequence is not contiguous, the log has no
+retention policy, and persistence is a server option that is off by default.
 _Avoid_: session events (ambiguous with the live stream)
 
 **Live event stream**:

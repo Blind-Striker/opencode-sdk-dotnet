@@ -70,7 +70,11 @@ is revisited at each boundary.
   The pin therefore stays a deliberate snapshot, refreshed under receipt at milestone boundaries.
 - **`v2.session.log` resume guarantees** — the pinned document exposes `after` as an optional
   string, and the generated surface stays faithful to it; ADR-0013 forbids importing the narrower
-  type upstream's implementation decodes. Retention and replay guarantees are unestablished.
+  type upstream's implementation decodes. Replay mechanics and retention are established and
+  carried by canon. What stays open is the wire behaviour nothing upstream pins: no server-level
+  test covers this route, so the status a malformed `after` answers, and whether an idle `follow`
+  connection survives an intermediary, are settled only by this repository's own live tests.
+  Upstream has no production caller that passes `after`, so this SDK is the path's first consumer.
 - **OpenAPI projection fidelity** — the pinned document loses detail upstream's implementation
   carries. Confirmed losses are reported upstream
   ([anomalyco/opencode#44911](https://github.com/anomalyco/opencode/issues/44911), restored by the
