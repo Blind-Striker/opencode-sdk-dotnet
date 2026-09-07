@@ -65,15 +65,18 @@ public sealed class PluginsClientLiveTests(PinnedOpenCodeServerFixture server)
         await Assert.That(listed.IsError).IsFalse();
         await Assert.That(listed.Plugins.Count).IsGreaterThan(0);
 
-        if (server.OwnedRpcPlugin is { } ownedPlugin)
+        if (server.IsExternal)
         {
-            await AssertOwnedInventoryAsync(listed.Plugins, ownedPlugin);
-        }
-        else
-        {
+            await Assert.That(server.OwnedRpcPlugin).IsNull();
             await Assert.That(IdsWhere(
                 listed.Plugins,
                 static plugin => string.Equals(plugin.Id, TestRpcPlugin.Id, StringComparison.Ordinal))).IsEmpty();
+        }
+        else
+        {
+            var ownedPlugin = server.OwnedRpcPlugin ??
+                throw new InvalidOperationException("The owned pinned server did not resolve its RPC plugin.");
+            await AssertOwnedInventoryAsync(listed.Plugins, ownedPlugin);
         }
 
         Console.WriteLine(
