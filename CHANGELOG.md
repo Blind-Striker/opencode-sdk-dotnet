@@ -13,8 +13,9 @@ Each released version links straight to its GitHub Release tag.
 
 - **Refreshed to upstream `89f1943`.** Worktree operations now resolve their project through an
   optional location query. Call create, list, remove, and refresh directly on `WorktreesClient`;
-  the project-bound `ProjectWorktreesClient` and its factory have been removed. Create accepts
-  the upstream's optional string strategy and inputs; remove retains its required JSON body.
+  the project-bound `ProjectWorktreesClient` and its factory are gone, which nightly consumers will
+  meet as a compile break. Create's strategy and destination directory are both optional now, as
+  upstream declares them; remove retains its required JSON body.
   The list operation also exposes its declared `WorktreeError` failure arm. Compaction completion
   payloads now expose the optional model and provider state supplied by the upstream schema.
   Project updates accept an optional canonical directory; execution interruption events include

@@ -35,6 +35,9 @@ sign.
 - On Windows, the **.NET Framework 4.7.2 targeting pack** for the `net472` legs
 - [Bun](https://bun.sh/) at the exact version in `external/opencode/package.json`'s
   `packageManager` field — the pinned-server fixture and CI use that runtime
+- [ripgrep 15.1.0](https://github.com/BurntSushi/ripgrep/releases/tag/15.1.0) on `PATH` — the
+  filesystem live tests run against an offline simulated server that refuses the on-demand download
+  upstream would otherwise perform
 - [Git](https://git-scm.com/downloads) with submodule support
 - IDE: [Rider](https://www.jetbrains.com/rider/), [Visual Studio](https://visualstudio.microsoft.com/),
   or [VS Code](https://code.visualstudio.com/)

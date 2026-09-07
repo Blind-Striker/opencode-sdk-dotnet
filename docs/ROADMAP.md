@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-09-02
+Date: 2026-09-07
 
 Operational state: what ships today, what is queued next, what is still open, and what is known to
 be incomplete. This file is a summary and shrinks as work lands. `../AGENTS.md` routes to the
@@ -123,4 +123,6 @@ is revisited at each boundary.
   on the modern target frameworks (all three OSes) and on `net472` Windows (`taskkill /T`). The
   downlevel non-Windows arm of the tree kill (a plain `Kill()`) is not exercised by any test project,
   and the Linux/macOS behavior is established only by the three-OS CI run, never by a Windows-local
-  suite.
+  suite. On Unix the observed grandchild is not a child of the test process, so its exit is visible
+  only once the adopting parent reaps it: an environment without a reaping PID 1 fails that bound
+  with the process still recorded as a zombie.
