@@ -1,6 +1,6 @@
 # Client Runtime Architecture
 
-Date: 2026-08-31
+Date: 2026-09-07
 
 Canonical current rules for client construction, transport ownership, API errors, streams, and the
 local server launcher. Protocol and generated-model rules live in
@@ -311,6 +311,13 @@ credential is injected into the child environment as `OPENCODE_PASSWORD`, after 
 child prints once fully booted; stdin stays open as the ownership lease for as long as the server
 runs, and every later stdout line plus all of stderr is drained continuously (stderr into a bounded
 tail kept for failure diagnostics) so a chatty child can never wedge the pipes.
+
+An optional caller-created `OpenCodeServerOutput` collector, supplied through the start options,
+retains a bounded tail of both streams, including the first stdout line, for pull snapshots. It
+invokes no caller code on the process readers and survives a failed start. Each snapshot reports
+whether either stream was truncated; the launcher's startup exception tail remains independent.
+Output finalization is best effort under the existing bounded diagnostic drain and never extends
+process ownership.
 
 Disposal is a ladder, bounded at every step so it never hangs the caller: stdin EOF (the lease
 release) first, then the configured grace (`GracefulShutdownTimeout`, default 3 seconds — the

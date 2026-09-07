@@ -178,7 +178,9 @@ keep the credentials in environment variables:
 
 No ambient process, no endpoint to configure — the launcher starts a private `opencode serve`
 child, mints its credential, and hands you a client bound to it. Disposing the server stops the
-child.
+child. To keep the child's output for diagnostics, pass an `OpenCodeServerOutput` collector in
+`OpenCodeServerOptions.Output` and read its snapshot whenever you like — bounded, and still
+readable when the start failed.
 
 ```csharp
 using OpenCode.Sdk;

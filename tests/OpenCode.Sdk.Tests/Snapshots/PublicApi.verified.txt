@@ -896,8 +896,22 @@
         public System.Collections.Generic.IReadOnlyList<string> Command { get; set; }
         public System.Collections.Generic.IReadOnlyDictionary<string, string>? Environment { get; set; }
         public System.TimeSpan GracefulShutdownTimeout { get; set; }
+        public OpenCode.Sdk.OpenCodeServerOutput? Output { get; set; }
         public System.TimeSpan ReadinessTimeout { get; set; }
         public string? WorkingDirectory { get; set; }
+    }
+    public sealed class OpenCodeServerOutput
+    {
+        public OpenCodeServerOutput() { }
+        public OpenCode.Sdk.OpenCodeServerOutputSnapshot GetSnapshot() { }
+    }
+    public sealed class OpenCodeServerOutputSnapshot : System.IEquatable<OpenCode.Sdk.OpenCodeServerOutputSnapshot>
+    {
+        public OpenCodeServerOutputSnapshot() { }
+        public required System.Collections.Generic.IReadOnlyList<string> StandardError { get; init; }
+        public required bool StandardErrorTruncated { get; init; }
+        public required System.Collections.Generic.IReadOnlyList<string> StandardOutput { get; init; }
+        public required bool StandardOutputTruncated { get; init; }
     }
     public sealed class OpenCodeStreamFailureException : OpenCode.Sdk.OpenCodeTransportException
     {

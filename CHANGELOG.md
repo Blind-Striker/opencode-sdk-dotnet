@@ -42,8 +42,11 @@ Each released version links straight to its GitHub Release tag.
   `Updating`; and `PluginListResponse.Plugins` is an `IReadOnlyList<PluginInfo>`.
 - **A standalone server launcher.** `OpenCodeServer.StartAsync()` starts, monitors, and stops a
   private `opencode serve` child — generated lease credential, stdin-EOF ownership, bounded tree
-  termination — and `CreateClient()` hands back a client already bound to it. Real-process
-  lifecycle acceptance runs on Windows, Linux, and macOS.
+  termination — and `CreateClient()` hands back a client already bound to it. An optional
+  `OpenCodeServerOutput` collector, supplied through `OpenCodeServerOptions.Output`, retains a
+  bounded tail of the child's stdout and stderr for pull snapshots that report truncation, and it
+  stays readable after a failed start. Real-process lifecycle acceptance runs on Windows, Linux,
+  and macOS.
 - **Server-sent event streaming.** `EventsClient.SubscribeAsync` follows the global bus and
   `SessionClient.GetLogAsync` follows one session's log, both as `IAsyncEnumerable<T>` of typed
   frames over the same transport, decoration, and status walls as one-shot calls. A body cut

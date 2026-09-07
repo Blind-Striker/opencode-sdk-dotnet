@@ -1,5 +1,6 @@
 using OpenCode.Sdk.TestSupport;
 using Testably.Abstractions;
+using TUnit.Assertions.Enums;
 
 namespace OpenCode.Sdk.Tests;
 
@@ -144,6 +145,145 @@ public sealed class OpenCodeServerLifecycleTests
             cancellationToken)).Throws<OpenCodeServerException>();
 
         await Assert.That(failure!.Message).Contains("readiness contract");
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task StartAsync_Should_Retain_Both_Streams_For_A_Pull_Snapshot(CancellationToken cancellationToken)
+    {
+        const string readyLine = "{\"url\":\"http://127.0.0.1:1\"}";
+        var output = new OpenCodeServerOutput();
+        var server = await OpenCodeServer.StartAsync(
+            new OpenCodeServerOptions
+            {
+                // A stand-in child: the readiness contract first, then an empty stdout line, a
+                // later stdout line, and one stderr line, held open until the launcher ends it.
+                Command =
+                [
+                    "bun", "-e",
+                    "console.log('" + readyLine + "'); console.log(''); console.log('later'); console.error('warn-1'); setTimeout(() => {}, 120000)",
+                ],
+                GracefulShutdownTimeout = TimeSpan.Zero,
+                Output = output,
+            },
+            cancellationToken);
+
+        // Readiness parsing stayed independent of the collector: the same first line drove both.
+        await Assert.That(server.Endpoint).IsEqualTo(new Uri("http://127.0.0.1:1"));
+
+        await server.DisposeAsync();
+
+        var snapshot = output.GetSnapshot();
+        await Assert.That(snapshot.StandardOutput).IsEquivalentTo([readyLine, "", "later"], CollectionOrdering.Matching);
+        await Assert.That(snapshot.StandardError).IsEquivalentTo(["warn-1"], CollectionOrdering.Matching);
+        await Assert.That(snapshot.StandardOutputTruncated).IsFalse();
+        await Assert.That(snapshot.StandardErrorTruncated).IsFalse();
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task DisposeAsync_Should_Finalize_The_Collector_After_A_Graceful_Stdin_Eof_Exit(CancellationToken cancellationToken)
+    {
+        const string readyLine = "{\"url\":\"http://127.0.0.1:1\"}";
+        var output = new OpenCodeServerOutput();
+        var server = await OpenCodeServer.StartAsync(
+            new OpenCodeServerOptions
+            {
+                // The child writes its last lines only once the stdin lease is released, then
+                // leaves on its own inside the default grace: the graceful arm of disposal.
+                Command =
+                [
+                    "bun", "-e",
+                    "console.log('" + readyLine + "'); process.stdin.resume(); process.stdin.on('end', () => { console.log('FINAL-STDOUT'); console.error('FINAL-STDERR'); });",
+                ],
+                Output = output,
+            },
+            cancellationToken);
+
+        await server.DisposeAsync();
+
+        // Lines written during the shutdown itself are inside the final snapshot: the drain ran
+        // before the collection closed.
+        var snapshot = output.GetSnapshot();
+        await Assert.That(snapshot.StandardOutput).IsEquivalentTo([readyLine, "FINAL-STDOUT"], CollectionOrdering.Matching);
+        await Assert.That(snapshot.StandardError).IsEquivalentTo(["FINAL-STDERR"], CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task DisposeAsync_Should_Finalize_The_Collector_For_A_Child_That_Already_Exited(CancellationToken cancellationToken)
+    {
+        const string readyLine = "{\"url\":\"http://127.0.0.1:1\"}";
+        var output = new OpenCodeServerOutput();
+        var server = await OpenCodeServer.StartAsync(
+            new OpenCodeServerOptions
+            {
+                // Ready, one stderr line, then a self-initiated exit shortly after: disposal
+                // finds no child to end and still finalizes what the readers deliver.
+                Command =
+                [
+                    "bun", "-e",
+                    "console.log('" + readyLine + "'); console.error('bye'); setTimeout(() => process.exit(0), 500);",
+                ],
+                Output = output,
+            },
+            cancellationToken);
+        using (var child = System.Diagnostics.Process.GetProcessById(server.ProcessId))
+        {
+            await child.WaitForExitAsync(cancellationToken);
+        }
+
+        await server.DisposeAsync();
+
+        var snapshot = output.GetSnapshot();
+        await Assert.That(snapshot.StandardOutput).IsEquivalentTo([readyLine], CollectionOrdering.Matching);
+        await Assert.That(snapshot.StandardError).IsEquivalentTo(["bye"], CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task StartAsync_Should_Leave_The_Collector_Readable_After_A_Failed_Start(CancellationToken cancellationToken)
+    {
+        var output = new OpenCodeServerOutput();
+
+        var failure = await Assert.That(async () => await OpenCodeServer.StartAsync(
+            new OpenCodeServerOptions
+            {
+                Command = ["bun", "-e", "console.error('boom'); process.exit(7)"],
+                Output = output,
+            },
+            cancellationToken)).Throws<OpenCodeServerException>();
+
+        // The startup exception's own tail and the collector are independent witnesses.
+        await Assert.That(failure!.Message).Contains("boom");
+        var snapshot = output.GetSnapshot();
+        await Assert.That(snapshot.StandardError).IsEquivalentTo(["boom"], CollectionOrdering.Matching);
+        await Assert.That(snapshot.StandardOutput).IsEmpty();
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task StartAsync_Should_Refuse_A_Collector_An_Earlier_Start_Bound_Before_Spawning(CancellationToken cancellationToken)
+    {
+        var output = new OpenCodeServerOutput();
+        _ = await Assert.That(async () => await OpenCodeServer.StartAsync(
+            new OpenCodeServerOptions
+            {
+                Command = ["bun", "-e", "process.exit(7)"],
+                Output = output,
+            },
+            cancellationToken)).Throws<OpenCodeServerException>();
+
+        // Refused as an options error, not as a spawn failure: the missing executable is never run.
+        var refusal = await Assert.That(async () => await OpenCodeServer.StartAsync(
+            new OpenCodeServerOptions
+            {
+                Command = ["opencode-sdk-test-missing-executable"],
+                Output = output,
+            },
+            cancellationToken)).Throws<ArgumentException>();
+
+        await Assert.That(refusal!.Message).Contains("already bound");
     }
 
     [Test]
