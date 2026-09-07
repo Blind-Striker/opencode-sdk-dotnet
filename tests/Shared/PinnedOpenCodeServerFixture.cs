@@ -107,6 +107,8 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
         }
     }
 
+    internal TestRpcPlugin? OwnedRpcPlugin { get; private set; }
+
     internal CliWrapServerAdapter Adapter =>
         _adapter ?? throw new InvalidOperationException("The fixture has not initialized.");
 
@@ -144,6 +146,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
         {
             var pinnedCommand = new PinnedServerCommand(_fileSystem);
             command = pinnedCommand.Resolve();
+            OwnedRpcPlugin = new TestRpcPlugin(_fileSystem, pinnedCommand.RepositoryRoot);
 
             // Bun's workspace/tsconfig discovery for the pinned monorepo's JSX packages walks
             // from the process's working directory, not from the absolute entry-file path (Task
@@ -290,8 +293,18 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
     private bool ShouldRetainLogs => _retainLogs || _diagnostics?.RetainLogs is true || string.Equals(
         Environment.GetEnvironmentVariable("OPENCODE_SDK_TESTS_KEEP_LOGS"), "1", StringComparison.Ordinal);
 
-    private Dictionary<string, string> BuildEnvironment(string runRoot) =>
-        ServerIsolation.Environment(_fileSystem, runRoot);
+    private Dictionary<string, string> BuildEnvironment(string runRoot)
+    {
+        var environment = ServerIsolation.Environment(_fileSystem, runRoot);
+        if (OwnedRpcPlugin is { } plugin)
+        {
+            environment["OPENCODE_CONFIG_CONTENT"] = new ServerConfigSeed()
+                .WithPluginDirectory(plugin.Directory)
+                .Render();
+        }
+
+        return environment;
+    }
 
     /// <summary>
     /// Probes the external pair's health through a throw-away client and, once it answers, prints
