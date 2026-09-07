@@ -138,7 +138,7 @@
     },
     {
       "path": "packages/core/package.json",
-      "sha256": "0e44b780c50ee09630574b1bbc49777420e0811fd534057d6cf6bef0fe947813",
+      "sha256": "4a0c6a39b98501f09acec8bf635e27e4798db9e1c4e1539c6146d0e021f858c2",
       "behavior": "The opencode-pty daemon dependency is pinned at 0.1.13, which fixes the daemon protocol the persistent-PTY door speaks.",
       "anchor": {
         "type": "contains",

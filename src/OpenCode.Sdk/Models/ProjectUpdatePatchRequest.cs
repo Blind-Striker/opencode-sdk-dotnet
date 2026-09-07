@@ -9,6 +9,13 @@ namespace OpenCode.Sdk.Models;
 public sealed record ProjectUpdatePatchRequest
 {
     /// <summary>
+    /// Gets the canonical value.
+    /// </summary>
+    [JsonPropertyName("canonical")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Canonical { get; init; }
+
+    /// <summary>
     /// Gets the name value.
     /// </summary>
     [JsonPropertyName("name")]

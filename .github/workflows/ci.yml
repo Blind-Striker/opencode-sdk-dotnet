@@ -61,7 +61,16 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           # The pin's own packageManager row (external/opencode/package.json).
-          bun-version: 1.3.14
+          bun-version-file: external/opencode/package.json
+
+      - name: Verify pinned Bun runtime
+        shell: pwsh
+        run: |
+          $expected = (Get-Content external/opencode/package.json -Raw | ConvertFrom-Json).packageManager
+          $actual = "bun@$(& bun --version)"
+          if ($LASTEXITCODE -ne 0 -or $actual -cne $expected) {
+            throw "Bun runtime mismatch: expected $expected, got $actual."
+          }
 
       - name: Cache bun install
         uses: actions/cache@v6

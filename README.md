@@ -36,7 +36,7 @@ thing missing is the first published package.
 
 **Versioning**: the SDK builds against an accepted OpenAPI snapshot, never a live branch. The exact
 upstream commit and the refresh procedure live in [`spec/SNAPSHOT.md`](spec/SNAPSHOT.md); today's
-pin is `b2cecc63` on upstream's `v2` branch.
+pin is `89f1943d` on upstream's `v2` branch.
 
 ## 🚀 Platform Compatibility & Quality Status
 

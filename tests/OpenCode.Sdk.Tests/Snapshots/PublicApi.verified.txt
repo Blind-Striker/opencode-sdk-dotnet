@@ -4420,6 +4420,9 @@ namespace OpenCode.Sdk.Models
     {
         public ProjectUpdatePatchRequest() { }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("canonical")]
+        public string? Canonical { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("commands")]
         public OpenCode.Sdk.Models.ProjectCommands? Commands { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -5412,6 +5415,8 @@ namespace OpenCode.Sdk.Models
         Shutdown = 1,
         [System.Text.Json.Serialization.JsonStringEnumMemberName("superseded")]
         Superseded = 2,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("inactivity")]
+        Inactivity = 3,
     }
     public sealed class SessionExecutionInterruptedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionExecutionInterruptedDurable>
     {

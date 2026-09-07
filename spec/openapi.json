@@ -1621,14 +1621,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/SessionNotFoundErrorEncoded"
-                    },
-                    {
-                      "$ref": "#/components/schemas/SessionNotFoundErrorEncoded"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/SessionNotFoundErrorEncoded"
                 }
               }
             }
@@ -7407,7 +7400,7 @@
             }
           }
         },
-        "description": "Update project display metadata and workspace commands.",
+        "description": "Update the project canonical directory, display metadata, and workspace commands.",
         "summary": "Update project",
         "requestBody": {
           "content": {
@@ -7415,6 +7408,9 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "canonical": {
+                    "type": "string"
+                  },
                   "name": {
                     "type": "string"
                   },
@@ -14589,7 +14585,8 @@
             "anyOf": [
               {
                 "type": "string",
-                "enum": ["random"]
+                "enum": ["random"],
+                "description": "Reuse a randomly selected provider until it is rate limited, then switch to another available provider."
               },
               {
                 "type": "string"
@@ -22318,7 +22315,7 @@
               },
               "reason": {
                 "type": "string",
-                "enum": ["user", "shutdown", "superseded"]
+                "enum": ["user", "shutdown", "superseded", "inactivity"]
               }
             },
             "required": ["sessionID", "reason"],
