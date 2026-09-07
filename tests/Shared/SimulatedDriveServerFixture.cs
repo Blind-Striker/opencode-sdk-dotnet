@@ -162,8 +162,8 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
         {
             teardown.Own("simulated server teardown", async _ => await _server.DisposeAsync());
 
-            // Runs after the teardown above has settled, so the collector is final: the last
-            // milestone is written only once the stdin lease is released.
+            // Runs after the teardown above has settled, so the collector is final: the stdin-EOF
+            // milestone is written only once the lease is released.
             teardown.Own("simulated server diagnostic contract", _ =>
             {
                 EnsureDiagnosticContract(_server, _output);
@@ -208,32 +208,29 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
     private bool ShouldRetainLogs => _retainLogs || _artifacts?.Failures.Count > 0 || string.Equals(
         Environment.GetEnvironmentVariable("OPENCODE_SDK_TESTS_KEEP_LOGS"), "1", StringComparison.Ordinal);
 
+    /// <summary>
+    /// The shared instance proves the one milestone its final snapshot can still hold: the host
+    /// logs "stdin closed" only once the launcher releases the lease, so it is the last stderr
+    /// line and survives the collector's bound. The earlier "starting"/"ready" milestones are
+    /// evicted over a chatty session (INFO logging retains the newest 500 lines); they are proven
+    /// per lifecycle by <c>PersistentSimulationHostTests</c>, which starts its own short-lived
+    /// host and reads a snapshot that lost nothing. This is the explicit migration reduction from
+    /// the retired adapter's push-based startup capture, not a claim about every shared instance.
+    /// </summary>
     private static void EnsureDiagnosticContract(OpenCodeServer server, OpenCodeServerOutput output)
     {
         var snapshot = output.GetSnapshot();
-        var missing = new List<string>();
-        foreach (var milestone in new[]
-                 {
-                     "persistent simulation host starting",
-                     "persistent simulation host ready",
-                     "persistent simulation host stdin closed",
-                 })
-        {
-            if (!snapshot.StandardError.Any(line => line.Contains(milestone, StringComparison.Ordinal)))
-            {
-                missing.Add(milestone);
-            }
-        }
-
-        if (missing.Count > 0)
+        const string milestone = "persistent simulation host stdin closed";
+        if (!snapshot.StandardError.Any(line => line.Contains(milestone, StringComparison.Ordinal)))
         {
             throw new InvalidOperationException(
-                "The persistent simulation host did not retain diagnostics: " + string.Join(", ", missing) +
-                " (stderr truncated: " + snapshot.StandardErrorTruncated + ").");
+                "The persistent simulation host did not retain the stdin-EOF diagnostic '" + milestone +
+                "' (stderr truncated: " + snapshot.StandardErrorTruncated + ").");
         }
 
         Console.WriteLine(
-            "Persistent simulation host retained pre-readiness, post-readiness, and stdin-EOF diagnostics for process " +
-            server.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture) + ".");
+            "Persistent simulation host retained the stdin-EOF diagnostic for process " +
+            server.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+            " (stderr truncated: " + snapshot.StandardErrorTruncated + ").");
     }
 }
