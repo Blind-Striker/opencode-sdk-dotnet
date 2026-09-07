@@ -20,14 +20,23 @@ namespace OpenCode.Sdk.Tests.Support;
 internal sealed class OwnedToolScenario
 {
     internal const string ToolName = "drive_echo";
-    internal const string ChatCompletionsUrl = "https://api.openai.com/v1/chat/completions";
     internal const string DriveCallId = "call_drive";
     internal const string ReadCallId = "call_read";
+
+    /// <summary>The bound a consuming test gives one typed event barrier.</summary>
+    internal static readonly TimeSpan BarrierWait = TimeSpan.FromSeconds(60);
 
     private static readonly TimeSpan EventWait = TimeSpan.FromSeconds(180);
     private static readonly TimeSpan CleanupTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan RequestWait = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan CancellationWait = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Cleanup's own cancellation bound, deliberately inside <see cref="CleanupTimeout"/> so the
+    /// controller's diagnostic naming the awaited notification is the message a stuck teardown
+    /// reports, rather than the outer deadline's generic one.
+    /// </summary>
+    private static readonly TimeSpan CleanupCancellationWait = TimeSpan.FromSeconds(10);
 
     private readonly SimulatedDriveServerFixture _server;
     private readonly TestWorkspace _workspace;
@@ -52,6 +61,11 @@ internal sealed class OwnedToolScenario
         _cleanup.Own("owned tool registration reset", ResetRegistrationAsync);
         _cleanup.Own("owned session removal", RemoveSessionAsync);
         _cleanup.Own("event reader", _ => _reader.CompleteAsync(null));
+        _cleanup.Own("owned client", _ =>
+        {
+            _client.Dispose();
+            return Task.CompletedTask;
+        });
         _cleanup.Own("owned workspace", _ =>
         {
             _workspace.Dispose();
@@ -61,14 +75,34 @@ internal sealed class OwnedToolScenario
 
     public SessionEventProbe Probe { get; }
 
-    public OpenCodeClient Client => _client;
-
     public string SessionId => _sessionId ?? throw new InvalidOperationException("The scenario has no session yet.");
 
     public SessionClient Session => _client.Sessions.GetSessionClient(SessionId);
 
-    /// <summary>The pending simulated-tool invocation this scenario still holds, if any.</summary>
-    public string? PendingToolId => _pendingToolId;
+    /// <summary>
+    /// Runs the scenario body and settles every owned resource afterwards, whatever happened. A
+    /// failure carries the probe's observed events, and the cleanup preserves it as the primary.
+    /// </summary>
+    public async Task RunAsync(Func<Task> body)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+
+        Exception? failure = null;
+        try
+        {
+            await body();
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+            if (!exception.Data.Contains(EventDiagnosticSummary.DataKey))
+            {
+                exception.Data[EventDiagnosticSummary.DataKey] = Probe.DiagnosticSummary;
+            }
+        }
+
+        await CompleteAsync(failure);
+    }
 
     public static async Task<OwnedToolScenario> CreateAsync(
         SimulatedDriveServerFixture server,
@@ -102,11 +136,12 @@ internal sealed class OwnedToolScenario
     public async Task<DriveInvocation> WaitForModelRequestAsync()
     {
         var invocation = await _server.Controller.WaitForRequestAsync(RequestWait);
-        if (invocation.Url != ChatCompletionsUrl || invocation.Model != SimulationConfigSeed.ModelId)
+        if (invocation.Url != SimulationConfigSeed.ChatCompletionsUrl ||
+            invocation.Model != SimulationConfigSeed.ModelId)
         {
             throw new InvalidOperationException(
-                $"Expected model '{SimulationConfigSeed.ModelId}' at '{ChatCompletionsUrl}', but received model " +
-                $"'{invocation.Model}' at '{invocation.Url}'.");
+                $"Expected model '{SimulationConfigSeed.ModelId}' at '{SimulationConfigSeed.ChatCompletionsUrl}', " +
+                $"but received model '{invocation.Model}' at '{invocation.Url}'.");
         }
 
         return invocation;
@@ -120,8 +155,16 @@ internal sealed class OwnedToolScenario
         return invocation;
     }
 
-    /// <summary>Records that the held tool invocation was settled (finished, failed, or observed cancelled).</summary>
-    public void ReleasePendingTool() => _pendingToolId = null;
+    /// <summary>Records that this exact invocation settled, so cleanup no longer waits for its cancellation.</summary>
+    public void ReleaseTool(DriveToolInvocation invocation)
+    {
+        ArgumentNullException.ThrowIfNull(invocation);
+
+        if (string.Equals(_pendingToolId, invocation.Id, StringComparison.Ordinal))
+        {
+            _pendingToolId = null;
+        }
+    }
 
     public Task<DriveToolCancellation> WaitForToolCancellationAsync() =>
         _server.Controller.WaitForToolCancellationAsync(CancellationWait);
@@ -159,7 +202,7 @@ internal sealed class OwnedToolScenario
         ArgumentNullException.ThrowIfNull(invocation);
 
         await _server.Controller.FinishToolAsync(invocation.Id, DriveJson.Element(structured), text);
-        ReleasePendingTool();
+        ReleaseTool(invocation);
     }
 
     public async Task FailToolAsync(DriveToolInvocation invocation, string message)
@@ -167,7 +210,7 @@ internal sealed class OwnedToolScenario
         ArgumentNullException.ThrowIfNull(invocation);
 
         await _server.Controller.FailToolAsync(invocation.Id, message);
-        ReleasePendingTool();
+        ReleaseTool(invocation);
     }
 
     /// <summary>
@@ -250,7 +293,8 @@ internal sealed class OwnedToolScenario
 
         // The interruption above must reach the Drive tool: only the exact cancellation proves it,
         // and a tool that is neither settled nor cancelled is a leak this cleanup refuses to hide.
-        var cancellation = await _server.Controller.WaitForToolCancellationAsync(CancellationWait).WaitAsync(cancellationToken);
+        var cancellation = await _server.Controller
+            .WaitForToolCancellationAsync(CleanupCancellationWait).WaitAsync(cancellationToken);
         if (cancellation.Id != pending)
         {
             throw new InvalidOperationException(

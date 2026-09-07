@@ -17,6 +17,7 @@ internal sealed class SessionEventProbe
     private readonly TaskCompletionSource<bool> _connected =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
     private TaskCompletionSource<bool> _arrival = NewSignal();
+    private Task? _loop;
     private string? _loopState;
 
     public SessionEventProbe(OwnedEventReader reader)
@@ -45,11 +46,29 @@ internal sealed class SessionEventProbe
     {
         ArgumentNullException.ThrowIfNull(events);
 
-        _reader.Own(Task.Run(() => ObserveAsync(events), CancellationToken.None));
+        var loop = Task.Run(() => ObserveAsync(events), CancellationToken.None);
+        _loop = loop;
+        _reader.Own(loop);
     }
 
-    public Task WaitForConnectedAsync(CancellationToken cancellationToken) =>
-        _connected.Task.WaitAsync(cancellationToken);
+    /// <summary>
+    /// Waits for the connected frame, racing the reader itself: a subscription that ends or faults
+    /// before its first event must surface as its own failure, never as a later barrier expiry that
+    /// hides the cause.
+    /// </summary>
+    public async Task WaitForConnectedAsync(CancellationToken cancellationToken)
+    {
+        var loop = _loop ?? throw new InvalidOperationException("The event probe has not started.");
+        var attached = await Task.WhenAny(_connected.Task, loop).WaitAsync(cancellationToken);
+        if (attached != loop)
+        {
+            return;
+        }
+
+        await loop;
+        throw new InvalidOperationException(
+            $"The event subscription ended before its first event. Events: {DiagnosticSummary}.");
+    }
 
     /// <summary>The retained events so far, in arrival order.</summary>
     public IReadOnlyList<IEvent> Snapshot()
@@ -132,6 +151,13 @@ internal sealed class SessionEventProbe
             // The owning reader ended the loop at teardown: the expected end of a probe, and the
             // reason a barrier racing that teardown must be able to name.
             Volatile.Write(ref _loopState, "the owning reader ended it at teardown");
+        }
+        catch (Exception exception)
+        {
+            // Rethrown for the owning reader to observe; recorded first so a barrier racing this
+            // fault names the connection rather than reporting an unexplained missing event.
+            Volatile.Write(ref _loopState, $"it faulted ({exception.GetType().Name}: {exception.Message})");
+            throw;
         }
     }
 

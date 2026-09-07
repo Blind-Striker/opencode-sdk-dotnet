@@ -32,6 +32,10 @@ internal sealed partial class SimulationConfigSeed
     internal const string ProviderId = "sim";
     internal const string ProviderName = "Simulated";
     internal const string ProviderPackage = "@opencode-ai/ai/providers/openai-compatible";
+
+    /// <summary>The exact route the seeded provider claims, and the only one the Drive network answers.</summary>
+    internal const string ChatCompletionsUrl = ProviderBaseUrl + "/chat/completions";
+    internal const string ProviderBaseUrl = "https://api.openai.com/v1";
     internal const string ReferenceDescription = "The deterministic SDK live reference.";
     internal const string ReferenceName = "sdk-live-reference";
     internal const string ReferencePath = ".";
@@ -87,7 +91,7 @@ internal sealed partial class SimulationConfigSeed
                     Package = ProviderPackage,
                     Settings = new ProviderSettings
                     {
-                        BaseUrl = "https://api.openai.com/v1",
+                        BaseUrl = ProviderBaseUrl,
                         ApiKey = "drive-lease",
                     },
                     Models = new Dictionary<string, ModelConfiguration>(StringComparer.Ordinal)

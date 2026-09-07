@@ -15,8 +15,6 @@ public sealed class SimulatedSessionWorkflowTests(SimulatedDriveServerFixture se
 {
     private const string ScriptedReply = "Hello from the drive.";
 
-    private const string ChatCompletionsUrl = "https://api.openai.com/v1/chat/completions";
-
     /// <summary>
     /// The single model the fixture's provider seed registers
     /// (<c>SimulatedDriveServerFixture.SimulationConfig</c>): named once here so the session's
@@ -217,7 +215,7 @@ public sealed class SimulatedSessionWorkflowTests(SimulatedDriveServerFixture se
     /// </summary>
     private static async Task AssertSimulatedInvocationAsync(DriveInvocation invocation)
     {
-        await Assert.That(invocation.Url).IsEqualTo(ChatCompletionsUrl);
+        await Assert.That(invocation.Url).IsEqualTo(SimulationConfigSeed.ChatCompletionsUrl);
         await Assert.That(invocation.Model).IsEqualTo(SimulatedModelId);
     }
 

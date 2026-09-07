@@ -9,7 +9,6 @@ internal sealed class SimulatedSessionTurn(
     SessionClient session,
     string sessionId)
 {
-    private const string ChatCompletionsUrl = "https://api.openai.com/v1/chat/completions";
     private const string SimulatedModelId = "sim-model";
     private static readonly TimeSpan EventWait = TimeSpan.FromSeconds(120);
     private static readonly TimeSpan RequestWait = TimeSpan.FromSeconds(60);
@@ -66,11 +65,11 @@ internal sealed class SimulatedSessionTurn(
 
     private static void RequireSimulatedInvocation(DriveInvocation invocation)
     {
-        if (invocation.Model != SimulatedModelId || invocation.Url != ChatCompletionsUrl)
+        if (invocation.Model != SimulatedModelId || invocation.Url != SimulationConfigSeed.ChatCompletionsUrl)
         {
             throw new InvalidOperationException(
-                $"Expected model '{SimulatedModelId}' at '{ChatCompletionsUrl}', but received model " +
-                $"'{invocation.Model}' at '{invocation.Url}'.");
+                $"Expected model '{SimulatedModelId}' at '{SimulationConfigSeed.ChatCompletionsUrl}', but received " +
+                $"model '{invocation.Model}' at '{invocation.Url}'.");
         }
     }
 

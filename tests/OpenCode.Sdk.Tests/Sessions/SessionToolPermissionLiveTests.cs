@@ -20,8 +20,6 @@ public sealed class SessionToolPermissionLiveTests(SimulatedDriveServerFixture s
 {
     private const string FinalText = "Both tools completed.";
 
-    private static readonly TimeSpan BarrierWait = TimeSpan.FromSeconds(60);
-
     [Test]
     [Timeout(240_000)]
     public async Task SessionPrompt_Should_Complete_A_Drive_Tool_Then_A_Permission_Gated_Read_Through_The_Real_Server(
@@ -29,8 +27,7 @@ public sealed class SessionToolPermissionLiveTests(SimulatedDriveServerFixture s
     {
         var scenario = await OwnedToolScenario.CreateAsync(server, "session-tool-permission-live", cancellationToken);
         var nonce = "drive-" + Guid.NewGuid().ToString("N");
-        Exception? failure = null;
-        try
+        await scenario.RunAsync(async () =>
         {
             var sessionId = scenario.SessionId;
             _ = await scenario.Session.PostPromptAsync(
@@ -44,7 +41,7 @@ public sealed class SessionToolPermissionLiveTests(SimulatedDriveServerFixture s
             await scenario.ScriptToolCallAsync(second, OwnedToolScenario.ReadCallId, "read", new JsonObject { ["path"] = "." });
 
             using var barrier = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            barrier.CancelAfter(BarrierWait);
+            barrier.CancelAfter(OwnedToolScenario.BarrierWait);
             var readCalled = await scenario.Probe.WaitForAsync<SessionToolCalled>(
                 called => called.Data.SessionId == sessionId && called.Data.Id == OwnedToolScenario.ReadCallId,
                 "session.tool.called for call_read", barrier.Token);
@@ -83,21 +80,11 @@ public sealed class SessionToolPermissionLiveTests(SimulatedDriveServerFixture s
                 "session.execution.succeeded", barrier.Token);
             scenario.MarkTerminal();
 
-            await AssertCausalSubsequencesAsync(scenario.Probe.Snapshot(), sessionId, nonce);
+            await AssertCausalSubsequencesAsync(scenario.Probe.Snapshot(), sessionId, nonce, asked.Data.Id);
             Console.WriteLine(
                 "tool-permission-live: mode=owned arms=drive-progress+success,read-permission-once,final-text session=" +
                 sessionId + " reply-status=" + reply.Status.ToString(CultureInfo.InvariantCulture));
-        }
-        catch (Exception exception)
-        {
-            failure = exception;
-            if (!exception.Data.Contains(EventDiagnosticSummary.DataKey))
-            {
-                exception.Data[EventDiagnosticSummary.DataKey] = scenario.Probe.DiagnosticSummary;
-            }
-        }
-
-        await scenario.CompleteAsync(failure);
+        });
     }
 
     /// <summary>
@@ -127,13 +114,19 @@ public sealed class SessionToolPermissionLiveTests(SimulatedDriveServerFixture s
     /// lifecycle must appear in this order, the Drive call carrying the nonce through progress and
     /// success, and neither call may have failed.
     /// </summary>
-    private static async Task AssertCausalSubsequencesAsync(IReadOnlyList<IEvent> events, string sessionId, string nonce)
+    private static async Task AssertCausalSubsequencesAsync(
+        IReadOnlyList<IEvent> events, string sessionId, string nonce, string permissionRequestId)
     {
         var owned = events.Where(candidate => SessionIdOf(candidate) == sessionId).ToList();
         await Assert.That(owned.OfType<SessionToolFailed>()
             .Select(failed => failed.Data.Id + ": " + failed.Data.Error.Message)).IsEmpty();
 
         await AssertToolLifecycleOrderAsync(owned, OwnedToolScenario.DriveCallId);
+        var driveCalled = IndexOf<SessionToolCalled>(owned, item => item.Data.Id == OwnedToolScenario.DriveCallId);
+        var driveProgress = IndexOf<SessionToolProgress>(owned, item => item.Data.Id == OwnedToolScenario.DriveCallId);
+        var driveSucceeded = IndexOf<SessionToolSuccess>(owned, item => item.Data.Id == OwnedToolScenario.DriveCallId);
+        await Assert.That(driveCalled).IsLessThan(driveProgress);
+        await Assert.That(driveProgress).IsLessThan(driveSucceeded);
         var progress = owned.OfType<SessionToolProgress>().Single(item => item.Data.Id == OwnedToolScenario.DriveCallId);
         await Assert.That(progress.Data.Metadata["nonce"].GetString()).IsEqualTo(nonce);
         var driveSuccess = owned.OfType<SessionToolSuccess>().Single(item => item.Data.Id == OwnedToolScenario.DriveCallId);
@@ -142,8 +135,8 @@ public sealed class SessionToolPermissionLiveTests(SimulatedDriveServerFixture s
 
         await AssertToolLifecycleOrderAsync(owned, OwnedToolScenario.ReadCallId);
         var readCalled = IndexOf<SessionToolCalled>(owned, called => called.Data.Id == OwnedToolScenario.ReadCallId);
-        var asked = IndexOf<PermissionAsked>(owned, asked => asked.Data.Source?.Id == OwnedToolScenario.ReadCallId);
-        var replied = IndexOf<PermissionReplied>(owned, _ => true);
+        var asked = IndexOf<PermissionAsked>(owned, asked => asked.Data.Id == permissionRequestId);
+        var replied = IndexOf<PermissionReplied>(owned, replied => replied.Data.RequestId == permissionRequestId);
         var readSuccess = IndexOf<SessionToolSuccess>(owned, success => success.Data.Id == OwnedToolScenario.ReadCallId);
         await Assert.That(readCalled).IsLessThan(asked);
         await Assert.That(asked).IsLessThan(replied);
