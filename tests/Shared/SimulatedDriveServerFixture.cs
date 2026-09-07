@@ -1,4 +1,5 @@
 using System.Runtime.ExceptionServices;
+using OpenCode.Sdk.TestSupport.Abstractions;
 using OpenCode.Sdk.TestSupport.Ownership;
 using Testably.Abstractions;
 using TUnit.Core.Interfaces;
@@ -25,6 +26,7 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
     private static readonly TimeSpan GateTimeout = TimeSpan.FromMinutes(15);
 
     private readonly RealFileSystem _fileSystem = new();
+    private readonly IGitProcess _gitProcess = new GitProcess();
     private CliWrapServerAdapter? _adapter;
     private DriveController? _controller;
     private string? _postReadinessDiagnostic;
@@ -139,6 +141,9 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
         });
 
     public TestWorkspace CreateWorkspace() => new(_fileSystem, RunRoot.Path);
+
+    public Task<GitRepositoryWorkspace> CreateGitRepositoryWorkspaceAsync(CancellationToken cancellationToken) =>
+        GitRepositoryWorkspace.CreateAsync(_fileSystem, _gitProcess, RunRoot.Path, cancellationToken);
 
     private ServerFailureArtifacts Artifacts => _artifacts ??= new ServerFailureArtifacts(
         _fileSystem, new TestResultsDirectory(_fileSystem).Resolve(Environment.GetCommandLineArgs()));
