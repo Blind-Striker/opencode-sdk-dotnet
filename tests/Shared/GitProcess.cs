@@ -1,14 +1,13 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.Runtime.ExceptionServices;
 using OpenCode.Sdk.TestSupport.Abstractions;
 
 namespace OpenCode.Sdk.TestSupport;
 
 internal sealed class GitProcess : IGitProcess
 {
-    private const string CleanupFailuresKey = "GitProcess.CleanupFailures";
     private static readonly TimeSpan CleanupTimeout = TimeSpan.FromSeconds(5);
+    private readonly GitProcessCancellation _cancellation = new(CleanupTimeout);
 
     public async Task RunAsync(string workingDirectory, string arguments, CancellationToken cancellationToken)
     {
@@ -40,8 +39,12 @@ internal sealed class GitProcess : IGitProcess
         }
         catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
         {
-            await StopAfterCancellationAsync(process, exception);
-            ExceptionDispatchInfo.Capture(exception).Throw();
+            await _cancellation.StopAsync(
+                () => process.HasExited,
+                process.Kill,
+                process.WaitForExitAsync,
+                exception);
+            throw;
         }
 
         var output = await standardOutput;
@@ -69,26 +72,6 @@ internal sealed class GitProcess : IGitProcess
         {
             throw new InvalidOperationException(
                 $"git {arguments} could not start in '{workingDirectory}'.", exception);
-        }
-    }
-
-    private static async Task StopAfterCancellationAsync(
-        Process process,
-        OperationCanceledException primary)
-    {
-        using var cleanup = new CancellationTokenSource(CleanupTimeout);
-        try
-        {
-            if (!process.HasExited)
-            {
-                process.Kill();
-            }
-
-            await process.WaitForExitAsync(cleanup.Token);
-        }
-        catch (Exception exception)
-        {
-            primary.Data[CleanupFailuresKey] = new AggregateException(exception);
         }
     }
 }
