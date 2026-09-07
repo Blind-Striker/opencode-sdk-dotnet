@@ -1,6 +1,6 @@
 # Client Runtime Architecture
 
-Date: 2026-08-31
+Date: 2026-09-07
 
 Canonical current rules for client construction, transport ownership, API errors, streams, and the
 local server launcher. Protocol and generated-model rules live in
@@ -312,6 +312,13 @@ child prints once fully booted; stdin stays open as the ownership lease for as l
 runs, and every later stdout line plus all of stderr is drained continuously (stderr into a bounded
 tail kept for failure diagnostics) so a chatty child can never wedge the pipes.
 
+An optional caller-created `OpenCodeServerOutput` collector, supplied through the start options,
+retains a bounded tail of both streams, including the first stdout line, for pull snapshots. It
+invokes no caller code on the process readers and survives a failed start. Each snapshot reports
+whether either stream was truncated; the launcher's startup exception tail remains independent.
+Output finalization is best effort under the existing bounded diagnostic drain and never extends
+process ownership.
+
 Disposal is a ladder, bounded at every step so it never hangs the caller: stdin EOF (the lease
 release) first, then the configured grace (`GracefulShutdownTimeout`, default 3 seconds — the
 reference client's own force-kill window), then a forced whole-tree kill
@@ -322,6 +329,11 @@ children), then a final bounded forced-exit wait. Ownership is structural: the r
 operating system closes the lease even when the owner crashes before disposal runs — coexistence
 with any other running server is safe by construction, since a started door never discovers or
 attaches to one.
+
+The forced-exit wait observes the directly owned process. A whole-tree kill is asynchronous: the
+direct process exiting does not guarantee that every descendant has finished exiting at that
+instant. Launcher acceptance separately proves bounded descendant termination before any test
+fallback cleanup.
 
 `CreateClient(Action<OpenCodeClientOptions>?)` pins the connection identity fail-closed: the
 delegate receives a fresh identity-unset options instance, and setting `Endpoint`, `Username`, or

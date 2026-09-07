@@ -17,7 +17,6 @@
     <PackageReference Include="Verify.TUnit"/>
     <PackageReference Include="Testably.Abstractions"/>
     <PackageReference Include="Testably.Abstractions.Testing"/>
-    <PackageReference Include="CliWrap"/>
     <PackageReference Include="NSubstitute.Analyzers.CSharp">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -46,6 +45,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Fixtures/**/*.json" />
+    <EmbeddedResource Include="Fixtures/**/*.js" />
+    <EmbeddedResource Include="Fixtures/**/*.md" />
   </ItemGroup>
 
 </Project>

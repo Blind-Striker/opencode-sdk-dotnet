@@ -903,24 +903,89 @@ dotnet_diagnostic.CA2000.severity = none
 [tests/OpenCode.Sdk.Tests/Support/ScriptedTerminalWebSocket.cs]
 dotnet_diagnostic.VSTHRD003.severity = none
 
-# CliWrapServerAdapter parks on TaskCompletionSource handles the adapter itself completes — the
-# stdin lease that holds the child's ownership pipe open until disposal, and the first stdout
-# line that carries the readiness contract — plus the CliWrap execution task it started. That
-# externally-completed lease is the stdio ownership mechanism itself, not a foreign task with
-# unknown context. Winner: the stdio-lease control adapter; VSTHRD003 remains enabled for every
-# other file.
-# StartAsync disposes the adapter on every readiness-failure branch before it throws, and returns
-# it undisposed only on the success path where the caller becomes the owner - the same
-# ownership-transfer shape OpenCodeServer.StartAsync uses for its Process local. CA2000's flow
-# analysis does not resolve that transfer through this method's mix of nested try/catch and a
-# CliWrap fluent builder capturing the local by reference on the net472 leg only; the other three
-# TFMs verify the same method clean. Winner: the readiness-failure disposal already in the method
-# body; CA2000 remains enabled for every other file.
-[tests/Shared/CliWrapServerAdapter.cs]
+# LateCleanupFailureReport owns the TaskCompletionSource completed only by its registered
+# fault-observation continuations. The bridge lets a deterministic test await an otherwise-late
+# cleanup failure without sleeping. Winner: the bounded cleanup reporting contract; VSTHRD003
+# remains enabled elsewhere.
+[tests/Shared/Ownership/LateCleanupFailureReport.cs]
 dotnet_diagnostic.VSTHRD003.severity = none
-dotnet_diagnostic.CA2000.severity = none
 
-# Sandbox application's purpose is primarly for testing
+# Cleanup owners retain raw tasks until actual completion and separately bound observation.
+# Awaiting those owned tasks directly preserves their original result/cancellation identity;
+# callback invocation is isolated on the thread pool, with no foreign synchronization-context
+# dependency. Winner: owned cleanup observation; VSTHRD003 remains enabled elsewhere.
+[tests/Shared/Ownership/OwnedCleanup.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+# OwnedEventReader is the reader half of that same contract: it retains the enumeration task a
+# caller handed it and observes it under its own bounded cleanup, so the awaited handle is owned
+# work rather than a foreign task. Winner: owned event observation; VSTHRD003 remains enabled
+# elsewhere.
+[tests/OpenCode.Sdk.Tests/Support/OwnedEventReader.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+# SessionEventProbe awaits TaskCompletionSource handles completed only by the reader loop this
+# same object started and handed to its owning OwnedEventReader: the connected barrier and the
+# per-arrival signal. That is the event-to-async bridge which lets a scenario act the moment the
+# subscription is attached, and wait for a correlated event, without polling or sleeping. Its own
+# proofs drive that bridge from a scripted stream, awaiting the same signals plus the scenario's
+# stall handle, and release and drain every one of them in finally. Winner: the single-reader
+# event probe; VSTHRD003 remains enabled for every other file.
+[tests/OpenCode.Sdk.Tests/Support/SessionEventProbe.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+[tests/OpenCode.Sdk.Tests/Support/SessionEventProbeTests.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+# These per-scenario deadline helpers retain task handles and explicitly control entry, expiry
+# and result delivery. Their caller releases signals and drains all owned work in finally;
+# there is no foreign synchronization-context dependency. Winner: deterministic deadline control.
+[tests/OpenCode.Sdk.Tests/Support/ControlledOperationDeadline.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+[tests/OpenCode.Sdk.Tests/Support/OperationDeadlineScenario.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+# These cleanup proofs await their own externally-completed barriers/tasks to establish the
+# exact ordering under test. Finally releases and observes stalled work and deadline signals;
+# no foreign synchronization context is involved. Winner: causal owned-work proofs. Each entry
+# names one file; VSTHRD003 remains enabled outside these explicitly owned proof families.
+[tests/OpenCode.Sdk.Tests/Support/OwnedCleanupTests.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+[tests/OpenCode.Sdk.Tests/Support/OwnedCleanupDeadlineTests.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+[tests/OpenCode.Sdk.Tests/Support/OwnedEventReaderTests.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+[tests/OpenCode.Sdk.Tests/Support/OwnedOperationDeadlineTests.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+[tests/OpenCode.Sdk.Tests/Support/SessionLogTranscriptTests.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+# The session-removal fault proof controls interrupt entry and expiry, then drains cancellation
+# and removal in finally. Its task handles have no foreign synchronization-context dependency.
+# Winner: the same causal cleanup proof embedded beside its actual live consumer.
+[tests/OpenCode.Sdk.Tests/Sessions/SessionMessagePaginationLiveTests.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+# This fixture proof owns the disposal task and controls its deadline delivery. Its finally
+# releases all signals and drains the raw operations. Winner: causal owned-process failure proof;
+# VSTHRD003 remains enabled outside this exact file.
+[tests/OpenCode.Sdk.Tests/PinnedOpenCodeServerFixtureFailureTests.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+# These diagnostic proofs control their own operation deadlines and retain supplied disposal
+# tasks until finally releases and drains them. Winner: causal fixture/status ownership proofs;
+# the rule remains enabled outside these exact files.
+[tests/OpenCode.Sdk.Tests/Support/PtyFailureDiagnosticsTests.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+[tests/OpenCode.Sdk.Tests/Support/ServerDiagnosticScenario.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
+# Sandbox application's purpose is primarily for testing
 [tests/OpenCode.Sdk.Sandbox/**.cs]
 dotnet_diagnostic.MA0076.severity = none
 

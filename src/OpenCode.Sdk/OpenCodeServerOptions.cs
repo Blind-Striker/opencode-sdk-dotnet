@@ -38,4 +38,13 @@ public sealed class OpenCodeServerOptions
     /// force-kill window.
     /// </summary>
     public TimeSpan GracefulShutdownTimeout { get; set; } = TimeSpan.FromSeconds(3);
+
+    /// <summary>
+    /// Gets or sets an optional caller-created collector that retains a bounded tail of the
+    /// child's stdout and stderr for pull snapshots. A collector binds to exactly one start
+    /// attempt; supplying one an earlier start already bound is refused before anything is
+    /// spawned. Null keeps the default: output is drained and, apart from the startup failure
+    /// diagnostics, not retained.
+    /// </summary>
+    public OpenCodeServerOutput? Output { get; set; }
 }

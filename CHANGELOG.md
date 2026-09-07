@@ -11,6 +11,15 @@ Each released version links straight to its GitHub Release tag.
 
 ### ✨ New features
 
+- **Refreshed to upstream `89f1943`.** Worktree operations now resolve their project through an
+  optional location query. Call create, list, remove, and refresh directly on `WorktreesClient`;
+  the project-bound `ProjectWorktreesClient` and its factory are gone, which nightly consumers will
+  meet as a compile break. Create's strategy and destination directory are both optional now, as
+  upstream declares them; remove retains its required JSON body.
+  The list operation also exposes its declared `WorktreeError` failure arm. Compaction completion
+  payloads now expose the optional model and provider state supplied by the upstream schema.
+  Project updates accept an optional canonical directory; execution interruption events include
+  the upstream inactivity reason.
 - **`OpenCode.Sdk` — the typed client.** **135 of the 140 operations** in the pinned OpenAPI
   snapshot are callable across **28 client families**: sessions, PTYs, persistent PTYs, shells,
   events, MCP servers, integrations, projects, worktrees, workspaces, providers, language models,
@@ -23,8 +32,8 @@ Each released version links straight to its GitHub Release tag.
   `EventRpc`, tried after the declared literal tags and before the unknown carrier, and
   `UnknownEvent` refuses an `rpc.*` tag rather than absorbing it. Four operations arrived —
   `v2.plugin.awaitActivation`, `v2.plugin.check`, and `v2.plugin.update` as
-  `PluginsClient.PostAwaitActivationAsync`, `PostCheckAsync`, and `PostUpdateAsync`, and
-  `v2.rpc.call` as `PostCallAsync` on the new `RpcClient` family. Upstream also removed and
+  `PluginsClient.AwaitPluginActivationAsync`, `CheckPluginUpdatesAsync`, and `UpdatePluginsAsync`,
+  and `v2.rpc.call` as `CallAsync` on the new `RpcClient` family. Upstream also removed and
   reshaped the plugin types, which nightly consumers will meet as compile breaks: the
   `plugin.added` event arm is gone, and `PluginAdded` and `PluginAddedData` with it; `IPluginInfo`
   and its `PluginInfoActive`, `PluginInfoFailed`, and `UnknownPluginInfo` variants are replaced by
@@ -34,8 +43,11 @@ Each released version links straight to its GitHub Release tag.
   `Updating`; and `PluginListResponse.Plugins` is an `IReadOnlyList<PluginInfo>`.
 - **A standalone server launcher.** `OpenCodeServer.StartAsync()` starts, monitors, and stops a
   private `opencode serve` child — generated lease credential, stdin-EOF ownership, bounded tree
-  termination — and `CreateClient()` hands back a client already bound to it. Real-process
-  lifecycle acceptance runs on Windows, Linux, and macOS.
+  termination — and `CreateClient()` hands back a client already bound to it. An optional
+  `OpenCodeServerOutput` collector, supplied through `OpenCodeServerOptions.Output`, retains a
+  bounded tail of the child's stdout and stderr for pull snapshots that report truncation, and it
+  stays readable after a failed start; `ProcessId` stays readable after disposal for the same
+  diagnostic use. Real-process lifecycle acceptance runs on Windows, Linux, and macOS.
 - **Server-sent event streaming.** `EventsClient.SubscribeAsync` follows the global bus and
   `SessionClient.GetLogAsync` follows one session's log, both as `IAsyncEnumerable<T>` of typed
   frames over the same transport, decoration, and status walls as one-shot calls. A body cut
@@ -63,6 +75,11 @@ Each released version links straight to its GitHub Release tag.
 
 ### 🛠️ General
 
+- **Breaking (nightly API):** `RpcClient.PostCallAsync` is now `CallAsync`;
+  `PluginsClient.PostAwaitActivationAsync`, `PostCheckAsync`, and `PostUpdateAsync` are now
+  `AwaitPluginActivationAsync`, `CheckPluginUpdatesAsync`, and `UpdatePluginsAsync`. Their
+  `OpenCodeRoutes` members use the corresponding names without `Async`; request/response types and
+  wire behavior are unchanged.
 - **Target frameworks:** `netstandard2.0`, `net472`, `net8.0`, `net9.0`, `net10.0` — for both
   packages. The suite runs on `net472` on Windows, real-process launcher tests included, and on
   `net8.0`/`net9.0`/`net10.0` on all three OSes. `netstandard2.0` is a consumption target rather
@@ -73,7 +90,7 @@ Each released version links straight to its GitHub Release tag.
   [`spec/SNAPSHOT.md`](spec/SNAPSHOT.md).
 - **Generated output is committed and reviewed as source**, locked by a public-API baseline and
   verified by regeneration, so a protocol refresh arrives as a readable diff.
-- **Test suite:** 4,418 tests green on Windows — the fullest leg, and the only one that adds the
+- **Test suite:** 5,010 tests green on Windows — the fullest leg, and the only one that adds the
   `net472` assemblies. Linux and macOS run the same suite on the three modern targets.
 
 ### 📋 Important Notes

@@ -33,14 +33,26 @@ public class OpenCodeServer : IAsyncDisposable
     private readonly Uri? _endpoint;
     private readonly string? _password;
     private readonly TimeSpan _gracefulShutdownTimeout;
+    private readonly OpenCodeServerOutput? _output;
+    private readonly int? _processId;
     private int _disposed;
 
-    private OpenCodeServer(Process process, Uri endpoint, string password, TimeSpan gracefulShutdownTimeout)
+    private OpenCodeServer(
+        Process process,
+        Uri endpoint,
+        string password,
+        TimeSpan gracefulShutdownTimeout,
+        OpenCodeServerOutput? output)
     {
         _process = process;
         _endpoint = endpoint;
         _password = password;
         _gracefulShutdownTimeout = gracefulShutdownTimeout;
+        _output = output;
+
+        // Captured while the handle is live: the identity stays readable for diagnostics after
+        // disposal has released the process handle.
+        _processId = process.Id;
     }
 
     /// <summary>
@@ -69,9 +81,12 @@ public class OpenCodeServer : IAsyncDisposable
     /// <summary>Gets the generated lease credential this start injected into the child.</summary>
     public virtual string Password => _password ?? throw MockSeam.CreateError("OpenCodeServer", "Password");
 
-    /// <summary>Gets the child process identifier, for diagnostics and process-truth assertions.</summary>
+    /// <summary>
+    /// Gets the child process identifier, for diagnostics and process-truth assertions. It
+    /// remains readable after disposal, when the process handle itself is gone.
+    /// </summary>
     public virtual int ProcessId =>
-        (_process ?? throw MockSeam.CreateError("OpenCodeServer", "ProcessId")).Id;
+        _processId ?? throw MockSeam.CreateError("OpenCodeServer", "ProcessId");
 
     /// <summary>
     /// Starts a fresh private standalone server: spawns the command with <c>--stdio --port 0</c>
@@ -81,7 +96,7 @@ public class OpenCodeServer : IAsyncDisposable
     /// <param name="options">The launch options; null uses the defaults.</param>
     /// <param name="cancellationToken">The cancellation token ending the wait for readiness.</param>
     /// <returns>The started server, disposed by the caller.</returns>
-    /// <exception cref="ArgumentException">The options are unusable: an empty command, a blank command entry, a non-positive readiness timeout, or a negative grace.</exception>
+    /// <exception cref="ArgumentException">The options are unusable: an empty command, a blank command entry, a non-positive readiness timeout, a negative grace, or an output collector an earlier start already bound.</exception>
     /// <exception cref="OpenCodeServerException">The process could not start, exited before readiness, timed out, or broke the readiness contract.</exception>
     public static async Task<OpenCodeServer> StartAsync(
         OpenCodeServerOptions? options = null,
@@ -92,6 +107,7 @@ public class OpenCodeServer : IAsyncDisposable
         ValidateTimeouts(options);
         var readinessTimeout = options.ReadinessTimeout;
         var gracefulShutdownTimeout = options.GracefulShutdownTimeout;
+        var output = BindOutput(options);
 
         var password = GeneratePassword();
 
@@ -106,7 +122,7 @@ public class OpenCodeServer : IAsyncDisposable
             var stderrGate = new object();
             var stderrTail = new Queue<string>(StderrRetainedLines);
             var readyLine = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-            AttachOutputHandlers(process, readyLine, stderrGate, stderrTail);
+            AttachOutputHandlers(process, readyLine, stderrGate, stderrTail, output);
             StartChildProcess(process, command[0]);
 
             var line = await WaitForReadyLineAsync(
@@ -118,12 +134,19 @@ public class OpenCodeServer : IAsyncDisposable
                     $"The server's first stdout line is not the JSON readiness contract: '{line}'.{DescribeStderr(stderrGate, stderrTail)}");
             }
 
-            var started = new OpenCodeServer(process, endpoint, password, gracefulShutdownTimeout);
+            var started = new OpenCodeServer(process, endpoint, password, gracefulShutdownTimeout, output);
             process = null;
             return started;
         }
         finally
         {
+            if (process is not null)
+            {
+                // A failed start: the child was ended and its output drained (as far as the
+                // bound allowed) on the way here, so what the collector holds is final.
+                output?.Complete();
+            }
+
             process?.Dispose();
         }
     }
@@ -185,11 +208,34 @@ public class OpenCodeServer : IAsyncDisposable
         try
         {
             await EndOwnedChildAsync(_process, _gracefulShutdownTimeout).ConfigureAwait(false);
+            if (_output is not null)
+            {
+                // The collector's promise is a final snapshot once disposal returns. The bounded
+                // drain lets the redirected readers reach end-of-stream (or its bound) before the
+                // collection closes; ownership is unchanged - the child was ended above, and a
+                // drain that cannot finish inside its bound leaves an honest, possibly
+                // incomplete, tail.
+                _ = await FlushOutputDrainAsync(_process).ConfigureAwait(false);
+                _output.Complete();
+            }
         }
         finally
         {
             _process.Dispose();
         }
+    }
+
+    private static OpenCodeServerOutput? BindOutput(OpenCodeServerOptions options)
+    {
+        var output = options.Output;
+        if (output is not null && !output.TryBind())
+        {
+            throw new ArgumentException(
+                "OpenCodeServerOptions.Output is already bound to an earlier start; create a new OpenCodeServerOutput per start.",
+                nameof(options));
+        }
+
+        return output;
     }
 
     private static void ValidateTimeouts(OpenCodeServerOptions options)
@@ -209,15 +255,21 @@ public class OpenCodeServer : IAsyncDisposable
         Process process,
         TaskCompletionSource<string> readyLine,
         object stderrGate,
-        Queue<string> stderrTail)
+        Queue<string> stderrTail,
+        OpenCodeServerOutput? output)
     {
         process.OutputDataReceived += (_, received) =>
         {
             // Continuous drain: the first line is the readiness contract; every later stdout
-            // write is read and dropped so a chatty server can never fill the pipe and wedge
-            // the probe (Q148; the reference keeps draining too, standalone.ts:42).
+            // write is read and, unless a collector retains it, dropped so a chatty server can
+            // never fill the pipe and wedge the probe (Q148; the reference keeps draining too,
+            // standalone.ts:42). The collector's append takes only its own bounded-data lock.
             if (received.Data is not null)
             {
+                // Retain first, then signal: the readiness continuation can run the moment the
+                // result is set, and a snapshot taken right after StartAsync returns must
+                // already hold the line that made it return.
+                output?.AppendStandardOutput(received.Data);
                 readyLine.TrySetResult(received.Data);
             }
         };
@@ -236,6 +288,8 @@ public class OpenCodeServer : IAsyncDisposable
                     stderrTail.Dequeue();
                 }
             }
+
+            output?.AppendStandardError(received.Data);
         };
     }
 

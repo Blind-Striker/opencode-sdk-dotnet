@@ -1186,6 +1186,50 @@ public static class OpenCodeRoutes
     public static class Plugins
     {
         /// <summary>
+        /// The &apos;POST /api/plugin/await-activation&apos; route template.
+        /// </summary>
+        public const string AwaitPluginActivationTemplate = "/api/plugin/await-activation";
+        /// <summary>
+        /// Builds the &apos;/api/plugin/await-activation&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string AwaitPluginActivation(PluginAwaitActivationPostRequest? request = null)
+        {
+            var path = "/api/plugin/await-activation";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
+        /// The &apos;POST /api/plugin/check&apos; route template.
+        /// </summary>
+        public const string CheckPluginUpdatesTemplate = "/api/plugin/check";
+        /// <summary>
+        /// Builds the &apos;/api/plugin/check&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string CheckPluginUpdates(PluginCheckPostRequest? request = null)
+        {
+            var path = "/api/plugin/check";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
         /// The &apos;GET /api/plugin&apos; route template.
         /// </summary>
         public const string ListPluginsTemplate = "/api/plugin";
@@ -1208,59 +1252,15 @@ public static class OpenCodeRoutes
         }
 
         /// <summary>
-        /// The &apos;POST /api/plugin/await-activation&apos; route template.
-        /// </summary>
-        public const string PostAwaitActivationTemplate = "/api/plugin/await-activation";
-        /// <summary>
-        /// Builds the &apos;/api/plugin/await-activation&apos; route.
-        /// </summary>
-        /// <param name = "request">The request shaping the query.</param>
-        /// <returns>The escaped route.</returns>
-        public static string PostAwaitActivation(PluginAwaitActivationPostRequest? request = null)
-        {
-            var path = "/api/plugin/await-activation";
-            if (request is null)
-            {
-                return path;
-            }
-
-            var query = new QueryStringBuilder();
-            query.AddLocation("location", request.Location);
-            return path + query.Value;
-        }
-
-        /// <summary>
-        /// The &apos;POST /api/plugin/check&apos; route template.
-        /// </summary>
-        public const string PostCheckTemplate = "/api/plugin/check";
-        /// <summary>
-        /// Builds the &apos;/api/plugin/check&apos; route.
-        /// </summary>
-        /// <param name = "request">The request shaping the query.</param>
-        /// <returns>The escaped route.</returns>
-        public static string PostCheck(PluginCheckPostRequest? request = null)
-        {
-            var path = "/api/plugin/check";
-            if (request is null)
-            {
-                return path;
-            }
-
-            var query = new QueryStringBuilder();
-            query.AddLocation("location", request.Location);
-            return path + query.Value;
-        }
-
-        /// <summary>
         /// The &apos;POST /api/plugin/update&apos; route template.
         /// </summary>
-        public const string PostUpdateTemplate = "/api/plugin/update";
+        public const string UpdatePluginsTemplate = "/api/plugin/update";
         /// <summary>
         /// Builds the &apos;/api/plugin/update&apos; route.
         /// </summary>
         /// <param name = "request">The request shaping the query.</param>
         /// <returns>The escaped route.</returns>
-        public static string PostUpdate(PluginUpdatePostRequest? request = null)
+        public static string UpdatePlugins(PluginUpdatePostRequest? request = null)
         {
             var path = "/api/plugin/update";
             if (request is null)
@@ -1585,7 +1585,7 @@ public static class OpenCodeRoutes
         /// <summary>
         /// The &apos;POST /api/rpc/{rpcID}/{method}&apos; route template.
         /// </summary>
-        public const string PostCallTemplate = "/api/rpc/{rpcID}/{method}";
+        public const string CallTemplate = "/api/rpc/{rpcID}/{method}";
         /// <summary>
         /// Builds the &apos;/api/rpc/{rpcID}/{method}&apos; route.
         /// </summary>
@@ -1593,7 +1593,7 @@ public static class OpenCodeRoutes
         /// <param name = "method">The &apos;method&apos; route value.</param>
         /// <param name = "request">The request shaping the query.</param>
         /// <returns>The escaped route.</returns>
-        public static string PostCall(string rpcId, string method, RpcCallPostRequest? request = null)
+        public static string Call(string rpcId, string method, RpcCallPostRequest? request = null)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(rpcId);
             if (rpcId is "." or "..")
@@ -3133,83 +3133,91 @@ public static class OpenCodeRoutes
     public static class Worktrees
     {
         /// <summary>
-        /// The &apos;POST /api/worktree/{projectID}&apos; route template.
+        /// The &apos;POST /api/worktree&apos; route template.
         /// </summary>
-        public const string CreateWorktreeTemplate = "/api/worktree/{projectID}";
+        public const string CreateWorktreeTemplate = "/api/worktree";
         /// <summary>
-        /// Builds the &apos;/api/worktree/{projectID}&apos; route.
+        /// Builds the &apos;/api/worktree&apos; route.
         /// </summary>
-        /// <param name = "projectId">The &apos;projectID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
         /// <returns>The escaped route.</returns>
-        public static string CreateWorktree(string projectId)
+        public static string CreateWorktree(WorktreeCreateRequest? request = null)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(projectId);
-            if (projectId is "." or "..")
+            var path = "/api/worktree";
+            if (request is null)
             {
-                throw new ArgumentException("Route values must not be dot segments.", nameof(projectId));
+                return path;
             }
 
-            return "/api/worktree/" + RouteValuePolicy.Escape(projectId, nameof(projectId));
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
         }
 
         /// <summary>
-        /// The &apos;GET /api/worktree/{projectID}&apos; route template.
+        /// The &apos;GET /api/worktree&apos; route template.
         /// </summary>
-        public const string ListWorktreesTemplate = "/api/worktree/{projectID}";
+        public const string ListWorktreesTemplate = "/api/worktree";
         /// <summary>
-        /// Builds the &apos;/api/worktree/{projectID}&apos; route.
+        /// Builds the &apos;/api/worktree&apos; route.
         /// </summary>
-        /// <param name = "projectId">The &apos;projectID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
         /// <returns>The escaped route.</returns>
-        public static string ListWorktrees(string projectId)
+        public static string ListWorktrees(WorktreeListRequest? request = null)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(projectId);
-            if (projectId is "." or "..")
+            var path = "/api/worktree";
+            if (request is null)
             {
-                throw new ArgumentException("Route values must not be dot segments.", nameof(projectId));
+                return path;
             }
 
-            return "/api/worktree/" + RouteValuePolicy.Escape(projectId, nameof(projectId));
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
         }
 
         /// <summary>
-        /// The &apos;POST /api/worktree/{projectID}/refresh&apos; route template.
+        /// The &apos;POST /api/worktree/refresh&apos; route template.
         /// </summary>
-        public const string RefreshWorktreesTemplate = "/api/worktree/{projectID}/refresh";
+        public const string RefreshWorktreesTemplate = "/api/worktree/refresh";
         /// <summary>
-        /// Builds the &apos;/api/worktree/{projectID}/refresh&apos; route.
+        /// Builds the &apos;/api/worktree/refresh&apos; route.
         /// </summary>
-        /// <param name = "projectId">The &apos;projectID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
         /// <returns>The escaped route.</returns>
-        public static string RefreshWorktrees(string projectId)
+        public static string RefreshWorktrees(WorktreeRefreshPostRequest? request = null)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(projectId);
-            if (projectId is "." or "..")
+            var path = "/api/worktree/refresh";
+            if (request is null)
             {
-                throw new ArgumentException("Route values must not be dot segments.", nameof(projectId));
+                return path;
             }
 
-            return "/api/worktree/" + RouteValuePolicy.Escape(projectId, nameof(projectId)) + "/refresh";
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
         }
 
         /// <summary>
-        /// The &apos;DELETE /api/worktree/{projectID}&apos; route template.
+        /// The &apos;DELETE /api/worktree&apos; route template.
         /// </summary>
-        public const string RemoveWorktreeTemplate = "/api/worktree/{projectID}";
+        public const string RemoveWorktreeTemplate = "/api/worktree";
         /// <summary>
-        /// Builds the &apos;/api/worktree/{projectID}&apos; route.
+        /// Builds the &apos;/api/worktree&apos; route.
         /// </summary>
-        /// <param name = "projectId">The &apos;projectID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
         /// <returns>The escaped route.</returns>
-        public static string RemoveWorktree(string projectId)
+        public static string RemoveWorktree(WorktreeRemoveRequest? request = null)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(projectId);
-            if (projectId is "." or "..")
+            var path = "/api/worktree";
+            if (request is null)
             {
-                throw new ArgumentException("Route values must not be dot segments.", nameof(projectId));
+                return path;
             }
 
-            return "/api/worktree/" + RouteValuePolicy.Escape(projectId, nameof(projectId));
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
         }
     }
 

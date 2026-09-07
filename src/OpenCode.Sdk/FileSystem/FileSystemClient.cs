@@ -41,7 +41,7 @@ public class FileSystemClient
     }
 
     /// <summary>
-    /// List directory. List direct children of one directory relative to the requested location.
+    /// List directory. List direct children using an absolute path or a path relative to the requested location, including parents and siblings outside its directory. Entry paths remain relative to the requested location; listing does not switch locations.
     /// </summary>
     /// <param name = "request">The request shaping the query.</param>
     /// <param name = "requestOptions">The per-call options.</param>

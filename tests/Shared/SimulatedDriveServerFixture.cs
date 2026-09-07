@@ -1,3 +1,6 @@
+using System.Runtime.ExceptionServices;
+using OpenCode.Sdk.TestSupport.Abstractions;
+using OpenCode.Sdk.TestSupport.Ownership;
 using Testably.Abstractions;
 using TUnit.Core.Interfaces;
 
@@ -9,42 +12,34 @@ namespace OpenCode.Sdk.TestSupport;
 /// attached drive controller. Simulation denies all unregistered outbound network by
 /// construction (backend/index.ts:29-35), so the workflow runs with no provider credentials.
 /// </summary>
-public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDisposable
+public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDisposable, ITestEndEventReceiver
 {
-    private static readonly TimeSpan ReadinessTimeout = TimeSpan.FromMinutes(3);
-
     private static readonly TimeSpan ControllerTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// Bounded well above the realistic worst case - every local target-framework leg starting a
-    /// simulated server back to back, each within <see cref="ReadinessTimeout"/> - so a genuinely
-    /// wedged holder still fails loudly instead of hanging the suite.
+    /// The launcher's worst case is the 10-second grace, its 10-second forced-exit wait, and the
+    /// 2-second output drain; this outer bound keeps a 3-second margin above that.
     /// </summary>
-    private static readonly TimeSpan GateTimeout = TimeSpan.FromMinutes(15);
-
-    /// <summary>
-    /// Schema: config.ts:106 ('providers'), config/provider.ts:59-65; the builtin package
-    /// resolves with no npm install (core provider.ts:69) and pins the chat route to the exact
-    /// URL the simulation network claims (openai-compatible.ts settings.baseURL +
-    /// openai-compatible-chat.ts:21 '/chat/completions' == openai-chat.ts:35-36
-    /// DEFAULT_BASE_URL + PATH, the pair backend/openai.ts:105 matches on).
-    /// </summary>
-    private const string SimulationConfig =
-        """{"providers":{"sim":{"name":"Simulated","package":"@opencode-ai/ai/providers/openai-compatible","settings":{"baseURL":"https://api.openai.com/v1","apiKey":"drive-lease"},"models":{"sim-model":{"name":"Simulated Model"}}}}}""";
+    private static readonly TimeSpan TeardownTimeout = TimeSpan.FromSeconds(25);
 
     private readonly RealFileSystem _fileSystem = new();
-    private CliWrapServerAdapter? _adapter;
+    private readonly IGitProcess _gitProcess = new GitProcess();
+    private OpenCodeServer? _server;
+    private OpenCodeServerOutput? _output;
     private DriveController? _controller;
     private TestRunRoot? _runRoot;
     private bool _retainLogs;
+    private ServerFailureArtifacts? _artifacts;
+    private int _disposed;
+    public Uri Endpoint => Server.Endpoint;
 
-    public Uri Endpoint => Adapter.Endpoint;
+    public int Order => 0;
 
     internal DriveController Controller =>
         _controller ?? throw new InvalidOperationException("The fixture has not initialized.");
 
-    internal CliWrapServerAdapter Adapter =>
-        _adapter ?? throw new InvalidOperationException("The fixture has not initialized.");
+    internal OpenCodeServer Server =>
+        _server ?? throw new InvalidOperationException("The fixture has not initialized.");
 
     internal TestRunRoot RunRoot =>
         _runRoot ?? throw new InvalidOperationException("The fixture has not initialized.");
@@ -58,9 +53,10 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
             await _controller.HandshakeAsync();
             await _controller.AttachAsync();
         }
-        catch
+        catch (Exception exception)
         {
             _retainLogs = true;
+            MarkFailure(exception, "fixture initialization", "phase=server startup");
             throw;
         }
     }
@@ -74,34 +70,14 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
     /// </summary>
     private async Task<DriveController> StartAsync(TestRunRoot runRoot)
     {
-        var registry = runRoot.CreateSubdirectory("drive");
-        var pinnedCommand = new PinnedServerCommand(_fileSystem);
-        var command = pinnedCommand.Resolve();
-        using var gate = await DrivePortGate.AcquireAsync(_fileSystem, GateTimeout);
-        var manifest = DriveManifest.Write(_fileSystem, registry);
-        var environment = ServerIsolation.Environment(_fileSystem, runRoot.Path);
-        environment["OPENCODE_SIMULATE"] = "1";
-        environment["OPENCODE_DRIVE"] = manifest.InstanceName;
-        environment["DRIVE_REGISTRY_DIR"] = registry;
-        environment["OPENCODE_CONFIG_CONTENT"] = SimulationConfig;
-        _adapter = await CliWrapServerAdapter.StartAsync(
-            command,
-            environment,
+        using var gate = await DrivePortGate.AcquireAsync(_fileSystem, SimulatedServerLaunch.GateTimeout);
+        var launch = SimulatedServerLaunch.Prepare(_fileSystem, runRoot);
 
-            // Anchored at the pinned CLI package for the same reason
-            // PinnedOpenCodeServerFixture is: bun resolves the monorepo's workspace and tsconfig
-            // from the process working directory, not from the absolute entry-file path, and a
-            // scratch directory outside the checkout fails the source run before readiness. Every
-            // global root the server touches stays isolated through the environment above
-            // regardless of this directory.
-            _fileSystem.Path.Combine(
-                pinnedCommand.RepositoryRoot, "external", "opencode", "packages", "cli"),
-            ReadinessTimeout,
-
-            // Captured the instant the adapter object exists so a startup failure still has
-            // stdout/stderr to write out on teardown; StartAsync disposes its own local on every
-            // failure path but never returns it (PinnedOpenCodeServerFixture, same reason).
-            onConstructed: created => _adapter = created);
+        // The collector exists before the start and stays readable when the start fails, so a
+        // startup failure still has stdout/stderr to write out on teardown.
+        _output = new OpenCodeServerOutput();
+        _server = await OpenCodeServer.StartAsync(launch.Options(_output));
+        var manifest = launch.Manifest;
 
         // The backend control socket is already listening when the readiness line is printed -
         // simulation builds the network layer eagerly at server start (backend/index.ts,
@@ -114,47 +90,133 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
     public OpenCodeClient CreateClient(LocationSelector? location = null) =>
         new(new OpenCodeClientOptions
         {
-            Endpoint = Adapter.Endpoint,
-            Password = Adapter.Password,
+            Endpoint = Server.Endpoint,
+            Password = Server.Password,
             Location = location,
         });
 
     public TestWorkspace CreateWorkspace() => new(_fileSystem, RunRoot.Path);
 
+    public Task<GitRepositoryWorkspace> CreateGitRepositoryWorkspaceAsync(CancellationToken cancellationToken) =>
+        GitRepositoryWorkspace.CreateAsync(_fileSystem, _gitProcess, RunRoot.Path, cancellationToken);
+
+    private ServerFailureArtifacts Artifacts => _artifacts ??= new ServerFailureArtifacts(
+        _fileSystem, new TestResultsDirectory(_fileSystem).Resolve(Environment.GetCommandLineArgs()));
+
+    private void MarkFailure(Exception exception, string test, string details)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+        _ = Artifacts.Mark(exception, test, details, TestContext.Current?.Id);
+    }
+
+    public ValueTask OnTestEnd(TestContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        if (context.Execution.Result?.Exception is { } failure)
+        {
+            var path = Artifacts.Mark(
+                failure,
+                context.Metadata.TestDetails.ClassType.FullName + "." + context.Metadata.TestName,
+                "phase=test-body; receiver observes the body result, before later teardown outcomes",
+                context.Id);
+            if (Artifacts.Report(failure, context.Id))
+            {
+                context.Output.AttachArtifact(path, "Owned simulated server failure diagnostics");
+            }
+        }
+
+        return default;
+    }
+
     public async ValueTask DisposeAsync()
     {
-        var keep = _retainLogs ||
-                   string.Equals(
-                       Environment.GetEnvironmentVariable("OPENCODE_SDK_TESTS_KEEP_LOGS"),
-                       "1",
-                       StringComparison.Ordinal);
-        // The controller's teardown is the one that can misbehave - it awaits a receive loop it
-        // does not fully own - and ending the child process is the step that must never be
-        // skipped, so the adapter and the run root are torn down in a finally rather than after.
+        if (Interlocked.Exchange(ref _disposed, 1) is 1)
+        {
+            return;
+        }
+
+        var keep = ShouldRetainLogs;
+        var recorded = _artifacts?.Failures;
+        var primary = recorded is { Count: > 0 } ? recorded[0].Exception : null;
+        var teardown = new OwnedCleanup(TeardownTimeout);
+        if (_controller is not null)
+        {
+            teardown.Own("simulation controller teardown", async _ => await _controller.DisposeAsync());
+        }
+
+        if (_server is not null && _output is not null)
+        {
+            teardown.Own("simulated server teardown", async _ => await _server.DisposeAsync());
+
+            // Runs after the teardown above has settled, so the collector is final: the stdin-EOF
+            // milestone is written only once the lease is released.
+            teardown.Own("simulated server diagnostic contract", _ =>
+            {
+                EnsureDiagnosticContract(_server, _output);
+                return Task.CompletedTask;
+            });
+        }
+
+        Exception? failure = null;
         try
         {
-            if (_controller is not null)
-            {
-                await _controller.DisposeAsync();
-            }
+            await teardown.CompleteAsync(primary);
         }
-        finally
+        catch (Exception exception)
         {
-            if (_adapter is not null)
-            {
-                if (keep && _runRoot is not null)
-                {
-                    _adapter.WriteLogs(_fileSystem, _fileSystem.Path.Combine(_runRoot.Path, "logs"));
-                    Console.WriteLine($"Simulated server logs retained under: {_runRoot.Path}");
-                }
-
-                await _adapter.DisposeAsync();
-            }
-
-            if (!keep)
-            {
-                _runRoot?.Dispose();
-            }
+            failure = exception;
         }
+
+        if (failure is not null || keep)
+        {
+            if (failure is not null && !Artifacts.Failures.Any(item => ReferenceEquals(item.Exception, failure)))
+            {
+                _ = Artifacts.Mark(failure, "fixture disposal", "phase=owned-server-teardown");
+            }
+
+            var capture = new ServerFailureCapture(
+                Artifacts, _fileSystem, new OwnedOperationDeadline());
+            failure = await capture.CaptureAsync(_output, _server?.ProcessId, external: false, failure, teardown.OperationFailures);
+            Console.WriteLine("Simulated server diagnostics: " + Artifacts.Directory);
+        }
+
+        if (failure is null && !keep)
+        {
+            _runRoot?.Dispose();
+        }
+
+        if (failure is not null && !(_artifacts?.IsReported(failure) ?? false))
+        {
+            ExceptionDispatchInfo.Capture(failure).Throw();
+        }
+    }
+
+    private bool ShouldRetainLogs => _retainLogs || _artifacts?.Failures.Count > 0 || string.Equals(
+        Environment.GetEnvironmentVariable("OPENCODE_SDK_TESTS_KEEP_LOGS"), "1", StringComparison.Ordinal);
+
+    /// <summary>
+    /// The shared instance proves the one milestone its final snapshot can still hold: the host
+    /// logs "stdin closed" only once the launcher releases the lease, so it is the last stderr
+    /// line and survives the collector's bound. The earlier "starting"/"ready" milestones are
+    /// evicted over a chatty session (INFO logging retains the newest 500 lines); they are proven
+    /// per lifecycle by <c>PersistentSimulationHostTests</c>, which starts its own short-lived
+    /// host and reads a snapshot that lost nothing. This is the explicit migration reduction from
+    /// the retired adapter's push-based startup capture, not a claim about every shared instance.
+    /// </summary>
+    private static void EnsureDiagnosticContract(OpenCodeServer server, OpenCodeServerOutput output)
+    {
+        var snapshot = output.GetSnapshot();
+        const string milestone = "persistent simulation host stdin closed";
+        if (!snapshot.StandardError.Any(line => line.Contains(milestone, StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException(
+                "The persistent simulation host did not retain the stdin-EOF diagnostic '" + milestone +
+                "' (stderr truncated: " + snapshot.StandardErrorTruncated + ").");
+        }
+
+        Console.WriteLine(
+            "Persistent simulation host retained the stdin-EOF diagnostic for process " +
+            server.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+            " (stderr truncated: " + snapshot.StandardErrorTruncated + ").");
     }
 }

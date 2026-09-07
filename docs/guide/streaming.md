@@ -1,5 +1,7 @@
 # 📡 Streaming
 
+Date: 2026-09-06
+
 Two server-sent event streams, both surfaced as `IAsyncEnumerable<T>` and both riding the same
 transport as ordinary calls: the **global event bus** for everything happening in the server
 process, and the **per-session log** for one conversation.
@@ -48,7 +50,7 @@ cursor, no replay, and no resume channel:
   gap you need to know about. After a failure, refresh whatever state you care about with ordinary
   calls, then subscribe again.
 
-If you need durable history for one conversation, the per-session log is the stream that has it.
+If the server profile retains session history, the per-session log is the stream that can replay it.
 
 ## 📜 A single session's log
 
@@ -69,22 +71,33 @@ await foreach (var item in session.GetLogAsync(new SessionLogRequest { Follow = 
 | Member | Type | Meaning |
 |---|---|---|
 | `Follow` | `QueryBoolean?` | `True` keeps the stream open and keeps delivering; otherwise the stream ends when the existing log has been sent. |
-| `After` | `string?` | Continue after an item you have already seen — the explicit continuation channel the global bus does not have. |
+| `After` | `string?` | Continue after an aggregate sequence you have already processed — the explicit continuation channel the global bus does not have. |
 
-So a consumer that survives a restart records the last item it processed and asks for what came
-after it:
+The cursor is an exclusive numeric aggregate sequence, encoded as a string. Record the
+`Durable.Seq` from the concrete durable event you processed, then format it with invariant culture:
 
 ```csharp
-var request = new SessionLogRequest
-{
-    After = lastSeenId,
-    Follow = QueryBoolean.True,
-};
+using System.Globalization;
+
+static SessionLogRequest FollowAfter(SessionExecutionSucceeded lastProcessed) =>
+    new()
+    {
+        After = lastProcessed.Durable.Seq.ToString(CultureInfo.InvariantCulture),
+        Follow = QueryBoolean.True,
+    };
 ```
 
+With `Follow = False`, a server that persists the requested history replays the available durable
+events and ends with one `EventLogSynced`. The marker reports the captured aggregate watermark.
+With `Follow = True`, read through any replayed events until that marker arrives; the same stream
+then delivers live events committed after the attachment boundary. The marker is a transition
+boundary, not a durable event to save as the next `After` value.
+
 > **📎 A note on guarantees**: `after` is a *request*, not a durability promise. How much history
-> the server retains, and for how long, is upstream's business and is not something this SDK can
-> state on its behalf. Treat a returned gap as possible and reconcile with ordinary reads.
+> the server persists or retains, and for how long, is upstream's business and is not something
+> this SDK can state on its behalf. The stream does not promise replay after a server restart.
+> Treat a returned gap as possible and reconcile with ordinary reads. See the canonical
+> [server-sent events rules](../architecture/client-runtime.md#server-sent-events).
 
 ## 🧩 Unknown events do not break your consumer
 

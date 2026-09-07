@@ -56,7 +56,7 @@ public class ProjectsClient
     }
 
     /// <summary>
-    /// Update project. Update project display metadata and workspace commands.
+    /// Update project. Update the project canonical directory, display metadata, and workspace commands.
     /// </summary>
     /// <param name = "projectId">The &apos;projectID&apos; route value.</param>
     /// <param name = "request">The request body; an empty body is sent when omitted.</param>

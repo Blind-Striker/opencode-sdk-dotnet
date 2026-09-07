@@ -33,8 +33,11 @@ sign.
   [`global.json`](../global.json) (`10.0.302`, `rollForward: latestFeature`)
 - The **.NET 8 and .NET 9 runtimes**, so the `net8.0` and `net9.0` test legs can run
 - On Windows, the **.NET Framework 4.7.2 targeting pack** for the `net472` legs
-- [Bun](https://bun.sh/) `1.3.14` — the pinned-server test fixture builds `external/opencode` with
-  it, exactly as CI does
+- [Bun](https://bun.sh/) at the exact version in `external/opencode/package.json`'s
+  `packageManager` field — the pinned-server fixture and CI use that runtime
+- [ripgrep 15.1.0](https://github.com/BurntSushi/ripgrep/releases/tag/15.1.0) on `PATH` — the
+  filesystem live tests run against an offline simulated server that refuses the on-demand download
+  upstream would otherwise perform
 - [Git](https://git-scm.com/downloads) with submodule support
 - IDE: [Rider](https://www.jetbrains.com/rider/), [Visual Studio](https://visualstudio.microsoft.com/),
   or [VS Code](https://code.visualstudio.com/)

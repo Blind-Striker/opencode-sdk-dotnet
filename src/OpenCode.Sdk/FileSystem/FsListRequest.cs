@@ -11,7 +11,7 @@ public sealed record FsListRequest
     /// </summary>
     public LocationSelector? Location { get; init; }
     /// <summary>
-    /// Gets the &apos;path&apos; query value; the server default applies when unset.
+    /// An absolute path or a path relative to the requested location. Defaults to the location directory.
     /// </summary>
     public string? Path { get; init; }
 }

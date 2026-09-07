@@ -2,7 +2,7 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 namespace OpenCode.Sdk.Internal.ResponseAdapters;
 /// <summary>
-/// Adapts the &apos;DELETE /api/worktree/{projectID}&apos; responses onto &apos;WorktreeRemoveResponse&apos;.
+/// Adapts the &apos;DELETE /api/worktree&apos; responses onto &apos;WorktreeRemoveResponse&apos;.
 /// </summary>
 internal sealed class WorktreeRemoveResponseAdapter : ResponseAdapter<WorktreeRemoveResponse>
 {

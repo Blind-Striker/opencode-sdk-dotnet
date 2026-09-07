@@ -47,6 +47,20 @@ public sealed record SessionMessageCompactionCompleted : ISessionMessageCompacti
     public required SessionMessageCompactionCompletedReason Reason { get; init; }
 
     /// <summary>
+    /// Gets the model value.
+    /// </summary>
+    [JsonPropertyName("model")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ModelRef? Model { get; init; }
+
+    /// <summary>
+    /// Gets the provider state value.
+    /// </summary>
+    [JsonPropertyName("providerState")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string, JsonElement>? ProviderState { get; init; }
+
+    /// <summary>
     /// Gets the summary value.
     /// </summary>
     [JsonPropertyName("summary")]

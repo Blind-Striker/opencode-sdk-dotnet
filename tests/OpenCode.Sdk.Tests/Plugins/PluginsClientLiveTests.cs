@@ -6,11 +6,11 @@ namespace OpenCode.Sdk.Tests;
 
 /// <summary>
 /// The plugin family's deterministic arms against the pinned server: activation settles (204),
-/// the inventory is the builtin set the pin ships, and <c>plugin.check</c> / <c>plugin.update</c>
-/// answer their inventory-only arms - no target (200), an empty target list (204), and a target
-/// outside the inventory (400). Every arm here is decided from the server's own inventory before
-/// any package is consulted, and the isolated fixture configures no package plugin, so none of
-/// these calls can reach a registry.
+/// the owned server's inventory contains its known builtins plus the repository-owned local RPC
+/// plugin, and <c>plugin.check</c> / <c>plugin.update</c> answer their inventory-only arms - no
+/// target (200), an empty target list (204), and a target outside the inventory (400). Every
+/// check/update test proves its activated inventory has no package source before it invokes the
+/// operation, so none of these calls can reach a registry.
 /// </summary>
 /// <remarks>
 /// Deliberately not covered, because they reach the real npm registry, which no test may touch
@@ -35,12 +35,12 @@ public sealed class PluginsClientLiveTests(PinnedOpenCodeServerFixture server)
 
     [Test]
     [Timeout(60_000)]
-    public async Task PostAwaitActivationAsync_Should_Answer_204_Once_Activation_Settles(
+    public async Task AwaitPluginActivationAsync_Should_Answer_204_Once_Activation_Settles(
         CancellationToken cancellationToken)
     {
         using var client = server.CreateClient();
 
-        var settled = await client.Plugins.PostAwaitActivationAsync(cancellationToken: cancellationToken);
+        var settled = await client.Plugins.AwaitPluginActivationAsync(cancellationToken: cancellationToken);
 
         await Assert.That(settled.Status).IsEqualTo(204);
         await Assert.That(settled.IsError).IsFalse();
@@ -50,47 +50,57 @@ public sealed class PluginsClientLiveTests(PinnedOpenCodeServerFixture server)
 
     [Test]
     [Timeout(60_000)]
-    public async Task ListPluginsAsync_Should_Report_The_Builtin_Inventory(CancellationToken cancellationToken)
+    public async Task ListPluginsAsync_Should_Report_The_Expected_Inventory(CancellationToken cancellationToken)
     {
         using var client = server.CreateClient();
 
         // plugin.list reads the inventory as it stands (handlers/plugin.ts:11-13) while check and
         // update settle activation first (:20, :60); a cold server lists nothing until the builtins
         // activate, so this test settles activation itself before it asserts the inventory.
-        _ = await client.Plugins.PostAwaitActivationAsync(cancellationToken: cancellationToken);
+        _ = await client.Plugins.AwaitPluginActivationAsync(cancellationToken: cancellationToken);
 
         var listed = await client.Plugins.ListPluginsAsync(cancellationToken: cancellationToken);
 
         await Assert.That(listed.Status).IsEqualTo(200);
         await Assert.That(listed.IsError).IsFalse();
         await Assert.That(listed.Plugins.Count).IsGreaterThan(0);
-        // Asserted as "no entry falls outside" rather than "every entry matches" so a failure names
-        // the offending ids instead of a bare false.
-        await Assert.That(IdsWhere(listed.Plugins, static plugin => plugin.Source is not PluginSourceBuiltin)).IsEmpty();
-        await Assert.That(IdsWhere(listed.Plugins, static plugin => plugin.State is not PluginStateActive)).IsEmpty();
-        await Assert.That(listed.Plugins.Select(static plugin => plugin.Id).ToArray()).Contains("opencode.agent");
+
+        if (server.IsExternal)
+        {
+            await Assert.That(server.OwnedRpcPlugin).IsNull();
+            await Assert.That(IdsWhere(
+                listed.Plugins,
+                static plugin => string.Equals(plugin.Id, TestRpcPlugin.Id, StringComparison.Ordinal))).IsEmpty();
+        }
+        else
+        {
+            var ownedPlugin = server.OwnedRpcPlugin ??
+                throw new InvalidOperationException("The owned pinned server did not resolve its RPC plugin.");
+            await AssertOwnedInventoryAsync(listed.Plugins, ownedPlugin);
+        }
 
         Console.WriteLine(
-            "plugins-live: list status=" + Number(listed.Status) +
+            "plugins-live: mode=" + (server.IsExternal ? "external" : "owned") +
+            " list status=" + Number(listed.Status) +
             " count=" + Number(listed.Plugins.Count) +
             " ids=" + string.Join(", ", listed.Plugins.Select(static plugin => plugin.Id ?? "<null>")));
     }
 
     [Test]
     [Timeout(60_000)]
-    public async Task PostCheckAsync_Should_Answer_The_Inventory_When_No_Target_Is_Named(
+    public async Task CheckPluginUpdatesAsync_Should_Answer_The_Inventory_When_No_Target_Is_Named(
         CancellationToken cancellationToken)
     {
         using var client = server.CreateClient();
 
-        var inventory = await client.Plugins.PostCheckAsync(cancellationToken: cancellationToken);
+        var listed = await GetActivatedInventoryAsync(client, cancellationToken);
+        await Assert.That(IdsWhere(listed, static plugin => plugin.Source is PluginSourcePackage)).IsEmpty();
+
+        var inventory = await client.Plugins.CheckPluginUpdatesAsync(cancellationToken: cancellationToken);
 
         await Assert.That(inventory.Status).IsEqualTo(200);
         await Assert.That(inventory.IsError).IsFalse();
         await Assert.That(inventory.Check.Count).IsGreaterThan(0);
-        // No package-sourced entry is what keeps this arm offline: the handler checks only
-        // package plugins, so an all-builtin answer is the proof that nothing was resolved.
-        await Assert.That(IdsWhere(inventory.Check, static plugin => plugin.Source is not PluginSourceBuiltin)).IsEmpty();
 
         Console.WriteLine(
             "plugins-live: check status=" + Number(inventory.Status) +
@@ -101,11 +111,18 @@ public sealed class PluginsClientLiveTests(PinnedOpenCodeServerFixture server)
 
     [Test]
     [Timeout(60_000)]
-    public async Task PostCheckAsync_Should_Refuse_A_Target_Outside_The_Inventory(CancellationToken cancellationToken)
+    public async Task CheckPluginUpdatesAsync_Should_Refuse_A_Target_Outside_The_Inventory(
+        CancellationToken cancellationToken)
     {
         using var client = server.CreateClient();
 
-        var refused = await client.Plugins.PostCheckAsync(
+        var listed = await GetActivatedInventoryAsync(client, cancellationToken);
+        await Assert.That(IdsWhere(listed, static plugin => plugin.Source is PluginSourcePackage)).IsEmpty();
+        await Assert.That(IdsWhere(
+            listed,
+            static plugin => string.Equals(plugin.Id, AbsentTarget, StringComparison.Ordinal))).IsEmpty();
+
+        var refused = await client.Plugins.CheckPluginUpdatesAsync(
             new PluginCheckPostRequest { Target = AbsentTarget }, OpenCodeRequestOptions.NoThrow, cancellationToken);
 
         await Assert.That(refused.Status).IsEqualTo(400);
@@ -123,11 +140,14 @@ public sealed class PluginsClientLiveTests(PinnedOpenCodeServerFixture server)
 
     [Test]
     [Timeout(60_000)]
-    public async Task PostUpdateAsync_Should_Answer_204_When_No_Targets_Are_Named(CancellationToken cancellationToken)
+    public async Task UpdatePluginsAsync_Should_Answer_204_When_No_Targets_Are_Named(CancellationToken cancellationToken)
     {
         using var client = server.CreateClient();
 
-        var updated = await client.Plugins.PostUpdateAsync(
+        var listed = await GetActivatedInventoryAsync(client, cancellationToken);
+        await Assert.That(IdsWhere(listed, static plugin => plugin.Source is PluginSourcePackage)).IsEmpty();
+
+        var updated = await client.Plugins.UpdatePluginsAsync(
             new PluginUpdatePostRequest { Targets = [] }, cancellationToken: cancellationToken);
 
         await Assert.That(updated.Status).IsEqualTo(204);
@@ -138,11 +158,18 @@ public sealed class PluginsClientLiveTests(PinnedOpenCodeServerFixture server)
 
     [Test]
     [Timeout(60_000)]
-    public async Task PostUpdateAsync_Should_Refuse_A_Target_Outside_The_Inventory(CancellationToken cancellationToken)
+    public async Task UpdatePluginsAsync_Should_Refuse_A_Target_Outside_The_Inventory(
+        CancellationToken cancellationToken)
     {
         using var client = server.CreateClient();
 
-        var refused = await client.Plugins.PostUpdateAsync(
+        var listed = await GetActivatedInventoryAsync(client, cancellationToken);
+        await Assert.That(IdsWhere(listed, static plugin => plugin.Source is PluginSourcePackage)).IsEmpty();
+        await Assert.That(IdsWhere(
+            listed,
+            static plugin => string.Equals(plugin.Id, AbsentTarget, StringComparison.Ordinal))).IsEmpty();
+
+        var refused = await client.Plugins.UpdatePluginsAsync(
             new PluginUpdatePostRequest { Targets = [AbsentTarget] }, OpenCodeRequestOptions.NoThrow, cancellationToken);
 
         await Assert.That(refused.Status).IsEqualTo(400);
@@ -161,6 +188,37 @@ public sealed class PluginsClientLiveTests(PinnedOpenCodeServerFixture server)
     /// <summary>The ids of the inventory entries a predicate selects; empty is the passing answer.</summary>
     private static string[] IdsWhere(IReadOnlyList<PluginInfo> plugins, Func<PluginInfo, bool> predicate) =>
         [.. plugins.Where(predicate).Select(static plugin => plugin.Id ?? "<null>")];
+
+    private static async Task<IReadOnlyList<PluginInfo>> GetActivatedInventoryAsync(
+        OpenCodeClient client,
+        CancellationToken cancellationToken)
+    {
+        _ = await client.Plugins.AwaitPluginActivationAsync(cancellationToken: cancellationToken);
+        var listed = await client.Plugins.ListPluginsAsync(cancellationToken: cancellationToken);
+        await Assert.That(listed.Status).IsEqualTo(200);
+        await Assert.That(listed.IsError).IsFalse();
+        return listed.Plugins;
+    }
+
+    private static async Task AssertOwnedInventoryAsync(
+        IReadOnlyList<PluginInfo> plugins,
+        TestRpcPlugin ownedPlugin)
+    {
+        await Assert.That(plugins.Select(static plugin => plugin.Id).ToArray()).Contains("opencode.agent");
+        await Assert.That(IdsWhere(
+            plugins,
+            static plugin => plugin.Source is not PluginSourceBuiltin &&
+                !string.Equals(plugin.Id, TestRpcPlugin.Id, StringComparison.Ordinal))).IsEmpty();
+
+        var ownedEntries = plugins.Where(
+            static plugin => string.Equals(plugin.Id, TestRpcPlugin.Id, StringComparison.Ordinal)).ToArray();
+        await Assert.That(ownedEntries).Count().IsEqualTo(1);
+        var owned = ownedEntries.Single();
+        await Assert.That(owned.Source).IsTypeOf<PluginSourceLocal>();
+        var local = owned.Source as PluginSourceLocal;
+        await Assert.That(local?.Path).IsEqualTo(ownedPlugin.EntryPoint);
+        await Assert.That(owned.State).IsTypeOf<PluginStateActive>();
+    }
 
     /// <summary>Renders one number for the console line, culture-free.</summary>
     private static string Number(int value) => value.ToString(CultureInfo.InvariantCulture);

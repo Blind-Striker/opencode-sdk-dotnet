@@ -22,7 +22,7 @@ thing missing is the first published package.
 - ✅ **135 of 140 operations** callable, across 28 client families — sessions, PTYs, persistent
   PTYs, shells, events, MCP servers, integrations, providers, permissions, credentials, VCS,
   worktrees, websearch, RPC, and more
-- ✅ **4,418 tests** green on Windows — the fullest leg, the only one that adds the `net472`
+- ✅ **5,010 tests** green on Windows — the fullest leg, the only one that adds the `net472`
   assemblies. Linux and macOS run the same suite on `net8.0`, `net9.0`, and `net10.0`
 - ✅ **Server-sent event streams**, global and per-session, over the same transport as one-shot calls
 - ✅ **PTY and persistent-PTY terminal sessions** through hand-written WebSocket doors
@@ -36,7 +36,7 @@ thing missing is the first published package.
 
 **Versioning**: the SDK builds against an accepted OpenAPI snapshot, never a live branch. The exact
 upstream commit and the refresh procedure live in [`spec/SNAPSHOT.md`](spec/SNAPSHOT.md); today's
-pin is `48f24669` on upstream's `v2` branch.
+pin is `89f1943d` on upstream's `v2` branch.
 
 ## 🚀 Platform Compatibility & Quality Status
 
@@ -178,7 +178,9 @@ keep the credentials in environment variables:
 
 No ambient process, no endpoint to configure — the launcher starts a private `opencode serve`
 child, mints its credential, and hands you a client bound to it. Disposing the server stops the
-child.
+child. To keep the child's output for diagnostics, pass an `OpenCodeServerOutput` collector in
+`OpenCodeServerOptions.Output` and read its snapshot whenever you like — bounded, and still
+readable when the start failed.
 
 ```csharp
 using OpenCode.Sdk;
@@ -354,6 +356,12 @@ dotnet build --configuration Release
 
 `external/` holds read-only upstream submodules used as protocol evidence and as the pinned-server
 test fixture; `--recurse-submodules` is what makes the fixture-backed tests runnable.
+
+Fixture-backed tests also require the Bun version named by `external/opencode/package.json`, the
+pinned server dependencies (`bun install --frozen-lockfile --ignore-scripts` from
+`external/opencode`), and ripgrep 15.1.0 on `PATH`. The simulated server deliberately denies
+unregistered network access, so its `fs.find` test cannot use upstream's fallback download. CI
+provisions the matching official ripgrep archive and verifies its SHA-256 digest before use.
 
 ### Sandbox Application
 

@@ -1,14 +1,17 @@
 using System.Globalization;
+using System.Runtime.ExceptionServices;
 using System.Text.Json;
+using OpenCode.Sdk.TestSupport.Ownership;
 using Testably.Abstractions;
 using TUnit.Core.Interfaces;
 
 namespace OpenCode.Sdk.TestSupport;
 
 /// <summary>
-/// The exact-pin server fixture (design §7.2): one pinned server per test session over the
-/// CliWrap control adapter, per-run home/state isolation, isolated workspaces, and logs
-/// retained on failure. Consumers declare
+/// The exact-pin server fixture (design §7.2): one pinned server per test session started
+/// through the SDK's own <see cref="OpenCodeServer"/> launcher with its output collector (the
+/// launcher is dogfooded by every live test), per-run home/state isolation, isolated
+/// workspaces, and logs retained on failure. Consumers declare
 /// <c>[ClassDataSource&lt;PinnedOpenCodeServerFixture&gt;(Shared = SharedType.PerTestSession)]</c>;
 /// every consumer adds <c>[NotInParallel(ParallelConstraintKeys.ServerProcess)]</c>, the key
 /// every server-process test shares.
@@ -18,7 +21,7 @@ namespace OpenCode.Sdk.TestSupport;
 /// Environment variables this fixture and its neighbors respond to, one line each:
 /// <list type="bullet">
 /// <item><c>OPENCODE_SDK_TESTS_KEEP_LOGS=1</c> - retain the spawned server's stdout/stderr (and
-/// the run root) under the OS temp root instead of deleting them on dispose.</item>
+/// the run root); bounded log files are written beneath the runner's results directory.</item>
 /// <item><c>OPENCODE_SDK_TESTS_ENDPOINT</c> - an operator-supplied server to attach to instead of
 /// spawning one (paired with <c>OPENCODE_SDK_TESTS_PASSWORD</c>; see below).</item>
 /// <item><c>OPENCODE_SDK_TESTS_PASSWORD</c> - the Basic-auth password for
@@ -31,23 +34,33 @@ namespace OpenCode.Sdk.TestSupport;
 /// <c>OPENCODE_SDK_TESTS_PASSWORD</c> name an operator-supplied server - or the internal
 /// <see cref="ExternalServerEndpoint"/> constructor supplies the pair directly -
 /// <see cref="InitializeAsync"/> spawns nothing: it probes the server's health instead of
-/// starting <see cref="Adapter"/>, so <see cref="Adapter"/> stays unset and every member below
-/// reads from the external pair.
+/// starting an owned server, so <see cref="Server"/> stays unset and every member below reads
+/// from the external pair.
 /// </remarks>
-public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDisposable
+public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDisposable, ITestEndEventReceiver
 {
-    private static readonly TimeSpan ReadinessTimeout = TimeSpan.FromMinutes(3);
-
     private static readonly TimeSpan ExternalHealthProbeTimeout = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// The launcher's worst case is the 10-second grace, its 10-second forced-exit wait, and the
+    /// 2-second output drain; this outer bound keeps a 3-second margin above that.
+    /// </summary>
+    private static readonly TimeSpan TeardownTimeout = TimeSpan.FromSeconds(25);
 
     private readonly RealFileSystem _fileSystem = new();
     private readonly IReadOnlyList<string>? _commandOverride;
     private readonly string? _workingDirectoryOverride;
     private readonly ExternalServerEndpoint? _externalOverride;
-    private CliWrapServerAdapter? _adapter;
+    private OpenCodeServer? _server;
+    private OpenCodeServerOutput? _output;
     private TestRunRoot? _runRoot;
     private ExternalServerEndpoint? _external;
     private bool _retainLogs;
+    private bool _externalMode;
+    private ServerFailureArtifacts? _artifacts;
+    private readonly ServerFixtureDiagnosticsOptions? _diagnostics;
+    private int _disposed;
+    private readonly List<LateCleanupFailureReport> _lateReports = [];
 
     public PinnedOpenCodeServerFixture()
     {
@@ -59,8 +72,9 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
     /// forced through this fixture itself - pinning the failure-path log-retention contract rather
     /// than only exercising it through the lower-level adapter.
     /// </summary>
-    internal PinnedOpenCodeServerFixture(IReadOnlyList<string> command, string workingDirectory)
+    internal PinnedOpenCodeServerFixture(IReadOnlyList<string> command, string workingDirectory, ServerFixtureDiagnosticsOptions? diagnostics = null)
     {
+        _diagnostics = diagnostics;
         _commandOverride = command;
         _workingDirectoryOverride = workingDirectory;
     }
@@ -77,10 +91,32 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
         _externalOverride = external;
     }
 
-    public Uri Endpoint => _external?.Endpoint ?? Adapter.Endpoint;
+    public Uri Endpoint => _external?.Endpoint ?? Server.Endpoint;
 
-    internal CliWrapServerAdapter Adapter =>
-        _adapter ?? throw new InvalidOperationException("The fixture has not initialized.");
+    public int Order => 0;
+
+    internal bool IsExternal
+    {
+        get
+        {
+            if (_external is not null)
+            {
+                return true;
+            }
+
+            if (_server is null)
+            {
+                throw new InvalidOperationException("The fixture has not initialized.");
+            }
+
+            return false;
+        }
+    }
+
+    internal TestRpcPlugin? OwnedRpcPlugin { get; private set; }
+
+    internal OpenCodeServer Server =>
+        _server ?? throw new InvalidOperationException("The fixture has not initialized.");
 
     internal TestRunRoot RunRoot =>
         _runRoot ?? throw new InvalidOperationException("The fixture has not initialized.");
@@ -99,6 +135,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
             var external = _externalOverride ?? ExternalServerEndpoint.FromEnvironment();
             if (external is not null)
             {
+                _externalMode = true;
                 await AttachToExternalAsync(external).ConfigureAwait(false);
                 return;
             }
@@ -115,6 +152,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
         {
             var pinnedCommand = new PinnedServerCommand(_fileSystem);
             command = pinnedCommand.Resolve();
+            OwnedRpcPlugin = new TestRpcPlugin(_fileSystem, pinnedCommand.RepositoryRoot);
 
             // Bun's workspace/tsconfig discovery for the pinned monorepo's JSX packages walks
             // from the process's working directory, not from the absolute entry-file path (Task
@@ -128,23 +166,26 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
                 pinnedCommand.RepositoryRoot, "external", "opencode", "packages", "cli");
         }
 
+        // The collector exists before the start and stays readable when the start fails, so a
+        // startup failure still has stdout/stderr to write out on teardown.
+        _output = new OpenCodeServerOutput();
         try
         {
-            _adapter = await CliWrapServerAdapter.StartAsync(
-                command,
-                BuildEnvironment(_runRoot.Path),
-                workingDirectory,
-                ReadinessTimeout,
-                // Captured the instant the adapter object exists, regardless of whether StartAsync
-                // later throws: a startup failure otherwise leaves _adapter null forever (StartAsync
-                // disposes its own local on every failure path before throwing, but never hands it
-                // back through its return value), which made the WriteLogs call below unreachable
-                // dead code on exactly the failure it exists for.
-                onConstructed: created => _adapter = created);
+            _server = await OpenCodeServer.StartAsync(
+                new OpenCodeServerOptions
+                {
+                    Command = command,
+                    WorkingDirectory = workingDirectory,
+                    Environment = BuildEnvironment(_runRoot.Path),
+                    ReadinessTimeout = OwnedServerPolicy.ReadinessTimeout,
+                    GracefulShutdownTimeout = OwnedServerPolicy.GracefulShutdownTimeout,
+                    Output = _output,
+                }).ConfigureAwait(false);
         }
-        catch
+        catch (Exception exception)
         {
             _retainLogs = true;
+            MarkFailure(exception, "fixture initialization", "phase=server startup");
             throw;
         }
     }
@@ -152,39 +193,120 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
     public OpenCodeClient CreateClient(LocationSelector? location = null) =>
         new(new OpenCodeClientOptions
         {
-            Endpoint = _external?.Endpoint ?? Adapter.Endpoint,
-            Password = _external?.Password ?? Adapter.Password,
+            Endpoint = _external?.Endpoint ?? Server.Endpoint,
+            Password = _external?.Password ?? Server.Password,
             Location = location,
         });
 
     public TestWorkspace CreateWorkspace() => new(_fileSystem, RunRoot.Path);
 
-    public async ValueTask DisposeAsync()
+    internal string DiagnosticsDirectory => Artifacts.Directory;
+
+    internal async Task DrainDiagnosticsAsync(CancellationToken cancellationToken)
     {
-        var keep = _retainLogs ||
-                   string.Equals(
-                       Environment.GetEnvironmentVariable("OPENCODE_SDK_TESTS_KEEP_LOGS"),
-                       "1",
-                       StringComparison.Ordinal);
-        if (_adapter is not null)
+        foreach (var report in _lateReports)
         {
-            if (keep && _runRoot is not null)
-            {
-                _adapter.WriteLogs(_fileSystem, _fileSystem.Path.Combine(_runRoot.Path, "logs"));
-                Console.WriteLine($"Pinned server logs retained under: {_runRoot.Path}");
-            }
-
-            await _adapter.DisposeAsync();
-        }
-
-        if (!keep)
-        {
-            _runRoot?.Dispose();
+            await report.WaitForAllAsync(cancellationToken);
         }
     }
 
-    private Dictionary<string, string> BuildEnvironment(string runRoot) =>
-        ServerIsolation.Environment(_fileSystem, runRoot);
+    private ServerFailureArtifacts Artifacts => _artifacts ??= new ServerFailureArtifacts(
+        _diagnostics?.FileSystem ?? _fileSystem,
+        _diagnostics?.ResultsDirectory ?? new TestResultsDirectory(_fileSystem).Resolve(Environment.GetCommandLineArgs()));
+
+    internal void MarkFailure(Exception exception, string test, string details)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+        _ = Artifacts.Mark(exception, test, details, TestContext.Current?.Id);
+    }
+
+    public ValueTask OnTestEnd(TestContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        if (context.Execution.Result?.Exception is { } failure)
+        {
+            var path = Artifacts.Mark(failure,
+                context.Metadata.TestDetails.ClassType.FullName + "." + context.Metadata.TestName,
+                "phase=test-body; receiver observes the body result, before later teardown outcomes", context.Id);
+            if (Artifacts.Report(failure, context.Id))
+            {
+                context.Output.AttachArtifact(path, "Owned server failure diagnostics");
+            }
+        }
+
+        return default;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) is 1)
+        {
+            return;
+        }
+
+        var keep = ShouldRetainLogs;
+        var recorded = _artifacts?.Failures;
+        var primary = recorded is { Count: > 0 } ? recorded[0].Exception : null;
+        var teardown = new OwnedCleanup(TeardownTimeout,
+            _diagnostics?.Deadline ?? new OwnedOperationDeadline());
+        if (_server is not null)
+        {
+            teardown.Own("pinned server teardown", async _ => await _server.DisposeAsync());
+        }
+
+        Exception? failure = null;
+        try
+        {
+            await teardown.CompleteAsync(primary);
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
+
+        if (teardown.LateFailures is { } late)
+        {
+            _lateReports.Add(late);
+        }
+
+        if (failure is not null || keep)
+        {
+            if (failure is not null && !Artifacts.Failures.Any(item => ReferenceEquals(item.Exception, failure)))
+            {
+                _ = Artifacts.Mark(failure, "fixture disposal", "phase=owned-server-teardown");
+            }
+
+            var capture = new ServerFailureCapture(Artifacts, _diagnostics?.FileSystem ?? _fileSystem,
+                _diagnostics?.Deadline ?? new OwnedOperationDeadline());
+            failure = await capture.CaptureAsync(_output, _server?.ProcessId, _externalMode, failure, teardown.OperationFailures);
+            _lateReports.AddRange(capture.LateReports);
+            Console.WriteLine("Pinned server diagnostics: " + Artifacts.Directory);
+        }
+
+        if (failure is null && !keep)
+        {
+            _runRoot?.Dispose();
+        }
+        if (failure is not null && !(_artifacts?.IsReported(failure) ?? false))
+        {
+            ExceptionDispatchInfo.Capture(failure).Throw();
+        }
+    }
+    private bool ShouldRetainLogs => _retainLogs || _diagnostics?.RetainLogs is true || string.Equals(
+        Environment.GetEnvironmentVariable("OPENCODE_SDK_TESTS_KEEP_LOGS"), "1", StringComparison.Ordinal);
+
+    private Dictionary<string, string> BuildEnvironment(string runRoot)
+    {
+        var environment = ServerIsolation.Environment(_fileSystem, runRoot);
+        if (OwnedRpcPlugin is { } plugin)
+        {
+            environment["OPENCODE_CONFIG_CONTENT"] = new ServerConfigSeed()
+                .WithPluginDirectory(plugin.Directory)
+                .Render();
+        }
+
+        return environment;
+    }
 
     /// <summary>
     /// Probes the external pair's health through a throw-away client and, once it answers, prints

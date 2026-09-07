@@ -4,7 +4,7 @@ using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Internal.ResponseAdapters;
 /// <summary>
-/// Adapts the &apos;POST /api/worktree/{projectID}&apos; responses onto &apos;WorktreeCreateResponse&apos;.
+/// Adapts the &apos;POST /api/worktree&apos; responses onto &apos;WorktreeCreateResponse&apos;.
 /// </summary>
 internal sealed class WorktreeCreateResponseAdapter : ResponseAdapter<WorktreeCreateResponse>
 {

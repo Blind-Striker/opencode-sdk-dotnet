@@ -1,5 +1,7 @@
 # 🚀 Getting started
 
+Date: 2026-09-06
+
 Install the package, point a client at a server, and make three calls. Ten minutes, and the last
 one talks to a model.
 
@@ -45,7 +47,12 @@ using var client = new OpenCodeClient(new OpenCodeClientOptions
 | `Endpoint` | `Uri?` | The server's base address. Required. |
 | `Password` | `string?` | The HTTP Basic password. `null` sends anonymous requests, which is what a server started without authentication expects; an empty or whitespace value is refused at construction. |
 | `Username` | `string` | The Basic username. Defaults to `opencode` — the only username the pinned server accepts — so leave it alone unless upstream changes. |
-| `Location` | `LocationSelector?` | The ambient project directory/workspace every call resolves against, overridable per call. |
+| `Location` | `LocationSelector?` | The ambient directory/workspace header values, overridable per call; only operations that resolve location from those headers use them. |
+
+Session creation selects its location from `SessionCreateRequest.Location`; leaving it unset uses
+the server's working directory. Session listing filters with `SessionListRequest.Directory` or
+`Project`, independently of these headers. See the [location contract](../architecture/client-runtime.md#location)
+for ambient and per-call header behavior.
 
 > **🔑 The SDK reads no environment variables of its own.** `OPENCODE_SERVER_PASSWORD` above is
 > *your* code reading *your* environment — exactly how opencode's own CLI layers it. Options are

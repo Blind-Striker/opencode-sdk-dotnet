@@ -896,6 +896,81 @@ public sealed class PipelineTests
     }
 
     [Test]
+    [NotInParallel]
+    public async Task ExecuteAsync_Should_Classify_A_Fault_The_Interruption_Caused_As_Caller_Cancellation()
+    {
+        using var callerCancellation = new CancellationTokenSource();
+        using var content = new InterruptedBufferingContent();
+        using var handler = new RecordingHttpHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = content,
+        });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient);
+
+        var execution = pipeline.ExecuteAsync(
+            HttpMethod.Get,
+            "/api/health",
+            new RecordingResponseAdapter(),
+            options: null,
+            callerCancellation.Token);
+        await content.ReadStarted.WaitAsync(TimeSpan.FromSeconds(5));
+        await callerCancellation.CancelAsync();
+
+        OperationCanceledException? cancellation = null;
+        try
+        {
+            _ = await execution;
+        }
+        catch (OperationCanceledException exception)
+        {
+            cancellation = exception;
+        }
+
+        await Assert.That(cancellation).IsNotNull();
+#if NET
+        // The BCL's own read-stream path surfaces the torn-down buffer's fault, and the
+        // interruption classifies it. Downlevel, the polyfilled overload races the read against
+        // the token and its cancellation wins first, so the fault never surfaces there.
+        await Assert.That(cancellation!.InnerException).IsTypeOf<ArgumentNullException>();
+#endif
+        await content.ReadCompleted.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(content.IsDisposed).IsTrue();
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task ExecuteAsync_Should_Classify_A_Fault_The_Interruption_Caused_As_A_Transport_Failure_At_The_Progress_Window()
+    {
+        using var callerCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var content = new InterruptedBufferingContent();
+        using var handler = new RecordingHttpHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = content,
+        });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient, networkTimeout: TimeSpan.FromMilliseconds(200));
+
+        var failure = await Assert
+            .That(async () => _ = await pipeline.ExecuteAsync(
+                HttpMethod.Get,
+                "/api/health",
+                new RecordingResponseAdapter(),
+                options: null,
+                callerCancellation.Token))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(callerCancellation.IsCancellationRequested).IsFalse();
+        await Assert.That(failure!.InnerException).IsNotNull();
+#if NET
+        await Assert.That(failure.InnerException).IsTypeOf<ArgumentNullException>();
+#endif
+        await content.ReadStarted.WaitAsync(TimeSpan.FromSeconds(5));
+        await content.ReadCompleted.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(content.IsDisposed).IsTrue();
+    }
+
+    [Test]
     public async Task Dispose_Should_Dispose_The_Owned_Client()
     {
         using var handler = new RecordingHttpHandler();

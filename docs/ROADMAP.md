@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-09-02
+Date: 2026-09-07
 
 Operational state: what ships today, what is queued next, what is still open, and what is known to
 be incomplete. This file is a summary and shrinks as work lands. `../AGENTS.md` routes to the
@@ -60,8 +60,9 @@ is revisited at each boundary.
    document declares, verifier-checked, with the arms no deterministic fixture can reach listed by
    name rather than skipped silently (ADR-0022).
 6. **M6 — Operational closure.** Automation for the upstream observation lanes (tip detector,
-   candidate refresh), retry/telemetry/hooks with the public network-timeout knob, a quarantine lane,
-   the nightly source-run canary with the performance suite (ADR-0022), and Restore-patch retirement.
+   candidate refresh), retry/telemetry/hooks with the public network-timeout knob and the
+   per-operation event-stream idle bound it gates, a quarantine lane, the nightly source-run
+   canary with the performance suite (ADR-0022), and Restore-patch retirement.
 
 ## Open Questions
 
@@ -101,6 +102,18 @@ is revisited at each boundary.
   `netstandard2.0` a response body over 1 MB costs one wire-sized copy, and `PtySession.ReadAsync`
   allocates a fresh 16 KiB receive buffer per call. Both are measured rather than suspected, and
   both are described for consumers in the README's Known Issues.
+- **A half-open event stream is not detected.** A successful SSE body stays live until caller
+  cancellation, server completion, or failure, so a connection whose peer is gone without closing
+  hangs a consumer that supplied no cancellation of its own; ordinary resets, server exits, and
+  killed processes already surface at once. A consumer cannot bound this from outside the SDK,
+  because the server's keepalive comments carry no event and never reach the enumeration. The bound
+  has to be per operation rather than a property of every SSE body: upstream writes a keepalive
+  every fifteen seconds on `v2.event.subscribe` and none on `v2.session.log`, whose follow mode is
+  silent by design while a session is idle. Queued behind M6's public network-timeout knob so the
+  bound arrives configurable rather than as a behavior no caller can widen. Upstream's own clients
+  place this one layer above their core client, which does not reconnect either
+  (`packages/client/src/solid/connection.ts`: two-second connect, forty-five-second idle abort,
+  one-second reconnect delay, and an authoritative refetch once reconnected).
 - **A server-process start stalls in-process `net472` tests for about ten seconds** on hosted
   Windows. Harmless today, because every timing-bounded test runs alone, and queued as a hygiene
   candidate: the first suspect is .NET Framework's synchronous pipe reads holding thread-pool
@@ -118,3 +131,11 @@ is revisited at each boundary.
   defect: run the gates with `--report-trx --report-trx-filename <unique>` so a recurrence names it.
 - **`BuildOs`/`BuildArch` in `Directory.Build.props`** need their values adapted to opencode's
   release-asset naming when the binary-download need lands.
+- **The launcher's descendant-termination proof has a platform boundary.** The startup-tree tests
+  prove the direct child exits immediately and the grandchild terminates inside a ten-second bound
+  on the modern target frameworks (all three OSes) and on `net472` Windows (`taskkill /T`). The
+  downlevel non-Windows arm of the tree kill (a plain `Kill()`) is not exercised by any test project,
+  and the Linux/macOS behavior is established only by the three-OS CI run, never by a Windows-local
+  suite. On Unix the observed grandchild is not a child of the test process, so its exit is visible
+  only once the adopting parent reaps it: an environment without a reaping PID 1 fails that bound
+  with the process still recorded as a zombie.

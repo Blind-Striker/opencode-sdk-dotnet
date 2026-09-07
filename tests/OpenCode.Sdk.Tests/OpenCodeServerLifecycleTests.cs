@@ -1,5 +1,7 @@
+using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
 using Testably.Abstractions;
+using TUnit.Assertions.Enums;
 
 namespace OpenCode.Sdk.Tests;
 
@@ -52,6 +54,29 @@ public sealed class OpenCodeServerLifecycleTests
         }
     }
 
+    /// <summary>
+    /// Waits until the launched child is gone. A child that ends itself on a timer can already
+    /// have exited before this runs, and an absent process is the state this waits for: only a
+    /// live handle is worth awaiting, so its absence returns rather than failing the arrangement.
+    /// </summary>
+    private static async Task WaitForProcessExitAsync(int processId, CancellationToken cancellationToken)
+    {
+        System.Diagnostics.Process child;
+        try
+        {
+            child = System.Diagnostics.Process.GetProcessById(processId);
+        }
+        catch (ArgumentException)
+        {
+            return;
+        }
+
+        using (child)
+        {
+            await child.WaitForExitAsync(cancellationToken);
+        }
+    }
+
     [Test]
     [Timeout(240_000)]
     public async Task StartAsync_Should_Report_Readiness_And_Answer_Health(CancellationToken cancellationToken)
@@ -81,6 +106,8 @@ public sealed class OpenCodeServerLifecycleTests
         using var _ = runRoot;
         var processId = server.ProcessId;
 
+        await server.DisposeAsync();
+        // A second disposal is a no-op by contract; this is the idempotence proof, not a stray line.
         await server.DisposeAsync();
 
         await Assert.That(IsProcessRunning(processId)).IsFalse();
@@ -121,29 +148,266 @@ public sealed class OpenCodeServerLifecycleTests
     [Timeout(120_000)]
     public async Task StartAsync_Should_Refuse_A_Server_That_Never_Reports_Readiness(CancellationToken cancellationToken)
     {
-        var failure = await Assert.That(async () => await OpenCodeServer.StartAsync(
-            new OpenCodeServerOptions
-            {
-                Command = ["bun", "-e", "setTimeout(() => {}, 120000)"],
-                ReadinessTimeout = TimeSpan.FromSeconds(2),
-            },
-            cancellationToken)).Throws<OpenCodeServerException>();
+        await using var scenario = ServerStartupTreeScenario.CreateSilent(
+            TimeSpan.FromSeconds(15));
+        await scenario.StartAndObserveAsync(cancellationToken);
+
+        var failure = await Assert.That(
+            async () => _ = await scenario.WaitForStartupAsync(cancellationToken)).Throws<OpenCodeServerException>();
 
         await Assert.That(failure!.Message).Contains("did not report readiness");
+        await AssertFailedStartEndedTheTreeAsync(scenario, cancellationToken);
     }
 
     [Test]
     [Timeout(120_000)]
     public async Task StartAsync_Should_Refuse_A_Non_Contract_First_Line(CancellationToken cancellationToken)
     {
+        await using var scenario = ServerStartupTreeScenario.CreateInvalidLine();
+        await scenario.StartAndObserveAsync(cancellationToken);
+
+        var failure = await Assert.That(
+            async () => _ = await scenario.WaitForStartupAsync(cancellationToken)).Throws<OpenCodeServerException>();
+
+        await Assert.That(failure!.Message).Contains("readiness contract");
+        await AssertFailedStartEndedTheTreeAsync(scenario, cancellationToken);
+    }
+
+    /// <summary>
+    /// The accepted completion contract after a failed start. The direct child's exit is
+    /// immediate: the startup result is returned only after it. The grandchild is bounded
+    /// descendant termination evidence, both leases still held (disposal releases them, after
+    /// this): a tree kill is asynchronous, so it is observed to terminate inside its own bound
+    /// rather than asserted gone at that instant.
+    /// </summary>
+    private static async Task AssertFailedStartEndedTheTreeAsync(
+        ServerStartupTreeScenario scenario,
+        CancellationToken cancellationToken)
+    {
+        var rootExited = scenario.RootProcess.HasExited;
+        await Assert.That(rootExited).IsTrue().Because(rootExited ? string.Empty : await scenario.DescribeProcessesAsync());
+
+        var descendantTerminated = await scenario.ObserveDescendantTerminationAsync(cancellationToken);
+        await Assert.That(descendantTerminated).IsTrue().Because(scenario.DescendantEvidence);
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task StartupTreeScenario_Should_Clean_Observed_Tree_When_Handshake_Fails(
+        CancellationToken cancellationToken)
+    {
+        await using var scenario = ServerStartupTreeScenario.CreateHandshakeFailure();
+        InvalidOperationException? cleanupFailure = null;
+        try
+        {
+            var observationFailure = await Assert.That(
+                async () => await scenario.StartAndObserveAsync(cancellationToken))
+                .Throws<InvalidOperationException>();
+            _ = await Assert.That(
+                async () => _ = await scenario.WaitForStartupAsync(cancellationToken))
+                .Throws<OpenCodeServerException>();
+
+            await Assert.That(scenario.RootProcess.HasExited).IsTrue();
+            await Assert.That(scenario.ChildProcess.HasExited).IsTrue();
+
+            await Assert.That(observationFailure!.Message)
+                .Contains("intentionally rejected for cleanup verification");
+        }
+        finally
+        {
+            try
+            {
+                await scenario.DisposeAsync();
+            }
+            catch (InvalidOperationException exception)
+            {
+                cleanupFailure = exception;
+            }
+        }
+
+        await Assert.That(cleanupFailure).IsNotNull();
+        await Assert.That(cleanupFailure!.Message)
+            .Contains("intentionally rejected for cleanup verification");
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task StartupTreeScenario_Should_Release_Each_Owned_Lease_Independently(
+        CancellationToken cancellationToken)
+    {
+        await using var scenario = ServerStartupTreeScenario.CreateSilent(TimeSpan.FromMinutes(2));
+        await scenario.StartAndObserveAsync(cancellationToken);
+        await Assert.That(scenario.RootProcess.HasExited).IsFalse();
+        await Assert.That(scenario.ChildProcess.HasExited).IsFalse();
+
+        // Exercise cooperative cleanup while startup is still waiting. This is fixture evidence,
+        // not launcher-reaping evidence: the latter tests keep both leases open until assertions.
+        scenario.ReleaseChildLease();
+        await scenario.ChildProcess.WaitForExitAsync(cancellationToken);
+        await Assert.That(scenario.ChildProcess.HasExited).IsTrue();
+        await Assert.That(scenario.RootProcess.HasExited).IsFalse();
+
+        scenario.ReleaseRootLease();
+        _ = await Assert.That(async () => _ = await scenario.WaitForStartupAsync(cancellationToken))
+            .Throws<OpenCodeServerException>();
+        await Assert.That(scenario.RootProcess.HasExited).IsTrue();
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task StartAsync_Should_Retain_Both_Streams_For_A_Pull_Snapshot(CancellationToken cancellationToken)
+    {
+        const string readyLine = "{\"url\":\"http://127.0.0.1:1\"}";
+        var output = new OpenCodeServerOutput();
+        var server = await OpenCodeServer.StartAsync(
+            new OpenCodeServerOptions
+            {
+                // A stand-in child: the readiness contract first, then an empty stdout line, a
+                // later stdout line, and one stderr line, held open until the launcher ends it.
+                Command =
+                [
+                    "bun", "-e",
+                    "console.log('" + readyLine + "'); console.log(''); console.log('later'); console.error('warn-1'); setTimeout(() => {}, 120000)",
+                ],
+                GracefulShutdownTimeout = TimeSpan.Zero,
+                Output = output,
+            },
+            cancellationToken);
+
+        // Readiness parsing stayed independent of the collector: the same first line drove both.
+        await Assert.That(server.Endpoint).IsEqualTo(new Uri("http://127.0.0.1:1"));
+
+        await server.DisposeAsync();
+
+        var snapshot = output.GetSnapshot();
+        await Assert.That(snapshot.StandardOutput).IsEquivalentTo([readyLine, "", "later"], CollectionOrdering.Matching);
+        await Assert.That(snapshot.StandardError).IsEquivalentTo(["warn-1"], CollectionOrdering.Matching);
+        await Assert.That(snapshot.StandardOutputTruncated).IsFalse();
+        await Assert.That(snapshot.StandardErrorTruncated).IsFalse();
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task DisposeAsync_Should_Finalize_The_Collector_After_A_Graceful_Stdin_Eof_Exit(CancellationToken cancellationToken)
+    {
+        const string readyLine = "{\"url\":\"http://127.0.0.1:1\"}";
+        var output = new OpenCodeServerOutput();
+        var server = await OpenCodeServer.StartAsync(
+            new OpenCodeServerOptions
+            {
+                // The child writes its last lines only once the stdin lease is released, then
+                // leaves on its own inside the default grace: the graceful arm of disposal.
+                Command =
+                [
+                    "bun", "-e",
+                    "console.log('" + readyLine + "'); process.stdin.resume(); process.stdin.on('end', () => { console.log('FINAL-STDOUT'); console.error('FINAL-STDERR'); });",
+                ],
+                Output = output,
+            },
+            cancellationToken);
+
+        await server.DisposeAsync();
+
+        // Lines written during the shutdown itself are inside the final snapshot: the drain ran
+        // before the collection closed.
+        var snapshot = output.GetSnapshot();
+        await Assert.That(snapshot.StandardOutput).IsEquivalentTo([readyLine, "FINAL-STDOUT"], CollectionOrdering.Matching);
+        await Assert.That(snapshot.StandardError).IsEquivalentTo(["FINAL-STDERR"], CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task DisposeAsync_Should_Finalize_The_Collector_For_A_Child_That_Already_Exited(CancellationToken cancellationToken)
+    {
+        const string readyLine = "{\"url\":\"http://127.0.0.1:1\"}";
+        var output = new OpenCodeServerOutput();
+        var server = await OpenCodeServer.StartAsync(
+            new OpenCodeServerOptions
+            {
+                // Ready, one stderr line, then a self-initiated exit shortly after: disposal
+                // finds no child to end and still finalizes what the readers deliver.
+                Command =
+                [
+                    "bun", "-e",
+                    "console.log('" + readyLine + "'); console.error('bye'); setTimeout(() => process.exit(0), 500);",
+                ],
+                Output = output,
+            },
+            cancellationToken);
+        await WaitForProcessExitAsync(server.ProcessId, cancellationToken);
+
+        await server.DisposeAsync();
+
+        var snapshot = output.GetSnapshot();
+        await Assert.That(snapshot.StandardOutput).IsEquivalentTo([readyLine], CollectionOrdering.Matching);
+        await Assert.That(snapshot.StandardError).IsEquivalentTo(["bye"], CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task StartAsync_Should_Leave_The_Collector_Readable_After_A_Failed_Start(CancellationToken cancellationToken)
+    {
+        var output = new OpenCodeServerOutput();
+
         var failure = await Assert.That(async () => await OpenCodeServer.StartAsync(
             new OpenCodeServerOptions
             {
-                Command = ["bun", "-e", "console.log('hello'); setTimeout(() => {}, 120000)"],
+                Command = ["bun", "-e", "console.error('boom'); process.exit(7)"],
+                Output = output,
             },
             cancellationToken)).Throws<OpenCodeServerException>();
 
-        await Assert.That(failure!.Message).Contains("readiness contract");
+        // The startup exception's own tail and the collector are independent witnesses.
+        await Assert.That(failure!.Message).Contains("boom");
+        var snapshot = output.GetSnapshot();
+        await Assert.That(snapshot.StandardError).IsEquivalentTo(["boom"], CollectionOrdering.Matching);
+        await Assert.That(snapshot.StandardOutput).IsEmpty();
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task StartAsync_Should_Refuse_A_Collector_An_Earlier_Start_Bound_Before_Spawning(CancellationToken cancellationToken)
+    {
+        var output = new OpenCodeServerOutput();
+        _ = await Assert.That(async () => await OpenCodeServer.StartAsync(
+            new OpenCodeServerOptions
+            {
+                Command = ["bun", "-e", "process.exit(7)"],
+                Output = output,
+            },
+            cancellationToken)).Throws<OpenCodeServerException>();
+
+        // Refused as an options error, not as a spawn failure: the missing executable is never run.
+        var refusal = await Assert.That(async () => await OpenCodeServer.StartAsync(
+            new OpenCodeServerOptions
+            {
+                Command = ["opencode-sdk-test-missing-executable"],
+                Output = output,
+            },
+            cancellationToken)).Throws<ArgumentException>();
+
+        await Assert.That(refusal!.Message).Contains("already bound");
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task ProcessId_Should_Stay_Readable_After_Disposal(CancellationToken cancellationToken)
+    {
+        var server = await OpenCodeServer.StartAsync(
+            new OpenCodeServerOptions
+            {
+                Command = ["bun", "-e", "console.log('{\"url\":\"http://127.0.0.1:1\"}'); setTimeout(() => {}, 120000)"],
+                GracefulShutdownTimeout = TimeSpan.Zero,
+            },
+            cancellationToken);
+        var processId = server.ProcessId;
+
+        await server.DisposeAsync();
+
+        // Owners write their failure diagnostics after teardown, so the child's identity has to
+        // outlive the process handle disposal released.
+        await Assert.That(server.ProcessId).IsEqualTo(processId);
+        await Assert.That(IsProcessRunning(processId)).IsFalse();
     }
 
     [Test]
@@ -164,17 +428,15 @@ public sealed class OpenCodeServerLifecycleTests
     [Timeout(120_000)]
     public async Task StartAsync_Should_Surface_Caller_Cancellation(CancellationToken cancellationToken)
     {
-        // Linked to the test's own injected token so the manufactured 200ms caller-cancellation
-        // still composes with whatever the [Timeout] attribute (or an external test-run
-        // cancellation) also asks for, rather than replacing it outright.
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cancellation.CancelAfter(TimeSpan.FromMilliseconds(200));
+        await using var scenario = ServerStartupTreeScenario.CreateSilent(
+            TimeSpan.FromMinutes(2));
+        await scenario.StartAndObserveAsync(cancellation.Token);
 
-        _ = await Assert.That(async () => await OpenCodeServer.StartAsync(
-            new OpenCodeServerOptions
-            {
-                Command = ["bun", "-e", "setTimeout(() => {}, 120000)"],
-            },
-            cancellation.Token)).Throws<OperationCanceledException>();
+        await cancellation.CancelAsync();
+
+        _ = await Assert.That(
+            async () => _ = await scenario.WaitForStartupAsync(cancellationToken)).Throws<OperationCanceledException>();
+        await AssertFailedStartEndedTheTreeAsync(scenario, cancellationToken);
     }
 }

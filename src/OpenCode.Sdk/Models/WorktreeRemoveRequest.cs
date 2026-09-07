@@ -19,4 +19,10 @@ public sealed record WorktreeRemoveRequest
     /// </summary>
     [JsonPropertyName("force")]
     public required bool Force { get; init; }
+
+    /// <summary>
+    /// Gets the &apos;location&apos; query value; the server default applies when unset.
+    /// </summary>
+    [JsonIgnore]
+    public LocationSelector? Location { get; init; }
 }
