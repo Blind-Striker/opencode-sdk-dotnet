@@ -124,6 +124,11 @@
       "anchorMatched": true
     },
     {
+      "path": "packages/core/src/ripgrep/binary.ts",
+      "sha256": "5e0398e1fe6bb5c2f694d01997781ef73060acd725468d7d4235a08ed96c41c6",
+      "anchorMatched": true
+    },
+    {
       "path": "packages/tui/src/component/terminal-pane.tsx",
       "sha256": "973e352937fe66c218e7ca1c955cdd335eaedf81dc1f57f1a97ba0777e4578ae",
       "anchorMatched": true

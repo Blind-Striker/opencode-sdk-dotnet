@@ -173,6 +173,15 @@
       }
     },
     {
+      "path": "packages/core/src/ripgrep/binary.ts",
+      "sha256": "5e0398e1fe6bb5c2f694d01997781ef73060acd725468d7d4235a08ed96c41c6",
+      "behavior": "The ripgrep version upstream downloads on demand. CI provisions that exact version with pinned digests so an offline simulated server never has to reach the network for it, so a moved constant must be reviewed with the refresh rather than discovered as a failing filesystem live test.",
+      "anchor": {
+        "type": "contains",
+        "text": "const VERSION = \u002215.1.0\u0022"
+      }
+    },
+    {
       "path": "packages/tui/src/component/terminal-pane.tsx",
       "sha256": "973e352937fe66c218e7ca1c955cdd335eaedf81dc1f57f1a97ba0777e4578ae",
       "behavior": "Behavioral oracle: the TUI resumes a terminal from the snapshot tail cursor.",
