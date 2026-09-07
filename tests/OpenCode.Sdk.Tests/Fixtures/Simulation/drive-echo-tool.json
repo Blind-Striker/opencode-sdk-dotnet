@@ -1,0 +1,16 @@
+{
+  "name": "drive_echo",
+  "description": "Echo a caller-provided value.",
+  "inputSchema": {
+    "type": "object",
+    "properties": { "value": { "type": "string" } },
+    "required": ["value"],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": { "echo": { "type": "string" } },
+    "required": ["echo"],
+    "additionalProperties": false
+  }
+}

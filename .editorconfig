@@ -920,6 +920,14 @@ dotnet_diagnostic.VSTHRD003.severity = none
 [tests/OpenCode.Sdk.Tests/Support/OwnedEventReader.cs]
 dotnet_diagnostic.VSTHRD003.severity = none
 
+# SessionEventProbe awaits TaskCompletionSource handles completed only by the reader loop this
+# same object started and handed to its owning OwnedEventReader: the connected barrier and the
+# per-arrival signal. That is the event-to-async bridge which lets a scenario act the moment the
+# subscription is attached, and wait for a correlated event, without polling or sleeping. Winner:
+# the single-reader event probe; VSTHRD003 remains enabled for every other file.
+[tests/OpenCode.Sdk.Tests/Support/SessionEventProbe.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
+
 # These per-scenario deadline helpers retain task handles and explicitly control entry, expiry
 # and result delivery. Their caller releases signals and drains all owned work in finally;
 # there is no foreign synchronization-context dependency. Winner: deterministic deadline control.
