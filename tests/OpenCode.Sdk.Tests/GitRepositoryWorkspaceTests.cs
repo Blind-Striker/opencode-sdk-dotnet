@@ -9,6 +9,43 @@ namespace OpenCode.Sdk.Tests;
 public sealed class GitRepositoryWorkspaceTests
 {
     [Test]
+    public async Task OwnsWorktreeDirectory_Should_Reject_A_Foreign_Parent_And_Another_Child_Name()
+    {
+        var fileSystem = new MockFileSystem();
+        var git = Substitute.For<IGitProcess>();
+        git.RunAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+        using var repository = await GitRepositoryWorkspace.CreateAsync(
+            fileSystem, git, fileSystem.Path.Combine(fileSystem.Path.GetTempPath(), "run"), CancellationToken.None);
+        repository.PrepareWorktreeDestination();
+
+        await Assert.That(repository.OwnsWorktreeDirectory(repository.ExpectedWorktreePath)).IsTrue();
+        await Assert.That(repository.OwnsWorktreeDirectory(
+            fileSystem.Path.Combine(repository.WorktreeParentPath, "other"))).IsFalse();
+        await Assert.That(repository.OwnsWorktreeDirectory(
+            fileSystem.Path.Combine(fileSystem.Path.GetTempPath(), "foreign", GitRepositoryWorkspace.WorktreeName))).IsFalse();
+        await Assert.That(repository.WorktreeExists).IsFalse();
+    }
+
+    [Test]
+    public async Task WriteDirtyWorktreeFile_Should_Require_An_Existing_Checkout()
+    {
+        var fileSystem = new MockFileSystem();
+        var git = Substitute.For<IGitProcess>();
+        git.RunAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+        using var repository = await GitRepositoryWorkspace.CreateAsync(
+            fileSystem, git, fileSystem.Path.Combine(fileSystem.Path.GetTempPath(), "run"), CancellationToken.None);
+        repository.PrepareWorktreeDestination();
+
+        _ = await Assert.That(repository.WriteDirtyWorktreeFile).Throws<InvalidOperationException>();
+        await Assert.That(repository.WorktreeExists).IsFalse();
+        _ = fileSystem.Directory.CreateDirectory(repository.ExpectedWorktreePath);
+        repository.WriteDirtyWorktreeFile();
+        await Assert.That(repository.DirtyWorktreeFileExists).IsTrue();
+    }
+
+    [Test]
     public async Task CreateAsync_Should_Preserve_Initialization_And_Cleanup_Failures()
     {
         var cleanupFailure = new InvalidOperationException("Owned workspace cleanup failed.");
