@@ -34,6 +34,7 @@ public class OpenCodeServer : IAsyncDisposable
     private readonly string? _password;
     private readonly TimeSpan _gracefulShutdownTimeout;
     private readonly OpenCodeServerOutput? _output;
+    private readonly int? _processId;
     private int _disposed;
 
     private OpenCodeServer(
@@ -48,6 +49,10 @@ public class OpenCodeServer : IAsyncDisposable
         _password = password;
         _gracefulShutdownTimeout = gracefulShutdownTimeout;
         _output = output;
+
+        // Captured while the handle is live: the identity stays readable for diagnostics after
+        // disposal has released the process handle.
+        _processId = process.Id;
     }
 
     /// <summary>
@@ -76,9 +81,12 @@ public class OpenCodeServer : IAsyncDisposable
     /// <summary>Gets the generated lease credential this start injected into the child.</summary>
     public virtual string Password => _password ?? throw MockSeam.CreateError("OpenCodeServer", "Password");
 
-    /// <summary>Gets the child process identifier, for diagnostics and process-truth assertions.</summary>
+    /// <summary>
+    /// Gets the child process identifier, for diagnostics and process-truth assertions. It
+    /// remains readable after disposal, when the process handle itself is gone.
+    /// </summary>
     public virtual int ProcessId =>
-        (_process ?? throw MockSeam.CreateError("OpenCodeServer", "ProcessId")).Id;
+        _processId ?? throw MockSeam.CreateError("OpenCodeServer", "ProcessId");
 
     /// <summary>
     /// Starts a fresh private standalone server: spawns the command with <c>--stdio --port 0</c>
