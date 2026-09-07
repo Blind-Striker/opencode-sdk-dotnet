@@ -371,6 +371,27 @@ public sealed class OpenCodeServerLifecycleTests
 
     [Test]
     [Timeout(120_000)]
+    public async Task ProcessId_Should_Stay_Readable_After_Disposal(CancellationToken cancellationToken)
+    {
+        var server = await OpenCodeServer.StartAsync(
+            new OpenCodeServerOptions
+            {
+                Command = ["bun", "-e", "console.log('{\"url\":\"http://127.0.0.1:1\"}'); setTimeout(() => {}, 120000)"],
+                GracefulShutdownTimeout = TimeSpan.Zero,
+            },
+            cancellationToken);
+        var processId = server.ProcessId;
+
+        await server.DisposeAsync();
+
+        // Owners write their failure diagnostics after teardown, so the child's identity has to
+        // outlive the process handle disposal released.
+        await Assert.That(server.ProcessId).IsEqualTo(processId);
+        await Assert.That(IsProcessRunning(processId)).IsFalse();
+    }
+
+    [Test]
+    [Timeout(120_000)]
     public async Task StartAsync_Should_Refuse_A_Missing_Executable(CancellationToken cancellationToken)
     {
         var failure = await Assert.That(async () => await OpenCodeServer.StartAsync(

@@ -28,6 +28,13 @@ internal sealed class OwnedToolScenario
 
     private static readonly TimeSpan EventWait = TimeSpan.FromSeconds(180);
     private static readonly TimeSpan CleanupTimeout = TimeSpan.FromSeconds(15);
+
+    /// <summary>
+    /// The reader's own cleanup budget. It settles two operations in sequence inside one of this
+    /// scenario's cleanup operations, so it is bounded well under <see cref="CleanupTimeout"/>:
+    /// otherwise the outer deadline expires first and its generic message replaces the reader's.
+    /// </summary>
+    private static readonly TimeSpan ReaderCleanupTimeout = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan RequestWait = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan CancellationWait = TimeSpan.FromSeconds(30);
 
@@ -53,7 +60,7 @@ internal sealed class OwnedToolScenario
         _server = server;
         _workspace = server.CreateWorkspace();
         _client = server.CreateClient(new LocationSelector { Directory = _workspace.Path });
-        _reader = new OwnedEventReader(EventWait, CleanupTimeout, cancellationToken);
+        _reader = new OwnedEventReader(EventWait, ReaderCleanupTimeout, cancellationToken);
         Probe = new SessionEventProbe(_reader);
         _cleanup.Own("owned session interrupt", InterruptIfUnfinishedAsync);
         _cleanup.Own("owned tool cancellation", ObservePendingToolCancellationAsync);

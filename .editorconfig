@@ -917,6 +917,10 @@ dotnet_diagnostic.VSTHRD003.severity = none
 [tests/Shared/Ownership/OwnedCleanup.cs]
 dotnet_diagnostic.VSTHRD003.severity = none
 
+# OwnedEventReader is the reader half of that same contract: it retains the enumeration task a
+# caller handed it and observes it under its own bounded cleanup, so the awaited handle is owned
+# work rather than a foreign task. Winner: owned event observation; VSTHRD003 remains enabled
+# elsewhere.
 [tests/OpenCode.Sdk.Tests/Support/OwnedEventReader.cs]
 dotnet_diagnostic.VSTHRD003.severity = none
 
@@ -978,7 +982,8 @@ dotnet_diagnostic.VSTHRD003.severity = none
 
 [tests/OpenCode.Sdk.Tests/Support/ServerDiagnosticScenario.cs]
 dotnet_diagnostic.VSTHRD003.severity = none
-# Sandbox application's purpose is primarly for testing
+
+# Sandbox application's purpose is primarily for testing
 [tests/OpenCode.Sdk.Sandbox/**.cs]
 dotnet_diagnostic.MA0076.severity = none
 
