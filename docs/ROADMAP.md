@@ -60,8 +60,9 @@ is revisited at each boundary.
    document declares, verifier-checked, with the arms no deterministic fixture can reach listed by
    name rather than skipped silently (ADR-0022).
 6. **M6 — Operational closure.** Automation for the upstream observation lanes (tip detector,
-   candidate refresh), retry/telemetry/hooks with the public network-timeout knob, a quarantine lane,
-   the nightly source-run canary with the performance suite (ADR-0022), and Restore-patch retirement.
+   candidate refresh), retry/telemetry/hooks with the public network-timeout knob and the
+   per-operation event-stream idle bound it gates, a quarantine lane, the nightly source-run
+   canary with the performance suite (ADR-0022), and Restore-patch retirement.
 
 ## Open Questions
 
@@ -101,6 +102,18 @@ is revisited at each boundary.
   `netstandard2.0` a response body over 1 MB costs one wire-sized copy, and `PtySession.ReadAsync`
   allocates a fresh 16 KiB receive buffer per call. Both are measured rather than suspected, and
   both are described for consumers in the README's Known Issues.
+- **A half-open event stream is not detected.** A successful SSE body stays live until caller
+  cancellation, server completion, or failure, so a connection whose peer is gone without closing
+  hangs a consumer that supplied no cancellation of its own; ordinary resets, server exits, and
+  killed processes already surface at once. A consumer cannot bound this from outside the SDK,
+  because the server's keepalive comments carry no event and never reach the enumeration. The bound
+  has to be per operation rather than a property of every SSE body: upstream writes a keepalive
+  every fifteen seconds on `v2.event.subscribe` and none on `v2.session.log`, whose follow mode is
+  silent by design while a session is idle. Queued behind M6's public network-timeout knob so the
+  bound arrives configurable rather than as a behavior no caller can widen. Upstream's own clients
+  place this one layer above their core client, which does not reconnect either
+  (`packages/client/src/solid/connection.ts`: two-second connect, forty-five-second idle abort,
+  one-second reconnect delay, and an authoritative refetch once reconnected).
 - **A server-process start stalls in-process `net472` tests for about ten seconds** on hosted
   Windows. Harmless today, because every timing-bounded test runs alone, and queued as a hygiene
   candidate: the first suspect is .NET Framework's synchronous pipe reads holding thread-pool
