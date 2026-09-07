@@ -19,6 +19,29 @@ internal sealed record SimulatedServerLaunch
 
     public required DriveManifest Manifest { get; init; }
 
+    /// <summary>
+    /// Bounded well above the realistic worst case - every local target-framework leg starting a
+    /// simulated server back to back, each within the readiness bound - so a genuinely wedged
+    /// gate holder still fails loudly instead of hanging the suite.
+    /// </summary>
+    public static TimeSpan GateTimeout { get; } = TimeSpan.FromMinutes(15);
+
+    /// <summary>The launcher options for this recipe under <see cref="OwnedServerPolicy"/>, retaining output in <paramref name="output"/>.</summary>
+    public OpenCodeServerOptions Options(OpenCodeServerOutput output)
+    {
+        ArgumentNullException.ThrowIfNull(output);
+
+        return new OpenCodeServerOptions
+        {
+            Command = Command,
+            WorkingDirectory = WorkingDirectory,
+            Environment = Environment,
+            ReadinessTimeout = OwnedServerPolicy.ReadinessTimeout,
+            GracefulShutdownTimeout = OwnedServerPolicy.GracefulShutdownTimeout,
+            Output = output,
+        };
+    }
+
     public static SimulatedServerLaunch Prepare(IFileSystem fileSystem, TestRunRoot runRoot)
     {
         ArgumentNullException.ThrowIfNull(fileSystem);

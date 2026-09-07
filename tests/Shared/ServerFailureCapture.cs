@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.TestSupport;
 internal sealed class ServerFailureCapture(
     ServerFailureArtifacts artifacts, IFileSystem fileSystem, IOwnedOperationDeadline deadline)
 {
-    private const string TruncatedHeader = "[truncated: older output was discarded to stay inside the retention bounds]";
+    private const string TruncatedHeader = "[truncated: older lines, or part of an oversized line, were discarded to stay inside the retention bounds]";
 
     private readonly List<LateCleanupFailureReport> _lateReports = [];
 

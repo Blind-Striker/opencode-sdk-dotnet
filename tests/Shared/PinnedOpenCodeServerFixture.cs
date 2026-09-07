@@ -39,16 +39,13 @@ namespace OpenCode.Sdk.TestSupport;
 /// </remarks>
 public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDisposable, ITestEndEventReceiver
 {
-    private static readonly TimeSpan ReadinessTimeout = TimeSpan.FromMinutes(3);
-
     private static readonly TimeSpan ExternalHealthProbeTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// The grace between the stdin-EOF lease release and the forced tree kill. The source-run
-    /// server needs longer than the launcher's 3-second default to leave on its own; ten seconds
-    /// is the policy the retired test adapter already applied.
+    /// The launcher's worst case is the 10-second grace, its 10-second forced-exit wait, and the
+    /// 2-second output drain; this outer bound keeps a 3-second margin above that.
     /// </summary>
-    private static readonly TimeSpan GracefulShutdownTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan TeardownTimeout = TimeSpan.FromSeconds(25);
 
     private readonly RealFileSystem _fileSystem = new();
     private readonly IReadOnlyList<string>? _commandOverride;
@@ -180,8 +177,8 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
                     Command = command,
                     WorkingDirectory = workingDirectory,
                     Environment = BuildEnvironment(_runRoot.Path),
-                    ReadinessTimeout = ReadinessTimeout,
-                    GracefulShutdownTimeout = GracefulShutdownTimeout,
+                    ReadinessTimeout = OwnedServerPolicy.ReadinessTimeout,
+                    GracefulShutdownTimeout = OwnedServerPolicy.GracefulShutdownTimeout,
                     Output = _output,
                 }).ConfigureAwait(false);
         }
@@ -250,7 +247,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
         var keep = ShouldRetainLogs;
         var recorded = _artifacts?.Failures;
         var primary = recorded is { Count: > 0 } ? recorded[0].Exception : null;
-        var teardown = new OwnedCleanup(TimeSpan.FromSeconds(25),
+        var teardown = new OwnedCleanup(TeardownTimeout,
             _diagnostics?.Deadline ?? new OwnedOperationDeadline());
         if (_server is not null)
         {

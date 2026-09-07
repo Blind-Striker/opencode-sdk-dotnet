@@ -14,16 +14,13 @@ namespace OpenCode.Sdk.TestSupport;
 /// </summary>
 public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDisposable, ITestEndEventReceiver
 {
-    private static readonly TimeSpan ReadinessTimeout = TimeSpan.FromMinutes(3);
-
     private static readonly TimeSpan ControllerTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// Bounded well above the realistic worst case - every local target-framework leg starting a
-    /// simulated server back to back, each within <see cref="ReadinessTimeout"/> - so a genuinely
-    /// wedged holder still fails loudly instead of hanging the suite.
+    /// The launcher's worst case is the 10-second grace, its 10-second forced-exit wait, and the
+    /// 2-second output drain; this outer bound keeps a 3-second margin above that.
     /// </summary>
-    private static readonly TimeSpan GateTimeout = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan TeardownTimeout = TimeSpan.FromSeconds(25);
 
     private readonly RealFileSystem _fileSystem = new();
     private readonly IGitProcess _gitProcess = new GitProcess();
@@ -73,24 +70,13 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
     /// </summary>
     private async Task<DriveController> StartAsync(TestRunRoot runRoot)
     {
-        using var gate = await DrivePortGate.AcquireAsync(_fileSystem, GateTimeout);
+        using var gate = await DrivePortGate.AcquireAsync(_fileSystem, SimulatedServerLaunch.GateTimeout);
         var launch = SimulatedServerLaunch.Prepare(_fileSystem, runRoot);
 
         // The collector exists before the start and stays readable when the start fails, so a
         // startup failure still has stdout/stderr to write out on teardown.
         _output = new OpenCodeServerOutput();
-        _server = await OpenCodeServer.StartAsync(new OpenCodeServerOptions
-        {
-            Command = launch.Command,
-            WorkingDirectory = launch.WorkingDirectory,
-            Environment = launch.Environment,
-            ReadinessTimeout = ReadinessTimeout,
-
-            // The source-run host needs longer than the launcher's 3-second default to leave on
-            // stdin EOF; ten seconds is the policy the retired test adapter already applied.
-            GracefulShutdownTimeout = TimeSpan.FromSeconds(10),
-            Output = _output,
-        });
+        _server = await OpenCodeServer.StartAsync(launch.Options(_output));
         var manifest = launch.Manifest;
 
         // The backend control socket is already listening when the readiness line is printed -
@@ -152,7 +138,7 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
         var keep = ShouldRetainLogs;
         var recorded = _artifacts?.Failures;
         var primary = recorded is { Count: > 0 } ? recorded[0].Exception : null;
-        var teardown = new OwnedCleanup(TimeSpan.FromSeconds(25));
+        var teardown = new OwnedCleanup(TeardownTimeout);
         if (_controller is not null)
         {
             teardown.Own("simulation controller teardown", async _ => await _controller.DisposeAsync());

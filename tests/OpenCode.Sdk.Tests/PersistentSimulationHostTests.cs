@@ -9,17 +9,16 @@ namespace OpenCode.Sdk.Tests;
 /// lifecycle through the SDK's own launcher and collector: the readiness line is the only thing
 /// on stdout, and the three lifecycle milestones reach stderr with their severity, in order,
 /// the last one written only once the stdin lease is released. The shared
-/// <see cref="SimulatedDriveServerFixture"/> checks the same three milestones at its own
-/// teardown; this test is where the profile's routing is proven on its own.
+/// <see cref="SimulatedDriveServerFixture"/> rechecks only the stdin-EOF milestone at its own
+/// teardown (the earlier two are evicted over a chatty session); this test is where the
+/// profile's routing is proven on its own. No drive controller is attached here: the milestones
+/// do not depend on the control bootstrap, and readiness already proves the manifest's backend
+/// port is bound.
 /// </summary>
 [NotInParallel(ParallelConstraintKeys.ServerProcess)]
 public sealed class PersistentSimulationHostTests
 {
     private static readonly RealFileSystem FileSystem = new();
-
-    private static readonly TimeSpan ReadinessTimeout = TimeSpan.FromMinutes(3);
-
-    private static readonly TimeSpan GateTimeout = TimeSpan.FromMinutes(15);
 
     [Test]
     [Timeout(240_000)]
@@ -28,27 +27,10 @@ public sealed class PersistentSimulationHostTests
     {
         using var runRoot = new TestRunRoot(FileSystem);
         var output = new OpenCodeServerOutput();
-        OpenCodeServer server;
-        using (var gate = await DrivePortGate.AcquireAsync(FileSystem, GateTimeout))
+        await using (var server = await StartHostAsync(runRoot, output, cancellationToken))
         {
-            var launch = SimulatedServerLaunch.Prepare(FileSystem, runRoot);
-            server = await OpenCodeServer.StartAsync(
-                new OpenCodeServerOptions
-                {
-                    Command = launch.Command,
-                    WorkingDirectory = launch.WorkingDirectory,
-                    Environment = launch.Environment,
-                    ReadinessTimeout = ReadinessTimeout,
-                    GracefulShutdownTimeout = TimeSpan.FromSeconds(10),
-                    Output = output,
-                },
-                cancellationToken);
-
-            // Readiness proves the manifest's ports are bound (simulation builds its network
-            // layer eagerly at start), which is what lets the gate go.
+            await Assert.That(server.Endpoint.IsLoopback).IsTrue();
         }
-
-        await server.DisposeAsync();
 
         var snapshot = output.GetSnapshot();
         await Assert.That(snapshot.StandardOutput.Count).IsEqualTo(1);
@@ -67,6 +49,18 @@ public sealed class PersistentSimulationHostTests
             "persistent-host-diagnostics: " + snapshot.StandardError[starting] +
             " | " + snapshot.StandardError[ready] +
             " | " + snapshot.StandardError[closed]);
+    }
+
+    /// <summary>
+    /// Starts the host under the port gate and releases the gate at readiness: simulation builds
+    /// its network layer eagerly at start, so readiness proves the manifest's backend port is bound.
+    /// </summary>
+    private static async Task<OpenCodeServer> StartHostAsync(
+        TestRunRoot runRoot, OpenCodeServerOutput output, CancellationToken cancellationToken)
+    {
+        using var gate = await DrivePortGate.AcquireAsync(FileSystem, SimulatedServerLaunch.GateTimeout);
+        var launch = SimulatedServerLaunch.Prepare(FileSystem, runRoot);
+        return await OpenCodeServer.StartAsync(launch.Options(output), cancellationToken);
     }
 
     /// <summary>
