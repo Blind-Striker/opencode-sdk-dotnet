@@ -89,7 +89,7 @@ Each released version links straight to its GitHub Release tag.
   [`spec/SNAPSHOT.md`](spec/SNAPSHOT.md).
 - **Generated output is committed and reviewed as source**, locked by a public-API baseline and
   verified by regeneration, so a protocol refresh arrives as a readable diff.
-- **Test suite:** 4,418 tests green on Windows — the fullest leg, and the only one that adds the
+- **Test suite:** 5,006 tests green on Windows — the fullest leg, and the only one that adds the
   `net472` assemblies. Linux and macOS run the same suite on the three modern targets.
 
 ### 📋 Important Notes
