@@ -54,6 +54,29 @@ public sealed class OpenCodeServerLifecycleTests
         }
     }
 
+    /// <summary>
+    /// Waits until the launched child is gone. A child that ends itself on a timer can already
+    /// have exited before this runs, and an absent process is the state this waits for: only a
+    /// live handle is worth awaiting, so its absence returns rather than failing the arrangement.
+    /// </summary>
+    private static async Task WaitForProcessExitAsync(int processId, CancellationToken cancellationToken)
+    {
+        System.Diagnostics.Process child;
+        try
+        {
+            child = System.Diagnostics.Process.GetProcessById(processId);
+        }
+        catch (ArgumentException)
+        {
+            return;
+        }
+
+        using (child)
+        {
+            await child.WaitForExitAsync(cancellationToken);
+        }
+    }
+
     [Test]
     [Timeout(240_000)]
     public async Task StartAsync_Should_Report_Readiness_And_Answer_Health(CancellationToken cancellationToken)
@@ -311,10 +334,7 @@ public sealed class OpenCodeServerLifecycleTests
                 Output = output,
             },
             cancellationToken);
-        using (var child = System.Diagnostics.Process.GetProcessById(server.ProcessId))
-        {
-            await child.WaitForExitAsync(cancellationToken);
-        }
+        await WaitForProcessExitAsync(server.ProcessId, cancellationToken);
 
         await server.DisposeAsync();
 
