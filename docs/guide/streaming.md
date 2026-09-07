@@ -93,10 +93,12 @@ With `Follow = True`, read through any replayed events until that marker arrives
 then delivers live events committed after the attachment boundary. The marker is a transition
 boundary, not a durable event to save as the next `After` value.
 
-> **📎 A note on guarantees**: `after` is a *request*, not a durability promise. How much history
-> the server persists or retains, and for how long, is upstream's business and is not something
-> this SDK can state on its behalf. The stream does not promise replay after a server restart.
-> Treat a returned gap as possible and reconcile with ordinary reads. See the canonical
+> **📎 A note on guarantees**: replay depends on the server. Persistence is a server option that is
+> off unless the server was started with it, so a default server answers with the marker alone.
+> When it is on, nothing expires or prunes the log and entries live until their session is deleted.
+> Sequences are not contiguous, so treat a gap as ordinary rather than as loss. Carry a cursor only
+> within one server's lifetime: a cursor past the log's tail is accepted rather than refused and
+> then suppresses live delivery until the log overtakes it. See the canonical
 > [server-sent events rules](../architecture/client-runtime.md#server-sent-events).
 
 ## 🧩 Unknown events do not break your consumer

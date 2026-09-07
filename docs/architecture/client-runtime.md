@@ -270,9 +270,19 @@ local server launcher. Protocol and generated-model rules live in
   disposes the live response so cancellation interrupts platform response-stream reads that do not
   observe an async read token; disposal-induced I/O failures remain caller cancellation.
 - The SDK never auto-reconnects. A live-stream consumer refreshes authoritative state and
-  resubscribes after failure. Durable continuation is requested explicitly through
-  `v2.session.log`'s `after` parameter; persistence, retention, and replay guarantees remain
-  unestablished (research doc 02, `docs/ROADMAP.md`).
+  resubscribes after failure.
+- Durable continuation is requested explicitly through `v2.session.log`'s `after` parameter, an
+  exclusive aggregate sequence read from a durable envelope or from the sync marker. One
+  `log.synced` marker reports the watermark the replay was captured at; it is a boundary rather
+  than a durable event, and under `follow` the events committed while that replay was in flight
+  arrive after it. Sequences are not contiguous, so a gap is ordinary and no count is derived from
+  two of them. A cursor past the aggregate's tail is accepted rather than refused and then
+  suppresses live delivery until the aggregate overtakes it, so a cursor travels only within one
+  server's lifetime.
+- That log has no retention policy: nothing expires, prunes, or caps it, compaction and revert
+  rewrite projections rather than the log, and rows are deleted only with their session.
+  Persistence is itself a server option that is off unless the server was started with it, so a
+  default server answers a replay with the marker alone (`docs/ROADMAP.md`).
 - The SSE event name is a framing signal. An ordinary payload uses the default `message` name;
   the operation's declared failure event materializes its cause through generated metadata and
   throws; any other explicit name is refused. Unknown payload and cause discriminators remain
