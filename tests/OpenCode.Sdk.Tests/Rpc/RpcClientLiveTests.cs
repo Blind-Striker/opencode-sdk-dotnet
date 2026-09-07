@@ -219,16 +219,18 @@ public sealed class RpcClientLiveTests(PinnedOpenCodeServerFixture server)
         CancellationToken cancellationToken)
     {
         using var client = server.CreateClient();
+        var external = await PrepareRpcModeAsync(client, cancellationToken);
+        var rpcId = external ? TestRpcPlugin.Id : UnregisteredRpcId;
 
         var response = await client.Rpc.CallAsync(
-            UnregisteredRpcId, Method, CallRequest(), OpenCodeRequestOptions.NoThrow, cancellationToken);
+            rpcId, Method, CallRequest(), OpenCodeRequestOptions.NoThrow, cancellationToken);
 
         await Assert.That(response.Status).IsEqualTo(400);
         await Assert.That(response.IsError).IsTrue();
         await Assert.That(response.Error).IsTypeOf<RpcError>();
         var error = response.Error as RpcError;
         await Assert.That(error?.Type).IsEqualTo(UnavailableReason);
-        await Assert.That(error?.Message).Contains(UnregisteredRpcId);
+        await Assert.That(error?.Message).Contains(rpcId);
         // The handler spreads `data` only when the failure carries one, and the unavailable
         // failure carries none - so the member stays absent on the wire and null here.
         await Assert.That(error?.Data).IsNull();
@@ -236,7 +238,8 @@ public sealed class RpcClientLiveTests(PinnedOpenCodeServerFixture server)
         // Every value is what the server answered; the raw body is the evidence a reader can
         // compare against the upstream handler without trusting this test's typed view of it.
         Console.WriteLine(
-            "rpc-live: arm=no-throw status=" + Number(response.Status) +
+            "rpc-live: mode=" + (external ? "external" : "owned") +
+            " arm=no-throw status=" + Number(response.Status) +
             " type=" + error?.Type +
             " message=" + error?.Message +
             " body=" + response.RawBody);
@@ -248,20 +251,23 @@ public sealed class RpcClientLiveTests(PinnedOpenCodeServerFixture server)
         CancellationToken cancellationToken)
     {
         using var client = server.CreateClient();
+        var external = await PrepareRpcModeAsync(client, cancellationToken);
+        var rpcId = external ? TestRpcPlugin.Id : UnregisteredRpcId;
 
         var exception = await Assert
             .That(async () => _ = await client.Rpc.CallAsync(
-                UnregisteredRpcId, Method, CallRequest(), cancellationToken: cancellationToken))
+                rpcId, Method, CallRequest(), cancellationToken: cancellationToken))
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(400);
         await Assert.That(exception.Error).IsTypeOf<RpcError>();
         var error = exception.Error as RpcError;
         await Assert.That(error?.Type).IsEqualTo(UnavailableReason);
-        await Assert.That(error?.Message).Contains(UnregisteredRpcId);
+        await Assert.That(error?.Message).Contains(rpcId);
 
         Console.WriteLine(
-            "rpc-live: arm=throw status=" + Number(exception.Status) +
+            "rpc-live: mode=" + (external ? "external" : "owned") +
+            " arm=throw status=" + Number(exception.Status) +
             " type=" + error?.Type +
             " body=" + exception.RawBody);
     }
@@ -282,20 +288,10 @@ public sealed class RpcClientLiveTests(PinnedOpenCodeServerFixture server)
         string requestedArm,
         CancellationToken cancellationToken)
     {
-        if (!server.IsExternal)
+        if (!await PrepareRpcModeAsync(client, cancellationToken))
         {
-            _ = server.OwnedRpcPlugin ??
-                throw new InvalidOperationException("The owned pinned server did not resolve its RPC plugin.");
             return false;
         }
-
-        await Assert.That(server.OwnedRpcPlugin).IsNull();
-        _ = await client.Plugins.AwaitPluginActivationAsync(cancellationToken: cancellationToken);
-        var listed = await client.Plugins.ListPluginsAsync(cancellationToken: cancellationToken);
-        await Assert.That(listed.Status).IsEqualTo(200);
-        await Assert.That(listed.IsError).IsFalse();
-        await Assert.That(listed.Plugins.Where(
-            static plugin => string.Equals(plugin.Id, TestRpcPlugin.Id, StringComparison.Ordinal)).ToArray()).IsEmpty();
 
         var response = await client.Rpc.CallAsync(
             TestRpcPlugin.Id,
@@ -311,6 +307,25 @@ public sealed class RpcClientLiveTests(PinnedOpenCodeServerFixture server)
         Console.WriteLine(
             "rpc-live: mode=external arm=rpc.unavailable requested-arm=" + requestedArm +
             " status=" + Number(response.Status));
+        return true;
+    }
+
+    private async Task<bool> PrepareRpcModeAsync(OpenCodeClient client, CancellationToken cancellationToken)
+    {
+        if (!server.IsExternal)
+        {
+            _ = server.OwnedRpcPlugin ??
+                throw new InvalidOperationException("The owned pinned server did not resolve its RPC plugin.");
+            return false;
+        }
+
+        await Assert.That(server.OwnedRpcPlugin).IsNull();
+        _ = await client.Plugins.AwaitPluginActivationAsync(cancellationToken: cancellationToken);
+        var listed = await client.Plugins.ListPluginsAsync(cancellationToken: cancellationToken);
+        await Assert.That(listed.Status).IsEqualTo(200);
+        await Assert.That(listed.IsError).IsFalse();
+        await Assert.That(listed.Plugins.Where(
+            static plugin => string.Equals(plugin.Id, TestRpcPlugin.Id, StringComparison.Ordinal)).ToArray()).IsEmpty();
         return true;
     }
 
