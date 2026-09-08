@@ -68,7 +68,8 @@ internal sealed class OwnedCleanup(TimeSpan timeout, IOwnedOperationDeadline dea
                 return;
             }
 
-            var cancellation = Task.Run(budget.CancelAsync, CancellationToken.None);
+            // The owned worker captures callback faults without a nested downlevel CancelAsync work item.
+            var cancellation = Task.Run(budget.Cancel, CancellationToken.None);
             await ObserveAsync(operation.Name + " cancellation", cancellation, failures);
             DisposeBudgetAfterCompletion(budget, pending, cancellation);
             budget = null;

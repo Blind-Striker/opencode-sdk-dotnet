@@ -25,9 +25,9 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
   change must pass before it is called done.
 - **Terminal lifetime corrections (D)** — consumer cancellation, send deadlines, local viewport
   ordering, and shared cleanup are implemented and verified on Windows across the four runnable
-  targets. Linux live verification also passed on net8/net9/net10, including the persistent daemon
+  targets. Linux and macOS live verification also passed on net8/net9/net10, including the persistent daemon
   round trip and normal PTY reuse after read cancellation. `architecture/client-runtime.md` and
-  ADR-0023 own the contract. macOS live verification remains outstanding.
+  ADR-0023 own the contract.
 - **Packages** — `OpenCode.Sdk` and `OpenCode.Sdk.Extensions` pack at the single-sourced
   `VersionPrefix 0.1.0`, and every `master` push publishes a `0.1.0-nightly.*` build to GitHub
   Packages. NuGet.org publication is currently blocked by an upstream prefix reservation dispute;

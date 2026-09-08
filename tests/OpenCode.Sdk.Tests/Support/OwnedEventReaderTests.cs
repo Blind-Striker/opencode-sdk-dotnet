@@ -6,7 +6,7 @@ public sealed class OwnedEventReaderTests
     [Test]
     public async Task CompleteAsync_Should_Preserve_Primary_Reader_And_Later_Session_Failures()
     {
-        var owner = new OwnedEventReader(TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(1), CancellationToken.None, new OperationDeadlineScenario().Deadline);
+        var owner = new OwnedEventReader(Timeout.InfiniteTimeSpan, TimeSpan.FromSeconds(1), CancellationToken.None, new OperationDeadlineScenario().Deadline);
         var primary = new InvalidOperationException("prompt failed");
         var readerFailure = new InvalidOperationException("reader failed");
         var removalFailure = new InvalidOperationException("removal failed");
@@ -25,7 +25,7 @@ public sealed class OwnedEventReaderTests
     [Test]
     public async Task CompleteAsync_Should_Observe_Reader_After_Cancellation_Callback_Fails()
     {
-        var owner = new OwnedEventReader(TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(1), CancellationToken.None, new OperationDeadlineScenario().Deadline);
+        var owner = new OwnedEventReader(Timeout.InfiniteTimeSpan, TimeSpan.FromSeconds(1), CancellationToken.None, new OperationDeadlineScenario().Deadline);
         var callbackFailure = new InvalidOperationException("cancellation callback failed");
         var readerFailure = new InvalidOperationException("reader also failed");
         var primary = new InvalidOperationException("prompt failed");
@@ -49,7 +49,7 @@ public sealed class OwnedEventReaderTests
         var scenario = new OperationDeadlineScenario();
         var cancellationDeadline = scenario.Hold("event cancellation");
         var readerDeadline = scenario.Hold("event reader");
-        var owner = new OwnedEventReader(TimeSpan.FromMinutes(1), TimeSpan.FromMilliseconds(50), CancellationToken.None, scenario.Deadline);
+        var owner = new OwnedEventReader(Timeout.InfiniteTimeSpan, TimeSpan.FromMilliseconds(50), CancellationToken.None, scenario.Deadline);
         var callbackFailure = new InvalidOperationException("late callback failed");
         var readerFailure = new InvalidOperationException("late reader failed");
         var primary = new InvalidOperationException("prompt failed");
@@ -110,7 +110,7 @@ public sealed class OwnedEventReaderTests
     [Test]
     public async Task CompleteAsync_Should_Accept_Only_Its_Own_Cooperative_Reader_Cancellation()
     {
-        var owner = new OwnedEventReader(TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(1), CancellationToken.None, new OperationDeadlineScenario().Deadline);
+        var owner = new OwnedEventReader(Timeout.InfiniteTimeSpan, TimeSpan.FromSeconds(1), CancellationToken.None, new OperationDeadlineScenario().Deadline);
         var cancellation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var token = owner.Token;
         using var registration = token.Register(() => _ = cancellation.TrySetCanceled(token));
@@ -137,7 +137,7 @@ public sealed class OwnedEventReaderTests
     public async Task CompleteAsync_Should_Preserve_Caller_Cancellation_Identity()
     {
         using var caller = new CancellationTokenSource();
-        var owner = new OwnedEventReader(TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(1), caller.Token, new OperationDeadlineScenario().Deadline);
+        var owner = new OwnedEventReader(Timeout.InfiniteTimeSpan, TimeSpan.FromSeconds(1), caller.Token, new OperationDeadlineScenario().Deadline);
         await caller.CancelAsync();
         var primary = new OperationCanceledException(caller.Token);
         owner.Own(Task.FromException(primary));
@@ -153,7 +153,7 @@ public sealed class OwnedEventReaderTests
     [Test]
     public async Task CompleteAsync_Should_Report_Unexpected_Reader_Cancellation()
     {
-        var owner = new OwnedEventReader(TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(1), CancellationToken.None, new OperationDeadlineScenario().Deadline);
+        var owner = new OwnedEventReader(Timeout.InfiniteTimeSpan, TimeSpan.FromSeconds(1), CancellationToken.None, new OperationDeadlineScenario().Deadline);
         var unexpected = new OperationCanceledException("unrelated cancellation");
         owner.Own(Task.FromException(unexpected));
         var primary = new InvalidOperationException("prompt failed");
@@ -172,7 +172,7 @@ public sealed class OwnedEventReaderTests
         var pending = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var scenario = new OperationDeadlineScenario();
         var deadline = scenario.Hold("event reader");
-        var owner = new OwnedEventReader(TimeSpan.FromMinutes(1), TimeSpan.FromMilliseconds(50), CancellationToken.None, scenario.Deadline);
+        var owner = new OwnedEventReader(Timeout.InfiniteTimeSpan, TimeSpan.FromMilliseconds(50), CancellationToken.None, scenario.Deadline);
         owner.Own(pending.Task);
         var token = owner.Token;
         var completing = owner.CompleteAsync(null);
