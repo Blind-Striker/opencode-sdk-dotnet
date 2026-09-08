@@ -17,9 +17,9 @@ hand-written transport runtime, so what you call is exactly what the server decl
 
 ## 🎉 Project Status
 
-**Pre-release, and the protocol surface is complete.** Everything below is landed and covered.
-What is still outstanding is the first published package and opencode's third connection mode —
-attaching to a registered background service.
+**Published and pre-1.0; the protocol surface is complete.** Everything below is landed and
+covered. What is still outstanding is opencode's third connection mode — attaching to a registered
+background service.
 
 - ✅ **135 of 140 operations** callable, across 28 client families — sessions, PTYs, persistent
   PTYs, shells, events, MCP servers, integrations, providers, permissions, credentials, VCS,
