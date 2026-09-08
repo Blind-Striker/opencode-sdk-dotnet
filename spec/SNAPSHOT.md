@@ -17,6 +17,11 @@ their hash-pinned manifests.
 | Commit | `f9bc2233ddcc11503a0804b317401bc221ef0e7f` |
 | Upstream product channel | `opencode2` — npm `@opencode-ai/cli@next` (pre-release) |
 
+At this pin the CLI package is named `@opencode/cli`, following upstream's rename of its workspace
+scope from `@opencode-ai`. The published channel has not moved with it: npm's `@opencode` scope
+carries a reserved placeholder on `latest`, so `@opencode-ai/cli@next` stays the installable
+pre-release and is what the row above names.
+
 Platform evidence for the v2 line: internal research, 2026-08-16, "The opencode v2 platform:
 branch, surface, architecture, distribution".
 
