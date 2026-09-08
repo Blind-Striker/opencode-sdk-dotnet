@@ -99,11 +99,11 @@ jobs:
       # dotnet nuget push implements its own glob expansion; the path is quoted so the shell does
       # not expand it first (two packable projects produce two .nupkg files here).
       #
-      # --skip-duplicate reports any 409 as "already exists" and exits zero, which is how two
-      # dispatches went green while every push was in fact refused by an ID prefix reservation. The
-      # flag stays, because retrying a dispatch after a partial push must not abort on the package
-      # that already landed; what changes is that it no longer decides success on its own. The
-      # verification below does, and it separates the two outcomes the flag conflates.
+      # No --skip-duplicate on this lane. The flag reports any 409 as "already exists" and exits
+      # zero, which is how two dispatches went green while every push was refused by an ID prefix
+      # reservation. Without it a refusal fails here, immediately, carrying the gallery's own
+      # message. The cost is that retrying a dispatch after a partial push aborts on the package
+      # that already landed — which is the operator's decision to make, not a thing to swallow.
       - name: Push to NuGet.org
         if: inputs.target == 'nuget'
         env:
@@ -112,47 +112,6 @@ jobs:
           dotnet nuget push "packages/*.nupkg"
           --source https://api.nuget.org/v3/index.json
           --api-key "$NUGET_KEY"
-          --skip-duplicate
-
-      # A push that exits zero is not a publication. This asks the flat container for the exact
-      # versions the pack step produced: a package that genuinely already existed answers yes, a
-      # package the gallery refused answers no. A newly accepted version appears only once
-      # validation completes, so the check waits rather than reading the registry once.
-      - name: Verify NuGet.org publication
-        if: inputs.target == 'nuget'
-        shell: pwsh
-        env:
-          PACKAGE_VERSION: ${{ inputs.version }}
-        run: |
-          $version = $env:PACKAGE_VERSION
-          $suffix = ".$version.nupkg"
-          $packages = Get-ChildItem packages | Where-Object { $_.Extension -eq '.nupkg' }
-          if ($packages.Count -eq 0) { throw "No .nupkg files were produced, so there is nothing to verify." }
-          $ids = $packages | ForEach-Object {
-            if (-not $_.Name.EndsWith($suffix)) { throw "Package file '$($_.Name)' does not carry the dispatched version '$version'." }
-            $_.Name.Substring(0, $_.Name.Length - $suffix.Length)
-          }
-          $wanted = $version.ToLowerInvariant()
-          $deadline = (Get-Date).AddMinutes(10)
-          while ($true) {
-            $missing = @()
-            foreach ($id in $ids) {
-              $url = "https://api.nuget.org/v3-flatcontainer/$($id.ToLowerInvariant())/index.json"
-              $response = Invoke-WebRequest -Uri $url -SkipHttpErrorCheck -Headers @{ 'Cache-Control' = 'no-cache' }
-              $published = $response.StatusCode -eq 200 -and
-                (($response.Content | ConvertFrom-Json).versions -contains $wanted)
-              if (-not $published) { $missing += $id }
-            }
-            if ($missing.Count -eq 0) {
-              Write-Host "Published on NuGet.org: $($ids -join ', ') $version"
-              break
-            }
-            if ((Get-Date) -ge $deadline) {
-              throw "Still absent from NuGet.org after 10 minutes: $($missing -join ', ') $version. The push reported success, so check the gallery for a refused or still-validating upload."
-            }
-            Write-Host "Awaiting NuGet.org validation: $($missing -join ', ')"
-            Start-Sleep -Seconds 20
-          }
 
       - name: Push to GitHub Packages
         if: inputs.target == 'github'
