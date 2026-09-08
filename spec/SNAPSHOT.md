@@ -22,6 +22,9 @@ scope from `@opencode-ai`. The published channel has not moved with it: npm's `@
 carries a reserved placeholder on `latest`, so `@opencode-ai/cli@next` stays the installable
 pre-release and is what the row above names.
 
+`openapi.json` is derived from upstream's own generator output, so upstream's MIT notice
+travels with it in [`THIRD-PARTY-NOTICES.md`](../THIRD-PARTY-NOTICES.md).
+
 Platform evidence for the v2 line: internal research, 2026-08-16, "The opencode v2 platform:
 branch, surface, architecture, distribution".
 

@@ -4,8 +4,8 @@
     <TargetFrameworks>$(AllTargetFrameworks)</TargetFrameworks>
     <!-- See OpenCode.Sdk.csproj: the package id differs from the assembly name on purpose. -->
     <PackageId>OpenCodeAI.Sdk.Extensions</PackageId>
-    <Description>Dependency injection integration for the unofficial opencode .NET SDK.</Description>
-    <PackageTags>opencode;sdk;dependency-injection;options</PackageTags>
+    <Description>Dependency injection integration for the unofficial opencode .NET SDK: registers one singleton client and every sub-client from it. The package id is OpenCodeAI.Sdk.Extensions; the assembly and every namespace are OpenCode.Sdk.</Description>
+    <PackageTags>opencode;opencode2;sdk;dependency-injection;di;options;hosting;dotnet;csharp</PackageTags>
     <IsAotCompatible Condition="'$(TargetFramework)' == 'net10.0'">true</IsAotCompatible>
   </PropertyGroup>
 

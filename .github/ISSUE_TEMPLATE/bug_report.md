@@ -38,11 +38,11 @@ using var client = new OpenCodeClient(new OpenCodeClientOptions
 
 ## 📋 Environment Information
 
-**OpenCode.Sdk Version:**
+**OpenCodeAI.Sdk Version:**
 
 - Version: (e.g., `0.8.0-nightly.20260831.abc1234`)
 - Package source: (NuGet.org / GitHub Packages nightly / built from source at commit …)
-- Also using `OpenCode.Sdk.Extensions`? (yes / no)
+- Also using `OpenCodeAI.Sdk.Extensions`? (yes / no)
 
 **opencode Server:**
 

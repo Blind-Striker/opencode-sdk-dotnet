@@ -13,7 +13,7 @@ register either of them with a container.
 
 ## 🚀 The SDK starts the server
 
-`OpenCodeServer.StartAsync()` launches a private `opencode serve` child, waits for it to report
+`OpenCodeServer.StartAsync()` launches a private `opencode2 serve` child, waits for it to report
 readiness, mints its credential, and hands you an owner object. No ambient process, no endpoint to
 configure, no port to pick.
 
@@ -47,7 +47,7 @@ it started:
 ```csharp
 await using var server = await OpenCodeServer.StartAsync(new OpenCodeServerOptions
 {
-    Command = ["opencode2", "serve"],
+    Command = ["/opt/opencode/bin/opencode2", "serve"],
     WorkingDirectory = "/srv/my-project",
     Environment = new Dictionary<string, string>(StringComparer.Ordinal) { ["OPENCODE_LOG_LEVEL"] = "debug" },
     ReadinessTimeout = TimeSpan.FromSeconds(90),
@@ -57,7 +57,7 @@ await using var server = await OpenCodeServer.StartAsync(new OpenCodeServerOptio
 
 | Option | Default | What it does |
 |---|---|---|
-| `Command` | `["opencode", "serve"]` | The executable plus its leading arguments. The launcher appends `--stdio --port 0` itself. |
+| `Command` | `["opencode2", "serve"]` | The executable plus its leading arguments. The launcher appends `--stdio --port 0` itself. |
 | `WorkingDirectory` | `null` | The child's working directory; `null` inherits yours. |
 | `Environment` | `null` | Extra environment entries for the child. |
 | `ReadinessTimeout` | 60 s | How long to wait for the readiness line before failing and ending the child. |
@@ -136,7 +136,7 @@ exactly as well. A server started **without** a password expects anonymous reque
 
 `OpenCode.Sdk.Extensions` adds `AddOpenCode` to `IServiceCollection`. What lands in the container is
 deliberately small: **one `OpenCodeClient` singleton** holding the transport open for the
-container's lifetime, and **each of the 27 families registered as its own singleton resolved from
+container's lifetime, and **each of the 28 families registered as its own singleton resolved from
 that one client**. A service therefore asks for the family it actually uses — `EventsClient`,
 `PtysClient`, `WorktreesClient` — and all of them share a single pipeline and a single disposal at
 shutdown.

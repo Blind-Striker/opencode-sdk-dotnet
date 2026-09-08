@@ -5,29 +5,36 @@ Each released version links straight to its GitHub Release tag.
 
 ## [Unreleased]
 
-> **The first release.** Nothing has shipped to NuGet.org yet, and it will arrive as a
-> `0.8.0-preview.N` prerelease. Nightly builds of everything below are on
-> [GitHub Packages](README.md#nightly-builds-github-packages) today, versioned
-> `0.8.0-nightly.{yyyyMMdd}.{shortSha}` from every code push to `master`.
+> **The first release.** Everything below is the surface of the first published package,
+> `0.8.0-preview.1`. There is no migration to perform: no earlier version was ever published, and
+> the pin moved several times on the way here. Nightly builds of `master` are on
+> [GitHub Packages](README.md#nightly-builds-github-packages) as
+> `0.8.0-nightly.{yyyyMMdd}.{shortSha}`.
 
 ### ✨ New features
 
 - **Refreshed to upstream `89f1943`.** Worktree operations now resolve their project through an
   optional location query. Call create, list, remove, and refresh directly on `WorktreesClient`;
-  the project-bound `ProjectWorktreesClient` and its factory are gone, which nightly consumers will
-  meet as a compile break. Create's strategy and destination directory are both optional now, as
+  the project-bound `ProjectWorktreesClient` and its factory are gone. Create's strategy and
+  destination directory are both optional now, as
   upstream declares them; remove retains its required JSON body.
   The list operation also exposes its declared `WorktreeError` failure arm. Compaction completion
   payloads now expose the optional model and provider state supplied by the upstream schema.
   Project updates accept an optional canonical directory; execution interruption events include
   the upstream inactivity reason.
-- **`OpenCode.Sdk` — the typed client.** **135 of the 140 operations** in the pinned OpenAPI
+- **`OpenCodeAI.Sdk` — the typed client.** **135 of the 140 operations** in the pinned OpenAPI
   snapshot are callable across **28 client families**: sessions, PTYs, persistent PTYs, shells,
   events, MCP servers, integrations, projects, worktrees, workspaces, providers, language models,
   agents, skills, commands, forms, permissions, credentials, plugins, RPC, references, VCS,
   websearch, file system, generation, server, debug, and experimental. Every operation carries a
   generated request type and a generated response envelope; bound handles (`SessionClient`,
   `PtyClient`, `PersistentPtyClient`) partially apply a resource id over the shared pipeline.
+- **Refreshed to upstream `f9bc223`.** The compaction surface grew: `IProviderCompaction` is a
+  `mode`-tagged union (`ProviderCompactionLocal`, `ProviderCompactionProvider`, and the usual
+  `UnknownProviderCompaction` carrier) and hangs off `ModelInfo.Compaction` and
+  `ProviderInfo.Compaction`. A completed compaction and the `session.compaction.ended` event both
+  carry an optional `SessionProviderContext`, with its `SessionProviderContextProvenance` record.
+  Every one of those properties is optional, so nothing that compiled before stops compiling.
 - **Refreshed to upstream `48f2466`.** The pinned snapshot moved, and the surface moved with it.
   The live event stream gained its first prefix-tagged arm: every `rpc.*` event dispatches to
   `EventRpc`, tried after the declared literal tags and before the unknown carrier, and
@@ -35,7 +42,7 @@ Each released version links straight to its GitHub Release tag.
   `v2.plugin.awaitActivation`, `v2.plugin.check`, and `v2.plugin.update` as
   `PluginsClient.AwaitPluginActivationAsync`, `CheckPluginUpdatesAsync`, and `UpdatePluginsAsync`,
   and `v2.rpc.call` as `CallAsync` on the new `RpcClient` family. Upstream also removed and
-  reshaped the plugin types, which nightly consumers will meet as compile breaks: the
+  reshaped the plugin types: the
   `plugin.added` event arm is gone, and `PluginAdded` and `PluginAddedData` with it; `IPluginInfo`
   and its `PluginInfoActive`, `PluginInfoFailed`, and `UnknownPluginInfo` variants are replaced by
   the `PluginInfo` record, whose `State` is the new `IPluginState` union (`PluginStateActive`,
@@ -43,7 +50,7 @@ Each released version links straight to its GitHub Release tag.
   variant; `PluginSourcePackage.Package` is now `Target`, joined by `Version`, `Outdated`, and
   `Updating`; and `PluginListResponse.Plugins` is an `IReadOnlyList<PluginInfo>`.
 - **A standalone server launcher.** `OpenCodeServer.StartAsync()` starts, monitors, and stops a
-  private `opencode serve` child — generated lease credential, stdin-EOF ownership, bounded tree
+  private `opencode2 serve` child — generated lease credential, stdin-EOF ownership, bounded tree
   termination — and `CreateClient()` hands back a client already bound to it. An optional
   `OpenCodeServerOutput` collector, supplied through `OpenCodeServerOptions.Output`, retains a
   bounded tail of the child's stdout and stderr for pull snapshots that report truncation, and it
@@ -67,7 +74,7 @@ Each released version links straight to its GitHub Release tag.
   joins the connection's own work. A persistent PTY keeps its locally requested viewport coherent
   with the input it labels, rather than letting an inbound resize report overwrite it. See
   [the terminals guide](docs/guide/terminals.md#-cancellation-deadlines-and-disposal).
-- **Dependency injection through `OpenCode.Sdk.Extensions`.** `AddOpenCode(Action<…>)` or
+- **Dependency injection through `OpenCodeAI.Sdk.Extensions`.** `AddOpenCode(Action<…>)` or
   `AddOpenCode(IConfiguration)` registers one singleton client owning its transport for the
   container's lifetime, plus every sub-client resolved from that same instance — inject
   `SessionsClient` or `EventsClient` directly.
@@ -85,11 +92,6 @@ Each released version links straight to its GitHub Release tag.
 
 ### 🛠️ General
 
-- **Breaking (nightly API):** `RpcClient.PostCallAsync` is now `CallAsync`;
-  `PluginsClient.PostAwaitActivationAsync`, `PostCheckAsync`, and `PostUpdateAsync` are now
-  `AwaitPluginActivationAsync`, `CheckPluginUpdatesAsync`, and `UpdatePluginsAsync`. Their
-  `OpenCodeRoutes` members use the corresponding names without `Async`; request/response types and
-  wire behavior are unchanged.
 - **Target frameworks:** `netstandard2.0`, `net472`, `net8.0`, `net9.0`, `net10.0` — for both
   packages. The suite runs on `net472` on Windows, real-process launcher tests included, and on
   `net8.0`/`net9.0`/`net10.0` on all three OSes. `netstandard2.0` is a consumption target rather

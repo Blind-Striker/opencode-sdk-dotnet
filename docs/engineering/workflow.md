@@ -14,7 +14,7 @@ history.
 - Align on structure and direction before writing. Prefer the smallest correct change over a broad
   refactor.
 - When implementation contradicts current canon, stop the affected work and follow
-  `../agents/deviation-protocol.md`; never silently code around the contradiction.
+  `deviation-protocol.md`; never silently code around the contradiction.
 
 ## Repository artifacts and temporary work
 

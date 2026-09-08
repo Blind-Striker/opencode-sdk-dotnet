@@ -51,6 +51,7 @@
 
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)LICENSE" Visible="False" Pack="true" PackagePath=""/>
+    <None Include="$(MSBuildThisFileDirectory)THIRD-PARTY-NOTICES.md" Visible="False" Pack="true" PackagePath=""/>
     <None Include="$(MSBuildThisFileDirectory)README.md" Visible="False" Pack="true" PackagePath=""/>
     <None Include="$(MSBuildThisFileDirectory)assets/icon.png" Visible="False" Pack="true" PackagePath=""/>
   </ItemGroup>

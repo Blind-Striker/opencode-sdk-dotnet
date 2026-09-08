@@ -41,8 +41,8 @@ suspected vulnerability as a public issue.
 
 ## Scope
 
-This policy covers the SDK packages in this repository — `OpenCode.Sdk` and
-`OpenCode.Sdk.Extensions` — and the repository's own tooling and workflows.
+This policy covers the SDK packages in this repository — `OpenCodeAI.Sdk` and
+`OpenCodeAI.Sdk.Extensions` — and the repository's own tooling and workflows.
 
 Two things are explicitly **out of scope**:
 

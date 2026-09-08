@@ -1,8 +1,8 @@
 # opencode SDK for .NET
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![NuGet](https://img.shields.io/badge/NuGet-coming%20soon-lightgrey)](https://www.nuget.org/packages/OpenCodeAI.Sdk)<!-- first stable: swap back to the dynamic badge-smith NuGet badge --> [![CI](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml/badge.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml) [![Linux Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Flinux%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/linux/blind-striker/opencode-sdk-dotnet/master)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![NuGet](https://img.shields.io/nuget/vpre/OpenCodeAI.Sdk)](https://www.nuget.org/packages/OpenCodeAI.Sdk) [![CI](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml/badge.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml) [![Linux Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Flinux%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/linux/blind-striker/opencode-sdk-dotnet/master)
 
-> **🚀 Quick Start**: the first release is upcoming — [nightly builds](#-installation) are on GitHub Packages today | [Quick start](#-quick-start) | [Guide](docs/guide/getting-started.md)
+> **🚀 Quick Start**: [Install](#-installation) | [Quick start](#-quick-start) | [Guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/getting-started.md)
 
 > **Unofficial.** This project is not affiliated with or endorsed by the
 > [opencode](https://opencode.ai) team.
@@ -28,17 +28,17 @@ attaching to a registered background service.
 - ✅ **Server-sent event streams**, global and per-session, over the same transport as one-shot calls
 - ✅ **PTY and persistent-PTY terminal sessions** through hand-written WebSocket doors
 - ✅ **A launcher** — `OpenCodeServer.StartAsync()` starts, monitors, and stops a private
-  `opencode serve` child for you
+  `opencode2 serve` child for you
 - ✅ **Source-generated `System.Text.Json`** with no reflection fallback; both packages declare
   `IsAotCompatible` on `net10.0`
-- 🔜 **First release** — packed and verified; publication waits on the NuGet.org prefix
-  reservation dispute in [Known Issues](#known-issues). See [CHANGELOG.md](CHANGELOG.md)
+- 🚧 **Pre-1.0 and iterating** — released as `0.8.0-preview.N`; the public surface is
+  locked by a reviewed baseline but may still move before `1.0.0`. See [CHANGELOG.md](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/CHANGELOG.md)
 - 🔜 **Background-service attachment** and an **MCP server** over this SDK — both planned, neither
   started
 
-**Versioning**: the SDK builds against an accepted OpenAPI snapshot, never a live branch. The exact
-upstream commit and the refresh procedure live in [`spec/SNAPSHOT.md`](spec/SNAPSHOT.md); today's
-pin is `89f1943d` on upstream's `v2` branch.
+**Versioning**: the SDK builds against an accepted OpenAPI snapshot of upstream's `v2` branch,
+never a live branch. The exact commit and the refresh procedure live in
+[`spec/SNAPSHOT.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/spec/SNAPSHOT.md), which owns that pin.
 
 ## 🚀 Platform Compatibility & Quality Status
 
@@ -67,8 +67,8 @@ on, and the `net472` leg is what exercises its compile surface.
 
 | Package | NuGet.org | GitHub Packages |
 |---------|-----------|-----------------|
-| **OpenCodeAI.Sdk** | [![NuGet](https://img.shields.io/badge/NuGet-coming%20soon-lightgrey)](https://www.nuget.org/packages/OpenCodeAI.Sdk)<!-- first stable: swap back to the dynamic badge-smith NuGet badge --> | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCodeAI.Sdk) |
-| **OpenCodeAI.Sdk.Extensions** | [![NuGet](https://img.shields.io/badge/NuGet-coming%20soon-lightgrey)](https://www.nuget.org/packages/OpenCodeAI.Sdk.Extensions)<!-- first stable: swap back to the dynamic badge-smith NuGet badge --> | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCodeAI.Sdk.Extensions) |
+| **OpenCodeAI.Sdk** | [![NuGet](https://img.shields.io/nuget/vpre/OpenCodeAI.Sdk)](https://www.nuget.org/packages/OpenCodeAI.Sdk) | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCodeAI.Sdk) |
+| **OpenCodeAI.Sdk.Extensions** | [![NuGet](https://img.shields.io/nuget/vpre/OpenCodeAI.Sdk.Extensions)](https://www.nuget.org/packages/OpenCodeAI.Sdk.Extensions) | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCodeAI.Sdk.Extensions) |
 
 ## Table of Contents
 
@@ -105,9 +105,14 @@ on, and the `net472` leg is what exercises its compile surface.
 
 ## Prerequisites
 
-You need an `opencode` server. Install the CLI
-([opencode.ai](https://opencode.ai) — the v2 line ships as `@opencode-ai/cli@next` and installs the
-`opencode2` command), then either run it yourself:
+You need an `opencode` server. The v2 line ships as `@opencode-ai/cli@next` and installs a single
+command, `opencode2` ([opencode.ai](https://opencode.ai)):
+
+```sh
+npm install -g @opencode-ai/cli@next
+```
+
+Then either run it yourself:
 
 ```sh
 OPENCODE_PASSWORD=your-password opencode2 serve --hostname 127.0.0.1 --port 4096
@@ -120,15 +125,18 @@ OPENCODE_PASSWORD=your-password opencode2 serve --hostname 127.0.0.1 --port 4096
 
 ### Stable (NuGet.org)
 
-**The first release is upcoming.** Nothing is on NuGet.org yet; when it ships, installation will
-be the usual:
-
 ```bash
-dotnet add package OpenCodeAI.Sdk
-dotnet add package OpenCodeAI.Sdk.Extensions   # dependency injection, optional
+dotnet add package OpenCodeAI.Sdk --prerelease
+dotnet add package OpenCodeAI.Sdk.Extensions --prerelease   # dependency injection, optional
 ```
 
-Until then, use the nightly feed below.
+> **The package id is not the namespace.** You install `OpenCodeAI.Sdk`, and you write
+> `using OpenCode.Sdk;` — the assemblies and every public namespace are `OpenCode.Sdk`.
+> nuget.org reserves the `OpenCode.` id prefix for an unrelated owner, so the artifact carries a
+> different name than the code inside it.
+
+The version badge above shows the latest published prerelease. Nightly builds of `master` are on
+the GitHub Packages feed below.
 
 ### Nightly builds (GitHub Packages)
 
@@ -178,7 +186,7 @@ keep the credentials in environment variables:
 
 ### The SDK starts the server
 
-No ambient process, no endpoint to configure — the launcher starts a private `opencode serve`
+No ambient process, no endpoint to configure — the launcher starts a private `opencode2 serve`
 child, mints its credential, and hands you a client bound to it. Disposing the server stops the
 child. To keep the child's output for diagnostics, pass an `OpenCodeServerOutput` collector in
 `OpenCodeServerOptions.Output` and read its snapshot whenever you like — bounded, and still
@@ -266,7 +274,7 @@ overload shown above.
 
 **135 of the 140 operations** in the pinned snapshot are callable. The remaining five are not
 omissions — each one is a recorded decision with a named cause, and
-[`src/OpenCode.Sdk/.generation-incomplete`](src/OpenCode.Sdk/.generation-incomplete) is the
+[`src/OpenCode.Sdk/.generation-incomplete`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/src/OpenCode.Sdk/.generation-incomplete) is the
 machine-readable map that the build itself reads.
 
 **Three operations are declined**, because admitting them would mean inventing a contract upstream
@@ -284,31 +292,29 @@ does not declare:
 **Two operations are transport-owned**: `v2.pty.connect` and `v2.persistentPty.connect` are
 WebSocket upgrades that the HTTP pipeline cannot carry. They are fully usable — through the
 hand-written `PtySession` and `PersistentPtySession` doors described in
-[the terminals guide](docs/guide/terminals.md) — they simply are not generated.
+[the terminals guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/terminals.md) — they simply are not generated.
 
 ## 📚 Documentation
 
 | Guide | What it covers |
 |---|---|
-| [**The guide**](docs/guide/README.md) | Index of every page below, in reading order |
-| [Getting started](docs/guide/getting-started.md) | Install, first call, and the shape of the client family |
-| [Connection modes](docs/guide/connection-modes.md) | The standalone launcher, an external server, and DI registration |
-| [Streaming](docs/guide/streaming.md) | The global event bus and per-session server-sent event streams |
-| [Terminals](docs/guide/terminals.md) | PTY and persistent-PTY sessions over the WebSocket doors |
-| [Errors and responses](docs/guide/errors-and-responses.md) | Throwing versus `NoThrow`, and the typed error model |
-| [Pagination](docs/guide/pagination.md) | Cursor-carrying list envelopes and `EnumerateMessagesAsync` |
+| [**The guide**](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/README.md) | Index of every page below, in reading order |
+| [Getting started](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/getting-started.md) | Install, first call, and the shape of the client family |
+| [Connection modes](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/connection-modes.md) | The standalone launcher, an external server, and DI registration |
+| [Streaming](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/streaming.md) | The global event bus and per-session server-sent event streams |
+| [Terminals](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/terminals.md) | PTY and persistent-PTY sessions over the WebSocket doors |
+| [Errors and responses](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/errors-and-responses.md) | Throwing versus `NoThrow`, and the typed error model |
+| [Pagination](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/pagination.md) | Cursor-carrying list envelopes and `EnumerateMessagesAsync` |
 
-Architecture, decision records, and engineering policy live under [`docs/`](docs) — start at
-[`AGENTS.md`](AGENTS.md) if you want the internals rather than the API.
+Architecture, decision records, and engineering policy live under [`docs/`](https://github.com/Blind-Striker/opencode-sdk-dotnet/tree/master/docs) — start at
+[`AGENTS.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/AGENTS.md) if you want the internals rather than the API.
 
 ## Known Issues
 
-- **Nothing is on NuGet.org yet.** The packages are prepared but unpublished —
-  publication is currently blocked by an upstream package-ID prefix reservation dispute — so
-  `dotnet add package OpenCodeAI.Sdk` will not resolve. Use the
-  [GitHub Packages nightly feed](#nightly-builds-github-packages) until the first stable release;
-  the nightly and stable packages are built from the same sources by two workflows that share the
-  same verify-and-pack steps.
+- **The package id differs from the assembly name.** nuget.org reserves the `OpenCode.` id prefix
+  for an unrelated owner, so the packages publish as `OpenCodeAI.Sdk` and
+  `OpenCodeAI.Sdk.Extensions` while the assemblies and every public namespace stay `OpenCode.Sdk`.
+  Nothing about your code changes: only the `PackageReference` carries the `OpenCodeAI` name.
 
 - **Response bodies larger than 1 MB allocate an extra copy on `net472` and `netstandard2.0`.**
   The downlevel array pool caps its buckets at 1 MB, so a rent above that cap falls through to a
@@ -321,7 +327,7 @@ Architecture, decision records, and engineering policy live under [`docs/`](docs
   reuses it across messages and consumer read enumerations. Pooling remains a benchmark-gated
   follow-up; repeated reads on the same connection do not allocate another receive buffer. The
   receiver also queues undelivered frames, so slow or absent consumers can grow memory; see the
-  [terminal lifetime contract](docs/architecture/client-runtime.md).
+  [terminal lifetime contract](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/architecture/client-runtime.md).
 
 - **Attaching to an existing background service is not implemented.** opencode's third connection
   mode — discovering a registered daemon through its registration file (`Service.discover` /
@@ -333,19 +339,19 @@ Architecture, decision records, and engineering policy live under [`docs/`](docs
   stream: events published while you are disconnected are gone, and a consumer slower than the
   producer can overflow and fail the stream. This is the server's contract, not an SDK limitation —
   if you need durable history for one session, use the per-session log stream instead
-  ([streaming guide](docs/guide/streaming.md)).
+  ([streaming guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/streaming.md)).
 
 - **Running the in-repo sandbox against a different server needs `--no-launch-profile`.** The
   checked-in `launchSettings.json` prefills `OPENCODE_SANDBOX_ENDPOINT` at port 4096, and
   `dotnet run` applies the default profile unless told otherwise — so without the flag the sandbox
   silently addresses 4096 whatever your environment says. The prefill stays deliberately: it is
   what makes zero-argument F5 work against a local server. See
-  [`tests/OpenCode.Sdk.Sandbox/README.md`](tests/OpenCode.Sdk.Sandbox/README.md).
+  [`tests/OpenCode.Sdk.Sandbox/README.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/tests/OpenCode.Sdk.Sandbox/README.md).
 
 ## Developing
 
 We appreciate contributions in the form of feedback, bug reports, and pull requests. Read
-[CONTRIBUTING.md](.github/CONTRIBUTING.md) first — it carries the full gate and the commit
+[CONTRIBUTING.md](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/.github/CONTRIBUTING.md) first — it carries the full gate and the commit
 convention.
 
 ### Building the Project
@@ -367,10 +373,10 @@ provisions the matching official ripgrep archive and verifies its SHA-256 digest
 
 ### Sandbox Application
 
-[`tests/OpenCode.Sdk.Sandbox`](tests/OpenCode.Sdk.Sandbox) is a committed playground that drives
+[`tests/OpenCode.Sdk.Sandbox`](https://github.com/Blind-Striker/opencode-sdk-dotnet/tree/master/tests/OpenCode.Sdk.Sandbox) is a committed playground that drives
 the SDK against a real `opencode2 serve` under a debugger — the standing breadth walkthrough, the
 SSE stream modes, the PTY legs, and the standalone-launcher demo. Its
-[README](tests/OpenCode.Sdk.Sandbox/README.md) documents every mode.
+[README](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/tests/OpenCode.Sdk.Sandbox/README.md) documents every mode.
 
 ```bash
 dotnet run --project tests/OpenCode.Sdk.Sandbox -- --standalone
@@ -383,7 +389,7 @@ dotnet test --configuration Release --no-build
 ```
 
 The full completion gate — analyzers, formatting, and the suite — is
-[`docs/engineering/quality-gates.md`](docs/engineering/quality-gates.md).
+[`docs/engineering/quality-gates.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/engineering/quality-gates.md).
 
 ## Community
 
@@ -394,8 +400,10 @@ questions, and proposals all land there for now.
 
 ## Changelog
 
-Please refer to [`CHANGELOG.md`](CHANGELOG.md) to see the complete list of changes for each release.
+Please refer to [`CHANGELOG.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/CHANGELOG.md) to see the complete list of changes for each release.
 
 ## License
 
-Licensed under MIT, see [LICENSE](LICENSE) for the full text.
+Licensed under MIT, see [LICENSE](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/LICENSE) for the full text. Content derived from
+upstream opencode carries its own notice in
+[THIRD-PARTY-NOTICES.md](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/THIRD-PARTY-NOTICES.md).

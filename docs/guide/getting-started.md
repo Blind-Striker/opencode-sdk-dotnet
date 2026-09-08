@@ -13,9 +13,18 @@ one talks to a model.
 
 ## 📦 Install
 
-**Nothing is on NuGet.org yet** — the packages are prepared but unpublished. Where they can be
-had in the meantime, the exact `dotnet nuget add source` command, the two package names, and the
-`read:packages` token requirement all live in one place so they never drift:
+```bash
+dotnet add package OpenCodeAI.Sdk --prerelease
+dotnet add package OpenCodeAI.Sdk.Extensions --prerelease   # dependency injection, optional
+```
+
+> **The package id is not the namespace.** You install `OpenCodeAI.Sdk` and you write
+> `using OpenCode.Sdk;` — nuget.org reserves the `OpenCode.` id prefix for an unrelated owner, so
+> the artifact carries a different name than the code inside it.
+
+The packages target `netstandard2.0`, `net472`, `net8.0`, `net9.0`, and `net10.0`, so any project
+on one of those works. Nightly builds of `master` live on a GitHub Packages feed; the source
+command and its `read:packages` token requirement live in one place so they never drift:
 [**Installation** in the root README](../../README.md#-installation).
 
 You also need an `opencode` server. Either install the CLI and run one yourself, or let the SDK
@@ -99,11 +108,11 @@ Console.WriteLine(generated.Generate.Text);
 
 ## 🧭 How the client is organised
 
-The root client exposes **27 families** as properties — `Sessions`, `Events`, `Ptys`,
+The root client exposes **28 families** as properties — `Sessions`, `Events`, `Ptys`,
 `PersistentPtys`, `Shells`, `Providers`, `LanguageModels`, `Agents`, `Skills`, `Commands`,
 `Permissions`, `Credentials`, `Projects`, `Workspaces`, `Worktrees`, `Vcs`, `FileSystem`, `Forms`,
-`Generation`, `Integrations`, `McpServers`, `Plugins`, `References`, `Server`, `Websearch`,
-`Debug`, and `Experimental`:
+`Generation`, `Integrations`, `McpServers`, `Plugins`, `References`, `Rpc`, `Server`,
+`Websearch`, `Debug`, and `Experimental`:
 
 ```csharp
 var providers = await client.Providers.ListProvidersAsync();
