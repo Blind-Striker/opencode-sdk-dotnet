@@ -35,6 +35,9 @@ on:
         - nuget
         - github
 
+permissions:
+  contents: read
+
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -89,7 +92,7 @@ jobs:
       - name: "NuGet.org login (OIDC)"
         id: nuget-login
         if: inputs.target == 'nuget'
-        uses: NuGet/login@v1
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
         with:
           user: ${{ vars.NUGET_TRUSTED_PUBLISHING_USER }}
 
@@ -103,10 +106,12 @@ jobs:
       # verification below does, and it separates the two outcomes the flag conflates.
       - name: Push to NuGet.org
         if: inputs.target == 'nuget'
+        env:
+          NUGET_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
         run: >
           dotnet nuget push "packages/*.nupkg"
           --source https://api.nuget.org/v3/index.json
-          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+          --api-key "$NUGET_KEY"
           --skip-duplicate
 
       # A push that exits zero is not a publication. This asks the flat container for the exact
@@ -151,8 +156,10 @@ jobs:
 
       - name: Push to GitHub Packages
         if: inputs.target == 'github'
+        env:
+          PACKAGES_KEY: ${{ secrets.GITHUB_TOKEN }}
         run: >
           dotnet nuget push "packages/*.nupkg"
           --source https://nuget.pkg.github.com/Blind-Striker/index.json
-          --api-key ${{ secrets.GITHUB_TOKEN }}
+          --api-key "$PACKAGES_KEY"
           --skip-duplicate
