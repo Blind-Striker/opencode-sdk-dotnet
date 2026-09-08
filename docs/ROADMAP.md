@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-09-07
+Date: 2026-09-08
 
 Operational state: what ships today, what is queued next, what is still open, and what is known to
 be incomplete. This file is a summary and shrinks as work lands. `../AGENTS.md` routes to the
@@ -23,6 +23,11 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
 - **Assurance** — the suite runs on `net8.0`, `net9.0`, and `net10.0` across Linux, Windows, and
   macOS, plus `net472` on Windows, the fullest leg; `engineering/quality-gates.md` owns the gate a
   change must pass before it is called done.
+- **Terminal lifetime corrections (D)** — consumer cancellation, send deadlines, local viewport
+  ordering, and shared cleanup are implemented and verified on Windows across the four runnable
+  targets. Linux and macOS live verification also passed on net8/net9/net10, including the persistent daemon
+  round trip and normal PTY reuse after read cancellation. `architecture/client-runtime.md` and
+  ADR-0023 own the contract.
 - **Packages** — `OpenCode.Sdk` and `OpenCode.Sdk.Extensions` pack at the single-sourced
   `VersionPrefix 0.1.0`, and every `master` push publishes a `0.1.0-nightly.*` build to GitHub
   Packages. NuGet.org publication is currently blocked by an upstream prefix reservation dispute;
@@ -103,9 +108,9 @@ is revisited at each boundary.
   path the call must carry is invisible to any generated client; admitting it would mean inventing a
   path parameter the document does not declare (ADR-0013), and the upstream report is drafted.
 - **Two allocation follow-ups are queued behind a benchmark gate** — on `net472` and
-  `netstandard2.0` a response body over 1 MB costs one wire-sized copy, and `PtySession.ReadAsync`
-  allocates a fresh 16 KiB receive buffer per call. Both are measured rather than suspected, and
-  both are described for consumers in the README's Known Issues.
+  `netstandard2.0` a response body over 1 MB costs one wire-sized copy, and each terminal connection
+  allocates one 16 KiB receive buffer, reused across consumer reads. Both are described for consumers
+  in the README's Known Issues; pooling requires evidence under the current connection-lifetime harness.
 - **A half-open event stream is not detected.** A successful SSE body stays live until caller
   cancellation, server completion, or failure, so a connection whose peer is gone without closing
   hangs a consumer that supplied no cancellation of its own; ordinary resets, server exits, and

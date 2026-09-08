@@ -45,10 +45,8 @@ public class PtySessionReadBenchmarks : IAsyncDisposable
     public WireFixture Fixture { get; set; } = null!;
 
     /// <summary>
-    /// Builds the one session and canned socket this fixture's benchmark invocations replay
-    /// against; <see cref="CannedTerminalWebSocket.Reset"/> rewinds it before every read instead of
-    /// paying for a fresh socket and session per iteration, which would count construction
-    /// noise as part of the read path this class isolates.
+    /// Validates the fixture once. Each measured invocation owns a fresh connection because
+    /// terminal completion is permanent; construction and disposal are included in the cost.
     /// </summary>
     [GlobalSetup]
     public async Task SetupAsync()
@@ -75,20 +73,19 @@ public class PtySessionReadBenchmarks : IAsyncDisposable
             throw new InvalidOperationException($"Fixture '{Fixture.Name}' did not decode into complete, non-empty output frames.");
         }
 
-        _socket.Reset();
-
         if (DecodeFrames() != Fixture.Items)
         {
             throw new InvalidOperationException($"Fixture '{Fixture.Name}' did not decode-alone into the expected frame count.");
         }
     }
 
-    /// <summary>The complete read path: canned receive, cross-receive reassembly, decode, and yield.</summary>
+    /// <summary>The connection lifetime: construction, receive, reassembly, decode, delivery, and disposal.</summary>
     [Benchmark]
-    public Task<int> ReadFramesAsync()
+    public async Task<int> ReadFramesAsync()
     {
-        _socket!.Reset();
-        return CountFramesAsync(_session!);
+        using var socket = new CannedTerminalWebSocket(_messages);
+        await using var session = new PtySession(socket);
+        return await CountFramesAsync(session).ConfigureAwait(false);
     }
 
     /// <summary>Decode alone, over the exact messages the complete rung assembles: no socket, no receive loop.</summary>

@@ -6,6 +6,19 @@ namespace OpenCode.Sdk.Tests;
 
 public sealed class PtySessionTests
 {
+    [Test]
+    public async Task WriteAsync_Should_Use_The_Connections_Configured_Send_Timer()
+    {
+        var socket = new ScriptedTerminalWebSocket().GatingSends();
+        await using var session = new PtySession(socket, TimeSpan.FromMilliseconds(50));
+        using var watchdog = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var failure = await Assert.That(async () => await session.WriteAsync("input", watchdog.Token))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(failure!.InnerException).IsTypeOf<TimeoutException>();
+    }
+
     private const string SessionNotFoundReason = "session exited";
 
     private const WebSocketCloseStatus SessionNotFound = (WebSocketCloseStatus)4404;
@@ -188,19 +201,22 @@ public sealed class PtySessionTests
     }
 
     [Test]
-    public async Task ReadAsync_Should_Allow_A_Second_Enumeration_After_The_First_Ended()
+    public async Task ReadAsync_Should_Allow_A_Second_Enumeration_After_The_First_Breaks()
     {
         var socket = new ScriptedTerminalWebSocket()
             .Text("first")
-            .Closing(WebSocketCloseStatus.NormalClosure)
             .Text("second")
             .Closing(WebSocketCloseStatus.NormalClosure);
         await using var session = new PtySession(socket);
 
-        var first = await ReadAllAsync(session);
+        await using (var first = session.ReadAsync().GetAsyncEnumerator())
+        {
+            await Assert.That(await first.MoveNextAsync()).IsTrue();
+            await Assert.That(((PtyOutputFrame)first.Current).Text).IsEqualTo("first");
+        }
+
         var second = await ReadAllAsync(session);
 
-        await Assert.That(((PtyOutputFrame)first.Single()).Text).IsEqualTo("first");
         await Assert.That(((PtyOutputFrame)second.Single()).Text).IsEqualTo("second");
     }
 

@@ -169,8 +169,55 @@ public sealed class PtySessionLiveTests(PinnedOpenCodeServerFixture server)
         _scenario.Diagnostics.Enter("initial input acknowledgement", transcript);
         await session.WriteAsync("RUN " + nonce + "\r", cancellationToken);
         await transcript.ReadUntilRecordAsync(session, acknowledgement, cancellationToken);
+        await AssertReadCancellationReuseAsync(session, cancellationToken);
         await session.DisposeAsync();
         return acknowledgement;
+    }
+
+    private async Task AssertReadCancellationReuseAsync(PtySession session, CancellationToken cancellationToken)
+    {
+        _scenario.Diagnostics.Enter("cancel read");
+        var canceled = false;
+        while (!canceled)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var stopReading = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            await using var reader = session.ReadAsync(stopReading.Token).GetAsyncEnumerator(stopReading.Token);
+            while (true)
+            {
+                var move = reader.MoveNextAsync();
+                var pending = move.AsTask();
+                if (pending.IsCompleted)
+                {
+                    await Assert.That(await pending).IsTrue();
+                    continue;
+                }
+
+                // Drain any trailing terminal output first. Cancellation is exercised only
+                // after a move actually suspends, never on an already-selected frame.
+                await stopReading.CancelAsync();
+                try
+                {
+                    await Assert.That(await pending).IsTrue();
+                }
+                catch (OperationCanceledException) when (stopReading.IsCancellationRequested)
+                {
+                    canceled = true;
+                }
+
+                // Output selected between the incomplete-task observation and cancellation
+                // may win. Retry with a fresh token; only cancellation of this pending move
+                // supplies the proof, never the next move on an already-canceled token.
+                break;
+            }
+        }
+
+        var nonce = Guid.NewGuid().ToString("N");
+        var transcript = new PtyLiveTranscript();
+        _scenario.Diagnostics.Enter("execute after read cancellation", transcript);
+        await session.WriteAsync("RUN " + nonce + "\r", cancellationToken);
+        await transcript.ReadUntilRecordAsync(session, "ACK:" + nonce, cancellationToken);
+        Console.WriteLine("pty-live: read-canceled same-connection-execution=" + nonce);
     }
 
     private async Task<PtyReplayEvidence> AssertReplayAndResumeAsync(

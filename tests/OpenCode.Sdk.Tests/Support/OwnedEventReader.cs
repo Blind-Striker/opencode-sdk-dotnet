@@ -46,7 +46,8 @@ internal sealed class OwnedEventReader
     public async Task CompleteAsync(Exception? primaryFailure)
     {
         _teardownCancellation = !_window.IsCancellationRequested;
-        _cancellation = Task.Run(_window.CancelAsync, CancellationToken.None);
+        // Already on a worker: downlevel CancelAsync would queue another worker and spin waiting for it.
+        _cancellation = Task.Run(_window.Cancel, CancellationToken.None);
         _cleanup.Own("event cancellation", _cancellation);
         _cleanup.Own("event reader", _reader, IsTeardownCancellation);
         try

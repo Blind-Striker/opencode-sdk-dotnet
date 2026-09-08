@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Net.WebSockets;
-using System.Runtime.CompilerServices;
 using OpenCode.Sdk.Internal;
+using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk;
 
@@ -18,8 +18,7 @@ public class PersistentPtySession : IAsyncDisposable
 
     private readonly PersistentPtyAttachment? _attachment;
     private readonly TerminalSocketCore<PersistentPtyFrame>? _core;
-    private long _cols;
-    private long _rows;
+    private PersistentPtyInfoSize? _viewport;
 
     internal PersistentPtySession(TerminalSocketCore<PersistentPtyFrame> core, PersistentPtyAttachment attachment)
     {
@@ -28,8 +27,7 @@ public class PersistentPtySession : IAsyncDisposable
 
         _core = core;
         _attachment = attachment;
-        _cols = attachment.Info.Size.Cols;
-        _rows = attachment.Info.Size.Rows;
+        _viewport = attachment.Info.Size;
     }
 
     /// <summary>
@@ -49,18 +47,21 @@ public class PersistentPtySession : IAsyncDisposable
     /// <summary>
     /// Reads the frames the server sends until it closes the connection normally. The retained
     /// replay, when any, arrives as output frames bracketed by
-    /// <see cref="PersistentPtyReplayCompleteFrame"/>; a resize the server reports updates the
-    /// viewport later writes carry, whoever caused it. One session carries one active enumeration:
-    /// message reassembly cannot be shared, so a second concurrent enumeration is refused. Reading
+    /// <see cref="PersistentPtyReplayCompleteFrame"/>. A server resize reports rendering size;
+    /// it does not change the local viewport later writes carry. One session carries one active enumeration:
+    /// undelivered frames have one consumer, so a second concurrent enumeration is refused. Reading
     /// after disposal is not an error: unlike <see cref="WriteAsync"/>, which throws once disposed,
-    /// the enumeration simply ends empty.
+    /// the enumeration simply ends empty. Canceling or disposing an enumerator ends only that
+    /// consumer; another enumeration may continue on the same connection. Unread frames remain
+    /// queued without a fixed memory limit. Peer closure drains that queue before its outcome;
+    /// explicit session disposal abandons unread frames and awaits owned I/O cleanup.
     /// </summary>
     /// <param name="cancellationToken">The cancellation token ending the read.</param>
     /// <returns>The frames, in the order the server sent them.</returns>
     /// <exception cref="InvalidOperationException">A read enumeration is already active on this session.</exception>
     /// <exception cref="OpenCodeTransportException">The connection failed, closed abnormally, or carried an unreadable control frame.</exception>
     public virtual IAsyncEnumerable<PersistentPtyFrame> ReadAsync(CancellationToken cancellationToken = default) =>
-        ReadCoreAsync(Core, cancellationToken);
+        Core.ReadAsync(cancellationToken);
 
     /// <summary>
     /// Writes terminal input as one framed binary message carrying the current viewport. The
@@ -80,8 +81,8 @@ public class PersistentPtySession : IAsyncDisposable
     /// <summary>
     /// Resizes the terminal through a control frame and records the viewport later writes carry.
     /// The server answers with a <see cref="PersistentPtyResizedFrame"/> on the read enumeration.
-    /// The recorded viewport moves only once the control frame has left: a send that failed
-    /// resized nothing, so a later write must not carry a size the server never saw.
+    /// The recorded viewport changes only after the control send succeeds, before the next
+    /// send begins. Send completion does not acknowledge that the server applied the resize.
     /// </summary>
     /// <param name="cols">The new column count; 1 through 65535.</param>
     /// <param name="rows">The new row count; 1 through 65535.</param>
@@ -129,9 +130,22 @@ public class PersistentPtySession : IAsyncDisposable
     /// <param name="cancellationToken">The cancellation token bounding the first read.</param>
     /// <returns>The attached session.</returns>
     /// <exception cref="OpenCodeTransportException">The server closed before attaching, sent another frame first, or negotiated a protocol this SDK does not speak.</exception>
+    internal static Task<PersistentPtySession> AttachAsync(
+        ITerminalWebSocket socket,
+        string ptyId,
+        CancellationToken cancellationToken) =>
+        AttachAsync(socket, ptyId, TerminalSocketBounds.DefaultSendTimeout, cancellationToken);
+
+    /// <summary>Attaches with the fixed send budget captured from the connection options.</summary>
+    /// <param name="socket">The upgraded socket whose ownership is transferred on success.</param>
+    /// <param name="ptyId">The terminal identity used in failures.</param>
+    /// <param name="sendTimeout">The fixed per-send budget.</param>
+    /// <param name="cancellationToken">The token bounding attachment.</param>
+    /// <returns>The attached session.</returns>
     internal static async Task<PersistentPtySession> AttachAsync(
         ITerminalWebSocket socket,
         string ptyId,
+        TimeSpan sendTimeout,
         CancellationToken cancellationToken)
     {
         // Ownership stays local until the very end: an attach that never produced a session must
@@ -144,7 +158,10 @@ public class PersistentPtySession : IAsyncDisposable
                 socket,
                 PersistentPtyFrameDecoder.Instance,
                 PersistentPtyClosePolicy.Instance,
-                typeof(PersistentPtySession));
+                typeof(PersistentPtySession))
+            {
+                SendTimeout = sendTimeout,
+            };
             var attachment = await ReadAttachmentAsync(core, ptyId, cancellationToken).ConfigureAwait(false);
             var attachedSession = new PersistentPtySession(core, attachment);
             core = null;
@@ -197,39 +214,30 @@ public class PersistentPtySession : IAsyncDisposable
     private TerminalSocketCore<PersistentPtyFrame> Core =>
         _core ?? throw MockSeam.CreateError("PersistentPtySession", "WebSocket");
 
-    private async IAsyncEnumerable<PersistentPtyFrame> ReadCoreAsync(
-        TerminalSocketCore<PersistentPtyFrame> core,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-        await foreach (var frame in core.ReadAsync(cancellationToken).ConfigureAwait(false))
-        {
-            if (frame is PersistentPtyResizedFrame resized)
-            {
-                // The viewport is a wire fact, not a caller preference: whoever resized the
-                // terminal, the next framed write must carry the size the server now believes.
-                Volatile.Write(ref _cols, resized.Cols);
-                Volatile.Write(ref _rows, resized.Rows);
-            }
-
-            yield return frame;
-        }
-    }
-
-    private async Task ResizeCoreAsync(int cols, int rows, CancellationToken cancellationToken)
+    private Task ResizeCoreAsync(int cols, int rows, CancellationToken cancellationToken)
     {
         var core = Core;
-        var frame = PersistentPtyInputFrame.Encode(PersistentPtyInputFrame.ControlType, cols, rows, []);
-        await core.SendAsync(new ArraySegment<byte>(frame), WebSocketMessageType.Binary, cancellationToken)
-            .ConfigureAwait(false);
-
-        Volatile.Write(ref _cols, cols);
-        Volatile.Write(ref _rows, rows);
+        var viewport = new PersistentPtyInfoSize { Cols = cols, Rows = rows };
+        var actions = new TerminalSendActions(OnSent: () => _viewport = viewport);
+        return core.SendAsync(
+            () => new ArraySegment<byte>(PersistentPtyInputFrame.Encode(PersistentPtyInputFrame.ControlType, cols, rows, [])),
+            WebSocketMessageType.Binary, actions, cancellationToken);
     }
 
     private Task SendFrameAsync(byte type, ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
     {
         var core = Core;
-        var frame = PersistentPtyInputFrame.Encode(type, Volatile.Read(ref _cols), Volatile.Read(ref _rows), data.Span);
-        return core.SendAsync(new ArraySegment<byte>(frame), WebSocketMessageType.Binary, cancellationToken);
+        // Copy caller-owned input now; fill the viewport only after this send acquires its turn.
+        byte[]? frame = null;
+        var actions = new TerminalSendActions(Prepare: () =>
+        {
+            var viewport = _viewport!;
+            PersistentPtyInputFrame.WriteViewport(frame!, viewport.Cols, viewport.Rows);
+        });
+        return core.SendAsync(() =>
+        {
+            frame = PersistentPtyInputFrame.Encode(type, 1, 1, data.Span);
+            return new ArraySegment<byte>(frame);
+        }, WebSocketMessageType.Binary, actions, cancellationToken);
     }
 }

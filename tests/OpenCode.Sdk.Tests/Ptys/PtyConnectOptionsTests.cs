@@ -2,6 +2,26 @@ namespace OpenCode.Sdk.Tests;
 
 public sealed class PtyConnectOptionsTests
 {
+    [Test]
+    public async Task SendTimeout_Should_Default_To_Thirty_Seconds_And_Accept_A_Custom_Budget()
+    {
+        await Assert.That(new PtyConnectOptions().SendTimeout).IsEqualTo(TimeSpan.FromSeconds(30));
+        var options = new PtyConnectOptions { SendTimeout = TimeSpan.FromSeconds(2) };
+        await Assert.That(options.SendTimeout).IsEqualTo(TimeSpan.FromSeconds(2));
+    }
+
+    [Test]
+    [Arguments(-10_000L)]
+    [Arguments(0L)]
+    [Arguments(9_999L)]
+    [Arguments(21_474_836_470_001L)]
+    public async Task SendTimeout_Should_Refuse_An_Unrepresentable_Finite_Budget(long ticks)
+    {
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            _ = new PtyConnectOptions { SendTimeout = TimeSpan.FromTicks(ticks) });
+        await Task.CompletedTask;
+    }
+
     /// <summary>The largest cursor the server's JS safe-integer guard accepts.</summary>
     private const long MaximumCursor = 9_007_199_254_740_991;
 

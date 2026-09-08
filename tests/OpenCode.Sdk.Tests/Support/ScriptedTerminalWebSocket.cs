@@ -13,6 +13,8 @@ internal sealed class ScriptedTerminalWebSocket : ITerminalWebSocket
 {
     private readonly TaskCompletionSource<bool> _disposal = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource<bool> _parked = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource<bool> _paused = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource<bool> _resume = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly Queue<ScriptedTerminalReceive> _receives = new();
     private readonly List<byte[]> _sent = [];
     private readonly List<WebSocketMessageType> _sentTypes = [];
@@ -39,6 +41,9 @@ internal sealed class ScriptedTerminalWebSocket : ITerminalWebSocket
 
     /// <summary>Gets a task that completes once a scripted park step is reached.</summary>
     public Task Parked => _parked.Task;
+
+    /// <summary>Gets a signal that physical receive reached the scripted pause.</summary>
+    public Task Paused => _paused.Task;
 
     /// <summary>Gets a task that completes once the first send reaches the socket.</summary>
     public Task SendEntered => _sendEntered.Task;
@@ -113,6 +118,20 @@ internal sealed class ScriptedTerminalWebSocket : ITerminalWebSocket
         return this;
     }
 
+    /// <summary>Pauses physical receive until <see cref="ReleaseReceives"/> is called.</summary>
+    public ScriptedTerminalWebSocket Pausing()
+    {
+        _receives.Enqueue(new ScriptedTerminalReceive { Pauses = true });
+        return this;
+    }
+
+    /// <summary>Scripts a text fragment whose message continues in a later step.</summary>
+    public ScriptedTerminalWebSocket TextFragment(string text) =>
+        Bytes(WebSocketMessageType.Text, Encoding.UTF8.GetBytes(text), endOfMessage: false);
+
+    /// <summary>Releases the scripted receive pause.</summary>
+    public void ReleaseReceives() => _resume.TrySetResult(true);
+
     /// <summary>Holds every send inside the socket until <see cref="ReleaseSends"/> runs.</summary>
     public ScriptedTerminalWebSocket GatingSends()
     {
@@ -149,10 +168,16 @@ internal sealed class ScriptedTerminalWebSocket : ITerminalWebSocket
     {
         if (_receives.Count is 0)
         {
-            throw new InvalidOperationException("The scripted terminal WebSocket ran out of receive steps.");
+            // An open network socket waits for the next message even with no public reader.
+            return ParkAsync(cancellationToken);
         }
 
         var step = _receives.Dequeue();
+        if (step.Pauses)
+        {
+            return ResumeReceiveAsync(buffer, cancellationToken);
+        }
+
         if (step.Parks)
         {
             return ParkAsync(cancellationToken);
@@ -239,6 +264,7 @@ internal sealed class ScriptedTerminalWebSocket : ITerminalWebSocket
         DisposeCalls++;
         _ = _disposal.TrySetResult(true);
         ReleaseSends();
+        ReleaseReceives();
     }
 
     private ScriptedTerminalWebSocket Bytes(WebSocketMessageType messageType, byte[] payload, bool endOfMessage)
@@ -263,5 +289,12 @@ internal sealed class ScriptedTerminalWebSocket : ITerminalWebSocket
         _ = await Task.WhenAny(_disposal.Task, canceled.Task);
         cancellationToken.ThrowIfCancellationRequested();
         throw new ObjectDisposedException(nameof(ScriptedTerminalWebSocket));
+    }
+
+    private async Task<PtyReceiveResult> ResumeReceiveAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken)
+    {
+        _ = _paused.TrySetResult(true);
+        _ = await _resume.Task.WaitAsync(cancellationToken);
+        return await ReceiveAsync(buffer, cancellationToken);
     }
 }

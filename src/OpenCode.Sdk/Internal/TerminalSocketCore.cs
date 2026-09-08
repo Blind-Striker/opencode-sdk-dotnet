@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
+using OpenCode.Sdk.Internal.Abstractions;
 
 namespace OpenCode.Sdk.Internal;
 
@@ -13,13 +14,19 @@ namespace OpenCode.Sdk.Internal;
 internal sealed class TerminalSocketCore<TFrame> : IAsyncDisposable
     where TFrame : class
 {
-    private readonly ITerminalClosePolicy _closePolicy;
-    private readonly ITerminalFrameDecoder<TFrame> _decoder;
+    private readonly Lock _lifecycle = new();
+    private readonly TerminalReceivePump<TFrame> _receiver;
     private readonly Type _owner;
-    private readonly SemaphoreSlim _sendGate = new(1, 1);
+    private readonly TerminalCancellationSource _sendEnded = new();
+    private readonly CancellationToken _sendEndedToken;
+    private readonly TerminalSendQueue _sendGate;
     private readonly ITerminalWebSocket _socket;
     private int _disposed;
     private int _reading;
+    private int _socketDisposed;
+    private Task? _disposal;
+    private TaskCompletionSource<bool>? _sendsDrained;
+    private int _activeSends;
 
     public TerminalSocketCore(
         ITerminalWebSocket socket,
@@ -33,19 +40,27 @@ internal sealed class TerminalSocketCore<TFrame> : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(owner);
 
         _socket = socket;
-        _decoder = decoder;
-        _closePolicy = closePolicy;
+        _sendGate = new TerminalSendQueue(socket);
         _owner = owner;
+        _sendEndedToken = _sendEnded.Token;
+        _receiver = new TerminalReceivePump<TFrame>(socket, decoder, closePolicy, _sendEnded.CancelAsync);
     }
 
     /// <summary>Gets whether the core has been disposed.</summary>
     public bool IsDisposed => Volatile.Read(ref _disposed) is 1;
 
+    /// <summary>Gets the fixed per-send budget captured by the connection.</summary>
+    public TimeSpan SendTimeout { get; init; } = TerminalSocketBounds.DefaultSendTimeout;
+
+    /// <summary>Gets the timer boundary used for per-send deadlines.</summary>
+    public ITerminalDeadlineFactory DeadlineFactory { get; init; } = TerminalDeadlineFactory.Instance;
+
     /// <summary>
     /// Reads the frames the server sends until it closes the connection normally. One core
-    /// carries one active enumeration: message reassembly cannot be shared, so a second
+    /// carries one active enumeration: undelivered frames have one consumer, so a second
     /// concurrent enumeration is refused. Reading after disposal is not an error: unlike
-    /// <see cref="SendAsync"/>, which throws once disposed, the enumeration simply ends empty.
+    /// <see cref="SendAsync(ArraySegment{byte}, WebSocketMessageType, CancellationToken)"/>,
+    /// which throws once disposed, the enumeration simply ends empty.
     /// </summary>
     /// <param name="cancellationToken">The cancellation token ending the read.</param>
     /// <returns>The frames, in the order the server sent them.</returns>
@@ -60,14 +75,68 @@ internal sealed class TerminalSocketCore<TFrame> : IAsyncDisposable
     /// <param name="messageType">The message type to send them as.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task that completes once the message is sent.</returns>
-    public async Task SendAsync(
+    public Task SendAsync(
         ArraySegment<byte> payload,
         WebSocketMessageType messageType,
+        CancellationToken cancellationToken) => SendAsync(() => payload, messageType, null, cancellationToken);
+
+    /// <summary>Sends a message with family-owned preparation and publication under the same gate.</summary>
+    /// <param name="createPayload">Copies or encodes the owned message before the first asynchronous wait.</param>
+    /// <param name="messageType">The message's wire type.</param>
+    /// <param name="actions">The work that shares the message's send order.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task that completes after the send and its successful publication.</returns>
+    public async Task SendAsync(
+        Func<ArraySegment<byte>> createPayload,
+        WebSocketMessageType messageType,
+        TerminalSendActions? actions,
         CancellationToken cancellationToken)
     {
-        ObjectDisposedException.ThrowIf(IsDisposed, _owner);
+        lock (_lifecycle)
+        {
+            ObjectDisposedException.ThrowIf(IsDisposed, _owner);
+            ThrowIfSendFailed();
+            if (_activeSends++ is 0)
+            {
+                _sendsDrained = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            }
+        }
 
-        await _sendGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await SendCoreAsync(createPayload, messageType, actions, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (_lifecycle)
+            {
+                if (--_activeSends is 0)
+                {
+                    _ = _sendsDrained!.TrySetResult(true);
+                }
+            }
+        }
+    }
+
+    private async Task SendCoreAsync(
+        Func<ArraySegment<byte>> createPayload,
+        WebSocketMessageType messageType,
+        TerminalSendActions? actions,
+        CancellationToken cancellationToken)
+    {
+
+        using var deadline = new TerminalSendDeadline(_owner, SendTimeout, DeadlineFactory, cancellationToken);
+        var payload = createPayload();
+        using var admission = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token, _sendEndedToken);
+        try
+        {
+            await _sendGate.WaitAsync(admission.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException exception)
+        {
+            throw deadline.Map(exception, queued: true, IsDisposed, _receiver.Outcome);
+        }
+
         try
         {
             // Re-checked behind the gate: a disposal can land while a queued send waits. It sits
@@ -75,19 +144,34 @@ internal sealed class TerminalSocketCore<TFrame> : IAsyncDisposable
             // phase's fault set, so a refusal raised inside it would be remapped into a transport
             // failure instead of reaching the caller as the misuse it is.
             ObjectDisposedException.ThrowIf(IsDisposed, _owner);
+            ThrowIfSendFailed();
+            try
+            {
+                deadline.Token.ThrowIfCancellationRequested();
+            }
+            catch (OperationCanceledException exception)
+            {
+                throw deadline.Map(exception, queued: true, IsDisposed, _receiver.Outcome);
+            }
+
+            actions?.Prepare?.Invoke();
 
             try
             {
-                await _socket.SendAsync(payload, messageType, cancellationToken).ConfigureAwait(false);
+                await _socket.SendAsync(payload, messageType, deadline.Token).ConfigureAwait(false);
             }
             catch (Exception exception) when (FailureClassification.Handles(exception, FailurePhase.PtyWebSocketWrite))
             {
-                throw FailureClassification.Map(exception, FailurePhase.PtyWebSocketWrite, cancellationToken);
+                var failure = deadline.Map(exception, queued: false, IsDisposed, _receiver.Outcome);
+                await FailSendAsync(failure).ConfigureAwait(false);
+                throw failure;
             }
+
+            actions?.OnSent?.Invoke();
         }
         finally
         {
-            _ = _sendGate.Release();
+            _sendGate.Release();
         }
     }
 
@@ -97,127 +181,123 @@ internal sealed class TerminalSocketCore<TFrame> : IAsyncDisposable
     /// waiting on the socket ends as a normal end rather than a fault.
     /// </summary>
     /// <returns>A task that completes once the connection is closed.</returns>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) is 1)
+        lock (_lifecycle)
         {
-            return;
+            if (_disposal is null)
+            {
+                Volatile.Write(ref _disposed, 1);
+                _receiver.Abandon();
+                _disposal = DisposeCoreAsync();
+            }
+
+            return new ValueTask(_disposal);
         }
+    }
+
+    private async Task DisposeCoreAsync()
+    {
+        await _sendEnded.CancelAsync().ConfigureAwait(false);
 
         try
         {
-            _ = await TryCloseAsync().ConfigureAwait(false);
+            if (Volatile.Read(ref _socketDisposed) is 0)
+            {
+                _ = await _sendGate.TryCloseAsync().ConfigureAwait(false);
+            }
         }
         finally
         {
             // Unconditional: whatever the graceful close does, a disposal that has already
             // latched _disposed must never leave the socket alive behind it.
-            _socket.Dispose();
+            try
+            {
+                DisposeSocket();
+            }
+            finally
+            {
+                try
+                {
+                    await _receiver.DisposeAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    await AwaitSendsAsync().ConfigureAwait(false);
+                    _sendGate.Dispose();
+                    _sendEnded.Dispose();
+                }
+            }
         }
 
-        // _sendGate is deliberately not disposed. SemaphoreSlim only needs disposal once
-        // AvailableWaitHandle has been read, which this class never does, and disposing it here
-        // would break the two things disposal must not break: an in-flight write's Release would
-        // throw over its own mapped failure, and a queued writer would never be released at all,
-        // because Dispose does not complete pending async waiters.
     }
 
-    private async Task<bool> TryCloseAsync()
+    private Task AwaitSendsAsync()
     {
-        // A close-output frame is a send, and the socket allows one outstanding send, so the
-        // graceful close takes the same gate every write takes instead of racing an in-flight
-        // one. The wait is bounded so a stuck send cannot stall a disposal indefinitely.
-        if (!await _sendGate.WaitAsync(TerminalSocketBounds.GracefulCloseTimeout).ConfigureAwait(false))
+        lock (_lifecycle)
         {
-            return false;
+            return _sendsDrained?.Task ?? Task.CompletedTask;
         }
+    }
 
-        using var timeout = new CancellationTokenSource(TerminalSocketBounds.GracefulCloseTimeout);
-        try
+    private void ThrowIfSendFailed()
+    {
+        if (_receiver.Outcome is { } outcome)
         {
-            await _socket.CloseOutputAsync(timeout.Token).ConfigureAwait(false);
-            return true;
+            throw outcome.SendFailure;
         }
-        catch (Exception exception) when (
-            FailureClassification.Handles(exception, FailurePhase.PtyWebSocketWrite) ||
-            exception is InvalidOperationException)
+    }
+
+    private async Task FailSendAsync(Exception failure)
+    {
+        var terminalFailure = failure as OpenCodeTransportException ?? new OpenCodeTransportException(
+            "The opencode PTY WebSocket was interrupted during a send; delivery is uncertain.", failure);
+        _receiver.Complete(terminalFailure);
+        await _sendEnded.CancelAsync().ConfigureAwait(false);
+        DisposeSocket();
+    }
+
+    private void DisposeSocket()
+    {
+        if (Interlocked.Exchange(ref _socketDisposed, 1) is 0)
         {
-            // Best effort, and deliberately wider than the write plane's fault set: a socket that
-            // refuses a close for a state reason it reports as InvalidOperationException must not
-            // escape a disposal. The hard teardown follows unconditionally, and a caller closing a
-            // connection has nothing left to do about a close frame that never left.
-            return false;
-        }
-        finally
-        {
-            _ = _sendGate.Release();
+            _socket.Dispose();
         }
     }
 
     private async IAsyncEnumerable<TFrame> ReadCoreAsync(
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        if (IsDisposed)
+        {
+            yield break;
+        }
+
         if (Interlocked.Exchange(ref _reading, 1) is 1)
         {
             throw new InvalidOperationException(
-                $"A '{_owner.Name}' carries one active read enumeration; message reassembly cannot be shared across two.");
+                $"A '{_owner.Name}' carries one active read enumeration; undelivered frames have one consumer.");
         }
 
-        var buffer = new byte[TerminalSocketBounds.ReceiveBufferSize];
-        var segment = new ArraySegment<byte>(buffer);
-        PtyMessageAssembler? assembly = null;
         try
         {
             while (true)
             {
-                PtyReceiveResult received;
-
-                // A yield cannot sit inside a try that catches, so the receive is guarded alone.
-                try
+                if (_receiver.TryRead(cancellationToken, out var frame))
                 {
-                    received = await _socket.ReceiveAsync(segment, cancellationToken).ConfigureAwait(false);
-                }
-                catch (Exception exception) when (FailureClassification.Handles(exception, FailurePhase.PtyWebSocketRead))
-                {
-                    if (!cancellationToken.IsCancellationRequested && IsDisposed)
-                    {
-                        // The caller tore the session down; the socket it disposed going quiet is
-                        // the end it asked for, not a fault to report back.
-                        break;
-                    }
-
-                    throw FailureClassification.Map(exception, FailurePhase.PtyWebSocketRead, cancellationToken);
+                    yield return frame;
+                    continue;
                 }
 
-                if (received.MessageType is WebSocketMessageType.Close)
+                if (!await _receiver.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    var failure = _closePolicy.Map(_socket.CloseStatus, _socket.CloseStatusDescription);
-                    if (failure is not null)
+                    if (_receiver.Failure is { } failure)
                     {
                         throw failure;
                     }
 
-                    break;
+                    yield break;
                 }
-
-                if (!received.EndOfMessage)
-                {
-                    assembly ??= new PtyMessageAssembler();
-                    assembly.Append(buffer, received.Count);
-                    continue;
-                }
-
-                // An unfragmented message decodes straight from the receive buffer.
-                if (assembly is null || assembly.Length is 0)
-                {
-                    yield return _decoder.Decode(received.MessageType, buffer, received.Count);
-                    continue;
-                }
-
-                assembly.Append(buffer, received.Count);
-                var assembled = _decoder.Decode(received.MessageType, assembly.Buffer, assembly.Length);
-                assembly.Reset();
-                yield return assembled;
             }
         }
         finally

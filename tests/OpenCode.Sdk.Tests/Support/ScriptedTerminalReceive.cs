@@ -25,4 +25,7 @@ internal sealed record ScriptedTerminalReceive
 
     /// <summary>Gets whether the step parks until the socket is disposed or the read is canceled.</summary>
     public bool Parks { get; init; }
+
+    /// <summary>Gets whether the step waits for the test to release the receive sequence.</summary>
+    public bool Pauses { get; init; }
 }

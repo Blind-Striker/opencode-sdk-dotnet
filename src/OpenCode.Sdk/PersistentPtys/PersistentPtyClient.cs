@@ -136,7 +136,9 @@ public class PersistentPtyClient
             await socket
                 .ConnectAsync(address, ptyId, PersistentPtyUpgradeFailurePolicy.Instance, cancellationToken)
                 .ConfigureAwait(false);
-            var session = await PersistentPtySession.AttachAsync(socket, ptyId, cancellationToken).ConfigureAwait(false);
+            var session = await PersistentPtySession.AttachAsync(
+                socket, ptyId, options?.SendTimeout ?? TerminalSocketBounds.DefaultSendTimeout, cancellationToken)
+                .ConfigureAwait(false);
             socket = null;
             return session;
         }

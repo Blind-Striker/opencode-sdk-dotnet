@@ -46,5 +46,11 @@
     <Using Include="System.Linq" />
     <Using Include="System.Net.Http" />
   </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <PackageReference Include="System.Threading.Channels" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.Threading.Channels" />
+  </ItemGroup>
 
 </Project>
