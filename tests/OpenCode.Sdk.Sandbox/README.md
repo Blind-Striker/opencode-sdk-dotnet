@@ -16,11 +16,11 @@ Configuration comes from environment variables, prefilled for the IDE by
 ## Running
 
 Start a server with a fixed password so the checked-in profile matches (`serve` adopts the
-same `OPENCODE_SERVER_PASSWORD` variable; without it the server generates and prints a
+same `OPENCODE_PASSWORD` variable; without it the server generates and prints a
 random one):
 
 ```sh
-OPENCODE_SERVER_PASSWORD=123456 opencode2 serve --hostname 127.0.0.1 --port 4096
+OPENCODE_PASSWORD=123456 opencode2 serve --hostname 127.0.0.1 --port 4096
 ```
 
 Then F5 with one of the sandbox profiles, or run either stream mode directly:

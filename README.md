@@ -16,13 +16,14 @@ so what you call is exactly what the server declares.
 
 ## 🎉 Project Status
 
-**Pre-release, and the surface is complete.** Everything below is landed and covered; the only
-thing missing is the first published package.
+**Pre-release, and the protocol surface is complete.** Everything below is landed and covered.
+What is still outstanding is the first published package and opencode's third connection mode —
+attaching to a registered background service.
 
 - ✅ **135 of 140 operations** callable, across 28 client families — sessions, PTYs, persistent
   PTYs, shells, events, MCP servers, integrations, providers, permissions, credentials, VCS,
   worktrees, websearch, RPC, and more
-- ✅ **5,010 tests** green on Windows — the fullest leg, the only one that adds the `net472`
+- ✅ **5,134 tests** green on Windows — the fullest leg, the only one that adds the `net472`
   assemblies. Linux and macOS run the same suite on `net8.0`, `net9.0`, and `net10.0`
 - ✅ **Server-sent event streams**, global and per-session, over the same transport as one-shot calls
 - ✅ **PTY and persistent-PTY terminal sessions** through hand-written WebSocket doors
@@ -30,7 +31,8 @@ thing missing is the first published package.
   `opencode serve` child for you
 - ✅ **Source-generated `System.Text.Json`** with no reflection fallback; both packages declare
   `IsAotCompatible` on `net10.0`
-- 🔜 **First release (0.1.0)** — packaging is the current work; see [CHANGELOG.md](CHANGELOG.md)
+- 🔜 **First release (0.1.0)** — packed and verified; publication waits on the NuGet.org prefix
+  reservation dispute in [Known Issues](#known-issues). See [CHANGELOG.md](CHANGELOG.md)
 - 🔜 **Background-service attachment** and an **MCP server** over this SDK — both planned, neither
   started
 
@@ -65,8 +67,8 @@ on, and the `net472` leg is what exercises its compile surface.
 
 | Package | NuGet.org | GitHub Packages |
 |---------|-----------|-----------------|
-| **OpenCode.Sdk** | [![NuGet](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Fpackages%2Fnuget%2FOpenCode.Sdk%3Fprerelease%3Dtrue)](https://www.nuget.org/packages/OpenCode.Sdk) | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCode.Sdk) |
-| **OpenCode.Sdk.Extensions** | [![NuGet](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Fpackages%2Fnuget%2FOpenCode.Sdk.Extensions%3Fprerelease%3Dtrue)](https://www.nuget.org/packages/OpenCode.Sdk.Extensions) | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCode.Sdk.Extensions) |
+| **OpenCode.Sdk** | [![NuGet](https://img.shields.io/badge/NuGet-coming%20soon-lightgrey)](https://www.nuget.org/packages/OpenCode.Sdk)<!-- first stable: swap back to the dynamic badge-smith NuGet badge --> | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCode.Sdk) |
+| **OpenCode.Sdk.Extensions** | [![NuGet](https://img.shields.io/badge/NuGet-coming%20soon-lightgrey)](https://www.nuget.org/packages/OpenCode.Sdk.Extensions)<!-- first stable: swap back to the dynamic badge-smith NuGet badge --> | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCode.Sdk.Extensions) |
 
 ## Table of Contents
 
@@ -108,7 +110,7 @@ You need an `opencode` server. Install the CLI
 `opencode2` command), then either run it yourself:
 
 ```sh
-OPENCODE_SERVER_PASSWORD=your-password opencode2 serve --hostname 127.0.0.1 --port 4096
+OPENCODE_PASSWORD=your-password opencode2 serve --hostname 127.0.0.1 --port 4096
 ```
 
 …or let the SDK start one for you — that is what `OpenCodeServer.StartAsync()` in the
@@ -208,7 +210,7 @@ await foreach (var @event in client.Events.SubscribeAsync(window.Token))
 using var client = new OpenCodeClient(new OpenCodeClientOptions
 {
     Endpoint = new Uri("http://127.0.0.1:4096"),
-    Password = Environment.GetEnvironmentVariable("OPENCODE_SERVER_PASSWORD"),
+    Password = Environment.GetEnvironmentVariable("OPENCODE_PASSWORD"),
 });
 
 var health = await client.GetHealthAsync();
@@ -235,7 +237,7 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddOpenCode(options =>
 {
     options.Endpoint = new Uri("http://127.0.0.1:4096");
-    options.Password = Environment.GetEnvironmentVariable("OPENCODE_SERVER_PASSWORD");
+    options.Password = Environment.GetEnvironmentVariable("OPENCODE_PASSWORD");
 });
 
 builder.Services.AddHostedService<SessionWorker>();

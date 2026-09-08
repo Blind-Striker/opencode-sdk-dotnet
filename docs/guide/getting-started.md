@@ -1,6 +1,6 @@
 # 🚀 Getting started
 
-Date: 2026-09-06
+Date: 2026-09-08
 
 Install the package, point a client at a server, and make three calls. Ten minutes, and the last
 one talks to a model.
@@ -36,7 +36,7 @@ using OpenCode.Sdk.Models;
 using var client = new OpenCodeClient(new OpenCodeClientOptions
 {
     Endpoint = new Uri("http://127.0.0.1:4096"),
-    Password = Environment.GetEnvironmentVariable("OPENCODE_SERVER_PASSWORD"),
+    Password = Environment.GetEnvironmentVariable("OPENCODE_PASSWORD"),
 });
 ```
 
@@ -54,7 +54,7 @@ the server's working directory. Session listing filters with `SessionListRequest
 `Project`, independently of these headers. See the [location contract](../architecture/client-runtime.md#location)
 for ambient and per-call header behavior.
 
-> **🔑 The SDK reads no environment variables of its own.** `OPENCODE_SERVER_PASSWORD` above is
+> **🔑 The SDK reads no environment variables of its own.** `OPENCODE_PASSWORD` above is
 > *your* code reading *your* environment — exactly how opencode's own CLI layers it. Options are
 > snapshotted at construction, so changing the environment later never reaches a live client.
 
