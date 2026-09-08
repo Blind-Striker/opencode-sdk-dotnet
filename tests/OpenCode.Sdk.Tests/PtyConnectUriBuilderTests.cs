@@ -73,7 +73,7 @@ public sealed class PtyConnectUriBuilderTests
     public async Task Build_Should_Carry_A_Resume_Cursor_Beside_The_Location()
     {
         var connection = Snapshot("http://localhost:4096", new LocationSelector { Directory = "/repo" });
-        var options = new PtyConnectOptions { Cursor = 4096 };
+        var options = new PtyConnectOptions { Cursor = 4096, SendTimeout = TimeSpan.FromSeconds(2) };
 
         var uri = PtyConnectUriBuilder.Build(connection, PtyId, options);
 

@@ -14,7 +14,7 @@ public class PtySession : IAsyncDisposable
 {
     private readonly TerminalSocketCore<PtyFrame>? _core;
 
-    internal PtySession(ITerminalWebSocket socket)
+    internal PtySession(ITerminalWebSocket socket, TimeSpan? sendTimeout = null)
     {
         ArgumentNullException.ThrowIfNull(socket);
 
@@ -22,7 +22,10 @@ public class PtySession : IAsyncDisposable
             socket,
             PtyFrameDecoder.Instance,
             PtyClosePolicy.Instance,
-            typeof(PtySession));
+            typeof(PtySession))
+        {
+            SendTimeout = sendTimeout ?? TerminalSocketBounds.DefaultSendTimeout,
+        };
     }
 
     /// <summary>
@@ -36,9 +39,13 @@ public class PtySession : IAsyncDisposable
 
     /// <summary>
     /// Reads the frames the server sends until it closes the connection normally. One session
-    /// carries one active enumeration: message reassembly cannot be shared, so a second
+    /// carries one active enumeration: undelivered frames have one consumer, so a second
     /// concurrent enumeration is refused. Reading after disposal is not an error: unlike
     /// <see cref="WriteAsync"/>, which throws once disposed, the enumeration simply ends empty.
+    /// Canceling or disposing an enumerator ends only that consumer; another enumeration may
+    /// continue on the same connection. Unread frames remain queued without a fixed memory limit.
+    /// Peer closure drains the queue before its outcome; explicit session disposal abandons
+    /// unread frames and awaits owned I/O cleanup.
     /// </summary>
     /// <param name="cancellationToken">The cancellation token ending the read.</param>
     /// <returns>The frames, in the order the server sent them.</returns>
@@ -65,8 +72,8 @@ public class PtySession : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(input);
 
         var core = Core;
-        var payload = new ArraySegment<byte>(Encoding.UTF8.GetBytes(input));
-        return core.SendAsync(payload, WebSocketMessageType.Text, cancellationToken);
+        return core.SendAsync(() => new ArraySegment<byte>(Encoding.UTF8.GetBytes(input)),
+            WebSocketMessageType.Text, null, cancellationToken);
     }
 
     /// <summary>

@@ -7,6 +7,9 @@ namespace OpenCode.Sdk.Internal;
 /// </summary>
 internal static class TerminalSocketBounds
 {
+    /// <summary>The fixed total budget for one send, including serialization wait.</summary>
+    public static readonly TimeSpan DefaultSendTimeout = TimeSpan.FromSeconds(30);
+
     /// <summary>
     /// A message either family sends can be far larger than one receive. Taking it in fixed
     /// slices keeps the per-session buffer small whatever the message size is; the read loop

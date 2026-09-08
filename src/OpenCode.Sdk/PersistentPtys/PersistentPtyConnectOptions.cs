@@ -1,12 +1,26 @@
+using OpenCode.Sdk.Internal;
+
 namespace OpenCode.Sdk;
 
 /// <summary>
-/// Shapes one persistent PTY WebSocket connection. Every member rides the upgrade URL's query;
-/// the framed input protocol is not a member because this SDK speaks only that protocol and
-/// negotiates it on every connection.
+/// Shapes one persistent PTY WebSocket connection and its local send budget. The send timeout
+/// stays in the SDK; the other options ride the upgrade query. The SDK always negotiates framed input.
 /// </summary>
 public sealed record PersistentPtyConnectOptions
 {
+    private readonly TerminalSendTimeout _sendTimeout = TerminalSendTimeout.Default;
+
+    /// <summary>
+    /// Gets the fixed total budget for one WebSocket input or resize send, including serialization wait.
+    /// The default is 30 seconds; this does not limit connection establishment or command execution.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">The budget is below one millisecond or above int.MaxValue milliseconds.</exception>
+    public TimeSpan SendTimeout
+    {
+        get => _sendTimeout.Value;
+        init => _sendTimeout = new TerminalSendTimeout(value);
+    }
+
     /// <summary>
     /// The largest cursor the server accepts: it validates against the JavaScript safe-integer
     /// range and answers HTTP 400 before the upgrade for anything outside it. The SDK refuses the

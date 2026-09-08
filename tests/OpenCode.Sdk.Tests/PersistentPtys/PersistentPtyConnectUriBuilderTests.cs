@@ -16,7 +16,7 @@ public sealed class PersistentPtyConnectUriBuilderTests
     }
 
     [Test]
-    public async Task Build_Should_Carry_Every_Connect_Option()
+    public async Task Build_Should_Carry_Wire_Options_And_Omit_The_Local_Send_Timeout()
     {
         var options = new PersistentPtyConnectOptions
         {
@@ -24,6 +24,7 @@ public sealed class PersistentPtyConnectUriBuilderTests
             Role = PersistentPtyRole.Observer,
             AttachmentId = "att_1",
             Takeover = true,
+            SendTimeout = TimeSpan.FromSeconds(2),
         };
 
         var uri = PersistentPtyConnectUriBuilder.Build(Snapshot("http://localhost:4096"), PtyId, options);

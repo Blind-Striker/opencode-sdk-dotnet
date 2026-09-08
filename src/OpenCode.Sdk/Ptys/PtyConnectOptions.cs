@@ -1,11 +1,26 @@
+using OpenCode.Sdk.Internal;
+
 namespace OpenCode.Sdk;
 
 /// <summary>
-/// Shapes one PTY WebSocket connection. Both members ride the upgrade URL's query, so the scope
-/// they resolve must agree with the scope the token door resolved.
+/// Shapes one PTY WebSocket connection and its local send budget. The location and cursor ride
+/// the upgrade query; the send timeout stays in the SDK.
 /// </summary>
 public sealed record PtyConnectOptions
 {
+    private readonly TerminalSendTimeout _sendTimeout = TerminalSendTimeout.Default;
+
+    /// <summary>
+    /// Gets the fixed total budget for one WebSocket send, including its serialization wait.
+    /// The default is 30 seconds; this does not limit connection establishment or command execution.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">The budget is below one millisecond or above int.MaxValue milliseconds.</exception>
+    public TimeSpan SendTimeout
+    {
+        get => _sendTimeout.Value;
+        init => _sendTimeout = new TerminalSendTimeout(value);
+    }
+
     /// <summary>
     /// The largest cursor the server accepts: it validates against the JavaScript safe-integer
     /// range and silently ignores anything outside it, which would turn a resume into a full

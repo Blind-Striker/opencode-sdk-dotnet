@@ -1,6 +1,6 @@
 # Client Runtime Architecture
 
-Date: 2026-09-07
+Date: 2026-09-08
 
 Canonical current rules for client construction, transport ownership, API errors, streams, and the
 local server launcher. Protocol and generated-model rules live in
@@ -89,8 +89,8 @@ local server launcher. Protocol and generated-model rules live in
 ### PTY WebSocket session
 
 - `PtyClient.ConnectAsync` opens `PtySession`, the family's live working object: `ReadAsync`
-  enumerates `PtyFrame` values, `WriteAsync` sends input, and `DisposeAsync` closes. The session
-  owns its socket, so disposing it is the only way to end the connection.
+  enumerates `PtyFrame` values, `WriteAsync` sends input, and `DisposeAsync` closes. The caller
+  owns disposal of the session; peer closure and transport failure can also end the connection.
 - **Transport divergence.** This is one of the two SDK doors that do not ride the HTTP pipeline
   (the persistent PTY session is the other). The upgrade builds its own `ClientWebSocket`, so a
   caller-supplied `HttpClient`, its proxy, its handler chain, the redirect policy, the
@@ -137,12 +137,33 @@ local server launcher. Protocol and generated-model rules live in
   exited and throws with the reason; because an exited PTY still upgrades cleanly, that failure
   surfaces on the first read rather than on connect. Any other close is an abnormal close, and a
   socket fault maps through `FailureClassification`'s PTY WebSocket phases.
-- **Concurrency and disposal.** One session carries one active read enumeration — message
-  reassembly cannot be shared — and a second concurrent enumeration is refused with
-  `InvalidOperationException`. Sends are serialized behind a semaphore because the socket allows
-  one outstanding send. Caller cancellation stays `OperationCanceledException`. Disposal closes
-  gracefully under a bounded wait, then tears the socket down; it is idempotent, and a dispose
-  racing a pending read completes that read as a normal end rather than a fault.
+- **Concurrency and reading (both terminal families).** One active public read enumeration is
+  allowed; a concurrent second reader throws `InvalidOperationException`. A connection-owned
+  receiver assembles complete messages into an unbounded `Channel<TFrame>` independently of
+  public enumeration. Canceling or disposing an enumerator ends only that consumer; another
+  enumeration may continue on the same otherwise healthy connection. The queue retains only
+  undelivered frames, and can grow when consumers are absent or slow. Connection termination
+  delivers the valid queued prefix before normal completion or the recorded transport/protocol
+  error. Later readers observe the same terminal outcome; consumer cancellation does not erase it.
+  A frame already selected for delivery may win a race with cancellation.
+- **Explicit disposal (both terminal families).** The session owns its socket and receiver.
+  Disposal rejects new sends, wakes waiters, attempts bounded graceful close, then tears down
+  the socket and awaits owned I/O completion. It releases unread queued references without
+  waiting for consumer processing. Concurrent disposal calls await the same cleanup. Reads
+  after disposal are empty; writes after disposal throw `ObjectDisposedException`. A pending
+  read ends normally unless its own cancellation was already observed first. Expected graceful
+  close failures do not prevent hard cleanup. The graceful-close bounds are separate waits
+  for send admission and close-output; they are not one total budget or the send-timeout setting.
+- **Send timeout (both terminal families).** `PtyConnectOptions.SendTimeout` and
+  `PersistentPtyConnectOptions.SendTimeout` configure a fixed total budget for each WebSocket
+  input or resize send, including serialization wait. Their default is 30 seconds. The option
+  accepts 1 millisecond through `TimeSpan.FromMilliseconds(int.MaxValue)`, inclusive, is captured
+  at connect, and never travels on the wire. Progress does not restart the budget. Expiry before
+  socket entry fails only that call; interruption during physical send terminates the attachment
+  because delivery is uncertain. Caller cancellation reports `OperationCanceledException`;
+  SDK expiry reports `OpenCodeTransportException` with a timeout cause. No send is retried.
+  This setting does not govern connection establishment, HTTP operations, idle time, command
+  execution, or disposal.
 
 ### Persistent PTY family
 
@@ -192,9 +213,12 @@ local server launcher. Protocol and generated-model rules live in
 - **Input.** `WriteAsync(ReadOnlyMemory<byte>)` and `ResizeAsync(cols, rows)` each send one binary
   message in the framed input protocol's layout — `[type u8][cols u16 BE][rows u16 BE][data]`,
   type 1 for input and type 0 for a viewport change — which the SDK negotiates on every connection
-  and is the only protocol it writes. The viewport is a wire fact, not a caller preference: the
-  session starts it at the attachment's size and follows every resize frame the read enumeration
-  yields, whoever caused it, so a later write carries the size the server believes. Input from a
+  and is the only protocol it writes. The outbound viewport expresses this attachment's local
+  size intent. It starts at the attachment's size, and a successful `ResizeAsync` send changes
+  the size carried by later input. An inbound resize report remains available to the consumer
+  for rendering but does not overwrite that local intent. Header preparation, socket send, and
+  successful resize-state publication share one serialization boundary, so each input carries
+  a coherent size in send order. Input from a
   connection the server attached as an observer is accepted here and dropped there.
 - **Cursor.** `PersistentPtyConnectOptions.Cursor` is a relay to the connect query and nothing
   more. There is no live-only mode here: null replays from the oldest retained byte, and zero means
@@ -223,8 +247,9 @@ local server launcher. Protocol and generated-model rules live in
   an unknown id, `shutdown` a 204, and `connect` a 4404 close. `ShutdownAsync` ends every terminal
   the daemon owns, not one.
 - **Shared core.** Both families' sessions run on the internal, family-neutral
-  `TerminalSocketCore<TFrame>` — receive with fragment reassembly, serialized sends, a bounded
-  graceful close, idempotent disposal, and one active read enumeration — and differ only behind
+  `TerminalSocketCore<TFrame>` — a connection-owned receiver with fragment reassembly, an
+  unbounded consumer queue, serialized sends with per-call deadlines, bounded graceful close, idempotent disposal,
+  and one active public read enumeration — and differ only behind
   three named seams: `ITerminalFrameDecoder<TFrame>` for what a message carries and
   `ITerminalClosePolicy` for what a close status means, both consumed by the core, and
   `ITerminalUpgradeFailurePolicy` for what a refused upgrade means, consumed by the shipped

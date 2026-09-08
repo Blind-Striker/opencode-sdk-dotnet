@@ -992,6 +992,7 @@
         public string? AttachmentId { get; init; }
         public long? Cursor { get; init; }
         public OpenCode.Sdk.PersistentPtyRole Role { get; init; }
+        public System.TimeSpan SendTimeout { get; init; }
         public bool Takeover { get; init; }
     }
     public sealed class PersistentPtyConnectTokenPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PersistentPtyConnectTokenPostResponse>
@@ -1248,6 +1249,7 @@
         public PtyConnectOptions() { }
         public long? Cursor { get; init; }
         public OpenCode.Sdk.LocationSelector? Location { get; init; }
+        public System.TimeSpan SendTimeout { get; init; }
     }
     public sealed class PtyConnectTokenPostRequest : System.IEquatable<OpenCode.Sdk.PtyConnectTokenPostRequest>
     {

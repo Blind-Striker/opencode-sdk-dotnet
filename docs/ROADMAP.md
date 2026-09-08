@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-09-07
+Date: 2026-09-08
 
 Operational state: what ships today, what is queued next, what is still open, and what is known to
 be incomplete. This file is a summary and shrinks as work lands. `../AGENTS.md` routes to the
@@ -23,6 +23,11 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
 - **Assurance** — the suite runs on `net8.0`, `net9.0`, and `net10.0` across Linux, Windows, and
   macOS, plus `net472` on Windows, the fullest leg; `engineering/quality-gates.md` owns the gate a
   change must pass before it is called done.
+- **Terminal lifetime corrections (D)** — consumer cancellation, send deadlines, local viewport
+  ordering, and shared cleanup are implemented and verified on Windows across the four runnable
+  targets. Linux live verification also passed on net8/net9/net10, including the persistent daemon
+  round trip and normal PTY reuse after read cancellation. `architecture/client-runtime.md` and
+  ADR-0023 own the contract. macOS live verification remains outstanding.
 - **Packages** — `OpenCode.Sdk` and `OpenCode.Sdk.Extensions` pack at the single-sourced
   `VersionPrefix 0.1.0`, and every `master` push publishes a `0.1.0-nightly.*` build to GitHub
   Packages. NuGet.org publication is currently blocked by an upstream prefix reservation dispute;

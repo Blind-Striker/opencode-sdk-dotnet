@@ -33,9 +33,24 @@ internal static class PersistentPtyInputFrame
 
         var frame = new byte[HeaderLength + data.Length];
         frame[0] = type;
-        BinaryPrimitives.WriteUInt16BigEndian(frame.AsSpan(1, 2), (ushort)cols);
-        BinaryPrimitives.WriteUInt16BigEndian(frame.AsSpan(3, 2), (ushort)rows);
+        WriteViewport(frame, cols, rows);
         data.CopyTo(frame.AsSpan(HeaderLength));
         return frame;
+    }
+
+    /// <summary>Writes a validated viewport into an already owned frame under send serialization.</summary>
+    /// <param name="frame">The complete frame buffer, including its five-byte header.</param>
+    /// <param name="cols">The viewport's column count.</param>
+    /// <param name="rows">The viewport's row count.</param>
+    public static void WriteViewport(byte[] frame, long cols, long rows)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+        ArgumentOutOfRangeException.ThrowIfLessThan(cols, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(cols, ushort.MaxValue);
+        ArgumentOutOfRangeException.ThrowIfLessThan(rows, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(rows, ushort.MaxValue);
+
+        BinaryPrimitives.WriteUInt16BigEndian(frame.AsSpan(1, 2), (ushort)cols);
+        BinaryPrimitives.WriteUInt16BigEndian(frame.AsSpan(3, 2), (ushort)rows);
     }
 }

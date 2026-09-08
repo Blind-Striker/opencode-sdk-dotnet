@@ -6,6 +6,71 @@ namespace OpenCode.Sdk.Tests;
 
 public sealed class PersistentPtySessionTests
 {
+    [Test]
+    public async Task AttachAsync_Should_Release_The_Receiver_When_Canceled_Before_Attachment()
+    {
+        var socket = new ScriptedTerminalWebSocket().Parking();
+        using var cancellation = new CancellationTokenSource();
+        // The finally below cancels and awaits this attachment before the source is disposed.
+#pragma warning disable CA2025 // The analyzer does not recognize this Task<disposable> join in finally.
+        var pending = PersistentPtySession.AttachAsync(socket, PtyId, cancellation.Token);
+#pragma warning restore CA2025
+        OperationCanceledException? failure = null;
+        try
+        {
+            await socket.Parked;
+        }
+        finally
+        {
+            await cancellation.CancelAsync();
+            try
+            {
+                var unexpected = await pending;
+                await unexpected.DisposeAsync();
+            }
+            catch (OperationCanceledException exception)
+            {
+                failure = exception;
+            }
+        }
+
+        await Assert.That(failure).IsNotNull();
+        await Assert.That(socket.DisposeCalls).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task AttachAsync_Should_Detach_The_Connect_Token_After_Returning_The_Session()
+    {
+        var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedJson)
+            .Pausing().Binary(PersistentPtyFrameData.Output("after attach")).Closing(WebSocketCloseStatus.NormalClosure);
+        using var cancellation = new CancellationTokenSource();
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, cancellation.Token);
+        await cancellation.CancelAsync();
+        await session.WriteAsync(PersistentPtyFrameData.Output("input"));
+        socket.ReleaseReceives();
+
+        var frames = await ReadAllAsync(session);
+
+        await Assert.That(frames.Count).IsEqualTo(1);
+        await Assert.That(((PersistentPtyOutputFrame)frames[0]).Data.ToArray())
+            .IsEquivalentTo(PersistentPtyFrameData.Output("after attach"));
+        await Assert.That(socket.DisposeCalls).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task ResizeAsync_Should_Use_The_Connections_Configured_Send_Timer()
+    {
+        var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedJson).GatingSends();
+        await using var session = await PersistentPtySession.AttachAsync(
+            socket, PtyId, TimeSpan.FromMilliseconds(50), CancellationToken.None);
+        using var watchdog = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var failure = await Assert.That(async () => await session.ResizeAsync(100, 30, watchdog.Token))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(failure!.InnerException).IsTypeOf<TimeoutException>();
+    }
+
     private const string PtyId = "pty_persistent_7";
 
     private const WebSocketCloseStatus TerminalUnavailable = (WebSocketCloseStatus)4404;
@@ -371,19 +436,54 @@ public sealed class PersistentPtySessionTests
     }
 
     [Test]
-    public async Task ReadAsync_Should_Track_The_Viewport_From_A_Resized_Frame()
+    public async Task ReadAsync_Should_Preserve_The_Local_Viewport_When_The_Server_Reports_A_Resize()
     {
         var socket = new ScriptedTerminalWebSocket()
             .Text(PersistentPtyFrameData.AttachedJson)
             .Text(PersistentPtyFrameData.ResizedJson)
-            .Closing(WebSocketCloseStatus.NormalClosure);
+            .Parking();
         await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
-        _ = await ReadAllAsync(session);
+        await using var frames = session.ReadAsync().GetAsyncEnumerator();
+        await Assert.That(await frames.MoveNextAsync()).IsTrue();
+        var resized = (PersistentPtyResizedFrame)frames.Current;
+        await Assert.That(resized.Cols).IsEqualTo(120);
+        await Assert.That(resized.Rows).IsEqualTo(40);
 
         await session.WriteAsync(PersistentPtyFrameData.Output("ls\n"));
 
         await Assert.That(socket.SentMessages.Single())
-            .IsEquivalentTo(PersistentPtyFrameData.Framed(1, 120, 40, PersistentPtyFrameData.Output("ls\n")));
+            .IsEquivalentTo(PersistentPtyFrameData.Framed(1, 80, 24, PersistentPtyFrameData.Output("ls\n")));
+    }
+
+    [Test]
+    public async Task WriteAsync_Should_Use_The_Resize_That_Completes_Before_Its_Socket_Send()
+    {
+        var socket = new ScriptedTerminalWebSocket()
+            .Text(PersistentPtyFrameData.AttachedJson)
+            .Text(PersistentPtyFrameData.ResizedJson)
+            .Parking()
+            .GatingSends();
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+        var resize = session.ResizeAsync(100, 30);
+        await socket.SendEntered;
+        var write = session.WriteAsync(PersistentPtyFrameData.Output("ls\n"));
+        try
+        {
+            await using var frames = session.ReadAsync().GetAsyncEnumerator();
+            await Assert.That(await frames.MoveNextAsync()).IsTrue();
+            await Assert.That(((PersistentPtyResizedFrame)frames.Current).Cols).IsEqualTo(120);
+        }
+        finally
+        {
+            socket.ReleaseSends();
+        }
+
+        await Task.WhenAll(resize, write);
+
+        await Assert.That(socket.SentMessages[0]).IsEquivalentTo(PersistentPtyFrameData.Framed(0, 100, 30, []));
+        await Assert.That(socket.SentMessages[1])
+            .IsEquivalentTo(PersistentPtyFrameData.Framed(1, 100, 30, PersistentPtyFrameData.Output("ls\n")));
+        await Assert.That(socket.MaxConcurrentSends).IsEqualTo(1);
     }
 
     [Test]
@@ -455,7 +555,7 @@ public sealed class PersistentPtySessionTests
     }
 
     [Test]
-    public async Task ResizeAsync_Should_Leave_The_Viewport_Alone_When_The_Control_Frame_Never_Left()
+    public async Task ResizeAsync_Should_End_The_Connection_When_The_Control_Send_Fails()
     {
         var socket = new ScriptedTerminalWebSocket()
             .Text(PersistentPtyFrameData.AttachedJson)
@@ -463,10 +563,25 @@ public sealed class PersistentPtySessionTests
         await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
 
         _ = await Assert.That(async () => await session.ResizeAsync(100, 30)).Throws<OpenCodeTransportException>();
+        _ = await Assert.That(async () => await session.WriteAsync(PersistentPtyFrameData.Output("ls\n")))
+            .Throws<OpenCodeTransportException>();
+        await Assert.That(socket.SentMessages).IsEmpty();
+        await Assert.That(socket.DisposeCalls).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task ResizeAsync_Should_Preserve_The_Viewport_When_Canceled_Before_Socket_Entry()
+    {
+        var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedJson);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        _ = await Assert.That(async () => await session.ResizeAsync(100, 30, cancellation.Token))
+            .Throws<OperationCanceledException>();
         await session.WriteAsync(PersistentPtyFrameData.Output("ls\n"));
 
-        // The write carries the attachment's own 80x24, not the size the failed resize asked for:
-        // a control frame that never left resized nothing on the server either.
+        // No control entered the socket, so the still-live attachment retains its original size.
         await Assert.That(socket.SentMessages.Single())
             .IsEquivalentTo(PersistentPtyFrameData.Framed(1, 80, 24, PersistentPtyFrameData.Output("ls\n")));
     }
