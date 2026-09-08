@@ -11,7 +11,7 @@
 # target: nuget publishes to NuGet.org via Trusted Publishing (OIDC through NuGet/login@v1, no
 # API key — mirrors localstack-dotnet-client's publish-nuget.yml, PR #54). This requires a Trusted
 # Publishing policy configured on the NuGet.org account that will own this package (package IDs
-# OpenCode.Sdk and OpenCode.Sdk.Extensions, repository Blind-Striker/opencode-sdk-dotnet, workflow
+# OpenCodeAI.Sdk and OpenCodeAI.Sdk.Extensions, repository Blind-Striker/opencode-sdk-dotnet, workflow
 # file publish-nuget.yml, no environment) — the maintainer must create that policy on nuget.org
 # BEFORE the first nuget run; until then only target: github succeeds. The NuGet.org profile (or
 # organization) name the policy is created under must also be set as the repository variable

@@ -2,6 +2,10 @@
 
   <PropertyGroup>
     <TargetFrameworks>$(AllTargetFrameworks)</TargetFrameworks>
+    <!-- The package id is deliberately not the assembly name: nuget.org reserves the OpenCode.
+         prefix for another owner, so the shipped assembly and every public namespace stay
+         OpenCode.Sdk while the artifact is published under OpenCodeAI. -->
+    <PackageId>OpenCodeAI.Sdk</PackageId>
     <Description>Unofficial .NET SDK for opencode: a typed client for the opencode HTTP API.</Description>
     <PackageTags>opencode;sdk;client;ai;agent</PackageTags>
     <IsAotCompatible Condition="'$(TargetFramework)' == 'net10.0'">true</IsAotCompatible>

@@ -1,6 +1,6 @@
 # opencode SDK for .NET
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![NuGet](https://img.shields.io/badge/NuGet-coming%20soon-lightgrey)](https://www.nuget.org/packages/OpenCode.Sdk)<!-- first stable: swap back to the dynamic badge-smith NuGet badge --> [![CI](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml/badge.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml) [![Linux Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Flinux%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/linux/blind-striker/opencode-sdk-dotnet/master)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![NuGet](https://img.shields.io/badge/NuGet-coming%20soon-lightgrey)](https://www.nuget.org/packages/OpenCodeAI.Sdk)<!-- first stable: swap back to the dynamic badge-smith NuGet badge --> [![CI](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml/badge.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml) [![Linux Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Flinux%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/linux/blind-striker/opencode-sdk-dotnet/master)
 
 > **🚀 Quick Start**: the first release is upcoming — [nightly builds](#-installation) are on GitHub Packages today | [Quick start](#-quick-start) | [Guide](docs/guide/getting-started.md)
 
@@ -67,8 +67,8 @@ on, and the `net472` leg is what exercises its compile surface.
 
 | Package | NuGet.org | GitHub Packages |
 |---------|-----------|-----------------|
-| **OpenCode.Sdk** | [![NuGet](https://img.shields.io/badge/NuGet-coming%20soon-lightgrey)](https://www.nuget.org/packages/OpenCode.Sdk)<!-- first stable: swap back to the dynamic badge-smith NuGet badge --> | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCode.Sdk) |
-| **OpenCode.Sdk.Extensions** | [![NuGet](https://img.shields.io/badge/NuGet-coming%20soon-lightgrey)](https://www.nuget.org/packages/OpenCode.Sdk.Extensions)<!-- first stable: swap back to the dynamic badge-smith NuGet badge --> | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCode.Sdk.Extensions) |
+| **OpenCodeAI.Sdk** | [![NuGet](https://img.shields.io/badge/NuGet-coming%20soon-lightgrey)](https://www.nuget.org/packages/OpenCodeAI.Sdk)<!-- first stable: swap back to the dynamic badge-smith NuGet badge --> | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCodeAI.Sdk) |
+| **OpenCodeAI.Sdk.Extensions** | [![NuGet](https://img.shields.io/badge/NuGet-coming%20soon-lightgrey)](https://www.nuget.org/packages/OpenCodeAI.Sdk.Extensions)<!-- first stable: swap back to the dynamic badge-smith NuGet badge --> | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCodeAI.Sdk.Extensions) |
 
 ## Table of Contents
 
@@ -124,8 +124,8 @@ OPENCODE_PASSWORD=your-password opencode2 serve --hostname 127.0.0.1 --port 4096
 be the usual:
 
 ```bash
-dotnet add package OpenCode.Sdk
-dotnet add package OpenCode.Sdk.Extensions   # dependency injection, optional
+dotnet add package OpenCodeAI.Sdk
+dotnet add package OpenCodeAI.Sdk.Extensions   # dependency injection, optional
 ```
 
 Until then, use the nightly feed below.
@@ -143,8 +143,8 @@ dotnet nuget add source https://nuget.pkg.github.com/Blind-Striker/index.json \
   --store-password-in-clear-text
 
 # Install the nightly packages
-dotnet add package OpenCode.Sdk --prerelease --source github-opencode-sdk
-dotnet add package OpenCode.Sdk.Extensions --prerelease --source github-opencode-sdk
+dotnet add package OpenCodeAI.Sdk --prerelease --source github-opencode-sdk
+dotnet add package OpenCodeAI.Sdk.Extensions --prerelease --source github-opencode-sdk
 ```
 
 Prefer keeping the token out of shell history? Commit a `nuget.config` next to your solution and
@@ -305,7 +305,7 @@ Architecture, decision records, and engineering policy live under [`docs/`](docs
 
 - **Nothing is on NuGet.org yet.** The packages are prepared but unpublished —
   publication is currently blocked by an upstream package-ID prefix reservation dispute — so
-  `dotnet add package OpenCode.Sdk` will not resolve. Use the
+  `dotnet add package OpenCodeAI.Sdk` will not resolve. Use the
   [GitHub Packages nightly feed](#nightly-builds-github-packages) until the first stable release;
   the nightly and stable packages are built from the same sources by two workflows that share the
   same verify-and-pack steps.
