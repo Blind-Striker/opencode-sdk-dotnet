@@ -340,7 +340,8 @@ local server launcher. Protocol and generated-model rules live in
 `OpenCodeServer.StartAsync(OpenCodeServerOptions?, CancellationToken)` is the standalone door
 (upstream `Standalone.start` parity), hand-written over `System.Diagnostics.Process` with no
 process-management dependency (ADR-0001). Every call is always a fresh private server on port
-zero: the caller's `Command` plus `--stdio --port 0` is the argv, and a freshly generated lease
+zero: the caller's `Command` — `opencode2 serve` by default, the single executable the line
+this SDK speaks to installs — plus `--stdio --port 0` is the argv, and a freshly generated lease
 credential is injected into the child environment as `OPENCODE_PASSWORD`, after any caller-supplied
 `Environment` entries so it can never be shadowed. Readiness is the single JSON stdout line the
 child prints once fully booted; stdin stays open as the ownership lease for as long as the server
