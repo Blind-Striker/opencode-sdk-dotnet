@@ -1,4 +1,4 @@
-# opencode SDK for .NET
+# opencode v2 SDK for .NET
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![NuGet](https://img.shields.io/nuget/vpre/OpenCodeAI.Sdk)](https://www.nuget.org/packages/OpenCodeAI.Sdk) [![CI](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml/badge.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml) [![Linux Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Flinux%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/linux/blind-striker/opencode-sdk-dotnet/master)
 
@@ -7,10 +7,11 @@
 > **Unofficial.** This project is not affiliated with or endorsed by the
 > [opencode](https://opencode.ai) team.
 
-A strongly typed .NET client for the [opencode](https://github.com/anomalyco/opencode) HTTP API —
-the surface every opencode front-end (TUI, desktop, web UI, plugins) goes through. The callable
-surface is generated from a pinned OpenAPI snapshot and rides one hand-written transport runtime,
-so what you call is exactly what the server declares.
+A strongly typed .NET client for [opencode](https://github.com/anomalyco/opencode) **v2** — the
+`v2.*` protocol surface every opencode front-end (TUI, desktop, web UI, plugins) goes through. The
+v2 line installs as the `opencode2` command, and the 1.x surface is not a target: this SDK does not
+speak it. The callable surface is generated from a pinned OpenAPI snapshot and rides one
+hand-written transport runtime, so what you call is exactly what the server declares.
 
 ---
 
