@@ -24,7 +24,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Exact version to stamp on the packages (e.g. 0.1.0-preview.1 or 0.1.0)"
+        description: "Exact version to stamp on the packages (e.g. 0.8.0-preview.1 or 0.8.0)"
         required: true
       target:
         type: choice

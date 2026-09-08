@@ -31,7 +31,7 @@ attaching to a registered background service.
   `opencode serve` child for you
 - ✅ **Source-generated `System.Text.Json`** with no reflection fallback; both packages declare
   `IsAotCompatible` on `net10.0`
-- 🔜 **First release (0.1.0)** — packed and verified; publication waits on the NuGet.org prefix
+- 🔜 **First release** — packed and verified; publication waits on the NuGet.org prefix
   reservation dispute in [Known Issues](#known-issues). See [CHANGELOG.md](CHANGELOG.md)
 - 🔜 **Background-service attachment** and an **MCP server** over this SDK — both planned, neither
   started
@@ -120,8 +120,8 @@ OPENCODE_PASSWORD=your-password opencode2 serve --hostname 127.0.0.1 --port 4096
 
 ### Stable (NuGet.org)
 
-**The first release is upcoming.** Nothing is on NuGet.org yet; when `0.1.0` ships, installation
-will be the usual:
+**The first release is upcoming.** Nothing is on NuGet.org yet; when it ships, installation will
+be the usual:
 
 ```bash
 dotnet add package OpenCode.Sdk
@@ -132,7 +132,7 @@ Until then, use the nightly feed below.
 
 ### Nightly builds (GitHub Packages)
 
-Every code push to `master` publishes `0.1.0-nightly.{yyyyMMdd}.{shortSha}` to GitHub Packages:
+Every code push to `master` publishes `0.8.0-nightly.{yyyyMMdd}.{shortSha}` to GitHub Packages:
 
 ```bash
 # Add the GitHub Packages source (PAT: classic token with the read:packages scope)
@@ -303,7 +303,7 @@ Architecture, decision records, and engineering policy live under [`docs/`](docs
 
 ## Known Issues
 
-- **Nothing is on NuGet.org yet.** The `0.1.0` package is prepared but unpublished —
+- **Nothing is on NuGet.org yet.** The packages are prepared but unpublished —
   publication is currently blocked by an upstream package-ID prefix reservation dispute — so
   `dotnet add package OpenCode.Sdk` will not resolve. Use the
   [GitHub Packages nightly feed](#nightly-builds-github-packages) until the first stable release;

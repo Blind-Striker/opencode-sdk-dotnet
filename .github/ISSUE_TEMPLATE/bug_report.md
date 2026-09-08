@@ -40,7 +40,7 @@ using var client = new OpenCodeClient(new OpenCodeClientOptions
 
 **OpenCode.Sdk Version:**
 
-- Version: (e.g., `0.1.0-nightly.20260831.abc1234`)
+- Version: (e.g., `0.8.0-nightly.20260831.abc1234`)
 - Package source: (NuGet.org / GitHub Packages nightly / built from source at commit …)
 - Also using `OpenCode.Sdk.Extensions`? (yes / no)
 

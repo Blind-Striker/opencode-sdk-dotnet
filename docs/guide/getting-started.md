@@ -13,7 +13,7 @@ one talks to a model.
 
 ## 📦 Install
 
-**Nothing is on NuGet.org yet** — `0.1.0` is prepared but unpublished. Where the packages can be
+**Nothing is on NuGet.org yet** — the packages are prepared but unpublished. Where they can be
 had in the meantime, the exact `dotnet nuget add source` command, the two package names, and the
 `read:packages` token requirement all live in one place so they never drift:
 [**Installation** in the root README](../../README.md#-installation).
