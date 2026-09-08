@@ -5,9 +5,10 @@ Each released version links straight to its GitHub Release tag.
 
 ## [Unreleased]
 
-> **The first release.** `0.1.0` has not shipped to NuGet.org yet — nightly builds of everything
-> below are on [GitHub Packages](README.md#nightly-builds-github-packages) today, versioned
-> `0.1.0-nightly.{yyyyMMdd}.{shortSha}` from every code push to `master`.
+> **The first release.** Nothing has shipped to NuGet.org yet, and it will arrive as a
+> `0.8.0-preview.N` prerelease. Nightly builds of everything below are on
+> [GitHub Packages](README.md#nightly-builds-github-packages) today, versioned
+> `0.8.0-nightly.{yyyyMMdd}.{shortSha}` from every code push to `master`.
 
 ### ✨ New features
 
