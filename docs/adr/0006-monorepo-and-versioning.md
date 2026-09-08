@@ -4,8 +4,8 @@ Date: 2026-08-08
 
 The MCP server is developed in this repository, not a separate one. It is by design a thin
 adapter over our own SDK, and that architecture wants compile-time coupling: SDK breaking
-changes surface in the same CI run instead of after a publish (the cross-repo
-private-internals dependency was the failure mode that sank the unofficial `opencode-mcp`),
+changes surface in the same CI run instead of after a publish (a cross-repo dependency on
+another package's private internals breaks only after that package publishes),
 the MCP server's consumed-operation set stays mechanically derivable for test scoping, and the repo's
 infrastructure — analyzer wall, three-OS CI, real-process integration harness, docs
 discipline — is paid for once.

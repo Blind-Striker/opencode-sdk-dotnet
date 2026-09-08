@@ -1,0 +1,25 @@
+# Build-time NuGetAudit already fails on an advisory that exists when the build runs. This is the
+# other half: it reads the dependency diff of a pull request, so a newly introduced package is
+# judged before it is merged rather than the next time someone builds.
+name: "Dependency Review"
+
+on:
+  pull_request:
+    branches: [master, "feature/*"]
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    name: "Dependency Review"
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: moderate
+          comment-summary-in-pr: on-failure

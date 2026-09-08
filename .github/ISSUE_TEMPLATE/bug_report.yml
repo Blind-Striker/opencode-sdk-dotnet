@@ -1,0 +1,132 @@
+name: Bug report
+description: Something in the SDK behaves differently than documented
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: this is the **.NET SDK**, not the opencode server. If the server itself
+        misbehaves — a wrong response body, a route that 500s under any client — report it at
+        [anomalyco/opencode](https://github.com/anomalyco/opencode/issues) instead.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what did you expect instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: The smallest snippet that shows it. Redact credentials and project content.
+      render: csharp
+      value: |
+        using OpenCode.Sdk;
+
+        using var client = new OpenCodeClient(new OpenCodeClientOptions
+        {
+            Endpoint = new Uri("http://127.0.0.1:4096"),
+        });
+    validations:
+      required: true
+
+  - type: input
+    id: package-version
+    attributes:
+      label: Package version
+      description: The version of `OpenCodeAI.Sdk` you are running.
+      placeholder: 0.8.0-preview.1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: package-source
+    attributes:
+      label: Where did the package come from?
+      options:
+        - NuGet.org
+        - GitHub Packages nightly
+        - Built from source
+    validations:
+      required: true
+
+  - type: input
+    id: server-version
+    attributes:
+      label: opencode server version
+      description: The `version` field `GetHealthAsync` returns.
+      placeholder: v0.0.0-next-17403
+    validations:
+      required: true
+
+  - type: dropdown
+    id: server-start
+    attributes:
+      label: How was the server started?
+      options:
+        - "`opencode2 serve` that I started myself"
+        - "`OpenCodeServer.StartAsync()`"
+        - A background service that was already running
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: tfm
+    attributes:
+      label: Target framework
+      placeholder: net10.0
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Windows 11 / Ubuntu 24.04 / macOS 15
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of the SDK?
+      options:
+        - A generated operation
+        - Event streaming (SubscribeAsync / GetLogAsync)
+        - A terminal session (PtySession / PersistentPtySession)
+        - The launcher (OpenCodeServer)
+        - Dependency injection (AddOpenCode)
+        - Serialization — a response that did not deserialize
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: errors
+    attributes:
+      label: Error message or stack trace
+      render: text
+
+  - type: textarea
+    id: raw
+    attributes:
+      label: Raw response (optional)
+      description: >
+        If the SDK refused or mistyped a payload, the raw JSON the server returned is the most
+        useful thing you can attach. Redact credentials and project content first.
+      render: json
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: I searched existing issues for a duplicate
+          required: true
+        - label: I checked the README's Known Issues section
+          required: true
+        - label: As far as I can tell this is the SDK's behaviour, not the server's
+          required: true

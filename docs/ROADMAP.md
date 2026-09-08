@@ -140,6 +140,14 @@ is revisited at each boundary.
 - **Three one-off test failures were seen once each and never reproduced.** No runner named a test
   and re-runs of the same binaries were green, so this is a measurement gap rather than a known
   defect: run the gates with `--report-trx --report-trx-filename <unique>` so a recurrence names it.
+- **CodeQL analyses C# without a build.** Code scanning runs on default setup, which extracts C#
+  in `build-mode: none`. That leaves the database under CodeQL's own confidence thresholds — 83% of
+  calls resolve to a target against a threshold of 85%, and 89% of expressions carry a known type
+  against the same 85% — which its guidance attributes partly to generated source, and this
+  repository commits a large generated surface. No alert is open, so the gap is possible false
+  negatives rather than a known defect. Closing it means retiring default setup for an advanced
+  `codeql.yml` that builds: full type resolution, bought with a workflow whose failure would stop
+  scanning silently rather than loudly.
 - **`BuildOs`/`BuildArch` in `Directory.Build.props`** need their values adapted to opencode's
   release-asset naming when the binary-download need lands.
 - **The launcher's descendant-termination proof has a platform boundary.** The startup-tree tests

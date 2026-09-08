@@ -16,6 +16,15 @@ on:
       - "**.md"
       - LICENSE
 
+permissions:
+  contents: read
+
+# A superseded run of the same ref is wasted matrix time; a master run is never cancelled,
+# because its badges and its nightly publish are the point.
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -58,7 +67,7 @@ jobs:
             9.0.x
 
       - name: Setup Bun (pinned server runtime)
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           # The pin's own packageManager row (external/opencode/package.json).
           bun-version-file: external/opencode/package.json
@@ -191,7 +200,7 @@ jobs:
 
       - name: Publish test results
         id: test-results
-        uses: dorny/test-reporter@v3
+        uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2 # v3.0.0
         if: success() || failure()
         # Allow fork PRs to fail gracefully (permission error) without breaking the workflow.
         continue-on-error: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
@@ -297,8 +306,10 @@ jobs:
       # dotnet nuget push implements its own glob expansion; the path is quoted so the shell does
       # not expand it first (two packable projects produce two .nupkg files here).
       - name: Push to GitHub Packages
+        env:
+          PACKAGES_KEY: ${{ secrets.GITHUB_TOKEN }}
         run: >
           dotnet nuget push "packages/*.nupkg"
           --source https://nuget.pkg.github.com/Blind-Striker/index.json
-          --api-key ${{ secrets.GITHUB_TOKEN }}
+          --api-key "$PACKAGES_KEY"
           --skip-duplicate

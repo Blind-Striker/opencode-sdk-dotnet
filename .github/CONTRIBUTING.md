@@ -94,7 +94,7 @@ sign.
 
 ### Creating a Bug Report
 
-Use the [bug report template](ISSUE_TEMPLATE/bug_report.md), which asks for:
+Use the [bug report form](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/new/choose), which asks for:
 
 - **Environment details** (SDK version, opencode server version, target framework, OS)
 - **A minimal reproduction** — the smallest snippet that shows the problem

@@ -1,0 +1,62 @@
+name: Missing or wrong generated operation
+description: An operation the server declares is absent, mis-shaped, or mis-typed in the SDK
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The callable surface is generated from an accepted OpenAPI snapshot, never from a live
+        branch, so an operation can be absent for three different reasons: the pinned snapshot
+        predates it, it is declined by a recorded decision, or generation has a defect. This form
+        asks for the two facts that tell those apart.
+
+        `src/OpenCode.Sdk/.generation-incomplete` lists every operation that is deliberately not
+        generated, with its reason. Worth checking first — it may already name yours.
+
+  - type: input
+    id: operation-id
+    attributes:
+      label: Operation id
+      description: The `operationId` as the OpenAPI document spells it.
+      placeholder: v2.session.message
+    validations:
+      required: true
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What is wrong with it?
+      options:
+        - It is missing from the SDK entirely
+        - It exists, but a property has the wrong .NET type
+        - It exists, but a required property is optional (or the reverse)
+        - It exists, but a response arm is missing
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What the document declares
+      description: >
+        The relevant fragment of the pinned `spec/openapi.json`, or the upstream source that
+        contradicts it. This is what turns a report into a fix.
+    validations:
+      required: true
+
+  - type: input
+    id: package-version
+    attributes:
+      label: Package version
+      placeholder: 0.8.0-preview.1
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: I checked `.generation-incomplete` and this operation is not listed there
+          required: true
