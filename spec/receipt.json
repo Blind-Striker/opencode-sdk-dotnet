@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "upstreamCommit": "89f1943d2da6af6087fed06a60c57bd0f384ab9f",
-  "rawDocumentSha256": "72cfde2a06296df571e83ef9880a3bc3bdeb5d9679130f230b831d6778c777b7",
-  "generatedBaselineSha256": "f3e6a1b430db9e036bbe8fb34f1ba6bda11f84610e0710bede38ad520abb00f9",
+  "upstreamCommit": "f9bc2233ddcc11503a0804b317401bc221ef0e7f",
+  "rawDocumentSha256": "0bef23a00ff19c711cd871c7f0f9cc592ec81552aa94344f701ae380d2d752dc",
+  "generatedBaselineSha256": "180707057921ff2e1103066b0993db3646b19afbddf000ff7dba74c0cd36f179",
   "patches": [
     {
       "manifest": "001-restore-sse-payloads.json",
-      "patchSha256": "aecd1686bc9b5e70a619e579fd87c6659fa299df53bb7b1fec17d7e8802cef10",
+      "patchSha256": "99e02b5452347d2dc87f108f2f46c54e471958728c5d96db584f72968babb544",
       "preimages": [
         {
           "path": "packages/protocol/script/generate-openapi.ts",
@@ -14,33 +14,33 @@
         },
         {
           "path": "packages/protocol/src/groups/session.ts",
-          "sha256": "16077799284f6bdbd8190fdd912ee428ac3b2e126190f25862cf67a2e6ee216d"
+          "sha256": "c4659072876fc3232650439cec9dd57d23b9c0b1666e3f8d1897cf1854b83047"
         }
       ]
     }
   ],
-  "normalizedDocumentSha256": "2ecd7091a49a8b1505b8a7e935368129399e156fed6d344c9ca551b218b7e2f3",
+  "normalizedDocumentSha256": "809ad52800fa56ad266d2c5283d254c82200c64dae46b19a6edeba6e65bf41e2",
   "normalizedDocumentPath": null,
   "operationSetDigest": "038fa8d3b8cf12a9a3db9320f5945e5c7aaa5d07158cebc6a0527e4c56a0a2f8",
   "operationCount": 140,
   "addedOperations": [],
   "removedOperations": [],
-  "componentCount": 352,
+  "componentCount": 355,
   "contentSchemaCount": 2,
   "watchedSources": [
     {
       "path": "packages/server/src/handlers/pty.ts",
-      "sha256": "4414c9709c4a66efbd2a24d49400022e4154587f3b94785871dfd2eca9220a30",
+      "sha256": "537e0f86abf23a5682a170bfbba88d586d53d7f0fec8f0bde317ce95ac7f92ba",
       "anchorMatched": true
     },
     {
       "path": "packages/server/src/middleware/authorization.ts",
-      "sha256": "7d3f8af2408e23ae35cf45d3693db034fd73d6ac8c07843154e3c8b3449529de",
+      "sha256": "c84f217a02bd2d2a839673308f9e268a2a68a1ac9f8c47c9c9e52f7f666e1486",
       "anchorMatched": true
     },
     {
       "path": "packages/protocol/src/groups/pty.ts",
-      "sha256": "fc5c3e39167a4d87e457365f3d36a8223a024ef345abbd26324cb7a36ca3b886",
+      "sha256": "0ea314dda5ea647de176ae6f43294c107d5d9f1abc8a35820c5a783d5f718fc8",
       "anchorMatched": true
     },
     {
@@ -50,37 +50,37 @@
     },
     {
       "path": "packages/core/src/pty/ticket.ts",
-      "sha256": "8a8e5ca2d5081d38e0c4200fe41de3d95d91830309c40aa26d5f4485c70853c7",
+      "sha256": "e9415c803919c69800c3d0555781be795df91b9cf0d01c7776ac5091bb49c116",
       "anchorMatched": true
     },
     {
       "path": "packages/core/src/pty.ts",
-      "sha256": "7d5ef3ebd36c473cc2acf047b99f8566011ccb64385bc04e9c771bc291367d59",
+      "sha256": "86ff2b792f1829b3f82badccffc1f63a95f98c7230f268c31d0f83c6f7340e6a",
       "anchorMatched": true
     },
     {
       "path": "packages/server/src/routes.ts",
-      "sha256": "4a0f61b114eb087e422dc593a58634bef2b75947dafb48f1941cdfaaa613df95",
+      "sha256": "880e16a03cb2d6aa1deced31f36f8ac13b4f66a522a8ec613550b22ff0d04bd7",
       "anchorMatched": true
     },
     {
       "path": "packages/protocol/src/groups/persistent-pty.ts",
-      "sha256": "114bf302f9542e7d1212886e9df04087c8a4315a1394884023d7c85e44ab683e",
+      "sha256": "a43d1e3c142b721186fb1f77afdb1da72f3c0c75cc71cba6c9f35f883afc1a08",
       "anchorMatched": true
     },
     {
       "path": "packages/server/src/handlers/persistent-pty.ts",
-      "sha256": "181266261e78117a9c09233cacd807cb853883f83e70024f612001fa0ef7885b",
+      "sha256": "3bb6bd5e006cf5a69cbca2231ded3922a95405e8932a8c89af6009d11ccd096e",
       "anchorMatched": true
     },
     {
       "path": "packages/core/src/persistent-pty/index.ts",
-      "sha256": "d34b09f60dbe8ddc9f2ca23550f57f24a8ac240a923d3d9790b7d154d343c754",
+      "sha256": "8b343fd3b60dbbd78314d23eb3ab2303fe30c986204ce4c049cfe6a6d4176f9e",
       "anchorMatched": true
     },
     {
       "path": "packages/core/src/persistent-pty/daemon.ts",
-      "sha256": "446c6b28268a1155d07b22f5767885f32e126a00659cee6f51723d5dbd4b81d7",
+      "sha256": "01e3d99d3f59dc8fc54eb31c94674b3d574169212bd35252441a3aeb20886129",
       "anchorMatched": true
     },
     {
@@ -100,22 +100,22 @@
     },
     {
       "path": "packages/core/src/persistent-pty/pty-binding.ts",
-      "sha256": "843092936a62d5fbe0c43d24604786ed77c04d0ad60a96c19ca31508b69bc1cd",
+      "sha256": "c4c835ddf472a7a299914341a4635be18c87bb37de556c24749d991f36c5c876",
       "anchorMatched": true
     },
     {
       "path": "packages/core/package.json",
-      "sha256": "4a0c6a39b98501f09acec8bf635e27e4798db9e1c4e1539c6146d0e021f858c2",
+      "sha256": "78ee3886360a8ece50c1ad67564586988e52ff5a9c8b18c90a48844668c21678",
       "anchorMatched": true
     },
     {
       "path": "packages/server/src/process.ts",
-      "sha256": "2e7b36c11d53e947a4fa15ce0271b03664031125ffac77036975881c6a9de6ec",
+      "sha256": "fb3bbb748814edfa92901e7228dfae707c3c668c4442e82648bf2fc6eaff8974",
       "anchorMatched": true
     },
     {
       "path": "packages/server/test/persistent-pty.test.ts",
-      "sha256": "025b44d37795c227ccd9b7f14762ecad3ef3100c9c413f39e8ab709e3b53f22b",
+      "sha256": "4beaf4903b95e1ecf600a5ad36e4b0e387e42c45850b1f84167af559e28f0284",
       "anchorMatched": true
     },
     {
@@ -125,12 +125,12 @@
     },
     {
       "path": "packages/core/src/ripgrep/binary.ts",
-      "sha256": "5e0398e1fe6bb5c2f694d01997781ef73060acd725468d7d4235a08ed96c41c6",
+      "sha256": "bc1bdc9e6429d8f586a8346ff58f5616e90f1755740f93fa938d266b34495d21",
       "anchorMatched": true
     },
     {
       "path": "packages/tui/src/component/terminal-pane.tsx",
-      "sha256": "973e352937fe66c218e7ca1c955cdd335eaedf81dc1f57f1a97ba0777e4578ae",
+      "sha256": "093707d4950af377f9a49d0c4f43d4ec1a289b7d04d47d894ea9f713ce026371",
       "anchorMatched": true
     }
   ]

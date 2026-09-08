@@ -62,6 +62,13 @@ public sealed record ModelInfo
     public string? Package { get; init; }
 
     /// <summary>
+    /// Gets the compaction value.
+    /// </summary>
+    [JsonPropertyName("compaction")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IProviderCompaction? Compaction { get; init; }
+
+    /// <summary>
     /// Gets the settings value.
     /// </summary>
     [JsonPropertyName("settings")]

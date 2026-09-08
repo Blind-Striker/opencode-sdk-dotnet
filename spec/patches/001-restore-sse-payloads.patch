@@ -1,5 +1,5 @@
 diff --git a/packages/protocol/script/generate-openapi.ts b/packages/protocol/script/generate-openapi.ts
-index 61c4ddecd1..799ce56e43 100644
+index 61c4dde..799ce56 100644
 --- a/packages/protocol/script/generate-openapi.ts
 +++ b/packages/protocol/script/generate-openapi.ts
 @@ -1,10 +1,38 @@
@@ -44,12 +44,12 @@ index 61c4ddecd1..799ce56e43 100644
    printWidth: 120,
  })
 diff --git a/packages/protocol/src/groups/session.ts b/packages/protocol/src/groups/session.ts
-index f0f2b46e8e..426c77fadf 100644
+index ffac096..c1cf2a3 100644
 --- a/packages/protocol/src/groups/session.ts
 +++ b/packages/protocol/src/groups/session.ts
-@@ -31,6 +31,10 @@ import { Location } from "@opencode-ai/schema/location"
- import { SessionEvent } from "@opencode-ai/schema/session-event"
- import { EventLog } from "@opencode-ai/schema/event-log"
+@@ -31,6 +31,10 @@ import { Location } from "@opencode/schema/location"
+ import { SessionEvent } from "@opencode/schema/session-event"
+ import { EventLog } from "@opencode/schema/event-log"
  
 +export const SessionLogItem = Schema.Union([SessionEvent.Durable, EventLog.Synced]).annotate({
 +  identifier: "SessionLogItem",

@@ -36,6 +36,13 @@ public sealed record SessionCompactionEndedData
     public IReadOnlyDictionary<string, JsonElement>? ProviderState { get; init; }
 
     /// <summary>
+    /// Gets the provider context value.
+    /// </summary>
+    [JsonPropertyName("providerContext")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SessionProviderContext? ProviderContext { get; init; }
+
+    /// <summary>
     /// Gets the text value.
     /// </summary>
     [JsonPropertyName("text")]
