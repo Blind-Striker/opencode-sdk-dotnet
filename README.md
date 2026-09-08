@@ -23,7 +23,7 @@ attaching to a registered background service.
 - ✅ **135 of 140 operations** callable, across 28 client families — sessions, PTYs, persistent
   PTYs, shells, events, MCP servers, integrations, providers, permissions, credentials, VCS,
   worktrees, websearch, RPC, and more
-- ✅ **5,134 tests** green on Windows — the fullest leg, the only one that adds the `net472`
+- ✅ **5,138 tests** green on Windows — the fullest leg, the only one that adds the `net472`
   assemblies. Linux and macOS run the same suite on `net8.0`, `net9.0`, and `net10.0`
 - ✅ **Server-sent event streams**, global and per-session, over the same transport as one-shot calls
 - ✅ **PTY and persistent-PTY terminal sessions** through hand-written WebSocket doors
