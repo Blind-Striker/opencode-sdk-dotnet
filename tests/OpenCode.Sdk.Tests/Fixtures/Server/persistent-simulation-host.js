@@ -1,9 +1,9 @@
 import { NodeServices } from "@effect/platform-node";
-import { LayerNode } from "@opencode-ai/util/effect/layer-node";
-import { Global } from "@opencode-ai/util/global";
-import { Observability } from "@opencode-ai/util/observability";
-import { AppProcess } from "@opencode-ai/util/process";
-import { start } from "@opencode-ai/server/process";
+import { LayerNode } from "@opencode/util/effect/layer-node";
+import { Global } from "@opencode/util/global";
+import { Observability } from "@opencode/util/observability";
+import { AppProcess } from "@opencode/util/process";
+import { start } from "@opencode/server/process";
 import { Effect } from "effect";
 import { HttpServer } from "effect/unstable/http";
 
