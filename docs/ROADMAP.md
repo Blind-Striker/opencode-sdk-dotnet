@@ -28,8 +28,9 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
   targets. Linux and macOS live verification also passed on net8/net9/net10, including the persistent daemon
   round trip and normal PTY reuse after read cancellation. `architecture/client-runtime.md` and
   ADR-0023 own the contract.
-- **Packages** — `OpenCode.Sdk` and `OpenCode.Sdk.Extensions` pack at the single-sourced
-  `VersionPrefix 0.1.0`, and every `master` push publishes a `0.1.0-nightly.*` build to GitHub
+- **Packages** — the two packages publish as `OpenCodeAI.Sdk` and `OpenCodeAI.Sdk.Extensions`
+  (the assemblies stay `OpenCode.Sdk`) and pack at the single-sourced
+  `VersionPrefix 0.8.0`, and every `master` push publishes a `0.8.0-nightly.*` build to GitHub
   Packages. NuGet.org publication is currently blocked by an upstream prefix reservation dispute;
   the manual publish lane is wired and waits on it.
 
@@ -89,8 +90,9 @@ is revisited at each boundary.
   value, a numeric range and a file path both invisible behind bare strings, a WebSocket close code
   overloaded across two causes, and two declared arms the handler cannot produce. Findings stay
   diagnostic and never feed generation or curation (ADR-0013).
-- **Release mechanics** — ADR-0006's shape is wired. Open: the release-notes flow and the
-  prerelease-versus-stable wording for the first tagged release.
+- **Release mechanics** — ADR-0006's shape is wired, and the first tagged release ships as a
+  `0.8.0-preview.N` prerelease, iterating the preview and patch numbers toward `1.0.0`. Open:
+  the release-notes flow.
 - **Deferred design questions, each parked behind a named trigger** — splitting validated client
   configuration from the transport factory (reopens when M6 attaches telemetry or hooks, or when
   Extensions gains a concrete named-client need); a parent-mediated handle door for flat

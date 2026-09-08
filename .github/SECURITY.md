@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-This project is pre-1.0 and has not published a stable release yet. Until `0.1.0` ships, the
+This project is pre-1.0 and has not published a stable release yet. Until the first release ships, the
 supported version is whatever is current on `master` (and the nightly packages built from it).
 Security patches are prioritized by CVSS v3.0 rating:
 
@@ -41,8 +41,8 @@ suspected vulnerability as a public issue.
 
 ## Scope
 
-This policy covers the SDK packages in this repository — `OpenCode.Sdk` and
-`OpenCode.Sdk.Extensions` — and the repository's own tooling and workflows.
+This policy covers the SDK packages in this repository — `OpenCodeAI.Sdk` and
+`OpenCodeAI.Sdk.Extensions` — and the repository's own tooling and workflows.
 
 Two things are explicitly **out of scope**:
 

@@ -10,7 +10,7 @@
     <Nullable>enable</Nullable>
     <!-- The single source of the package version. Prereleases add their suffix at pack time
          (the pack command's version-suffix option); nothing else declares Version or PackageVersion. -->
-    <VersionPrefix>0.1.0</VersionPrefix>
+    <VersionPrefix>0.8.0</VersionPrefix>
     <Authors>Deniz İrgin</Authors>
     <Company>Deniz İrgin</Company>
     <Owners>Deniz İrgin</Owners>
@@ -51,6 +51,7 @@
 
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)LICENSE" Visible="False" Pack="true" PackagePath=""/>
+    <None Include="$(MSBuildThisFileDirectory)THIRD-PARTY-NOTICES.md" Visible="False" Pack="true" PackagePath=""/>
     <None Include="$(MSBuildThisFileDirectory)README.md" Visible="False" Pack="true" PackagePath=""/>
     <None Include="$(MSBuildThisFileDirectory)assets/icon.png" Visible="False" Pack="true" PackagePath=""/>
   </ItemGroup>

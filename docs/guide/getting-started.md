@@ -1,6 +1,6 @@
 # 🚀 Getting started
 
-Date: 2026-09-06
+Date: 2026-09-08
 
 Install the package, point a client at a server, and make three calls. Ten minutes, and the last
 one talks to a model.
@@ -13,9 +13,18 @@ one talks to a model.
 
 ## 📦 Install
 
-**Nothing is on NuGet.org yet** — `0.1.0` is prepared but unpublished. Where the packages can be
-had in the meantime, the exact `dotnet nuget add source` command, the two package names, and the
-`read:packages` token requirement all live in one place so they never drift:
+```bash
+dotnet add package OpenCodeAI.Sdk --prerelease
+dotnet add package OpenCodeAI.Sdk.Extensions --prerelease   # dependency injection, optional
+```
+
+> **The package id is not the namespace.** You install `OpenCodeAI.Sdk` and you write
+> `using OpenCode.Sdk;` — nuget.org reserves the `OpenCode.` id prefix for an unrelated owner, so
+> the artifact carries a different name than the code inside it.
+
+The packages target `netstandard2.0`, `net472`, `net8.0`, `net9.0`, and `net10.0`, so any project
+on one of those works. Nightly builds of `master` live on a GitHub Packages feed; the source
+command and its `read:packages` token requirement live in one place so they never drift:
 [**Installation** in the root README](../../README.md#-installation).
 
 You also need an `opencode` server. Either install the CLI and run one yourself, or let the SDK
@@ -36,7 +45,7 @@ using OpenCode.Sdk.Models;
 using var client = new OpenCodeClient(new OpenCodeClientOptions
 {
     Endpoint = new Uri("http://127.0.0.1:4096"),
-    Password = Environment.GetEnvironmentVariable("OPENCODE_SERVER_PASSWORD"),
+    Password = Environment.GetEnvironmentVariable("OPENCODE_PASSWORD"),
 });
 ```
 
@@ -54,7 +63,7 @@ the server's working directory. Session listing filters with `SessionListRequest
 `Project`, independently of these headers. See the [location contract](../architecture/client-runtime.md#location)
 for ambient and per-call header behavior.
 
-> **🔑 The SDK reads no environment variables of its own.** `OPENCODE_SERVER_PASSWORD` above is
+> **🔑 The SDK reads no environment variables of its own.** `OPENCODE_PASSWORD` above is
 > *your* code reading *your* environment — exactly how opencode's own CLI layers it. Options are
 > snapshotted at construction, so changing the environment later never reaches a live client.
 
@@ -99,11 +108,11 @@ Console.WriteLine(generated.Generate.Text);
 
 ## 🧭 How the client is organised
 
-The root client exposes **27 families** as properties — `Sessions`, `Events`, `Ptys`,
+The root client exposes **28 families** as properties — `Sessions`, `Events`, `Ptys`,
 `PersistentPtys`, `Shells`, `Providers`, `LanguageModels`, `Agents`, `Skills`, `Commands`,
 `Permissions`, `Credentials`, `Projects`, `Workspaces`, `Worktrees`, `Vcs`, `FileSystem`, `Forms`,
-`Generation`, `Integrations`, `McpServers`, `Plugins`, `References`, `Server`, `Websearch`,
-`Debug`, and `Experimental`:
+`Generation`, `Integrations`, `McpServers`, `Plugins`, `References`, `Rpc`, `Server`,
+`Websearch`, `Debug`, and `Experimental`:
 
 ```csharp
 var providers = await client.Providers.ListProvidersAsync();

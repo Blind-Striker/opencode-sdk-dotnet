@@ -10,10 +10,12 @@ public sealed class OpenCodeServerOptions
     /// <summary>
     /// Gets or sets the server command: the executable followed by its leading arguments. The
     /// launcher appends <c>--stdio --port 0</c> — the reference client's exact standalone argv.
-    /// The default runs <c>opencode serve</c> from the PATH, upstream's own default command
-    /// shape; tests and tools point this at a source-run instead.
+    /// The default runs <c>opencode2 serve</c> from the PATH: the CLI package of the line this
+    /// SDK speaks to declares exactly one executable and names it <c>opencode2</c>. Upstream's
+    /// own standalone mode re-invokes the executable it is already running rather than naming
+    /// one, which an SDK cannot do. Tests and tools point this at a source run instead.
     /// </summary>
-    public IReadOnlyList<string> Command { get; set; } = ["opencode", "serve"];
+    public IReadOnlyList<string> Command { get; set; } = ["opencode2", "serve"];
 
     /// <summary>Gets or sets the child's working directory; null inherits the caller's.</summary>
     public string? WorkingDirectory { get; set; }

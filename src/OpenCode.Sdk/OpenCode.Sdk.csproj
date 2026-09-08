@@ -2,8 +2,12 @@
 
   <PropertyGroup>
     <TargetFrameworks>$(AllTargetFrameworks)</TargetFrameworks>
-    <Description>Unofficial .NET SDK for opencode: a typed client for the opencode HTTP API.</Description>
-    <PackageTags>opencode;sdk;client;ai;agent</PackageTags>
+    <!-- The package id is deliberately not the assembly name: nuget.org reserves the OpenCode.
+         prefix for another owner, so the shipped assembly and every public namespace stay
+         OpenCode.Sdk while the artifact is published under OpenCodeAI. -->
+    <PackageId>OpenCodeAI.Sdk</PackageId>
+    <Description>Unofficial .NET SDK for opencode: a typed client for the opencode HTTP API, with server-sent event streams, PTY and persistent-PTY terminals over WebSockets, cursor pagination, typed errors, and a local server launcher. The package id is OpenCodeAI.Sdk; the assembly and every namespace are OpenCode.Sdk.</Description>
+    <PackageTags>opencode;opencode2;sdk;client;http-client;openapi;ai;agent;llm;sse;streaming;pty;terminal;dotnet;csharp</PackageTags>
     <IsAotCompatible Condition="'$(TargetFramework)' == 'net10.0'">true</IsAotCompatible>
     <!-- Keep source-only polyfills hidden from friend test assemblies, which compile their own copy. -->
     <PolyUseEmbeddedAttribute>true</PolyUseEmbeddedAttribute>

@@ -43,10 +43,15 @@ Two separate API vintages shape the downlevel legs, and conflating them would mi
 
 ## Packages
 
-- `OpenCode.Sdk` is the core typed client. The local server launcher belongs in this package when
-  its milestone lands (ADR-0001); `docs/ROADMAP.md` owns delivery status.
+- `OpenCode.Sdk` is the core typed client, and the local server launcher ships inside it
+  (ADR-0001).
 - `OpenCode.Sdk.Extensions` owns dependency-injection registration. DI dependencies do not enter the
   core package.
+- The two names above are assembly and namespace names. The published package ids are
+  `OpenCodeAI.Sdk` and `OpenCodeAI.Sdk.Extensions`, because nuget.org reserves the `OpenCode.`
+  prefix for an unrelated owner. Each packable project sets its own `PackageId`; the assemblies,
+  the public namespaces, and therefore consumer source are unaffected, and a project reference
+  packs as a dependency on the corresponding package id.
 - Exact package references and dependency versions are read from project files and
   `Directory.Packages.props`. Documentation records policy, not a second version inventory.
 - A future package is added only for a real distribution boundary; repository layout alone does
