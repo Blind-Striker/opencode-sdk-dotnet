@@ -1,5 +1,7 @@
 # 🔌 Connection modes
 
+Date: 2026-09-08
+
 There are two ways to get a client bound to a running opencode server: **let the SDK start one**,
 or **point it at one you already have**. Dependency injection is not a third way in — it is how you
 register either of them with a container.
@@ -99,7 +101,7 @@ var endpoint = new Uri("http://127.0.0.1:4096");
 using var client = new OpenCodeClient(new OpenCodeClientOptions
 {
     Endpoint = endpoint,
-    Password = Environment.GetEnvironmentVariable("OPENCODE_SERVER_PASSWORD"),
+    Password = Environment.GetEnvironmentVariable("OPENCODE_PASSWORD"),
 });
 
 using var probe = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -116,17 +118,19 @@ the SDK carries no version comparand of its own and no network-timeout knob yet,
 `CancellationTokenSource` is the honest timeout and your own expectation is the honest version
 check.
 
-**About `OPENCODE_SERVER_PASSWORD`**: that is the variable *the opencode CLI* reads when you start
+**About `OPENCODE_PASSWORD`**: that is the variable *the opencode CLI* reads when you start
 a server with authentication —
 
 ```sh
-OPENCODE_SERVER_PASSWORD=your-password opencode2 serve --hostname 127.0.0.1 --port 4096
+OPENCODE_PASSWORD=your-password opencode2 serve --hostname 127.0.0.1 --port 4096
 ```
 
-— and the client must present the same value as its Basic password. The SDK never reads it, or any
-other environment variable, for you. Reading it in the snippet above is your application's choice;
-a configuration section or a secret store works exactly as well. A server started **without** a
-password expects anonymous requests, so leave `Password` as `null` for one.
+— and the client must present the same value as its Basic password. `OPENCODE_SERVER_PASSWORD` is
+the CLI's legacy name for the same value, still honored as a fallback, so an older setup keeps
+working. The SDK never reads either one, or any other environment variable, for you. Reading it in
+the snippet above is your application's choice; a configuration section or a secret store works
+exactly as well. A server started **without** a password expects anonymous requests, so leave
+`Password` as `null` for one.
 
 ## 🧩 Registering with dependency injection
 

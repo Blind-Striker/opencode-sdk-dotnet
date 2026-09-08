@@ -1,5 +1,7 @@
 # 🖥️ Terminals
 
+Date: 2026-09-08
+
 opencode has two terminal families, and they are genuinely different animals:
 
 | | **PTY** | **Persistent PTY** |
@@ -18,6 +20,7 @@ generated from an OpenAPI document.
 - [🧵 A normal PTY, end to end](#-a-normal-pty-end-to-end)
 - [♻️ Resuming with a cursor](#️-resuming-with-a-cursor)
 - [🧷 Persistent PTYs](#-persistent-ptys)
+- [🛑 Cancellation, deadlines, and disposal](#-cancellation-deadlines-and-disposal)
 - [🪟 The Windows platform note](#-the-windows-platform-note)
 - [🎫 Connect tokens](#-connect-tokens)
 
@@ -64,7 +67,9 @@ Three rules worth knowing before your first surprise:
 1. **Enter is `\r`.** `WriteAsync` sends exactly the bytes you give it. A command ending in `\n`
    renders on the terminal and then sits there forever, unsubmitted.
 2. **One read at a time.** A session carries one active read enumeration; starting a second
-   concurrently throws `InvalidOperationException`. Writes are serialized for you.
+   concurrently throws `InvalidOperationException`. Writes are serialized for you. Canceling a read
+   does not end the connection — see
+   [cancellation, deadlines, and disposal](#-cancellation-deadlines-and-disposal).
 3. **There is no end-of-command marker on this wire.** A terminal just goes quiet. If you need to
    know a command finished, either wait for the stream to settle or ask `GetPtyAsync` for the
    PTY's status and exit code — the exit code is *not* on the socket.
@@ -183,6 +188,80 @@ What is different here:
 The collection client also carries the daemon's lifecycle doors: `HandoffAsync` prepares the daemon
 to outlive this server until a replacement claims it, and `ShutdownAsync` stops the daemon **and
 every terminal it owns** — not just one.
+
+## 🛑 Cancellation, deadlines, and disposal
+
+Both terminal families share one lifetime model. This is what it means for a caller; the exact
+contract is owned by [the client runtime architecture](../architecture/client-runtime.md).
+
+**Canceling a read ends the read, not the connection.** A connection-owned receiver assembles
+frames independently of your enumeration, so the token you hand `ReadAsync` bounds *your* wait and
+nothing else. Stop reading, send input, start a new enumeration on the same session — it still
+works:
+
+```csharp
+using (var window = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+{
+    try
+    {
+        await foreach (var frame in terminal.ReadAsync(window.Token))
+        {
+            // …stop once you have seen enough
+        }
+    }
+    catch (OperationCanceledException)
+    {
+        // the wait ended; the connection did not
+    }
+}
+
+await terminal.WriteAsync("echo again\r");
+
+await foreach (var frame in terminal.ReadAsync(cancellationToken))
+{
+    // same connection, still healthy
+}
+```
+
+This is an SDK contract, not something `IAsyncEnumerable` gives you for free, and not an upstream
+cancel/resume API. "One read at a time" still holds — it is a *concurrent* second enumeration that
+throws, not a later one.
+
+**Frames you have not read are queued, and the queue is not history.** The receiver holds only what
+it has not handed you yet, so a connection nobody reads grows in memory; the queue is deliberately
+unbounded until a real workload argues for a limit. It is not a replay buffer either — to go back,
+reconnect with a [cursor](#️-resuming-with-a-cursor).
+
+**When the connection ends, you still get what it already had.** A remote close or a transport
+failure hands you the queued frames in order first, then completes normally or throws. That ending
+is stable: a later read reports the same outcome rather than a fresh error.
+
+**Disposal is the other path, and it does not wait for you.** `DisposeAsync` closes the socket,
+abandons unread frames, and joins the connection's own work. Reads after it are empty, writes throw
+`ObjectDisposedException`, and two callers disposing at once await the same cleanup.
+
+**Sends carry their own deadline.** `PtyConnectOptions.SendTimeout` and
+`PersistentPtyConnectOptions.SendTimeout` default to 30 seconds and bound each input or resize send
+end to end, the wait for the send gate included:
+
+```csharp
+await using var bounded = await pty.ConnectAsync(new PtyConnectOptions
+{
+    SendTimeout = TimeSpan.FromSeconds(5),
+});
+```
+
+It is a fixed total per call — progress does not restart it — and it is not a connect timeout, an
+idle timeout, or a command-execution timeout. Expiry while the call is still queued fails that call
+alone; expiry once the bytes are going out ends the attachment, because whether the server saw them
+is no longer knowable. Nothing is retried. Your own cancellation stays
+`OperationCanceledException`; the SDK's deadline is an `OpenCodeTransportException` naming a
+timeout.
+
+**A persistent PTY keeps your viewport intent.** The outbound size starts at the attachment's size
+and moves when a `ResizeAsync` send succeeds. A `PersistentPtyResizedFrame` tells you how the
+server is rendering — it does not overwrite what you asked for, and every input you send carries a
+size coherent with its place in the send order.
 
 ## 🪟 The Windows platform note
 

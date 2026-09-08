@@ -1,5 +1,7 @@
 # 🧱 Errors and responses
 
+Date: 2026-08-31
+
 Every one-shot call answers with a **response envelope** that carries the same four members no
 matter which operation produced it, and every failure is either a typed API error you can branch on
 or a transport failure you cannot. Nothing is stringly typed, and nothing is swallowed.

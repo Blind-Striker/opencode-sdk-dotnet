@@ -1,5 +1,7 @@
 # 📚 The opencode SDK guide
 
+Date: 2026-08-31
+
 Six pages for people **calling** the SDK. Read them in order the first time: install the package
 and make a call, decide how you reach a server, then the three subsystems that behave differently
 from ordinary request/response calls — event streams, terminals, and cursor lists — plus the error

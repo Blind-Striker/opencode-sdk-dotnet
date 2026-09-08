@@ -1,5 +1,7 @@
 # 📑 Pagination
 
+Date: 2026-08-31
+
 Two operations in the API return more than fits in one response, and both use the same opaque
 cursor envelope: **listing a session's messages** and **listing sessions**. Everything else returns
 its whole answer at once.

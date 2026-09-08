@@ -57,6 +57,15 @@ Each released version links straight to its GitHub Release tag.
   hand-written WebSocket doors over a shared, family-neutral socket core: read frames, write input,
   dispose to close. The persistent family adds attach/handoff/snapshot semantics, byte-typed
   output and checkpoints, and the framed input protocol with viewport tracking.
+- **Terminal connection lifetime a caller can drive.** A connection-owned receiver assembles
+  frames into an internal queue independently of the caller's enumeration, so canceling a read ends
+  only that wait: the same healthy connection can be read again, or written to, afterwards. Both
+  connect options gained an init-only `SendTimeout` (default 30 seconds) bounding each input or
+  resize send end to end, including the wait for the send gate. Connection termination delivers the
+  frames it already holds before reporting its outcome, while disposal abandons unread frames and
+  joins the connection's own work. A persistent PTY keeps its locally requested viewport coherent
+  with the input it labels, rather than letting an inbound resize report overwrite it. See
+  [the terminals guide](docs/guide/terminals.md#-cancellation-deadlines-and-disposal).
 - **Dependency injection through `OpenCode.Sdk.Extensions`.** `AddOpenCode(Action<…>)` or
   `AddOpenCode(IConfiguration)` registers one singleton client owning its transport for the
   container's lifetime, plus every sub-client resolved from that same instance — inject
@@ -90,7 +99,7 @@ Each released version links straight to its GitHub Release tag.
   [`spec/SNAPSHOT.md`](spec/SNAPSHOT.md).
 - **Generated output is committed and reviewed as source**, locked by a public-API baseline and
   verified by regeneration, so a protocol refresh arrives as a readable diff.
-- **Test suite:** 5,010 tests green on Windows — the fullest leg, and the only one that adds the
+- **Test suite:** 5,134 tests green on Windows — the fullest leg, and the only one that adds the
   `net472` assemblies. Linux and macOS run the same suite on the three modern targets.
 
 ### 📋 Important Notes
