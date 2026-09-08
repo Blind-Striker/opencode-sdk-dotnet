@@ -315,11 +315,11 @@ Architecture, decision records, and engineering policy live under [`docs/`](docs
   example); a larger-capacity pool is a measured, benchmark-gated follow-up rather than a
   speculative change.
 
-- **`PtySession.ReadAsync()` allocates its receive buffer per call.** Each read rents nothing and
-  allocates a fresh 16 KiB buffer — measured at 16,776 bytes on the complete read path versus
-  24 bytes for decoding alone. Correctness is unaffected; a tight read loop over a chatty terminal
-  will produce more garbage than it needs to. Pooling the buffer is a queued optimization, held
-  behind the same benchmark gate as the item above so the change ships with evidence.
+- **Each terminal connection allocates a 16 KiB receive buffer.** The connection-owned receiver
+  reuses it across messages and consumer read enumerations. Pooling remains a benchmark-gated
+  follow-up; repeated reads on the same connection do not allocate another receive buffer. The
+  receiver also queues undelivered frames, so slow or absent consumers can grow memory; see the
+  [terminal lifetime contract](docs/architecture/client-runtime.md).
 
 - **Attaching to an existing background service is not implemented.** opencode's third connection
   mode — discovering a registered daemon through its registration file (`Service.discover` /

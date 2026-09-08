@@ -108,9 +108,9 @@ is revisited at each boundary.
   path the call must carry is invisible to any generated client; admitting it would mean inventing a
   path parameter the document does not declare (ADR-0013), and the upstream report is drafted.
 - **Two allocation follow-ups are queued behind a benchmark gate** — on `net472` and
-  `netstandard2.0` a response body over 1 MB costs one wire-sized copy, and `PtySession.ReadAsync`
-  allocates a fresh 16 KiB receive buffer per call. Both are measured rather than suspected, and
-  both are described for consumers in the README's Known Issues.
+  `netstandard2.0` a response body over 1 MB costs one wire-sized copy, and each terminal connection
+  allocates one 16 KiB receive buffer, reused across consumer reads. Both are described for consumers
+  in the README's Known Issues; pooling requires evidence under the current connection-lifetime harness.
 - **A half-open event stream is not detected.** A successful SSE body stays live until caller
   cancellation, server completion, or failure, so a connection whose peer is gone without closing
   hangs a consumer that supplied no cancellation of its own; ordinary resets, server exits, and
