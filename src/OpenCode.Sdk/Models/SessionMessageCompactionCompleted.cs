@@ -71,4 +71,11 @@ public sealed record SessionMessageCompactionCompleted : ISessionMessageCompacti
     /// </summary>
     [JsonPropertyName("recent")]
     public required string Recent { get; init; }
+
+    /// <summary>
+    /// Gets the provider context value.
+    /// </summary>
+    [JsonPropertyName("providerContext")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SessionProviderContext? ProviderContext { get; init; }
 }

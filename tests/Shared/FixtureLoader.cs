@@ -10,6 +10,29 @@ internal sealed class FixtureLoader
 
     public string LoadJson(string name) => LoadText(name);
 
+    /// <summary>
+    /// Every embedded fixture whose name ends with <paramref name="extension"/>, in the form
+    /// <see cref="LoadText"/> takes.
+    /// </summary>
+    public IReadOnlyList<string> Names(string extension)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(extension);
+
+        var prefix = string.Concat(_assembly.GetName().Name, ".Fixtures.");
+        var names = new List<string>();
+        foreach (var resource in _assembly.GetManifestResourceNames())
+        {
+            if (resource.StartsWith(prefix, StringComparison.Ordinal) &&
+                resource.EndsWith(extension, StringComparison.Ordinal))
+            {
+                names.Add(resource[prefix.Length..]);
+            }
+        }
+
+        names.Sort(StringComparer.Ordinal);
+        return names;
+    }
+
     public string LoadText(string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
