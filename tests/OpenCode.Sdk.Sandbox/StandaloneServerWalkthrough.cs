@@ -31,6 +31,13 @@ internal static class StandaloneServerWalkthrough
         var health = await client.GetHealthAsync(cancellationToken: probeWindow.Token).ConfigureAwait(false);
         Console.WriteLine(
             $"healthy: {health.Health.Healthy}, version: {health.Health.Version}, pid: {health.Health.Pid.ToString(CultureInfo.InvariantCulture)}");
-        return health.Health.Healthy ? 0 : 1;
+        if (!health.Health.Healthy)
+        {
+            return 1;
+        }
+
+        // Health answered, which is exactly the moment the model catalog can still be empty.
+        await ModelSelectionWalkthrough.RunAsync(client).ConfigureAwait(false);
+        return 0;
     }
 }

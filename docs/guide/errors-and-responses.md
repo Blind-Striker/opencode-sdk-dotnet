@@ -153,7 +153,53 @@ before the SDK is regenerated — and the `default` arm above catches any typed 
 write a case for.
 
 `Error` can also legitimately be `null`: the server answered with a failure status but no body the
-SDK could type. `RawBody` still has the bytes.
+SDK could type. `RawBody` then has whatever the server did send — which is sometimes nothing at
+all, because a failure answered above the API layer can carry an empty body. The next section is
+exactly that case.
+
+### A 401 with no credential
+
+The one failure whose body tells you nothing. An `opencode2 serve` process **always** runs with a
+password — the one you set through `OPENCODE_PASSWORD`, or one it generates and prints as
+`server password <pw>` — and it rejects an uncredentialed request before the API layer ever runs.
+The answer is a bare `401` with an empty body and a `WWW-Authenticate: Basic` challenge: `Error` is
+`null`, `RawBody` is empty, and the typed `UnauthorizedError` the spec declares never arrives.
+
+Because the wire says nothing, the SDK does. When a call answers 401 *and* the client was built
+with `Password` left `null`, the exception message carries one extra sentence:
+
+```text
+The opencode API returned status 401. The client sent no credential: the opencode CLI always
+starts its server with a password, so pass the one it printed as 'server password <pw>', or the
+one you set through OPENCODE_PASSWORD, in OpenCodeClientOptions.Password.
+```
+
+It is scoped as tightly as it reads: 401 only, and only when no password was configured. A
+credential the server *rejected* is a different mistake and keeps the plain message. And it is a
+message, not a new member — the `NoThrow` envelope is unchanged, where `Status == 401` on a client
+you built without a password is the same signal. Observed on `@opencode/cli@0.0.0-beta-19425`.
+
+### When a worktree remove is refused
+
+`WorktreesClient.RemoveWorktreeAsync` answering 400 `WorktreeError` means **nothing was removed**.
+A refusal is not partial cleanup: the directory is still on disk and the worktree is still in the
+inventory, so re-list before treating a removal as done.
+
+`Data.ForceRequired` says which kind of refusal it was:
+
+| `ForceRequired` | What it means | What helps |
+|---|---|---|
+| `true` | The worktree carries changes git will not discard | Retry with `Force = true` |
+| `false` | The server ran git and git failed for a reason `Force` cannot fix | Read `Data.Message`; it is git's own stderr |
+| `null` | The refusal never reached git | Fix the request — the removal was never attempted |
+
+The `false` arm is the surprising one. Observed on Windows against
+`@opencode/cli@0.0.0-beta-19242`: `Data.Message` was git's own
+`error: failed to delete '<dir>': Permission denied`, because another process still held a handle
+inside the directory while `git worktree remove` tried to unlink it. `Force` unlinks the same file,
+so it cannot help. Retry once the holding process has exited — disposing the `OpenCodeServer` you
+started is the usual one — or work in a directory your own application owns and remove it yourself.
+That is one build's observed behaviour, not a contract: the declared answers stay 204 / 400 / 401.
 
 ## 🔍 Guarded payload accessors
 

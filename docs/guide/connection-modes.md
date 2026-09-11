@@ -178,13 +178,15 @@ if (!health.Health.Healthy)
 }
 ```
 
-That bounded health probe is the whole validation recipe, and it is deliberately yours to write:
-the SDK carries no version comparand of its own and no network-timeout knob yet, so a
-`CancellationTokenSource` is the honest timeout and your own expectation is the honest version
-check.
+That bounded health probe is the whole validation recipe for *reaching* the server, and it is
+deliberately yours to write: the SDK carries no version comparand of its own and no network-timeout
+knob yet, so a `CancellationTokenSource` is the honest timeout and your own expectation is the
+honest version check. It is liveness only — a healthy server can still have an empty model catalog
+for a second or two while its plugins activate, which
+[choosing a model](getting-started.md#choosing-a-model) covers.
 
-**About `OPENCODE_PASSWORD`**: that is the variable *the opencode CLI* reads when you start
-a server with authentication —
+**About `OPENCODE_PASSWORD`**: that is the variable *the opencode CLI* reads to decide which
+password its server will accept —
 
 ```sh
 OPENCODE_PASSWORD=your-password opencode2 serve --hostname 127.0.0.1 --port 4096
@@ -194,8 +196,16 @@ OPENCODE_PASSWORD=your-password opencode2 serve --hostname 127.0.0.1 --port 4096
 the CLI's legacy name for the same value, still honored as a fallback, so an older setup keeps
 working. The SDK never reads either one, or any other environment variable, for you. Reading it in
 the snippet above is your application's choice; a configuration section or a secret store works
-exactly as well. A server started **without** a password expects anonymous requests, so leave
-`Password` as `null` for one.
+exactly as well.
+
+> **🔑 `opencode2 serve` always has a password.** Setting neither variable does not start an open
+> server — it makes the CLI generate one and print it as `server password <pw>` on startup, and no
+> serve flag disables authentication. A client for a CLI-started server therefore always needs
+> `Password`. Leaving it `null` is right only for a host that genuinely runs without one: a server
+> embedded through the opencode server library, as this repository's own simulation host does for
+> its tests. Point a passwordless client at `opencode2 serve` and every call answers **401 with an
+> empty body** — the SDK says so in the exception message, see
+> [a 401 with no credential](errors-and-responses.md#a-401-with-no-credential).
 
 ## 🧩 Registering with dependency injection
 

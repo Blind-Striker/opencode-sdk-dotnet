@@ -51,6 +51,17 @@ Nightly builds of `master` are on
 
 ### 🐛 Fixes
 
+- **The docs no longer claim an anonymous opencode server exists, and a 401 now says so.** The
+  guide and the shipped XML on `OpenCodeClientOptions.Password` told readers that `null` was the
+  right value "for a server started without authentication". No such server can be started: the
+  `opencode2` CLI always runs its server with a password — the one set through `OPENCODE_PASSWORD`,
+  or one it generates and prints as `server password <pw>` — and it rejects an uncredentialed
+  request above the API layer, with an empty body and no typed error to read. Every statement of
+  that claim is corrected, and when a call answers 401 while the client was built with `Password`
+  left `null`, the `OpenCodeApiException` message now adds one sentence naming the missing
+  credential and where to get one. The sentence appears for 401 only, and only when no password was
+  configured; a rejected password keeps the plain message, and the `NoThrow` envelope is unchanged.
+  No public member changed.
 - **`OpenCodeServer.StartAsync()` now works on Windows with an npm-installed CLI.** npm writes shim
   files (`opencode2`, `opencode2.cmd`, `opencode2.ps1`) and keeps the real binary inside
   `node_modules`, while `Process.Start` appends only `.exe` and ignores `PATHEXT` — so the shipped
@@ -95,6 +106,29 @@ Nightly builds of `master` are on
   is the one shape that needs its type written out.
 - `SessionListRequest` no longer declares `Limit`, `Order`, and `Cursor` itself; it inherits all
   three from `ListRequest`. Reading and initializing them is unchanged.
+
+### 📚 Documentation
+
+- **Durable replay now says which servers can actually do it.** The streaming guide and the
+  README's known issues state that the distributed `opencode2` CLI starts its server without event
+  persistence and exposes no switch for it, so a replay from a CLI-started server answers with the
+  `log.synced` marker alone — a contract-valid success with no history in it. Observed on
+  `@opencode/cli@0.0.0-beta-19425` and earlier. A new live test on the ordinary pinned CLI profile
+  asserts the marker-only answer and is the reversal trigger: when it fails, upstream began
+  persisting by default and those statements change with it.
+- **"Choosing a model" is a new section in the getting-started guide.** One compiled recipe —
+  await plugin activation, read the provider and model catalogs, then place
+  `new ModelRef { ProviderId = model.ProviderId, Id = model.Id }` on session creation — plus the
+  three rules that surround it: health is process liveness and not catalog readiness, a session
+  reference carries `ModelInfo.Id` and never `ModelInfo.ModelId`, and neither create nor prompt
+  validates the reference. The same recipe runs in the in-repo sandbox's `--standalone` leg.
+- **Session export documents what `Sanitize` does.** A sanitized export replaces message text with
+  `[redacted:text:<id>]`-shaped placeholders while ids, types, order, and count survive, so it is
+  for sharing a conversation's shape and never for comparing transcripts.
+- **A refused worktree removal has a paragraph in the errors guide.** A 400 `WorktreeError` removed
+  nothing — the directory and its inventory row both remain — and `ForceRequired` false means git
+  ran and failed for a reason `Force` cannot fix, such as the Windows permission denial observed on
+  `@opencode/cli@0.0.0-beta-19242` while another process held the directory.
 
 ## [0.8.0-preview.1] - 2026-09-09
 

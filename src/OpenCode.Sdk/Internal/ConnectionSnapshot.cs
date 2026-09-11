@@ -28,7 +28,7 @@ internal sealed class ConnectionSnapshot
         Location = location;
     }
 
-    /// <summary>Gets the Basic credential every request carries, or null for a server without authentication.</summary>
+    /// <summary>Gets the Basic credential every request carries, or null when no password was configured.</summary>
     public AuthenticationHeaderValue? Authorization { get; }
 
     /// <summary>Gets the normalized request base: scheme, authority, and path prefix without a trailing slash.</summary>

@@ -17,8 +17,11 @@ public sealed class OpenCodeClientOptions : IOpenCodeClientOptions
     public string Username { get; set; } = "opencode";
 
     /// <summary>
-    /// Gets or sets the HTTP basic-authentication password. <see langword="null"/> sends
-    /// anonymous requests — a server without authentication configured expects none. An
+    /// Gets or sets the HTTP basic-authentication password. Every server the <c>opencode2</c>
+    /// CLI starts requires one — the value set through <c>OPENCODE_PASSWORD</c>, or the one the
+    /// CLI generates and prints as <c>server password &lt;pw&gt;</c> when none is configured — so
+    /// <see langword="null"/>, which sends no credential at all, is right only for a host that runs
+    /// without authentication, such as a server embedded through the opencode server library. An
     /// empty or whitespace value is refused with <see cref="ArgumentException"/> at client
     /// construction; the SDK never reads credentials from the environment.
     /// </summary>

@@ -104,8 +104,17 @@ client-runtime.md` §Connection modes), then calls `CreateClient()` and `GetHeal
 caller-supplied endpoint. It is checked before the `OPENCODE_SANDBOX_ENDPOINT` gate, so it is the
 only mode reachable without a running server.
 
+Health is followed by `ModelSelectionWalkthrough`, the compile-and-run home for the "choosing a
+model" recipe in `docs/guide/getting-started.md`: await plugin activation, read the provider and
+model catalogs, then create a session carrying `ModelRef { ProviderId, Id }` and remove it again.
+This leg runs here rather than in the breadth walkthrough because the moment right after health is
+exactly when the catalog can still be empty. A host with no provider credentials configured prints
+`model: none enabled` and the leg still exits 0 — provider inventory is the machine's ambient
+opencode configuration, and a fresh process is not a fresh machine.
+
 `OPENCODE_SANDBOX_SERVER_COMMAND` overrides the launched command (`|`-separated, to survive paths
-with spaces); unset uses the product default (`opencode serve` from `PATH`). Run from the
+with spaces); unset uses the product default (`opencode2 serve`, resolved from `PATH` the way a
+shell would). Run from the
 repository root against the pinned submodule source:
 
 ```sh

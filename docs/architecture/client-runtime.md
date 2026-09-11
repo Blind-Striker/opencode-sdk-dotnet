@@ -313,8 +313,16 @@ local server launcher. Protocol and generated-model rules live in
   server's lifetime.
 - That log has no retention policy: nothing expires, prunes, or caps it, compaction and revert
   rewrite projections rather than the log, and rows are deleted only with their session.
-  Persistence is itself a server option that is off unless the server was started with it, so a
-  default server answers a replay with the marker alone (`docs/ROADMAP.md`).
+  Persistence is itself a server option that is off unless the process starting the server turned it
+  on, and no distributed `opencode2` build exposes a way to turn it on: the CLI's serve command
+  declares no such flag, bridges no environment variable to it, and reads no configuration key for
+  it. A replay from such a server is therefore contract-valid and empty of history — one
+  `log.synced` marker whose sequence has advanced, with no durable events before it — which is the
+  detection signature a caller can test for. Only a host that embeds the server library with
+  `events.persist` enabled replays history; this repository's own simulation host is that host for
+  the live tests. `tests/OpenCode.Sdk.Tests/Sessions/SessionLogCliProfileLiveTests.cs` is the
+  reversal trigger: when it fails, upstream began persisting by default and this sentence,
+  `docs/guide/streaming.md`, and the README's known issue change together.
 - The SSE event name is a framing signal. An ordinary payload uses the default `message` name;
   the operation's declared failure event materializes its cause through generated metadata and
   throws; any other explicit name is refused. Unknown payload and cause discriminators remain

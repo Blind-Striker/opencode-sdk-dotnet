@@ -114,6 +114,16 @@ is revisited at each boundary.
   `netstandard2.0` a response body over 1 MB costs one wire-sized copy, and each terminal connection
   allocates one 16 KiB receive buffer, reused across consumer reads. Both are described for consumers
   in the README's Known Issues; pooling requires evidence under the current connection-lifetime harness.
+- **Durable session-log replay cannot be enabled on any distributed CLI build.** `events.persist`
+  is a server-library option: the `opencode2` serve command declares no flag for it, bridges no
+  environment variable to it, and reads no configuration key for it, so a replay from a CLI-started
+  server is one `log.synced` marker whose sequence advanced with no durable events before it
+  (confirmed at the pin; observed on `@opencode/cli@0.0.0-beta-19425` and earlier). The SDK is
+  faithful to the route — the gap is upstream capability — and consumers are told in the README's
+  Known Issues and the streaming guide. Reversal trigger:
+  `tests/OpenCode.Sdk.Tests/Sessions/SessionLogCliProfileLiveTests.cs`; when it fails, upstream
+  began persisting by default and the guide, the README, and the canon sentence in
+  `docs/architecture/client-runtime.md`'s server-sent-events section all change together.
 - **A half-open event stream is not detected.** A successful SSE body stays live until caller
   cancellation, server completion, or failure, so a connection whose peer is gone without closing
   hangs a consumer that supplied no cancellation of its own; ordinary resets, server exits, and

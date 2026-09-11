@@ -347,6 +347,17 @@ Architecture, decision records, and engineering policy live under [`docs/`](http
   if you need durable history for one session, use the per-session log stream instead
   ([streaming guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/streaming.md)).
 
+- **A replay from a CLI-started server is the marker alone.** Durable session-log replay needs a
+  server started with event persistence, and the distributed `opencode2` CLI starts its server
+  without it and exposes no switch to turn it on — no serve flag, no environment variable, no
+  configuration key (observed on `@opencode/cli@0.0.0-beta-19425` and earlier). A replay against
+  such a server does not fail: `SessionClient.GetLogAsync` without `Follow` answers with a single
+  `EventLogSynced` marker whose sequence has advanced and no durable events before it. Persisted
+  replay needs a host that embeds the opencode server library with persistence enabled — this
+  repository's own simulation host does that for its tests. Live `Follow = True` delivery is
+  unaffected. See the
+  [streaming guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/streaming.md).
+
 - **Running the in-repo sandbox against a different server needs `--no-launch-profile`.** The
   checked-in `launchSettings.json` prefills `OPENCODE_SANDBOX_ENDPOINT` at port 4096, and
   `dotnet run` applies the default profile unless told otherwise — so without the flag the sandbox
