@@ -19,6 +19,9 @@ public class OpenCodeServer : IAsyncDisposable
 {
     private const int StderrRetainedLines = 40;
 
+    /// <summary>The reference client's exact standalone argv tail, appended to every command.</summary>
+    private static readonly string[] LauncherArguments = ["--stdio", "--port", "0"];
+
     private static readonly TimeSpan ForcedExitTimeout = TimeSpan.FromSeconds(10);
 
     /// <summary>
@@ -83,21 +86,25 @@ public class OpenCodeServer : IAsyncDisposable
 
     /// <summary>
     /// Gets the child process identifier, for diagnostics and process-truth assertions. It
-    /// remains readable after disposal, when the process handle itself is gone.
+    /// remains readable after disposal, when the process handle itself is gone. It identifies the
+    /// process this door owns, which for a Windows batch shim is the cmd.exe host the shim's own
+    /// child runs under rather than the server process; ask the server for its own pid when that
+    /// distinction matters.
     /// </summary>
     public virtual int ProcessId =>
         _processId ?? throw MockSeam.CreateError("OpenCodeServer", "ProcessId");
 
     /// <summary>
-    /// Starts a fresh private standalone server: spawns the command with <c>--stdio --port 0</c>
-    /// appended and the generated lease credential in the child environment, then waits for the
-    /// JSON readiness line. On any failure the child tree is ended before the method throws.
+    /// Starts a fresh private standalone server: resolves the command the way a shell would,
+    /// spawns it with <c>--stdio --port 0</c> appended and the generated lease credential in the
+    /// child environment, then waits for the JSON readiness line. On any failure that reached a
+    /// child, the tree is ended before the method throws.
     /// </summary>
     /// <param name="options">The launch options; null uses the defaults.</param>
     /// <param name="cancellationToken">The cancellation token ending the wait for readiness.</param>
     /// <returns>The started server, disposed by the caller.</returns>
     /// <exception cref="ArgumentException">The options are unusable: an empty command, a blank command entry, a non-positive readiness timeout, a negative grace, or an output collector an earlier start already bound.</exception>
-    /// <exception cref="OpenCodeServerException">The process could not start, exited before readiness, timed out, or broke the readiness contract.</exception>
+    /// <exception cref="OpenCodeServerException">The command did not resolve on PATH, a leading argument was refused for a Windows batch shim, or the process could not start, exited before readiness, timed out, or broke the readiness contract.</exception>
     public static async Task<OpenCodeServer> StartAsync(
         OpenCodeServerOptions? options = null,
         CancellationToken cancellationToken = default)
@@ -118,12 +125,16 @@ public class OpenCodeServer : IAsyncDisposable
         Process? process = null;
         try
         {
-            process = CreateProcess(command, options, password);
+            // Once per start, before anything is spawned: what the process starts, and what a
+            // failure names, is the resolved target rather than the bare name the caller wrote.
+            var executable = new ExecutableResolver(ExecutableSearchEnvironment.ForCurrentProcess())
+                .Resolve(command[0]);
+            process = CreateProcess(executable, command, options, password);
             var stderrGate = new object();
             var stderrTail = new Queue<string>(StderrRetainedLines);
             var readyLine = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
             AttachOutputHandlers(process, readyLine, stderrGate, stderrTail, output);
-            StartChildProcess(process, command[0]);
+            StartChildProcess(process, executable);
 
             var line = await WaitForReadyLineAsync(
                 process, readyLine, readinessTimeout, stderrGate, stderrTail, cancellationToken).ConfigureAwait(false);
@@ -293,7 +304,7 @@ public class OpenCodeServer : IAsyncDisposable
         };
     }
 
-    private static void StartChildProcess(Process process, string executable)
+    private static void StartChildProcess(Process process, ResolvedExecutable executable)
     {
         try
         {
@@ -301,7 +312,9 @@ public class OpenCodeServer : IAsyncDisposable
         }
         catch (Win32Exception exception)
         {
-            throw new OpenCodeServerException($"Failed to start the server command '{executable}'.", exception);
+            throw new OpenCodeServerException(
+                $"Failed to start the server command '{executable.Command}'{DescribeResolution(executable)}.",
+                exception);
         }
 
         process.BeginOutputReadLine();
@@ -542,11 +555,11 @@ public class OpenCodeServer : IAsyncDisposable
         return snapshot;
     }
 
-    private static Process CreateProcess(string[] command, OpenCodeServerOptions options, string password)
+    private static Process CreateProcess(
+        ResolvedExecutable executable, string[] command, OpenCodeServerOptions options, string password)
     {
         var process = new Process();
         var startInfo = process.StartInfo;
-        startInfo.FileName = command[0];
         startInfo.UseShellExecute = false;
         startInfo.CreateNoWindow = true;
         startInfo.RedirectStandardInput = true;
@@ -559,16 +572,7 @@ public class OpenCodeServer : IAsyncDisposable
             startInfo.WorkingDirectory = options.WorkingDirectory;
         }
 
-        var arguments = command.Skip(1).Concat(["--stdio", "--port", "0"]);
-#if NET
-        foreach (var argument in arguments)
-        {
-            startInfo.ArgumentList.Add(argument);
-        }
-#else
-        // ArgumentList does not exist downlevel; the composed string follows the MSVCRT rules.
-        startInfo.Arguments = ProcessArgumentComposer.Compose(arguments);
-#endif
+        ConfigureCommandLine(startInfo, executable, [.. command.Skip(1)]);
         if (options.Environment is not null)
         {
             foreach (var entry in options.Environment)
@@ -584,6 +588,47 @@ public class OpenCodeServer : IAsyncDisposable
         process.EnableRaisingEvents = true;
         return process;
     }
+
+    /// <summary>
+    /// Points the start info at what actually runs and composes its command line. A batch shim
+    /// never becomes the FileName: cmd.exe does, with the script as its first quoted token, so the
+    /// launch is one documented parse instead of CreateProcess's implicit batch handling. The
+    /// consequences are real and deliberate — the redirected stdin lease and the stdout readiness
+    /// line pass through the interpreter to the child, and the owned root this launcher reports as
+    /// <see cref="ProcessId"/> is that interpreter, whose descendants the bounded tree kill covers.
+    /// </summary>
+    private static void ConfigureCommandLine(
+        ProcessStartInfo startInfo, ResolvedExecutable executable, IReadOnlyList<string> suppliedArguments)
+    {
+        if (executable.IsBatchScript)
+        {
+            startInfo.FileName = BatchCommandLine.InterpreterPath;
+
+            // One composed string on every target: cmd.exe does not follow the MSVCRT rules
+            // ArgumentList applies, so the batch case never routes through that door.
+            startInfo.Arguments = BatchCommandLine.Compose(
+                executable.Path, suppliedArguments, LauncherArguments);
+            return;
+        }
+
+        startInfo.FileName = executable.Path;
+        var arguments = suppliedArguments.Concat(LauncherArguments);
+#if NET
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+#else
+        // ArgumentList does not exist downlevel; the composed string follows the MSVCRT rules.
+        startInfo.Arguments = ProcessArgumentComposer.Compose(arguments);
+#endif
+    }
+
+    /// <summary>Names the resolved target alongside the caller's spelling, when they differ.</summary>
+    private static string DescribeResolution(ResolvedExecutable executable) =>
+        string.Equals(executable.Command, executable.Path, StringComparison.Ordinal)
+            ? string.Empty
+            : $" (resolved to '{executable.Path}')";
 
     private static string GeneratePassword()
     {

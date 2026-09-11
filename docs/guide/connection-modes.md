@@ -40,7 +40,7 @@ it started:
 |---|---|
 | `Endpoint` | The `http://127.0.0.1:{port}` address the child actually bound |
 | `Password` / `Username` | The generated lease credential this server accepts |
-| `ProcessId` | The child's PID |
+| `ProcessId` | The PID of the child it owns — the `cmd.exe` host when the command resolved to a Windows batch shim, see [below](#how-the-command-is-resolved) |
 
 ### Shaping the launch
 
@@ -57,7 +57,7 @@ await using var server = await OpenCodeServer.StartAsync(new OpenCodeServerOptio
 
 | Option | Default | What it does |
 |---|---|---|
-| `Command` | `["opencode2", "serve"]` | The executable plus its leading arguments. The launcher appends `--stdio --port 0` itself. |
+| `Command` | `["opencode2", "serve"]` | The executable plus its leading arguments. The launcher resolves `Command[0]` the way a shell would — see [How the command is resolved](#how-the-command-is-resolved) — and appends `--stdio --port 0` itself. |
 | `WorkingDirectory` | `null` | The child's working directory; `null` inherits yours. |
 | `Environment` | `null` | Extra environment entries for the child. |
 | `ReadinessTimeout` | 60 s | How long to wait for the readiness line before failing and ending the child. |
@@ -66,6 +66,71 @@ await using var server = await OpenCodeServer.StartAsync(new OpenCodeServerOptio
 > **🔒 Your `Environment` entries can never shadow the credential.** The launcher writes its own
 > generated `OPENCODE_PASSWORD` entry *after* yours, so a stray value in your dictionary cannot
 > take over the child's authentication.
+
+### How the command is resolved
+
+`Command[0]` is resolved **before** anything is spawned, following the same rules a shell does.
+This is not a detail you normally think about — until you install the CLI with npm on Windows,
+where npm writes shim files (`opencode2`, `opencode2.cmd`, `opencode2.ps1`) and keeps the real
+binary inside `node_modules`. There is no `opencode2.exe` anywhere, and a raw `Process.Start` only
+ever appends `.exe`. Resolving first is what makes the shipped default work there.
+
+The rules, in full:
+
+- A command containing a directory separator, or a rooted path, is used exactly as written. No
+  search happens, so pointing `Command` at an absolute path always wins.
+- A bare name is looked up through the `PATH` directories in order. Empty entries are skipped, and
+  a relative entry is resolved against the process's current directory.
+- **On Windows**, a bare name with no extension is tried with each `PATHEXT` extension, in `PATHEXT`
+  order (falling back to `.COM;.EXE;.BAT;.CMD` when `PATHEXT` is unset). A name that already carries
+  an extension — `opencode2.cmd` — is tried exactly as written. So an npm `.cmd` shim is found and
+  started.
+- **On Unix**, the `PATH` directories are searched for the name itself; the operating system still
+  decides at spawn time whether the file is executable.
+
+When a bare name matches nothing, the start fails with `OpenCodeServerException` before any process
+exists, naming how many directories were searched and which extensions were tried — see
+[errors and responses](errors-and-responses.md#-when-the-launcher-fails).
+
+> **⚙️ Batch shims run through `cmd.exe`.** When resolution lands on a `.cmd` or `.bat` file, the
+> launcher starts the system `cmd.exe` explicitly (`/d /s /c`) with the script and every argument
+> quoted, rather than relying on Windows' implicit batch handling. Two consequences are worth
+> knowing:
+>
+> - **`ProcessId` is then the `cmd.exe` host**, not the server itself — the shim's own child. The
+>   stdin ownership lease and the stdout readiness line pass straight through it, and disposal's
+>   whole-tree kill covers the server underneath, so nothing else about the lifecycle changes. Ask
+>   the server for its own pid (`health.Health.Pid`) if you need that one.
+> - **Arguments carrying `cmd` metacharacters are refused**, not escaped. `cmd.exe` re-parses the
+>   line it is handed, so any leading argument of yours containing `&`, `|`, `<`, `>`, `^`, `%`,
+>   `!`, `"`, a carriage return, or a line feed fails the start with `OpenCodeServerException`
+>   before anything runs. This is the same fail-closed stance Rust and Node took for BatBadBut
+>   (CVE-2024-24576). If you need such an argument, point `Command` at the real executable instead
+>   of the shim.
+
+### What `StartAsync` does not isolate
+
+A started server is a **fresh process on a fresh port** — it is not a sandbox. Unless you say
+otherwise, it reads and writes the same user data, state, cache, and config roots as any other
+opencode process on the machine, including the one your editor is running. Sessions, credentials,
+and configuration are shared, on Windows as much as on Linux and macOS.
+
+Redirect those roots through `Environment` when you want a private one:
+
+```csharp
+var root = Path.Combine(Path.GetTempPath(), "my-app", Guid.NewGuid().ToString("N"));
+
+await using var server = await OpenCodeServer.StartAsync(new OpenCodeServerOptions
+{
+    Environment = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["XDG_DATA_HOME"] = Path.Combine(root, "data"),
+        ["XDG_STATE_HOME"] = Path.Combine(root, "state"),
+        ["XDG_CACHE_HOME"] = Path.Combine(root, "cache"),
+        ["XDG_CONFIG_HOME"] = Path.Combine(root, "config"),
+    },
+});
+```
 
 ### Clients from a started server
 

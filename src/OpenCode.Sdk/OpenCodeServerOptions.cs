@@ -14,6 +14,14 @@ public sealed class OpenCodeServerOptions
     /// SDK speaks to declares exactly one executable and names it <c>opencode2</c>. Upstream's
     /// own standalone mode re-invokes the executable it is already running rather than naming
     /// one, which an SDK cannot do. Tests and tools point this at a source run instead.
+    /// <para>
+    /// The first entry is resolved the way a shell resolves it, before anything is spawned: a
+    /// rooted path or one carrying a directory separator is used as written, and a bare name is
+    /// searched through the PATH entries in order — on Windows with each PATHEXT extension
+    /// appended when the name carries none, so an npm <c>.cmd</c> shim is found and started
+    /// through cmd.exe. A leading argument containing a cmd metacharacter is refused for such a
+    /// shim rather than escaped.
+    /// </para>
     /// </summary>
     public IReadOnlyList<string> Command { get; set; } = ["opencode2", "serve"];
 

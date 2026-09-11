@@ -355,6 +355,37 @@ child prints once fully booted; stdin stays open as the ownership lease for as l
 runs, and every later stdout line plus all of stderr is drained continuously (stderr into a bounded
 tail kept for failure diagnostics) so a chatty child can never wedge the pipes.
 
+`Command[0]` is resolved once per start, before the process is created, the way a shell resolves
+it, and the resolved path is what the process starts and what a failure names. A command carrying
+a directory separator or a rooted path is used as written; a bare name is searched through the
+PATH entries in order, skipping empty entries and resolving relative entries against the current
+directory. On Windows a bare name with no extension is tried with each PATHEXT extension in
+PATHEXT order — falling back to the conventional `.COM;.EXE;.BAT;.CMD` when PATHEXT is absent —
+and a name already carrying an extension is tried as written; on Unix the name itself is probed
+for existence and the operating system still decides executability at spawn. `CreateProcess` with
+`UseShellExecute=false` appends only `.exe` and never consults PATHEXT, while an npm install on
+Windows writes shim files (`opencode2`, `opencode2.cmd`, `opencode2.ps1`) and keeps the binary
+inside `node_modules`, so the shell-style search is what lets a bare name start there. A bare name
+that matches nothing fails before anything is spawned, naming the command, the number of
+directories searched, and the extensions tried.
+
+A resolved Windows batch target (`.cmd`/`.bat`) is launched explicitly through the system
+`cmd.exe` — located the way `ProcessTreeTerminator` locates taskkill — with `/d /s /c` and a
+command line whose script path and every argument are double-quoted inside one outer quote pair,
+which is the single documented `/s` parse. Determinism is the reason: `CreateProcess` will run a
+batch file implicitly, but through a rule nothing in the SDK controls. Because `cmd.exe` re-parses
+that line, any caller-supplied leading argument containing `&`, `|`, `<`, `>`, `^`, `%`, `!`, `"`,
+CR, or LF is refused with `OpenCodeServerException` naming the offending argument, never escaped —
+the fail-closed stance Rust and Node took for BatBadBut (CVE-2024-24576). The SDK's own
+`--stdio --port 0` carry no such character; the resolved script path itself is not screened,
+because `&`, `^`, and `%` are legal in Windows paths and a false refusal would break legitimate
+installs. The batch line is composed as one string on every target, because `cmd.exe` does not
+follow the MSVCRT rules `ArgumentList` applies; the non-batch case is unchanged (`ArgumentList` on
+modern targets, `ProcessArgumentComposer` downlevel). The stdin ownership lease and the stdout
+readiness line pass through the interpreter to the child unchanged, and `ProcessId` reports the
+launcher-owned root — for a batch shim, the `cmd.exe` host rather than the server process. Bounded
+tree termination already covers the grandchild, and launcher acceptance proves it.
+
 An optional caller-created `OpenCodeServerOutput` collector, supplied through the start options,
 retains a bounded tail of both streams, including the first stdout line, for pull snapshots. It
 invokes no caller code on the process readers and survives a failed start. Each snapshot reports
@@ -390,10 +421,12 @@ disposes.
 The failure plane is `OpenCodeServerException : OpenCodeException`. A bounded stderr tail rides
 every startup failure that reaches a running child: an exit before readiness (naming the exit
 code), a readiness timeout (naming the configured bound), and a non-contract first stdout line
-(quoting it) all carry it. A spawn failure (wrapping the underlying `Win32Exception`) carries none
-— nothing ran, so there is no stderr to report. Caller cancellation during the readiness wait stays
-`OperationCanceledException` rather than being folded into the exception type, after the child is
-torn down.
+(quoting it) all carry it. The three pre-spawn failures carry none, because nothing ran: an
+unresolvable command (naming the command, the directories searched, and the extensions tried), a
+refused batch argument (naming the argument and the shim), and a spawn failure (wrapping the
+underlying `Win32Exception`, naming the caller's spelling and, when they differ, the resolved
+path). Caller cancellation during the readiness wait stays `OperationCanceledException` rather
+than being folded into the exception type, after the child is torn down.
 
 Launcher acceptance is real-process and three-OS. Platform-specific behavior is tested on the
 platform it represents; a successful compile is not a lifecycle proof.
@@ -407,7 +440,10 @@ invented method names, and every variation rides options arguments rather than a
 CLI `--standalone`) → `OpenCodeServer.StartAsync`, above: always a fresh private server on port
 zero with its own generated lease credential, never discovering or attaching to another server, so
 coexistence with any running server is safe by construction. The returned working object is the
-only owner of its child. This door has landed.
+only owner of its child. Process isolation is not state isolation: the child resolves the same
+user data, state, cache, and config roots as any other opencode process on the machine unless the
+caller redirects `XDG_DATA_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME`, and `XDG_CONFIG_HOME`
+through `Environment` — observed on Windows as well as on Unix. This door has landed.
 
 **Explicit endpoint** (CLI `--server` parity; upstream builds a plain client plus a 5-second-bounded
 health check and a version warning, `server-connection.ts:24-39`) → plain `OpenCodeClient`

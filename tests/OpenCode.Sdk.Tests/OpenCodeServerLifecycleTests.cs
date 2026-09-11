@@ -15,66 +15,13 @@ public sealed class OpenCodeServerLifecycleTests
         CancellationToken cancellationToken = default)
     {
         var runRoot = new TestRunRoot(FileSystem);
-        var pinnedCommand = new PinnedServerCommand(FileSystem);
-        var options = new OpenCodeServerOptions
-        {
-            Command = pinnedCommand.Resolve(),
-            // Bun's own workspace/tsconfig discovery for the pinned monorepo's JSX packages
-            // (the TUI's solid-js tree) walks from the process's working directory, not from
-            // the absolute entry-file path. A working directory outside the checkout (the
-            // original design of an isolated per-run scratch "cwd") leaves that discovery unable
-            // to find the workspace root, and the source-run server fails before readiness with
-            // "Cannot find module 'react/jsx-dev-runtime'" — confirmed by direct repro. Anchoring
-            // the working directory at the CLI package (this repo's own historical smoke-test
-            // convention) is what upstream's own "dev" script does; state/data/cache/config stay
-            // isolated through the environment below regardless of this directory.
-            WorkingDirectory = FileSystem.Path.Combine(
-                pinnedCommand.RepositoryRoot, "external", "opencode", "packages", "cli"),
-            Environment = ServerIsolation.Environment(FileSystem, runRoot.Path),
-            ReadinessTimeout = TimeSpan.FromMinutes(3),
-        };
+        var options = new PinnedServerLaunch(FileSystem).Options(runRoot);
         if (gracefulShutdownTimeout is { } grace)
         {
             options.GracefulShutdownTimeout = grace;
         }
 
         return (await OpenCodeServer.StartAsync(options, cancellationToken), runRoot);
-    }
-
-    private static bool IsProcessRunning(int processId)
-    {
-        try
-        {
-            using var process = System.Diagnostics.Process.GetProcessById(processId);
-            return !process.HasExited;
-        }
-        catch (ArgumentException)
-        {
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Waits until the launched child is gone. A child that ends itself on a timer can already
-    /// have exited before this runs, and an absent process is the state this waits for: only a
-    /// live handle is worth awaiting, so its absence returns rather than failing the arrangement.
-    /// </summary>
-    private static async Task WaitForProcessExitAsync(int processId, CancellationToken cancellationToken)
-    {
-        System.Diagnostics.Process child;
-        try
-        {
-            child = System.Diagnostics.Process.GetProcessById(processId);
-        }
-        catch (ArgumentException)
-        {
-            return;
-        }
-
-        using (child)
-        {
-            await child.WaitForExitAsync(cancellationToken);
-        }
     }
 
     [Test]
@@ -110,7 +57,7 @@ public sealed class OpenCodeServerLifecycleTests
         // A second disposal is a no-op by contract; this is the idempotence proof, not a stray line.
         await server.DisposeAsync();
 
-        await Assert.That(IsProcessRunning(processId)).IsFalse();
+        await Assert.That(ProcessObservation.IsRunning(processId)).IsFalse();
     }
 
     [Test]
@@ -126,7 +73,7 @@ public sealed class OpenCodeServerLifecycleTests
 
         await server.DisposeAsync();
 
-        await Assert.That(IsProcessRunning(processId)).IsFalse();
+        await Assert.That(ProcessObservation.IsRunning(processId)).IsFalse();
     }
 
     [Test]
@@ -334,7 +281,7 @@ public sealed class OpenCodeServerLifecycleTests
                 Output = output,
             },
             cancellationToken);
-        await WaitForProcessExitAsync(server.ProcessId, cancellationToken);
+        await ProcessObservation.WaitForExitAsync(server.ProcessId, cancellationToken);
 
         await server.DisposeAsync();
 
@@ -407,7 +354,7 @@ public sealed class OpenCodeServerLifecycleTests
         // Owners write their failure diagnostics after teardown, so the child's identity has to
         // outlive the process handle disposal released.
         await Assert.That(server.ProcessId).IsEqualTo(processId);
-        await Assert.That(IsProcessRunning(processId)).IsFalse();
+        await Assert.That(ProcessObservation.IsRunning(processId)).IsFalse();
     }
 
     [Test]
@@ -421,7 +368,13 @@ public sealed class OpenCodeServerLifecycleTests
             },
             cancellationToken)).Throws<OpenCodeServerException>();
 
-        await Assert.That(failure!.Message).Contains("Failed to start");
+        // Resolution refuses it before anything is spawned, so the message is the searched-PATH
+        // report rather than a bare Win32 error the caller cannot act on.
+        await Assert.That(failure!.Message).Contains("'opencode-sdk-test-missing-executable'");
+        await Assert.That(failure.Message).Contains("was not found on PATH");
+        await Assert.That(failure.Message).Contains("directories searched");
+        await Assert.That(failure.Message).Contains("OpenCodeServerOptions.Command");
+        await Assert.That(failure.Message).Contains("@opencode/cli");
     }
 
     [Test]

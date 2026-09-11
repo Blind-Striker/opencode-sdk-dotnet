@@ -40,8 +40,34 @@ Nightly builds of `master` are on
   the page door are independent walks of the same recipe, so enumerating both sends both sets of
   requests.
 
+### 🐛 Fixes
+
+- **`OpenCodeServer.StartAsync()` now works on Windows with an npm-installed CLI.** npm writes shim
+  files (`opencode2`, `opencode2.cmd`, `opencode2.ps1`) and keeps the real binary inside
+  `node_modules`, while `Process.Start` appends only `.exe` and ignores `PATHEXT` — so the shipped
+  default `Command` failed on every npm-installed Windows machine with a bare "Failed to start the
+  server command 'opencode2'" and no stderr. The launcher now resolves `Command[0]` the way a shell
+  does before spawning anything, so the `.cmd` shim is found and started. Nothing changes on Linux
+  or macOS, where npm's bin entry is a link to the binary and the default already worked.
+
 ### 🔧 Changes
 
+- **`Command[0]` is resolved before the process is created.** A path (rooted, or carrying a
+  directory separator) is used as written; a bare name is searched through the `PATH` directories
+  in order, skipping empty entries and resolving relative ones against the current directory. On
+  Windows a bare name with no extension is tried with each `PATHEXT` extension in `PATHEXT` order
+  (falling back to `.COM;.EXE;.BAT;.CMD`), and a name that already carries an extension is tried as
+  written; on Unix the name itself is searched. A bare name that matches nothing now fails with an
+  `OpenCodeServerException` that names the command, the number of directories searched, and the
+  extensions tried, instead of the bare spawn error it used to surface.
+- **A resolved Windows `.cmd`/`.bat` shim is launched through the system `cmd.exe`** (`/d /s /c`,
+  every token quoted) rather than through `CreateProcess`'s implicit batch handling. Two consequences:
+  `ProcessId` then reports the `cmd.exe` host rather than the server process — ask the server for
+  `health.Health.Pid` when you need that one, and note that disposal's whole-tree kill still covers
+  everything underneath — and a leading argument of yours containing `&`, `|`, `<`, `>`, `^`, `%`,
+  `!`, `"`, CR, or LF is refused with `OpenCodeServerException` before anything starts, because
+  `cmd.exe` re-parses the line (the fail-closed answer to BatBadBut / CVE-2024-24576). The SDK's own
+  `--stdio --port 0` are unaffected, and non-batch targets are launched exactly as before.
 - **Snapshot additions.** `MessageListRequest.Type` filters a message list by message type
   (`MessageListRequestType`) and rides every continuation unchanged; `ModelInfo.Websocket` and
   `ProviderInfo.Websocket` are new optional flags; compaction ended and failed data, and the
