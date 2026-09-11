@@ -420,6 +420,7 @@
     public sealed class MessageListRequest : OpenCode.Sdk.ListRequest, System.IEquatable<OpenCode.Sdk.MessageListRequest>
     {
         public MessageListRequest() { }
+        public OpenCode.Sdk.Models.MessageListRequestType? Type { get; init; }
     }
     public sealed class MessageListResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.MessageListResponse>
     {
@@ -743,7 +744,6 @@
             public const string ListMessagesTemplate = "/api/session/{sessionID}/message";
             public const string ListRequestsTemplate = "/api/session/{sessionID}/permission";
             public const string ListSessionsTemplate = "/api/session";
-            public const string PatchMessageUpdateTemplate = "/api/session/{sessionID}/message/{messageID}";
             public const string PostBackgroundTemplate = "/api/session/{sessionID}/background";
             public const string PostCommandTemplate = "/api/session/{sessionID}/command";
             public const string PostCompactTemplate = "/api/session/{sessionID}/compact";
@@ -791,7 +791,6 @@
             public static string ListMessages(string sessionId, OpenCode.Sdk.MessageListRequest? request = null) { }
             public static string ListRequests(string sessionId) { }
             public static string ListSessions(OpenCode.Sdk.SessionListRequest? request = null) { }
-            public static string PatchMessageUpdate(string sessionId, string messageId) { }
             public static string PostBackground(string sessionId) { }
             public static string PostCommand(string sessionId) { }
             public static string PostCompact(string sessionId) { }
@@ -1415,7 +1414,6 @@
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionInstructionsEntryListResponse> ListInstructionsEntryAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.MessageListResponse> ListMessagesAsync(OpenCode.Sdk.MessageListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionPermissionListResponse> ListRequestsAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionMessageUpdatePatchResponse> PatchMessageUpdateAsync(string messageId, OpenCode.Sdk.Models.SessionMessageUpdatePatchRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionBackgroundPostResponse> PostBackgroundAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionCommandPostResponse> PostCommandAsync(OpenCode.Sdk.Models.SessionCommandPostRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionCompactPostResponse> PostCompactAsync(OpenCode.Sdk.Models.SessionCompactPostRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
@@ -1602,12 +1600,6 @@
     {
         public SessionMessageResponse() { }
         public required OpenCode.Sdk.Models.ISessionMessageInfo Message { get; init; }
-        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
-    }
-    public sealed class SessionMessageUpdatePatchResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionMessageUpdatePatchResponse>
-    {
-        public SessionMessageUpdatePatchResponse() { }
-        public required OpenCode.Sdk.Models.SessionMessageAssistant MessageUpdate { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class SessionMovePostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionMovePostResponse>
@@ -2905,12 +2897,6 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         string Type { get; }
     }
-    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.SessionMessageAssistantJsonConverter))]
-    public interface ISessionMessageAssistant
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("type")]
-        string Type { get; }
-    }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.SessionMessageAssistantContentJsonConverter))]
     public interface ISessionMessageAssistantContent
     {
@@ -3679,6 +3665,30 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("status")]
         public string Status { get; }
     }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.MessageListRequestType>))]
+    public enum MessageListRequestType
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("agent-switched")]
+        AgentSwitched = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("model-switched")]
+        ModelSwitched = 1,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("location-switched")]
+        LocationSwitched = 2,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("user")]
+        User = 3,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("synthetic")]
+        Synthetic = 4,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("system")]
+        System = 5,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("skill")]
+        Skill = 6,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("shell")]
+        Shell = 7,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("assistant")]
+        Assistant = 8,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("compaction")]
+        Compaction = 9,
+    }
     public sealed class MessageNotFoundError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.MessageNotFoundError>
     {
         public MessageNotFoundError() { }
@@ -3801,6 +3811,9 @@ namespace OpenCode.Sdk.Models
         public required OpenCode.Sdk.Models.ModelInfoTime Time { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("variants")]
         public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.ModelVariant> Variants { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("websocket")]
+        public bool? Websocket { get; init; }
     }
     public sealed class ModelInfoLimit : System.IEquatable<OpenCode.Sdk.Models.ModelInfoLimit>
     {
@@ -4637,6 +4650,9 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("settings")]
         public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Settings { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("websocket")]
+        public bool? Websocket { get; init; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.ProviderInfoActivation>))]
     public enum ProviderInfoActivation
@@ -5127,6 +5143,9 @@ namespace OpenCode.Sdk.Models
     {
         public SessionCompactionEndedData() { }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("cost")]
+        public double? Cost { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("model")]
         public OpenCode.Sdk.Models.ModelRef? Model { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -5143,6 +5162,9 @@ namespace OpenCode.Sdk.Models
         public required string SessionId { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("text")]
         public required string Text { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("tokens")]
+        public OpenCode.Sdk.Models.TokenUsageInfo? Tokens { get; init; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.SessionCompactionEndedDataReason>))]
     public enum SessionCompactionEndedDataReason
@@ -5185,6 +5207,9 @@ namespace OpenCode.Sdk.Models
     public sealed class SessionCompactionFailedData : System.IEquatable<OpenCode.Sdk.Models.SessionCompactionFailedData>
     {
         public SessionCompactionFailedData() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("cost")]
+        public double? Cost { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("error")]
         public required OpenCode.Sdk.Models.SessionStructuredError Error { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -5194,6 +5219,9 @@ namespace OpenCode.Sdk.Models
         public required OpenCode.Sdk.Models.SessionCompactionFailedDataReason Reason { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("tokens")]
+        public OpenCode.Sdk.Models.TokenUsageInfo? Tokens { get; init; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.SessionCompactionFailedDataReason>))]
     public enum SessionCompactionFailedDataReason
@@ -6222,7 +6250,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonStringEnumMemberName("unknown")]
         Unknown = 5,
     }
-    public sealed class SessionMessageAssistantReasoning : OpenCode.Sdk.Models.ISessionMessageAssistant, OpenCode.Sdk.Models.ISessionMessageAssistantContent, OpenCode.Sdk.Models.ISessionMessageAssistantContentEncoded, System.IEquatable<OpenCode.Sdk.Models.SessionMessageAssistantReasoning>
+    public sealed class SessionMessageAssistantReasoning : OpenCode.Sdk.Models.ISessionMessageAssistantContent, OpenCode.Sdk.Models.ISessionMessageAssistantContentEncoded, System.IEquatable<OpenCode.Sdk.Models.SessionMessageAssistantReasoning>
     {
         public SessionMessageAssistantReasoning() { }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -6268,7 +6296,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("start")]
         public string? Start { get; init; }
     }
-    public sealed class SessionMessageAssistantText : OpenCode.Sdk.Models.ISessionMessageAssistant, OpenCode.Sdk.Models.ISessionMessageAssistantContent, OpenCode.Sdk.Models.ISessionMessageAssistantContentEncoded, System.IEquatable<OpenCode.Sdk.Models.SessionMessageAssistantText>
+    public sealed class SessionMessageAssistantText : OpenCode.Sdk.Models.ISessionMessageAssistantContent, OpenCode.Sdk.Models.ISessionMessageAssistantContentEncoded, System.IEquatable<OpenCode.Sdk.Models.SessionMessageAssistantText>
     {
         public SessionMessageAssistantText() { }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -6291,7 +6319,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("streamed")]
         public double? Streamed { get; init; }
     }
-    public sealed class SessionMessageAssistantTool : OpenCode.Sdk.Models.ISessionMessageAssistant, OpenCode.Sdk.Models.ISessionMessageAssistantContent, OpenCode.Sdk.Models.ISessionMessageAssistantContentEncoded, System.IEquatable<OpenCode.Sdk.Models.SessionMessageAssistantTool>
+    public sealed class SessionMessageAssistantTool : OpenCode.Sdk.Models.ISessionMessageAssistantContent, OpenCode.Sdk.Models.ISessionMessageAssistantContentEncoded, System.IEquatable<OpenCode.Sdk.Models.SessionMessageAssistantTool>
     {
         public SessionMessageAssistantTool() { }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -6329,6 +6357,9 @@ namespace OpenCode.Sdk.Models
     public sealed class SessionMessageCompactionCompleted : OpenCode.Sdk.Models.ISessionMessageCompaction, OpenCode.Sdk.Models.ISessionMessageInfo, System.IEquatable<OpenCode.Sdk.Models.SessionMessageCompactionCompleted>
     {
         public SessionMessageCompactionCompleted() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("cost")]
+        public double? Cost { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("id")]
         public required string Id { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -6353,6 +6384,9 @@ namespace OpenCode.Sdk.Models
         public required string Summary { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("time")]
         public required OpenCode.Sdk.Models.SessionMessageCompactionCompletedTime Time { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("tokens")]
+        public OpenCode.Sdk.Models.TokenUsageInfo? Tokens { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
     }
@@ -6373,6 +6407,9 @@ namespace OpenCode.Sdk.Models
     public sealed class SessionMessageCompactionFailed : OpenCode.Sdk.Models.ISessionMessageCompaction, OpenCode.Sdk.Models.ISessionMessageInfo, System.IEquatable<OpenCode.Sdk.Models.SessionMessageCompactionFailed>
     {
         public SessionMessageCompactionFailed() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("cost")]
+        public double? Cost { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("error")]
         public required OpenCode.Sdk.Models.SessionStructuredError Error { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("id")]
@@ -6386,6 +6423,9 @@ namespace OpenCode.Sdk.Models
         public string Status { get; }
         [System.Text.Json.Serialization.JsonPropertyName("time")]
         public required OpenCode.Sdk.Models.SessionMessageCompactionFailedTime Time { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("tokens")]
+        public OpenCode.Sdk.Models.TokenUsageInfo? Tokens { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
     }
@@ -6438,7 +6478,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("created")]
         public required double Created { get; init; }
     }
-    public sealed class SessionMessageContentUpdated : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionMessageContentUpdated>
+    public sealed class SessionMessageContentUpdated : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionMessageContentUpdated>
     {
         public SessionMessageContentUpdated() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -6722,12 +6762,6 @@ namespace OpenCode.Sdk.Models
         public required string Input { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("status")]
         public string Status { get; }
-    }
-    public sealed class SessionMessageUpdatePatchRequest : System.IEquatable<OpenCode.Sdk.Models.SessionMessageUpdatePatchRequest>
-    {
-        public SessionMessageUpdatePatchRequest() { }
-        [System.Text.Json.Serialization.JsonPropertyName("content")]
-        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.ISessionMessageAssistant> Content { get; init; }
     }
     public sealed class SessionMessageUser : OpenCode.Sdk.Models.ISessionMessageInfo, System.IEquatable<OpenCode.Sdk.Models.SessionMessageUser>
     {
@@ -9093,15 +9127,6 @@ namespace OpenCode.Sdk.Models
     {
         [System.Text.Json.Serialization.JsonConstructor]
         public UnknownSessionLogItem(string type, System.Text.Json.JsonElement payload) { }
-        public System.Text.Json.JsonElement Payload { get; }
-        [System.Text.Json.Serialization.JsonPropertyName("type")]
-        public string Type { get; }
-    }
-    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownSessionMessageAssistantJsonConverter))]
-    public sealed class UnknownSessionMessageAssistant : OpenCode.Sdk.Models.ISessionMessageAssistant, System.IEquatable<OpenCode.Sdk.Models.UnknownSessionMessageAssistant>
-    {
-        [System.Text.Json.Serialization.JsonConstructor]
-        public UnknownSessionMessageAssistant(string type, System.Text.Json.JsonElement payload) { }
         public System.Text.Json.JsonElement Payload { get; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }

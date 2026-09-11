@@ -331,7 +331,6 @@ public sealed class OperationPlanBinderTests
         "ListInstructionsEntryAsync",
         "ListMessagesAsync",
         "ListRequestsAsync",
-        "PatchMessageUpdateAsync",
         "PostBackgroundAsync",
         "PostCommandAsync",
         "PostCompactAsync",

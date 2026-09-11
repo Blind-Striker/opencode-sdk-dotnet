@@ -1,6 +1,6 @@
 # OpenAPI Snapshot
 
-Date: 2026-09-08
+Date: 2026-09-11
 
 `openapi.json` is the accepted snapshot of the upstream opencode OpenAPI 3.1 document — the v2
 protocol surface (ADR-0005). The SDK is built against this snapshot, never against a live
@@ -14,13 +14,17 @@ their hash-pinned manifests.
 |---|---|
 | Upstream file | `packages/protocol/openapi.json` |
 | Upstream branch | `v2` (active successor line; no release tags yet) |
-| Commit | `f9bc2233ddcc11503a0804b317401bc221ef0e7f` |
-| Upstream product channel | `opencode2` — npm `@opencode-ai/cli@next` (pre-release) |
+| Commit | `20aff6d9f643afe9abf8a048e68f019d049f5329` |
+| Upstream product channel | `opencode2` — npm `@opencode/cli@beta` (pre-release); this commit shipped as `0.0.0-beta-19425` |
 
-At this pin the CLI package is named `@opencode/cli`, following upstream's rename of its workspace
-scope from `@opencode-ai`. The published channel has not moved with it: npm's `@opencode` scope
-carries a reserved placeholder on `latest`, so `@opencode-ai/cli@next` stays the installable
-pre-release and is what the row above names.
+Upstream publishes the v2 line from the `@opencode/cli` npm scope: every push to `v2` becomes a
+`dev` build and every promotion of the `beta` branch becomes a `beta` build, versioned
+`0.0.0-<channel>-<publish run number>`. This pin is the `beta` branch head that shipped as
+`@opencode/cli@0.0.0-beta-19425`, so `npm install -g @opencode/cli@0.0.0-beta-19425` installs a
+server built from exactly this commit; later `beta` builds usually work but are not what this
+repository tests. The former `@opencode-ai/cli` scope is frozen: its `next` and `latest` tags
+stopped at `0.0.0-beta-17823` (published 2026-08-21) and the scope received no publish after
+2026-09-07, so that install line no longer reaches a server this SDK can drive.
 
 `openapi.json` is derived from upstream's own generator output, so upstream's MIT notice
 travels with it in [`THIRD-PARTY-NOTICES.md`](../THIRD-PARTY-NOTICES.md).

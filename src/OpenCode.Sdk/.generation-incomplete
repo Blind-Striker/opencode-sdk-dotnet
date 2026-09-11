@@ -1,5 +1,5 @@
 Generation is complete at the declared coverage; packages may be published.
-Selected operations: 135
+Selected operations: 134
 Pending operations: 0
 Declined operations: 3
 Transport-owned operations: 2
@@ -99,7 +99,6 @@ Selected:
 - v2.session.list
 - v2.session.log
 - v2.session.message
-- v2.session.messageUpdate
 - v2.session.move
 - v2.session.permission.create
 - v2.session.permission.get

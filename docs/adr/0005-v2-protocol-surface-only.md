@@ -27,7 +27,7 @@ internal research, 2026-08-08, "Upstream v1/v2: product version vs HTTP API surf
   consumer-driven legacy testing all disappear; milestone M5 shrinks to completing the
   generation profile over the single surface.
 - Until upstream's v2 line reaches general availability the SDK targets a pre-release
-  server (`opencode2`; npm `@opencode-ai/cli@next`) — accepted: the M-series timeline runs
+  server (`opencode2`; npm `@opencode/cli@beta`) — accepted: the M-series timeline runs
   alongside upstream's stabilization, and the pinned-snapshot + fail-closed refresh
   machinery exists for exactly this churn.
 - The spec pin is a snapshot of a moving branch: refreshes stay deliberate and

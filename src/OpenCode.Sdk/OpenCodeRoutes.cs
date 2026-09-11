@@ -2031,6 +2031,7 @@ public static class OpenCodeRoutes
             query.AddText("limit", request.Limit);
             query.AddOrder("order", request.Order);
             query.AddText("cursor", request.Cursor);
+            query.AddText("type", ToWireValue(request.Type));
             return path + query.Value;
         }
 
@@ -2082,33 +2083,6 @@ public static class OpenCodeRoutes
             query.AddText("subpath", request.Subpath);
             query.AddText("cursor", request.Cursor);
             return path + query.Value;
-        }
-
-        /// <summary>
-        /// The &apos;PATCH /api/session/{sessionID}/message/{messageID}&apos; route template.
-        /// </summary>
-        public const string PatchMessageUpdateTemplate = "/api/session/{sessionID}/message/{messageID}";
-        /// <summary>
-        /// Builds the &apos;/api/session/{sessionID}/message/{messageID}&apos; route.
-        /// </summary>
-        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
-        /// <param name = "messageId">The &apos;messageID&apos; route value.</param>
-        /// <returns>The escaped route.</returns>
-        public static string PatchMessageUpdate(string sessionId, string messageId)
-        {
-            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
-            if (sessionId is "." or "..")
-            {
-                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
-            }
-
-            ArgumentException.ThrowIfNullOrWhiteSpace(messageId);
-            if (messageId is "." or "..")
-            {
-                throw new ArgumentException("Route values must not be dot segments.", nameof(messageId));
-            }
-
-            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/message/" + RouteValuePolicy.Escape(messageId, nameof(messageId));
         }
 
         /// <summary>
@@ -3230,6 +3204,24 @@ public static class OpenCodeRoutes
         FsFindRequestType.Directory => "directory",
         null => null,
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, "Unknown FsFindRequestType value.")
+    };
+    /// <summary>
+    /// Spells one &apos;MessageListRequestType&apos; member the way the wire query expects it.
+    /// </summary>
+    private static string? ToWireValue(MessageListRequestType? value) => value switch
+    {
+        MessageListRequestType.AgentSwitched => "agent-switched",
+        MessageListRequestType.ModelSwitched => "model-switched",
+        MessageListRequestType.LocationSwitched => "location-switched",
+        MessageListRequestType.User => "user",
+        MessageListRequestType.Synthetic => "synthetic",
+        MessageListRequestType.System => "system",
+        MessageListRequestType.Skill => "skill",
+        MessageListRequestType.Shell => "shell",
+        MessageListRequestType.Assistant => "assistant",
+        MessageListRequestType.Compaction => "compaction",
+        null => null,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, "Unknown MessageListRequestType value.")
     };
     /// <summary>
     /// Spells one &apos;SessionStatsRequestTools&apos; member the way the wire query expects it.

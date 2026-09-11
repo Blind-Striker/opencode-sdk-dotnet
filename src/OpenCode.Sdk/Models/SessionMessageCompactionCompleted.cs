@@ -78,4 +78,18 @@ public sealed record SessionMessageCompactionCompleted : ISessionMessageCompacti
     [JsonPropertyName("providerContext")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public SessionProviderContext? ProviderContext { get; init; }
+
+    /// <summary>
+    /// Gets the cost value.
+    /// </summary>
+    [JsonPropertyName("cost")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? Cost { get; init; }
+
+    /// <summary>
+    /// Gets the tokens value.
+    /// </summary>
+    [JsonPropertyName("tokens")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public TokenUsageInfo? Tokens { get; init; }
 }

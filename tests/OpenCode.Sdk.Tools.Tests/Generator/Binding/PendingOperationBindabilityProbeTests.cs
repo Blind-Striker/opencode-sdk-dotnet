@@ -118,7 +118,6 @@ public sealed class PendingOperationBindabilityProbeTests
     [Arguments("v2.session.form.get")]
     [Arguments("v2.session.form.reply")]
     [Arguments("v2.session.form.state")]
-    [Arguments("v2.session.messageUpdate")]
     [Arguments("v2.session.view")]
     [Arguments("v2.workspace.destroy")]
     public async Task Probe_Should_Mark_Every_Known_Wall_Free_Pending_Operation_As_Bindable(string operationId)
