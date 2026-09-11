@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using OpenCode.Sdk.TestSupport;
 using OpenCode.Sdk.TestSupport.Ownership;
@@ -95,7 +96,13 @@ internal sealed class PtyLiveScenario
 
     public void MarkRemoved() => _removed = true;
 
-    public async Task CleanupAsync(Exception? primaryFailure)
+    /// <summary>
+    /// Tears the live PTY down. The calling test names itself, so the failure artifact reports
+    /// the test that actually failed rather than whichever one was written first.
+    /// </summary>
+    /// <param name="primaryFailure">The failure the test body captured, when any.</param>
+    /// <param name="testName">The calling test member; supplied by the compiler.</param>
+    public async Task CleanupAsync(Exception? primaryFailure, [CallerMemberName] string testName = "")
     {
         if (Interlocked.Exchange(ref _cleaned, 1) is 1)
         {
@@ -149,8 +156,7 @@ internal sealed class PtyLiveScenario
         }
         catch (Exception exception)
         {
-            _server.MarkFailure(exception, "PtySessionLiveTests.Pty_Should_Create_Execute_Replay_Resume_And_Remove",
-                Diagnostics.Describe());
+            _server.MarkFailure(exception, "PtySessionLiveTests." + testName, Diagnostics.Describe());
             throw;
         }
     }

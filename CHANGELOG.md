@@ -27,6 +27,15 @@ Nightly builds of `master` are on
 
 ### ✨ New features
 
+- **One door submits a command line on both terminal families.** `PtySession.SubmitAsync(string)`
+  and `PersistentPtySession.SubmitAsync(string)` send the line plus the carriage return a
+  terminal's Enter key sends, through the same serialized send path as the matching `WriteAsync` —
+  a UTF-8 text message for a normal PTY, the framed input message carrying the viewport for a
+  persistent one. The argument is exactly one line: a `\r` or an `\n` inside it is refused with
+  `ArgumentException`, an empty line is a bare Enter, and nothing is trimmed. `WriteAsync` is
+  unchanged and stays the raw door — partial input, control sequences, and bytes a terminal
+  emulator produced.
+
 - **Session listing enumerates too.** `SessionsClient.EnumerateSessionsAsync` joins
   `SessionClient.EnumerateMessagesAsync` as an automatic cursor walk. A list query now binds the
   shared `ListRequest` spine whenever it *includes* `limit`, `order`, and `cursor` — extra filters
@@ -68,6 +77,12 @@ Nightly builds of `master` are on
   `!`, `"`, CR, or LF is refused with `OpenCodeServerException` before anything starts, because
   `cmd.exe` re-parses the line (the fail-closed answer to BatBadBut / CVE-2024-24576). The SDK's own
   `--stdio --port 0` are unaffected, and non-batch targets are launched exactly as before.
+- **The terminals guide no longer contradicts itself about Enter.** Its normal-PTY example wrote
+  `"echo hello\r"` while its persistent-PTY example wrote `"echo hello\n"`. Both now run their
+  command through `SubmitAsync`, and the terminator rule is stated once: Enter is `\r`, `\n` is a
+  line feed that the Windows console host does not accept as a submit, and the SDK never rewrites
+  what `WriteAsync` is given.
+
 - **Snapshot additions.** `MessageListRequest.Type` filters a message list by message type
   (`MessageListRequestType`) and rides every continuation unchanged; `ModelInfo.Websocket` and
   `ProviderInfo.Websocket` are new optional flags; compaction ended and failed data, and the

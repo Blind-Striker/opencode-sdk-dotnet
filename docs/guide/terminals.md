@@ -1,6 +1,6 @@
 # 🖥️ Terminals
 
-Date: 2026-09-08
+Date: 2026-09-12
 
 opencode has two terminal families, and they are genuinely different animals:
 
@@ -10,7 +10,7 @@ opencode has two terminal families, and they are genuinely different animals:
 | Keyed by | its own id | a session id |
 | Survives a server restart | no | yes, through a handoff |
 | Output on the wire | text frames | raw bytes |
-| Input | `WriteAsync(string)` | `WriteAsync(ReadOnlyMemory<byte>)` + `ResizeAsync` |
+| Input | `SubmitAsync(string)`, or raw `WriteAsync(string)` | `SubmitAsync(string)`, or raw `WriteAsync(ReadOnlyMemory<byte>)` + `ResizeAsync` |
 | Available on Windows | ✅ yes | ❌ no — [see the platform note](#-the-windows-platform-note) |
 
 Both live sessions ride a **WebSocket**, not the HTTP pipeline. They are the only two doors in the
@@ -34,8 +34,8 @@ var pty = client.Ptys.GetPtyClient(created.Pty.Id);
 
 await using var terminal = await pty.ConnectAsync();
 
-// A terminal's Enter key is a carriage return; a line feed renders the text but never submits it.
-await terminal.WriteAsync("echo hello\r");
+// SubmitAsync runs one command: it adds the carriage return a terminal's Enter key sends.
+await terminal.SubmitAsync("echo hello");
 
 long? cursor = null;
 
@@ -53,8 +53,13 @@ await foreach (var frame in terminal.ReadAsync(cancellationToken))
 }
 ```
 
-`PtySession` is small on purpose — `ReadAsync`, `WriteAsync`, `DisposeAsync` — and it **owns its
-socket**, so disposing it is how you end the connection. `await using` does that for you.
+`PtySession` is small on purpose — `ReadAsync`, `SubmitAsync`, `WriteAsync`, `DisposeAsync` — and
+it **owns its socket**, so disposing it is how you end the connection. `await using` does that for
+you.
+
+`SubmitAsync` takes **exactly one line**: no `\r` and no `\n` inside it — an embedded break would
+submit a command you never wrote, so it is refused with `ArgumentException` — and an empty string
+is a bare Enter. Nothing is trimmed and nothing else is changed.
 
 `ReadAsync` yields `PtyFrame`, which has exactly two shapes:
 
@@ -64,8 +69,12 @@ socket**, so disposing it is how you end the connection. `await using` does that
 
 Three rules worth knowing before your first surprise:
 
-1. **Enter is `\r`.** `WriteAsync` sends exactly the bytes you give it. A command ending in `\n`
-   renders on the terminal and then sits there forever, unsubmitted.
+1. **Enter is `\r`.** That is the byte a terminal's Enter key sends, and `SubmitAsync` appends it
+   for you — which is the whole reason to prefer it for running a command. `WriteAsync` is the raw
+   door: partial input, control sequences, bytes that came out of a terminal emulator. It sends
+   exactly what you give it and never rewrites a terminator, so a line ending in `\n` is a line
+   feed rather than an Enter — a Unix line discipline may accept it, the Windows console host does
+   not, and there the command renders and then sits at the prompt, unsubmitted.
 2. **One read at a time.** A session carries one active read enumeration; starting a second
    concurrently throws `InvalidOperationException`. Writes are serialized for you. Canceling a read
    does not end the connection — see
@@ -137,7 +146,7 @@ await using var attached = await terminal.ConnectAsync(new PersistentPtyConnectO
 
 Console.WriteLine($"attached as {attached.Attachment.Role}, replay ends at {attached.Attachment.Replay.EndOffset}");
 
-await attached.WriteAsync(Encoding.UTF8.GetBytes("echo hello\n"), cancellationToken);
+await attached.SubmitAsync("echo hello", cancellationToken);
 await attached.ResizeAsync(cols: 100, rows: 30, cancellationToken);
 
 await foreach (var frame in attached.ReadAsync(cancellationToken))
@@ -170,6 +179,10 @@ What is different here:
   accepted by the SDK and dropped by the server. Set `Takeover = true` to take control from the
   current controller; without it a second controller is attached as an observer instead. Reusing a
   previous connection's `AttachmentId` is how a reconnect reclaims its own control.
+- **Input has the same two doors as a normal PTY.** `SubmitAsync` submits one line — the same
+  contract, the same `\r` — UTF-8 encoded into the framed input message that carries your viewport.
+  `WriteAsync` is the raw door here too, and it takes bytes: partial input, control sequences, or
+  whatever your emulator produced.
 - **Output is bytes, never decoded.** `PersistentPtyOutputFrame.Data` is `ReadOnlyMemory<byte>`,
   because a frame is free to split a multi-byte character in half. Feed the bytes to a terminal
   emulator, or decode incrementally with a stateful `Decoder` — never with a fresh
@@ -215,7 +228,7 @@ using (var window = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
     }
 }
 
-await terminal.WriteAsync("echo again\r");
+await terminal.SubmitAsync("echo again");
 
 await foreach (var frame in terminal.ReadAsync(cancellationToken))
 {

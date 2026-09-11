@@ -324,6 +324,107 @@ public sealed class PtySessionTests
         _ = await Assert.That(async () => await session.WriteAsync("late")).Throws<ObjectDisposedException>();
     }
 
+    /// <summary>The line every submit test sends; a submit adds the terminator, never the line.</summary>
+    private const string SubmittedLine = "echo hello";
+
+    /// <summary>The carriage return a terminal's Enter key sends, pinned here rather than derived.</summary>
+    private const string Enter = "\r";
+
+    /// <summary>Lines a submit refuses: one submit is one Enter, so a break is WriteAsync's business.</summary>
+    public static IEnumerable<Func<string>> LinesCarryingABreak() =>
+    [
+        static () => SubmittedLine + "\r",
+        static () => SubmittedLine + "\n",
+        static () => SubmittedLine + "\r\necho again",
+    ];
+
+    [Test]
+    public async Task SubmitAsync_Should_Send_The_Line_Terminated_By_Enter()
+    {
+        var socket = new ScriptedTerminalWebSocket();
+        await using var session = new PtySession(socket);
+
+        await session.SubmitAsync(SubmittedLine);
+
+        await Assert.That(socket.SentMessageTypes.Single()).IsEqualTo(WebSocketMessageType.Text);
+        await Assert.That(socket.SentText.Single()).IsEqualTo(SubmittedLine + Enter);
+    }
+
+    [Test]
+    public async Task SubmitAsync_Should_Send_A_Bare_Enter_For_An_Empty_Line()
+    {
+        var socket = new ScriptedTerminalWebSocket();
+        await using var session = new PtySession(socket);
+
+        await session.SubmitAsync(string.Empty);
+
+        await Assert.That(socket.SentText.Single()).IsEqualTo(Enter);
+    }
+
+    [Test]
+    public async Task SubmitAsync_Should_Refuse_A_Null_Line()
+    {
+        var socket = new ScriptedTerminalWebSocket();
+        await using var session = new PtySession(socket);
+
+        _ = await Assert.That(async () => await session.SubmitAsync(null!)).Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    [MethodDataSource(nameof(LinesCarryingABreak))]
+    public async Task SubmitAsync_Should_Refuse_A_Line_Carrying_A_Break(string line)
+    {
+        var socket = new ScriptedTerminalWebSocket();
+        await using var session = new PtySession(socket);
+
+        var failure = await Assert.That(async () => await session.SubmitAsync(line)).Throws<ArgumentException>();
+
+        // A submit is one Enter: an embedded break would run a command the caller never wrote.
+        await Assert.That(failure!.ParamName).IsEqualTo("line");
+        await Assert.That(socket.SentMessages).IsEmpty();
+    }
+
+    [Test]
+    public async Task SubmitAsync_Should_Refuse_A_Submit_After_Disposal()
+    {
+        var socket = new ScriptedTerminalWebSocket();
+        var session = new PtySession(socket);
+        await session.DisposeAsync();
+
+        _ = await Assert.That(async () => await session.SubmitAsync(SubmittedLine)).Throws<ObjectDisposedException>();
+    }
+
+    [Test]
+    public async Task SubmitAsync_Should_Report_A_Failed_Send_As_A_Transport_Failure()
+    {
+        var socket = new ScriptedTerminalWebSocket().FailingNextSendWith(new WebSocketException("connection reset"));
+        await using var session = new PtySession(socket);
+
+        var failure = await Assert.That(async () => await session.SubmitAsync(SubmittedLine))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(failure!.Message).Contains("PTY WebSocket");
+        await Assert.That(failure.InnerException).IsTypeOf<WebSocketException>();
+    }
+
+    [Test]
+    public async Task SubmitAsync_Should_Serialize_Behind_An_Outstanding_Write()
+    {
+        var socket = new ScriptedTerminalWebSocket().GatingSends();
+        await using var session = new PtySession(socket);
+
+        var write = session.WriteAsync("partial");
+        await socket.SendEntered;
+        var submit = session.SubmitAsync(SubmittedLine);
+        await Assert.That(socket.SentMessages.Count).IsEqualTo(1);
+
+        socket.ReleaseSends();
+        await Task.WhenAll(write, submit);
+
+        await Assert.That(socket.MaxConcurrentSends).IsEqualTo(1);
+        await Assert.That(socket.SentText).IsEquivalentTo(["partial", SubmittedLine + Enter]);
+    }
+
     [Test]
     public async Task DisposeAsync_Should_Let_An_In_Flight_Write_Finish_Cleanly()
     {

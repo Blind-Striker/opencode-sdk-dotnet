@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net.WebSockets;
+using System.Text;
 using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Models;
 
@@ -65,10 +66,13 @@ public class PersistentPtySession : IAsyncDisposable
 
     /// <summary>
     /// Writes terminal input as one framed binary message carrying the current viewport. The
-    /// bytes are sent exactly as given, so a caller submitting a command ends the line with the
-    /// carriage return its terminal expects. Sends are serialized: the socket allows one
-    /// outstanding send, so concurrent callers queue rather than corrupt the stream. Input from a
-    /// connection the server attached as an observer is accepted here and dropped there.
+    /// bytes are sent exactly as given: this is the raw door, for partial input, control
+    /// sequences, and bytes a terminal emulator already produced. A terminal's Enter key is
+    /// carriage return (<c>\r</c>), so a caller submitting a command ends the line with it — or
+    /// calls <see cref="SubmitAsync"/>, which adds that terminator. Sends are serialized: the
+    /// socket allows one outstanding send, so concurrent callers queue rather than corrupt the
+    /// stream. Input from a connection the server attached as an observer is accepted here and
+    /// dropped there.
     /// </summary>
     /// <param name="input">The input bytes to send.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -77,6 +81,30 @@ public class PersistentPtySession : IAsyncDisposable
     /// <exception cref="OpenCodeTransportException">The connection failed while sending.</exception>
     public virtual Task WriteAsync(ReadOnlyMemory<byte> input, CancellationToken cancellationToken = default) =>
         SendFrameAsync(PersistentPtyInputFrame.InputType, input, cancellationToken);
+
+    /// <summary>
+    /// Submits one line to the terminal: the line plus the carriage return a terminal's Enter key
+    /// sends, UTF-8 encoded into one framed binary message carrying the current viewport. This is
+    /// the door for running a command; the line is otherwise sent exactly as given, with no
+    /// trimming and no other transformation. An empty line is a bare Enter. Sends are serialized
+    /// exactly as <see cref="WriteAsync"/>'s are, a submit after disposal throws just as a write
+    /// does, and a submit from an observer connection is accepted here and dropped by the server.
+    /// </summary>
+    /// <param name="line">Exactly one line, carrying no carriage return and no line feed; never null.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task that completes once the message is sent.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="line"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="line"/> carries a carriage return or a line feed: a submit is one Enter, so send a break with <see cref="WriteAsync"/>.</exception>
+    /// <exception cref="ObjectDisposedException">The session has been disposed.</exception>
+    /// <exception cref="OpenCodeTransportException">The connection failed while sending.</exception>
+    public virtual Task SubmitAsync(string line, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(line);
+
+        var submitted = TerminalSubmission.Compose(line, nameof(line));
+        return SendFrameAsync(
+            PersistentPtyInputFrame.InputType, Encoding.UTF8.GetBytes(submitted), cancellationToken);
+    }
 
     /// <summary>
     /// Resizes the terminal through a control frame and records the viewport later writes carry.

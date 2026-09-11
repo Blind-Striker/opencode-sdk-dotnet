@@ -99,8 +99,7 @@ is revisited at each boundary.
   configuration from the transport factory (reopens when M6 attaches telemetry or hooks, or when
   Extensions gains a concrete named-client need); a parent-mediated handle door for flat
   single-action families and exposing a handle client's resource id as a property (both additive, so
-  both wait for the packaging freeze's surface review); a `PtySession.SubmitAsync(string)`
-  convenience door (waits for a first real consumer); the generated folder and namespace layout
+  both wait for the packaging freeze's surface review); the generated folder and namespace layout
   review; and the generator's remaining binding-locality extractions.
 
 ## Known Gaps

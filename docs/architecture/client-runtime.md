@@ -130,8 +130,12 @@ local server launcher. Protocol and generated-model rules live in
   ordinary output. Output is decoded with **replacement**, never fatally: the server chunks its
   replay at 64Ki UTF-16 code units, so a chunk boundary can split a surrogate pair.
 - **Input.** A terminal's Enter key is carriage return (`\r`); `WriteAsync` sends exactly the
-  bytes it is given, so a caller submitting a command must end the line with `\r` — `\n` renders
-  the text but never submits it (research log Q151).
+  bytes it is given, so a caller that uses the raw door must end the line with `\r` — `\n` renders
+  the text but never submits it on the Windows console host (research log Q151). `SubmitAsync` is
+  the door for one command: it sends the line plus `\r` through the same serialized send path, and
+  refuses a line carrying `\r` or `\n`, because one submit is one Enter and an embedded break
+  would submit a command the caller did not write. An empty line is a bare Enter, and nothing else
+  about the line is transformed.
 - **Close.** 1000 ends the enumeration normally — the process exit code is not on this wire, so a
   reader that needs it calls `GetPtyAsync`. 4404 means the session was not found or had already
   exited and throws with the reason; because an exited PTY still upgrades cleanly, that failure
@@ -210,10 +214,13 @@ local server launcher. Protocol and generated-model rules live in
   grow kinds. A body that is not a JSON object carrying a string `type`, and a known frame whose
   members cannot be read, are both protocol failures, reported apart because they mean different
   things.
-- **Input.** `WriteAsync(ReadOnlyMemory<byte>)` and `ResizeAsync(cols, rows)` each send one binary
-  message in the framed input protocol's layout — `[type u8][cols u16 BE][rows u16 BE][data]`,
-  type 1 for input and type 0 for a viewport change — which the SDK negotiates on every connection
-  and is the only protocol it writes. The outbound viewport expresses this attachment's local
+- **Input.** `WriteAsync(ReadOnlyMemory<byte>)`, `SubmitAsync(string)`, and
+  `ResizeAsync(cols, rows)` each send one binary message in the framed input protocol's layout —
+  `[type u8][cols u16 BE][rows u16 BE][data]`, type 1 for input and type 0 for a viewport change —
+  which the SDK negotiates on every connection and is the only protocol it writes. `SubmitAsync`
+  carries the same one-line rule both families share: it UTF-8 encodes the line plus the carriage
+  return a terminal's Enter key sends into one type-1 frame, refuses a line carrying `\r` or `\n`,
+  and treats an empty line as a bare Enter. The outbound viewport expresses this attachment's local
   size intent. It starts at the attachment's size, and a successful `ResizeAsync` send changes
   the size carried by later input. An inbound resize report remains available to the consumer
   for rendering but does not overwrite that local intent. Header preparation, socket send, and

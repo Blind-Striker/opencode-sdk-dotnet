@@ -41,6 +41,17 @@ public sealed class PersistentPtyLiveTests(PinnedOpenCodeServerFixture server)
     /// <summary>What the terminal echoes back, then prints again as the command's own output.</summary>
     private const string EchoMarker = "sdk-live";
 
+    /// <summary>
+    /// The line the submit door is handed with no terminator of its own. The empty quotes split
+    /// the marker inside the typed text, so the terminal's echo of this line cannot carry
+    /// <see cref="SubmitMarker"/> - only the shell's own output can, which is what makes a single
+    /// occurrence proof that the line was submitted rather than merely typed.
+    /// </summary>
+    private const string SubmittedLine = "echo sdk''-submitted";
+
+    /// <summary>The text only an executed line prints.</summary>
+    private const string SubmitMarker = "sdk-submitted";
+
     /// <summary>The service the daemon-absent 503 names; the one value that tells it from any other 503.</summary>
     private const string DaemonService = "opencode-pty";
 
@@ -66,6 +77,98 @@ public sealed class PersistentPtyLiveTests(PinnedOpenCodeServerFixture server)
         }
 
         await AssertRoundTripAsync(client, session.Session.Id, created, cancellationToken);
+    }
+
+    /// <summary>
+    /// The submit door against the daemon's own terminal: one line handed over without a
+    /// terminator. Where the daemon exists the shell runs it; where it does not, <c>create</c>
+    /// answers the declared 503 and there is no terminal to submit on. Both arms assert.
+    /// </summary>
+    /// <param name="cancellationToken">The test's own deadline.</param>
+    /// <returns>The running test.</returns>
+    [Test]
+    [Timeout(120_000)]
+    public async Task SubmitAsync_Should_Execute_A_Line_Or_Answer_The_Daemon_Absent_Arm(
+        CancellationToken cancellationToken)
+    {
+        using var client = server.CreateClient();
+        var session = await client.Sessions.CreateSessionAsync(
+            new SessionCreateRequest { Title = SessionTitle }, cancellationToken: cancellationToken);
+        var created = await client.PersistentPtys.CreatePersistentPtyAsync(
+            session.Session.Id, CreateRequest(), OpenCodeRequestOptions.NoThrow, cancellationToken);
+
+        if (!PersistentPtyDaemonGate.DaemonExpected)
+        {
+            await AssertSubmitHasNoTerminalAsync(created);
+            return;
+        }
+
+        await AssertSubmittedLineRunsAsync(client, created, cancellationToken);
+    }
+
+    /// <summary>
+    /// The arm where the daemon does not exist. <c>create</c> is the route that would have started
+    /// it, so its declared 503 is exactly why no submit can reach a terminal here - the branch
+    /// asserts that answer rather than skipping the test.
+    /// </summary>
+    /// <param name="created">The create answer this platform produced.</param>
+    /// <returns>The assertion.</returns>
+    private static async Task AssertSubmitHasNoTerminalAsync(PersistentPtyCreateResponse created)
+    {
+        await Assert.That(created.Status).IsEqualTo(503);
+        await Assert.That(created.IsError).IsTrue();
+        await Assert.That(created.Error).IsTypeOf<ServiceUnavailableError>();
+        var unavailable = created.Error as ServiceUnavailableError;
+        await Assert.That(unavailable?.Service).IsEqualTo(DaemonService);
+
+        Console.WriteLine(
+            "ppty-live: arm=daemon-absent submit=no-terminal create=" + Number(created.Status) +
+            " service=" + unavailable?.Service);
+    }
+
+    /// <summary>
+    /// The arm where the daemon exists: the submitted line runs, and the marker its output prints
+    /// cannot have come from the terminal's echo of the typed text.
+    /// </summary>
+    /// <param name="client">The client the test owns.</param>
+    /// <param name="created">The terminal the daemon created.</param>
+    /// <param name="cancellationToken">The test's own deadline.</param>
+    /// <returns>The assertion.</returns>
+    private static async Task AssertSubmittedLineRunsAsync(
+        OpenCodeClient client,
+        PersistentPtyCreateResponse created,
+        CancellationToken cancellationToken)
+    {
+        await Assert.That(created.Status).IsEqualTo(200);
+        await Assert.That(created.IsError).IsFalse();
+
+        var terminal = client.PersistentPtys.GetPersistentPtyClient(created.PersistentPty.Id);
+        var output = await SubmitOneLineAsync(terminal, cancellationToken);
+        await Assert.That(output).Contains(SubmitMarker);
+
+        var removed = await terminal.RemovePersistentPtyAsync(cancellationToken: cancellationToken);
+        await Assert.That(removed.Status).IsEqualTo(204);
+
+        Console.WriteLine(
+            "ppty-live: arm=round-trip id=" + created.PersistentPty.Id +
+            " submitted=" + Observed(output, SubmitMarker) +
+            " remove=" + Number(removed.Status));
+    }
+
+    /// <summary>
+    /// Attaches, submits one line, and reads until the executed output arrives. The session is
+    /// disposed before the caller removes the terminal, so the removal is not racing a live socket.
+    /// </summary>
+    /// <param name="terminal">The terminal handle to attach to.</param>
+    /// <param name="cancellationToken">The test's own deadline.</param>
+    /// <returns>The output the terminal produced, decoded together.</returns>
+    private static async Task<string> SubmitOneLineAsync(
+        PersistentPtyClient terminal, CancellationToken cancellationToken)
+    {
+        await using var session = await terminal.ConnectAsync(cancellationToken: cancellationToken);
+
+        await session.SubmitAsync(SubmittedLine, cancellationToken);
+        return await ReadUntilMarkerAsync(session, SubmitMarker, cancellationToken);
     }
 
     /// <summary>
@@ -188,7 +291,7 @@ public sealed class PersistentPtyLiveTests(PinnedOpenCodeServerFixture server)
         await Assert.That(attachment.InputProtocol).IsEqualTo(FramedInputProtocol);
 
         await session.WriteAsync(Encoding.UTF8.GetBytes(EchoCommand), cancellationToken);
-        var echoed = await ReadUntilEchoAsync(session, cancellationToken);
+        var echoed = await ReadUntilMarkerAsync(session, EchoMarker, cancellationToken);
         await Assert.That(echoed).Contains(EchoMarker);
 
         await session.ResizeAsync(ResizedCols, ResizedRows, cancellationToken);
@@ -216,12 +319,16 @@ public sealed class PersistentPtyLiveTests(PinnedOpenCodeServerFixture server)
     }
 
     /// <summary>
-    /// Reads output frames until the concatenated bytes carry the echo. The bytes are decoded
+    /// Reads output frames until the concatenated bytes carry the marker. The bytes are decoded
     /// together rather than per frame: this family sends raw terminal output, which is free to
     /// split a multi-byte character - or the marker itself - across two frames.
     /// </summary>
-    private static async Task<string> ReadUntilEchoAsync(
-        PersistentPtySession session, CancellationToken cancellationToken)
+    /// <param name="session">The attached session to read.</param>
+    /// <param name="marker">The text the read is waiting for.</param>
+    /// <param name="cancellationToken">The test's own deadline.</param>
+    /// <returns>Everything the terminal sent, up to and including the marker.</returns>
+    private static async Task<string> ReadUntilMarkerAsync(
+        PersistentPtySession session, string marker, CancellationToken cancellationToken)
     {
         var output = new List<byte>();
         await foreach (var frame in session.ReadAsync(cancellationToken))
@@ -233,14 +340,14 @@ public sealed class PersistentPtyLiveTests(PinnedOpenCodeServerFixture server)
 
             output.AddRange(chunk.Data.ToArray());
             var text = Encoding.UTF8.GetString([.. output]);
-            if (text.Contains(EchoMarker, StringComparison.Ordinal))
+            if (text.Contains(marker, StringComparison.Ordinal))
             {
                 return text;
             }
         }
 
         throw new InvalidOperationException(
-            "The persistent terminal closed before it echoed '" + EchoMarker + "'.");
+            "The persistent terminal closed before it produced '" + marker + "'.");
     }
 
     /// <summary>
