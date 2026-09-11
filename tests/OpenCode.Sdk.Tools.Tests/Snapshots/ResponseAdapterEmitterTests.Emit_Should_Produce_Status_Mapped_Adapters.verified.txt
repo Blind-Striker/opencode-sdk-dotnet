@@ -188,14 +188,14 @@ internal sealed class WidgetItemListResponseAdapter : ResponseAdapter<WidgetItem
     }
 
     /// <summary>
-    /// Creates a continuation request carrying the initial limit and opaque next cursor.
+    /// Creates a continuation request carrying every initial filter beside the opaque next cursor, with the first-page-only order dropped.
     /// </summary>
     public ItemListRequest CreateNextRequest(ItemListRequest? initialRequest, string cursor)
     {
         ArgumentNullException.ThrowIfNull(cursor);
-        return new ItemListRequest
+        return (initialRequest ?? new())with
         {
-            Limit = initialRequest?.Limit,
+            Order = null,
             Cursor = cursor
         };
     }

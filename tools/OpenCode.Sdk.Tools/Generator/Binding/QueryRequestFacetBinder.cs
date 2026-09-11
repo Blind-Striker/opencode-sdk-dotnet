@@ -38,21 +38,24 @@ internal sealed class QueryRequestFacetBinder(OperationFacetContext context)
             return null;
         }
 
-        if (MatchesListRequestProfile(properties))
+        var derivesFromListRequest = ListRequestSpinePolicy.CarriesSpine(properties);
+        if (derivesFromListRequest)
         {
             properties =
             [
-                .. properties.Select(static property => property with
-                {
-                    IsInherited = true
-                })
+                .. properties.Select(static property => ListRequestSpinePolicy.IsSpineMember(property)
+                    ? property with
+                    {
+                        IsInherited = true
+                    }
+                    : property)
             ];
         }
 
         return new QueryRequestPlan
         {
             TypeName = OperationNamePolicy.RequestTypeName(_context.Operation),
-            DerivesFromListRequest = properties.Count > 0 && properties[0].IsInherited,
+            DerivesFromListRequest = derivesFromListRequest,
             Properties = properties,
         };
     }
@@ -158,16 +161,6 @@ internal sealed class QueryRequestFacetBinder(OperationFacetContext context)
             IsInherited = false,
         };
     }
-
-    /// <summary>
-    /// The fail-closed profile wall: an operation derives from the <c>ListRequest</c> base
-    /// only when its wire query parameters are exactly the optional cursor-pagination trio.
-    /// </summary>
-    private static bool MatchesListRequestProfile(List<QueryPropertyPlan> properties) =>
-        properties.Count is 3
-        && properties.Any(static property => property is { WireName: "limit", Kind: QueryValueKind.Text, IsRequired: false })
-        && properties.Any(static property => property is { WireName: "order", Kind: QueryValueKind.ListOrder, IsRequired: false })
-        && properties.Any(static property => property is { WireName: "cursor", Kind: QueryValueKind.Text, IsRequired: false });
 
     private QueryValueKind? ResolveQueryValueKind(SchemaNode value)
     {

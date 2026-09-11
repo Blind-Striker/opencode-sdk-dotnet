@@ -1,6 +1,6 @@
 # Client Runtime Architecture
 
-Date: 2026-09-08
+Date: 2026-09-12
 
 Canonical current rules for client construction, transport ownership, API errors, streams, and the
 local server launcher. Protocol and generated-model rules live in
@@ -319,14 +319,21 @@ local server launcher. Protocol and generated-model rules live in
 ## Pagination
 
 - A supported cursor-list operation has two generated doors: `List*Async` returns one endpoint-
-  specific page envelope, while `Enumerate*Async` lazily yields its items across pages. Explicit
-  pages retain cursor/status metadata and per-call `NoThrow`; automatic item traversal has no
-  response envelope and therefore always throws API errors when their page is reached (ADR-0007,
-  ADR-0017).
-- `ListRequest` carries the pinned string `limit`, first-page `order`, and opaque `cursor` channels;
-  `ListCursor` preserves the response's optional `previous` and `next` values. The first automatic
-  request is sent unchanged, including an order-plus-cursor pair. Each continuation retains the
-  initial `limit`, omits `order`, and sends the returned `cursor.next` without decoding it.
+  specific page envelope, while `Enumerate*Async` returns a `CursorSequence<TPage, TItem>` that
+  lazily yields the items across pages and, through its `Pages` property, the same traversal's page
+  envelopes. Explicit pages retain per-call `NoThrow`; automatic traversal never takes per-call
+  options and therefore always throws API errors when their page is reached (ADR-0007, ADR-0017).
+- `CursorSequence<TPage, TItem>` is a recipe, not a buffer: the item door and the page door each
+  drive the one traversal core independently, so enumerating either performs its own requests, and
+  enumerating both performs both walks. Its `TPage` is the generated response type — no page
+  vocabulary and no page-size contract is introduced. The token given to `Enumerate*Async` and the
+  token given to `GetAsyncEnumerator`/`WithCancellation` are both observed.
+- `ListRequest` carries the pinned string `limit`, first-page `order`, and opaque `cursor` channels,
+  and a derived request may declare its own filters beside them; `ListCursor` preserves the
+  response's optional `previous` and `next` values. The first automatic request is sent unchanged,
+  including an order-plus-cursor pair. Each continuation is that request again with `order` dropped
+  and the returned `cursor.next` put in place, so `limit` and every filter travel every page and a
+  filter added to the pinned query needs no generator change.
 - A missing `next` cursor is the only normal end signal. An empty page with `next` continues;
   `previous` remains available through explicit page calls. Cursor values are never normalized,
   incremented, compared, or cycle-checked. Cancellation reaches each request and is checked between

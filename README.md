@@ -305,7 +305,7 @@ hand-written `PtySession` and `PersistentPtySession` doors described in
 | [Streaming](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/streaming.md) | The global event bus and per-session server-sent event streams |
 | [Terminals](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/terminals.md) | PTY and persistent-PTY sessions over the WebSocket doors |
 | [Errors and responses](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/errors-and-responses.md) | Throwing versus `NoThrow`, and the typed error model |
-| [Pagination](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/pagination.md) | Cursor-carrying list envelopes and `EnumerateMessagesAsync` |
+| [Pagination](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/pagination.md) | Cursor-carrying list envelopes, `Enumerate*Async`, and its `Pages` |
 
 Architecture, decision records, and engineering policy live under [`docs/`](https://github.com/Blind-Striker/opencode-sdk-dotnet/tree/master/docs) — start at
 [`AGENTS.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/AGENTS.md) if you want the internals rather than the API.

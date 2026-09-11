@@ -45,6 +45,7 @@ public class PaginationBenchmarks : IDisposable
         _session = _client.Sessions.GetSessionClient("ses_bench0000000000000000001");
 
         if (await EnumerateMessagesAsync().ConfigureAwait(false) != PageCount * ItemsPerPage
+            || await EnumerateMessagePagesAsync().ConfigureAwait(false) != PageCount * ItemsPerPage
             || await ListPagesManuallyAsync().ConfigureAwait(false) != PageCount * ItemsPerPage)
         {
             throw new InvalidOperationException("The canned pages did not traverse to the expected item count.");
@@ -57,10 +58,24 @@ public class PaginationBenchmarks : IDisposable
     {
         var session = _session!;
         var count = 0;
-        await foreach (var item in session.EnumerateMessagesAsync().ConfigureAwait(false))
+        await foreach (var item in session.EnumerateMessagesAsync().WithCancellation(CancellationToken.None).ConfigureAwait(false))
         {
             _ = item;
             count++;
+        }
+
+        return count;
+    }
+
+    /// <summary>The same traversal read through the sequence's page door instead of its items.</summary>
+    [Benchmark]
+    public async Task<int> EnumerateMessagePagesAsync()
+    {
+        var session = _session!;
+        var count = 0;
+        await foreach (var page in session.EnumerateMessagesAsync().Pages.WithCancellation(CancellationToken.None).ConfigureAwait(false))
+        {
+            count += page.Messages.Count;
         }
 
         return count;

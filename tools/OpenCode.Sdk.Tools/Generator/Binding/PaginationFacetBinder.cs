@@ -22,6 +22,7 @@ internal sealed class PaginationFacetBinder(OperationFacetContext context)
             {
                 Kind: EnvelopeKind.CursorList,
                 PayloadName: { } payloadName,
+                ResponseTypeName: { } pageTypeName,
                 PayloadType: ListTypeReferencePlan { ElementType: NamedTypeReferencePlan { Name: { } itemTypeName } },
             })
         {
@@ -44,6 +45,14 @@ internal sealed class PaginationFacetBinder(OperationFacetContext context)
             return _context.RefuseNull<PaginationPlan>("cursor pagination cannot carry a declared header parameter");
         }
 
+        // A continuation is the caller's first request with a new cursor, so the traversal must be
+        // able to start one from no request at all; a required filter has no value to carry there.
+        if (queryRequest.HasRequiredMember)
+        {
+            return _context.RefuseNull<PaginationPlan>(
+                "cursor pagination cannot continue a query that declares a required parameter");
+        }
+
         var enumerationMethodName = OperationNamePolicy.EnumerationMethodName(methodName);
         if (enumerationMethodName is null)
         {
@@ -58,6 +67,7 @@ internal sealed class PaginationFacetBinder(OperationFacetContext context)
         {
             MethodName = enumerationMethodName,
             RequestTypeName = queryRequest.TypeName,
+            PageTypeName = pageTypeName,
             ItemTypeName = itemTypeName,
             PayloadName = payloadName,
         };

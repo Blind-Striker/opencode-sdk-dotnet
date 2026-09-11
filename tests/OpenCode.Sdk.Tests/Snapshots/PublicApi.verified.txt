@@ -76,6 +76,12 @@
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.CredentialRemoveResponse> RemoveCredentialAsync(string credentialId, OpenCode.Sdk.CredentialRemoveRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.CredentialUpdatePatchResponse> UpdateCredentialAsync(string credentialId, OpenCode.Sdk.Models.CredentialUpdatePatchRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
+    public sealed class CursorSequence<TPage, TItem> : System.Collections.Generic.IAsyncEnumerable<TItem>
+        where TPage : OpenCode.Sdk.OpenCodeResponse
+    {
+        public System.Collections.Generic.IAsyncEnumerable<TPage> Pages { get; }
+        public System.Collections.Generic.IAsyncEnumerator<TItem> GetAsyncEnumerator(System.Threading.CancellationToken cancellationToken = default) { }
+    }
     public class DebugClient
     {
         protected DebugClient() { }
@@ -1395,7 +1401,7 @@
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionFormCreateResponse> CreateFormAsync(OpenCode.Sdk.Models.SessionFormCreateRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionPermissionCreateResponse> CreatePermissionAsync(OpenCode.Sdk.Models.SessionPermissionCreateRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionInboxCancelDeleteResponse> DeleteInboxCancelAsync(string inboxId, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Collections.Generic.IAsyncEnumerable<OpenCode.Sdk.Models.ISessionMessageInfo> EnumerateMessagesAsync(OpenCode.Sdk.MessageListRequest? request = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual OpenCode.Sdk.CursorSequence<OpenCode.Sdk.MessageListResponse, OpenCode.Sdk.Models.ISessionMessageInfo> EnumerateMessagesAsync(OpenCode.Sdk.MessageListRequest? request = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionContextResponse> GetContextAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionExportResponse> GetExportAsync(OpenCode.Sdk.SessionExportRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionFormResponse> GetFormAsync(string formId, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
@@ -1569,13 +1575,10 @@
         public required OpenCode.Sdk.Models.SessionInterruptResponse Interrupt { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
-    public sealed class SessionListRequest : System.IEquatable<OpenCode.Sdk.SessionListRequest>
+    public sealed class SessionListRequest : OpenCode.Sdk.ListRequest, System.IEquatable<OpenCode.Sdk.SessionListRequest>
     {
         public SessionListRequest() { }
-        public string? Cursor { get; init; }
         public string? Directory { get; init; }
-        public string? Limit { get; init; }
-        public OpenCode.Sdk.ListOrder? Order { get; init; }
         public OpenCode.Sdk.SessionParentFilter? ParentId { get; init; }
         public string? Project { get; init; }
         public string? Search { get; init; }
@@ -1721,6 +1724,7 @@
     {
         protected SessionsClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionCreateResponse> CreateSessionAsync(OpenCode.Sdk.Models.SessionCreateRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual OpenCode.Sdk.CursorSequence<OpenCode.Sdk.SessionListResponse, OpenCode.Sdk.Models.SessionInfo> EnumerateSessionsAsync(OpenCode.Sdk.SessionListRequest? request = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionActiveResponse> GetActiveAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual OpenCode.Sdk.SessionClient GetSessionClient(string sessionId) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionStatsResponse> GetStatsAsync(OpenCode.Sdk.SessionStatsRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }

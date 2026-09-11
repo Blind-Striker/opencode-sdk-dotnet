@@ -233,23 +233,27 @@ internal static class ResponseAdapterEmitter
         var requestTypeName = operation.Pagination!.RequestTypeName;
         var statements = new List<StatementSyntax>();
         statements.AddRange(EmissionSyntax.ArgumentNullGuard("cursor"));
-        statements.Add(SyntaxFactory.ReturnStatement(
-            SyntaxFactory.ObjectCreationExpression(TypeSyntaxEmitter.EmitNamed(requestTypeName))
-                .WithInitializer(SyntaxFactory.InitializerExpression(
-                    SyntaxKind.ObjectInitializerExpression,
-                    SyntaxFactory.SeparatedList<ExpressionSyntax>(
-                    [
-                        SyntaxFactory.AssignmentExpression(
-                            SyntaxKind.SimpleAssignmentExpression,
-                            SyntaxFactory.IdentifierName("Limit"),
-                            SyntaxFactory.ConditionalAccessExpression(
-                                SyntaxFactory.IdentifierName("initialRequest"),
-                                SyntaxFactory.MemberBindingExpression(SyntaxFactory.IdentifierName("Limit")))),
-                        SyntaxFactory.AssignmentExpression(
-                            SyntaxKind.SimpleAssignmentExpression,
-                            SyntaxFactory.IdentifierName("Cursor"),
-                            SyntaxFactory.IdentifierName("cursor")),
-                    ])))));
+
+        // The whole first request rides the continuation, so a filter added to the query needs no
+        // emitter change; only the first-page-only order is dropped and the cursor replaced.
+        statements.Add(SyntaxFactory.ReturnStatement(SyntaxFactory.WithExpression(
+            SyntaxFactory.ParenthesizedExpression(SyntaxFactory.BinaryExpression(
+                SyntaxKind.CoalesceExpression,
+                SyntaxFactory.IdentifierName("initialRequest"),
+                SyntaxFactory.ImplicitObjectCreationExpression())),
+            SyntaxFactory.InitializerExpression(
+                SyntaxKind.WithInitializerExpression,
+                SyntaxFactory.SeparatedList<ExpressionSyntax>(
+                [
+                    SyntaxFactory.AssignmentExpression(
+                        SyntaxKind.SimpleAssignmentExpression,
+                        SyntaxFactory.IdentifierName("Order"),
+                        SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)),
+                    SyntaxFactory.AssignmentExpression(
+                        SyntaxKind.SimpleAssignmentExpression,
+                        SyntaxFactory.IdentifierName("Cursor"),
+                        SyntaxFactory.IdentifierName("cursor")),
+                ])))));
         return SyntaxFactory.MethodDeclaration(TypeSyntaxEmitter.EmitNamed(requestTypeName), "CreateNextRequest")
             .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
             .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(
@@ -261,7 +265,8 @@ internal static class ResponseAdapterEmitter
             ])))
             .WithBody(SyntaxFactory.Block(statements))
             .WithLeadingTrivia(EmissionSyntax.Documentation(
-                "Creates a continuation request carrying the initial limit and opaque next cursor."));
+                "Creates a continuation request carrying every initial filter beside the opaque next cursor, "
+                + "with the first-page-only order dropped."));
     }
 
     /// <summary>

@@ -252,14 +252,14 @@ public class SessionClient
     }
 
     /// <summary>
-    /// Enumerates the items returned by &apos;GET /api/session/{sessionID}/message&apos; by following each opaque next cursor.
+    /// Enumerates the items returned by &apos;GET /api/session/{sessionID}/message&apos; by following each opaque next cursor; every filter of the first request rides each continuation.
     /// </summary>
     /// <param name = "request">The request shaping the first page.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;ISessionMessageInfo&apos; sequence.</returns>
+    /// <returns>The &apos;ISessionMessageInfo&apos; sequence, whose Pages expose each &apos;MessageListResponse&apos;.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned a declared error status (declared: 400, 401, 404, 500); pagination API errors always throw.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual IAsyncEnumerable<ISessionMessageInfo> EnumerateMessagesAsync(MessageListRequest? request = null, CancellationToken cancellationToken = default)
+    public virtual CursorSequence<MessageListResponse, ISessionMessageInfo> EnumerateMessagesAsync(MessageListRequest? request = null, CancellationToken cancellationToken = default)
     {
         return CursorPaginator.EnumerateAsync(ListMessagesAsync, request, MessageListResponseAdapter.Instance, cancellationToken);
     }

@@ -25,7 +25,10 @@ internal static class PaginationMethodEmitter
             SyntaxFactory.Argument(SyntaxFactory.IdentifierName(ReservedNamePolicy.CancellationTokenParameter)));
         return SyntaxFactory
             .MethodDeclaration(
-                TypeSyntaxEmitter.Generic("IAsyncEnumerable", TypeSyntaxEmitter.EmitNamed(pagination.ItemTypeName)),
+                TypeSyntaxEmitter.Generic(
+                    "CursorSequence",
+                    TypeSyntaxEmitter.EmitNamed(pagination.PageTypeName),
+                    TypeSyntaxEmitter.EmitNamed(pagination.ItemTypeName)),
                 pagination.MethodName)
             .WithModifiers(EmissionModifiers.Member(emission))
             .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(
@@ -65,12 +68,12 @@ internal static class PaginationMethodEmitter
             "The server could not be reached or returned a malformed success body."));
         return EmissionSyntax.MemberDocumentation(
             $"Enumerates the items returned by '{operation.HttpMethod.ToUpperInvariant()} {operation.RouteTemplate}' "
-            + "by following each opaque next cursor.",
+            + "by following each opaque next cursor; every filter of the first request rides each continuation.",
             [
                 new DocumentedParameter(ReservedNamePolicy.RequestParameter, "The request shaping the first page."),
                 new DocumentedParameter(ReservedNamePolicy.CancellationTokenParameter, "The cancellation token."),
             ],
-            $"The '{pagination.ItemTypeName}' sequence.",
+            $"The '{pagination.ItemTypeName}' sequence, whose Pages expose each '{pagination.PageTypeName}'.",
             exceptions);
     }
 }

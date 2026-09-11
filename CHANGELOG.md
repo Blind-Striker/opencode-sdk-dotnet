@@ -5,9 +5,35 @@ Each released version links straight to its GitHub Release tag.
 
 ## [Unreleased]
 
-Nothing yet. Nightly builds of `master` are on
+Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
 `0.8.0-nightly.{yyyyMMdd}.{shortSha}`.
+
+### ✨ New features
+
+- **Session listing enumerates too.** `SessionsClient.EnumerateSessionsAsync` joins
+  `SessionClient.EnumerateMessagesAsync` as an automatic cursor walk. A list query now binds the
+  shared `ListRequest` spine whenever it *includes* `limit`, `order`, and `cursor` — extra filters
+  no longer disqualify it — so `SessionListRequest` derives from `ListRequest` and gains the
+  companion. Every filter of the first request rides each continuation unchanged; only the
+  first-page-only `order` is dropped and the opaque cursor replaced.
+- **Every automatic walk can be read as pages.** `Enumerate*Async` now returns
+  `CursorSequence<TPage, TItem>`, whose `Pages` property yields each generated response envelope —
+  `Status`, `Cursor`, `RawBody` and all — instead of only the items. There is no new page type and
+  no page-size knob: a page is the response the server returned for one request. The item door and
+  the page door are independent walks of the same recipe, so enumerating both sends both sets of
+  requests.
+
+### 🔧 Changes
+
+- `SessionClient.EnumerateMessagesAsync` returns `CursorSequence<MessageListResponse,
+  ISessionMessageInfo>` instead of `IAsyncEnumerable<ISessionMessageInfo>`. `await foreach` over it
+  is unchanged, and code that stored the result in a variable typed `IAsyncEnumerable<T>` still
+  compiles, because `CursorSequence<TPage, TItem>` implements `IAsyncEnumerable<TItem>`. Code that
+  declared the variable with `var` and then assigned an `IAsyncEnumerable<T>` to the same variable
+  is the one shape that needs its type written out.
+- `SessionListRequest` no longer declares `Limit`, `Order`, and `Cursor` itself; it inherits all
+  three from `ListRequest`. Reading and initializing them is unchanged.
 
 ## [0.8.0-preview.1] - 2026-09-09
 

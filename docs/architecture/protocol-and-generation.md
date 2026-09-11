@@ -1,6 +1,6 @@
 # Protocol and Generation Architecture
 
-Date: 2026-09-03
+Date: 2026-09-12
 
 Canonical current rules for the protocol surface, generator, generated models, and runtime
 materialization boundary. ADRs record why these decisions were made; dated research records the
@@ -191,9 +191,14 @@ dispatch instead of routing it through ADR-0009's unknown carrier (ADR-0015).
   the declared-header channel into the pipeline. The header value stays a caller concern and never
   enters curation or generated code, and a header-bearing operation forgoes the cursor-enumeration
   companion (ADR-0013, ADR-0021).
+- A query binds the `ListRequest` base by inclusion: it must carry the admitted optional `limit`,
+  `order`, and `cursor` parameters in their admitted shapes, and every further optional parameter
+  binds beside them as its own request property. A missing spine member, or one whose schema is not
+  the admitted shape, keeps the request flat and unpaginated.
 - A cursor-list operation emits an additive `Enumerate*Async` companion only when binding proves the
-  admitted `ListRequest` query, `ListCursor` response, item collection, and operation signature.
-  Generated response adapters project page items, the opaque next cursor, and the continuation
+  admitted `ListRequest` query, `ListCursor` response, item collection, and operation signature, and
+  the query declares no required parameter — a continuation must be constructible from no request at
+  all. Generated response adapters project page items, the opaque next cursor, and the continuation
   request into one hand-written traversal core. Method names, descriptions, and upstream source do
   not independently confer pagination semantics (ADR-0013, ADR-0017).
 - A query parameter binds by shape: a required parameter becomes a `required`, non-nullable

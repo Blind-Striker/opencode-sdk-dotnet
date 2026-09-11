@@ -34,6 +34,7 @@ internal static class ReservedNamePolicy
     /// </summary>
     public static readonly FrozenSet<string> SpineTypeNames = FrozenSet.ToFrozenSet(
         [
+            "CursorSequence",
             "ErrorBehavior",
             "IOpenCodeClientOptions",
             EffectStreamTypeNamePolicy.CauseMarkerInterface,
