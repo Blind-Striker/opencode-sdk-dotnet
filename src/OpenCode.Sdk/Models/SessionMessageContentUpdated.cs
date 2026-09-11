@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message content updated value.
 /// </summary>
-public sealed record SessionMessageContentUpdated : ISessionEventDurable, IEvent
+public sealed record SessionMessageContentUpdated : ISessionEventDurable
 {
     /// <summary>
     /// Gets the id value.

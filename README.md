@@ -21,10 +21,10 @@ hand-written transport runtime, so what you call is exactly what the server decl
 covered. What is still outstanding is opencode's third connection mode — attaching to a registered
 background service.
 
-- ✅ **135 of 140 operations** callable, across 28 client families — sessions, PTYs, persistent
+- ✅ **134 of 139 operations** callable, across 28 client families — sessions, PTYs, persistent
   PTYs, shells, events, MCP servers, integrations, providers, permissions, credentials, VCS,
   worktrees, websearch, RPC, and more
-- ✅ **5,138 tests** green on Windows — the fullest leg, the only one that adds the `net472`
+- ✅ **5,177 tests** green on Windows — the fullest leg, the only one that adds the `net472`
   assemblies. Linux and macOS run the same suite on `net8.0`, `net9.0`, and `net10.0`
 - ✅ **Server-sent event streams**, global and per-session, over the same transport as one-shot calls
 - ✅ **PTY and persistent-PTY terminal sessions** through hand-written WebSocket doors
@@ -106,11 +106,15 @@ on, and the `net472` leg is what exercises its compile surface.
 
 ## Prerequisites
 
-You need an `opencode` server. The v2 line ships as `@opencode-ai/cli@next` and installs a single
-command, `opencode2` ([opencode.ai](https://opencode.ai)):
+You need an `opencode` server. The v2 line ships from the `@opencode/cli` npm scope as `beta`
+builds and installs a single command, `opencode2` ([opencode.ai](https://opencode.ai)). This SDK
+is generated from the upstream commit that shipped as `0.0.0-beta-19425`, so install that exact
+build; later `beta` builds usually work, but they are not what this repository tests. The pinned
+commit and its build are owned by
+[`spec/SNAPSHOT.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/spec/SNAPSHOT.md).
 
 ```sh
-npm install -g @opencode-ai/cli@next
+npm install -g @opencode/cli@0.0.0-beta-19425
 ```
 
 Then either run it yourself:
@@ -273,7 +277,7 @@ overload shown above.
 
 ## 🧭 API Coverage
 
-**135 of the 140 operations** in the pinned snapshot are callable. The remaining five are not
+**134 of the 139 operations** in the pinned snapshot are callable. The remaining five are not
 omissions — each one is a recorded decision with a named cause, and
 [`src/OpenCode.Sdk/.generation-incomplete`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/src/OpenCode.Sdk/.generation-incomplete) is the
 machine-readable map that the build itself reads.
@@ -305,7 +309,7 @@ hand-written `PtySession` and `PersistentPtySession` doors described in
 | [Streaming](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/streaming.md) | The global event bus and per-session server-sent event streams |
 | [Terminals](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/terminals.md) | PTY and persistent-PTY sessions over the WebSocket doors |
 | [Errors and responses](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/errors-and-responses.md) | Throwing versus `NoThrow`, and the typed error model |
-| [Pagination](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/pagination.md) | Cursor-carrying list envelopes and `EnumerateMessagesAsync` |
+| [Pagination](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/pagination.md) | Cursor-carrying list envelopes, `Enumerate*Async`, and its `Pages` |
 
 Architecture, decision records, and engineering policy live under [`docs/`](https://github.com/Blind-Striker/opencode-sdk-dotnet/tree/master/docs) — start at
 [`AGENTS.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/AGENTS.md) if you want the internals rather than the API.

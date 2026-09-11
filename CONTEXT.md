@@ -258,6 +258,11 @@ property is optional has no payload the envelope can promise and refuses at bind
 A sub-client bound to one resource id (e.g. a session) — partial application over the
 shared pipeline; never caches server state.
 
+**Cursor sequence** (`CursorSequence<TPage, TItem>`):
+The value a generated `Enumerate*Async` companion returns. It enumerates as the items of every page
+in order and exposes the same traversal's page envelopes through `Pages`. It is a recipe rather than
+a buffer: each enumeration issues its own requests.
+
 **PTY session** (`PtySession`):
 The working object over one PTY connection: read frames, write input, dispose to close. One of the
 two doors that build their own transport instead of riding the HTTP pipeline (the persistent PTY

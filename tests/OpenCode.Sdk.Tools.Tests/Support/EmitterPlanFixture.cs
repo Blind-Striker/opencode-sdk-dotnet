@@ -492,6 +492,7 @@ internal static class EmitterPlanFixture
             {
                 MethodName = "EnumerateItemsAsync",
                 RequestTypeName = "ItemListRequest",
+                PageTypeName = "WidgetItemListResponse",
                 ItemTypeName = "ExampleItem",
                 PayloadName = "Items",
             },

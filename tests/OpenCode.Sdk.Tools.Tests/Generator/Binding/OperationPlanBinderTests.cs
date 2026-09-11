@@ -246,13 +246,19 @@ public sealed class OperationPlanBinderTests
 
         var list = sessions.Operations.Single(static operation => operation.MethodName == "ListSessionsAsync");
         await Assert.That(list.QueryRequest!.TypeName).IsEqualTo("SessionListRequest");
-        await Assert.That(list.QueryRequest.DerivesFromListRequest).IsFalse();
+        await Assert.That(list.QueryRequest.DerivesFromListRequest).IsTrue();
         await Assert
             .That(list
                 .QueryRequest.Properties.Select(static property => property.PropertyName)
                 .SequenceEqual(
                     ["Workspace", "Limit", "Order", "Search", "ParentId", "Directory", "Project", "Subpath", "Cursor"],
                     StringComparer.Ordinal))
+            .IsTrue();
+        await Assert
+            .That(list
+                .QueryRequest.Properties.Where(static property => property.IsInherited)
+                .Select(static property => property.PropertyName)
+                .SequenceEqual(["Limit", "Order", "Cursor"], StringComparer.Ordinal))
             .IsTrue();
         await Assert.That(list.Envelope!.Kind).IsEqualTo(EnvelopeKind.CursorList);
         await Assert.That(list.Envelope.PayloadName).IsEqualTo("Sessions");
@@ -325,7 +331,6 @@ public sealed class OperationPlanBinderTests
         "ListInstructionsEntryAsync",
         "ListMessagesAsync",
         "ListRequestsAsync",
-        "PatchMessageUpdateAsync",
         "PostBackgroundAsync",
         "PostCommandAsync",
         "PostCompactAsync",
@@ -497,7 +502,7 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Recognize_Only_The_Selected_ListRequest_Cursor_Operation_As_Paginated()
+    public async Task Bind_Should_Recognize_Every_Pinned_ListRequest_Cursor_Operation_As_Paginated()
     {
         var plan = await new BindingTestHost().BindPinnedAsync();
         var session = plan.Clients.Single(static client => client.Name == "SessionClient");
@@ -508,11 +513,19 @@ public sealed class OperationPlanBinderTests
         await Assert.That(pagination).IsNotNull();
         await Assert.That(pagination.MethodName).IsEqualTo("EnumerateMessagesAsync");
         await Assert.That(pagination.RequestTypeName).IsEqualTo("MessageListRequest");
+        await Assert.That(pagination.PageTypeName).IsEqualTo("MessageListResponse");
         await Assert.That(pagination.ItemTypeName).IsEqualTo("ISessionMessageInfo");
         await Assert.That(pagination.PayloadName).IsEqualTo("Messages");
-        await Assert
-            .That(sessions.Operations.Single(static operation => operation.MethodName == "ListSessionsAsync").Pagination)
-            .IsNull();
+
+        var sessionPagination = sessions.Operations
+            .Single(static operation => operation.MethodName == "ListSessionsAsync")
+            .Pagination;
+        await Assert.That(sessionPagination).IsNotNull();
+        await Assert.That(sessionPagination.MethodName).IsEqualTo("EnumerateSessionsAsync");
+        await Assert.That(sessionPagination.RequestTypeName).IsEqualTo("SessionListRequest");
+        await Assert.That(sessionPagination.PageTypeName).IsEqualTo("SessionListResponse");
+        await Assert.That(sessionPagination.ItemTypeName).IsEqualTo("SessionInfo");
+        await Assert.That(sessionPagination.PayloadName).IsEqualTo("Sessions");
     }
 
     [Test]
@@ -783,7 +796,7 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Bind_Optional_Nullable_Query_Parameters_Into_A_Flat_Query_Request()
+    public async Task Bind_Should_Bind_Optional_Nullable_Query_Parameters_Beside_The_Inherited_Spine()
     {
         var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
             .Parameter("limit", "query", QueryScenarioData.NullableString)
@@ -797,7 +810,7 @@ public sealed class OperationPlanBinderTests
         var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(list.QueryRequest).IsNotNull();
         await Assert.That(list.QueryRequest!.TypeName).IsEqualTo("WidgetListRequest");
-        await Assert.That(list.QueryRequest.DerivesFromListRequest).IsFalse();
+        await Assert.That(list.QueryRequest.DerivesFromListRequest).IsTrue();
         await Assert
             .That(list
                 .QueryRequest.Properties.Select(static property => property.WireName)
@@ -819,7 +832,11 @@ public sealed class OperationPlanBinderTests
                     QueryValueKind.SessionParentFilter,
                 ]))
             .IsTrue();
-        await Assert.That(list.QueryRequest.Properties.All(static property => !property.IsInherited)).IsTrue();
+        await Assert
+            .That(list
+                .QueryRequest.Properties.Select(static property => property.IsInherited)
+                .SequenceEqual([true, true, true, false, false]))
+            .IsTrue();
         await Assert.That(list.Parameters).IsEmpty();
     }
 
@@ -863,7 +880,7 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Derive_The_Query_Request_From_The_List_Request_Base_When_The_Trio_Matches_Exactly()
+    public async Task Bind_Should_Derive_The_Query_Request_From_The_List_Request_Base_When_The_Query_Is_Only_The_Trio()
     {
         var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
             .Parameter("limit", "query", QueryScenarioData.NullableString)
@@ -884,13 +901,29 @@ public sealed class OperationPlanBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Keep_The_Query_Request_Flat_When_The_Trio_Has_Extra_Parameters()
+    public async Task Bind_Should_Keep_The_Query_Request_Flat_When_A_Spine_Parameter_Carries_An_Unadmitted_Schema()
     {
         var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
             .Parameter("limit", "query", QueryScenarioData.NullableString)
+            .Parameter("order", "query", schema => schema.AnyOf(
+                branch => branch.Type("string").Enum("asc", "desc", "shuffled"),
+                branch => branch.Type("null")))
+            .Parameter("cursor", "query", QueryScenarioData.NullableString)));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.QueryRequest!.DerivesFromListRequest).IsFalse();
+        await Assert.That(list.QueryRequest.Properties.All(static property => !property.IsInherited)).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Keep_The_Query_Request_Flat_When_A_Spine_Parameter_Is_Declared_Required()
+    {
+        var document = await BindingTestHost.IngestAsync(WidgetListScenario(operation => operation
+            .Parameter("limit", "query", schema => schema.Type("string"), required: true)
             .Parameter("order", "query", QueryScenarioData.NullableOrderEnum)
-            .Parameter("cursor", "query", QueryScenarioData.NullableString)
-            .Parameter("search", "query", QueryScenarioData.NullableString)));
+            .Parameter("cursor", "query", QueryScenarioData.NullableString)));
 
         var plan = BindWidgets(document);
 
@@ -954,6 +987,59 @@ public sealed class OperationPlanBinderTests
         await Assert
             .That(plan.Registry.TypeNames
                 .SequenceEqual(["WidgetInfo", "WidgetListResponseEnvelope"], StringComparer.Ordinal))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Admit_Cursor_Pagination_When_Filters_Ride_The_Spine()
+    {
+        var document = await BindingTestHost.IngestAsync(CursorListScenario(configure: operation => operation
+            .Parameter("limit", "query", QueryScenarioData.NullableString)
+            .Parameter("order", "query", QueryScenarioData.NullableOrderEnum)
+            .Parameter("cursor", "query", QueryScenarioData.NullableString)
+            .Parameter("search", "query", QueryScenarioData.NullableString)));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.QueryRequest!.DerivesFromListRequest).IsTrue();
+        await Assert.That(list.Pagination).IsNotNull();
+        await Assert.That(list.Pagination.MethodName).IsEqualTo("EnumerateWidgetsAsync");
+        await Assert.That(list.Pagination.RequestTypeName).IsEqualTo("WidgetListRequest");
+        await Assert.That(list.Pagination.PageTypeName).IsEqualTo("WidgetListResponse");
+        await Assert.That(list.Pagination.ItemTypeName).IsEqualTo("WidgetInfo");
+    }
+
+    [Test]
+    public async Task Bind_Should_Leave_Cursor_Pagination_Absent_When_The_Spine_Is_Incomplete()
+    {
+        var document = await BindingTestHost.IngestAsync(CursorListScenario(configure: operation => operation
+            .Parameter("limit", "query", QueryScenarioData.NullableString)
+            .Parameter("cursor", "query", QueryScenarioData.NullableString)));
+
+        var plan = BindWidgets(document);
+
+        var list = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
+        await Assert.That(list.QueryRequest!.DerivesFromListRequest).IsFalse();
+        await Assert.That(list.Pagination).IsNull();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_Cursor_Pagination_When_A_Filter_Riding_The_Spine_Is_Required()
+    {
+        var document = await BindingTestHost.IngestAsync(CursorListScenario(configure: operation => operation
+            .Parameter("limit", "query", QueryScenarioData.NullableString)
+            .Parameter("order", "query", QueryScenarioData.NullableOrderEnum)
+            .Parameter("cursor", "query", QueryScenarioData.NullableString)
+            .Parameter("search", "query", schema => schema.Type("string"), required: true)));
+
+        var exception = Assert.Throws<BindingException>(() => _ = BindWidgets(document));
+
+        await Assert
+            .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Operation
+                                                       && error.Problem.Contains(
+                                                           "cursor pagination cannot continue a query that declares a required parameter",
+                                                           StringComparison.Ordinal)))
             .IsTrue();
     }
 

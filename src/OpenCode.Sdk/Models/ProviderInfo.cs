@@ -55,6 +55,13 @@ public sealed record ProviderInfo
     public IProviderCompaction? Compaction { get; init; }
 
     /// <summary>
+    /// Gets the websocket value.
+    /// </summary>
+    [JsonPropertyName("websocket")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Websocket { get; init; }
+
+    /// <summary>
     /// Gets the settings value.
     /// </summary>
     [JsonPropertyName("settings")]

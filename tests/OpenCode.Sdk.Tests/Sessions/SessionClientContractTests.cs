@@ -1020,58 +1020,6 @@ public sealed class SessionClientContractTests
     }
 
     [Test]
-    public async Task PatchMessageUpdateAsync_Should_Send_The_Tagged_Content_And_Return_The_Typed_Message()
-    {
-        const string message = "{\"id\":\"msg_1\",\"time\":{\"created\":1},\"agent\":\"build\","
-            + "\"model\":{\"id\":\"gpt-4\",\"providerID\":\"openai\"},\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]}";
-        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(message));
-
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PatchMessageUpdateAsync("msg_1", new SessionMessageUpdatePatchRequest
-        {
-            Content = [new SessionMessageAssistantText { Text = "hello", }],
-        });
-
-        await Assert.That(response.MessageUpdate.Id).IsEqualTo("msg_1");
-        await Assert.That(response.MessageUpdate.Content.Single()).IsTypeOf<SessionMessageAssistantText>();
-        var request = scenario.Requests.Single();
-        await Assert.That(request.Method.Method).IsEqualTo("PATCH");
-        await Assert.That(request.RequestUri)
-            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/message/msg_1"));
-        await Assert.That(request.Body).IsEqualTo("{\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]}");
-    }
-
-    [Test]
-    public async Task PatchMessageUpdateAsync_Should_Throw_The_Declared_404_Message_Not_Found()
-    {
-        using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.MessageNotFoundError);
-
-        var exception = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").PatchMessageUpdateAsync("msg_9", new SessionMessageUpdatePatchRequest
-            {
-                Content = [new SessionMessageAssistantText { Text = "hello", }],
-            }))
-            .Throws<OpenCodeApiException>();
-
-        await Assert.That(exception!.Status).IsEqualTo(404);
-        await Assert.That(exception.Error).IsTypeOf<MessageNotFoundError>();
-    }
-
-    [Test]
-    public async Task PatchMessageUpdateAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
-    {
-        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
-
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PatchMessageUpdateAsync(
-            "msg_1",
-            new SessionMessageUpdatePatchRequest { Content = [], },
-            OpenCodeRequestOptions.NoThrow);
-
-        await Assert.That(response.IsError).IsTrue();
-        await Assert.That(response.Status).IsEqualTo(401);
-        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
-    }
-
-    [Test]
     public async Task PostViewAsync_Should_Send_The_Typed_Body_On_The_204()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);

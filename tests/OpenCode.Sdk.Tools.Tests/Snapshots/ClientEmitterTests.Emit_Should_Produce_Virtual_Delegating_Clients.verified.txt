@@ -162,14 +162,14 @@ public class WidgetClient
     }
 
     /// <summary>
-    /// Enumerates the items returned by &apos;GET /api/widget/{widgetID}/item&apos; by following each opaque next cursor.
+    /// Enumerates the items returned by &apos;GET /api/widget/{widgetID}/item&apos; by following each opaque next cursor; every filter of the first request rides each continuation.
     /// </summary>
     /// <param name = "request">The request shaping the first page.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;ExampleItem&apos; sequence.</returns>
+    /// <returns>The &apos;ExampleItem&apos; sequence, whose Pages expose each &apos;WidgetItemListResponse&apos;.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned a declared error status (declared: 404); pagination API errors always throw.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual IAsyncEnumerable<ExampleItem> EnumerateItemsAsync(ItemListRequest? request = null, CancellationToken cancellationToken = default)
+    public virtual CursorSequence<WidgetItemListResponse, ExampleItem> EnumerateItemsAsync(ItemListRequest? request = null, CancellationToken cancellationToken = default)
     {
         return CursorPaginator.EnumerateAsync(ListItemsAsync, request, WidgetItemListResponseAdapter.Instance, cancellationToken);
     }

@@ -77,14 +77,14 @@ internal sealed class MessageListResponseAdapter : ResponseAdapter<MessageListRe
     }
 
     /// <summary>
-    /// Creates a continuation request carrying the initial limit and opaque next cursor.
+    /// Creates a continuation request carrying every initial filter beside the opaque next cursor, with the first-page-only order dropped.
     /// </summary>
     public MessageListRequest CreateNextRequest(MessageListRequest? initialRequest, string cursor)
     {
         ArgumentNullException.ThrowIfNull(cursor);
-        return new MessageListRequest
+        return (initialRequest ?? new()) with
         {
-            Limit = initialRequest?.Limit,
+            Order = null,
             Cursor = cursor
         };
     }

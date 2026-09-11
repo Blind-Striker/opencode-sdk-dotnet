@@ -147,7 +147,7 @@
     },
     {
       "path": "packages/server/src/process.ts",
-      "sha256": "fb3bbb748814edfa92901e7228dfae707c3c668c4442e82648bf2fc6eaff8974",
+      "sha256": "88d89a520b684cba37499ad2f2f3f51f2cb60a4c397c550d09d70735b8514f42",
       "behavior": "A ticketed PTY connect is admitted before the server reports ready.",
       "anchor": {
         "type": "contains",

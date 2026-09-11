@@ -5,9 +5,55 @@ Each released version links straight to its GitHub Release tag.
 
 ## [Unreleased]
 
-Nothing yet. Nightly builds of `master` are on
+Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
 `0.8.0-nightly.{yyyyMMdd}.{shortSha}`.
+
+### 💥 Breaking changes
+
+- **The accepted snapshot moved to upstream `20aff6d9f643afe9abf8a048e68f019d049f5329`**, the
+  `beta` branch head that shipped as `@opencode/cli@0.0.0-beta-19425`. Install that exact build
+  (`npm install -g @opencode/cli@0.0.0-beta-19425`); the `@opencode-ai/cli` scope that the
+  previous README named is frozen at an August build that predates the worktree route shape and the
+  whole persistent-PTY family this SDK generates.
+- **`v2.session.messageUpdate` is gone** because upstream removed the message content mutation API
+  ([anomalyco/opencode#48043](https://github.com/anomalyco/opencode/pull/48043)).
+  `SessionClient.PatchMessageUpdateAsync`, `SessionMessageUpdatePatchRequest`,
+  `SessionMessageUpdatePatchResponse`, and the route constants are removed, and with them the
+  `ISessionMessageAssistant` union and its `UnknownSessionMessageAssistant` carrier, which only that
+  request body referenced. Assistant content records keep `ISessionMessageAssistantContent`.
+- **`session.message.content.updated` left the live event union.** `SessionMessageContentUpdated`
+  no longer implements `IEvent`; it remains a durable session-log item.
+
+### ✨ New features
+
+- **Session listing enumerates too.** `SessionsClient.EnumerateSessionsAsync` joins
+  `SessionClient.EnumerateMessagesAsync` as an automatic cursor walk. A list query now binds the
+  shared `ListRequest` spine whenever it *includes* `limit`, `order`, and `cursor` — extra filters
+  no longer disqualify it — so `SessionListRequest` derives from `ListRequest` and gains the
+  companion. Every filter of the first request rides each continuation unchanged; only the
+  first-page-only `order` is dropped and the opaque cursor replaced.
+- **Every automatic walk can be read as pages.** `Enumerate*Async` now returns
+  `CursorSequence<TPage, TItem>`, whose `Pages` property yields each generated response envelope —
+  `Status`, `Cursor`, `RawBody` and all — instead of only the items. There is no new page type and
+  no page-size knob: a page is the response the server returned for one request. The item door and
+  the page door are independent walks of the same recipe, so enumerating both sends both sets of
+  requests.
+
+### 🔧 Changes
+
+- **Snapshot additions.** `MessageListRequest.Type` filters a message list by message type
+  (`MessageListRequestType`) and rides every continuation unchanged; `ModelInfo.Websocket` and
+  `ProviderInfo.Websocket` are new optional flags; compaction ended and failed data, and the
+  compaction message records, carry optional `Cost` and `Tokens`.
+- `SessionClient.EnumerateMessagesAsync` returns `CursorSequence<MessageListResponse,
+  ISessionMessageInfo>` instead of `IAsyncEnumerable<ISessionMessageInfo>`. `await foreach` over it
+  is unchanged, and code that stored the result in a variable typed `IAsyncEnumerable<T>` still
+  compiles, because `CursorSequence<TPage, TItem>` implements `IAsyncEnumerable<TItem>`. Code that
+  declared the variable with `var` and then assigned an `IAsyncEnumerable<T>` to the same variable
+  is the one shape that needs its type written out.
+- `SessionListRequest` no longer declares `Limit`, `Order`, and `Cursor` itself; it inherits all
+  three from `ListRequest`. Reading and initializing them is unchanged.
 
 ## [0.8.0-preview.1] - 2026-09-09
 

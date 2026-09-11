@@ -1,15 +1,16 @@
 # 📑 Pagination
 
-Date: 2026-08-31
+Date: 2026-09-11
 
 Two operations in the API return more than fits in one response, and both use the same opaque
-cursor envelope: **listing a session's messages** and **listing sessions**. Everything else returns
-its whole answer at once.
+cursor envelope: **listing a session's messages** and **listing sessions**. Both can be paged by
+hand or walked for you. Everything else returns its whole answer at once.
 
 - [🧾 The cursor envelope](#-the-cursor-envelope)
 - [🎛️ Shaping the request](#️-shaping-the-request)
 - [🔁 Paging by hand](#-paging-by-hand)
 - [♾️ Or let the SDK page for you](#️-or-let-the-sdk-page-for-you)
+- [📄 The same walk, one page at a time](#-the-same-walk-one-page-at-a-time)
 - [⚖️ Which one to use](#️-which-one-to-use)
 
 ## 🧾 The cursor envelope
@@ -53,13 +54,14 @@ Three channels do the paging, and both request types carry all three:
 | `Order` | `ListOrder?` | `Ascending` or `Descending`. **First page only.** |
 | `Cursor` | `string?` | The opaque continuation from the previous page's `Cursor.Next`. |
 
-`MessageListRequest` inherits them from the shared abstract `ListRequest`.
-`SessionListRequest` declares the same three itself, next to its own filters — `Search`,
-`Project`, `Workspace`, `Directory`, `Subpath`, and `ParentId`.
+`MessageListRequest` and `SessionListRequest` both inherit all three from the shared abstract
+`ListRequest`. A request may also carry filters of its own beside them: `SessionListRequest` adds
+`Search`, `Project`, `Workspace`, `Directory`, `Subpath`, and `ParentId`.
 
-> **🧭 `Order` belongs to the first request.** The order is fixed when the sequence starts; a
-> continuation carries `Limit` and `Cursor` only. Keeping `Order` on later pages is not something
-> the SDK will correct for you — the snippets below drop it deliberately.
+> **🧭 `Order` belongs to the first request.** The order is fixed when the walk starts; a
+> continuation carries `Limit`, `Cursor`, and every filter — but not `Order`. Paging by hand, that
+> is yours to get right, and the snippets below drop it deliberately. Paging automatically, the SDK
+> does it for you.
 
 ## 🔁 Paging by hand
 
@@ -110,13 +112,14 @@ while (true)
 }
 ```
 
-Manual paging is what you want when you need the page metadata: the status of each request,
-`NoThrow` handling per page, or `Cursor.Previous` to walk backwards.
+Manual paging is what you want when the walk itself is yours: per-page `NoThrow` handling,
+`Cursor.Previous` to move backwards, or a cursor you stop at and resume from later.
 
 ## ♾️ Or let the SDK page for you
 
-`SessionClient.EnumerateMessagesAsync` is the automatic companion to `ListMessagesAsync`. It yields
-the **items**, lazily, following `Next` for you:
+`SessionClient.EnumerateMessagesAsync` and `SessionsClient.EnumerateSessionsAsync` are the automatic
+companions to `ListMessagesAsync` and `ListSessionsAsync`. Each yields the **items**, lazily,
+following `Next` for you:
 
 ```csharp
 var stream = session.EnumerateMessagesAsync(new MessageListRequest
@@ -131,33 +134,74 @@ await foreach (var message in stream.WithCancellation(cancellationToken))
 }
 ```
 
-What it does with your request is exactly the manual loop above: the first request goes out
-unchanged, every continuation keeps your `Limit`, drops `Order`, and sends the returned cursor
-verbatim. It stops when a page comes back without a `Next`.
+Sessions enumerate the same way, filters and all:
 
-Three things to know:
+```csharp
+var stream = client.Sessions.EnumerateSessionsAsync(new SessionListRequest
+{
+    Limit = "25",
+    Order = ListOrder.Descending,
+    Search = "build",
+});
+
+await foreach (var session in stream.WithCancellation(cancellationToken))
+{
+    Console.WriteLine($"{session.Id}  {session.Title}");
+}
+```
+
+What it does with your request is the manual loop above, with one thing done better: the first
+request goes out unchanged, and **every continuation is your request again** — same `Limit`, same
+`Search`, `Project`, `ParentId`, and every other filter — with `Order` dropped and the returned
+cursor put in place. It stops when a page comes back without a `Next`.
+
+Four things to know:
 
 - **It is a pull sequence over ordinary HTTP calls**, not a stream. Nothing is held open between
   pages, and stopping early (a `break`, a `return`, a cancelled token) simply means the next page is
   never requested.
-- **It always throws.** There is no envelope to hand you, so an API error on page seven throws
+- **It always throws.** No envelope reaches the item loop, so an API error on page seven throws
   `OpenCodeApiException` out of the `await foreach` — `NoThrow` is not available here.
 - **Cancellation reaches every request** and is also checked between buffered items, so a token you
-  cancel mid-page takes effect immediately rather than after the current page drains.
+  cancel mid-page takes effect immediately rather than after the current page drains. The token you
+  hand to `Enumerate*Async` and the one you hand to `WithCancellation` are both observed.
+- **Each enumeration is its own walk.** Keeping the returned sequence in a variable and enumerating
+  it twice sends every request twice: it is a recipe, not a buffer.
 
-`EnumerateMessagesAsync` is the **only** automatic companion in the SDK today. Session listing has
-no `EnumerateSessionsAsync`; page it with the loop above.
+## 📄 The same walk, one page at a time
+
+`Enumerate*Async` returns a `CursorSequence<TPage, TItem>`. Enumerating it gives you the items; its
+`Pages` property gives you the same walk as **page envelopes** — the very `MessageListResponse` or
+`SessionListResponse` the one-page call would have handed you, `Status`, `Cursor`, `RawBody` and
+all:
+
+```csharp
+await foreach (var page in session.EnumerateMessagesAsync(request)
+    .Pages
+    .WithCancellation(cancellationToken))
+{
+    Console.WriteLine($"{page.Messages.Count} messages, next {page.Cursor.Next ?? "<none>"}");
+}
+```
+
+Reach for it when the cursor bookkeeping should be handled but the page is still part of what you
+are doing — reporting progress per request, checkpointing `Cursor.Next`, or reading a page's status.
+There is no page-size contract here: a page is exactly what the server returned for one request.
+
+The two doors are independent walks of the same recipe, so enumerating the items and then the pages
+performs both walks — two full sets of requests. And `NoThrow` remains unavailable: an error page
+throws when the walk reaches it, exactly as it does for items.
 
 ## ⚖️ Which one to use
 
-| | `List*Async` | `EnumerateMessagesAsync` |
-|---|---|---|
-| You get | one page envelope | the items, across all pages |
-| Page metadata (`Status`, `Cursor`) | ✅ yes | ❌ no |
-| Per-call `NoThrow` | ✅ yes | ❌ no — always throws |
-| Backwards paging via `Previous` | ✅ yes | ❌ no |
-| Cursor bookkeeping | yours | handled |
+| | `List*Async` | `Enumerate*Async` | `Enumerate*Async().Pages` |
+|---|---|---|---|
+| You get | one page envelope | the items, across all pages | every page envelope |
+| Page metadata (`Status`, `Cursor`) | ✅ yes | ❌ no | ✅ yes |
+| Per-call `NoThrow` | ✅ yes | ❌ no — always throws | ❌ no — always throws |
+| Backwards paging via `Previous` | ✅ yes | ❌ no | ❌ no |
+| Cursor bookkeeping | yours | handled | handled |
 
-Reach for `EnumerateMessagesAsync` when you just want the messages. Reach for `ListMessagesAsync`
-when the page itself is part of what you are doing — rendering a paged UI, checkpointing a cursor,
-or treating a failed page as data.
+Reach for `Enumerate*Async` when you just want the messages or the sessions, and for its `Pages`
+when you want the walk handled but the envelope kept. Reach for `List*Async` when you own the walk:
+a paged UI, `Cursor.Previous`, or treating a failed page as data.

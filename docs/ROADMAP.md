@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-09-08
+Date: 2026-09-12
 
 Operational state: what ships today, what is queued next, what is still open, and what is known to
 be incomplete. This file is a summary and shrinks as work lands. `../AGENTS.md` routes to the
@@ -15,7 +15,7 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
 - **Protocol pin** — generation reads an accepted snapshot of upstream's `v2` OpenAPI document,
   never a live branch, and refreshes are receipt-governed (ADR-0020). `../spec/SNAPSHOT.md` owns
   the exact commit and the refresh procedure.
-- **Coverage** — **135 of 140 operations selected** across 28 client families, with 3 declined by
+- **Coverage** — **134 of 139 operations selected** across 28 client families, with 3 declined by
   decision and 2 transport-owned (Known Gaps below); `src/OpenCode.Sdk/.generation-incomplete` is
   the committed marker and names every one. One-shot calls, server-sent event streams (the global
   bus and the per-session log), PTY and persistent-PTY WebSocket sessions, cursor pagination, typed
@@ -74,7 +74,7 @@ is revisited at each boundary.
 
 ## Open Questions
 
-- **v2 GA watch** — the v2 line ships as `opencode2` (npm `@opencode-ai/cli@next`) with no GA date.
+- **v2 GA watch** — the v2 line ships as `opencode2` (npm `@opencode/cli@beta`) with no GA date.
   The pin therefore stays a deliberate snapshot, refreshed under receipt at milestone boundaries.
 - **`v2.session.log` resume guarantees** — the pinned document exposes `after` as an optional
   string, and the generated surface stays faithful to it; ADR-0013 forbids importing the narrower

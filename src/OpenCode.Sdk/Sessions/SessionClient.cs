@@ -238,7 +238,7 @@ public class SessionClient
     }
 
     /// <summary>
-    /// Get session messages. Retrieve projected messages for a session. Items keep the requested order across pages; use cursor.next or cursor.previous to move through the ordered timeline.
+    /// Get session messages. Retrieve projected messages for a session, optionally filtered by type. Items keep the requested order across pages; use cursor.next or cursor.previous to move through the ordered timeline, passing the same type filter on each page.
     /// </summary>
     /// <param name = "request">The request shaping the query.</param>
     /// <param name = "requestOptions">The per-call options.</param>
@@ -252,14 +252,14 @@ public class SessionClient
     }
 
     /// <summary>
-    /// Enumerates the items returned by &apos;GET /api/session/{sessionID}/message&apos; by following each opaque next cursor.
+    /// Enumerates the items returned by &apos;GET /api/session/{sessionID}/message&apos; by following each opaque next cursor; every filter of the first request rides each continuation.
     /// </summary>
     /// <param name = "request">The request shaping the first page.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;ISessionMessageInfo&apos; sequence.</returns>
+    /// <returns>The &apos;ISessionMessageInfo&apos; sequence, whose Pages expose each &apos;MessageListResponse&apos;.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned a declared error status (declared: 400, 401, 404, 500); pagination API errors always throw.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual IAsyncEnumerable<ISessionMessageInfo> EnumerateMessagesAsync(MessageListRequest? request = null, CancellationToken cancellationToken = default)
+    public virtual CursorSequence<MessageListResponse, ISessionMessageInfo> EnumerateMessagesAsync(MessageListRequest? request = null, CancellationToken cancellationToken = default)
     {
         return CursorPaginator.EnumerateAsync(ListMessagesAsync, request, MessageListResponseAdapter.Instance, cancellationToken);
     }
@@ -275,23 +275,6 @@ public class SessionClient
     public virtual Task<SessionPermissionListResponse> ListRequestsAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Sessions.ListRequests(SessionId), SessionPermissionListResponseAdapter.Instance, requestOptions, cancellationToken);
-    }
-
-    /// <summary>
-    /// Update assistant message content. Replace the content of a completed assistant message in an idle session.
-    /// </summary>
-    /// <param name = "messageId">The &apos;messageID&apos; route value.</param>
-    /// <param name = "request">The request body.</param>
-    /// <param name = "requestOptions">The per-call options.</param>
-    /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;SessionMessageUpdatePatchResponse&apos; envelope.</returns>
-    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 409) and NoThrow was not selected.</exception>
-    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<SessionMessageUpdatePatchResponse> PatchMessageUpdateAsync(string messageId, SessionMessageUpdatePatchRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
-    {
-        ArgumentException.ThrowIfNullOrEmpty(messageId);
-        ArgumentNullException.ThrowIfNull(request);
-        return Pipeline.ExecuteAsync(OpenCodeHttpMethod.Patch, OpenCodeRoutes.Sessions.PatchMessageUpdate(SessionId, messageId), request, OpenCodeJsonContext.Default.SessionMessageUpdatePatchRequest, SessionMessageUpdatePatchResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 
     /// <summary>

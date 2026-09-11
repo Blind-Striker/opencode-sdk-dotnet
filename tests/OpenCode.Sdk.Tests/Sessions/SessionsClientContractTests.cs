@@ -42,6 +42,110 @@ public sealed class SessionsClientContractTests
     }
 
     [Test]
+    public async Task EnumerateSessionsAsync_Should_Carry_Every_Filter_Through_The_Opaque_Next_Cursors()
+    {
+        const string firstNext = "cur_next_1";
+        var payload = new FixtureLoader().LoadJson("Serialization.known-session.json");
+        var responses = new Queue<string>(
+        [
+            WireBodyData.Page(payload, next: firstNext),
+            WireBodyData.Page(payload),
+        ]);
+        using var scenario = ContractScenario.Responding(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(responses.Dequeue()),
+        });
+        var sequence = scenario.Client.Sessions.EnumerateSessionsAsync(
+            new SessionListRequest
+            {
+                Limit = "1",
+                Order = ListOrder.Descending,
+                Search = "a b",
+                ParentId = SessionParentFilter.RootOnly,
+            },
+            CancellationToken.None);
+
+        await Assert.That(scenario.Requests).IsEmpty();
+
+        var received = new List<SessionInfo>();
+        await foreach (var session in sequence.WithCancellation(CancellationToken.None))
+        {
+            received.Add(session);
+        }
+
+        await Assert.That(received.Count).IsEqualTo(2);
+        await Assert.That(received.All(static session => session.Id == "ses_100")).IsTrue();
+        await Assert
+            .That(scenario.Requests.Select(static request => request.RequestUri!.AbsoluteUri).SequenceEqual(
+            [
+                "http://localhost:4096/api/session?limit=1&order=desc&search=a%20b&parentID=null",
+                $"http://localhost:4096/api/session?limit=1&search=a%20b&parentID=null&cursor={firstNext}",
+            ],
+            StringComparer.Ordinal))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task EnumerateSessionsAsync_Should_Expose_Each_Page_Envelope_Through_Pages()
+    {
+        var payload = new FixtureLoader().LoadJson("Serialization.known-session.json");
+        var responses = new Queue<string>(
+        [
+            WireBodyData.Page(payload, next: "cur_next_1"),
+            WireBodyData.Page(payload),
+        ]);
+        using var scenario = ContractScenario.Responding(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(responses.Dequeue()),
+        });
+        var pages = new List<SessionListResponse>();
+
+        await foreach (var page in scenario.Client.Sessions
+                           .EnumerateSessionsAsync(cancellationToken: CancellationToken.None)
+                           .Pages
+                           .WithCancellation(CancellationToken.None))
+        {
+            pages.Add(page);
+        }
+
+        await Assert.That(pages.Count).IsEqualTo(2);
+        await Assert.That(pages[0].Status).IsEqualTo(200);
+        await Assert.That(pages[0].Cursor.Next).IsEqualTo("cur_next_1");
+        await Assert.That(pages[0].Sessions.Single().Title).IsEqualTo("Fix the build");
+        await Assert.That(pages[1].Cursor.Next).IsNull();
+        await Assert.That(scenario.Requests.Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task EnumerateSessionsAsync_Should_Throw_The_Declared_Error_When_A_Later_Page_Fails()
+    {
+        var payload = new FixtureLoader().LoadJson("Serialization.known-session.json");
+        var responses = new Queue<(HttpStatusCode Status, string Body)>(
+        [
+            (HttpStatusCode.OK, WireBodyData.Page(payload, next: "cur_invalid")),
+            (HttpStatusCode.BadRequest, WireBodyData.InvalidCursorError),
+        ]);
+        using var scenario = ContractScenario.Responding(_ =>
+        {
+            var response = responses.Dequeue();
+            return new HttpResponseMessage(response.Status) { Content = new StringContent(response.Body), };
+        });
+        await using var enumerator = scenario.Client.Sessions
+            .EnumerateSessionsAsync(cancellationToken: CancellationToken.None)
+            .GetAsyncEnumerator();
+
+        await Assert.That(await enumerator.MoveNextAsync()).IsTrue();
+        await Assert.That(enumerator.Current.Id).IsEqualTo("ses_100");
+
+        var exception = await Assert
+            .That(async () => _ = await enumerator.MoveNextAsync())
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception?.Error).IsTypeOf<InvalidCursorError>();
+        await Assert.That(scenario.Requests.Count).IsEqualTo(2);
+    }
+
+    [Test]
     [Arguments(" ")]
     [Arguments(".")]
     [Arguments("..")]

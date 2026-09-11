@@ -93,7 +93,6 @@ v2.session.interrupt
 v2.session.list
 v2.session.log
 v2.session.message
-v2.session.messageUpdate
 v2.session.move
 v2.session.permission.create
 v2.session.permission.get

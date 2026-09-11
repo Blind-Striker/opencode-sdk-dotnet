@@ -138,6 +138,74 @@ public sealed class SessionsClientLiveTests(SimulatedDriveServerFixture server)
         }
     }
 
+    [Test]
+    [Timeout(180_000)]
+    public async Task EnumerateSessionsAsync_Should_Cross_A_Page_Boundary_Carrying_Its_Filter(
+        CancellationToken cancellationToken)
+    {
+        using var workspace = server.CreateWorkspace();
+        using var client = server.CreateClient(new LocationSelector { Directory = workspace.Path });
+        var first = await CreateOwnedSessionAsync(client, workspace.Path, "session-pagination-live-1", cancellationToken);
+        var second = await CreateOwnedSessionAsync(client, workspace.Path, "session-pagination-live-2", cancellationToken);
+        var firstSession = client.Sessions.GetSessionClient(first.Id);
+        var secondSession = client.Sessions.GetSessionClient(second.Id);
+        var cleanup = CreateCleanup(firstSession, first.Id);
+        cleanup.Own("second session removal", token => RemoveOwnedSessionAsync(secondSession, second.Id, token));
+        Exception? primaryFailure = null;
+
+        try
+        {
+            // A one-item page forces continuations, and the project filter must ride every one of
+            // them: dropping it would surface sessions from the other tests sharing this server.
+            var request = new SessionListRequest
+            {
+                Limit = "1",
+                Order = ListOrder.Ascending,
+                Project = first.ProjectId,
+            };
+            var pages = new List<SessionListResponse>();
+            await foreach (var page in client.Sessions
+                               .EnumerateSessionsAsync(request, cancellationToken)
+                               .Pages
+                               .WithCancellation(cancellationToken))
+            {
+                pages.Add(page);
+            }
+
+            var enumerated = new List<SessionInfo>();
+            await foreach (var session in client.Sessions.EnumerateSessionsAsync(request, cancellationToken))
+            {
+                enumerated.Add(session);
+            }
+
+            await Assert.That(pages.Count).IsGreaterThan(1);
+            await Assert.That(pages.All(static page => page is { Status: 200, IsError: false })).IsTrue();
+            await Assert.That(pages[^1].Cursor.Next).IsNull();
+            await Assert
+                .That(pages
+                    .SelectMany(static page => page.Sessions)
+                    .Select(static session => session.Id)
+                    .SequenceEqual(enumerated.Select(static session => session.Id), StringComparer.Ordinal))
+                .IsTrue();
+            await Assert.That(enumerated.All(session => session.ProjectId == first.ProjectId)).IsTrue();
+            await Assert.That(enumerated.Any(session => session.Id == first.Id)).IsTrue();
+            await Assert.That(enumerated.Any(session => session.Id == second.Id)).IsTrue();
+
+            Console.WriteLine(
+                "session-pagination-live: pages=" + Number(pages.Count) +
+                " sessions=" + Number(enumerated.Count) +
+                " project=" + first.ProjectId);
+        }
+        catch (Exception exception)
+        {
+            primaryFailure = exception;
+        }
+        finally
+        {
+            await cleanup.CompleteAsync(primaryFailure);
+        }
+    }
+
     private static async Task<SessionInfo> CreateOwnedSessionAsync(
         OpenCodeClient client,
         string directory,

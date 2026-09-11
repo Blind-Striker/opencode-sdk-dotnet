@@ -5,8 +5,8 @@ namespace OpenCode.Sdk.Internal.Pagination;
 /// <summary>Lazily traverses generated cursor-list operations through their ordinary one-page methods.</summary>
 internal static class CursorPaginator
 {
-    /// <summary>Creates a lazy item sequence over the operation's opaque next cursors.</summary>
-    public static IAsyncEnumerable<TItem> EnumerateAsync<TRequest, TResponse, TItem>(
+    /// <summary>Creates a lazy sequence over the operation's opaque next cursors.</summary>
+    public static CursorSequence<TResponse, TItem> EnumerateAsync<TRequest, TResponse, TItem>(
         Func<TRequest?, OpenCodeRequestOptions?, CancellationToken, Task<TResponse>> fetchPage,
         TRequest? initialRequest,
         ICursorPageAdapter<TRequest, TResponse, TItem> adapter,
@@ -17,10 +17,17 @@ internal static class CursorPaginator
         ArgumentNullException.ThrowIfNull(fetchPage);
         ArgumentNullException.ThrowIfNull(adapter);
 
-        return EnumerateCoreAsync(fetchPage, initialRequest, adapter, cancellationToken);
+        return new CursorSequence<TResponse, TItem>(
+            token => EnumeratePagesCoreAsync(fetchPage, initialRequest, adapter, token),
+            adapter.GetItems,
+            cancellationToken);
     }
 
-    private static async IAsyncEnumerable<TItem> EnumerateCoreAsync<TRequest, TResponse, TItem>(
+    /// <summary>
+    /// The single traversal: one page per request, the next request built from the initial one and
+    /// the opaque returned cursor, and an absent next cursor as the only end signal.
+    /// </summary>
+    private static async IAsyncEnumerable<TResponse> EnumeratePagesCoreAsync<TRequest, TResponse, TItem>(
         Func<TRequest?, OpenCodeRequestOptions?, CancellationToken, Task<TResponse>> fetchPage,
         TRequest? initialRequest,
         ICursorPageAdapter<TRequest, TResponse, TItem> adapter,
@@ -32,11 +39,7 @@ internal static class CursorPaginator
         while (true)
         {
             var page = await fetchPage(request, null, cancellationToken).ConfigureAwait(false);
-            foreach (var item in adapter.GetItems(page))
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                yield return item;
-            }
+            yield return page;
 
             if (adapter.GetNextCursor(page) is not { } cursor)
             {
