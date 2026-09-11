@@ -525,6 +525,106 @@ public sealed class PersistentPtySessionTests
             .Throws<ObjectDisposedException>();
     }
 
+    /// <summary>The line every submit test sends; a submit adds the terminator, never the line.</summary>
+    private const string SubmittedLine = "echo hello";
+
+    /// <summary>The carriage return a terminal's Enter key sends, pinned here rather than derived.</summary>
+    private const string Enter = "\r";
+
+    /// <summary>Lines a submit refuses: one submit is one Enter, so a break is WriteAsync's business.</summary>
+    public static IEnumerable<Func<string>> LinesCarryingABreak() =>
+    [
+        static () => SubmittedLine + "\r",
+        static () => SubmittedLine + "\n",
+        static () => SubmittedLine + "\r\necho again",
+    ];
+
+    [Test]
+    public async Task SubmitAsync_Should_Send_A_Framed_Line_Terminated_By_Enter()
+    {
+        var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedJson);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        await session.SubmitAsync(SubmittedLine);
+
+        await Assert.That(socket.SentMessageTypes.Single()).IsEqualTo(WebSocketMessageType.Binary);
+        await Assert.That(socket.SentMessages.Single())
+            .IsEquivalentTo(PersistentPtyFrameData.Framed(1, 80, 24, PersistentPtyFrameData.Output(SubmittedLine + Enter)));
+    }
+
+    [Test]
+    public async Task SubmitAsync_Should_Frame_At_The_Viewport_A_Resize_Recorded()
+    {
+        var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedJson);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        await session.ResizeAsync(100, 30);
+        await session.SubmitAsync(SubmittedLine);
+
+        await Assert.That(socket.SentMessages[1])
+            .IsEquivalentTo(PersistentPtyFrameData.Framed(1, 100, 30, PersistentPtyFrameData.Output(SubmittedLine + Enter)));
+    }
+
+    [Test]
+    public async Task SubmitAsync_Should_Send_A_Bare_Enter_For_An_Empty_Line()
+    {
+        var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedJson);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        await session.SubmitAsync(string.Empty);
+
+        await Assert.That(socket.SentMessages.Single())
+            .IsEquivalentTo(PersistentPtyFrameData.Framed(1, 80, 24, PersistentPtyFrameData.Output(Enter)));
+    }
+
+    [Test]
+    public async Task SubmitAsync_Should_Refuse_A_Null_Line()
+    {
+        var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedJson);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        _ = await Assert.That(async () => await session.SubmitAsync(null!)).Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    [MethodDataSource(nameof(LinesCarryingABreak))]
+    public async Task SubmitAsync_Should_Refuse_A_Line_Carrying_A_Break(string line)
+    {
+        var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedJson);
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        var failure = await Assert.That(async () => await session.SubmitAsync(line)).Throws<ArgumentException>();
+
+        // A submit is one Enter: an embedded break would run a command the caller never wrote.
+        await Assert.That(failure!.ParamName).IsEqualTo("line");
+        await Assert.That(socket.SentMessages).IsEmpty();
+    }
+
+    [Test]
+    public async Task SubmitAsync_Should_Throw_After_Dispose()
+    {
+        var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedJson);
+        var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+        await session.DisposeAsync();
+
+        _ = await Assert.That(async () => await session.SubmitAsync(SubmittedLine)).Throws<ObjectDisposedException>();
+    }
+
+    [Test]
+    public async Task SubmitAsync_Should_Report_A_Failed_Send_As_A_Transport_Failure()
+    {
+        var socket = new ScriptedTerminalWebSocket()
+            .Text(PersistentPtyFrameData.AttachedJson)
+            .FailingNextSendWith(new WebSocketException("the connection dropped"));
+        await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
+
+        var failure = await Assert.That(async () => await session.SubmitAsync(SubmittedLine))
+            .Throws<OpenCodeTransportException>();
+
+        await Assert.That(failure!.InnerException).IsTypeOf<WebSocketException>();
+        await Assert.That(socket.SentMessages).IsEmpty();
+    }
+
     [Test]
     public async Task ResizeAsync_Should_Send_A_Control_Frame_And_Track_The_Viewport()
     {

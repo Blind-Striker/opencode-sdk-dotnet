@@ -20,6 +20,18 @@ public sealed class PtySessionLiveTests(PinnedOpenCodeServerFixture server)
 
     private const string ReadyRecord = "READY";
 
+    /// <summary>The line the peer answers with <see cref="ReadyRecord"/> once it owns stdin.</summary>
+    private const string ReadyRequest = "READY?";
+
+    /// <summary>The peer's execution request; only a line its reader completed produces an answer.</summary>
+    private const string RunPrefix = "RUN ";
+
+    /// <summary>The peer's answer to an executed request, carrying the nonce it was given.</summary>
+    private const string AcknowledgementPrefix = "ACK:";
+
+    /// <summary>The title of the terminal the submit door drives; the lifecycle test owns its own.</summary>
+    private const string SubmitTitle = "sdk normal pty submit";
+
     private const string UpdatedTitle = "sdk normal pty live updated";
 
     private readonly FixtureLoader _fixtures = new();
@@ -58,6 +70,77 @@ public sealed class PtySessionLiveTests(PinnedOpenCodeServerFixture server)
         }
 
         await _scenario.CleanupAsync(primaryFailure);
+    }
+
+    /// <summary>
+    /// The submit door against a real terminal: the caller hands over a bare line and the peer
+    /// answers only if the line was submitted. The peer acknowledges executed input alone, so an
+    /// answer proves the terminator the SDK added reached the line discipline - on every OS this
+    /// suite runs, including the Windows console host whose Enter is a carriage return.
+    /// </summary>
+    /// <param name="cancellationToken">The test's own deadline.</param>
+    /// <returns>The running test.</returns>
+    [Test]
+    [Timeout(120_000)]
+    public async Task SubmitAsync_Should_Execute_A_Line_It_Terminates_Itself(CancellationToken cancellationToken)
+    {
+        Exception? primaryFailure = null;
+        try
+        {
+            await _scenario.InitializeAsync(cancellationToken);
+            var nonce = await SubmitThroughTheTerminalAsync(cancellationToken);
+
+            Console.WriteLine("pty-live: submit mode=" + _scenario.Mode + " executed=" + nonce);
+        }
+        catch (Exception exception)
+        {
+            primaryFailure = exception;
+        }
+
+        await _scenario.CleanupAsync(primaryFailure);
+    }
+
+    /// <summary>
+    /// Creates the peer terminal, submits its readiness request and one execution request, and
+    /// returns the nonce the peer acknowledged.
+    /// </summary>
+    /// <param name="cancellationToken">The test's own deadline.</param>
+    /// <returns>The nonce the peer acknowledged.</returns>
+    private async Task<string> SubmitThroughTheTerminalAsync(CancellationToken cancellationToken)
+    {
+        _scenario.Diagnostics.Enter("submit create");
+        var created = await _scenario.Client.Ptys.CreatePtyAsync(
+            new PtyCreateRequest
+            {
+                Command = Command,
+                Args = ["-e", _fixtures.LoadText("Ptys.terminal-peer.js")],
+                Cwd = _scenario.Directory,
+                Title = SubmitTitle,
+                Location = _scenario.Location,
+            },
+            cancellationToken: cancellationToken);
+        _scenario.Diagnostics.Created(created.Pty.Id, created.Pty.Pid, created.Status);
+        var terminal = _scenario.Client.Ptys.GetPtyClient(created.Pty.Id);
+        _scenario.Own(terminal);
+        await Assert.That(created.Status).IsEqualTo(200);
+
+        _scenario.Diagnostics.Enter("submit connect");
+        var session = _scenario.Own(await terminal.ConnectAsync(
+            new PtyConnectOptions { Location = _scenario.Location }, cancellationToken));
+        var transcript = new PtyLiveTranscript();
+        _scenario.Diagnostics.Enter("submitted readiness", transcript);
+        await session.SubmitAsync(ReadyRequest, cancellationToken);
+        _ = await transcript.ReadThroughReplayAsync(session, [ReadyRecord], cancellationToken);
+
+        // Neither submit is handed a terminator: the peer's reader completes a line only when the
+        // line discipline saw one, so an acknowledgement is the SDK's own carriage return observed.
+        var nonce = Guid.NewGuid().ToString("N");
+        _scenario.Diagnostics.Enter("submitted execution", transcript);
+        await session.SubmitAsync(RunPrefix + nonce, cancellationToken);
+        await transcript.ReadUntilRecordAsync(session, AcknowledgementPrefix + nonce, cancellationToken);
+        await Assert.That(transcript.ContainsRecord(AcknowledgementPrefix + nonce)).IsTrue();
+        await session.DisposeAsync();
+        return nonce;
     }
 
     private async Task<PtyHttpEvidence> AssertHttpLifecycleAsync(CancellationToken cancellationToken)
@@ -157,17 +240,17 @@ public sealed class PtySessionLiveTests(PinnedOpenCodeServerFixture server)
         CancellationToken cancellationToken)
     {
         var nonce = Guid.NewGuid().ToString("N");
-        var acknowledgement = "ACK:" + nonce;
+        var acknowledgement = AcknowledgementPrefix + nonce;
         _scenario.Diagnostics.Enter("initial connect");
         var session = _scenario.Own(await terminal.ConnectAsync(
             new PtyConnectOptions { Location = _scenario.Location }, cancellationToken));
         var transcript = new PtyLiveTranscript();
         _scenario.Diagnostics.Enter("readiness request", transcript);
-        await session.WriteAsync("READY?\r", cancellationToken);
+        await session.WriteAsync(ReadyRequest + "\r", cancellationToken);
         _scenario.Diagnostics.Enter("initial READY", transcript);
         _ = await transcript.ReadThroughReplayAsync(session, [ReadyRecord], cancellationToken);
         _scenario.Diagnostics.Enter("initial input acknowledgement", transcript);
-        await session.WriteAsync("RUN " + nonce + "\r", cancellationToken);
+        await session.WriteAsync(RunPrefix + nonce + "\r", cancellationToken);
         await transcript.ReadUntilRecordAsync(session, acknowledgement, cancellationToken);
         await AssertReadCancellationReuseAsync(session, cancellationToken);
         await session.DisposeAsync();
@@ -215,8 +298,8 @@ public sealed class PtySessionLiveTests(PinnedOpenCodeServerFixture server)
         var nonce = Guid.NewGuid().ToString("N");
         var transcript = new PtyLiveTranscript();
         _scenario.Diagnostics.Enter("execute after read cancellation", transcript);
-        await session.WriteAsync("RUN " + nonce + "\r", cancellationToken);
-        await transcript.ReadUntilRecordAsync(session, "ACK:" + nonce, cancellationToken);
+        await session.WriteAsync(RunPrefix + nonce + "\r", cancellationToken);
+        await transcript.ReadUntilRecordAsync(session, AcknowledgementPrefix + nonce, cancellationToken);
         Console.WriteLine("pty-live: read-canceled same-connection-execution=" + nonce);
     }
 
@@ -235,9 +318,9 @@ public sealed class PtySessionLiveTests(PinnedOpenCodeServerFixture server)
         await Assert.That(replayTranscript.ContainsRecord(acknowledgementA)).IsTrue();
 
         var nonceB = Guid.NewGuid().ToString("N");
-        var acknowledgementB = "ACK:" + nonceB;
+        var acknowledgementB = AcknowledgementPrefix + nonceB;
         _scenario.Diagnostics.Enter("replay input acknowledgement", replayTranscript);
-        await replay.WriteAsync("RUN " + nonceB + "\r", cancellationToken);
+        await replay.WriteAsync(RunPrefix + nonceB + "\r", cancellationToken);
         await replayTranscript.ReadUntilRecordAsync(replay, acknowledgementB, cancellationToken);
         await replay.DisposeAsync();
 

@@ -1101,6 +1101,7 @@
         public virtual System.Threading.Tasks.ValueTask DisposeAsync() { }
         public virtual System.Collections.Generic.IAsyncEnumerable<OpenCode.Sdk.PersistentPtyFrame> ReadAsync(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task ResizeAsync(int cols, int rows, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task SubmitAsync(string line, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task WriteAsync(System.ReadOnlyMemory<byte> input, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class PersistentPtyShutdownPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PersistentPtyShutdownPostResponse>
@@ -1324,6 +1325,7 @@
         protected PtySession() { }
         public virtual System.Threading.Tasks.ValueTask DisposeAsync() { }
         public virtual System.Collections.Generic.IAsyncEnumerable<OpenCode.Sdk.PtyFrame> ReadAsync(System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task SubmitAsync(string line, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task WriteAsync(string input, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class PtyUpdatePutResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.PtyUpdatePutResponse>
