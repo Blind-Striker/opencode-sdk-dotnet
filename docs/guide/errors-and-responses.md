@@ -216,7 +216,40 @@ catch (OpenCodeServerException failure)
 ```
 
 Whenever a child process actually ran, the message carries a bounded tail of its **stderr** — which
-is usually the answer. The four causes are an exit before readiness (naming the exit code), a
-readiness timeout (naming the bound you configured), a first stdout line that was not the readiness
-contract (quoting it), and a spawn failure. Only the last carries no stderr, for the good reason
-that nothing ran.
+is usually the answer. The causes that reach a running child are an exit before readiness (naming
+the exit code), a readiness timeout (naming the bound you configured), and a first stdout line that
+was not the readiness contract (quoting it).
+
+The rest are decided before anything is spawned, so they carry no stderr — there is nothing to
+report — but they name exactly what went wrong instead.
+
+**The command was not found.** `Command[0]` was a bare name and no `PATH` directory held it. The
+message says how many directories were searched and, on Windows, which extensions were appended:
+
+```text
+The server command 'opencode2' was not found on PATH: 37 directories searched with the
+extensions .COM, .EXE, .BAT, .CMD. Pass the executable's full path in
+OpenCodeServerOptions.Command, or install the CLI package @opencode/cli.
+```
+
+Those two suggestions are the two real fixes: install the CLI (`npm install -g @opencode/cli`), or
+stop depending on the search and name the file — `Command = ["/opt/opencode/bin/opencode2", "serve"]`.
+The [resolution rules](connection-modes.md#how-the-command-is-resolved) say exactly what was tried.
+
+**An argument was refused.** The command resolved to a Windows `.cmd`/`.bat` shim, which runs
+through `cmd.exe`, and one of your leading arguments contained a character `cmd.exe` would re-parse:
+
+```text
+The server command resolved to the batch shim 'C:\Users\you\AppData\Roaming\npm\opencode2.cmd',
+which runs through cmd.exe, and cmd.exe re-parses its command line — so the argument
+'serve&whoami' is refused rather than escaped: it contains one of & | < > ^ % ! " or a line
+break. Remove the character, or point OpenCodeServerOptions.Command at the real executable
+instead of the shim.
+```
+
+Refusing beats escaping here (see [BatBadBut / CVE-2024-24576](https://nvd.nist.gov/vuln/detail/CVE-2024-24576)),
+so the SDK will not try to quote its way out. Nothing was started when you see this.
+
+**A spawn failure.** The path existed as far as resolution could tell and the operating system
+still refused to run it — a wrong architecture, a missing execute bit, a deleted file. The message
+names the command you wrote and, when they differ, the path it resolved to.

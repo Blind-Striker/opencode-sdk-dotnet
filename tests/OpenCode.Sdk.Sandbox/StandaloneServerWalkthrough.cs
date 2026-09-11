@@ -6,7 +6,9 @@ namespace OpenCode.Sdk.Sandbox;
 /// The M4 demo leg: the SDK starts the server itself and calls health — no
 /// OPENCODE_SANDBOX_ENDPOINT, no ambient server. OPENCODE_SANDBOX_SERVER_COMMAND ('|'-separated
 /// to survive paths with spaces) overrides the command; unset uses the product default
-/// (opencode serve from PATH). Door 2 (explicit endpoint) is the same tail without StartAsync:
+/// (<c>opencode2 serve</c>, resolved from PATH the way a shell would — PATHEXT included on
+/// Windows, so an npm .cmd shim starts). Door 2 (explicit endpoint) is the same tail without
+/// StartAsync:
 /// construct the client against a known endpoint and run the same bounded health probe.
 /// </summary>
 internal static class StandaloneServerWalkthrough

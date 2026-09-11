@@ -1032,3 +1032,13 @@ dotnet_diagnostic.S6966.severity = none
 # cross-TFM shape; MA0045 remains enabled for every other file.
 [tests/Shared/PinnedOpenCodeServerFixture.cs]
 dotnet_diagnostic.MA0045.severity = none
+
+# PathCommandShim writes one small batch file into a real temp directory through
+# RealFileSystem, from a synchronous constructor whose whole job is arranging process-global
+# state (the file plus the PATH prepend) before a launcher test runs. IFile.WriteAllTextAsync is
+# unavailable through this abstraction on the net472 leg - the same constraint
+# DriveManifestTests.cs documents above - and an async factory would make the arrangement
+# awaitable without making it asynchronous. Winner: the cross-TFM arrangement shape; MA0045
+# remains enabled for every other file.
+[tests/OpenCode.Sdk.Tests/Support/PathCommandShim.cs]
+dotnet_diagnostic.MA0045.severity = none

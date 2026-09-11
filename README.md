@@ -192,10 +192,11 @@ keep the credentials in environment variables:
 ### The SDK starts the server
 
 No ambient process, no endpoint to configure — the launcher starts a private `opencode2 serve`
-child, mints its credential, and hands you a client bound to it. Disposing the server stops the
-child. To keep the child's output for diagnostics, pass an `OpenCodeServerOutput` collector in
-`OpenCodeServerOptions.Output` and read its snapshot whenever you like — bounded, and still
-readable when the start failed.
+child, mints its credential, and hands you a client bound to it. `opencode2` is resolved from
+`PATH` the way a shell resolves it, `PATHEXT` included, so an npm-installed CLI's `.cmd` shim
+starts on Windows too. Disposing the server stops the child. To keep the child's output for
+diagnostics, pass an `OpenCodeServerOutput` collector in `OpenCodeServerOptions.Output` and read
+its snapshot whenever you like — bounded, and still readable when the start failed.
 
 ```csharp
 using OpenCode.Sdk;
