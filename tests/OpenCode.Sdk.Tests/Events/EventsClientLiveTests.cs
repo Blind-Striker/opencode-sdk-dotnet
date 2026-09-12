@@ -32,7 +32,7 @@ public sealed class EventsClientLiveTests(PinnedOpenCodeServerFixture server)
     public async Task SubscribeAsync_Should_Deliver_The_Owned_Rpc_Event_With_Its_Nonce_And_Location(
         CancellationToken cancellationToken)
     {
-        var ownedPlugin = server.OwnedRpcPlugin ??
+        var ownedPlugin = server.RpcPlugin ??
             throw new InvalidOperationException(
                 "The rpc event proof requires the owned pinned server; an external endpoint has no owned plugin.");
         using var client = server.CreateClient();

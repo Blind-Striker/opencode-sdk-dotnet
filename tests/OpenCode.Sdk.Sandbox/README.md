@@ -131,6 +131,26 @@ module 'react/jsx-dev-runtime'`. This is the same root cause `PinnedOpenCodeServ
 around via `OpenCodeServerOptions.WorkingDirectory` for the test suite (Task 2); the sandbox demo
 reaches the identical fix by folding `--cwd` into the command tokens themselves.
 
+## Pointing the live suite at another build of the server
+
+`PinnedOpenCodeServerFixture` normally starts the pinned submodule source under bun.
+`OPENCODE_SDK_TESTS_SERVER_COMMAND` replaces that command and changes nothing else — the same
+isolated XDG roots, the same repository-owned RPC plugin seeded into the server's configuration,
+the same launcher-owned readiness and teardown, the same retained logs — so the whole suite can be
+run against a different build of the same server:
+
+```powershell
+$env:OPENCODE_SDK_TESTS_SERVER_COMMAND = "opencode|serve"
+dotnet test tests/OpenCode.Sdk.Tests --configuration Release --no-build --framework net10.0
+```
+
+The value is `|`-separated for the same reason `OPENCODE_SANDBOX_SERVER_COMMAND` is: a path with
+spaces survives as one token. The first token is resolved by the SDK's own launcher from `PATH`
+(`PATHEXT` included, so an npm `.cmd` shim starts), so a bare `opencode` is the whole value it
+needs, and the fixture prints which command it started. The distributed-build consumer leg
+(`.github/workflows/consumer-leg.yml`) is the standing user: that is how the published
+`@opencode/cli` build gets this suite run against it.
+
 ## Live legs against a WSL2 server (Windows workstations)
 
 The `opencode-pty` daemon (`@opencode-ai/pty`) ships darwin/linux platform packages only — no

@@ -312,14 +312,14 @@ public sealed class RpcClientLiveTests(PinnedOpenCodeServerFixture server)
 
     private async Task<bool> PrepareRpcModeAsync(OpenCodeClient client, CancellationToken cancellationToken)
     {
-        if (!server.IsExternal)
+        // Every owned server carries the seeded plugin, whichever build the fixture started, so a
+        // missing plugin is the external endpoint and nothing else.
+        if (server.RpcPlugin is not null)
         {
-            _ = server.OwnedRpcPlugin ??
-                throw new InvalidOperationException("The owned pinned server did not resolve its RPC plugin.");
             return false;
         }
 
-        await Assert.That(server.OwnedRpcPlugin).IsNull();
+        await Assert.That(server.IsExternal).IsTrue();
         _ = await client.Plugins.AwaitPluginActivationAsync(cancellationToken: cancellationToken);
         var listed = await client.Plugins.ListPluginsAsync(cancellationToken: cancellationToken);
         await Assert.That(listed.Status).IsEqualTo(200);
