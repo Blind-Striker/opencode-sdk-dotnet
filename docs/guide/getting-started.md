@@ -54,7 +54,7 @@ using var client = new OpenCodeClient(new OpenCodeClientOptions
 | Member | Type | Meaning |
 |---|---|---|
 | `Endpoint` | `Uri?` | The server's base address. Required. |
-| `Password` | `string?` | The HTTP Basic password. `null` sends anonymous requests, which is what a server started without authentication expects; an empty or whitespace value is refused at construction. |
+| `Password` | `string?` | The HTTP Basic password. Required for any server the `opencode2` CLI started — it always runs with one, generated and printed as `server password <pw>` when you set none. `null` sends no credential at all, which only a server embedded without authentication accepts; an empty or whitespace value is refused at construction. |
 | `Username` | `string` | The Basic username. Defaults to `opencode` — the only username the pinned server accepts — so leave it alone unless upstream changes. |
 | `Location` | `LocationSelector?` | The ambient directory/workspace header values, overridable per call; only operations that resolve location from those headers use them. |
 
@@ -105,6 +105,86 @@ var generated = await session.PostGenerateAsync(new SessionGeneratePostRequest {
 
 Console.WriteLine(generated.Generate.Text);
 ```
+
+### Choosing a model
+
+The calls above let the server pick a model. To pick one yourself, the *order* is the part worth
+knowing, because a server that has just answered a health check does not necessarily have a catalog
+yet:
+
+```csharp
+// 1. Health is process liveness. It says nothing at all about the model catalog.
+var health = await client.GetHealthAsync();
+
+// 2. Providers register while the location's plugins activate, and activation is asynchronous.
+//    This is the settle signal; a health probe is not.
+await client.Plugins.AwaitPluginActivationAsync();
+
+// 3. Now the catalog is worth reading.
+var providers = await client.Providers.ListProvidersAsync();
+var models = await client.LanguageModels.ListModelsAsync();
+
+Console.WriteLine($"{providers.Providers.Count} providers, {models.Models.Count} models");
+
+// 4. Listing already filters to enabled models of available providers, so this guards an empty
+//    catalog rather than filtering one.
+var model = models.Models.FirstOrDefault(candidate => candidate.Enabled);
+
+if (model is not null)
+{
+    // 5. A session reference carries the catalog id.
+    var created = await client.Sessions.CreateSessionAsync(new SessionCreateRequest
+    {
+        Title = "picked a model",
+        Model = new ModelRef { ProviderId = model.ProviderId, Id = model.Id },
+    });
+
+    Console.WriteLine($"session {created.Session.Id} on {model.ProviderId}/{model.Id}");
+}
+```
+
+Three things the types do not tell you:
+
+- **`ModelRef.Id` takes `ModelInfo.Id`, never `ModelInfo.ModelId`.** `Id` is the catalog identity;
+  `ModelId` is the id the provider's own API uses. They hold the same string for most models — which
+  is exactly why the mistake survives a first test and then fails on an aliased one. Upstream's own
+  TUI matches on `ProviderId` plus `Id`.
+- **An empty list right after health is ordinary, not a failure.** Plugins activate asynchronously
+  and providers register as they go, so a list issued too early observes a partial or empty
+  registry. `AwaitPluginActivationAsync` is the wait for it, and it is cheap to call again.
+- **Neither create nor prompt validates the ref.** A wrong `ProviderId`/`Id` pair is accepted by
+  both and surfaces later as a failed turn — there is no typed model error to catch at the call.
+
+Every call above resolves its location the same way the rest of the client does: from the client's
+ambient `Location`, or the server's own working directory when you set none. Each request type
+carries its own `Location` if you want to read one location's catalog from a client pointed at
+another.
+
+And **provider inventory is the machine's ambient opencode configuration**, not something the SDK
+or the launcher supplies. A host with no provider credentials configured lists nothing, and
+`OpenCodeServer.StartAsync` does not change that — it starts a fresh process, not a fresh machine.
+If you have no preference at all, `client.LanguageModels.GetDefaultAsync()` answers with the
+location's default model, whose `Default` payload is legitimately `null` on such a host.
+
+### Export a session transcript
+
+`GetExportAsync` hands back the session plus every settled message in one `SessionTransferData`,
+and `PostImportAsync` takes that same shape back at a location (answering 409 for an id that
+already exists):
+
+```csharp
+var export = await session.GetExportAsync(new SessionExportRequest { Sanitize = QueryBoolean.True });
+
+Console.WriteLine($"{export.Export.Messages.Count} messages from {export.Export.Info.Id}");
+```
+
+> **✂️ `Sanitize` redacts by design.** With `Sanitize = QueryBoolean.True` the server rewrites
+> message text to placeholders before it answers — `[redacted:text:<messageId>]` for user text,
+> `[redacted:synthetic:<messageId>]` for synthetic text, `[redacted:session-title:<sessionId>]` for
+> the title, and the same treatment for the directory. Ids, types, order, and count all survive
+> untouched. So a sanitized export is for sharing the *shape* of a conversation, never for
+> comparing transcripts: compare ids, not text. Leave `Sanitize` unset or `False` when you want the
+> conversation itself. Verified on `@opencode/cli@0.0.0-beta-19425`.
 
 ## 🧭 How the client is organised
 

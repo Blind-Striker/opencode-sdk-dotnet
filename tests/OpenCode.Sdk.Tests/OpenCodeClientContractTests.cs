@@ -64,6 +64,75 @@ public sealed class OpenCodeClientContractTests
         await Assert.That(exception.RawBody).Contains("UnauthorizedError");
     }
 
+    /// <summary>
+    /// The first-contact failure PF-8 recorded: an <c>opencode2 serve</c> process always runs with a
+    /// password, answers an uncredentialed request with a bare 401, and the caller sees nothing to
+    /// diagnose with. The diagnostic rides the exception message only when the client itself sent no
+    /// credential, so it can never mislead a caller whose password was merely wrong.
+    /// </summary>
+    [Test]
+    [Arguments(WireBodyData.UnauthorizedError)]
+    [Arguments("")]
+    public async Task GetHealthAsync_Should_Name_The_Missing_Credential_When_A_401_Answers_A_Passwordless_Client(string body)
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, body);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.GetHealthAsync())
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(401);
+        await Assert.That(exception.Message).IsEqualTo(
+            "The opencode API returned status 401" + (body.Length == 0 ? "." : " ('UnauthorizedError').") +
+            " The client sent no credential: the opencode CLI always starts its server with a password, " +
+            "so pass the one it printed as 'server password <pw>', or the one you set through " +
+            "OPENCODE_PASSWORD, in OpenCodeClientOptions.Password.");
+    }
+
+    [Test]
+    public async Task GetHealthAsync_Should_Leave_The_401_Message_Alone_When_A_Password_Was_Configured()
+    {
+        using var scenario = ContractScenario.RespondingToCredentialed(
+            HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError, "wrong-password");
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.GetHealthAsync())
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(401);
+        await Assert.That(exception.Message).IsEqualTo("The opencode API returned status 401 ('UnauthorizedError').");
+    }
+
+    /// <summary>The hint is scoped to 401: no other status is evidence about the credential.</summary>
+    [Test]
+    public async Task GetHealthAsync_Should_Leave_A_Non_401_Message_Alone_For_A_Passwordless_Client()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Forbidden, "");
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.GetHealthAsync())
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Message).IsEqualTo("The opencode API returned status 403.");
+    }
+
+    /// <summary>
+    /// The diagnostic is a message on the throwing channel, so the <c>NoThrow</c> spine is unchanged:
+    /// the envelope carries the status, the typed error and the raw body exactly as before.
+    /// </summary>
+    [Test]
+    public async Task GetHealthAsync_Should_Leave_The_NoThrow_Spine_Unchanged_On_A_401_Without_A_Password()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.GetHealthAsync(OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+        await Assert.That(response.RawBody).IsEqualTo(WireBodyData.UnauthorizedError);
+    }
+
     [Test]
     public async Task GetLocationAsync_Should_Return_The_Typed_Resolved_Location()
     {

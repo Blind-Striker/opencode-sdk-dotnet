@@ -50,7 +50,9 @@ cursor, no replay, and no resume channel:
   gap you need to know about. After a failure, refresh whatever state you care about with ordinary
   calls, then subscribe again.
 
-If the server profile retains session history, the per-session log is the stream that can replay it.
+If the server was started with event persistence, the per-session log is the stream that can replay
+it — and the CLI you install does not start one that way; the note on guarantees below has the
+whole story.
 
 ## 📜 A single session's log
 
@@ -93,12 +95,24 @@ With `Follow = True`, read through any replayed events until that marker arrives
 then delivers live events committed after the attachment boundary. The marker is a transition
 boundary, not a durable event to save as the next `After` value.
 
-> **📎 A note on guarantees**: replay depends on the server. Persistence is a server option that is
-> off unless the server was started with it, so a default server answers with the marker alone.
-> When it is on, nothing expires or prunes the log and entries live until their session is deleted.
-> Sequences are not contiguous, so treat a gap as ordinary rather than as loss. Carry a cursor only
-> within one server's lifetime: a cursor past the log's tail is accepted rather than refused and
-> then suppresses live delivery until the log overtakes it. See the canonical
+> **📎 A note on guarantees**: replay depends on how the server was started. Persistence is a server
+> option that is off unless the process starting the server turned it on, so a server without it
+> answers a replay with the marker alone.
+>
+> **The distributed `opencode2` CLI starts its server without event persistence and exposes no
+> switch for it** — no serve flag, no environment variable, no configuration key. Observed on
+> `@opencode/cli@0.0.0-beta-19425` and every earlier build. So a replay (`GetLogAsync` with
+> `Follow` unset or `False`) against a CLI-started server is not an error and not empty: it is one
+> `EventLogSynced` whose `Seq` has advanced, with nothing replayed before it. That is the signature
+> to look for — a marker that moved, and no durable events ahead of it. Persisted replay needs a
+> host that embeds the opencode server library with persistence enabled; this repository's own
+> simulation host does exactly that for its tests. Live delivery under `Follow = True` is
+> unaffected either way.
+>
+> When persistence *is* on, nothing expires or prunes the log and entries live until their session
+> is deleted. Sequences are not contiguous, so treat a gap as ordinary rather than as loss. Carry a
+> cursor only within one server's lifetime: a cursor past the log's tail is accepted rather than
+> refused and then suppresses live delivery until the log overtakes it. See the canonical
 > [server-sent events rules](../architecture/client-runtime.md#server-sent-events).
 
 ## 🧩 Unknown events do not break your consumer

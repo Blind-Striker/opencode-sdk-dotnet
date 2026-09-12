@@ -111,6 +111,32 @@ public sealed class PipelineStreamTests
         await Assert.That(exception.RawBody).Contains("SessionNotFoundError");
     }
 
+    /// <summary>
+    /// A stream has no envelope, so the 401 diagnostic is only ever readable as a message — and the
+    /// streaming spine reaches the same failure builder the one-shot spine does.
+    /// </summary>
+    [Test]
+    [Arguments(null, true)]
+    [Arguments("secret", false)]
+    public async Task ExecuteStreamAsync_Should_Name_A_Missing_Credential_Only_When_None_Was_Configured(
+        string? password, bool expectHint)
+    {
+        using var handler = new RecordingHttpHandler(static _ => new HttpResponseMessage(HttpStatusCode.Unauthorized)
+        {
+            Content = new StringContent(string.Empty),
+        });
+        using var httpClient = new HttpClient(handler);
+        using var pipeline = PipelineFactory.Create(httpClient, password: password);
+
+        var exception = await Assert
+            .That(async () => _ = await CollectAsync(pipeline))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(401);
+        await Assert.That(exception.Message.Contains(
+            "The client sent no credential", StringComparison.Ordinal)).IsEqualTo(expectHint);
+    }
+
     [Test]
     [NotInParallel]
     public async Task ExecuteStreamAsync_Should_Fail_A_Stalled_Error_Body_At_The_Progress_Window()

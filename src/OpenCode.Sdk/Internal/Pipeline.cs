@@ -52,14 +52,15 @@ internal sealed class Pipeline : IDisposable
             throw new ArgumentException("The username cannot contain a colon.", nameof(options));
         }
 
-        // An explicitly blank password has no upstream meaning (a server without configured
-        // authentication expects no credentials at all), so it fails loudly; null is the
-        // anonymous spelling.
+        // An explicitly blank password is not a spelling of "no credential": it would send an
+        // empty Basic password, which no server accepts, so it fails loudly. Null is the
+        // no-credential spelling, and only a server running without authentication accepts it
+        // — never an `opencode2 serve` process, which always runs with a password.
         var password = options.Password;
         if (password is not null && string.IsNullOrWhiteSpace(password))
         {
             throw new ArgumentException(
-                "An explicit password cannot be empty or whitespace; leave it null for a server without authentication.",
+                "An explicit password cannot be empty or whitespace; leave it null only for a server that runs without authentication.",
                 nameof(options));
         }
 
@@ -88,6 +89,13 @@ internal sealed class Pipeline : IDisposable
 
     /// <summary>Gets the construction-time connection facts a non-HTTP door addresses the server with.</summary>
     public ConnectionSnapshot Connection { get; }
+
+    /// <summary>
+    /// Gets whether every request this pipeline sends carries a Basic credential. Read from the same
+    /// construction-time snapshot the decoration policy holds, so it answers what was actually sent
+    /// rather than what the options object says now; only the failure message consults it.
+    /// </summary>
+    private bool CredentialSent => Connection.Authorization is not null;
 
     public static Pipeline Create(OpenCodeClientOptions options)
     {
@@ -245,7 +253,8 @@ internal sealed class Pipeline : IDisposable
             case StatusVerdict.DeclaredError:
             case StatusVerdict.UndeclaredError:
                 var rawBody = ResponseMaterializer.ReadErrorBody(message);
-                throw OpenCodeErrorReader.CreateApiException(status, adapter.ReadError(status, rawBody), rawBody);
+                throw OpenCodeErrorReader.CreateApiException(
+                    status, adapter.ReadError(status, rawBody), rawBody, CredentialSent);
             default:
                 // A stream contract has no no-content success; any other verdict is a
                 // generator defect, refused rather than guessed around.
@@ -344,8 +353,8 @@ internal sealed class Pipeline : IDisposable
         return content;
     }
 
-    private static OpenCodeApiException CreateApiException(OpenCodeResponse response) =>
-        OpenCodeErrorReader.CreateApiException(response.Status, response.Error, response.RawBody);
+    private OpenCodeApiException CreateApiException(OpenCodeResponse response) =>
+        OpenCodeErrorReader.CreateApiException(response.Status, response.Error, response.RawBody, CredentialSent);
 
     private static async Task<Stream> ReadBodyStreamAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {

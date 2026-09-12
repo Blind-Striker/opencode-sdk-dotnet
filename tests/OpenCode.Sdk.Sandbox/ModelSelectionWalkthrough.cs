@@ -1,0 +1,62 @@
+using System.Globalization;
+using OpenCode.Sdk.Models;
+
+namespace OpenCode.Sdk.Sandbox;
+
+/// <summary>
+/// The compile-and-run home for the "choosing a model" recipe in
+/// <c>docs/guide/getting-started.md</c>: wait for plugin activation to settle, read the catalog the
+/// location actually has, and place the chosen model on session creation. Runs on the
+/// launcher-started leg, where health has just answered — which is exactly the moment the catalog
+/// can still be empty.
+/// </summary>
+internal static class ModelSelectionWalkthrough
+{
+    public static async Task RunAsync(OpenCodeClient client)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+
+        // Health is process liveness. Plugins activate asynchronously and providers register while
+        // they do, so this is the settle signal a catalog read needs.
+        var settled = await client.Plugins.AwaitPluginActivationAsync().ConfigureAwait(false);
+        Console.WriteLine(
+            string.Create(CultureInfo.InvariantCulture, $"activation: status={settled.Status}"));
+
+        var providers = await client.Providers.ListProvidersAsync().ConfigureAwait(false);
+        var models = await client.LanguageModels.ListModelsAsync().ConfigureAwait(false);
+        Console.WriteLine(string.Create(
+            CultureInfo.InvariantCulture,
+            $"catalog: providers={providers.Providers.Count} models={models.Models.Count}"));
+
+        // Listing already filters to enabled models of available providers, so this is a guard
+        // against an empty catalog rather than a filter of its own.
+        var model = models.Models.FirstOrDefault(static candidate => candidate.Enabled);
+        if (model is null)
+        {
+            // Provider inventory is the machine's ambient opencode configuration: a host with no
+            // provider credentials has nothing to choose from, and that is not a failure here.
+            Console.WriteLine(string.Create(
+                CultureInfo.InvariantCulture,
+                $"model: none enabled on this host ({providers.Providers.Count} providers); session stays default"));
+            return;
+        }
+
+        Console.WriteLine(
+            $"model: provider={model.ProviderId} id={model.Id} modelId={model.ModelId} name={model.Name}");
+
+        // A session reference carries the catalog id, ModelInfo.Id — never ModelInfo.ModelId, which
+        // is the id the provider's own API uses.
+        var created = await client.Sessions.CreateSessionAsync(new SessionCreateRequest
+        {
+            Title = "sdk model-selection demo",
+            Model = new ModelRef { ProviderId = model.ProviderId, Id = model.Id },
+        }).ConfigureAwait(false);
+        Console.WriteLine(string.Create(
+            CultureInfo.InvariantCulture,
+            $"session: status={created.Status} id={created.Session.Id}"));
+
+        var removed = await client.Sessions.GetSessionClient(created.Session.Id)
+            .RemoveSessionAsync(OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"cleanup: status={removed.Status}"));
+    }
+}

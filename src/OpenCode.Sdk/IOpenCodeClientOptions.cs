@@ -13,7 +13,10 @@ public interface IOpenCodeClientOptions
     /// <summary>Gets the HTTP basic-authentication username; the pinned server accepts only the default <c>opencode</c>.</summary>
     public string Username { get; }
 
-    /// <summary>Gets the HTTP basic-authentication password; <see langword="null"/> sends anonymous requests.</summary>
+    /// <summary>
+    /// Gets the HTTP basic-authentication password; <see langword="null"/> sends no credential,
+    /// which only a server running without authentication accepts.
+    /// </summary>
     public string? Password { get; }
 
     /// <summary>Gets the ambient location sent on every request as location headers, or <see langword="null"/> for none.</summary>

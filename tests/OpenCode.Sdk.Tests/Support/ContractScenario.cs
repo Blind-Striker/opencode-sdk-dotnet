@@ -12,13 +12,14 @@ internal sealed class ContractScenario : IDisposable
     private readonly RecordingHttpHandler _handler;
     private readonly HttpClient _httpClient;
 
-    private ContractScenario(RecordingHttpHandler handler)
+    private ContractScenario(RecordingHttpHandler handler, string? password = null)
     {
         _handler = handler;
         _httpClient = new HttpClient(handler);
         Client = new OpenCodeClient(_httpClient, new OpenCodeClientOptions
         {
             Endpoint = Endpoint,
+            Password = password,
         });
     }
 
@@ -46,6 +47,17 @@ internal sealed class ContractScenario : IDisposable
     }
 
     public static ContractScenario Responding() => new(new RecordingHttpHandler());
+
+    /// <summary>The same canned response, reached by a client that carries a Basic password.</summary>
+    public static ContractScenario RespondingToCredentialed(HttpStatusCode status, string body, string password)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        ArgumentException.ThrowIfNullOrWhiteSpace(password);
+
+        return new(
+            new RecordingHttpHandler(_ => new HttpResponseMessage(status) { Content = new StringContent(body), }),
+            password);
+    }
 
     /// <summary>Answers with a server-sent event body, the shape a streaming operation reads.</summary>
     public static ContractScenario RespondingWithFrames(string body)

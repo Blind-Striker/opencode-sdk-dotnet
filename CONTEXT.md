@@ -82,8 +82,11 @@ Models, which form a separate catalog. A Provider names the Integration it is co
 
 **Model**:
 One entry in the model catalog, naming the Provider it belongs to and carrying its capabilities,
-variants, costs, and limits. Sessions, Agents, and Messages reference a Model by id, provider, and
-optional variant rather than embedding the entry.
+variants, costs, and limits. A Model carries two ids: its **catalog id**, the identity within this
+catalog, and its **provider model id**, the identity the Provider's own API uses. Sessions, Agents,
+and Messages reference a Model by catalog id, provider, and optional variant rather than embedding
+the entry; the provider model id never appears in a reference.
+_Avoid_: model id alone (it is ambiguous between the two).
 
 **Agent**:
 A configured opencode persona — `build` by default, others from config or plugins — selectable per
@@ -301,6 +304,13 @@ the catch-all).
 **Unknown variant carrier**:
 The per-union `Unknown*` variant absorbing discriminators that match neither a literal tag nor the
 union's prefix-tagged arm at runtime (tag string + raw payload).
+
+**Plugin activation**:
+The asynchronous per-Location settling of a server's plugins, during which Providers register and
+the model catalog fills. `v2.plugin.awaitActivation` is its settle signal; a health answer is
+process liveness and says nothing about it, so a catalog read issued before activation settles
+legitimately observes an empty or partial registry.
+_Avoid_: readiness (that is the launcher's stdout contract, a different thing).
 
 **Plugin RPC**:
 A method surface a server-side plugin registers under an `rpcID`; `v2.rpc.call` dispatches one
