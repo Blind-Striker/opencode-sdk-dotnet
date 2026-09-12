@@ -66,7 +66,10 @@ refresh authoritative state and resubscribe after a disconnect.
 **Permission**:
 The gate on agent actions, expressed as rules matching an action and a resource to an effect —
 allow, deny, or ask. An `ask` raises a permission request answered through the API, and an answer
-may be kept as a standing Project-scoped grant. Every Agent carries its own ruleset.
+may be kept as a standing Project-scoped grant. Every Agent carries its own ruleset, and so does
+every Session: a Session's ruleset is set at creation, replaced wholesale through the permission
+rules operation, evaluated after the Agent's rules with the last matching rule winning, and each
+replacement raises the durable `session.permissions.updated` Event.
 
 **Form**:
 A structured question the server raises and a client answers — typed fields, optional visibility

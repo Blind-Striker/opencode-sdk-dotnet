@@ -15,7 +15,7 @@ netstandard2.0;net472;net8.0;net9.0;net10.0
 
 `net472` owns .NET Framework-specific compile and runtime behavior. `netstandard2.0` is the broad
 compatibility bridge and has no runtime of its own; net472 legs proxy its downlevel behavior.
-`net11.0` is a post-GA light-up, not a current target (ADR-0002).
+`net11.0` is a post-1.0 light-up, not a current target (ADR-0002).
 
 Modern C# on downlevel targets is deliberate and supported inside this repository by the private,
 source-only Polyfill package. Exact package versions belong to `Directory.Packages.props`, not this
