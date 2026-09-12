@@ -62,6 +62,16 @@ is revisited at each boundary.
    session workflow (ADR-0022). **The background-service parity arc is queued** —
    `OpenCodeService.DiscoverAsync/EnsureAsync/StopAsync` over the registration file, an
    upstream-observed contract outside the OpenAPI pin, so canary-guarded.
+   **Surface completeness is queued beside it, for detailed investigation before any code:**
+   admitting the five operations that sit outside generation today. The sketched paths are an
+   opaque `JsonElement` arm for an object-only union with no marker literal (`v2.config.get`,
+   whose `lsp`, `mcp.servers`, and `references` map values are exactly that), a marker table
+   that accepts a branch whose literal carries several values (`v2.experimental.migration.v1.status`
+   dispatches on `status`, one branch with two values), a hand-written door over the wildcard
+   octet-stream route with a watched upstream handler (`v2.fs.read`), and counting the two
+   transport-owned WebSocket doors as the covered operations they are — so the surface reads
+   143 of 143 usable. Each path is an ADR-0016 or ADR-0013 question first; the investigation
+   decides whether every one holds.
 5. **M5 — Full surface.** Target admission over the refreshed surface, driven by the `refresh-spec`
    synchronizer (ADR-0020) and the ownership pattern for the terminal families (ADR-0021). Coverage
    has reached its end state; what remains is exclusion fingerprints for the transport-owned
@@ -114,6 +124,8 @@ is revisited at each boundary.
   `v2.fs.read` is declared on a framework wildcard rather than an OpenAPI path template, so the file
   path the call must carry is invisible to any generated client; admitting it would mean inventing a
   path parameter the document does not declare (ADR-0013), and the upstream report is drafted.
+  All three now have a sketched admission path (Milestones, M4: surface completeness), so these
+  are scheduled decisions to revisit, not standing ones.
 - **Two allocation follow-ups are queued behind a benchmark gate** — on `net472` and
   `netstandard2.0` a response body over 1 MB costs one wire-sized copy, and each terminal connection
   allocates one 16 KiB receive buffer, reused across consumer reads. Both are described for consumers
