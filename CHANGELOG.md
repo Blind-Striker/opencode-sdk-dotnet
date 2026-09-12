@@ -5,9 +5,14 @@ Each released version links straight to its GitHub Release tag.
 
 ## [Unreleased]
 
-Nightly builds of `master` are on
+Nothing yet. Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
 `0.8.0-nightly.{yyyyMMdd}.{shortSha}`.
+
+## [0.8.0-preview.2] - 2026-09-12
+
+The second preview, built against upstream release tag `v2.0.2`. The breaking changes come
+first, each with what to change; nothing else needs action to upgrade from `0.8.0-preview.1`.
 
 ### 💥 Breaking changes
 
@@ -264,4 +269,5 @@ migration to perform, because no earlier version was ever published.
 - **Pre-1.0 API.** The public surface is locked by a reviewed baseline, but it may still move
   before `1.0.0`. Breaking changes will be called out here with impact and migration path.
 
+[0.8.0-preview.2]: https://github.com/Blind-Striker/opencode-sdk-dotnet/releases/tag/v0.8.0-preview.2
 [0.8.0-preview.1]: https://github.com/Blind-Striker/opencode-sdk-dotnet/releases/tag/v0.8.0-preview.1
