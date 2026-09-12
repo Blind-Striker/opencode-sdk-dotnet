@@ -236,6 +236,59 @@ public sealed class UnionMemberHoistBinderTests
         await Assert.That(exception.Errors.Single().Problem).Contains("already names");
     }
 
+    /// <summary>
+    /// A carrier interface declares the unwrapped shape of every member, including one the records
+    /// carry as the tri-state wrapper, so the records answer that member explicitly through its
+    /// value. Without this the carrier would declare <c>string?</c> against records declaring
+    /// <c>Optional&lt;string?&gt;</c> and the generated tree would not compile.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Answer_A_Tristate_Carrier_Member_Through_Its_Value()
+    {
+        var plan = Hoist(
+            [Union("IExampleEvent", Arm("CreatedEvent"), Arm("DeletedEvent"))],
+            [
+                Variant("CreatedEvent", "created", Property("durable", Named("CreatedEventDurable"), isRequired: true)),
+                Variant("DeletedEvent", "deleted", Property("durable", Named("DeletedEventDurable"), isRequired: true)),
+                Record("CreatedEventDurable", TristateNote()),
+                Record("DeletedEventDurable", TristateNote()),
+            ]);
+
+        var carrier = plan.Interfaces.Single();
+        var member = carrier.Members.Single();
+        await Assert.That(member.Name).IsEqualTo("Note");
+        await Assert.That(member.Type).IsEqualTo(Named("string", isNullable: true));
+
+        foreach (var recordName in new[] { "CreatedEventDurable", "DeletedEventDurable", })
+        {
+            var implementation = Model(plan, recordName).ExplicitHoistedImplementations.Single();
+            await Assert.That(implementation.InterfaceName).IsEqualTo(carrier.Name);
+            await Assert.That(implementation.MemberName).IsEqualTo("Note");
+            await Assert.That(implementation.PropertyName).IsEqualTo("Note");
+            await Assert.That(implementation.ReadsOptionalValue).IsTrue();
+        }
+    }
+
+    [Test]
+    public async Task Bind_Should_Not_Answer_A_Plain_Carrier_Member_Explicitly()
+    {
+        var plan = Hoist(
+            [Union("IExampleEvent", Arm("CreatedEvent"), Arm("DeletedEvent"))],
+            [
+                Variant("CreatedEvent", "created", Property("durable", Named("CreatedEventDurable"), isRequired: true)),
+                Variant("DeletedEvent", "deleted", Property("durable", Named("DeletedEventDurable"), isRequired: true)),
+                Envelope("CreatedEventDurable", "1"),
+                Envelope("DeletedEventDurable", "2"),
+            ]);
+
+        // The records declare Seq and Version exactly as the carrier does, so nothing is explicit.
+        await Assert.That(Model(plan, "CreatedEventDurable").ExplicitHoistedImplementations).IsEmpty();
+        await Assert.That(Model(plan, "DeletedEventDurable").ExplicitHoistedImplementations).IsEmpty();
+    }
+
+    private static ModelPropertyPlan TristateNote() =>
+        Property("note", Named("string", isNullable: true), isRequired: false, emitsOptionalWrapper: true);
+
     private static ObjectModelPlan Model(UnionHoistPlan plan, string name) =>
         plan.Models.OfType<ObjectModelPlan>().Single(model => model.Name == name);
 

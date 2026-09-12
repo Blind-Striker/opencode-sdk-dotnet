@@ -54,6 +54,7 @@ internal static class ReservedNamePolicy
             "OpenCodeServerOutputSnapshot",
             "OpenCodeStreamFailureException",
             "OpenCodeTransportException",
+            "Optional",
             "PersistentPtyAttachedFrame",
             "PersistentPtyAttachment",
             "PersistentPtyClient",

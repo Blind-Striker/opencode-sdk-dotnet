@@ -1042,3 +1042,17 @@ dotnet_diagnostic.MA0045.severity = none
 # remains enabled for every other file.
 [tests/OpenCode.Sdk.Tests/Support/PathCommandShim.cs]
 dotnet_diagnostic.MA0045.severity = none
+
+# Optional<T> is the tri-state carrier for a request property the document declares both optional
+# and nullable. CA1000 guards against statics on a generic type whose argument a caller cannot
+# infer; here naming the argument is the point, because Optional<string?>.Null is how a caller
+# spells "write JSON null for this wire member" where no value exists to infer it from. Winner:
+# the explicit null spelling; CA1000 remains enabled for every other file.
+# CA2225 demands a named alternate for the implicit conversion. The alternate it names would be
+# either a static on the same generic type (CA1000 again) or an instance method that converts
+# nothing; the conversion exists so an ordinary object initializer keeps assigning Shell = "pwsh"
+# across the generated request surface. Winner: the object-initializer contract; CA2225 remains
+# enabled for every other file.
+[src/OpenCode.Sdk/Optional.cs]
+dotnet_diagnostic.CA1000.severity = none
+dotnet_diagnostic.CA2225.severity = none

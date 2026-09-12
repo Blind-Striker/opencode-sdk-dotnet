@@ -1,0 +1,1 @@
+{"id":"ses_1","model":{"id":"sonnet","providerID":"anthropic"},"location":{"directory":"/repo"},"metadata":{"run":7},"permissions":[{"action":"edit","resource":"*","effect":"ask"}]}

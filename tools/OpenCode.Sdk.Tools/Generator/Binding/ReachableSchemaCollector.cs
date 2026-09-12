@@ -46,7 +46,10 @@ internal sealed class ReachableSchemaCollector
             }
         }
 
-        return traversal.Snapshot();
+        return traversal.Snapshot() with
+        {
+            RequestReachableKeys = new RequestReachableSchemaWalker(document.Schemas).Collect(operations),
+        };
     }
 
     private sealed class ReachabilityTraversal(IReadOnlyDictionary<string, SchemaNode> graph, BindingErrorCollector errors, StringComparer comparer)

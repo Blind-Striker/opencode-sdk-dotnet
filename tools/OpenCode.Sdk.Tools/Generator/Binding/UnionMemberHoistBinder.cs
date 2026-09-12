@@ -49,12 +49,16 @@ internal sealed class UnionMemberHoistBinder
         var taken = new HashSet<string>(models.Select(static model => model.Name), _comparer);
         taken.UnionWith(unions.SelectMany(static union => new[] { union.Name, union.UnknownTypeName, }));
         var implementations = new HoistedImplementationAccumulator();
+        // One policy instance answers both the union interface and every carrier interface, so the
+        // two can never disagree about which record property satisfies a declared member.
+        var satisfaction = new HoistedMemberSatisfactionPolicy(
+            models.OfType<EnumModelPlan>().Select(static model => model.Name).ToHashSet(_comparer));
         return new HoistContext(
             unions.ToDictionary(static union => union.Name, _comparer),
             objectModels,
             new HoistedMemberIdentityPolicy(objectModels),
-            new HoistedMemberSatisfactionPolicy(models.OfType<EnumModelPlan>().Select(static model => model.Name).ToHashSet(_comparer)),
-            new HoistedCarrierComposer(objectModels, curation.HoistedMemberNames, taken, implementations, errors),
+            satisfaction,
+            new HoistedCarrierComposer(objectModels, curation.HoistedMemberNames, taken, satisfaction, implementations, errors),
             implementations,
             errors);
     }
@@ -169,7 +173,7 @@ internal sealed class UnionMemberHoistBinder
     {
         for (var index = 0; index < members.Count; index++)
         {
-            if (!context.Satisfaction.RequiresExplicitImplementation(owned[index].Type, declared))
+            if (!context.Satisfaction.RequiresExplicitImplementation(owned[index], declared))
             {
                 continue;
             }
@@ -180,6 +184,7 @@ internal sealed class UnionMemberHoistBinder
                 MemberName = owned[index].Name,
                 MemberType = declared,
                 PropertyName = owned[index].Name,
+                ReadsOptionalValue = owned[index].EmitsOptionalWrapper,
             });
         }
     }

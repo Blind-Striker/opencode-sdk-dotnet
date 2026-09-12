@@ -4,7 +4,9 @@ Date: 2026-08-18
 
 Generated models are sealed records with `init`-only properties. Schema presence and represented
 null are independent: a required member emits the C# `required` modifier; an optional property emits
-nullable C# so omission and explicit null collapse to one absent state. A required property whose
+nullable C# so omission and explicit null collapse to one absent state, except on a schema a
+selected request body reaches, where an optional-and-nullable property emits `Optional<T?>` and
+keeps absence, an explicit null, and a value apart. A required property whose
 selected representation uses CLR null emits `required T?` when its schema admits null, accepts an
 explicit null, and writes it back rather than omitting the member. When a representation carries
 JSON null in-band, its canonical non-null CLR state represents wire null instead of `Nullable<T>`.
@@ -40,7 +42,15 @@ Evidence for the model/nullability decision: research log Q106–Q109.
   names).
 - **`WhenWritingNull` only on optional properties;** required-nullable members must retain an
   explicit JSON null. Optional schema-non-null and schema-nullable values intentionally share the
-  same C# representation.
+  same C# representation wherever a request body does not reach the schema.
+- **A request-reachable optional-and-nullable property emits `Optional<T?>`** with
+  `WhenWritingDefault` and a closed property-level `[JsonConverter]` per instantiation, because the
+  wrapper is generic and no type-level converter can name it. `default` is absent and is not
+  written; a set null writes JSON null; a value assigns through an implicit conversion.
+  `JsonSourceGenerationMode.Metadata` on the emitted registry is load-bearing for that member-level
+  converter, not a performance preference. Reachability is the whole key: no verb, no curation row,
+  and no server knowledge participates, and a schema reached from both directions carries one
+  representation.
 - **In-band JSON-null carriers stay non-nullable;** admission requires source-generated
   serialization evidence that JSON null materializes as a canonical non-null CLR state and writes
   back as JSON null in every supported runtime context. This is a representation capability, never

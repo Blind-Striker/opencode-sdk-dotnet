@@ -1,5 +1,7 @@
 using OpenCode.Sdk.Tools.Generator.Emission;
 using OpenCode.Sdk.Tools.Tests.Support;
+using static OpenCode.Sdk.Tools.Tests.Support.BindingScenarioData;
+using static OpenCode.Sdk.Tools.Tests.Support.UnionHoistPlanData;
 
 namespace OpenCode.Sdk.Tools.Tests.Generator.Emission;
 
@@ -76,6 +78,33 @@ public sealed class HoistedMemberEmissionTests
 
         await Assert.That(registry).DoesNotContain("IDurableEnvelope");
         await Assert.That(registry).Contains("CreatedEventDurable");
+    }
+
+    /// <summary>
+    /// The rendered half of the tri-state carrier case: the interface declares the unwrapped
+    /// member and each record answers it from the wrapper, so the tree compiles.
+    /// </summary>
+    [Test]
+    public async Task Emit_Should_Answer_A_Tristate_Carrier_Member_From_The_Wrapper()
+    {
+        var sources = SourceEmitter.Emit(HoistedEmitPlan(
+            [Union("IExampleEvent", Arm("CreatedEvent"), Arm("DeletedEvent"))],
+            [
+                Variant("CreatedEvent", "created", Property("durable", Named("CreatedEventDurable"), isRequired: true)),
+                Variant("DeletedEvent", "deleted", Property("durable", Named("DeletedEventDurable"), isRequired: true)),
+                Record("CreatedEventDurable", Property("note", Named("string", isNullable: true), isRequired: false,
+                    emitsOptionalWrapper: true)),
+                Record("DeletedEventDurable", Property("note", Named("string", isNullable: true), isRequired: false,
+                    emitsOptionalWrapper: true)),
+            ],
+            Curation(Groups())));
+
+        var carrier = EmitterSnapshot.Content(sources, "Models/IExampleEventDurable.cs");
+        var record = EmitterSnapshot.Content(sources, "Models/CreatedEventDurable.cs");
+
+        await Assert.That(carrier).Contains("public string? Note { get; }");
+        await Assert.That(record).Contains("public Optional<string?> Note { get; init; }");
+        await Assert.That(record).Contains("string? IExampleEventDurable.Note => Note.Value;");
     }
 
     private static string HoistedSource(string relativePath) =>

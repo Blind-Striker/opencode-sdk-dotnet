@@ -1,3 +1,4 @@
+using OpenCode.Sdk.Tools.Generator.Binding;
 using OpenCode.Sdk.Tools.Generator.Binding.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 
@@ -63,7 +64,8 @@ internal static class UnionHoistPlanData
     public static ObjectModelPlan Envelope(string typeName, string version) =>
         Record(typeName, Property("seq", Named("long"), isRequired: true), NumberLiteral("version", version));
 
-    public static ModelPropertyPlan Property(string wireName, TypeReferencePlan type, bool isRequired) =>
+    public static ModelPropertyPlan Property(string wireName, TypeReferencePlan type, bool isRequired,
+        bool emitsOptionalWrapper = false) =>
         new()
         {
             WireName = wireName,
@@ -71,6 +73,7 @@ internal static class UnionHoistPlanData
             Type = type,
             IsRequired = isRequired,
             IsLiteral = false,
+            EmitsOptionalWrapper = emitsOptionalWrapper,
         };
 
     public static ModelPropertyPlan StringLiteral(string wireName, string value) =>
@@ -83,6 +86,7 @@ internal static class UnionHoistPlanData
             IsLiteral = true,
             LiteralKind = LiteralKind.String,
             LiteralValue = value,
+            EmitsOptionalWrapper = false,
         };
 
     public static ModelPropertyPlan NumberLiteral(string wireName, string value) =>
@@ -95,6 +99,7 @@ internal static class UnionHoistPlanData
             IsLiteral = true,
             LiteralKind = LiteralKind.Number,
             LiteralValue = value,
+            EmitsOptionalWrapper = false,
         };
 
     public static NamedTypeReferencePlan Named(string name, bool isNullable = false) =>
@@ -104,6 +109,44 @@ internal static class UnionHoistPlanData
             IsNullable = isNullable,
             JsonNullRepresentation = JsonNullRepresentation.ClrNull,
         };
+
+    /// <summary>
+    /// Runs the hoist binder over a scenario and wraps the result as the emit plan the source
+    /// emitters read, for the cases whose proof is the rendered member rather than the bound plan.
+    /// </summary>
+    public static EmitPlan HoistedEmitPlan(IReadOnlyList<UnionPlan> unions, IReadOnlyList<ModelPlan> models,
+        GenerationCuration curation)
+    {
+        ArgumentNullException.ThrowIfNull(unions);
+        ArgumentNullException.ThrowIfNull(models);
+        ArgumentNullException.ThrowIfNull(curation);
+
+        var errors = new BindingErrorCollector();
+        var hoisted = new UnionMemberHoistBinder().Bind(unions, models, curation, errors);
+        errors.ThrowIfAny();
+        return new EmitPlan
+        {
+            ImplicitAliases = StabilizeDuplicateCollapse.Empty,
+            SelectedOperationIds = [],
+            Models = hoisted.Models,
+            Unions = hoisted.Unions,
+            HoistedInterfaces = hoisted.Interfaces,
+            Clients = [],
+            Registry = new RegistryPlan
+            {
+                TypeNames =
+                [
+                    .. hoisted
+                        .Models.Select(static model => model.Name)
+                        .Concat(hoisted.Unions.SelectMany(static union => new[] { union.Name, union.UnknownTypeName, }))
+                        .Order(StringComparer.Ordinal),
+                ],
+            },
+            PendingOperations = [],
+            DeclinedOperations = [],
+            TransportOwnedOperationIds = [],
+        };
+    }
 
     private static string PascalCase(string wireName) =>
         string.Concat(wireName[..1].ToUpperInvariant(), wireName[1..]);

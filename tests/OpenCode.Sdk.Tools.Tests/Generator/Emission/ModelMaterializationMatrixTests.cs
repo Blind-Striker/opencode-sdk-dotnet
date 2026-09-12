@@ -111,8 +111,78 @@ public sealed class ModelMaterializationMatrixTests
         await AssertExplicitOptionalNullsAsync(typeInfo);
         await AssertNonNullOptionalAndNullableValuesAsync(typeInfo);
         await AssertRequiredFailuresAsync(typeInfo);
+        await AssertTristateRequestMembersAsync(assembly, plan);
         await AssertRootUnionNullFailsAsync(assembly, plan);
     }
+
+    /// <summary>
+    /// The request side is the exact opposite of <see cref="AssertExplicitOptionalNullsAsync" />:
+    /// where a response-side optional member collapses an explicit null to absence, a member of a
+    /// schema a request body reaches keeps the two apart. The optional member the document does
+    /// not admit null for keeps the old behaviour, which is what proves the key is the schema and
+    /// not the direction alone.
+    /// </summary>
+    private static async Task AssertTristateRequestMembersAsync(Assembly assembly, EmitPlan plan)
+    {
+        var patch = plan
+            .Models.OfType<ObjectModelPlan>()
+            .Single(static model => model.Properties.Any(static property => property.WireName == "patchScalar"));
+        await Assert.That(PatchMember(patch, "patchScalar").EmitsOptionalWrapper).IsTrue();
+        await Assert.That(PatchMember(patch, "patchNumber").EmitsOptionalWrapper).IsTrue();
+        await Assert.That(PatchMember(patch, "patchList").EmitsOptionalWrapper).IsTrue();
+        await Assert.That(PatchMember(patch, "patchDictionary").EmitsOptionalWrapper).IsTrue();
+        await Assert.That(PatchMember(patch, "patchPlain").EmitsOptionalWrapper).IsFalse();
+        await Assert.That(PatchMember(patch, "patchRequired").EmitsOptionalWrapper).IsFalse();
+
+        var typeInfo = ResolveTypeInfo(assembly, $"OpenCode.Sdk.Models.{patch.Name}");
+        var absent = Deserialize(new JsonObject { ["patchRequired"] = null, }, typeInfo);
+        await Assert.That(await SerializeAsync(absent, typeInfo)).IsEqualTo("""{"patchRequired":null}""");
+
+        var cleared = Deserialize(
+            new JsonObject
+            {
+                ["patchScalar"] = null,
+                ["patchNumber"] = null,
+                ["patchList"] = null,
+                ["patchDictionary"] = null,
+                ["patchPlain"] = null,
+                ["patchRequired"] = null,
+            },
+            typeInfo);
+        using (var document = JsonDocument.Parse(await SerializeAsync(cleared, typeInfo)))
+        {
+            foreach (var name in new[] { "patchScalar", "patchNumber", "patchList", "patchDictionary", })
+            {
+                await Assert.That(document.RootElement.GetProperty(name).ValueKind).IsEqualTo(JsonValueKind.Null);
+            }
+
+            await Assert.That(document.RootElement.TryGetProperty("patchPlain", out _)).IsFalse();
+        }
+
+        var set = Deserialize(
+            new JsonObject
+            {
+                ["patchScalar"] = "set",
+                ["patchNumber"] = 4.5,
+                ["patchList"] = new JsonArray(JsonValue.Create("set")),
+                ["patchDictionary"] = new JsonObject { ["key"] = "set", },
+                ["patchPlain"] = "plain",
+                ["patchRequired"] = "kept",
+            },
+            typeInfo);
+        using (var document = JsonDocument.Parse(await SerializeAsync(set, typeInfo)))
+        {
+            await Assert.That(document.RootElement.GetProperty("patchScalar").GetString()).IsEqualTo("set");
+            await Assert.That(document.RootElement.GetProperty("patchNumber").GetDouble()).IsEqualTo(4.5);
+            await Assert.That(document.RootElement.GetProperty("patchList")[0].GetString()).IsEqualTo("set");
+            await Assert.That(document.RootElement.GetProperty("patchDictionary").GetProperty("key").GetString()).IsEqualTo("set");
+            await Assert.That(document.RootElement.GetProperty("patchPlain").GetString()).IsEqualTo("plain");
+            await Assert.That(document.RootElement.GetProperty("patchRequired").GetString()).IsEqualTo("kept");
+        }
+    }
+
+    private static ModelPropertyPlan PatchMember(ObjectModelPlan model, string wireName) =>
+        model.Properties.Single(property => string.Equals(property.WireName, wireName, StringComparison.Ordinal));
 
     private static async Task AssertOptionalPropertiesAreNullAsync(object value)
     {
@@ -337,7 +407,10 @@ public sealed class ModelMaterializationMatrixTests
         var document = await BindingTestHost.IngestAsync(new MaterializationMatrixScenario());
         return new BindingTestHost().Bind(
             document,
-            Selection(MaterializationMatrixScenario.GetOperationId, MaterializationMatrixScenario.ChoiceOperationId),
+            Selection(
+                MaterializationMatrixScenario.GetOperationId,
+                MaterializationMatrixScenario.ChoiceOperationId,
+                MaterializationMatrixScenario.PatchOperationId),
             Curation(Groups("matrix", RootGroup())));
     }
 

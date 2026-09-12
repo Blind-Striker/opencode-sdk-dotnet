@@ -2,6 +2,7 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
@@ -13,48 +14,55 @@ public sealed record SessionCreateRequest
     /// Gets the id value.
     /// </summary>
     [JsonPropertyName("id")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Id { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    [JsonConverter(typeof(OptionalOfStringJsonConverter))]
+    public Optional<string?> Id { get; init; }
 
     /// <summary>
     /// Gets the title value.
     /// </summary>
     [JsonPropertyName("title")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Title { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    [JsonConverter(typeof(OptionalOfStringJsonConverter))]
+    public Optional<string?> Title { get; init; }
 
     /// <summary>
     /// Gets the agent value.
     /// </summary>
     [JsonPropertyName("agent")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Agent { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    [JsonConverter(typeof(OptionalOfStringJsonConverter))]
+    public Optional<string?> Agent { get; init; }
 
     /// <summary>
     /// Gets the model value.
     /// </summary>
     [JsonPropertyName("model")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public ModelRef? Model { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    [JsonConverter(typeof(OptionalOfModelRefJsonConverter))]
+    public Optional<ModelRef?> Model { get; init; }
 
     /// <summary>
     /// Gets the location value.
     /// </summary>
     [JsonPropertyName("location")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public LocationRef? Location { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    [JsonConverter(typeof(OptionalOfLocationRefJsonConverter))]
+    public Optional<LocationRef?> Location { get; init; }
 
     /// <summary>
     /// Gets the metadata value.
     /// </summary>
     [JsonPropertyName("metadata")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyDictionary<string, JsonElement>? Metadata { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    [JsonConverter(typeof(OptionalOfJsonElementDictionaryJsonConverter))]
+    public Optional<IReadOnlyDictionary<string, JsonElement>?> Metadata { get; init; }
 
     /// <summary>
     /// Gets the permissions value.
     /// </summary>
     [JsonPropertyName("permissions")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyList<PermissionRule>? Permissions { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    [JsonConverter(typeof(OptionalOfPermissionRuleListJsonConverter))]
+    public Optional<IReadOnlyList<PermissionRule>?> Permissions { get; init; }
 }

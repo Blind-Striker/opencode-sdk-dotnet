@@ -178,6 +178,79 @@ public sealed class OpenCodeJsonContextTests
         await Assert.That(session.ParentId).IsNull();
     }
 
+    /// <summary>
+    /// The request side's opposite of the collapse above. A schema a request body reaches keeps
+    /// absence and an explicit null apart, so all three states survive a round trip - which is
+    /// what lets a caller clear a server-side value rather than only overwrite it.
+    /// </summary>
+    [Test]
+    public async Task Deserialize_Should_Leave_Every_Tristate_Request_Member_Absent_When_The_Body_Is_Empty()
+    {
+        var json = _fixtures.LoadJson("Serialization.session-create-request-absent.json");
+
+        var request = _serializer.Deserialize<SessionCreateRequest>(json);
+
+        await Assert.That(request.Id.IsSet).IsFalse();
+        await Assert.That(request.Title.IsSet).IsFalse();
+        await Assert.That(request.Model.IsSet).IsFalse();
+        await Assert.That(request.Metadata.IsSet).IsFalse();
+        await Assert.That(request.Permissions.IsSet).IsFalse();
+        await Assert.That(_serializer.Serialize(request)).IsEqualTo(json);
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Keep_An_Explicit_Null_Set_On_A_Tristate_Request_Member()
+    {
+        var json = _fixtures.LoadJson("Serialization.session-create-request-cleared.json");
+
+        var request = _serializer.Deserialize<SessionCreateRequest>(json);
+
+        await Assert.That(request.Id.IsSet).IsTrue();
+        await Assert.That(request.Id.Value).IsNull();
+        await Assert.That(request.Model.IsSet).IsTrue();
+        await Assert.That(request.Model.Value).IsNull();
+        await Assert.That(request.Metadata.IsSet).IsTrue();
+        await Assert.That(request.Metadata.Value).IsNull();
+        await Assert.That(request.Permissions.IsSet).IsTrue();
+        await Assert.That(request.Permissions.Value).IsNull();
+        await Assert.That(_serializer.Serialize(request)).IsEqualTo(json);
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Carry_A_Value_Through_Every_Tristate_Instantiation()
+    {
+        var json = _fixtures.LoadJson("Serialization.session-create-request-set.json");
+
+        var request = _serializer.Deserialize<SessionCreateRequest>(json);
+
+        await Assert.That(request.Id.Value).IsEqualTo("ses_1");
+        await Assert.That(request.Model.Value!.Id).IsEqualTo("sonnet");
+        await Assert.That(request.Model.Value.ProviderId).IsEqualTo("anthropic");
+        await Assert.That(request.Location.Value!.Directory).IsEqualTo("/repo");
+        await Assert.That(request.Metadata.Value!["run"].GetInt32()).IsEqualTo(7);
+        await Assert.That(request.Permissions.Value!.Single().Effect).IsEqualTo(PermissionEffect.Ask);
+        await Assert.That(request.Title.IsSet).IsFalse();
+        await Assert.That(_serializer.Serialize(request)).IsEqualTo(json);
+    }
+
+    /// <summary>
+    /// The three spellings a caller actually writes: an unassigned member is absent, a plain
+    /// <c>null</c> and <c>Optional&lt;T&gt;.Null</c> are both an explicit JSON null, and a value
+    /// assigns through the implicit conversion with no wrapper ceremony.
+    /// </summary>
+    [Test]
+    public async Task Serialize_Should_Write_The_Three_Request_Member_States_From_An_Object_Initializer()
+    {
+        var absent = new SessionCreateRequest();
+        var cleared = new SessionCreateRequest { Title = null, Agent = Optional<string?>.Null, };
+        var set = new SessionCreateRequest { Title = "Fix the build", };
+
+        await Assert.That(_serializer.Serialize(absent)).IsEqualTo("{}");
+        await Assert.That(_serializer.Serialize(cleared)).IsEqualTo("""{"title":null,"agent":null}""");
+        await Assert.That(_serializer.Serialize(set)).IsEqualTo("""{"title":"Fix the build"}""");
+        await Assert.That(_serializer.Serialize(set with { Title = default, })).IsEqualTo("{}");
+    }
+
     [Test]
     public async Task Deserialize_Should_Create_The_Name_Tagged_Error_Variant()
     {
