@@ -35,7 +35,7 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
 - **Packages** — the two packages publish as `OpenCodeAI.Sdk` and `OpenCodeAI.Sdk.Extensions`
   (the assemblies stay `OpenCode.Sdk`) and pack at the single-sourced
   `VersionPrefix 0.8.0`. Every `master` push publishes a `0.8.0-nightly.*` build to GitHub
-  Packages, and `0.8.0-preview.1` is on NuGet.org, owned by `OpenCode.NET` and pushed through the
+  Packages, and `0.8.0-preview.2` is on NuGet.org, owned by `OpenCode.NET` and pushed through the
   manual lane over Trusted Publishing. The ids carry `OpenCodeAI` because nuget.org reserves the
   `OpenCode.` prefix for an unrelated owner; that dispute is still open and no longer blocks
   anything.
