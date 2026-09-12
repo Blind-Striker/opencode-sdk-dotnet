@@ -26,6 +26,10 @@ namespace OpenCode.Sdk.TestSupport;
 /// spawning one (paired with <c>OPENCODE_SDK_TESTS_PASSWORD</c>; see below).</item>
 /// <item><c>OPENCODE_SDK_TESTS_PASSWORD</c> - the Basic-auth password for
 /// <c>OPENCODE_SDK_TESTS_ENDPOINT</c>; both or neither, never one alone.</item>
+/// <item><c>OPENCODE_SDK_TESTS_SERVER_COMMAND</c> - a <c>|</c>-separated command the owned mode
+/// starts instead of the pinned source run (for example <c>opencode|serve</c>); everything else
+/// about the owned path is unchanged, so the same suite runs against another build of the same
+/// server (see <see cref="PinnedServerCommandOverride"/>).</item>
 /// <item><c>OPENCODE_SDK_TESTS_PTY_DAEMON=0|1</c> - overrides <see cref="PersistentPtyDaemonGate"/>'s
 /// platform default (see its own remarks).</item>
 /// </list>
@@ -35,7 +39,9 @@ namespace OpenCode.Sdk.TestSupport;
 /// <see cref="ExternalServerEndpoint"/> constructor supplies the pair directly -
 /// <see cref="InitializeAsync"/> spawns nothing: it probes the server's health instead of
 /// starting an owned server, so <see cref="Server"/> stays unset and every member below reads
-/// from the external pair.
+/// from the external pair. The owned RPC plugin is the one thing such a server does not carry,
+/// so <see cref="RpcPlugin"/> - not <see cref="IsExternal"/> - is what the RPC-dependent proofs
+/// branch on.
 /// </remarks>
 public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDisposable, ITestEndEventReceiver
 {
@@ -55,6 +61,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
     private OpenCodeServerOutput? _output;
     private TestRunRoot? _runRoot;
     private ExternalServerEndpoint? _external;
+    private string? _commandSource;
     private bool _retainLogs;
     private bool _externalMode;
     private ServerFailureArtifacts? _artifacts;
@@ -113,7 +120,14 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
         }
     }
 
-    internal TestRpcPlugin? OwnedRpcPlugin { get; private set; }
+    /// <summary>
+    /// The repository-owned RPC plugin this session's server carries: the copy every owned server
+    /// is seeded with - the pinned source run and an <c>OPENCODE_SDK_TESTS_SERVER_COMMAND</c> run
+    /// alike - or <see langword="null"/> for an external endpoint, which the fixture does not
+    /// configure. The RPC and event proofs branch on this rather than on <see cref="IsExternal"/>,
+    /// because what they need is the plugin, not the ownership.
+    /// </summary>
+    internal TestRpcPlugin? RpcPlugin { get; private set; }
 
     internal OpenCodeServer Server =>
         _server ?? throw new InvalidOperationException("The fixture has not initialized.");
@@ -151,8 +165,18 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
         else
         {
             var pinnedCommand = new PinnedServerCommand(_fileSystem);
-            command = pinnedCommand.Resolve();
-            OwnedRpcPlugin = new TestRpcPlugin(_fileSystem, pinnedCommand.RepositoryRoot);
+
+            // The override replaces the command and nothing else: the isolated roots, the seeded
+            // RPC plugin, the launcher's own readiness and teardown, and the retained logs are all
+            // still the owned path, which is what makes another build of the same server
+            // answerable by this suite unchanged. Resolve() is not called when the override is set
+            // - it validates the submodule checkout the override deliberately does not use.
+            var environmentCommand = PinnedServerCommandOverride.FromEnvironment();
+            command = environmentCommand?.Command ?? pinnedCommand.Resolve();
+            _commandSource = environmentCommand is null
+                ? "owned (pinned source)"
+                : "owned (OPENCODE_SDK_TESTS_SERVER_COMMAND)";
+            RpcPlugin = new TestRpcPlugin(_fileSystem, pinnedCommand.RepositoryRoot);
 
             // Bun's workspace/tsconfig discovery for the pinned monorepo's JSX packages walks
             // from the process's working directory, not from the absolute entry-file path (Task
@@ -166,6 +190,14 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
                 pinnedCommand.RepositoryRoot, "external", "opencode", "packages", "cli");
         }
 
+        await StartOwnedServerAsync(command, workingDirectory).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Starts the owned server through the SDK's own launcher and names the build it started.
+    /// </summary>
+    private async Task StartOwnedServerAsync(IReadOnlyList<string> command, string workingDirectory)
+    {
         // The collector exists before the start and stays readable when the start fails, so a
         // startup failure still has stdout/stderr to write out on teardown.
         _output = new OpenCodeServerOutput();
@@ -176,7 +208,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
                 {
                     Command = command,
                     WorkingDirectory = workingDirectory,
-                    Environment = BuildEnvironment(_runRoot.Path),
+                    Environment = BuildEnvironment(RunRoot.Path),
                     ReadinessTimeout = OwnedServerPolicy.ReadinessTimeout,
                     GracefulShutdownTimeout = OwnedServerPolicy.GracefulShutdownTimeout,
                     Output = _output,
@@ -187,6 +219,15 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
             _retainLogs = true;
             MarkFailure(exception, "fixture initialization", "phase=server startup");
             throw;
+        }
+
+        // Which server the session actually reached. The external mode prints its own banner for
+        // the same reason: a run's evidence must name the build it was produced against, and an
+        // overridden command is the one owned case the pinned commit does not describe.
+        if (_commandSource is { } source)
+        {
+            Console.WriteLine(
+                $"Pinned server started: {source} (command: {string.Join(' ', command)}; endpoint: {Server.Endpoint}).");
         }
     }
 
@@ -298,7 +339,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
     private Dictionary<string, string> BuildEnvironment(string runRoot)
     {
         var environment = ServerIsolation.Environment(_fileSystem, runRoot);
-        if (OwnedRpcPlugin is { } plugin)
+        if (RpcPlugin is { } plugin)
         {
             environment["OPENCODE_CONFIG_CONTENT"] = new ServerConfigSeed()
                 .WithPluginDirectory(plugin.Directory)

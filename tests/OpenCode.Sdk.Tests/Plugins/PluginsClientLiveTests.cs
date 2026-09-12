@@ -65,18 +65,19 @@ public sealed class PluginsClientLiveTests(PinnedOpenCodeServerFixture server)
         await Assert.That(listed.IsError).IsFalse();
         await Assert.That(listed.Plugins.Count).IsGreaterThan(0);
 
-        if (server.IsExternal)
+        // The plugin, not the ownership, is what the inventory shape follows: every owned server
+        // carries the seeded entry, whichever build the fixture started, and an external endpoint
+        // carries none.
+        if (server.RpcPlugin is { } ownedPlugin)
         {
-            await Assert.That(server.OwnedRpcPlugin).IsNull();
-            await Assert.That(IdsWhere(
-                listed.Plugins,
-                static plugin => string.Equals(plugin.Id, TestRpcPlugin.Id, StringComparison.Ordinal))).IsEmpty();
+            await AssertOwnedInventoryAsync(listed.Plugins, ownedPlugin);
         }
         else
         {
-            var ownedPlugin = server.OwnedRpcPlugin ??
-                throw new InvalidOperationException("The owned pinned server did not resolve its RPC plugin.");
-            await AssertOwnedInventoryAsync(listed.Plugins, ownedPlugin);
+            await Assert.That(server.IsExternal).IsTrue();
+            await Assert.That(IdsWhere(
+                listed.Plugins,
+                static plugin => string.Equals(plugin.Id, TestRpcPlugin.Id, StringComparison.Ordinal))).IsEmpty();
         }
 
         Console.WriteLine(

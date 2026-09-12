@@ -1,0 +1,232 @@
+# The distributed-build consumer leg. Every other lane in this repository tests the server built
+# from the pinned commit (the `external/opencode` submodule, run from source through bun); this one
+# installs the build upstream actually publishes for that pin - `npm install -g @opencode/cli` at
+# the version spec/SNAPSHOT.md names - and runs the same suite against it. That is the difference
+# between "built from the pinned commit" and "tested against the distributed build", and it is the
+# only lane that would notice upstream removing an operation from a published build on its own.
+#
+# There is no server management here, by design. `OPENCODE_SDK_TESTS_SERVER_COMMAND` points the
+# exact-pin fixture (tests/Shared/PinnedOpenCodeServerFixture.cs) at the installed command, and the
+# fixture keeps doing what it always does: isolated XDG roots, the repository-owned RPC plugin
+# seeded through OPENCODE_CONFIG_CONTENT, a generated password, readiness and teardown through the
+# SDK's own launcher, logs retained on request. A workflow that re-implemented any of that would be
+# testing itself rather than the SDK.
+#
+# It stays human-triggered plus weekly rather than joining CI: it downloads a platform CLI build per
+# run, and it depends on the npm registry being reachable, which no pull-request gate should.
+#
+# Nothing here needs a token. GITHUB_TOKEN's default read scope is enough (no package is consumed
+# from GitHub Packages, and no artifact is published), so the lane also runs unchanged on a fork.
+name: "Consumer leg"
+
+on:
+  workflow_dispatch:
+    inputs:
+      cli_version:
+        description: "npm @opencode/cli version to install. Empty reads the pin from spec/SNAPSHOT.md."
+        required: false
+        default: ""
+  schedule:
+    # Weekly, Mondays 05:17 UTC. Off the hour so the run does not queue behind the top-of-hour
+    # rush on hosted runners.
+    - cron: "17 5 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: false
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_NOLOGO: true
+
+jobs:
+  consumer-leg:
+    name: "Consumer leg (${{ matrix.name }})"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            name: Linux
+
+          - os: windows-latest
+            name: Windows
+
+    steps:
+      # Submodules are checked out even though the live legs drive the npm build: the test
+      # project's simulated-server fixtures (SimulatedDriveServerFixture, ADR-0022) still run the
+      # pinned source, and this lane runs the whole assembly rather than a filtered slice.
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Setup Node LTS
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+
+      # spec/SNAPSHOT.md's identity table is the single owner of the pin, and its "Upstream release
+      # tag" row is what `refresh-spec --apply` rewrites. The npm version is that tag without its
+      # leading "v" - SNAPSHOT.md says so in prose beside the table ("This pin is the release tag
+      # `v2.0.2`, so `npm install -g @opencode/cli@2.0.2` installs a server built from exactly this
+      # commit"). The dispatch input overrides it, which is how a candidate build is tried without
+      # editing the pin.
+      - name: Resolve the distributed build version
+        id: cli
+        shell: pwsh
+        env:
+          CLI_VERSION_INPUT: ${{ inputs.cli_version }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $version = $env:CLI_VERSION_INPUT
+          $source = "workflow_dispatch input"
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            $source = "spec/SNAPSHOT.md"
+            $pattern = '^\|\s*Upstream release tag\s*\|\s*`v?([^`|]+)`\s*\|'
+            $row = Select-String -LiteralPath "spec/SNAPSHOT.md" -Pattern $pattern | Select-Object -First 1
+            if (-not $row) {
+              throw "spec/SNAPSHOT.md has no 'Upstream release tag' row; the pinned version cannot be read."
+            }
+            $version = $row.Matches[0].Groups[1].Value
+          }
+
+          $version = $version.Trim()
+          if ($version -notmatch '^[0-9][0-9A-Za-z.\-+]*$') {
+            throw "'$version' (from $source) is not a version this job will install."
+          }
+
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "Distributed build under test: @opencode/cli@$version (from $source)."
+
+      - name: Install the distributed build
+        shell: pwsh
+        env:
+          CLI_VERSION: ${{ steps.cli.outputs.version }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          npm install -g "@opencode/cli@$env:CLI_VERSION"
+
+      # The installed command must be the version that was asked for, before anything attributes a
+      # result to it. Observed shape on 2.0.2: `opencode --version` prints "opencode v2.0.2". The
+      # version the server *serves* is evidence the run produces on its own: the fixture prints it
+      # for every attach, and the standalone leg prints its health answer.
+      - name: Assert the installed version
+        shell: pwsh
+        env:
+          CLI_VERSION: ${{ steps.cli.outputs.version }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          $reported = (& opencode --version | Select-Object -First 1).Trim()
+          $actual = ($reported -replace '^opencode\s+', '') -replace '^v', ''
+          if ($actual -cne $env:CLI_VERSION) {
+            throw "opencode --version reported '$reported'; expected $env:CLI_VERSION."
+          }
+
+          Write-Host "opencode --version: $reported"
+
+      # Bun, ripgrep and the pinned server's dependencies: the simulated-server fixtures in this
+      # assembly still run the pinned source, so the runtime CI installs is needed here too.
+      - name: Setup pinned server runtime
+        uses: ./.github/actions/setup-pinned-server
+
+      - name: Build
+        run: dotnet build --configuration Release
+
+      # The whole assembly, unfiltered, with one variable changed: the fixture starts `opencode
+      # serve` (resolved from PATH by the SDK launcher, PATHEXT and npm's .cmd shim included)
+      # instead of bun over the submodule source. Everything else about the owned path is the same,
+      # which is what makes the result comparable with CI's.
+      #
+      # KEEP_LOGS retains the server's stdout/stderr for the artifact even on a green run, and
+      # --results-directory is what decides where the fixture writes them (TestResultsDirectory
+      # reads that argument), so the logs and this step's own transcript land in one uploadable
+      # place.
+      #
+      # No --nologo: it suppresses the Microsoft.Testing.Platform banner and the run summary with
+      # it, which is the line the count guard below reads - and a run whose summary is missing is
+      # indistinguishable from a run that executed nothing.
+      - name: Test against the distributed build
+        shell: pwsh
+        env:
+          OPENCODE_SDK_TESTS_SERVER_COMMAND: "opencode|serve"
+          OPENCODE_SDK_TESTS_KEEP_LOGS: "1"
+        run: |
+          $ErrorActionPreference = "Stop"
+          $results = Join-Path $env:GITHUB_WORKSPACE "TestResults/consumer-leg"
+          $null = New-Item -ItemType Directory -Force -Path $results
+          & dotnet test tests/OpenCode.Sdk.Tests/OpenCode.Sdk.Tests.csproj `
+            --configuration Release --no-build --framework net10.0 `
+            -- --results-directory $results 2>&1 | Tee-Object -FilePath (Join-Path $results "test-run.log")
+          if ($LASTEXITCODE -ne 0) {
+            throw "dotnet test exited with $LASTEXITCODE."
+          }
+
+      # A green run that ran nothing is the failure mode this guard exists for: a filter that
+      # matched no test, a runner that reported zero, or a suite that silently lost most of itself.
+      # The floor is deliberately coarse - it is not a count assertion against the pin, it is the
+      # line between "the suite ran" and "something swallowed it".
+      - name: Guard the executed test count
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $minimum = 500
+          $log = Join-Path $env:GITHUB_WORKSPACE "TestResults/consumer-leg/test-run.log"
+          $summary = Select-String -LiteralPath $log -Pattern '^\s*total:\s*(\d+)\s*$' | Select-Object -Last 1
+          if (-not $summary) {
+            throw "The test log carries no run summary; nothing proves a test executed."
+          }
+
+          $total = [int]$summary.Matches[0].Groups[1].Value
+          Write-Host "Executed tests: $total"
+          if ($total -lt $minimum) {
+            throw "Only $total tests ran; at least $minimum were expected on this framework."
+          }
+
+      # The launcher demo is the one leg the fixture cannot cover: it owns its server, needs no
+      # endpoint, and resolves the shipped default command (`opencode serve`) from PATH the way a
+      # consumer's own process would - the npm shim included. Its XDG roots are isolated in this
+      # step's environment, which the launcher-started server inherits, so it touches no ambient
+      # opencode profile; upstream creates those roots itself on startup.
+      - name: Sandbox standalone launcher demo
+        shell: pwsh
+        env:
+          XDG_CONFIG_HOME: ${{ runner.temp }}/consumer-leg-standalone/config
+          XDG_DATA_HOME: ${{ runner.temp }}/consumer-leg-standalone/data
+          XDG_STATE_HOME: ${{ runner.temp }}/consumer-leg-standalone/state
+          XDG_CACHE_HOME: ${{ runner.temp }}/consumer-leg-standalone/cache
+          # The models catalog fetch is the one outbound call the server makes unprompted, and the
+          # suite's posture is to keep it off (ADR-0022; tests/Shared/ServerIsolation.cs sets the
+          # same variable for the owned server).
+          OPENCODE_DISABLE_MODELS_FETCH: "1"
+        run: |
+          $ErrorActionPreference = "Stop"
+          $log = Join-Path $env:GITHUB_WORKSPACE "TestResults/consumer-leg/sandbox-standalone.log"
+          & dotnet run --project tests/OpenCode.Sdk.Sandbox --configuration Release --no-launch-profile `
+            -- --standalone 2>&1 | Tee-Object -FilePath $log
+          if ($LASTEXITCODE -ne 0) {
+            throw "The sandbox standalone demo exited with $LASTEXITCODE."
+          }
+
+      - name: Upload consumer leg artifacts
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: consumer-leg-${{ matrix.name }}-${{ github.run_number }}
+          # Already git-ignored by the repository's [Tt]est[Rr]esult*/ rule, so the run leaves no
+          # untracked junk behind in a local reproduction either.
+          path: TestResults/consumer-leg/**
+          retention-days: 7

@@ -96,6 +96,38 @@ Repository generation is a separate mutating path: after writing generated sourc
 runs project-scoped full format over only generator-owned paths. That canonicalization step is not
 the solution-wide CI lint gate this split optimizes.
 
+## Distributed-build consumer leg
+
+Every gate above exercises the server built from the pinned commit: the `external/opencode`
+submodule, run from source under bun. `.github/workflows/consumer-leg.yml` runs the same suite
+against the build upstream actually publishes for that pin - `npm install -g @opencode/cli` at the
+version named by the identity table in [`spec/SNAPSHOT.md`](../../spec/SNAPSHOT.md) - on
+`ubuntu-24.04` and `windows-latest`. It converts "built from the pinned commit" into "tested
+against the distributed build", and it is the only mechanism that notices an operation upstream
+removed from a published build without anyone looking.
+
+The mechanism is one environment variable, not a second harness. `OPENCODE_SDK_TESTS_SERVER_COMMAND`
+(`|`-separated, for example `opencode|serve`) replaces the command the exact-pin fixture starts and
+changes nothing else: the same isolated roots, the same seeded repository-owned RPC plugin, the same
+launcher-owned readiness and teardown, the same retained logs. The executable is resolved by the
+shipped launcher from `PATH` (with `PATHEXT`, which is what starts an npm `.cmd` shim), so the lane
+also re-proves that resolution on every run. The job therefore installs the build, asserts
+`opencode --version`, and runs the whole `OpenCode.Sdk.Tests` project on `net10.0` plus the
+sandbox's standalone launcher demo; a run whose summary is missing, or whose executed-test count
+falls under the job's floor, fails on the count, because an empty run must not read as a pass.
+
+Bun, the pinned ripgrep, and the pinned server's dependencies come from the shared composite action
+`.github/actions/setup-pinned-server`, which CI uses too: this lane still runs the simulated-server
+fixtures from source, and the two lanes must not drift.
+
+It is `workflow_dispatch` (with an input that overrides the pinned version, for trying a candidate
+build) plus weekly, deliberately not a pull-request gate: it downloads a platform CLI build per run
+and depends on the npm registry being reachable.
+
+Claim discipline follows it. "Tested against the distributed build" is true only of a version this
+lane has actually run; for every other published build the honest claim remains "built from the
+same upstream commit this SDK pins".
+
 ## Performance
 
 Performance is a standing concern weighted by artifact. Shipped hot paths target speed and zero
