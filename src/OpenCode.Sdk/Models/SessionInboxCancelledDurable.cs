@@ -6,7 +6,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session inbox cancelled durable value.
 /// </summary>
-public sealed record SessionInboxCancelledDurable
+public sealed record SessionInboxCancelledDurable : IDurableEnvelope
 {
     /// <summary>
     /// Gets the aggregate id value.

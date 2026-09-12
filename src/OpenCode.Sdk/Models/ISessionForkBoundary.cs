@@ -15,4 +15,10 @@ public interface ISessionForkBoundary
     /// </summary>
     [JsonPropertyName("type")]
     public string Type { get; }
+
+    /// <summary>
+    /// Gets the message id value. Every declared variant carries it; the value is null when the payload is an unrecognized variant preserved as UnknownSessionForkBoundary.
+    /// </summary>
+    [JsonPropertyName("messageID")]
+    public string? MessageId { get; }
 }

@@ -92,4 +92,6 @@ public sealed record SessionMessageCompactionCompleted : ISessionMessageCompacti
     [JsonPropertyName("tokens")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public TokenUsageInfo? Tokens { get; init; }
+
+    ISessionMessageCompactionTime? ISessionMessageCompaction.Time => Time;
 }

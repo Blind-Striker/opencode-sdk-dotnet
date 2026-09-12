@@ -6,7 +6,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session execution succeeded durable value.
 /// </summary>
-public sealed record SessionExecutionSucceededDurable
+public sealed record SessionExecutionSucceededDurable : IDurableEnvelope
 {
     /// <summary>
     /// Gets the aggregate id value.

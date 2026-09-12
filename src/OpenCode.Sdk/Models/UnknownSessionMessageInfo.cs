@@ -38,4 +38,8 @@ public sealed record UnknownSessionMessageInfo : ISessionMessageInfo
     /// Gets the preserved raw JSON payload.
     /// </summary>
     public JsonElement Payload { get; }
+
+    string? ISessionMessageInfo.Id => null;
+
+    IReadOnlyDictionary<string, JsonElement>? ISessionMessageInfo.Metadata => null;
 }

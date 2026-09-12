@@ -6,7 +6,8 @@ namespace OpenCode.Sdk.Tools.Generator.Binding;
 internal sealed class SchemaPlanBinder(
     StructuralUnionPlanBinder structuralUnions,
     UnionMembershipValidator unionMemberships,
-    UnionDiscriminatorSelector discriminators)
+    UnionDiscriminatorSelector discriminators,
+    UnionMemberHoistBinder memberHoists)
 {
     /// <summary>The prefix-marker list every branch that is not a marked object resolves to.</summary>
     private static readonly IReadOnlyList<PrefixMarker> NoPrefixMarkers = [];
@@ -21,6 +22,8 @@ internal sealed class SchemaPlanBinder(
 
     private readonly UnionDiscriminatorSelector _discriminators = discriminators
                                                                   ?? throw new ArgumentNullException(nameof(discriminators));
+
+    private readonly UnionMemberHoistBinder _memberHoists = memberHoists ?? throw new ArgumentNullException(nameof(memberHoists));
 
     public SchemaBindingResult Bind(SpecDocument document, ReachableSchemaSet reachable, GenerationCuration curation,
         IReadOnlyDictionary<string, string> typeNames, BindingErrorCollector errors)
@@ -84,27 +87,41 @@ internal sealed class SchemaPlanBinder(
         var orderedModels = models.OrderBy(static model => model.Name, _comparer).ToArray();
         var orderedUnions = unions.OrderBy(static union => union.Name, _comparer).ToArray();
         _unionMemberships.Validate([.. orderedModels.OfType<ObjectModelPlan>()], orderedUnions, errors);
-        var registryNames = orderedModels
-            .Select(static model => model.Name)
-            .Concat(orderedModels
-                .OfType<StructuralUnionModelPlan>()
-                .SelectMany(static model => model.Arms)
-                .Where(static arm => arm.Type.IsCollection)
-                .Select(static arm => TypeReferenceNamePolicy.Format(arm.Type)))
-            .Concat(orderedUnions.SelectMany(static union => new[] { union.Name, union.UnknownTypeName, }))
-            .Distinct(_comparer)
-            .Order(_comparer)
-            .ToArray();
+        // Hoisting reads the bound plans and only adds members to them, so it runs after the
+        // membership wall and before the registry, which never lists a hoisted carrier: the
+        // carrier is an interface no converter and no source-generated metadata materializes.
+        var hoisted = _memberHoists.Bind(orderedUnions, orderedModels, curation, errors);
+        orderedModels = [.. hoisted.Models];
+        orderedUnions = [.. hoisted.Unions];
         return new SchemaBindingResult
         {
             Models = orderedModels,
             Unions = orderedUnions,
+            HoistedInterfaces = hoisted.Interfaces,
             Registry = new RegistryPlan
             {
-                TypeNames = registryNames,
+                TypeNames = ComposeRegistryNames(orderedModels, orderedUnions),
             },
         };
     }
+
+    /// <summary>
+    /// The types the serializer registry must carry. A hoisted carrier is never among them: it
+    /// is an interface no converter names and no payload deserializes into.
+    /// </summary>
+    private string[] ComposeRegistryNames(IReadOnlyList<ModelPlan> models, IReadOnlyList<UnionPlan> unions) =>
+    [
+        .. models
+            .Select(static model => model.Name)
+            .Concat(models
+                .OfType<StructuralUnionModelPlan>()
+                .SelectMany(static model => model.Arms)
+                .Where(static arm => arm.Type.IsCollection)
+                .Select(static arm => TypeReferenceNamePolicy.Format(arm.Type)))
+            .Concat(unions.SelectMany(static union => new[] { union.Name, union.UnknownTypeName, }))
+            .Distinct(_comparer)
+            .Order(_comparer),
+    ];
 
     private List<UnionPlan> BindExplicitUnions(SpecDocument document, ReachableSchemaSet reachable, HashSet<string> responseRoots,
         HashSet<string> streamCauseKeys, IReadOnlyDictionary<string, string> names, Dictionary<string, List<string>> inheritance,

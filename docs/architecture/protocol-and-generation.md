@@ -65,7 +65,9 @@ evidence and may contain superseded positions.
 Curation may:
 
 - choose .NET names and placement for represented OpenAPI constructs — handle placement
-  follows ADR-0019, and every curation row, group rows included, carries its reason;
+  follows ADR-0019, and every curation row, group rows included, carries its reason — including
+  the name of the carrier interface a hoisted union member is declared with, where the mechanical
+  name is correct but graceless;
 - declare that a family emits an internal raw layer rather than a public surface, where
   hand-written code owns that family's public doors (ADR-0021);
 - collapse OpenAPI shapes proven structurally equivalent;
@@ -168,8 +170,21 @@ dispatch instead of routing it through ADR-0009's unknown carrier (ADR-0015).
   start with the prefix, and the arm may not sit inside a nested union, join a multi-dialect
   union, or be uninhabited; every other shape refuses by name. The live event union's `rpc.` arm
   is the only such arm today.
-- A marked union is emitted as an interface. One wire schema remains one sealed record implementing
-  every marked union to which it belongs (ADR-0011).
+- A marked union is emitted as an interface declaring its discriminator and every property its
+  members already agree on. One wire schema remains one sealed record implementing every marked
+  union to which it belongs (ADR-0011).
+- A property is hoisted onto that interface when every member the union dispatches to declares it
+  with the same wire name, required-ness, nullability, and represented type, where identity
+  ignores the value of a literal that discriminates nothing. No property any union in the chain
+  dispatches on is hoisted, a nested union inherits what its outer union promises, and members
+  that each promote their own record for one identical shape get a single generated carrier
+  interface those records implement — deterministically named from the declaring interface and
+  the wire property, overridable by a reason-bearing curation naming row. The records are not
+  collapsed. Every hoisted member of a union interface is nullable because that union's unknown
+  carrier materializes none of them; carrier interfaces have no unknown arm and keep the records'
+  own nullability. Hoisting emits no converter, registers no serializer metadata, and leaves the
+  wire shape unchanged: a member a record cannot satisfy directly is implemented explicitly, and
+  an explicit implementation is not a public property (ADR-0009, ADR-0011).
 - A token-distinct structural union emits one sealed carrier record with a `Kind`, guarded typed
   accessors and factories, an explicit raw unknown arm for unclaimed non-null value tokens, and a
   source-generated converter. Pinned

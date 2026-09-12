@@ -38,4 +38,6 @@ public sealed record UnknownIntegrationCommandAttemptStatus : IIntegrationComman
     /// Gets the preserved raw JSON payload.
     /// </summary>
     public JsonElement Payload { get; }
+
+    IIntegrationCommandAttemptStatusTime? IIntegrationCommandAttemptStatus.Time => null;
 }

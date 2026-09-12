@@ -371,6 +371,14 @@
       "reason": "The generated operation request records own the '<Subject>Request' names; this model shapes the outbound provider request (settings, headers, body), so it takes the options suffix instead of colliding with v2.provider.get's request record."
     }
   ],
+  "hoistedMemberNames": [
+    {
+      "owner": "ISessionEventDurable",
+      "property": "durable",
+      "dotnetName": "IDurableEnvelope",
+      "reason": "The mechanical name for the carrier hoisted from the durable session events' inline envelopes would be ISessionEventDurableDurable; the domain already calls this shape the durable envelope (CONTEXT.md)."
+    }
+  ],
   "transportOwned": [
     {
       "operationId": "v2.pty.connect",

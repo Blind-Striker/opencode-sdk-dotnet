@@ -2782,15 +2782,34 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         string Type { get; }
     }
+    public interface IDurableEnvelope
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
+        string AggregateId { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("seq")]
+        long Seq { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("version")]
+        double Version { get; }
+    }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.EventJsonConverter))]
     public interface IEvent
     {
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        string? Id { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         string Type { get; }
     }
-    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.FormFieldJsonConverter))]
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.FormFieldJsonConverter?))]
     public interface IFormField
     {
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        string? Description { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("key")]
+        string? Key { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("title")]
+        string? Title { get; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         string Type { get; }
     }
@@ -2805,12 +2824,30 @@ namespace OpenCode.Sdk.Models
     {
         [System.Text.Json.Serialization.JsonPropertyName("status")]
         string Status { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("time")]
+        OpenCode.Sdk.Models.IIntegrationAttemptStatusTime? Time { get; }
+    }
+    public interface IIntegrationAttemptStatusTime
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        double Created { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("expires")]
+        double Expires { get; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.IntegrationCommandAttemptStatusJsonConverter))]
     public interface IIntegrationCommandAttemptStatus
     {
         [System.Text.Json.Serialization.JsonPropertyName("status")]
         string Status { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("time")]
+        OpenCode.Sdk.Models.IIntegrationCommandAttemptStatusTime? Time { get; }
+    }
+    public interface IIntegrationCommandAttemptStatusTime
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        double Created { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("expires")]
+        double Expires { get; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.IntegrationMethodJsonConverter))]
     public interface IIntegrationMethod
@@ -2821,6 +2858,12 @@ namespace OpenCode.Sdk.Models
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.McpJsonConverter))]
     public interface IMcp
     {
+        [System.Text.Json.Serialization.JsonPropertyName("codemode")]
+        bool? Codemode { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("disabled")]
+        bool? Disabled { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("timeout")]
+        OpenCode.Sdk.Models.IMcpTimeout? Timeout { get; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         string Type { get; }
     }
@@ -2829,6 +2872,15 @@ namespace OpenCode.Sdk.Models
     {
         [System.Text.Json.Serialization.JsonPropertyName("status")]
         string Status { get; }
+    }
+    public interface IMcpTimeout
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("catalog")]
+        long? Catalog { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("execution")]
+        long? Execution { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("startup")]
+        long? Startup { get; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.OpenCodeErrorJsonConverter))]
     public interface IOpenCodeError
@@ -2864,14 +2916,32 @@ namespace OpenCode.Sdk.Models
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ReferenceSourceJsonConverter))]
     public interface IReferenceSource
     {
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        string? Description { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("hidden")]
+        bool? Hidden { get; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         string Type { get; }
     }
-    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.SessionEventDurableJsonConverter))]
-    public interface ISessionEventDurable : OpenCode.Sdk.Models.ISessionLogItem { }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.SessionEventDurableJsonConverter?))]
+    public interface ISessionEventDurable : OpenCode.Sdk.Models.ISessionLogItem
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        double? Created { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("durable")]
+        OpenCode.Sdk.Models.IDurableEnvelope? Durable { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        string? Id { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        OpenCode.Sdk.Models.LocationRef? Location { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; }
+    }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.SessionForkBoundaryJsonConverter))]
     public interface ISessionForkBoundary
     {
+        [System.Text.Json.Serialization.JsonPropertyName("messageID")]
+        string? MessageId { get; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         string Type { get; }
     }
@@ -2881,15 +2951,25 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         string Type { get; }
     }
-    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.SessionInboxInfoJsonConverter))]
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.SessionInboxInfoJsonConverter?))]
     public interface ISessionInboxInfo
     {
+        [System.Text.Json.Serialization.JsonPropertyName("delivery")]
+        OpenCode.Sdk.Models.SessionInboxDelivery? Delivery { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        string? Id { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        string? SessionId { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("timeCreated")]
+        double? TimeCreated { get; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         string Type { get; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.SessionInboxItemJsonConverter))]
     public interface ISessionInboxItem
     {
+        [System.Text.Json.Serialization.JsonPropertyName("delivery")]
+        OpenCode.Sdk.Models.SessionInboxDelivery? Delivery { get; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         string Type { get; }
     }
@@ -2916,10 +2996,21 @@ namespace OpenCode.Sdk.Models
     {
         [System.Text.Json.Serialization.JsonPropertyName("status")]
         string Status { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("time")]
+        OpenCode.Sdk.Models.ISessionMessageCompactionTime? Time { get; }
+    }
+    public interface ISessionMessageCompactionTime
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        double Created { get; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.SessionMessageInfoJsonConverter))]
     public interface ISessionMessageInfo
     {
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        string? Id { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         string Type { get; }
     }
@@ -3061,7 +3152,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("time")]
         public required OpenCode.Sdk.Models.IntegrationAttemptStatusCompleteTime Time { get; init; }
     }
-    public sealed class IntegrationAttemptStatusCompleteTime : System.IEquatable<OpenCode.Sdk.Models.IntegrationAttemptStatusCompleteTime>
+    public sealed class IntegrationAttemptStatusCompleteTime : OpenCode.Sdk.Models.IIntegrationAttemptStatusTime, System.IEquatable<OpenCode.Sdk.Models.IntegrationAttemptStatusCompleteTime>
     {
         public IntegrationAttemptStatusCompleteTime() { }
         [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
@@ -3079,7 +3170,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("time")]
         public required OpenCode.Sdk.Models.IntegrationAttemptStatusExpiredTime Time { get; init; }
     }
-    public sealed class IntegrationAttemptStatusExpiredTime : System.IEquatable<OpenCode.Sdk.Models.IntegrationAttemptStatusExpiredTime>
+    public sealed class IntegrationAttemptStatusExpiredTime : OpenCode.Sdk.Models.IIntegrationAttemptStatusTime, System.IEquatable<OpenCode.Sdk.Models.IntegrationAttemptStatusExpiredTime>
     {
         public IntegrationAttemptStatusExpiredTime() { }
         [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
@@ -3099,7 +3190,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("time")]
         public required OpenCode.Sdk.Models.IntegrationAttemptStatusFailedTime Time { get; init; }
     }
-    public sealed class IntegrationAttemptStatusFailedTime : System.IEquatable<OpenCode.Sdk.Models.IntegrationAttemptStatusFailedTime>
+    public sealed class IntegrationAttemptStatusFailedTime : OpenCode.Sdk.Models.IIntegrationAttemptStatusTime, System.IEquatable<OpenCode.Sdk.Models.IntegrationAttemptStatusFailedTime>
     {
         public IntegrationAttemptStatusFailedTime() { }
         [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
@@ -3117,7 +3208,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("time")]
         public required OpenCode.Sdk.Models.IntegrationAttemptStatusPendingTime Time { get; init; }
     }
-    public sealed class IntegrationAttemptStatusPendingTime : System.IEquatable<OpenCode.Sdk.Models.IntegrationAttemptStatusPendingTime>
+    public sealed class IntegrationAttemptStatusPendingTime : OpenCode.Sdk.Models.IIntegrationAttemptStatusTime, System.IEquatable<OpenCode.Sdk.Models.IntegrationAttemptStatusPendingTime>
     {
         public IntegrationAttemptStatusPendingTime() { }
         [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
@@ -3153,7 +3244,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("time")]
         public required OpenCode.Sdk.Models.IntegrationCommandAttemptStatusCompleteTime Time { get; init; }
     }
-    public sealed class IntegrationCommandAttemptStatusCompleteTime : System.IEquatable<OpenCode.Sdk.Models.IntegrationCommandAttemptStatusCompleteTime>
+    public sealed class IntegrationCommandAttemptStatusCompleteTime : OpenCode.Sdk.Models.IIntegrationCommandAttemptStatusTime, System.IEquatable<OpenCode.Sdk.Models.IntegrationCommandAttemptStatusCompleteTime>
     {
         public IntegrationCommandAttemptStatusCompleteTime() { }
         [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
@@ -3171,7 +3262,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("time")]
         public required OpenCode.Sdk.Models.IntegrationCommandAttemptStatusExpiredTime Time { get; init; }
     }
-    public sealed class IntegrationCommandAttemptStatusExpiredTime : System.IEquatable<OpenCode.Sdk.Models.IntegrationCommandAttemptStatusExpiredTime>
+    public sealed class IntegrationCommandAttemptStatusExpiredTime : OpenCode.Sdk.Models.IIntegrationCommandAttemptStatusTime, System.IEquatable<OpenCode.Sdk.Models.IntegrationCommandAttemptStatusExpiredTime>
     {
         public IntegrationCommandAttemptStatusExpiredTime() { }
         [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
@@ -3191,7 +3282,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("time")]
         public required OpenCode.Sdk.Models.IntegrationCommandAttemptStatusFailedTime Time { get; init; }
     }
-    public sealed class IntegrationCommandAttemptStatusFailedTime : System.IEquatable<OpenCode.Sdk.Models.IntegrationCommandAttemptStatusFailedTime>
+    public sealed class IntegrationCommandAttemptStatusFailedTime : OpenCode.Sdk.Models.IIntegrationCommandAttemptStatusTime, System.IEquatable<OpenCode.Sdk.Models.IntegrationCommandAttemptStatusFailedTime>
     {
         public IntegrationCommandAttemptStatusFailedTime() { }
         [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
@@ -3212,7 +3303,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("time")]
         public required OpenCode.Sdk.Models.IntegrationCommandAttemptStatusPendingTime Time { get; init; }
     }
-    public sealed class IntegrationCommandAttemptStatusPendingTime : System.IEquatable<OpenCode.Sdk.Models.IntegrationCommandAttemptStatusPendingTime>
+    public sealed class IntegrationCommandAttemptStatusPendingTime : OpenCode.Sdk.Models.IIntegrationCommandAttemptStatusTime, System.IEquatable<OpenCode.Sdk.Models.IntegrationCommandAttemptStatusPendingTime>
     {
         public IntegrationCommandAttemptStatusPendingTime() { }
         [System.Text.Json.Serialization.JsonNumberHandling(System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals)]
@@ -3441,7 +3532,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
     }
-    public sealed class McpLocalConfigTimeout : System.IEquatable<OpenCode.Sdk.Models.McpLocalConfigTimeout>
+    public sealed class McpLocalConfigTimeout : OpenCode.Sdk.Models.IMcpTimeout, System.IEquatable<OpenCode.Sdk.Models.McpLocalConfigTimeout>
     {
         public McpLocalConfigTimeout() { }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -3513,7 +3604,7 @@ namespace OpenCode.Sdk.Models
         Boolean = 1,
         Unknown = 2,
     }
-    public sealed class McpRemoteConfigTimeout : System.IEquatable<OpenCode.Sdk.Models.McpRemoteConfigTimeout>
+    public sealed class McpRemoteConfigTimeout : OpenCode.Sdk.Models.IMcpTimeout, System.IEquatable<OpenCode.Sdk.Models.McpRemoteConfigTimeout>
     {
         public McpRemoteConfigTimeout() { }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -5045,7 +5136,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionAgentSelectedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionAgentSelectedDurable>
+    public sealed class SessionAgentSelectedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionAgentSelectedDurable>
     {
         public SessionAgentSelectedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -5176,7 +5267,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonStringEnumMemberName("manual")]
         Manual = 1,
     }
-    public sealed class SessionCompactionEndedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionCompactionEndedDurable>
+    public sealed class SessionCompactionEndedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionCompactionEndedDurable>
     {
         public SessionCompactionEndedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -5233,7 +5324,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonStringEnumMemberName("manual")]
         Manual = 1,
     }
-    public sealed class SessionCompactionFailedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionCompactionFailedDurable>
+    public sealed class SessionCompactionFailedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionCompactionFailedDurable>
     {
         public SessionCompactionFailedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -5284,7 +5375,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonStringEnumMemberName("manual")]
         Manual = 1,
     }
-    public sealed class SessionCompactionStartedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionCompactionStartedDurable>
+    public sealed class SessionCompactionStartedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionCompactionStartedDurable>
     {
         public SessionCompactionStartedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -5368,7 +5459,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required string Version { get; init; }
     }
-    public sealed class SessionCreatedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionCreatedDurable>
+    public sealed class SessionCreatedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionCreatedDurable>
     {
         public SessionCreatedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -5404,7 +5495,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionDeletedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionDeletedDurable>
+    public sealed class SessionDeletedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionDeletedDurable>
     {
         public SessionDeletedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -5448,7 +5539,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionExecutionFailedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionExecutionFailedDurable>
+    public sealed class SessionExecutionFailedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionExecutionFailedDurable>
     {
         public SessionExecutionFailedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -5498,7 +5589,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonStringEnumMemberName("inactivity")]
         Inactivity = 3,
     }
-    public sealed class SessionExecutionInterruptedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionExecutionInterruptedDurable>
+    public sealed class SessionExecutionInterruptedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionExecutionInterruptedDurable>
     {
         public SessionExecutionInterruptedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -5534,7 +5625,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionExecutionStartedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionExecutionStartedDurable>
+    public sealed class SessionExecutionStartedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionExecutionStartedDurable>
     {
         public SessionExecutionStartedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -5570,7 +5661,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionExecutionSucceededDurable : System.IEquatable<OpenCode.Sdk.Models.SessionExecutionSucceededDurable>
+    public sealed class SessionExecutionSucceededDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionExecutionSucceededDurable>
     {
         public SessionExecutionSucceededDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -5652,7 +5743,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionForkedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionForkedDurable>
+    public sealed class SessionForkedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionForkedDurable>
     {
         public SessionForkedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -5757,7 +5848,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionInboxCancelledDurable : System.IEquatable<OpenCode.Sdk.Models.SessionInboxCancelledDurable>
+    public sealed class SessionInboxCancelledDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionInboxCancelledDurable>
     {
         public SessionInboxCancelledDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -5811,7 +5902,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionInboxDeliveredDurable : System.IEquatable<OpenCode.Sdk.Models.SessionInboxDeliveredDurable>
+    public sealed class SessionInboxDeliveredDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionInboxDeliveredDurable>
     {
         public SessionInboxDeliveredDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -5859,7 +5950,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionInboxDeliveryChangedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionInboxDeliveryChangedDurable>
+    public sealed class SessionInboxDeliveryChangedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionInboxDeliveryChangedDurable>
     {
         public SessionInboxDeliveryChangedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -5899,7 +5990,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionInboxEnqueuedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionInboxEnqueuedDurable>
+    public sealed class SessionInboxEnqueuedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionInboxEnqueuedDurable>
     {
         public SessionInboxEnqueuedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -6153,7 +6244,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("text")]
         public string? Text { get; init; }
     }
-    public sealed class SessionInstructionsUpdatedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionInstructionsUpdatedDurable>
+    public sealed class SessionInstructionsUpdatedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionInstructionsUpdatedDurable>
     {
         public SessionInstructionsUpdatedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -6400,7 +6491,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonStringEnumMemberName("manual")]
         Manual = 1,
     }
-    public sealed class SessionMessageCompactionCompletedTime : System.IEquatable<OpenCode.Sdk.Models.SessionMessageCompactionCompletedTime>
+    public sealed class SessionMessageCompactionCompletedTime : OpenCode.Sdk.Models.ISessionMessageCompactionTime, System.IEquatable<OpenCode.Sdk.Models.SessionMessageCompactionCompletedTime>
     {
         public SessionMessageCompactionCompletedTime() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -6439,7 +6530,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonStringEnumMemberName("manual")]
         Manual = 1,
     }
-    public sealed class SessionMessageCompactionFailedTime : System.IEquatable<OpenCode.Sdk.Models.SessionMessageCompactionFailedTime>
+    public sealed class SessionMessageCompactionFailedTime : OpenCode.Sdk.Models.ISessionMessageCompactionTime, System.IEquatable<OpenCode.Sdk.Models.SessionMessageCompactionFailedTime>
     {
         public SessionMessageCompactionFailedTime() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -6474,7 +6565,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonStringEnumMemberName("manual")]
         Manual = 1,
     }
-    public sealed class SessionMessageCompactionRunningTime : System.IEquatable<OpenCode.Sdk.Models.SessionMessageCompactionRunningTime>
+    public sealed class SessionMessageCompactionRunningTime : OpenCode.Sdk.Models.ISessionMessageCompactionTime, System.IEquatable<OpenCode.Sdk.Models.SessionMessageCompactionRunningTime>
     {
         public SessionMessageCompactionRunningTime() { }
         [System.Text.Json.Serialization.JsonPropertyName("created")]
@@ -6510,7 +6601,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionMessageContentUpdatedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionMessageContentUpdatedDurable>
+    public sealed class SessionMessageContentUpdatedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionMessageContentUpdatedDurable>
     {
         public SessionMessageContentUpdatedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -6826,7 +6917,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionModelSelectedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionModelSelectedDurable>
+    public sealed class SessionModelSelectedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionModelSelectedDurable>
     {
         public SessionModelSelectedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -6881,7 +6972,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("subpath")]
         public string? Subpath { get; init; }
     }
-    public sealed class SessionMovedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionMovedDurable>
+    public sealed class SessionMovedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionMovedDurable>
     {
         public SessionMovedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -7059,7 +7150,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("text")]
         public required string Text { get; init; }
     }
-    public sealed class SessionReasoningEndedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionReasoningEndedDurable>
+    public sealed class SessionReasoningEndedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionReasoningEndedDurable>
     {
         public SessionReasoningEndedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -7102,7 +7193,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("state")]
         public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? State { get; init; }
     }
-    public sealed class SessionReasoningStartedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionReasoningStartedDurable>
+    public sealed class SessionReasoningStartedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionReasoningStartedDurable>
     {
         public SessionReasoningStartedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -7146,7 +7237,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("title")]
         public required string Title { get; init; }
     }
-    public sealed class SessionRenamedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionRenamedDurable>
+    public sealed class SessionRenamedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionRenamedDurable>
     {
         public SessionRenamedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -7190,7 +7281,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionRetryScheduledDurable : System.IEquatable<OpenCode.Sdk.Models.SessionRetryScheduledDurable>
+    public sealed class SessionRetryScheduledDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionRetryScheduledDurable>
     {
         public SessionRetryScheduledDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -7241,7 +7332,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionRevertClearedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionRevertClearedDurable>
+    public sealed class SessionRevertClearedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionRevertClearedDurable>
     {
         public SessionRevertClearedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -7279,7 +7370,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("to")]
         public required string To { get; init; }
     }
-    public sealed class SessionRevertCommittedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionRevertCommittedDurable>
+    public sealed class SessionRevertCommittedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionRevertCommittedDurable>
     {
         public SessionRevertCommittedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -7326,7 +7417,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionRevertStagedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionRevertStagedDurable>
+    public sealed class SessionRevertStagedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionRevertStagedDurable>
     {
         public SessionRevertStagedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -7378,7 +7469,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("truncated")]
         public required bool Truncated { get; init; }
     }
-    public sealed class SessionShellEndedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionShellEndedDurable>
+    public sealed class SessionShellEndedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionShellEndedDurable>
     {
         public SessionShellEndedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -7425,7 +7516,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("shell")]
         public required OpenCode.Sdk.Models.ShellInfo Shell { get; init; }
     }
-    public sealed class SessionShellStartedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionShellStartedDurable>
+    public sealed class SessionShellStartedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionShellStartedDurable>
     {
         public SessionShellStartedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -7467,7 +7558,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("text")]
         public required string Text { get; init; }
     }
-    public sealed class SessionSkillActivatedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionSkillActivatedDurable>
+    public sealed class SessionSkillActivatedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionSkillActivatedDurable>
     {
         public SessionSkillActivatedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -7740,7 +7831,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonStringEnumMemberName("unknown")]
         Unknown = 5,
     }
-    public sealed class SessionStepEndedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionStepEndedDurable>
+    public sealed class SessionStepEndedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionStepEndedDurable>
     {
         public SessionStepEndedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -7801,7 +7892,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("tokens")]
         public OpenCode.Sdk.Models.TokenUsageInfo? Tokens { get; init; }
     }
-    public sealed class SessionStepFailedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionStepFailedDurable>
+    public sealed class SessionStepFailedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionStepFailedDurable>
     {
         public SessionStepFailedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -7846,7 +7937,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("snapshot")]
         public string? Snapshot { get; init; }
     }
-    public sealed class SessionStepStartedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionStepStartedDurable>
+    public sealed class SessionStepStartedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionStepStartedDurable>
     {
         public SessionStepStartedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -7884,7 +7975,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionStepStreamedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionStepStreamedDurable>
+    public sealed class SessionStepStreamedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionStepStreamedDurable>
     {
         public SessionStepStreamedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -7951,7 +8042,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("text")]
         public required string Text { get; init; }
     }
-    public sealed class SessionSyntheticDurable : System.IEquatable<OpenCode.Sdk.Models.SessionSyntheticDurable>
+    public sealed class SessionSyntheticDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionSyntheticDurable>
     {
         public SessionSyntheticDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -8047,7 +8138,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("text")]
         public required string Text { get; init; }
     }
-    public sealed class SessionTextEndedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionTextEndedDurable>
+    public sealed class SessionTextEndedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionTextEndedDurable>
     {
         public SessionTextEndedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -8087,7 +8178,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionTextStartedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionTextStartedDurable>
+    public sealed class SessionTextStartedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionTextStartedDurable>
     {
         public SessionTextStartedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -8134,7 +8225,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("state")]
         public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? State { get; init; }
     }
-    public sealed class SessionToolCalledDurable : System.IEquatable<OpenCode.Sdk.Models.SessionToolCalledDurable>
+    public sealed class SessionToolCalledDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionToolCalledDurable>
     {
         public SessionToolCalledDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -8187,7 +8278,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionToolFailedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionToolFailedDurable>
+    public sealed class SessionToolFailedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionToolFailedDurable>
     {
         public SessionToolFailedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -8259,7 +8350,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("text")]
         public required string Text { get; init; }
     }
-    public sealed class SessionToolInputEndedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionToolInputEndedDurable>
+    public sealed class SessionToolInputEndedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionToolInputEndedDurable>
     {
         public SessionToolInputEndedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -8301,7 +8392,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionToolInputStartedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionToolInputStartedDurable>
+    public sealed class SessionToolInputStartedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionToolInputStartedDurable>
     {
         public SessionToolInputStartedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -8381,7 +8472,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionToolSuccessDurable : System.IEquatable<OpenCode.Sdk.Models.SessionToolSuccessDurable>
+    public sealed class SessionToolSuccessDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionToolSuccessDurable>
     {
         public SessionToolSuccessDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -8439,7 +8530,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonStringEnumMemberName("compaction")]
         Compaction = 1,
     }
-    public sealed class SessionUsageRecordedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionUsageRecordedDurable>
+    public sealed class SessionUsageRecordedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionUsageRecordedDurable>
     {
         public SessionUsageRecordedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -8511,7 +8602,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
         public required string SessionId { get; init; }
     }
-    public sealed class SessionViewedDurable : System.IEquatable<OpenCode.Sdk.Models.SessionViewedDurable>
+    public sealed class SessionViewedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionViewedDurable>
     {
         public SessionViewedDurable() { }
         [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
@@ -8962,7 +9053,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
     }
-    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownFormFieldJsonConverter))]
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownFormFieldJsonConverter?))]
     public sealed class UnknownFormField : OpenCode.Sdk.Models.IFormField, System.IEquatable<OpenCode.Sdk.Models.UnknownFormField>
     {
         [System.Text.Json.Serialization.JsonConstructor]
@@ -9079,7 +9170,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
     }
-    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownSessionEventDurableJsonConverter))]
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownSessionEventDurableJsonConverter?))]
     public sealed class UnknownSessionEventDurable : OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.UnknownSessionEventDurable>
     {
         [System.Text.Json.Serialization.JsonConstructor]

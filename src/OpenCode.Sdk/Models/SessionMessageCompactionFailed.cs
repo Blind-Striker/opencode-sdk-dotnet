@@ -65,4 +65,6 @@ public sealed record SessionMessageCompactionFailed : ISessionMessageCompaction
     [JsonPropertyName("tokens")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public TokenUsageInfo? Tokens { get; init; }
+
+    ISessionMessageCompactionTime? ISessionMessageCompaction.Time => Time;
 }

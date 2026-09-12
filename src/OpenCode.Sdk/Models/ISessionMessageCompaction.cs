@@ -15,4 +15,10 @@ public interface ISessionMessageCompaction : ISessionMessageInfo
     /// </summary>
     [JsonPropertyName("status")]
     public string Status { get; }
+
+    /// <summary>
+    /// Gets the time value. Every declared variant carries it; the value is null when the payload is an unrecognized variant preserved as UnknownSessionMessageCompaction.
+    /// </summary>
+    [JsonPropertyName("time")]
+    public ISessionMessageCompactionTime? Time { get; }
 }

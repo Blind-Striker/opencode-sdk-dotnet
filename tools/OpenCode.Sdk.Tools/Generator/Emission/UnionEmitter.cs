@@ -17,7 +17,7 @@ internal static class UnionEmitter
         foreach (var union in unions.OrderBy(static union => union.Name, StringComparer.Ordinal))
         {
             result.Add(EmitBase(union, byName));
-            result.Add(EmitUnknown(union));
+            result.Add(EmitUnknown(union, byName));
             result.Add(EmitConverter(union));
             result.Add(EmitCarrierConverter(union));
         }
@@ -43,16 +43,23 @@ internal static class UnionEmitter
         // A nested union that discriminates on its parent's marker inherits that member;
         // redeclaring it would hide the one the parent already promises.
         var declaresMarker = !InheritsMarker(union, unions);
+        // Every member declares the hoisted properties in the same shape, so the interface can
+        // promise them; each is nullable because the unknown carrier materializes none of them.
+        var members = new List<MemberDeclarationSyntax>();
+        if (declaresMarker)
+        {
+            members.Add(marker);
+        }
+
+        members.AddRange(union.HoistedMembers.Select(member => EmitHoistedMember(union, member)));
         var declaration = SyntaxFactory
             .InterfaceDeclaration(union.Name)
             .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
             .AddAttributeLists(EmissionSyntax.Attribute(
                 "JsonConverter",
                 SyntaxFactory.AttributeArgument(SyntaxFactory.TypeOfExpression(TypeSyntaxEmitter.EmitNamed(converterTypeName)))))
-            .WithMembers(declaresMarker
-                ? SyntaxFactory.SingletonList<MemberDeclarationSyntax>(marker)
-                : SyntaxFactory.List<MemberDeclarationSyntax>())
-            .WithLeadingTrivia(EmissionSyntax.Documentation(union.Description ?? $"Represents a {DisplayName(union.ConceptName)} union."));
+            .WithMembers(SyntaxFactory.List(members))
+            .WithLeadingTrivia(EmissionSyntax.Documentation(union.Description ?? $"Represents a {GeneratedDisplayName.Of(union.ConceptName)} union."));
         if (union.BaseTypeName is not null)
         {
             declaration = declaration.WithBaseList(SyntaxFactory.BaseList(SyntaxFactory.SingletonSeparatedList<BaseTypeSyntax>(
@@ -61,10 +68,57 @@ internal static class UnionEmitter
 
         var unit = EmissionSyntax.CompilationUnit(
             union.Namespace,
-            ["OpenCode.Sdk.Internal.Serialization", "System.Text.Json.Serialization"],
+            HoistedUsings(union.HoistedMembers, ["OpenCode.Sdk.Internal.Serialization", "System.Text.Json.Serialization"]),
             [declaration]);
         return EmissionSyntax.CreateSource($"Models/{union.Name}.cs", unit);
     }
+
+    private static PropertyDeclarationSyntax EmitHoistedMember(UnionPlan union, HoistedMemberPlan member)
+    {
+        var summary = member.Description ?? $"Gets the {GeneratedDisplayName.Of(member.Name)} value.";
+        return SyntaxFactory
+            .PropertyDeclaration(TypeSyntaxEmitter.Emit(member.Type), member.Name)
+            .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
+            .AddAttributeLists(EmissionSyntax.Attribute("JsonPropertyName", EmissionSyntax.StringArgument(member.WireName)))
+            .WithAccessorList(SyntaxFactory.AccessorList(SyntaxFactory.SingletonList(
+                SyntaxFactory
+                    .AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)))))
+            .WithLeadingTrivia(EmissionSyntax.Documentation(
+                summary + " Every declared variant carries it; the value is null when the payload is an "
+                + $"unrecognized variant preserved as {union.UnknownTypeName}."));
+    }
+
+    /// <summary>The members a carrier of this union must answer, including the ones its outer unions promise.</summary>
+    private static List<HoistedChainMember> ChainHoistedMembers(UnionPlan union, IReadOnlyDictionary<string, UnionPlan> unions)
+    {
+        var result = new List<HoistedChainMember>();
+        for (var current = union; current is not null;)
+        {
+            var declaring = current;
+            result.AddRange(declaring
+                .HoistedMembers.Where(member =>
+                    !result.Exists(entry => string.Equals(entry.Member.Name, member.Name, StringComparison.Ordinal)))
+                .Select(member => new HoistedChainMember(declaring.Name, member)));
+            current = current.BaseTypeName is not null && unions.TryGetValue(current.BaseTypeName, out var outer) ? outer : null;
+        }
+
+        return result;
+    }
+
+    private static string[] HoistedUsings(IEnumerable<HoistedMemberPlan> members, IEnumerable<string> seed)
+    {
+        var result = new HashSet<string>(seed, StringComparer.Ordinal);
+        foreach (var member in members)
+        {
+            TypeUsingCollector.Collect(member.Type, result);
+        }
+
+        return [.. result.Order(StringComparer.Ordinal)];
+    }
+
+    /// <summary>One hoisted member together with the interface that declares it.</summary>
+    private sealed record HoistedChainMember(string InterfaceName, HoistedMemberPlan Member);
 
     private static bool InheritsMarker(UnionPlan union, IReadOnlyDictionary<string, UnionPlan> unions)
     {
@@ -83,8 +137,9 @@ internal static class UnionEmitter
         return false;
     }
 
-    private static GeneratedSource EmitUnknown(UnionPlan union)
+    private static GeneratedSource EmitUnknown(UnionPlan union, IReadOnlyDictionary<string, UnionPlan> unions)
     {
+        var chain = ChainHoistedMembers(union, unions);
         var markerType = TypeSyntaxEmitter.EmitMarker(union.MarkerKind);
         var members = new List<MemberDeclarationSyntax>();
         if (union.AlternateMarkerWireNames.Count > 0)
@@ -105,6 +160,10 @@ internal static class UnionEmitter
 
         members.Add(EmitUnknownPayloadProperty());
 
+        // A hoisted member is answered explicitly, so the carrier's own public surface stays the
+        // preserved marker and payload and System.Text.Json still sees nothing else on it.
+        members.AddRange(chain.Select(EmitUnknownHoistedMember));
+
         // The concrete-type converter keeps consumer serialization of the carrier itself
         // reproducing the preserved document; without it, source-generated metadata would
         // write the carrier as an ordinary record.
@@ -122,13 +181,25 @@ internal static class UnionEmitter
                 SyntaxFactory.AttributeArgument(SyntaxFactory.TypeOfExpression(
                     TypeSyntaxEmitter.EmitNamed($"{union.UnknownTypeName}JsonConverter")))))
             .WithMembers(SyntaxFactory.List(members))
-            .WithLeadingTrivia(EmissionSyntax.Documentation($"Preserves an unknown {DisplayName(union.ConceptName)} payload."));
+            .WithLeadingTrivia(EmissionSyntax.Documentation($"Preserves an unknown {GeneratedDisplayName.Of(union.ConceptName)} payload."));
         var usingNames = union.MarkerKind is LiteralKind.String
             ? new[] { "System", "System.Text.Json", "System.Text.Json.Serialization", "OpenCode.Sdk.Internal.Serialization", }
             : ["System.Text.Json", "System.Text.Json.Serialization", "OpenCode.Sdk.Internal.Serialization"];
-        var unit = EmissionSyntax.CompilationUnit(union.Namespace, usingNames, [declaration]);
+        var unit = EmissionSyntax.CompilationUnit(
+            union.Namespace,
+            HoistedUsings(chain.Select(static entry => entry.Member), usingNames),
+            [declaration]);
         return EmissionSyntax.CreateSource($"Models/{union.UnknownTypeName}.cs", unit);
     }
+
+    private static PropertyDeclarationSyntax EmitUnknownHoistedMember(HoistedChainMember entry) =>
+        SyntaxFactory
+            .PropertyDeclaration(TypeSyntaxEmitter.Emit(entry.Member.Type), entry.Member.Name)
+            .WithExplicitInterfaceSpecifier(SyntaxFactory.ExplicitInterfaceSpecifier(
+                SyntaxFactory.IdentifierName(entry.InterfaceName)))
+            .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(
+                SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)))
+            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
 
     /// <summary>
     /// The carrier's own converter: reading reproduces the base converter's fallback arm,
@@ -313,7 +384,7 @@ internal static class UnionEmitter
         [
             SyntaxFactory.IfStatement(
                 EmissionSyntax.StartsWithOrdinal(SyntaxFactory.IdentifierName("marker"), prefix.Prefix),
-                ThrowJson($"The {union.ConceptName} payload carries the '{prefix.Prefix}' prefix-tagged arm and is not an unknown {DisplayName(union.ConceptName)}.")),
+                ThrowJson($"The {union.ConceptName} payload carries the '{prefix.Prefix}' prefix-tagged arm and is not an unknown {GeneratedDisplayName.Of(union.ConceptName)}.")),
         ];
     }
 
@@ -1085,6 +1156,4 @@ internal static class UnionEmitter
         _ => throw new InvalidOperationException($"Marker value '{value}' is invalid for '{kind}'."),
     };
 
-    private static string DisplayName(string name) =>
-        string.Join(' ', CSharpNamePolicy.SplitWords(name).Select(static word => word.ToLowerInvariant()));
 }

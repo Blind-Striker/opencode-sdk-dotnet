@@ -6,7 +6,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message compaction failed time value.
 /// </summary>
-public sealed record SessionMessageCompactionFailedTime
+public sealed record SessionMessageCompactionFailedTime : ISessionMessageCompactionTime
 {
     /// <summary>
     /// Gets the created value.

@@ -6,7 +6,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session step failed durable value.
 /// </summary>
-public sealed record SessionStepFailedDurable
+public sealed record SessionStepFailedDurable : IDurableEnvelope
 {
     /// <summary>
     /// Gets the aggregate id value.

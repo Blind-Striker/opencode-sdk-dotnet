@@ -15,4 +15,22 @@ public interface IFormField
     /// </summary>
     [JsonPropertyName("type")]
     public string Type { get; }
+
+    /// <summary>
+    /// Gets the key value. Every declared variant carries it; the value is null when the payload is an unrecognized variant preserved as UnknownFormField.
+    /// </summary>
+    [JsonPropertyName("key")]
+    public string? Key { get; }
+
+    /// <summary>
+    /// Gets the title value. Every declared variant carries it; the value is null when the payload is an unrecognized variant preserved as UnknownFormField.
+    /// </summary>
+    [JsonPropertyName("title")]
+    public string? Title { get; }
+
+    /// <summary>
+    /// Gets the description value. Every declared variant carries it; the value is null when the payload is an unrecognized variant preserved as UnknownFormField.
+    /// </summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; }
 }

@@ -6,7 +6,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session retry scheduled durable value.
 /// </summary>
-public sealed record SessionRetryScheduledDurable
+public sealed record SessionRetryScheduledDurable : IDurableEnvelope
 {
     /// <summary>
     /// Gets the aggregate id value.

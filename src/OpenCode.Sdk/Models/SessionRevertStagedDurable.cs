@@ -6,7 +6,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session revert staged durable value.
 /// </summary>
-public sealed record SessionRevertStagedDurable
+public sealed record SessionRevertStagedDurable : IDurableEnvelope
 {
     /// <summary>
     /// Gets the aggregate id value.

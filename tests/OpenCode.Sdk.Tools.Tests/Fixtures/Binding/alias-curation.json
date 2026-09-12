@@ -15,6 +15,7 @@
       "reason": "Upstream spec-gen emits a structurally identical duplicate carrying the same _tag."
     }
   ],
+  "hoistedMemberNames": [],
   "transportOwned": [],
   "declined": []
 }

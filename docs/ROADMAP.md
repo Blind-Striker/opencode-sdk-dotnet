@@ -146,8 +146,11 @@ is revisited at each boundary.
   route builder instead of calling the shared policy (a large but purely mechanical generated
   diff); the `form` group's curation reason is written in the future tense where every sibling
   states present fact; the `MedianNanoseconds` benchmark column breaks the other columns'
-  abbreviation convention; and the committed sandbox's `--paginate` mode exits nonzero on an empty
-  enumeration.
+  abbreviation convention; the committed sandbox's `--paginate` mode exits nonzero on an empty
+  enumeration; and the public API baseline renders `typeof(X)` attribute arguments as `typeof(X?)`
+  on interfaces whose members are mostly nullable — a PublicApiGenerator artifact of the
+  compiler's nullable-context compression, harmless and stable, to be normalized in the baseline
+  test and reported upstream.
 - **Three one-off test failures were seen once each and never reproduced.** No runner named a test
   and re-runs of the same binaries were green, so this is a measurement gap rather than a known
   defect: run the gates with `--report-trx --report-trx-filename <unique>` so a recurrence names it.

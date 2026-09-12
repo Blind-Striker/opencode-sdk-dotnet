@@ -44,4 +44,8 @@ public sealed record SessionInboxCompaction : ISessionInboxInfo
     /// </summary>
     [JsonPropertyName("delivery")]
     public required SessionInboxDelivery Delivery { get; init; }
+
+    double? ISessionInboxInfo.TimeCreated => TimeCreated;
+
+    SessionInboxDelivery? ISessionInboxInfo.Delivery => Delivery;
 }

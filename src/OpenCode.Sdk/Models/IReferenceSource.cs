@@ -15,4 +15,16 @@ public interface IReferenceSource
     /// </summary>
     [JsonPropertyName("type")]
     public string Type { get; }
+
+    /// <summary>
+    /// Gets the description value. Every declared variant carries it; the value is null when the payload is an unrecognized variant preserved as UnknownReferenceSource.
+    /// </summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; }
+
+    /// <summary>
+    /// Gets the hidden value. Every declared variant carries it; the value is null when the payload is an unrecognized variant preserved as UnknownReferenceSource.
+    /// </summary>
+    [JsonPropertyName("hidden")]
+    public bool? Hidden { get; }
 }

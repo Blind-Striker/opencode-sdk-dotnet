@@ -6,7 +6,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session message compaction completed time value.
 /// </summary>
-public sealed record SessionMessageCompactionCompletedTime
+public sealed record SessionMessageCompactionCompletedTime : ISessionMessageCompactionTime
 {
     /// <summary>
     /// Gets the created value.

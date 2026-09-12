@@ -15,4 +15,10 @@ public interface ISessionInboxItem
     /// </summary>
     [JsonPropertyName("type")]
     public string Type { get; }
+
+    /// <summary>
+    /// Gets the delivery value. Every declared variant carries it; the value is null when the payload is an unrecognized variant preserved as UnknownSessionInboxItem.
+    /// </summary>
+    [JsonPropertyName("delivery")]
+    public SessionInboxDelivery? Delivery { get; }
 }

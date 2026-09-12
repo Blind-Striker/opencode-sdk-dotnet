@@ -38,4 +38,14 @@ public sealed record UnknownSessionEventDurable : ISessionEventDurable
     /// Gets the preserved raw JSON payload.
     /// </summary>
     public JsonElement Payload { get; }
+
+    string? ISessionEventDurable.Id => null;
+
+    double? ISessionEventDurable.Created => null;
+
+    IReadOnlyDictionary<string, JsonElement>? ISessionEventDurable.Metadata => null;
+
+    IDurableEnvelope? ISessionEventDurable.Durable => null;
+
+    LocationRef? ISessionEventDurable.Location => null;
 }

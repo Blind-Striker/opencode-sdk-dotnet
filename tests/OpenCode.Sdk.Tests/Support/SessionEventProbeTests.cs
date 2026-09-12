@@ -1,3 +1,4 @@
+using System.Text.Json;
 using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk.Tests.Support;
@@ -152,5 +153,14 @@ public sealed class SessionEventProbeTests
         await Assert.That(message).DoesNotContain("event-0050-");
     }
 
-    private sealed record Marker(string Type) : IEvent;
+    /// <summary>
+    /// A stand-in event: the probe under test reads only the marker, so the members the live
+    /// event union hoists are answered explicitly and stay out of the probe's own surface.
+    /// </summary>
+    private sealed record Marker(string Type) : IEvent
+    {
+        string? IEvent.Id => null;
+
+        IReadOnlyDictionary<string, JsonElement>? IEvent.Metadata => null;
+    }
 }

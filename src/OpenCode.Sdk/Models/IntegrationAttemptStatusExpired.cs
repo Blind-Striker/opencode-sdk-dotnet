@@ -19,4 +19,6 @@ public sealed record IntegrationAttemptStatusExpired : IIntegrationAttemptStatus
     /// </summary>
     [JsonPropertyName("time")]
     public required IntegrationAttemptStatusExpiredTime Time { get; init; }
+
+    IIntegrationAttemptStatusTime? IIntegrationAttemptStatus.Time => Time;
 }

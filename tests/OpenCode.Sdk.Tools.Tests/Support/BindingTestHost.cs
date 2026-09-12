@@ -20,7 +20,8 @@ internal sealed class BindingTestHost
             new SchemaAliasValidator(),
             new SchemaAliasApplier(),
             new SchemaNameResolver(),
-            new SchemaPlanBinder(new StructuralUnionPlanBinder(), new UnionMembershipValidator(), new UnionDiscriminatorSelector()),
+            new SchemaPlanBinder(new StructuralUnionPlanBinder(), new UnionMembershipValidator(), new UnionDiscriminatorSelector(),
+                new UnionMemberHoistBinder()),
             new OperationPlanBinder());
     }
 
