@@ -159,7 +159,7 @@ exactly that case.
 
 ### A 401 with no credential
 
-The one failure whose body tells you nothing. An `opencode2 serve` process **always** runs with a
+The one failure whose body tells you nothing. An `opencode serve` process **always** runs with a
 password — the one you set through `OPENCODE_PASSWORD`, or one it generates and prints as
 `server password <pw>` — and it rejects an uncredentialed request before the API layer ever runs.
 The answer is a bare `401` with an empty body and a `WWW-Authenticate: Basic` challenge: `Error` is
@@ -177,7 +177,7 @@ one you set through OPENCODE_PASSWORD, in OpenCodeClientOptions.Password.
 It is scoped as tightly as it reads: 401 only, and only when no password was configured. A
 credential the server *rejected* is a different mistake and keeps the plain message. And it is a
 message, not a new member — the `NoThrow` envelope is unchanged, where `Status == 401` on a client
-you built without a password is the same signal. Observed on `@opencode/cli@0.0.0-beta-19425`.
+you built without a password is the same signal. Observed on `@opencode/cli@2.0.2`.
 
 ### When a worktree remove is refused
 
@@ -193,7 +193,7 @@ inventory, so re-list before treating a removal as done.
 | `false` | The server ran git and git failed for a reason `Force` cannot fix | Read `Data.Message`; it is git's own stderr |
 | `null` | The refusal never reached git | Fix the request — the removal was never attempted |
 
-The `false` arm is the surprising one. Observed on Windows against
+The `false` arm is the surprising one. Observed on Windows against the then-pinned
 `@opencode/cli@0.0.0-beta-19242`: `Data.Message` was git's own
 `error: failed to delete '<dir>': Permission denied`, because another process still held a handle
 inside the directory while `git worktree remove` tried to unlink it. `Force` unlinks the same file,
@@ -266,6 +266,13 @@ is usually the answer. The causes that reach a running child are an exit before 
 the exit code), a readiness timeout (naming the bound you configured), and a first stdout line that
 was not the readiness contract (quoting it).
 
+One exit before readiness is worth knowing by sight. `opencode` is also the command the 1.x line
+installs (npm `opencode-ai`), and a 1.x binary does not accept the `--stdio` flag the launcher
+appends: it exits with code 1 at once and prints its own `serve` usage text to stderr, an option
+list with no `--stdio` in it. When the stderr tail in the message is that usage text, the `opencode`
+on your `PATH` is a 1.x install, which this SDK does not drive — install `@opencode/cli`, or point
+`Command` at that install's executable. Measured on `opencode-ai@1.18.30`.
+
 The rest are decided before anything is spawned, so they carry no stderr — there is nothing to
 report — but they name exactly what went wrong instead.
 
@@ -273,20 +280,20 @@ report — but they name exactly what went wrong instead.
 message says how many directories were searched and, on Windows, which extensions were appended:
 
 ```text
-The server command 'opencode2' was not found on PATH: 37 directories searched with the
+The server command 'opencode' was not found on PATH: 37 directories searched with the
 extensions .COM, .EXE, .BAT, .CMD. Pass the executable's full path in
 OpenCodeServerOptions.Command, or install the CLI package @opencode/cli.
 ```
 
 Those two suggestions are the two real fixes: install the CLI (`npm install -g @opencode/cli`), or
-stop depending on the search and name the file — `Command = ["/opt/opencode/bin/opencode2", "serve"]`.
+stop depending on the search and name the file — `Command = ["/opt/opencode/bin/opencode", "serve"]`.
 The [resolution rules](connection-modes.md#how-the-command-is-resolved) say exactly what was tried.
 
 **An argument was refused.** The command resolved to a Windows `.cmd`/`.bat` shim, which runs
 through `cmd.exe`, and one of your leading arguments contained a character `cmd.exe` would re-parse:
 
 ```text
-The server command resolved to the batch shim 'C:\Users\you\AppData\Roaming\npm\opencode2.cmd',
+The server command resolved to the batch shim 'C:\Users\you\AppData\Roaming\npm\opencode.cmd',
 which runs through cmd.exe, and cmd.exe re-parses its command line — so the argument
 'serve&whoami' is refused rather than escaped: it contains one of & | < > ^ % ! " or a line
 break. Remove the character, or point OpenCodeServerOptions.Command at the real executable

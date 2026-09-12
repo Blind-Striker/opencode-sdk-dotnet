@@ -12,10 +12,10 @@ queue is on the [project board](https://github.com/users/Blind-Striker/projects/
 **Pre-release, and the protocol surface is complete.** The callable surface is generated from an
 accepted OpenAPI snapshot and rides one hand-written transport runtime.
 
-- **Protocol pin** — generation reads an accepted snapshot of upstream's `v2` OpenAPI document,
-  never a live branch, and refreshes are receipt-governed (ADR-0020). `../spec/SNAPSHOT.md` owns
-  the exact commit and the refresh procedure.
-- **Coverage** — **134 of 139 operations selected** across 28 client families, with 3 declined by
+- **Protocol pin** — generation reads an accepted snapshot of upstream's OpenAPI document taken at
+  a release tag, never a live branch, and refreshes are receipt-governed (ADR-0020).
+  `../spec/SNAPSHOT.md` owns the exact commit and the refresh procedure.
+- **Coverage** — **138 of 143 operations selected** across 29 client families, with 3 declined by
   decision and 2 transport-owned (Known Gaps below); `src/OpenCode.Sdk/.generation-incomplete` is
   the committed marker and names every one. One-shot calls, server-sent event streams (the global
   bus and the per-session log), PTY and persistent-PTY WebSocket sessions, cursor pagination, typed
@@ -28,6 +28,10 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
   targets. Linux and macOS live verification also passed on net8/net9/net10, including the persistent daemon
   round trip and normal PTY reuse after read cancellation. `architecture/client-runtime.md` and
   ADR-0023 own the contract.
+- **Official launch watch** — upstream's own 1.x npm package (`opencode-ai`, still 1.18.30) and its
+  GitHub Releases page (still `v1.18.30` as latest) remain the 1.x line, so the 2.x line has not had
+  its official launch yet. The pin tracks upstream release tags and is refreshed under receipt at
+  milestone boundaries; package names and documentation are re-checked when the launch lands.
 - **Packages** — the two packages publish as `OpenCodeAI.Sdk` and `OpenCodeAI.Sdk.Extensions`
   (the assemblies stay `OpenCode.Sdk`) and pack at the single-sourced
   `VersionPrefix 0.8.0`. Every `master` push publishes a `0.8.0-nightly.*` build to GitHub
@@ -74,8 +78,6 @@ is revisited at each boundary.
 
 ## Open Questions
 
-- **v2 GA watch** — the v2 line ships as `opencode2` (npm `@opencode/cli@beta`) with no GA date.
-  The pin therefore stays a deliberate snapshot, refreshed under receipt at milestone boundaries.
 - **`v2.session.log` resume guarantees** — the pinned document exposes `after` as an optional
   string, and the generated surface stays faithful to it; ADR-0013 forbids importing the narrower
   type upstream's implementation decodes. Replay mechanics and retention are established and
@@ -92,8 +94,10 @@ is revisited at each boundary.
   value, a numeric range and a file path both invisible behind bare strings, a WebSocket close code
   overloaded across two causes, and two declared arms the handler cannot produce. Findings stay
   diagnostic and never feed generation or curation (ADR-0013).
-- **Release mechanics** — ADR-0006's shape is wired, and the first tagged release ships as a
-  `0.8.0-preview.N` prerelease, iterating the preview and patch numbers toward `1.0.0`. Open:
+- **Release mechanics** — ADR-0006's shape is wired. The line stays a preview until the M-series
+  is complete: the minor number advances at each milestone boundary (`0.9.0-preview.N` when M4
+  lands, `0.10.0-preview.N` when M5 lands) and M6 closes it at `1.0.0`; between milestones only
+  the preview number moves, so a pin refresh or a fix round ships as the next `preview.N`. Open:
   the release-notes flow.
 - **Deferred design questions, each parked behind a named trigger** — splitting validated client
   configuration from the transport factory (reopens when M6 attaches telemetry or hooks, or when
@@ -115,12 +119,12 @@ is revisited at each boundary.
   allocates one 16 KiB receive buffer, reused across consumer reads. Both are described for consumers
   in the README's Known Issues; pooling requires evidence under the current connection-lifetime harness.
 - **Durable session-log replay cannot be enabled on any distributed CLI build.** `events.persist`
-  is a server-library option: the `opencode2` serve command declares no flag for it, bridges no
+  is a server-library option: the `opencode` serve command declares no flag for it, bridges no
   environment variable to it, and reads no configuration key for it, so a replay from a CLI-started
   server is one `log.synced` marker whose sequence advanced with no durable events before it
-  (confirmed at the pin; observed on `@opencode/cli@0.0.0-beta-19425` and earlier). The SDK is
-  faithful to the route — the gap is upstream capability — and consumers are told in the README's
-  Known Issues and the streaming guide. Reversal trigger:
+  (confirmed at the pin; observed on `@opencode/cli@2.0.2`). The SDK is faithful to the route — the
+  gap is upstream capability — and consumers are told in the README's Known Issues and the
+  streaming guide. Reversal trigger:
   `tests/OpenCode.Sdk.Tests/Sessions/SessionLogCliProfileLiveTests.cs`; when it fails, upstream
   began persisting by default and the guide, the README, and the canon sentence in
   `docs/architecture/client-runtime.md`'s server-sent-events section all change together.

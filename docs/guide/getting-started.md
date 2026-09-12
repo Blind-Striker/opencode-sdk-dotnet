@@ -54,7 +54,7 @@ using var client = new OpenCodeClient(new OpenCodeClientOptions
 | Member | Type | Meaning |
 |---|---|---|
 | `Endpoint` | `Uri?` | The server's base address. Required. |
-| `Password` | `string?` | The HTTP Basic password. Required for any server the `opencode2` CLI started — it always runs with one, generated and printed as `server password <pw>` when you set none. `null` sends no credential at all, which only a server embedded without authentication accepts; an empty or whitespace value is refused at construction. |
+| `Password` | `string?` | The HTTP Basic password. Required for any server the `opencode` CLI started — it always runs with one, generated and printed as `server password <pw>` when you set none. `null` sends no credential at all, which only a server embedded without authentication accepts; an empty or whitespace value is refused at construction. |
 | `Username` | `string` | The Basic username. Defaults to `opencode` — the only username the pinned server accepts — so leave it alone unless upstream changes. |
 | `Location` | `LocationSelector?` | The ambient directory/workspace header values, overridable per call; only operations that resolve location from those headers use them. |
 
@@ -184,14 +184,14 @@ Console.WriteLine($"{export.Export.Messages.Count} messages from {export.Export.
 > the title, and the same treatment for the directory. Ids, types, order, and count all survive
 > untouched. So a sanitized export is for sharing the *shape* of a conversation, never for
 > comparing transcripts: compare ids, not text. Leave `Sanitize` unset or `False` when you want the
-> conversation itself. Verified on `@opencode/cli@0.0.0-beta-19425`.
+> conversation itself. Verified on `@opencode/cli@2.0.2`.
 
 ## 🧭 How the client is organised
 
-The root client exposes **28 families** as properties — `Sessions`, `Events`, `Ptys`,
+The root client exposes **29 families** as properties — `Sessions`, `Events`, `Ptys`,
 `PersistentPtys`, `Shells`, `Providers`, `LanguageModels`, `Agents`, `Skills`, `Commands`,
-`Permissions`, `Credentials`, `Projects`, `Workspaces`, `Worktrees`, `Vcs`, `FileSystem`, `Forms`,
-`Generation`, `Integrations`, `McpServers`, `Plugins`, `References`, `Rpc`, `Server`,
+`Permissions`, `Credentials`, `Config`, `Projects`, `Workspaces`, `Worktrees`, `Vcs`, `FileSystem`,
+`Forms`, `Generation`, `Integrations`, `McpServers`, `Plugins`, `References`, `Rpc`, `Server`,
 `Websearch`, `Debug`, and `Experimental`:
 
 ```csharp

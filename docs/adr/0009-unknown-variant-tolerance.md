@@ -2,9 +2,9 @@
 
 Date: 2026-08-09
 
-A consumer's SDK being older than the server it talks to is normal operation (upstream
-ships hourly betas), so an unknown discriminator value must never kill a stream or a
-call and must never be silently dropped: every generated union deserializes tags that are
+A consumer's SDK being older than the server it talks to is normal operation (upstream releases
+move faster than a regenerated SDK), so an unknown discriminator value must never kill a stream
+or a call and must never be silently dropped: every generated union deserializes tags that are
 neither declared literals nor claimed by the union's prefix-tagged arm into that union's
 explicit `Unknown*` variant carrying the tag string and the raw payload (`JsonElement`). One
 mechanical generator rule, no curation; it

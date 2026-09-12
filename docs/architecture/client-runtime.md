@@ -314,7 +314,7 @@ local server launcher. Protocol and generated-model rules live in
 - That log has no retention policy: nothing expires, prunes, or caps it, compaction and revert
   rewrite projections rather than the log, and rows are deleted only with their session.
   Persistence is itself a server option that is off unless the process starting the server turned it
-  on, and no distributed `opencode2` build exposes a way to turn it on: the CLI's serve command
+  on, and no distributed `opencode` build exposes a way to turn it on: the CLI's serve command
   declares no such flag, bridges no environment variable to it, and reads no configuration key for
   it. A replay from such a server is therefore contract-valid and empty of history — one
   `log.synced` marker whose sequence has advanced, with no durable events before it — which is the
@@ -362,8 +362,9 @@ local server launcher. Protocol and generated-model rules live in
 `OpenCodeServer.StartAsync(OpenCodeServerOptions?, CancellationToken)` is the standalone door
 (upstream `Standalone.start` parity), hand-written over `System.Diagnostics.Process` with no
 process-management dependency (ADR-0001). Every call is always a fresh private server on port
-zero: the caller's `Command` — `opencode2 serve` by default, the single executable the line
-this SDK speaks to installs — plus `--stdio --port 0` is the argv, and a freshly generated lease
+zero: the caller's `Command` — `opencode serve` by default, the command the `@opencode/cli`
+package installs (the package also installs a transitional `opencode2` alias pointing at the same
+executable) — plus `--stdio --port 0` is the argv, and a freshly generated lease
 credential is injected into the child environment as `OPENCODE_PASSWORD`, after any caller-supplied
 `Environment` entries so it can never be shadowed. Readiness is the single JSON stdout line the
 child prints once fully booted; stdin stays open as the ownership lease for as long as the server
@@ -379,7 +380,7 @@ PATHEXT order — falling back to the conventional `.COM;.EXE;.BAT;.CMD` when PA
 and a name already carrying an extension is tried as written; on Unix the name itself is probed
 for existence and the operating system still decides executability at spawn. `CreateProcess` with
 `UseShellExecute=false` appends only `.exe` and never consults PATHEXT, while an npm install on
-Windows writes shim files (`opencode2`, `opencode2.cmd`, `opencode2.ps1`) and keeps the binary
+Windows writes shim files (`opencode`, `opencode.cmd`, `opencode.ps1`) and keeps the binary
 inside `node_modules`, so the shell-style search is what lets a bare name start there. A bare name
 that matches nothing fails before anything is spawned, naming the command, the number of
 directories searched, and the extensions tried.
@@ -476,6 +477,6 @@ tail without `StartAsync` once a caller already holds an endpoint. *Noted for la
 the M6 network-timeout knob lands as an option rather than a caller-owned
 `CancellationTokenSource` — a bounded-probe helper only earns public surface at that point.
 
-**Background service** (`Service.discover/ensure/stop`, public export `@opencode-ai/client/service`,
+**Background service** (`Service.discover/ensure/stop`, public export `@opencode/client/service`,
 upstream `packages/client/src/promise/service.ts:255`) → the queued follow-up arc; the SDK has no
 `DiscoverAsync`/`EnsureAsync`/`StopAsync` parity yet. See `docs/ROADMAP.md` §4 for status.

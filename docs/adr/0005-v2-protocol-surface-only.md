@@ -26,9 +26,7 @@ internal research, 2026-08-08, "Upstream v1/v2: product version vs HTTP API surf
 - The legacy hub, the legacy-marked sub-surface, the 16 stripped-name collisions, and
   consumer-driven legacy testing all disappear; milestone M5 shrinks to completing the
   generation profile over the single surface.
-- Until upstream's v2 line reaches general availability the SDK targets a pre-release
-  server (`opencode2`; npm `@opencode/cli@beta`) — accepted: the M-series timeline runs
-  alongside upstream's stabilization, and the pinned-snapshot + fail-closed refresh
-  machinery exists for exactly this churn.
-- The spec pin is a snapshot of a moving branch: refreshes stay deliberate and
+- The SDK targets the OpenCode 2.x server line; the pinned-snapshot and fail-closed refresh
+  machinery (ADR-0020) carries the pin across upstream releases.
+- The spec pin is a snapshot taken at an upstream release tag: refreshes stay deliberate and
   receipt-governed (ADR-0020), never HEAD-tracking.

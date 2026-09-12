@@ -126,9 +126,9 @@ boundary, not a durable event to save as the next `After` value.
 > option that is off unless the process starting the server turned it on, so a server without it
 > answers a replay with the marker alone.
 >
-> **The distributed `opencode2` CLI starts its server without event persistence and exposes no
+> **The distributed `opencode` CLI starts its server without event persistence and exposes no
 > switch for it** — no serve flag, no environment variable, no configuration key. Observed on
-> `@opencode/cli@0.0.0-beta-19425` and every earlier build. So a replay (`GetLogAsync` with
+> `@opencode/cli@2.0.2`. So a replay (`GetLogAsync` with
 > `Follow` unset or `False`) against a CLI-started server is not an error and not empty: it is one
 > `EventLogSynced` whose `Seq` has advanced, with nothing replayed before it. That is the signature
 > to look for — a marker that moved, and no durable events ahead of it. Persisted replay needs a

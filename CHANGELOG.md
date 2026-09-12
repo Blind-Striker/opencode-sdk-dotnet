@@ -1,6 +1,6 @@
-# opencode v2 .NET SDK Change Log
+# opencode .NET SDK Change Log
 
-This document outlines the changes, updates, and important notes for the opencode v2 SDK for .NET.
+This document outlines the changes, updates, and important notes for the opencode SDK for .NET.
 Each released version links straight to its GitHub Release tag.
 
 ## [Unreleased]
@@ -11,9 +11,9 @@ Nightly builds of `master` are on
 
 ### 💥 Breaking changes
 
-- **The accepted snapshot moved to upstream `20aff6d9f643afe9abf8a048e68f019d049f5329`**, the
-  `beta` branch head that shipped as `@opencode/cli@0.0.0-beta-19425`. Install that exact build
-  (`npm install -g @opencode/cli@0.0.0-beta-19425`); the `@opencode-ai/cli` scope that the
+- **The accepted snapshot moved to upstream release tag `v2.0.2`**
+  (`ea5ae2329569e4fbf063be451480b58e29de6816`), which published as `@opencode/cli@2.0.2`. Install
+  that release (`npm install -g @opencode/cli@2.0.2`); the `@opencode-ai/cli` scope that the
   previous README named is frozen at an August build that predates the worktree route shape and the
   whole persistent-PTY family this SDK generates.
 - **`v2.session.messageUpdate` is gone** because upstream removed the message content mutation API
@@ -26,6 +26,20 @@ Nightly builds of `master` are on
   no longer implements `IEvent`; it remains a durable session-log item.
 
 ### ✨ New features
+
+- **The config family is on the client.** The `v2.0.2` snapshot added four operations and all four
+  are generated and covered: `OpenCodeClient.Config` carries `GetPreferencesAsync`,
+  `GetShellsAsync`, and `PatchUpdatePreferencesAsync` (global preferences read, the host shell
+  catalog, and the preferences patch), and `SessionClient.PutPermissionRulesAsync` replaces a
+  session's permission ruleset. `ConfigPreferences.Websearch` and
+  `ConfigUpdatePreferencesPatchRequest.Websearch` are structural unions over `false` and a
+  `ConfigWebSearchInfo` provider. Coverage is 138 of 143 pinned operations, up from 135 of 140 in 0.8.0-preview.1.
+
+- **Sessions carry their permission ruleset, and changing it raises an event.**
+  `SessionCreateRequest`, `SessionInfo`, and `SessionCreatedData` gained `Permissions`, and the new
+  durable event `session.permissions.updated` materializes as `SessionPermissionsUpdated` on
+  `IEvent`, `ISessionEventDurable`, and `ISessionLogItem`, carrying the session id and the new
+  ruleset.
 
 - **One door submits a command line on both terminal families.** `PtySession.SubmitAsync(string)`
   and `PersistentPtySession.SubmitAsync(string)` send the line plus the carriage return a
@@ -69,7 +83,7 @@ Nightly builds of `master` are on
 - **The docs no longer claim an anonymous opencode server exists, and a 401 now says so.** The
   guide and the shipped XML on `OpenCodeClientOptions.Password` told readers that `null` was the
   right value "for a server started without authentication". No such server can be started: the
-  `opencode2` CLI always runs its server with a password — the one set through `OPENCODE_PASSWORD`,
+  `opencode` CLI always runs its server with a password — the one set through `OPENCODE_PASSWORD`,
   or one it generates and prints as `server password <pw>` — and it rejects an uncredentialed
   request above the API layer, with an empty body and no typed error to read. Every statement of
   that claim is corrected, and when a call answers 401 while the client was built with `Password`
@@ -78,10 +92,10 @@ Nightly builds of `master` are on
   configured; a rejected password keeps the plain message, and the `NoThrow` envelope is unchanged.
   No public member changed.
 - **`OpenCodeServer.StartAsync()` now works on Windows with an npm-installed CLI.** npm writes shim
-  files (`opencode2`, `opencode2.cmd`, `opencode2.ps1`) and keeps the real binary inside
+  files (`opencode`, `opencode.cmd`, `opencode.ps1`) and keeps the real binary inside
   `node_modules`, while `Process.Start` appends only `.exe` and ignores `PATHEXT` — so the shipped
   default `Command` failed on every npm-installed Windows machine with a bare "Failed to start the
-  server command 'opencode2'" and no stderr. The launcher now resolves `Command[0]` the way a shell
+  server command 'opencode'" and no stderr. The launcher now resolves `Command[0]` the way a shell
   does before spawning anything, so the `.cmd` shim is found and started. Nothing changes on Linux
   or macOS, where npm's bin entry is a link to the binary and the default already worked.
 
@@ -125,11 +139,11 @@ Nightly builds of `master` are on
 ### 📚 Documentation
 
 - **Durable replay now says which servers can actually do it.** The streaming guide and the
-  README's known issues state that the distributed `opencode2` CLI starts its server without event
+  README's known issues state that the distributed `opencode` CLI starts its server without event
   persistence and exposes no switch for it, so a replay from a CLI-started server answers with the
   `log.synced` marker alone — a contract-valid success with no history in it. Observed on
-  `@opencode/cli@0.0.0-beta-19425` and earlier. A new live test on the ordinary pinned CLI profile
-  asserts the marker-only answer and is the reversal trigger: when it fails, upstream began
+  `@opencode/cli@2.0.2`. A new live test on the ordinary pinned CLI profile asserts the
+  marker-only answer and is the reversal trigger: when it fails, upstream began
   persisting by default and those statements change with it.
 - **"Choosing a model" is a new section in the getting-started guide.** One compiled recipe —
   await plugin activation, read the provider and model catalogs, then place
@@ -143,7 +157,7 @@ Nightly builds of `master` are on
 - **A refused worktree removal has a paragraph in the errors guide.** A 400 `WorktreeError` removed
   nothing — the directory and its inventory row both remain — and `ForceRequired` false means git
   ran and failed for a reason `Force` cannot fix, such as the Windows permission denial observed on
-  `@opencode/cli@0.0.0-beta-19242` while another process held the directory.
+  the then-pinned `@opencode/cli@0.0.0-beta-19242` while another process held the directory.
 
 ## [0.8.0-preview.1] - 2026-09-09
 
