@@ -31,7 +31,7 @@ internal sealed partial class SimulationConfigSeed
     internal const string ReadPermissionAction = "read";
     internal const string ProviderId = "sim";
     internal const string ProviderName = "Simulated";
-    internal const string ProviderPackage = "@opencode-ai/ai/providers/openai-compatible";
+    internal const string ProviderPackage = "@opencode/ai/providers/openai-compatible";
 
     /// <summary>The exact route the seeded provider claims, and the only one the Drive network answers.</summary>
     internal const string ChatCompletionsUrl = ProviderBaseUrl + "/chat/completions";

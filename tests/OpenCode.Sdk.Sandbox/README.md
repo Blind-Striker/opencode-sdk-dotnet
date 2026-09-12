@@ -1,6 +1,6 @@
 # OpenCode.Sdk.Sandbox
 
-A committed local playground for driving the SDK against a real `opencode2 serve` under a
+A committed local playground for driving the SDK against a real `opencode serve` under a
 debugger. It rides the repository's full convention set (analyzers, `.editorconfig`, format
 gate) — unlike `.scratchpad/`, which remains the home for throwaway prototypes that answer a
 question and disappear.
@@ -20,7 +20,7 @@ same `OPENCODE_PASSWORD` variable; without it the server generates and prints a
 random one):
 
 ```sh
-OPENCODE_PASSWORD=123456 opencode2 serve --hostname 127.0.0.1 --port 4096
+OPENCODE_PASSWORD=123456 opencode serve --hostname 127.0.0.1 --port 4096
 ```
 
 Then F5 with one of the sandbox profiles, or run either stream mode directly:
@@ -113,7 +113,7 @@ exactly when the catalog can still be empty. A host with no provider credentials
 opencode configuration, and a fresh process is not a fresh machine.
 
 `OPENCODE_SANDBOX_SERVER_COMMAND` overrides the launched command (`|`-separated, to survive paths
-with spaces); unset uses the product default (`opencode2 serve`, resolved from `PATH` the way a
+with spaces); unset uses the product default (`opencode serve`, resolved from `PATH` the way a
 shell would). Run from the
 repository root against the pinned submodule source:
 

@@ -5,7 +5,7 @@ namespace OpenCode.Sdk.Internal;
 /// <summary>
 /// Parses the stdio readiness contract: the server's first stdout line is one JSON object whose
 /// <c>url</c> member carries the bound endpoint, printed only after full boot (upstream
-/// server-process.ts:163; the reference decode requires only the string url member,
+/// server-process.ts:160; the reference decode requires only the string url member,
 /// standalone.ts:9-10). Reflection-free on purpose — the SDK's serializer context stays
 /// wire-model-only.
 /// </summary>

@@ -14,7 +14,7 @@ namespace OpenCode.Sdk.Tests;
 [NotInParallel(ParallelConstraintKeys.ServerProcess)]
 public sealed class OpenCodeServerCommandResolutionTests
 {
-    private const string ShimName = "fakeopencode2";
+    private const string ShimName = "fakeopencode";
     private const string MetacharacterArgument = "serve&calc";
 
     private static readonly RealFileSystem FileSystem = new();

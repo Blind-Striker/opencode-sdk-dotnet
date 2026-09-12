@@ -6,8 +6,8 @@ namespace OpenCode.Sdk.Internal;
 /// Resolves a launcher command the way a shell would, before anything is spawned. The reason this
 /// exists: <c>Process.Start</c> with <c>UseShellExecute=false</c> hands a bare name to Windows'
 /// <c>CreateProcess</c>, which searches PATH but appends only <c>.exe</c> — never the PATHEXT
-/// list. npm installs the opencode CLI as shim files (<c>opencode2</c>, <c>opencode2.cmd</c>,
-/// <c>opencode2.ps1</c>) and keeps the real binary inside <c>node_modules</c>, so the shipped
+/// list. npm installs the opencode CLI as shim files (<c>opencode</c>, <c>opencode.cmd</c>,
+/// <c>opencode.ps1</c>) and keeps the real binary inside <c>node_modules</c>, so the shipped
 /// default failed on every npm-installed Windows machine with a bare Win32 error 2. Resolving
 /// first also reports whether the result is a batch shim, which cannot be spawned directly with
 /// any determinism — <see cref="OpenCodeServer"/> routes those through cmd.exe.
@@ -89,7 +89,7 @@ internal sealed class ExecutableResolver
 
     /// <summary>
     /// Whether the command already names a location rather than asking to be found. A backslash
-    /// counts only on Windows, where it is a separator; a drive-relative <c>C:opencode2</c> names
+    /// counts only on Windows, where it is a separator; a drive-relative <c>C:opencode</c> names
     /// a location too, which is why the colon is checked alongside.
     /// </summary>
     private bool CarriesItsOwnPath(string command)

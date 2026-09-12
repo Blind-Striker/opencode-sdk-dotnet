@@ -26,7 +26,7 @@ internal static class SandboxRunner
                 .ConfigureAwait(false);
             await Console
                 .Error.WriteLineAsync(
-                    "Required for an opencode2 serve endpoint: OPENCODE_PASSWORD or OPENCODE_SERVER_PASSWORD (resolved here; the SDK reads no environment).")
+                    "Required for an opencode serve endpoint: OPENCODE_PASSWORD or OPENCODE_SERVER_PASSWORD (resolved here; the SDK reads no environment).")
                 .ConfigureAwait(false);
             return 1;
         }

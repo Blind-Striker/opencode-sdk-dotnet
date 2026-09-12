@@ -65,7 +65,7 @@ public sealed class OpenCodeClientContractTests
     }
 
     /// <summary>
-    /// The first-contact failure PF-8 recorded: an <c>opencode2 serve</c> process always runs with a
+    /// The first-contact failure PF-8 recorded: an <c>opencode serve</c> process always runs with a
     /// password, answers an uncredentialed request with a bare 401, and the caller sees nothing to
     /// diagnose with. The diagnostic rides the exception message only when the client itself sent no
     /// credential, so it can never mislead a caller whose password was merely wrong.

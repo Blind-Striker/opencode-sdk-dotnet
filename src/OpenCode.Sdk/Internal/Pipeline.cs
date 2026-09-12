@@ -55,7 +55,7 @@ internal sealed class Pipeline : IDisposable
         // An explicitly blank password is not a spelling of "no credential": it would send an
         // empty Basic password, which no server accepts, so it fails loudly. Null is the
         // no-credential spelling, and only a server running without authentication accepts it
-        // — never an `opencode2 serve` process, which always runs with a password.
+        // — never an `opencode serve` process, which always runs with a password.
         var password = options.Password;
         if (password is not null && string.IsNullOrWhiteSpace(password))
         {

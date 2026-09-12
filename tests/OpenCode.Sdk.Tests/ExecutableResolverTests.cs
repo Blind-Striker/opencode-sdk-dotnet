@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Tests;
 /// </summary>
 public sealed class ExecutableResolverTests
 {
-    private const string Command = "opencode2";
+    private const string Command = "opencode";
     private const string FirstDirectory = @"C:\first";
     private const string SecondDirectory = @"C:\second";
     private const string UnixFirstDirectory = "/usr/local/bin";
@@ -21,10 +21,10 @@ public sealed class ExecutableResolverTests
     {
         var resolver = new ExecutableResolver(Windows(FirstDirectory, extensions: null));
 
-        var resolved = resolver.Resolve(@"C:\tools\opencode2.exe");
+        var resolved = resolver.Resolve(@"C:\tools\opencode.exe");
 
-        await Assert.That(resolved.Path).IsEqualTo(@"C:\tools\opencode2.exe");
-        await Assert.That(resolved.Command).IsEqualTo(@"C:\tools\opencode2.exe");
+        await Assert.That(resolved.Path).IsEqualTo(@"C:\tools\opencode.exe");
+        await Assert.That(resolved.Command).IsEqualTo(@"C:\tools\opencode.exe");
     }
 
     [Test]
@@ -32,9 +32,9 @@ public sealed class ExecutableResolverTests
     {
         var resolver = new ExecutableResolver(Unix(UnixFirstDirectory));
 
-        var resolved = resolver.Resolve("./bin/opencode2");
+        var resolved = resolver.Resolve("./bin/opencode");
 
-        await Assert.That(resolved.Path).IsEqualTo("./bin/opencode2");
+        await Assert.That(resolved.Path).IsEqualTo("./bin/opencode");
     }
 
     [Test]
@@ -43,12 +43,12 @@ public sealed class ExecutableResolverTests
         var resolver = new ExecutableResolver(Windows(
             FirstDirectory + ";" + SecondDirectory,
             extensions: ".EXE",
-            FirstDirectory + @"\opencode2.EXE",
-            SecondDirectory + @"\opencode2.EXE"));
+            FirstDirectory + @"\opencode.EXE",
+            SecondDirectory + @"\opencode.EXE"));
 
         var resolved = resolver.Resolve(Command);
 
-        await Assert.That(resolved.Path).IsEqualTo(FirstDirectory + @"\opencode2.EXE");
+        await Assert.That(resolved.Path).IsEqualTo(FirstDirectory + @"\opencode.EXE");
     }
 
     [Test]
@@ -59,23 +59,23 @@ public sealed class ExecutableResolverTests
         var resolver = new ExecutableResolver(Windows(
             FirstDirectory,
             ".CMD;.EXE",
-            FirstDirectory + @"\opencode2.EXE",
-            FirstDirectory + @"\opencode2.CMD"));
+            FirstDirectory + @"\opencode.EXE",
+            FirstDirectory + @"\opencode.CMD"));
 
         var resolved = resolver.Resolve(Command);
 
-        await Assert.That(resolved.Path).IsEqualTo(FirstDirectory + @"\opencode2.CMD");
+        await Assert.That(resolved.Path).IsEqualTo(FirstDirectory + @"\opencode.CMD");
     }
 
     [Test]
     public async Task Resolve_Should_Try_The_Conventional_Extensions_When_PATHEXT_Is_Absent()
     {
         var resolver = new ExecutableResolver(Windows(
-            FirstDirectory, extensions: null, FirstDirectory + @"\opencode2.BAT"));
+            FirstDirectory, extensions: null, FirstDirectory + @"\opencode.BAT"));
 
         var resolved = resolver.Resolve(Command);
 
-        await Assert.That(resolved.Path).IsEqualTo(FirstDirectory + @"\opencode2.BAT");
+        await Assert.That(resolved.Path).IsEqualTo(FirstDirectory + @"\opencode.BAT");
     }
 
     [Test]
@@ -86,52 +86,52 @@ public sealed class ExecutableResolverTests
         var resolver = new ExecutableResolver(Windows(
             FirstDirectory,
             ".EXE;.CMD",
-            FirstDirectory + @"\opencode2.EXE",
-            FirstDirectory + @"\opencode2.cmd"));
+            FirstDirectory + @"\opencode.EXE",
+            FirstDirectory + @"\opencode.cmd"));
 
-        var resolved = resolver.Resolve("opencode2.cmd");
+        var resolved = resolver.Resolve("opencode.cmd");
 
-        await Assert.That(resolved.Path).IsEqualTo(FirstDirectory + @"\opencode2.cmd");
+        await Assert.That(resolved.Path).IsEqualTo(FirstDirectory + @"\opencode.cmd");
     }
 
     [Test]
     public async Task Resolve_Should_Skip_Empty_PATH_Entries()
     {
         var resolver = new ExecutableResolver(Windows(
-            ";;" + FirstDirectory + ";", ".EXE", FirstDirectory + @"\opencode2.EXE"));
+            ";;" + FirstDirectory + ";", ".EXE", FirstDirectory + @"\opencode.EXE"));
 
         var resolved = resolver.Resolve(Command);
 
-        await Assert.That(resolved.Path).IsEqualTo(FirstDirectory + @"\opencode2.EXE");
+        await Assert.That(resolved.Path).IsEqualTo(FirstDirectory + @"\opencode.EXE");
     }
 
     [Test]
     public async Task Resolve_Should_Resolve_A_Relative_PATH_Entry_Against_The_Current_Directory()
     {
         var resolver = new ExecutableResolver(Windows(
-            "tools", ".EXE", WorkingDirectory + @"\tools\opencode2.EXE"));
+            "tools", ".EXE", WorkingDirectory + @"\tools\opencode.EXE"));
 
         var resolved = resolver.Resolve(Command);
 
-        await Assert.That(resolved.Path).IsEqualTo(WorkingDirectory + @"\tools\opencode2.EXE");
+        await Assert.That(resolved.Path).IsEqualTo(WorkingDirectory + @"\tools\opencode.EXE");
     }
 
     [Test]
     public async Task Resolve_Should_Search_A_Bare_Name_Without_Extensions_On_Unix()
     {
         var resolver = new ExecutableResolver(Unix(
-            UnixFirstDirectory + ":" + UnixSecondDirectory, UnixSecondDirectory + "/opencode2"));
+            UnixFirstDirectory + ":" + UnixSecondDirectory, UnixSecondDirectory + "/opencode"));
 
         var resolved = resolver.Resolve(Command);
 
-        await Assert.That(resolved.Path).IsEqualTo(UnixSecondDirectory + "/opencode2");
+        await Assert.That(resolved.Path).IsEqualTo(UnixSecondDirectory + "/opencode");
     }
 
     [Test]
     public async Task Resolve_Should_Mark_A_Resolved_Batch_Shim_As_A_Batch_Script()
     {
         var resolver = new ExecutableResolver(Windows(
-            FirstDirectory, ".CMD", FirstDirectory + @"\opencode2.CMD"));
+            FirstDirectory, ".CMD", FirstDirectory + @"\opencode.CMD"));
 
         var resolved = resolver.Resolve(Command);
 
@@ -142,7 +142,7 @@ public sealed class ExecutableResolverTests
     public async Task Resolve_Should_Not_Mark_A_Resolved_Executable_As_A_Batch_Script()
     {
         var resolver = new ExecutableResolver(Windows(
-            FirstDirectory, ".EXE", FirstDirectory + @"\opencode2.EXE"));
+            FirstDirectory, ".EXE", FirstDirectory + @"\opencode.EXE"));
 
         var resolved = resolver.Resolve(Command);
 
@@ -154,9 +154,9 @@ public sealed class ExecutableResolverTests
     {
         // cmd.exe is a Windows fact: a Unix file that happens to end in .cmd is spawned directly.
         var resolver = new ExecutableResolver(Unix(
-            UnixFirstDirectory, UnixFirstDirectory + "/opencode2.cmd"));
+            UnixFirstDirectory, UnixFirstDirectory + "/opencode.cmd"));
 
-        var resolved = resolver.Resolve("opencode2.cmd");
+        var resolved = resolver.Resolve("opencode.cmd");
 
         await Assert.That(resolved.IsBatchScript).IsFalse();
     }
@@ -169,7 +169,7 @@ public sealed class ExecutableResolverTests
 
         var failure = await Assert.That(() => resolver.Resolve(Command)).Throws<OpenCodeServerException>();
 
-        await Assert.That(failure!.Message).Contains("'opencode2'");
+        await Assert.That(failure!.Message).Contains("'opencode'");
         await Assert.That(failure.Message).Contains("was not found on PATH");
         await Assert.That(failure.Message).Contains("2 directories");
         await Assert.That(failure.Message).Contains(".COM, .EXE");
