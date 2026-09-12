@@ -649,6 +649,21 @@ public class SessionClient
     }
 
     /// <summary>
+    /// Replace session permission rules. Replace the session-scoped permission rules. Rules are evaluated after the agent&apos;s rules, and the last matching rule wins.
+    /// </summary>
+    /// <param name = "request">The request body.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;SessionPermissionRulesPutResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<SessionPermissionRulesPutResponse> PutPermissionRulesAsync(SessionPermissionRulesPutRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return Pipeline.ExecuteAsync(HttpMethod.Put, OpenCodeRoutes.Sessions.PutPermissionRules(SessionId), request, OpenCodeJsonContext.Default.SessionPermissionRulesPutRequest, SessionPermissionRulesPutResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
     /// Remove instruction entry. Remove one instruction entry; the removal is announced to the model at the next step boundary.
     /// </summary>
     /// <param name = "key">The &apos;key&apos; route value.</param>

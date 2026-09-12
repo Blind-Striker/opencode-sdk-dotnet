@@ -40,7 +40,7 @@ Provide a clear and concise description of the changes.
 
 - [ ] Unit / contract tests added or updated
 - [ ] Integration tests added or updated
-- [ ] Verified against a real `opencode2 serve` (say which version below)
+- [ ] Verified against a real `opencode serve` (say which version below)
 - [ ] Verified on the downlevel targets (`net472` / `netstandard2.0`)
 - [ ] Sandbox walkthrough run (`tests/OpenCode.Sdk.Sandbox`)
 

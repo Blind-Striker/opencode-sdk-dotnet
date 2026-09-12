@@ -137,8 +137,17 @@
       }
     },
     {
+      "path": "packages/cli/package.json",
+      "sha256": "b288f7b4d447d8d65c02ce7cd075dea519eafbd0f183e7eaa7ac166ed81c51cd",
+      "behavior": "The CLI package bin map names \u0022opencode\u0022 as the installed command and keeps \u0022opencode2\u0022 as a transitional alias of the same launcher, so the shipped launcher default resolves \u0022opencode\u0022 from PATH.",
+      "anchor": {
+        "type": "contains",
+        "text": "\u0022opencode\u0022: \u0022./bin/opencode.cjs\u0022"
+      }
+    },
+    {
       "path": "packages/core/package.json",
-      "sha256": "78ee3886360a8ece50c1ad67564586988e52ff5a9c8b18c90a48844668c21678",
+      "sha256": "6c359eb10cf9f40eb04c70f0223b40be6471a649790c094b5e08141224d48d61",
       "behavior": "The opencode-pty daemon dependency is pinned at 0.1.13, which fixes the daemon protocol the persistent-PTY door speaks.",
       "anchor": {
         "type": "contains",
@@ -148,7 +157,7 @@
     {
       "path": "packages/server/src/process.ts",
       "sha256": "88d89a520b684cba37499ad2f2f3f51f2cb60a4c397c550d09d70735b8514f42",
-      "behavior": "A ticketed PTY connect is admitted before the server reports ready.",
+      "behavior": "A ticketed PTY connect is admitted before the server reports ready. It also answers an uncredentialed or wrongly credentialed request above the API layer with an empty 401 carrying only the Basic challenge, which is why the SDK\u0027s 401 diagnostic sentence exists and why such a caller gets nothing typed to read.",
       "anchor": {
         "type": "contains",
         "text": "!hasPtyConnectTicketURL(url)"
@@ -188,6 +197,105 @@
       "anchor": {
         "type": "contains",
         "text": "cursor: snapshot.info.output.tail"
+      }
+    },
+    {
+      "path": "packages/cli/src/services/standalone.ts",
+      "sha256": "05b425f5b096770f9aa9c0fea938ce91e7ffdd368f19b3d6440a592dec3113ca",
+      "behavior": "The standalone service decodes one JSON readiness object from the child\u0027s stdout, requiring only a string url member, and ends the server by closing its stdin, which is the contract the SDK\u0027s launcher is a parity port of.",
+      "anchor": {
+        "type": "contains",
+        "text": "const Ready = Schema.Struct({ url: Schema.String })"
+      }
+    },
+    {
+      "path": "packages/cli/src/server-process.ts",
+      "sha256": "829d71358bd9015febaaeae2b28d62d87d7b6e9c20a3f49b7e46438637326454",
+      "behavior": "In stdio mode the serve command prints exactly one JSON line carrying the bound url to stdout after full boot and exits when stdin reaches EOF, which is the readiness line ServerReadyLine parses and the lease OpenCodeServer releases.",
+      "anchor": {
+        "type": "contains",
+        "text": "JSON.stringify({ url })"
+      }
+    },
+    {
+      "path": "packages/server/src/auth.ts",
+      "sha256": "278c66df3831c169756805391dca8fb6a2dc83b741ed58956d6cd353ee6ab3ef",
+      "behavior": "HTTP Basic credentials are checked against the fixed username opencode and the configured password, and authentication is required whenever a non-empty password is configured, which fixes the SDK\u0027s default Username and the rule that a CLI-started server always needs a password.",
+      "anchor": {
+        "type": "contains",
+        "text": "username: \u0022opencode\u0022"
+      }
+    },
+    {
+      "path": "packages/server/src/location.ts",
+      "sha256": "623155250cc97f3950426496ee6df04885a1384a1eb1caff4e6417ce05338a95",
+      "behavior": "The request location is resolved from the location[directory] and location[workspace] query parameters first and the x-opencode-directory and x-opencode-workspace headers second, with the server\u0027s working directory as the directory fallback, which fixes the header names RequestDecorationPolicy writes and the LocationSelector contract.",
+      "anchor": {
+        "type": "contains",
+        "text": "request.headers[\u0022x-opencode-directory\u0022]"
+      }
+    },
+    {
+      "path": "packages/server/src/handlers/event.ts",
+      "sha256": "539b073446be0c6bda3b6f4311cc65e54a1e30ac733cb5428c341adaff3b92f5",
+      "behavior": "The global event stream sends server.connected as its first frame and a heartbeat every 15 seconds, which the SSE door\u0027s first-frame handling and idle expectations depend on.",
+      "anchor": {
+        "type": "contains",
+        "text": "Stream.tick(\u002215 seconds\u0022)"
+      }
+    },
+    {
+      "path": "packages/server/src/event-feed.ts",
+      "sha256": "8867fb8ca3b1d7d667038ac1210a69a33b2cc264be0782d3e735e9bbf6eba568",
+      "behavior": "Each event subscriber is buffered at 4,096 events and frames are written as data: lines only, which the SDK\u0027s SSE parser and its backpressure assumptions depend on.",
+      "anchor": {
+        "type": "contains",
+        "text": "export const SubscriberCapacity = 4_096"
+      }
+    },
+    {
+      "path": "packages/core/src/bus.ts",
+      "sha256": "1bf5e97b3c3618a79487d75adcfddc602d2068c7759d2018eb9ad7d08f4b57f9",
+      "behavior": "Event persistence is off unless the host enables it, a durable replay yields events strictly after the requested sequence, and log.synced marks the replay boundary, which the session-log replay contract and the CLI-profile live test depend on.",
+      "anchor": {
+        "type": "contains",
+        "text": "const persist = options?.persist ?? false"
+      }
+    },
+    {
+      "path": "packages/protocol/src/groups/session.ts",
+      "sha256": "c3e613d1fe3c6b4a8ad47a8ddbfb056634541a937fb3cb6e65efbee9910e5165",
+      "behavior": "The session list declares limit, order and cursor, where order applies to the first page only and the opaque cursor carries the continuation, which the cursor-list spine and CursorSequence depend on; the file is also the Restore patch preimage for the SSE payloads.",
+      "anchor": {
+        "type": "contains",
+        "text": "Session order for the first page"
+      }
+    },
+    {
+      "path": "packages/protocol/src/errors.ts",
+      "sha256": "e866d8c9e71f3c0d53c867b1c73e5ee16dd844f945613caad4f1d2ccd50d13a3",
+      "behavior": "The tagged error catalogue declares the wire discriminators the typed error family maps, so an added, removed or renamed tag changes the SDK\u0027s error union.",
+      "anchor": {
+        "type": "contains",
+        "text": "FileNotFoundError"
+      }
+    },
+    {
+      "path": "packages/cli/script/publish.ts",
+      "sha256": "7f453c0e391568755f6ff272a5c51221ad4096243994ac6fd7dfb21f2bd6370d",
+      "behavior": "The published package\u0027s bin map names opencode as the command and opencode2 as the legacy alias of the same binary, which is the contract behind the launcher\u0027s default command.",
+      "anchor": {
+        "type": "contains",
+        "text": "legacyCommand: \u0022opencode2\u0022"
+      }
+    },
+    {
+      "path": "packages/protocol/src/groups/message.ts",
+      "sha256": "ac8d2be3a658559f981b3d1e704e57690ac948e29d830a21a64bcee781b982db",
+      "behavior": "The message list declares limit, order, cursor and a type filter that must be passed again on every continuation, which the message-list spine, CursorSequence and EnumerateMessagesAsync depend on.",
+      "anchor": {
+        "type": "contains",
+        "text": "Message order for the first page"
       }
     }
   ]

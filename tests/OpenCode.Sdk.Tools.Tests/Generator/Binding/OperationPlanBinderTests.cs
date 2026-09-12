@@ -13,6 +13,7 @@ public sealed class OperationPlanBinderTests
         "OpenCodeClient",
         "AgentsClient",
         "CommandsClient",
+        "ConfigClient",
         "CredentialsClient",
         "DebugClient",
         "EventsClient",
@@ -51,6 +52,7 @@ public sealed class OperationPlanBinderTests
     [
         "Agents",
         "Commands",
+        "Config",
         "Credentials",
         "Debug",
         "Events",
@@ -83,6 +85,7 @@ public sealed class OperationPlanBinderTests
     [
         "AgentsClient",
         "CommandsClient",
+        "ConfigClient",
         "CredentialsClient",
         "DebugClient",
         "EventsClient",
@@ -356,6 +359,7 @@ public sealed class OperationPlanBinderTests
         "PostWaitAsync",
         "PutEnvironmentAsync",
         "PutInstructionsEntryAsync",
+        "PutPermissionRulesAsync",
         "RemoveInstructionsEntryAsync",
         "RemoveSessionAsync",
         "RenameSessionAsync",

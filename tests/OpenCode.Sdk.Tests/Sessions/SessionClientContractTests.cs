@@ -8,6 +8,8 @@ namespace OpenCode.Sdk.Tests;
 
 public sealed class SessionClientContractTests
 {
+    private static readonly SessionPermissionRulesPutRequest EmptyRuleset = new() { Permissions = [], };
+
     [Test]
     public async Task GetSessionAsync_Should_Return_The_Typed_Session()
     {
@@ -1057,6 +1059,74 @@ public sealed class SessionClientContractTests
 
         var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PostViewAsync(
             new SessionViewPostRequest { Idle = 1, },
+            OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(401);
+        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
+    }
+
+    [Test]
+    public async Task PutPermissionRulesAsync_Should_Send_The_Ruleset_On_The_204()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PutPermissionRulesAsync(
+            new SessionPermissionRulesPutRequest
+            {
+                Permissions =
+                [
+                    new PermissionRule { Action = "run", Resource = "bash", Effect = PermissionEffect.Ask },
+                    new PermissionRule { Action = "edit", Resource = "**/*.cs", Effect = PermissionEffect.Allow },
+                ],
+            });
+
+        await Assert.That(response.Status).IsEqualTo(204);
+        await Assert.That(response.IsError).IsFalse();
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo(HttpMethod.Put);
+        await Assert.That(request.RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/permission/rules"));
+        await Assert.That(request.Body).IsEqualTo(
+            "{\"permissions\":[{\"action\":\"run\",\"resource\":\"bash\",\"effect\":\"ask\"},"
+            + "{\"action\":\"edit\",\"resource\":\"**/*.cs\",\"effect\":\"allow\"}]}");
+    }
+
+    [Test]
+    public async Task PutPermissionRulesAsync_Should_Throw_The_Declared_400_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.InvalidRequestError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").PutPermissionRulesAsync(
+                EmptyRuleset))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(400);
+        await Assert.That(exception.Error).IsTypeOf<InvalidRequestError>();
+    }
+
+    [Test]
+    public async Task PutPermissionRulesAsync_Should_Throw_The_Declared_404_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.SessionNotFoundError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").PutPermissionRulesAsync(
+                EmptyRuleset))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(404);
+        await Assert.That(exception.Error).IsTypeOf<SessionNotFoundError>();
+    }
+
+    [Test]
+    public async Task PutPermissionRulesAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PutPermissionRulesAsync(
+            EmptyRuleset,
             OpenCodeRequestOptions.NoThrow);
 
         await Assert.That(response.IsError).IsTrue();

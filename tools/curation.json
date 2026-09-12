@@ -168,6 +168,11 @@
       "placement": "client",
       "clientName": "Rpc",
       "reason": "v2.rpc.call is the family's only pinned operation and its two route values (rpcID, method) ride as arguments, exactly like agent.get and provider.get (ADR-0019); the initialism does not pluralize, so the flat container keeps the domain name, exactly like vcs."
+    },
+    "config": {
+      "placement": "client",
+      "clientName": "Config",
+      "reason": "Preferences read and patch and the shell list carry no per-id operations; a mass-noun container names the configuration surface. config.get stays declined at the ADR-0016 structural-union wall and is not part of the emitted family."
     }
   },
   "operationIdentities": [
@@ -364,6 +369,11 @@
       "schema": "V2Event.rpc",
       "dotnetName": "EventRpc",
       "reason": "The v2 prefix identifies the selected transport line and is not part of the reviewed .NET domain name."
+    },
+    {
+      "schema": "Config.PreferencesPatch#/properties/websearch/anyOf/0",
+      "dotnetName": "ConfigPreferencesPatchWebsearch",
+      "reason": "Config.PreferencesPatch.websearch wraps the websearch choice in a nullable anyOf, so the patch-side union is a distinct inline schema from Config.Preferences.websearch and the mechanical name carries the wrapper's branch ordinal (ConfigPreferencesPatchWebsearch0). The ordinal is a pointer artifact, not domain vocabulary; the reviewed name matches the property it patches and parallels ConfigPreferencesWebsearch."
     },
     {
       "schema": "Provider.Request",

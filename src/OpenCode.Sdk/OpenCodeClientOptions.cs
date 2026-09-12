@@ -17,7 +17,7 @@ public sealed class OpenCodeClientOptions : IOpenCodeClientOptions
     public string Username { get; set; } = "opencode";
 
     /// <summary>
-    /// Gets or sets the HTTP basic-authentication password. Every server the <c>opencode2</c>
+    /// Gets or sets the HTTP basic-authentication password. Every server the <c>opencode</c>
     /// CLI starts requires one — the value set through <c>OPENCODE_PASSWORD</c>, or the one the
     /// CLI generates and prints as <c>server password &lt;pw&gt;</c> when none is configured — so
     /// <see langword="null"/>, which sends no credential at all, is right only for a host that runs

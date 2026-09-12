@@ -102,6 +102,13 @@ public sealed record SessionInfo
     public IReadOnlyDictionary<string, JsonElement>? Metadata { get; init; }
 
     /// <summary>
+    /// Gets the permissions value.
+    /// </summary>
+    [JsonPropertyName("permissions")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<PermissionRule>? Permissions { get; init; }
+
+    /// <summary>
     /// Gets the revert value.
     /// </summary>
     [JsonPropertyName("revert")]

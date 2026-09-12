@@ -13,7 +13,7 @@ register either of them with a container.
 
 ## 🚀 The SDK starts the server
 
-`OpenCodeServer.StartAsync()` launches a private `opencode2 serve` child, waits for it to report
+`OpenCodeServer.StartAsync()` launches a private `opencode serve` child, waits for it to report
 readiness, mints its credential, and hands you an owner object. No ambient process, no endpoint to
 configure, no port to pick.
 
@@ -47,7 +47,7 @@ it started:
 ```csharp
 await using var server = await OpenCodeServer.StartAsync(new OpenCodeServerOptions
 {
-    Command = ["/opt/opencode/bin/opencode2", "serve"],
+    Command = ["/opt/opencode/bin/opencode", "serve"],
     WorkingDirectory = "/srv/my-project",
     Environment = new Dictionary<string, string>(StringComparer.Ordinal) { ["OPENCODE_LOG_LEVEL"] = "debug" },
     ReadinessTimeout = TimeSpan.FromSeconds(90),
@@ -57,7 +57,7 @@ await using var server = await OpenCodeServer.StartAsync(new OpenCodeServerOptio
 
 | Option | Default | What it does |
 |---|---|---|
-| `Command` | `["opencode2", "serve"]` | The executable plus its leading arguments. The launcher resolves `Command[0]` the way a shell would — see [How the command is resolved](#how-the-command-is-resolved) — and appends `--stdio --port 0` itself. |
+| `Command` | `["opencode", "serve"]` | The executable plus its leading arguments. The launcher resolves `Command[0]` the way a shell would — see [How the command is resolved](#how-the-command-is-resolved) — and appends `--stdio --port 0` itself. |
 | `WorkingDirectory` | `null` | The child's working directory; `null` inherits yours. |
 | `Environment` | `null` | Extra environment entries for the child. |
 | `ReadinessTimeout` | 60 s | How long to wait for the readiness line before failing and ending the child. |
@@ -71,8 +71,8 @@ await using var server = await OpenCodeServer.StartAsync(new OpenCodeServerOptio
 
 `Command[0]` is resolved **before** anything is spawned, following the same rules a shell does.
 This is not a detail you normally think about — until you install the CLI with npm on Windows,
-where npm writes shim files (`opencode2`, `opencode2.cmd`, `opencode2.ps1`) and keeps the real
-binary inside `node_modules`. There is no `opencode2.exe` anywhere, and a raw `Process.Start` only
+where npm writes shim files (`opencode`, `opencode.cmd`, `opencode.ps1`) and keeps the real
+binary inside `node_modules`. There is no `opencode.exe` anywhere, and a raw `Process.Start` only
 ever appends `.exe`. Resolving first is what makes the shipped default work there.
 
 The rules, in full:
@@ -83,7 +83,7 @@ The rules, in full:
   a relative entry is resolved against the process's current directory.
 - **On Windows**, a bare name with no extension is tried with each `PATHEXT` extension, in `PATHEXT`
   order (falling back to `.COM;.EXE;.BAT;.CMD` when `PATHEXT` is unset). A name that already carries
-  an extension — `opencode2.cmd` — is tried exactly as written. So an npm `.cmd` shim is found and
+  an extension — `opencode.cmd` — is tried exactly as written. So an npm `.cmd` shim is found and
   started.
 - **On Unix**, the `PATH` directories are searched for the name itself; the operating system still
   decides at spawn time whether the file is executable.
@@ -189,7 +189,7 @@ for a second or two while its plugins activate, which
 password its server will accept —
 
 ```sh
-OPENCODE_PASSWORD=your-password opencode2 serve --hostname 127.0.0.1 --port 4096
+OPENCODE_PASSWORD=your-password opencode serve --hostname 127.0.0.1 --port 4096
 ```
 
 — and the client must present the same value as its Basic password. `OPENCODE_SERVER_PASSWORD` is
@@ -198,12 +198,12 @@ working. The SDK never reads either one, or any other environment variable, for 
 the snippet above is your application's choice; a configuration section or a secret store works
 exactly as well.
 
-> **🔑 `opencode2 serve` always has a password.** Setting neither variable does not start an open
+> **🔑 `opencode serve` always has a password.** Setting neither variable does not start an open
 > server — it makes the CLI generate one and print it as `server password <pw>` on startup, and no
 > serve flag disables authentication. A client for a CLI-started server therefore always needs
 > `Password`. Leaving it `null` is right only for a host that genuinely runs without one: a server
 > embedded through the opencode server library, as this repository's own simulation host does for
-> its tests. Point a passwordless client at `opencode2 serve` and every call answers **401 with an
+> its tests. Point a passwordless client at `opencode serve` and every call answers **401 with an
 > empty body** — the SDK says so in the exception message, see
 > [a 401 with no credential](errors-and-responses.md#a-401-with-no-credential).
 
@@ -211,7 +211,7 @@ exactly as well.
 
 `OpenCode.Sdk.Extensions` adds `AddOpenCode` to `IServiceCollection`. What lands in the container is
 deliberately small: **one `OpenCodeClient` singleton** holding the transport open for the
-container's lifetime, and **each of the 28 families registered as its own singleton resolved from
+container's lifetime, and **each of the 29 families registered as its own singleton resolved from
 that one client**. A service therefore asks for the family it actually uses — `EventsClient`,
 `PtysClient`, `WorktreesClient` — and all of them share a single pipeline and a single disposal at
 shutdown.

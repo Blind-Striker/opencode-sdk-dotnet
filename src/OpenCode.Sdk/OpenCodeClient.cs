@@ -12,6 +12,7 @@ public class OpenCodeClient : IDisposable
     private readonly Pipeline? _pipeline;
     private readonly AgentsClient? _agents;
     private readonly CommandsClient? _commands;
+    private readonly ConfigClient? _config;
     private readonly CredentialsClient? _credentials;
     private readonly DebugClient? _debug;
     private readonly EventsClient? _events;
@@ -47,6 +48,7 @@ public class OpenCodeClient : IDisposable
         _pipeline = Pipeline.Create(options);
         _agents = new AgentsClient(_pipeline);
         _commands = new CommandsClient(_pipeline);
+        _config = new ConfigClient(_pipeline);
         _credentials = new CredentialsClient(_pipeline);
         _debug = new DebugClient(_pipeline);
         _events = new EventsClient(_pipeline);
@@ -85,6 +87,7 @@ public class OpenCodeClient : IDisposable
         _pipeline = Pipeline.Create(httpClient, options);
         _agents = new AgentsClient(_pipeline);
         _commands = new CommandsClient(_pipeline);
+        _config = new ConfigClient(_pipeline);
         _credentials = new CredentialsClient(_pipeline);
         _debug = new DebugClient(_pipeline);
         _events = new EventsClient(_pipeline);
@@ -149,6 +152,10 @@ public class OpenCodeClient : IDisposable
     /// Gets the &apos;Commands&apos; collection client.
     /// </summary>
     public virtual CommandsClient Commands => _commands ?? throw MockSeam.CreateError("OpenCodeClient", "Commands");
+    /// <summary>
+    /// Gets the &apos;Config&apos; collection client.
+    /// </summary>
+    public virtual ConfigClient Config => _config ?? throw MockSeam.CreateError("OpenCodeClient", "Config");
     /// <summary>
     /// Gets the &apos;Credentials&apos; collection client.
     /// </summary>

@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Tests.Sessions;
 
 /// <summary>
 /// The reversal trigger for the streaming guide's deployment statement. A server started the way
-/// the distributed <c>opencode2</c> CLI starts one runs with event persistence off and offers no
+/// the distributed <c>opencode</c> CLI starts one runs with event persistence off and offers no
 /// switch to turn it on, so a replay answers with the <c>log.synced</c> marker alone however many
 /// durable events the session actually committed. Every other session-log proof runs against the
 /// simulation host, which enables persistence deliberately, so nothing else in the suite watches
@@ -19,8 +19,8 @@ namespace OpenCode.Sdk.Tests.Sessions;
 /// relay in <c>README.md</c>, and the persistence sentence in
 /// <c>docs/architecture/client-runtime.md</c>'s server-sent-events section all have to change with
 /// it, and the change belongs in <c>CHANGELOG.md</c> because it widens what a default server
-/// answers. Observed marker-only on <c>@opencode/cli@0.0.0-beta-19425</c> and earlier, and on the
-/// pinned source this fixture runs.
+/// answers. Observed marker-only on <c>@opencode/cli@2.0.2</c> and on the pinned source this
+/// fixture runs.
 /// The marker's <c>Seq</c> is asserted present, never positive: the aggregate watermark's starting
 /// value differs across hosts and nothing upstream pins it.
 /// </remarks>

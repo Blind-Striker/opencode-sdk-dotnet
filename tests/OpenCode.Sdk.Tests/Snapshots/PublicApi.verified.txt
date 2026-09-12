@@ -47,6 +47,31 @@
         protected CommandsClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.CommandListResponse> ListCommandsAsync(OpenCode.Sdk.CommandListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
+    public class ConfigClient
+    {
+        protected ConfigClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ConfigPreferencesResponse> GetPreferencesAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ConfigShellsResponse> GetShellsAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ConfigUpdatePreferencesPatchResponse> PatchUpdatePreferencesAsync(OpenCode.Sdk.Models.ConfigUpdatePreferencesPatchRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class ConfigPreferencesResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ConfigPreferencesResponse>
+    {
+        public ConfigPreferencesResponse() { }
+        public required OpenCode.Sdk.Models.ConfigPreferences Preferences { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class ConfigShellsResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ConfigShellsResponse>
+    {
+        public ConfigShellsResponse() { }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.ConfigShellOption> Shells { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class ConfigUpdatePreferencesPatchResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ConfigUpdatePreferencesPatchResponse>
+    {
+        public ConfigUpdatePreferencesPatchResponse() { }
+        public required OpenCode.Sdk.Models.ConfigPreferences UpdatePreferences { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
     public sealed class CredentialActivatePostRequest : System.IEquatable<OpenCode.Sdk.CredentialActivatePostRequest>
     {
         public CredentialActivatePostRequest() { }
@@ -469,6 +494,7 @@
         public OpenCodeClient(OpenCode.Sdk.OpenCodeClientOptions options) { }
         public virtual OpenCode.Sdk.AgentsClient Agents { get; }
         public virtual OpenCode.Sdk.CommandsClient Commands { get; }
+        public virtual OpenCode.Sdk.ConfigClient Config { get; }
         public virtual OpenCode.Sdk.CredentialsClient Credentials { get; }
         public virtual OpenCode.Sdk.DebugClient Debug { get; }
         public virtual OpenCode.Sdk.EventsClient Events { get; }
@@ -542,6 +568,12 @@
         {
             public const string ListCommandsTemplate = "/api/command";
             public static string ListCommands(OpenCode.Sdk.CommandListRequest? request = null) { }
+        }
+        public static class Config
+        {
+            public const string GetPreferences = "/api/config/preferences";
+            public const string GetShells = "/api/config/shell";
+            public const string PatchUpdatePreferences = "/api/config/preferences";
         }
         public static class Credentials
         {
@@ -770,6 +802,7 @@
             public const string PostWaitTemplate = "/api/session/{sessionID}/wait";
             public const string PutEnvironmentTemplate = "/api/session/{sessionID}/environment";
             public const string PutInstructionsEntryTemplate = "/api/session/{sessionID}/instructions/entries/{key}";
+            public const string PutPermissionRulesTemplate = "/api/session/{sessionID}/permission/rules";
             public const string RemoveInstructionsEntryTemplate = "/api/session/{sessionID}/instructions/entries/{key}";
             public const string RemoveSessionTemplate = "/api/session/{sessionID}";
             public const string RenameSessionTemplate = "/api/session/{sessionID}/rename";
@@ -816,6 +849,7 @@
             public static string PostWait(string sessionId) { }
             public static string PutEnvironment(string sessionId) { }
             public static string PutInstructionsEntry(string sessionId, string key) { }
+            public static string PutPermissionRules(string sessionId) { }
             public static string RemoveInstructionsEntry(string sessionId, string key) { }
             public static string RemoveSession(string sessionId) { }
             public static string RenameSession(string sessionId) { }
@@ -1441,6 +1475,7 @@
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionWaitPostResponse> PostWaitAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionEnvironmentPutResponse> PutEnvironmentAsync(OpenCode.Sdk.Models.SessionEnvironmentPutRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionInstructionsEntryPutResponse> PutInstructionsEntryAsync(string key, OpenCode.Sdk.Models.SessionInstructionsEntryPutRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionPermissionRulesPutResponse> PutPermissionRulesAsync(OpenCode.Sdk.Models.SessionPermissionRulesPutRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionInstructionsEntryRemoveResponse> RemoveInstructionsEntryAsync(string key, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionRemoveResponse> RemoveSessionAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.SessionRenameResponse> RenameSessionAsync(OpenCode.Sdk.Models.SessionRenameRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
@@ -1634,6 +1669,10 @@
         public SessionPermissionResponse() { }
         public required OpenCode.Sdk.Models.PermissionRequest Permission { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class SessionPermissionRulesPutResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionPermissionRulesPutResponse>
+    {
+        public SessionPermissionRulesPutResponse() { }
     }
     public sealed class SessionPromptPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionPromptPostResponse>
     {
@@ -2110,6 +2149,70 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
     }
+    public sealed class ConfigPreferences : System.IEquatable<OpenCode.Sdk.Models.ConfigPreferences>
+    {
+        public ConfigPreferences() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("shell")]
+        public string? Shell { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("websearch")]
+        public OpenCode.Sdk.Models.ConfigPreferencesWebsearch? Websearch { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ConfigPreferencesPatchWebsearchJsonConverter))]
+    public sealed class ConfigPreferencesPatchWebsearch : System.IEquatable<OpenCode.Sdk.Models.ConfigPreferencesPatchWebsearch>
+    {
+        public bool Boolean { get; }
+        public OpenCode.Sdk.Models.ConfigWebSearchInfo ConfigWebSearchInfo { get; }
+        public OpenCode.Sdk.Models.ConfigPreferencesPatchWebsearchKind Kind { get; }
+        public System.Text.Json.JsonElement Unknown { get; }
+        public static OpenCode.Sdk.Models.ConfigPreferencesPatchWebsearch FromBoolean(bool value) { }
+        public static OpenCode.Sdk.Models.ConfigPreferencesPatchWebsearch FromConfigWebSearchInfo(OpenCode.Sdk.Models.ConfigWebSearchInfo value) { }
+        public static OpenCode.Sdk.Models.ConfigPreferencesPatchWebsearch FromUnknown(System.Text.Json.JsonElement value) { }
+    }
+    public enum ConfigPreferencesPatchWebsearchKind
+    {
+        Boolean = 0,
+        ConfigWebSearchInfo = 1,
+        Unknown = 2,
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ConfigPreferencesWebsearchJsonConverter))]
+    public sealed class ConfigPreferencesWebsearch : System.IEquatable<OpenCode.Sdk.Models.ConfigPreferencesWebsearch>
+    {
+        public bool Boolean { get; }
+        public OpenCode.Sdk.Models.ConfigWebSearchInfo ConfigWebSearchInfo { get; }
+        public OpenCode.Sdk.Models.ConfigPreferencesWebsearchKind Kind { get; }
+        public System.Text.Json.JsonElement Unknown { get; }
+        public static OpenCode.Sdk.Models.ConfigPreferencesWebsearch FromBoolean(bool value) { }
+        public static OpenCode.Sdk.Models.ConfigPreferencesWebsearch FromConfigWebSearchInfo(OpenCode.Sdk.Models.ConfigWebSearchInfo value) { }
+        public static OpenCode.Sdk.Models.ConfigPreferencesWebsearch FromUnknown(System.Text.Json.JsonElement value) { }
+    }
+    public enum ConfigPreferencesWebsearchKind
+    {
+        Boolean = 0,
+        ConfigWebSearchInfo = 1,
+        Unknown = 2,
+    }
+    public sealed class ConfigShellOption : System.IEquatable<OpenCode.Sdk.Models.ConfigShellOption>
+    {
+        public ConfigShellOption() { }
+        [System.Text.Json.Serialization.JsonPropertyName("acceptable")]
+        public required bool Acceptable { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public required string Name { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("path")]
+        public required string Path { get; init; }
+    }
+    public sealed class ConfigUpdatePreferencesPatchRequest : System.IEquatable<OpenCode.Sdk.Models.ConfigUpdatePreferencesPatchRequest>
+    {
+        public ConfigUpdatePreferencesPatchRequest() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("shell")]
+        public string? Shell { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("websearch")]
+        public OpenCode.Sdk.Models.ConfigPreferencesPatchWebsearch? Websearch { get; init; }
+    }
     public sealed class ConfigUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.ConfigUpdated>
     {
         public ConfigUpdated() { }
@@ -2127,6 +2230,12 @@ namespace OpenCode.Sdk.Models
         public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
+    }
+    public sealed class ConfigWebSearchInfo : System.IEquatable<OpenCode.Sdk.Models.ConfigWebSearchInfo>
+    {
+        public ConfigWebSearchInfo() { }
+        [System.Text.Json.Serialization.JsonPropertyName("provider")]
+        public required string Provider { get; init; }
     }
     public sealed class ConflictError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.ConflictError>
     {
@@ -5404,6 +5513,9 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("model")]
         public OpenCode.Sdk.Models.ModelRef? Model { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("permissions")]
+        public System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.PermissionRule>? Permissions { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("title")]
         public string? Title { get; init; }
     }
@@ -5444,6 +5556,9 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("parentID")]
         public string? ParentId { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("permissions")]
+        public System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.PermissionRule>? Permissions { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("projectID")]
         public required string ProjectId { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
@@ -6156,6 +6271,9 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("parentID")]
         public string? ParentId { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("permissions")]
+        public System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.PermissionRule>? Permissions { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("projectID")]
         public required string ProjectId { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -7031,6 +7149,50 @@ namespace OpenCode.Sdk.Models
         public string? Message { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("reply")]
         public required OpenCode.Sdk.Models.PermissionReply Reply { get; init; }
+    }
+    public sealed class SessionPermissionRulesPutRequest : System.IEquatable<OpenCode.Sdk.Models.SessionPermissionRulesPutRequest>
+    {
+        public SessionPermissionRulesPutRequest() { }
+        [System.Text.Json.Serialization.JsonPropertyName("permissions")]
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.PermissionRule> Permissions { get; init; }
+    }
+    public sealed class SessionPermissionsUpdated : OpenCode.Sdk.Models.IEvent, OpenCode.Sdk.Models.ISessionEventDurable, OpenCode.Sdk.Models.ISessionLogItem, System.IEquatable<OpenCode.Sdk.Models.SessionPermissionsUpdated>
+    {
+        public SessionPermissionsUpdated() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required OpenCode.Sdk.Models.SessionPermissionsUpdatedData Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("durable")]
+        public required OpenCode.Sdk.Models.SessionPermissionsUpdatedDurable Durable { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class SessionPermissionsUpdatedData : System.IEquatable<OpenCode.Sdk.Models.SessionPermissionsUpdatedData>
+    {
+        public SessionPermissionsUpdatedData() { }
+        [System.Text.Json.Serialization.JsonPropertyName("permissions")]
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.PermissionRule> Permissions { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("sessionID")]
+        public required string SessionId { get; init; }
+    }
+    public sealed class SessionPermissionsUpdatedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionPermissionsUpdatedDurable>
+    {
+        public SessionPermissionsUpdatedDurable() { }
+        [System.Text.Json.Serialization.JsonPropertyName("aggregateID")]
+        public required string AggregateId { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("seq")]
+        public required long Seq { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("version")]
+        public required double Version { get; init; }
     }
     public sealed class SessionPromptPostRequest : System.IEquatable<OpenCode.Sdk.Models.SessionPromptPostRequest>
     {

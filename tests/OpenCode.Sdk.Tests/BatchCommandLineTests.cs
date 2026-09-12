@@ -4,7 +4,7 @@ namespace OpenCode.Sdk.Tests;
 
 public sealed class BatchCommandLineTests
 {
-    private const string Script = @"C:\shims\opencode2.cmd";
+    private const string Script = @"C:\shims\opencode.cmd";
 
     private static readonly string[] LauncherArguments = ["--stdio", "--port", "0"];
 
@@ -16,15 +16,15 @@ public sealed class BatchCommandLineTests
         // cmd.exe /s drops exactly the first and last quote after /c, leaving each inner token
         // quoted: without the outer pair the script path and the first argument would merge.
         await Assert.That(line).IsEqualTo(
-            @"/d /s /c """"C:\shims\opencode2.cmd"" ""serve"" ""--stdio"" ""--port"" ""0""""");
+            @"/d /s /c """"C:\shims\opencode.cmd"" ""serve"" ""--stdio"" ""--port"" ""0""""");
     }
 
     [Test]
     public async Task Compose_Should_Quote_A_Script_Path_Holding_Spaces()
     {
-        var line = BatchCommandLine.Compose(@"C:\Program Files\opencode2.cmd", [], []);
+        var line = BatchCommandLine.Compose(@"C:\Program Files\opencode.cmd", [], []);
 
-        await Assert.That(line).IsEqualTo(@"/d /s /c """"C:\Program Files\opencode2.cmd""""");
+        await Assert.That(line).IsEqualTo(@"/d /s /c """"C:\Program Files\opencode.cmd""""");
     }
 
     [Test]

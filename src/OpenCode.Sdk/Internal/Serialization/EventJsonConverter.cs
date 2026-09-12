@@ -59,6 +59,7 @@ internal sealed class EventJsonConverter : JsonConverter<IEvent>
         ["session.instructions.updated"] = typeof(SessionInstructionsUpdated),
         ["session.model.selected"] = typeof(SessionModelSelected),
         ["session.moved"] = typeof(SessionMoved),
+        ["session.permissions.updated"] = typeof(SessionPermissionsUpdated),
         ["session.reasoning.delta"] = typeof(SessionReasoningDelta),
         ["session.reasoning.ended"] = typeof(SessionReasoningEnded),
         ["session.reasoning.started"] = typeof(SessionReasoningStarted),

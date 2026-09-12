@@ -88,8 +88,9 @@ sign.
 1. **Search existing issues** to avoid duplicates
 2. **Check the [Known Issues](../README.md#known-issues)** section of the README
 3. **Confirm which server you hit** — this SDK is built against a pinned OpenAPI snapshot
-   ([`spec/SNAPSHOT.md`](../spec/SNAPSHOT.md)), and upstream's `v2` branch moves daily, so a
-   mismatch between your server build and the pin is worth ruling out first
+   ([`spec/SNAPSHOT.md`](../spec/SNAPSHOT.md)), and upstream ships releases on its own cadence, so
+   a mismatch between your installed `@opencode/cli` release and the pinned one is worth ruling out
+   first
 4. **Test against the nightly package** when you can; the fix may already be on `master`
 
 ### Creating a Bug Report

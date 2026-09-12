@@ -1,5 +1,5 @@
 Generation is complete at the declared coverage; packages may be published.
-Selected operations: 134
+Selected operations: 138
 Pending operations: 0
 Declined operations: 3
 Transport-owned operations: 2
@@ -7,6 +7,9 @@ Selected:
 - v2.agent.get
 - v2.agent.list
 - v2.command.list
+- v2.config.preferences
+- v2.config.shells
+- v2.config.updatePreferences
 - v2.credential.activate
 - v2.credential.remove
 - v2.credential.update
@@ -104,6 +107,7 @@ Selected:
 - v2.session.permission.get
 - v2.session.permission.list
 - v2.session.permission.reply
+- v2.session.permission.rules
 - v2.session.prompt
 - v2.session.remove
 - v2.session.rename

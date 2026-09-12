@@ -8,8 +8,8 @@ evidence and may contain superseded positions.
 
 ## Protocol authority and surface
 
-- The sole protocol-semantic input is the pinned `spec/openapi.json`, produced from an exact
-  commit of upstream's `packages/protocol/openapi.json` on the active `v2` branch. Snapshot
+- The sole protocol-semantic input is the pinned `spec/openapi.json`, produced from the exact
+  commit of upstream's `packages/protocol/openapi.json` at a pinned upstream release tag. Snapshot
   production and refresh policy are receipt-governed (ADR-0020); `spec/SNAPSHOT.md` owns the
   exact identity and the current procedure (ADR-0005, ADR-0013, ADR-0020).
 - Upstream implementation source is provenance and diagnostic evidence only. It never supplies a

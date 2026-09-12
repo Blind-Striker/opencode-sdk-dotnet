@@ -1,4 +1,4 @@
-# opencode v2 SDK for .NET
+# opencode SDK for .NET
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![NuGet](https://img.shields.io/nuget/vpre/OpenCodeAI.Sdk)](https://www.nuget.org/packages/OpenCodeAI.Sdk) [![CI](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml/badge.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml) [![Linux Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Flinux%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/linux/blind-striker/opencode-sdk-dotnet/master)
 
@@ -7,11 +7,11 @@
 > **Unofficial.** This project is not affiliated with or endorsed by the
 > [opencode](https://opencode.ai) team.
 
-A strongly typed .NET client for [opencode](https://github.com/anomalyco/opencode) **v2** — the
-`v2.*` protocol surface every opencode front-end (TUI, desktop, web UI, plugins) goes through. The
-v2 line installs as the `opencode2` command, and the 1.x surface is not a target: this SDK does not
-speak it. The callable surface is generated from a pinned OpenAPI snapshot and rides one
-hand-written transport runtime, so what you call is exactly what the server declares.
+A strongly typed .NET client for [opencode](https://github.com/anomalyco/opencode) — the protocol
+surface every opencode front-end (TUI, desktop, web UI, plugins) goes through. This SDK speaks the
+OpenCode 2.x server HTTP API; OpenCode 1.x's server API is not supported. The callable surface is
+generated from a pinned OpenAPI snapshot and rides one hand-written transport runtime, so what you
+call is exactly what the server declares.
 
 ---
 
@@ -21,15 +21,15 @@ hand-written transport runtime, so what you call is exactly what the server decl
 covered. What is still outstanding is opencode's third connection mode — attaching to a registered
 background service.
 
-- ✅ **134 of 139 operations** callable, across 28 client families — sessions, PTYs, persistent
-  PTYs, shells, events, MCP servers, integrations, providers, permissions, credentials, VCS,
-  worktrees, websearch, RPC, and more
-- ✅ **5,177 tests** green on Windows — the fullest leg, the only one that adds the `net472`
+- ✅ **138 of 143 operations** callable, across 29 client families — sessions, PTYs, persistent
+  PTYs, shells, events, MCP servers, integrations, providers, permissions, credentials, config,
+  VCS, worktrees, websearch, RPC, and more
+- ✅ **5,532 tests** green on Windows — the fullest leg, the only one that adds the `net472`
   assemblies. Linux and macOS run the same suite on `net8.0`, `net9.0`, and `net10.0`
 - ✅ **Server-sent event streams**, global and per-session, over the same transport as one-shot calls
 - ✅ **PTY and persistent-PTY terminal sessions** through hand-written WebSocket doors
 - ✅ **A launcher** — `OpenCodeServer.StartAsync()` starts, monitors, and stops a private
-  `opencode2 serve` child for you
+  `opencode serve` child for you
 - ✅ **Source-generated `System.Text.Json`** with no reflection fallback; both packages declare
   `IsAotCompatible` on `net10.0`
 - 🚧 **Pre-1.0 and iterating** — released as `0.8.0-preview.N`; the public surface is
@@ -37,8 +37,8 @@ background service.
 - 🔜 **Background-service attachment** and an **MCP server** over this SDK — both planned, neither
   started
 
-**Versioning**: the SDK builds against an accepted OpenAPI snapshot of upstream's `v2` branch,
-never a live branch. The exact commit and the refresh procedure live in
+**Versioning**: the SDK builds against an accepted OpenAPI snapshot taken at an upstream release
+tag, never a live branch. The exact commit and the refresh procedure live in
 [`spec/SNAPSHOT.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/spec/SNAPSHOT.md), which owns that pin.
 
 ## 🚀 Platform Compatibility & Quality Status
@@ -101,26 +101,26 @@ on, and the `net472` leg is what exercises its compile surface.
   .NET Framework hosts, not just modern console apps.
 - **No reflection serialization.** `System.Text.Json` source generation throughout, with no
   reflection fallback to surprise a trimmed or AOT-published app.
-- **A pinned protocol, not a moving target.** Upstream's `v2` branch moves daily; this SDK builds
-  against a reviewed snapshot with a receipt, so a regeneration is a reviewable diff.
+- **A pinned protocol, not a moving target.** Upstream ships releases on its own cadence; this SDK
+  builds against a reviewed snapshot of a release tag, with a receipt, so a regeneration is a
+  reviewable diff.
 
 ## Prerequisites
 
-You need an `opencode` server. The v2 line ships from the `@opencode/cli` npm scope as `beta`
-builds and installs a single command, `opencode2` ([opencode.ai](https://opencode.ai)). This SDK
-is generated from the upstream commit that shipped as `0.0.0-beta-19425`, so install that exact
-build; later `beta` builds usually work, but they are not what this repository tests. The pinned
-commit and its build are owned by
+You need an `opencode` server. It ships from the `@opencode/cli` npm scope and installs the
+`opencode` command ([opencode.ai](https://opencode.ai)). This SDK is generated from the upstream
+release this repository pins, so install that version; later releases usually work, but they are
+not what this repository tests. The pinned release tag and its npm version are owned by
 [`spec/SNAPSHOT.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/spec/SNAPSHOT.md).
 
 ```sh
-npm install -g @opencode/cli@0.0.0-beta-19425
+npm install -g @opencode/cli@2.0.2
 ```
 
 Then either run it yourself:
 
 ```sh
-OPENCODE_PASSWORD=your-password opencode2 serve --hostname 127.0.0.1 --port 4096
+OPENCODE_PASSWORD=your-password opencode serve --hostname 127.0.0.1 --port 4096
 ```
 
 …or let the SDK start one for you — that is what `OpenCodeServer.StartAsync()` in the
@@ -191,8 +191,8 @@ keep the credentials in environment variables:
 
 ### The SDK starts the server
 
-No ambient process, no endpoint to configure — the launcher starts a private `opencode2 serve`
-child, mints its credential, and hands you a client bound to it. `opencode2` is resolved from
+No ambient process, no endpoint to configure — the launcher starts a private `opencode serve`
+child, mints its credential, and hands you a client bound to it. `opencode` is resolved from
 `PATH` the way a shell resolves it, `PATHEXT` included, so an npm-installed CLI's `.cmd` shim
 starts on Windows too. Disposing the server stops the child. To keep the child's output for
 diagnostics, pass an `OpenCodeServerOutput` collector in `OpenCodeServerOptions.Output` and read
@@ -278,7 +278,7 @@ overload shown above.
 
 ## 🧭 API Coverage
 
-**134 of the 139 operations** in the pinned snapshot are callable. The remaining five are not
+**138 of the 143 operations** in the pinned snapshot are callable. The remaining five are not
 omissions — each one is a recorded decision with a named cause, and
 [`src/OpenCode.Sdk/.generation-incomplete`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/src/OpenCode.Sdk/.generation-incomplete) is the
 machine-readable map that the build itself reads.
@@ -348,9 +348,9 @@ Architecture, decision records, and engineering policy live under [`docs/`](http
   ([streaming guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/streaming.md)).
 
 - **A replay from a CLI-started server is the marker alone.** Durable session-log replay needs a
-  server started with event persistence, and the distributed `opencode2` CLI starts its server
+  server started with event persistence, and the distributed `opencode` CLI starts its server
   without it and exposes no switch to turn it on — no serve flag, no environment variable, no
-  configuration key (observed on `@opencode/cli@0.0.0-beta-19425` and earlier). A replay against
+  configuration key (confirmed at the pin; observed on `@opencode/cli@2.0.2`). A replay against
   such a server does not fail: `SessionClient.GetLogAsync` without `Follow` answers with a single
   `EventLogSynced` marker whose sequence has advanced and no durable events before it. Persisted
   replay needs a host that embeds the opencode server library with persistence enabled — this
@@ -391,7 +391,7 @@ provisions the matching official ripgrep archive and verifies its SHA-256 digest
 ### Sandbox Application
 
 [`tests/OpenCode.Sdk.Sandbox`](https://github.com/Blind-Striker/opencode-sdk-dotnet/tree/master/tests/OpenCode.Sdk.Sandbox) is a committed playground that drives
-the SDK against a real `opencode2 serve` under a debugger — the standing breadth walkthrough, the
+the SDK against a real `opencode serve` under a debugger — the standing breadth walkthrough, the
 SSE stream modes, the PTY legs, and the standalone-launcher demo. Its
 [README](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/tests/OpenCode.Sdk.Sandbox/README.md) documents every mode.
 

@@ -50,7 +50,7 @@ internal static class OpenCodeErrorReader
 
     /// <summary>
     /// Builds the failure an error status raises on the throwing channel. A 401 reached by a client
-    /// that was built without a password carries one extra sentence: an <c>opencode2 serve</c>
+    /// that was built without a password carries one extra sentence: an <c>opencode serve</c>
     /// process always runs with a password and short-circuits an uncredentialed request with an
     /// empty 401 body, so the wire itself gives that caller nothing to diagnose with.
     /// </summary>
