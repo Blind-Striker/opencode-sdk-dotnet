@@ -11,6 +11,16 @@ Nightly builds of `master` are on
 
 ### 💥 Breaking changes
 
+- **A request property the API document declares both optional and nullable is now
+  `Optional<T?>`** instead of `T?` — 39 properties across 21 operations, one of them the shared
+  `ToolFileContent.Name`. The wrapper is what tells "leave this alone" apart from "send an
+  explicit null": an unassigned member is absent and is not written at all, `= null` and
+  `Optional<T?>.Null` both write JSON null, and a value assigns through an implicit conversion, so
+  `Title = "Fix the build"` keeps compiling unchanged. Reading one back goes through `IsSet` and
+  `Value`, and `= default` returns a member to absent. Response-only schemas are untouched;
+  `ToolFileContent` is the one schema shared both ways, so its `Name` carries the wrapper on the
+  read side too and is read through `.Value`. The new [Requests](docs/guide/requests.md) guide page
+  covers it.
 - **The accepted snapshot moved to upstream release tag `v2.0.2`**
   (`ea5ae2329569e4fbf063be451480b58e29de6816`), which published as `@opencode/cli@2.0.2`. Install
   that release (`npm install -g @opencode/cli@2.0.2`); the `@opencode-ai/cli` scope that the
@@ -27,6 +37,10 @@ Nightly builds of `master` are on
 
 ### ✨ New features
 
+- **A preference can be cleared, not just overwritten.** `PatchUpdatePreferencesAsync` sends an
+  explicit JSON null for `Shell` or `Websearch` when you assign `Optional<T?>.Null` (or plain
+  `null`), which is how upstream deletes the key from the preferences document; omitting the member
+  leaves the stored value alone.
 - **The config family is on the client.** The `v2.0.2` snapshot added four operations and all four
   are generated and covered: `OpenCodeClient.Config` carries `GetPreferencesAsync`,
   `GetShellsAsync`, and `PatchUpdatePreferencesAsync` (global preferences read, the host shell

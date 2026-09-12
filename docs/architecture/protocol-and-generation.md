@@ -91,7 +91,14 @@ implementation knowledge (ADR-0013).
 - Models are sealed records with `init`-only properties (ADR-0004).
 - OpenAPI presence and represented null are independent. A required schema member emits C#
   `required`; an optional property is nullable so omission and explicit JSON null share one absent
-  state (ADR-0004, ADR-0014).
+  state, except on a schema a selected request body reaches, where an optional-and-nullable
+  property emits `Optional<T?>` and keeps absence, an explicit null, and a value apart (ADR-0004,
+  ADR-0014).
+- A tri-state request property emits `[JsonIgnore(Condition = WhenWritingDefault)]` beside a
+  property-level `[JsonConverter]` naming the closed converter emitted for its instantiation: the
+  wrapper is generic, so no type-level converter can name it. A member-level converter costs the
+  containing type its serialization fast path, which makes `JsonSourceGenerationMode.Metadata` on
+  the emitted registry load-bearing rather than a performance preference (ADR-0004, ADR-0014).
 - A required or present value uses nullable C# only when the selected representation needs CLR null
   to materialize JSON null. A source-generation-proven in-band null carrier remains non-nullable;
   `JsonElement` currently carries JSON null through `JsonValueKind.Null` (ADR-0004, ADR-0014).

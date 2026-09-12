@@ -213,12 +213,15 @@ Two shapes repeat everywhere, and once you have seen them the rest of the surfac
   and is optional when every member is, `requestOptions` selects per-call behaviour such as
   [`NoThrow`](errors-and-responses.md#-ask-for-the-failure-as-data-instead), and the token is the
   usual one. Streaming operations are the exception — they take no `requestOptions`.
+  [Requests](requests.md) covers what goes in that first argument, including the members that tell
+  "leave this alone" apart from "clear this".
 
 ## ➡️ Where to go next
 
 | If you want to… | Read |
 |---|---|
 | Let the SDK start its own server, or wire the client into a `Host` | [Connection modes](connection-modes.md) |
+| Shape a request body, clear a server-side value, or scope one call to a directory | [Requests](requests.md) |
 | React to what the server is doing, live | [Streaming](streaming.md) |
 | Drive a real terminal | [Terminals](terminals.md) |
 | Branch on a failure instead of catching it | [Errors and responses](errors-and-responses.md) |
