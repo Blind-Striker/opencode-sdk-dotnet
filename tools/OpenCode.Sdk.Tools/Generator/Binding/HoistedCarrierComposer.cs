@@ -14,10 +14,13 @@ internal sealed class HoistedCarrierComposer(
     IReadOnlyDictionary<string, ObjectModelPlan> models,
     IReadOnlyList<HoistedMemberNameCuration> namingRows,
     ISet<string> takenNames,
+    HoistedMemberSatisfactionPolicy satisfaction,
     HoistedImplementationAccumulator implementations,
     BindingErrorCollector errors)
 {
     private readonly BindingErrorCollector _errors = errors ?? throw new ArgumentNullException(nameof(errors));
+
+    private readonly HoistedMemberSatisfactionPolicy _satisfaction = satisfaction ?? throw new ArgumentNullException(nameof(satisfaction));
 
     private readonly HoistedImplementationAccumulator _implementations =
         implementations ?? throw new ArgumentNullException(nameof(implementations));
@@ -110,6 +113,15 @@ internal sealed class HoistedCarrierComposer(
                     IsNullable = property.Type.IsNullable,
                     JsonNullRepresentation = property.Type.JsonNullRepresentation,
                 };
+            }
+
+            // The same satisfaction rule the union interface uses, applied to every member rather
+            // than only to the promoted ones: a promoted record answers its carrier, and a
+            // tri-state property answers the unwrapped member the interface declares, each through
+            // an explicit implementation. Identity already proved every record declares this member
+            // in the same shape, so the first record's plan answers for all of them.
+            if (_satisfaction.RequiresExplicitImplementation(property, type))
+            {
                 foreach (var recordName in recordNames)
                 {
                     _implementations.AddExplicitImplementation(recordName, new HoistedImplementationPlan
@@ -118,6 +130,7 @@ internal sealed class HoistedCarrierComposer(
                         MemberName = property.Name,
                         MemberType = type,
                         PropertyName = property.Name,
+                        ReadsOptionalValue = property.EmitsOptionalWrapper,
                     });
                 }
             }

@@ -4,6 +4,7 @@ internal sealed class MaterializationMatrixScenario : SpecScenario
 {
     public const string GetOperationId = "v2.matrix.get";
     public const string ChoiceOperationId = "v2.matrix.choice";
+    public const string PatchOperationId = "v2.matrix.patch";
 
     protected override void Arrange(SpecDocumentBuilder spec) => spec
         .WithSchema("MatrixChoiceAlpha", schema => Choice(schema, "alpha"))
@@ -16,12 +17,35 @@ internal sealed class MaterializationMatrixScenario : SpecScenario
             .Property("_tag", property => property.Type("string").Enum("MatrixError"), required: true)
             .Property("message", property => property.Type("string"), required: true))
         .WithSchema("MaterializationMatrix", Matrix)
+        .WithSchema("MatrixPatchBody", Patch)
         .WithOperation(GetOperationId, path: "/api/matrix", configure: operation => operation
             .Response(200, "application/json", schema => schema.Ref("MaterializationMatrix"))
             .Response(400, "application/json", schema => schema.Ref("MatrixError")))
         .WithOperation(ChoiceOperationId, path: "/api/matrix/choice", configure: operation => operation
             .Response(200, "application/json", schema => schema.Ref("MatrixChoice"))
+            .Response(400, "application/json", schema => schema.Ref("MatrixError")))
+        .WithOperation(PatchOperationId, method: "post", path: "/api/matrix/patch", configure: operation => operation
+            .RequestBody("application/json", schema => schema.Ref("MatrixPatchBody"), required: true)
+            .Response(200, "application/json", schema => schema.Ref("MaterializationMatrix"))
             .Response(400, "application/json", schema => schema.Ref("MatrixError")));
+
+    /// <summary>
+    /// The request-side twin of <see cref="Matrix" />: one optional-and-nullable member per
+    /// represented family, plus the two shapes that must stay untouched - an optional member the
+    /// document does not admit null for, and a required-and-nullable member.
+    /// </summary>
+    private static void Patch(SchemaBuilder schema) => schema.Type("object")
+        .AdditionalPropertiesFalse()
+        .Property("patchScalar", NullableString)
+        .Property("patchNumber", NullableNumber)
+        .Property("patchList", property => property.AnyOf(
+            branch => branch.Type("array").Items(item => item.Type("string")),
+            branch => branch.Type("null")))
+        .Property("patchDictionary", property => property.AnyOf(
+            branch => branch.Type("object").AdditionalProperties(value => value.Type("string")),
+            branch => branch.Type("null")))
+        .Property("patchPlain", property => property.Type("string"))
+        .Property("patchRequired", NullableString, required: true);
 
     private static void Choice(SchemaBuilder schema, string marker) => schema.Type("object")
         .AdditionalPropertiesFalse()

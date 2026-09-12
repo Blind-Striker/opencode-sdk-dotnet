@@ -22,6 +22,21 @@ internal sealed record ReachableSchemaSet
         }
     } = Array.AsReadOnly(Array.Empty<string>());
 
+    /// <summary>
+    /// Gets graph keys a selected operation's request body reaches. A property of one of these
+    /// schemas that the document declares both optional and nullable emits the tri-state
+    /// <c>Optional&lt;T&gt;</c> wrapper; response-only schemas keep <c>T?</c> (ADR-0004).
+    /// </summary>
+    public IReadOnlyList<string> RequestReachableKeys
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<string>());
+
     /// <summary>Gets graph keys reached through an effect-stream cause schema.</summary>
     public IReadOnlyList<string> StreamCauseKeys
     {

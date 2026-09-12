@@ -7,8 +7,10 @@ namespace OpenCode.Sdk.Tools.Generator.Binding;
 /// same wire name, the same .NET name, the same required-ness, the same nullability, and the
 /// same represented type; it ignores the value of a non-dispatch literal, because a
 /// <c>const</c> or single-value <c>enum</c> that discriminates nothing is an ordinary primitive
-/// on both sides (ADR-0004). Documentation-only keywords never reach the bound plan, so they
-/// are ignored by construction.
+/// on both sides (ADR-0004). The tri-state <c>Optional&lt;T&gt;</c> wrapper is part of that shape
+/// too: one member declaring it and another not are two different CLR types, so the property is
+/// not shared. Documentation-only keywords never reach the bound plan, so they are ignored by
+/// construction.
 /// </summary>
 /// <remarks>
 /// A property whose members each promote their own inline object is identical when those
@@ -30,6 +32,7 @@ internal sealed class HoistedMemberIdentityPolicy(IReadOnlyDictionary<string, Ob
         return string.Equals(left.WireName, right.WireName, StringComparison.Ordinal)
                && string.Equals(left.Name, right.Name, StringComparison.Ordinal)
                && left.IsRequired == right.IsRequired
+               && left.EmitsOptionalWrapper == right.EmitsOptionalWrapper
                && TypesIdentical(left.Type, right.Type);
     }
 

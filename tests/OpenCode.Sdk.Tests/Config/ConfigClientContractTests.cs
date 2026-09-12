@@ -164,6 +164,55 @@ public sealed class ConfigClientContractTests
     }
 
     [Test]
+    public async Task PatchUpdatePreferencesAsync_Should_Send_The_Value_When_The_Preference_Is_Set()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, "{}");
+
+        _ = await scenario.Client.Config.PatchUpdatePreferencesAsync(new ConfigUpdatePreferencesPatchRequest
+        {
+            Shell = "pwsh",
+        });
+
+        await Assert.That(scenario.Requests.Single().Body).IsEqualTo("{\"shell\":\"pwsh\"}");
+    }
+
+    [Test]
+    public async Task PatchUpdatePreferencesAsync_Should_Omit_The_Preference_When_It_Is_Absent()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, "{}");
+
+        _ = await scenario.Client.Config.PatchUpdatePreferencesAsync(new ConfigUpdatePreferencesPatchRequest());
+
+        await Assert.That(scenario.Requests.Single().Body).IsEqualTo("{}");
+    }
+
+    [Test]
+    public async Task PatchUpdatePreferencesAsync_Should_Send_An_Explicit_Null_When_The_Preference_Is_Cleared()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, "{}");
+
+        _ = await scenario.Client.Config.PatchUpdatePreferencesAsync(new ConfigUpdatePreferencesPatchRequest
+        {
+            Shell = Optional<string?>.Null,
+        });
+
+        await Assert.That(scenario.Requests.Single().Body).IsEqualTo("{\"shell\":null}");
+    }
+
+    [Test]
+    public async Task PatchUpdatePreferencesAsync_Should_Send_An_Explicit_Null_For_The_Plain_Null_Spelling()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, "{}");
+
+        _ = await scenario.Client.Config.PatchUpdatePreferencesAsync(new ConfigUpdatePreferencesPatchRequest
+        {
+            Shell = null,
+        });
+
+        await Assert.That(scenario.Requests.Single().Body).IsEqualTo("{\"shell\":null}");
+    }
+
+    [Test]
     public async Task PatchUpdatePreferencesAsync_Should_Throw_The_Declared_400_Error()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.InvalidRequestError);

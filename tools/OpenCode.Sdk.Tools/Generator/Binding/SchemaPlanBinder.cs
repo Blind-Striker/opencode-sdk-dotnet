@@ -35,6 +35,7 @@ internal sealed class SchemaPlanBinder(
         ArgumentNullException.ThrowIfNull(errors);
 
         var responseRoots = reachable.ResponseRootKeys.ToHashSet(_comparer);
+        var requestKeys = reachable.RequestReachableKeys.ToHashSet(_comparer);
         var streamCauseKeys = reachable.StreamCauseKeys.ToHashSet(_comparer);
         var inhabitation = new SchemaInhabitationPolicy(document.Schemas);
         var inheritance = new Dictionary<string, List<string>>(StringComparer.Ordinal);
@@ -62,7 +63,7 @@ internal sealed class SchemaPlanBinder(
             switch (schema)
             {
                 case ObjectNode objectNode:
-                    var objectPlan = BindObject(key, name, objectNode, inheritance, typeBinder, errors);
+                    var objectPlan = BindObject(key, name, objectNode, inheritance, requestKeys.Contains(key), typeBinder, errors);
                     if (objectPlan is not null)
                     {
                         models.Add(objectPlan);
@@ -629,7 +630,7 @@ internal sealed class SchemaPlanBinder(
     }
 
     private static ObjectModelPlan? BindObject(string key, string name, ObjectNode node, Dictionary<string, List<string>> inheritance,
-        TypePlanBinder typeBinder, BindingErrorCollector errors)
+        bool isRequestReachable, TypePlanBinder typeBinder, BindingErrorCollector errors)
     {
         if (node.AdditionalProperties is AdditionalPropertiesKind.Schema)
         {
@@ -649,6 +650,11 @@ internal sealed class SchemaPlanBinder(
                 continue;
             }
 
+            // Read before the widening below: at this instant IsNullable still means exactly
+            // "the schema admits JSON null", which is half of what the tri-state wrapper is
+            // keyed on. After the widening it means "optional or nullable" and the two are
+            // no longer separable (ADR-0004).
+            var emitsOptionalWrapper = isRequestReachable && !property.IsRequired && type.IsNullable;
             if (!property.IsRequired)
             {
                 type = type with
@@ -665,6 +671,7 @@ internal sealed class SchemaPlanBinder(
                 Type = type,
                 IsRequired = property.IsRequired,
                 IsLiteral = literal is not null,
+                EmitsOptionalWrapper = emitsOptionalWrapper,
                 LiteralKind = literal?.Kind,
                 LiteralValue = literal?.Value,
                 Description = property.Schema.Description,

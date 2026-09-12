@@ -2,6 +2,7 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
@@ -13,8 +14,9 @@ public sealed record SessionFormCreateRequest
     /// Gets the id value.
     /// </summary>
     [JsonPropertyName("id")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Id { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    [JsonConverter(typeof(OptionalOfStringJsonConverter))]
+    public Optional<string?> Id { get; init; }
 
     /// <summary>
     /// Gets the title value.

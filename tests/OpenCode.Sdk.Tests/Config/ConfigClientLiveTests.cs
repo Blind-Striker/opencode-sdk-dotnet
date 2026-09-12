@@ -93,5 +93,54 @@ public sealed class ConfigClientLiveTests(SimulatedDriveServerFixture server)
             " websearch=" + reread.Preferences.Websearch.Kind.ToString());
     }
 
+    /// <summary>
+    /// The three states against the real server, on the fixture's own isolated global roots.
+    /// Upstream's preferences patch is where an explicit null carries service meaning: it deletes
+    /// the key rather than storing null, and an omitted member leaves the stored value alone. This
+    /// is the behaviour the tri-state request member exists for.
+    /// </summary>
+    [Test]
+    [Timeout(60_000)]
+    public async Task PatchUpdatePreferencesAsync_Should_Set_Keep_And_Clear_The_Shell_Preference(
+        CancellationToken cancellationToken)
+    {
+        using var client = server.CreateClient();
+        var shells = await client.Config.GetShellsAsync(cancellationToken: cancellationToken);
+        var shell = shells.Shells.First(static candidate => candidate.Acceptable).Path;
+
+        var set = await client.Config.PatchUpdatePreferencesAsync(
+            new ConfigUpdatePreferencesPatchRequest { Shell = shell, },
+            cancellationToken: cancellationToken);
+
+        await Assert.That(set.Status).IsEqualTo(200);
+        await Assert.That(set.UpdatePreferences.Shell).IsEqualTo(shell);
+
+        // An unassigned member is absent: the SDK sends '{}' and the stored value survives.
+        var kept = await client.Config.PatchUpdatePreferencesAsync(
+            new ConfigUpdatePreferencesPatchRequest(),
+            cancellationToken: cancellationToken);
+        var afterKeep = await client.Config.GetPreferencesAsync(cancellationToken: cancellationToken);
+
+        await Assert.That(kept.UpdatePreferences.Shell).IsEqualTo(shell);
+        await Assert.That(afterKeep.Preferences.Shell).IsEqualTo(shell);
+
+        // An explicit null is the delete; the read back no longer carries the key at all.
+        var cleared = await client.Config.PatchUpdatePreferencesAsync(
+            new ConfigUpdatePreferencesPatchRequest { Shell = Optional<string?>.Null, },
+            cancellationToken: cancellationToken);
+        var afterClear = await client.Config.GetPreferencesAsync(cancellationToken: cancellationToken);
+
+        await Assert.That(cleared.Status).IsEqualTo(200);
+        await Assert.That(cleared.UpdatePreferences.Shell).IsNull();
+        await Assert.That(afterClear.Preferences.Shell).IsNull();
+
+        Console.WriteLine(
+            "config-live: tristate set=" + Number(set.Status) +
+            " keep=" + Number(kept.Status) +
+            " clear=" + Number(cleared.Status) +
+            " shell=" + shell +
+            " afterClear=" + (afterClear.Preferences.Shell ?? "<unset>"));
+    }
+
     private static string Number(int value) => value.ToString(CultureInfo.InvariantCulture);
 }

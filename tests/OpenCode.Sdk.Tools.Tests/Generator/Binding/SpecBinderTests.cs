@@ -221,6 +221,69 @@ public sealed class SpecBinderTests
         await Assert.That(extra.Type.IsNullable).IsTrue();
     }
 
+    /// <summary>
+    /// The tri-state wrapper is keyed on one thing only: whether a selected request body reaches
+    /// the declaring schema. Optional-but-not-nullable, required-nullable, and response-only
+    /// members all stay as they were. <c>NestedPatch</c> is the regression guard for the walk
+    /// itself — the response pass reaches it first, so a shared visited set would leave its
+    /// members unmarked.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Key_The_Tristate_Wrapper_On_Request_Reachability()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("NestedPatch", schema => schema
+                .Type("object")
+                .Property("depth", property => property.AnyOf(
+                    branch => branch.Type("string"),
+                    branch => branch.Type("null"))))
+            .WithSchema("SharedPatch", schema => schema
+                .Type("object")
+                .Property("note", property => property.AnyOf(
+                    branch => branch.Type("string"),
+                    branch => branch.Type("null")))
+                .Property("label", property => property.Type("string"))
+                .Property("stamp", property => property.AnyOf(
+                    branch => branch.Type("string"),
+                    branch => branch.Type("null")), required: true)
+                .Property("nested", property => property.Ref("NestedPatch"), required: true))
+            .WithSchema("Widget.PatchPayload", schema => schema
+                .Type("object")
+                .Property("shared", property => property.Ref("SharedPatch"), required: true))
+            .WithSchema("ItemInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true)
+                .Property("memo", property => property.AnyOf(
+                    branch => branch.Type("string"),
+                    branch => branch.Type("null")))
+                .Property("shared", property => property.Ref("SharedPatch"), required: true))
+            .WithOperation("v2.widget.item", path: "/api/widget/item", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("ItemInfo")))
+            .WithOperation("v2.widget.patch", method: "post", path: "/api/widget/patch", configure: operation => operation
+                .RequestBody("application/json", body => body.Ref("Widget.PatchPayload"), required: true)
+                .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection("v2.widget.item", "v2.widget.patch"),
+            Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null))));
+
+        var shared = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "SharedPatch");
+        await Assert.That(Member(shared, "note").EmitsOptionalWrapper).IsTrue();
+        await Assert.That(Member(shared, "label").EmitsOptionalWrapper).IsFalse();
+        await Assert.That(Member(shared, "stamp").EmitsOptionalWrapper).IsFalse();
+
+        var nested = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "NestedPatch");
+        await Assert.That(Member(nested, "depth").EmitsOptionalWrapper).IsTrue();
+
+        var item = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "ItemInfo");
+        await Assert.That(Member(item, "memo").EmitsOptionalWrapper).IsFalse();
+        await Assert.That(Member(item, "memo").Type.IsNullable).IsTrue();
+    }
+
+    private static ModelPropertyPlan Member(ObjectModelPlan model, string wireName) =>
+        model.Properties.Single(property => string.Equals(property.WireName, wireName, StringComparison.Ordinal));
+
     [Test]
     public async Task Bind_Should_Make_The_Optional_Pinned_Session_Parent_Nullable()
     {

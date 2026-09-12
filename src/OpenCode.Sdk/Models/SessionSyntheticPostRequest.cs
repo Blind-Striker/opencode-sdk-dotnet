@@ -2,6 +2,7 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
@@ -13,8 +14,9 @@ public sealed record SessionSyntheticPostRequest
     /// Gets the id value.
     /// </summary>
     [JsonPropertyName("id")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Id { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    [JsonConverter(typeof(OptionalOfStringJsonConverter))]
+    public Optional<string?> Id { get; init; }
 
     /// <summary>
     /// Gets the text value.
@@ -26,8 +28,9 @@ public sealed record SessionSyntheticPostRequest
     /// Gets the description value.
     /// </summary>
     [JsonPropertyName("description")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Description { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    [JsonConverter(typeof(OptionalOfStringJsonConverter))]
+    public Optional<string?> Description { get; init; }
 
     /// <summary>
     /// Gets the metadata value.
@@ -40,13 +43,15 @@ public sealed record SessionSyntheticPostRequest
     /// Gets the delivery value.
     /// </summary>
     [JsonPropertyName("delivery")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public SessionInboxDelivery? Delivery { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    [JsonConverter(typeof(OptionalOfSessionInboxDeliveryJsonConverter))]
+    public Optional<SessionInboxDelivery?> Delivery { get; init; }
 
     /// <summary>
     /// Gets the resume value.
     /// </summary>
     [JsonPropertyName("resume")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public bool? Resume { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    [JsonConverter(typeof(OptionalOfBooleanJsonConverter))]
+    public Optional<bool?> Resume { get; init; }
 }

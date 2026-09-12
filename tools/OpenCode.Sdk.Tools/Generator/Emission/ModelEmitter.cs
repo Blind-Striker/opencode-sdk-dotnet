@@ -104,13 +104,21 @@ internal static class ModelEmitter
     /// An explicit implementation is not a public property, so System.Text.Json ignores it and the
     /// serialized shape is exactly what it was before the member was hoisted.
     /// </summary>
-    private static PropertyDeclarationSyntax EmitHoistedImplementation(HoistedImplementationPlan implementation) =>
-        SyntaxFactory
+    private static PropertyDeclarationSyntax EmitHoistedImplementation(HoistedImplementationPlan implementation)
+    {
+        ExpressionSyntax own = SyntaxFactory.IdentifierName(implementation.PropertyName);
+        if (implementation.ReadsOptionalValue)
+        {
+            own = EmissionSyntax.MemberAccess(own, "Value");
+        }
+
+        return SyntaxFactory
             .PropertyDeclaration(TypeSyntaxEmitter.Emit(implementation.MemberType), implementation.MemberName)
             .WithExplicitInterfaceSpecifier(SyntaxFactory.ExplicitInterfaceSpecifier(
                 SyntaxFactory.IdentifierName(implementation.InterfaceName)))
-            .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(SyntaxFactory.IdentifierName(implementation.PropertyName)))
+            .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(own))
             .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+    }
 
     /// <summary>A merged request's query-side property never serializes; the route builder reads it.</summary>
     private static PropertyDeclarationSyntax EmitRequestQueryProperty(QueryPropertyPlan property)
@@ -134,8 +142,11 @@ internal static class ModelEmitter
     private static PropertyDeclarationSyntax EmitProperty(ModelPropertyPlan property, ChainMarker? marker)
     {
         var memberName = marker?.MemberName ?? property.Name;
+        var propertyType = property.EmitsOptionalWrapper
+            ? TypeSyntaxEmitter.Generic("Optional", TypeSyntaxEmitter.Emit(property.Type))
+            : TypeSyntaxEmitter.Emit(property.Type);
         var declaration = SyntaxFactory
-            .PropertyDeclaration(TypeSyntaxEmitter.Emit(property.Type), memberName)
+            .PropertyDeclaration(propertyType, memberName)
             .AddAttributeLists(EmissionSyntax.Attribute("JsonPropertyName", EmissionSyntax.StringArgument(property.WireName)))
             .WithLeadingTrivia(EmissionSyntax.Documentation(property.Description ?? $"Gets the {GeneratedDisplayName.Of(memberName)} value."));
         if (ContainsSpecialNumber(property.Type))
@@ -149,13 +160,25 @@ internal static class ModelEmitter
 
         if (!property.IsRequired)
         {
+            // The wrapper's absent state is default, and WhenWritingNull is invalid on a
+            // non-nullable value type: omission is decided by the struct, not by CLR null.
             declaration = declaration.AddAttributeLists(EmissionSyntax.Attribute(
                 "JsonIgnore",
                 SyntaxFactory
                     .AttributeArgument(EmissionSyntax.MemberAccess(
                         SyntaxFactory.IdentifierName("JsonIgnoreCondition"),
-                        "WhenWritingNull"))
+                        property.EmitsOptionalWrapper ? "WhenWritingDefault" : "WhenWritingNull"))
                     .WithNameEquals(SyntaxFactory.NameEquals("Condition"))));
+        }
+
+        if (property.EmitsOptionalWrapper)
+        {
+            // Member-level rather than type-level: the attribute argument cannot name an
+            // unbound generic, so each instantiation points at its own closed converter.
+            declaration = declaration.AddAttributeLists(EmissionSyntax.Attribute(
+                "JsonConverter",
+                SyntaxFactory.AttributeArgument(SyntaxFactory.TypeOfExpression(
+                    TypeSyntaxEmitter.EmitNamed(OptionalConverterNamePolicy.ConverterTypeName(property.Type))))));
         }
 
         if (marker?.Prefix is { } prefix)
@@ -268,6 +291,14 @@ internal static class ModelEmitter
         if (guardsPrefix)
         {
             _ = result.Add("System");
+        }
+
+        // A tri-state member names its closed converter, which lives with the runtime's own
+        // serialization internals. Optional<T> itself sits in the root namespace this one
+        // nests under, so it needs no using.
+        if (model.Properties.Any(static property => property.EmitsOptionalWrapper))
+        {
+            _ = result.Add("OpenCode.Sdk.Internal.Serialization");
         }
 
         foreach (var property in model.Properties)

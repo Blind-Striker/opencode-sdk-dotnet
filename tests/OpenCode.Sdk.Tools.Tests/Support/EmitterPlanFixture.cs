@@ -712,7 +712,11 @@ internal static class EmitterPlanFixture
             Description = "Shapes the widget-create request body.",
             Properties =
             [
-                Property("title", "Title", Named("string", isNullable: true), isRequired: false, "Gets the widget title."),
+                Property("title", "Title", Named("string", isNullable: true), isRequired: false, "Gets the widget title.",
+                    emitsOptionalWrapper: true),
+                Property("retain", "Retain", Named("bool", isNullable: true), isRequired: false,
+                    "Gets whether the widget survives a restart.", emitsOptionalWrapper: true),
+                Property("note", "Note", Named("string", isNullable: true), isRequired: false, "Gets the widget note."),
             ],
             RequestQueryProperties = [QueryProperty("location", "Location", QueryValueKind.Location)],
         };
@@ -917,7 +921,7 @@ internal static class EmitterPlanFixture
         };
 
     private static ModelPropertyPlan Property(string wireName, string name, TypeReferencePlan type, bool isRequired,
-        string? description) =>
+        string? description, bool emitsOptionalWrapper = false) =>
         new()
         {
             WireName = wireName,
@@ -926,6 +930,7 @@ internal static class EmitterPlanFixture
             IsRequired = isRequired,
             IsLiteral = false,
             Description = description,
+            EmitsOptionalWrapper = emitsOptionalWrapper,
         };
 
     private static ModelPropertyPlan LiteralProperty(string wireName, string name, string value) =>
@@ -939,6 +944,7 @@ internal static class EmitterPlanFixture
             LiteralKind = LiteralKind.String,
             LiteralValue = value,
             Description = null,
+            EmitsOptionalWrapper = false,
         };
 
     private static NamedTypeReferencePlan Named(string name, bool isNullable = false) =>
@@ -1077,6 +1083,7 @@ internal static class EmitterPlanFixture
                     LiteralKind = LiteralKind.Number,
                     LiteralValue = version,
                     Description = "Gets the schema version that committed the event.",
+                    EmitsOptionalWrapper = false,
                 },
             ],
         };

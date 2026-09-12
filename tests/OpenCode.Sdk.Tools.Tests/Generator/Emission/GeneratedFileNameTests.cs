@@ -57,6 +57,35 @@ public sealed class GeneratedFileNameTests
         await Assert.That(rewritable).IsEmpty();
     }
 
+    /// <summary>
+    /// A tri-state converter is named from the CLR instantiation, not from anything the document
+    /// spells, so the file-equals-type rule has to be proven for that naming path too.
+    /// </summary>
+    [Test]
+    public async Task Emit_Should_Name_Every_Optional_Converter_After_The_Type_It_Declares()
+    {
+        var sources = SourceEmitter.Emit(EmitterPlanFixture.Create());
+
+        var converters = sources
+            .Where(static source => source.RelativePath.Contains("OptionalOf", StringComparison.Ordinal))
+            .ToArray();
+
+        await Assert
+            .That(converters.Select(static source => source.RelativePath))
+            .IsEquivalentTo(
+            [
+                "Internal/Serialization/OptionalOfBooleanJsonConverter.cs",
+                "Internal/Serialization/OptionalOfStringJsonConverter.cs",
+            ]);
+        var mismatches = converters
+            .Select(static source => (source.RelativePath, Declared: FirstDeclaredTypeName(source)))
+            .Where(static entry => !string.Equals(FileStem(entry.RelativePath), entry.Declared, StringComparison.Ordinal))
+            .Select(static entry => $"{entry.RelativePath} declares {entry.Declared}")
+            .ToArray();
+
+        await Assert.That(mismatches).IsEmpty();
+    }
+
     private static string FileStem(string relativePath)
     {
         var name = relativePath.Split('/')[^1];

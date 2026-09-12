@@ -9,6 +9,7 @@ internal static class SourceEmitter
         ArgumentNullException.ThrowIfNull(plan);
         var sources = new List<GeneratedSource>();
         sources.AddRange(ModelEmitter.Emit(plan));
+        sources.AddRange(OptionalConverterEmitter.Emit(plan.Models));
         sources.AddRange(StructuralUnionEmitter.Emit([.. plan.Models.OfType<StructuralUnionModelPlan>()]));
         sources.AddRange(UnionEmitter.Emit(plan.Unions));
         sources.AddRange(HoistedInterfaceEmitter.Emit(plan.HoistedInterfaces));
