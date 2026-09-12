@@ -184,7 +184,10 @@ jobs:
           $ErrorActionPreference = "Stop"
           $minimum = 500
           $log = Join-Path $env:GITHUB_WORKSPACE "TestResults/consumer-leg/test-run.log"
-          $summary = Select-String -LiteralPath $log -Pattern '^\s*total:\s*(\d+)\s*$' | Select-Object -Last 1
+          # The runner colours the summary, so the line starts with an ANSI escape; strip them
+          # before matching (the local pipe carries none, which is how the anchor slipped through).
+          $lines = Get-Content -LiteralPath $log | ForEach-Object { $_ -replace "`e\[[0-9;]*m", "" }
+          $summary = $lines | Select-String -Pattern '^\s*total:\s*(\d+)\s*$' | Select-Object -Last 1
           if (-not $summary) {
             throw "The test log carries no run summary; nothing proves a test executed."
           }
