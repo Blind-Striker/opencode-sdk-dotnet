@@ -5,9 +5,20 @@ Each released version links straight to its GitHub Release tag.
 
 ## [Unreleased]
 
-Nothing yet. Nightly builds of `master` are on
+Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
 `0.8.0-nightly.{yyyyMMdd}.{shortSha}`.
+
+### 🔧 Changes
+
+- **The published opencode build is tested now, not only the pinned source.** The live-test fixture
+  takes a new optional `OPENCODE_SDK_TESTS_SERVER_COMMAND` (`|`-separated, e.g. `opencode|serve`):
+  it replaces the command the fixture starts and changes nothing else, so the whole suite can be
+  pointed at any build of the same server — the executable is resolved from `PATH` by the SDK's own
+  launcher. The new [Consumer leg](.github/workflows/consumer-leg.yml) workflow — on demand and
+  weekly, Linux and Windows — uses it to run that suite against
+  `npm install -g @opencode/cli` at the version [`spec/SNAPSHOT.md`](spec/SNAPSHOT.md) pins, after
+  asserting the version the installed command reports.
 
 ## [0.8.0-preview.2] - 2026-09-12
 

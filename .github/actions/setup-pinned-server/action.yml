@@ -1,0 +1,88 @@
+# The runtime the pinned server needs, in the one place both lanes read it from: CI (which runs
+# the server from the submodule source) and the distributed-build consumer leg (whose simulation
+# fixtures still run that source, even though its live legs drive the published build). The steps
+# are the ones ci.yml carried inline; moving them here keeps the two lanes from drifting apart.
+#
+# Requires an already-checked-out repository with the external/opencode submodule initialized.
+name: "Setup pinned server runtime"
+description: "Installs the pinned Bun, provisions the exact ripgrep the server resolves, and installs the pinned server's dependencies."
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Bun (pinned server runtime)
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      with:
+        # The pin's own packageManager row (external/opencode/package.json).
+        bun-version-file: external/opencode/package.json
+
+    - name: Verify pinned Bun runtime
+      shell: pwsh
+      run: |
+        $expected = (Get-Content external/opencode/package.json -Raw | ConvertFrom-Json).packageManager
+        $actual = "bun@$(& bun --version)"
+        if ($LASTEXITCODE -ne 0 -or $actual -cne $expected) {
+          throw "Bun runtime mismatch: expected $expected, got $actual."
+        }
+
+    # fs.find uses upstream's ripgrep resolver. Keep the server offline by placing the exact
+    # resolver version on the job PATH before tests instead of allowing its runtime download.
+    - name: Provision ripgrep for pinned server
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = "Stop"
+        $PSNativeCommandUseErrorActionPreference = $true
+        $version = "15.1.0"
+        switch ("${{ runner.os }}-${{ runner.arch }}") {
+          "Windows-X64" {
+            $archive = "ripgrep-$version-x86_64-pc-windows-msvc.zip"
+            $sha256 = "124510b94b6baa3380d051fdf4650eaa80a302c876d611e9dba0b2e18d87493a"
+          }
+          "Linux-X64" {
+            $archive = "ripgrep-$version-x86_64-unknown-linux-musl.tar.gz"
+            $sha256 = "1c9297be4a084eea7ecaedf93eb03d058d6faae29bbc57ecdaf5063921491599"
+          }
+          "macOS-ARM64" {
+            $archive = "ripgrep-$version-aarch64-apple-darwin.tar.gz"
+            $sha256 = "378e973289176ca0c6054054ee7f631a065874a352bf43f0fa60ef079b6ba715"
+          }
+          default { throw "Unsupported ripgrep runner: ${{ runner.os }}-${{ runner.arch }}" }
+        }
+
+        $download = Join-Path $env:RUNNER_TEMP $archive
+        Invoke-WebRequest -Uri "https://github.com/BurntSushi/ripgrep/releases/download/$version/$archive" -OutFile $download
+        $actual = (Get-FileHash -LiteralPath $download -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($actual -ne $sha256) {
+          throw "ripgrep archive digest mismatch: expected $sha256, received $actual"
+        }
+
+        $toolRoot = Join-Path $env:RUNNER_TEMP "ripgrep-$version-${{ runner.os }}-${{ runner.arch }}"
+        $null = New-Item -ItemType Directory -Path $toolRoot
+        if ($archive.EndsWith(".zip", [StringComparison]::Ordinal)) {
+          Expand-Archive -LiteralPath $download -DestinationPath $toolRoot
+        } else {
+          tar -xzf $download -C $toolRoot
+        }
+
+        $executableName = if ($IsWindows) { "rg.exe" } else { "rg" }
+        $executables = @(Get-ChildItem -LiteralPath $toolRoot -Recurse -File -Filter $executableName)
+        if ($executables.Count -ne 1) {
+          throw "Expected exactly one $executableName in $archive, found $($executables.Count)"
+        }
+
+        $executable = $executables[0].FullName
+        Split-Path -Parent $executable | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        & $executable --version
+
+    - name: Cache bun install
+      uses: actions/cache@v6
+      with:
+        path: ~/.bun/install/cache
+        key: ${{ runner.os }}-bun-${{ hashFiles('external/opencode/bun.lock') }}
+
+    # --ignore-scripts skips the root postinstall, which repairs the separate Node PTY
+    # implementation. Normal PTYs in this lane use Bun's bun-pty implementation.
+    - name: Install pinned server dependencies
+      shell: pwsh
+      working-directory: external/opencode
+      run: bun install --frozen-lockfile --ignore-scripts

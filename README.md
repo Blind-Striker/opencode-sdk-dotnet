@@ -63,6 +63,7 @@ on, and the `net472` leg is what exercises its compile surface.
 | **🧪 Tests** | Linux | [![Linux Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Flinux%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/linux/blind-striker/opencode-sdk-dotnet/master) | `net8.0`, `net9.0`, `net10.0` |
 | **🧪 Tests** | Windows | [![Windows Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Fwindows%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/windows/blind-striker/opencode-sdk-dotnet/master) | `net472` plus every modern target |
 | **🧪 Tests** | macOS | [![macOS Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Fmacos%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/macos/blind-striker/opencode-sdk-dotnet/master) | `net8.0`, `net9.0`, `net10.0` |
+| **📡 Consumer leg** | Linux, Windows | [![Consumer leg](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/consumer-leg.yml/badge.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/consumer-leg.yml) | Weekly and on demand: the same suite against the published `@opencode/cli` build for the pin |
 
 ## 📦 Package Status
 

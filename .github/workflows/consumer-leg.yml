@@ -1,9 +1,16 @@
 # The distributed-build consumer leg. Every other lane in this repository tests the server built
 # from the pinned commit (the `external/opencode` submodule, run from source through bun); this one
-# installs the build upstream actually publishes for that pin - `npm install -g @opencode/cli@<the
-# version spec/SNAPSHOT.md names>` - and drives the SDK against it. That is the difference between
-# "built from the pinned commit" and "tested against the distributed build", and it is the only
-# lane that would notice upstream removing an operation from a published build on its own.
+# installs the build upstream actually publishes for that pin - `npm install -g @opencode/cli` at
+# the version spec/SNAPSHOT.md names - and runs the same suite against it. That is the difference
+# between "built from the pinned commit" and "tested against the distributed build", and it is the
+# only lane that would notice upstream removing an operation from a published build on its own.
+#
+# There is no server management here, by design. `OPENCODE_SDK_TESTS_SERVER_COMMAND` points the
+# exact-pin fixture (tests/Shared/PinnedOpenCodeServerFixture.cs) at the installed command, and the
+# fixture keeps doing what it always does: isolated XDG roots, the repository-owned RPC plugin
+# seeded through OPENCODE_CONFIG_CONTENT, a generated password, readiness and teardown through the
+# SDK's own launcher, logs retained on request. A workflow that re-implemented any of that would be
+# testing itself rather than the SDK.
 #
 # It stays human-triggered plus weekly rather than joining CI: it downloads a platform CLI build per
 # run, and it depends on the npm registry being reachable, which no pull-request gate should.
@@ -35,10 +42,6 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_NOLOGO: true
-  # One home for every path this job writes, so the teardown and the artifact upload agree.
-  SERVER_ROOT: "${{ github.workspace }}/.consumer-leg/server"
-  STANDALONE_ROOT: "${{ github.workspace }}/.consumer-leg/standalone"
-  LOG_ROOT: "${{ github.workspace }}/.consumer-leg/logs"
 
 jobs:
   consumer-leg:
@@ -55,10 +58,9 @@ jobs:
             name: Windows
 
     steps:
-      # Submodules are checked out even though the server under test is the npm build: the test
+      # Submodules are checked out even though the live legs drive the npm build: the test
       # project's simulated-server fixtures (SimulatedDriveServerFixture, ADR-0022) still run the
-      # pinned source, and `dotnet test` runs the whole project, not only the legs that attach to
-      # the distributed build.
+      # pinned source, and this lane runs the whole assembly rather than a filtered slice.
       - name: Checkout
         uses: actions/checkout@v7
         with:
@@ -73,78 +75,6 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: lts/*
-
-      - name: Setup Bun (pinned server runtime)
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          # The pin's own packageManager row (external/opencode/package.json).
-          bun-version-file: external/opencode/package.json
-
-      # fs.find uses upstream's ripgrep resolver - in the distributed build as much as in the
-      # pinned source. Placing the exact resolver version on the job PATH keeps both servers off
-      # the runtime download path (ADR-0022). Copied from ci.yml, digests included.
-      - name: Provision ripgrep for the servers
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $PSNativeCommandUseErrorActionPreference = $true
-          $version = "15.1.0"
-          switch ("${{ runner.os }}-${{ runner.arch }}") {
-            "Windows-X64" {
-              $archive = "ripgrep-$version-x86_64-pc-windows-msvc.zip"
-              $sha256 = "124510b94b6baa3380d051fdf4650eaa80a302c876d611e9dba0b2e18d87493a"
-            }
-            "Linux-X64" {
-              $archive = "ripgrep-$version-x86_64-unknown-linux-musl.tar.gz"
-              $sha256 = "1c9297be4a084eea7ecaedf93eb03d058d6faae29bbc57ecdaf5063921491599"
-            }
-            default { throw "Unsupported ripgrep runner: ${{ runner.os }}-${{ runner.arch }}" }
-          }
-
-          $download = Join-Path $env:RUNNER_TEMP $archive
-          Invoke-WebRequest -Uri "https://github.com/BurntSushi/ripgrep/releases/download/$version/$archive" -OutFile $download
-          $actual = (Get-FileHash -LiteralPath $download -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($actual -ne $sha256) {
-            throw "ripgrep archive digest mismatch: expected $sha256, received $actual"
-          }
-
-          $toolRoot = Join-Path $env:RUNNER_TEMP "ripgrep-$version-${{ runner.os }}-${{ runner.arch }}"
-          $null = New-Item -ItemType Directory -Path $toolRoot
-          if ($archive.EndsWith(".zip", [StringComparison]::Ordinal)) {
-            Expand-Archive -LiteralPath $download -DestinationPath $toolRoot
-          } else {
-            tar -xzf $download -C $toolRoot
-          }
-
-          $executableName = if ($IsWindows) { "rg.exe" } else { "rg" }
-          $executables = @(Get-ChildItem -LiteralPath $toolRoot -Recurse -File -Filter $executableName)
-          if ($executables.Count -ne 1) {
-            throw "Expected exactly one $executableName in $archive, found $($executables.Count)"
-          }
-
-          $executable = $executables[0].FullName
-          Split-Path -Parent $executable | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          & $executable --version
-
-      - name: Cache bun install
-        uses: actions/cache@v6
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('external/opencode/bun.lock') }}
-
-      # --ignore-scripts skips the root postinstall, which repairs the separate Node PTY
-      # implementation. Normal PTYs in this lane use Bun's bun-pty implementation.
-      - name: Install pinned server dependencies
-        run: bun install --frozen-lockfile --ignore-scripts
-        working-directory: external/opencode
-
-      - name: Cache NuGet packages
-        uses: actions/cache@v6
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj', '**/dotnet-tools.json') }}
-          restore-keys: |
-            ${{ runner.os }}-nuget-
 
       # spec/SNAPSHOT.md's identity table is the single owner of the pin, and its "Upstream release
       # tag" row is what `refresh-spec --apply` rewrites. The npm version is that tag without its
@@ -189,7 +119,9 @@ jobs:
           npm install -g "@opencode/cli@$env:CLI_VERSION"
 
       # The installed command must be the version that was asked for, before anything attributes a
-      # result to it. Observed shape on 2.0.2: `opencode --version` prints "opencode v2.0.2".
+      # result to it. Observed shape on 2.0.2: `opencode --version` prints "opencode v2.0.2". The
+      # version the server *serves* is evidence the run produces on its own: the fixture prints it
+      # for every attach, and the standalone leg prints its health answer.
       - name: Assert the installed version
         shell: pwsh
         env:
@@ -205,163 +137,39 @@ jobs:
 
           Write-Host "opencode --version: $reported"
 
-      # Starts the server the live legs attach to: the distributed build, on a loopback port the
-      # OS picks, with every global root isolated under the workspace so the run touches no ambient
-      # opencode profile (the four XDG roots are what upstream resolves its global paths from -
-      # external/opencode/packages/util/src/global-roots.ts:5-8).
-      #
-      # The isolated config root is also where the repository-owned RPC plugin is seeded, which is
-      # what lets the RPC and event proofs run here at all. The owned fixture seeds the same
-      # document through OPENCODE_CONFIG_CONTENT (tests/Shared/ServerConfigSeed.cs: a `plugins`
-      # array holding the plugin directory's absolute path); this job writes that same document to
-      # the global config file the server reads on its own instead, so the seed belongs to the
-      # isolated config root rather than to one process's environment - any server pointed at this
-      # root carries it, and the `--standalone` leg deliberately gets a different, unseeded root.
-      # The file is <XDG_CONFIG_HOME>/opencode/opencode.json: the global config directory is the
-      # config root plus "opencode" (packages/util/src/global-roots.ts, consumed by
-      # packages/util/src/global.ts) and the accepted file names are
-      # packages/core/src/config/discovery.ts:11 - ["opencode.json", "opencode.jsonc"].
-      #
-      # The password is a fresh random value that exists only in the environment: ::add-mask::
-      # registers it with the runner before it is written to GITHUB_ENV, so no later step, log
-      # line, or artifact can print it.
-      - name: Start the distributed build
-        id: server
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $PSNativeCommandUseErrorActionPreference = $true
-
-          foreach ($leaf in "config", "data", "state", "cache") {
-            $null = New-Item -ItemType Directory -Force -Path (Join-Path $env:SERVER_ROOT $leaf)
-          }
-          $null = New-Item -ItemType Directory -Force -Path $env:LOG_ROOT
-
-          $pluginDirectory = (Resolve-Path "tests/Shared/Plugins/sdk-test-rpc").Path
-          $configDirectory = Join-Path (Join-Path $env:SERVER_ROOT "config") "opencode"
-          $null = New-Item -ItemType Directory -Force -Path $configDirectory
-          $document = [ordered]@{ plugins = @($pluginDirectory) } | ConvertTo-Json -Depth 5 -Compress
-          Set-Content -LiteralPath (Join-Path $configDirectory "opencode.json") -Value $document -Encoding utf8
-          Write-Host "Seeded plugin config: $document"
-
-          $bytes = [byte[]]::new(24)
-          [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
-          $password = [Convert]::ToBase64String($bytes) -replace '[^A-Za-z0-9]', ''
-          Write-Host "::add-mask::$password"
-
-          $env:OPENCODE_PASSWORD = $password
-          $env:XDG_CONFIG_HOME = Join-Path $env:SERVER_ROOT "config"
-          $env:XDG_DATA_HOME = Join-Path $env:SERVER_ROOT "data"
-          $env:XDG_STATE_HOME = Join-Path $env:SERVER_ROOT "state"
-          $env:XDG_CACHE_HOME = Join-Path $env:SERVER_ROOT "cache"
-          # The models catalog fetch is the one outbound call the server makes unprompted, and the
-          # suite's posture is to keep it off (ADR-0022; tests/Shared/ServerIsolation.cs sets the
-          # same variable for the owned server).
-          $env:OPENCODE_DISABLE_MODELS_FETCH = "1"
-
-          # Neither branch lets Start-Process do the redirecting, and that is load-bearing on
-          # Windows: -NoNewWindow plus -RedirectStandardOutput/-Error starts the server with the
-          # step's own handles inheritable, so the server holds this step's stdout pipe open and
-          # the step never completes - measured locally, a 20-second child kept its parent alive
-          # for the full 20 seconds. The shell that starts the server does its own redirection
-          # instead, which replaces those handles before the server ever exists.
-          $stdout = Join-Path $env:LOG_ROOT "server-stdout.log"
-          $stderr = Join-Path $env:LOG_ROOT "server-stderr.log"
-          if ($IsWindows) {
-            # npm installs the command as a set of shims (.cmd, .ps1, and a bash one); the .cmd is
-            # the one a process can launch without a shell of its own, and cmd.exe is what runs it
-            # - the same resolution the SDK launcher performs for the `--standalone` leg below.
-            # The command goes through a file rather than -ArgumentList so the quoting around the
-            # shim path and the two redirections is cmd's to read, not PowerShell's to re-escape;
-            # -WindowStyle Hidden (with no redirect switch) is what keeps Start-Process on the
-            # ShellExecute path, which inherits no handles at all.
-            $cli = (Get-Command opencode.cmd).Source
-            $launcher = Join-Path $env:SERVER_ROOT "serve.cmd"
-            Set-Content -LiteralPath $launcher -Encoding ascii -Value @(
-              "@echo off",
-              ('"' + $cli + '" serve --hostname 127.0.0.1 --port 0 > "' + $stdout + '" 2> "' + $stderr + '"'))
-            $process = Start-Process -FilePath $launcher -PassThru -WindowStyle Hidden
-          } else {
-            # The same shape, and a file again rather than `sh -c <command>`: Start-Process joins
-            # ArgumentList into one command line that .NET re-splits by Windows quoting rules, so a
-            # one-argument shell command would arrive at sh in pieces. `exec` then makes the shell
-            # become the server, so the recorded pid is the server's own.
-            $cli = (Get-Command opencode).Source
-            $launcher = Join-Path $env:SERVER_ROOT "serve.sh"
-            Set-Content -LiteralPath $launcher -Value @(
-              "#!/bin/sh",
-              "exec '$cli' serve --hostname 127.0.0.1 --port 0 > '$stdout' 2> '$stderr' < /dev/null")
-            & chmod +x $launcher
-            $process = Start-Process -FilePath $launcher -PassThru -NoNewWindow
-          }
-
-          Write-Host "Server command: $cli (pid $($process.Id))"
-          "OPENCODE_SERVER_PID=$($process.Id)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-          # `--port 0` means the port is the server's to choose, so its own readiness line is the
-          # only place the endpoint exists.
-          $deadline = (Get-Date).AddSeconds(120)
-          $endpoint = $null
-          while (-not $endpoint -and (Get-Date) -lt $deadline) {
-            Start-Sleep -Milliseconds 500
-            $line = Select-String -LiteralPath $stdout -Pattern "server listening on (\S+)" -ErrorAction SilentlyContinue |
-              Select-Object -First 1
-            if ($line) { $endpoint = $line.Matches[0].Groups[1].Value }
-          }
-
-          if (-not $endpoint) {
-            Write-Host "--- server stderr ---"
-            Get-Content -LiteralPath $stderr -ErrorAction SilentlyContinue | Select-Object -First 40
-            throw "The distributed build printed no 'server listening on <url>' line within 120s."
-          }
-
-          Write-Host "Endpoint: $endpoint"
-          "endpoint=$endpoint" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          "OPENCODE_SDK_TESTS_ENDPOINT=$endpoint" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "OPENCODE_SDK_TESTS_PASSWORD=$password" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "OPENCODE_SDK_TESTS_RPC_PLUGIN=$pluginDirectory" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      # The server that answers must be the version that was installed - the whole claim this lane
-      # makes rests on the two being the same build.
-      - name: Assert the served version
-        shell: pwsh
-        env:
-          CLI_VERSION: ${{ steps.cli.outputs.version }}
-          ENDPOINT: ${{ steps.server.outputs.endpoint }}
-        run: |
-          $ErrorActionPreference = "Stop"
-          $credential = [Convert]::ToBase64String(
-            [Text.Encoding]::UTF8.GetBytes("opencode:$env:OPENCODE_SDK_TESTS_PASSWORD"))
-          $health = Invoke-RestMethod -Uri ($env:ENDPOINT.TrimEnd('/') + "/api/health") `
-            -Headers @{ Authorization = "Basic $credential" }
-          Write-Host "health: healthy=$($health.healthy) version=$($health.version) pid=$($health.pid)"
-          if ($health.version -cne $env:CLI_VERSION) {
-            throw "GET /api/health reported version '$($health.version)'; expected $env:CLI_VERSION."
-          }
+      # Bun, ripgrep and the pinned server's dependencies: the simulated-server fixtures in this
+      # assembly still run the pinned source, so the runtime CI installs is needed here too.
+      - name: Setup pinned server runtime
+        uses: ./.github/actions/setup-pinned-server
 
       - name: Build
         run: dotnet build --configuration Release
 
-      # The endpoint, password, and plugin seed reach the fixture through the environment the
-      # previous step exported, so the whole project runs against the distributed build without a
-      # filter: the live legs attach to it, and the rest (including the simulated-server fixtures)
-      # runs as it always does.
+      # The whole assembly, unfiltered, with one variable changed: the fixture starts `opencode
+      # serve` (resolved from PATH by the SDK launcher, PATHEXT and npm's .cmd shim included)
+      # instead of bun over the submodule source. Everything else about the owned path is the same,
+      # which is what makes the result comparable with CI's.
       #
-      # PersistentPtyDaemonGate is left at its platform default on purpose - the daemon is expected
-      # off Windows - so a distributed build whose platform package does not carry `opencode-pty`
-      # fails here rather than being waved through with OPENCODE_SDK_TESTS_PTY_DAEMON=0. That is a
-      # finding about the published build, which is what this lane is for.
+      # KEEP_LOGS retains the server's stdout/stderr for the artifact even on a green run, and
+      # --results-directory is what decides where the fixture writes them (TestResultsDirectory
+      # reads that argument), so the logs and this step's own transcript land in one uploadable
+      # place.
       #
       # No --nologo: it suppresses the Microsoft.Testing.Platform banner and the run summary with
       # it, which is the line the count guard below reads - and a run whose summary is missing is
       # indistinguishable from a run that executed nothing.
       - name: Test against the distributed build
         shell: pwsh
+        env:
+          OPENCODE_SDK_TESTS_SERVER_COMMAND: "opencode|serve"
+          OPENCODE_SDK_TESTS_KEEP_LOGS: "1"
         run: |
           $ErrorActionPreference = "Stop"
-          $log = Join-Path $env:LOG_ROOT "tests-net10.0.log"
+          $results = Join-Path $env:GITHUB_WORKSPACE "TestResults/consumer-leg"
+          $null = New-Item -ItemType Directory -Force -Path $results
           & dotnet test tests/OpenCode.Sdk.Tests/OpenCode.Sdk.Tests.csproj `
-            --configuration Release --no-build --framework net10.0 2>&1 | Tee-Object -FilePath $log
+            --configuration Release --no-build --framework net10.0 `
+            -- --results-directory $results 2>&1 | Tee-Object -FilePath (Join-Path $results "test-run.log")
           if ($LASTEXITCODE -ne 0) {
             throw "dotnet test exited with $LASTEXITCODE."
           }
@@ -375,7 +183,7 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $minimum = 500
-          $log = Join-Path $env:LOG_ROOT "tests-net10.0.log"
+          $log = Join-Path $env:GITHUB_WORKSPACE "TestResults/consumer-leg/test-run.log"
           $summary = Select-String -LiteralPath $log -Pattern '^\s*total:\s*(\d+)\s*$' | Select-Object -Last 1
           if (-not $summary) {
             throw "The test log carries no run summary; nothing proves a test executed."
@@ -387,75 +195,30 @@ jobs:
             throw "Only $total tests ran; at least $minimum were expected on this framework."
           }
 
-      # The sandbox is the consumer-shaped proof: the same breadth walkthrough a reader of
-      # tests/OpenCode.Sdk.Sandbox/README.md runs, against the distributed build. The persistent
-      # PTY leg asserts whichever arm the platform can reach - the full daemon round trip where
-      # `opencode-pty` ships, the declared 503 ServiceUnavailableError where it does not (Windows,
-      # which has no win32 package) - and both are a pass.
-      - name: Sandbox breadth walkthrough
-        shell: pwsh
-        env:
-          OPENCODE_SANDBOX_ENDPOINT: ${{ steps.server.outputs.endpoint }}
-        run: |
-          $ErrorActionPreference = "Stop"
-          $env:OPENCODE_PASSWORD = $env:OPENCODE_SDK_TESTS_PASSWORD
-          $log = Join-Path $env:LOG_ROOT "sandbox-breadth.log"
-          & dotnet run --project tests/OpenCode.Sdk.Sandbox --configuration Release --no-launch-profile 2>&1 |
-            Tee-Object -FilePath $log
-          if ($LASTEXITCODE -ne 0) {
-            throw "The sandbox breadth walkthrough exited with $LASTEXITCODE."
-          }
-
-      # The launcher demo owns its server: it needs no endpoint, and it resolves the shipped
-      # default command (`opencode serve`) from PATH the way a consumer's own process would - the
-      # npm .cmd shim included, which the launcher resolves itself. Its XDG roots are isolated in this
-      # process's environment, which the launcher-started server inherits, so the demo server is as
-      # profile-free as the attached one and writes into its own root rather than sharing state
-      # with the server the live legs are still attached to.
+      # The launcher demo is the one leg the fixture cannot cover: it owns its server, needs no
+      # endpoint, and resolves the shipped default command (`opencode serve`) from PATH the way a
+      # consumer's own process would - the npm shim included. Its XDG roots are isolated in this
+      # step's environment, which the launcher-started server inherits, so it touches no ambient
+      # opencode profile; upstream creates those roots itself on startup.
       - name: Sandbox standalone launcher demo
         shell: pwsh
+        env:
+          XDG_CONFIG_HOME: ${{ runner.temp }}/consumer-leg-standalone/config
+          XDG_DATA_HOME: ${{ runner.temp }}/consumer-leg-standalone/data
+          XDG_STATE_HOME: ${{ runner.temp }}/consumer-leg-standalone/state
+          XDG_CACHE_HOME: ${{ runner.temp }}/consumer-leg-standalone/cache
+          # The models catalog fetch is the one outbound call the server makes unprompted, and the
+          # suite's posture is to keep it off (ADR-0022; tests/Shared/ServerIsolation.cs sets the
+          # same variable for the owned server).
+          OPENCODE_DISABLE_MODELS_FETCH: "1"
         run: |
           $ErrorActionPreference = "Stop"
-          foreach ($leaf in "config", "data", "state", "cache") {
-            $null = New-Item -ItemType Directory -Force -Path (Join-Path $env:STANDALONE_ROOT $leaf)
-          }
-
-          $env:XDG_CONFIG_HOME = Join-Path $env:STANDALONE_ROOT "config"
-          $env:XDG_DATA_HOME = Join-Path $env:STANDALONE_ROOT "data"
-          $env:XDG_STATE_HOME = Join-Path $env:STANDALONE_ROOT "state"
-          $env:XDG_CACHE_HOME = Join-Path $env:STANDALONE_ROOT "cache"
-          $env:OPENCODE_DISABLE_MODELS_FETCH = "1"
-
-          $log = Join-Path $env:LOG_ROOT "sandbox-standalone.log"
+          $log = Join-Path $env:GITHUB_WORKSPACE "TestResults/consumer-leg/sandbox-standalone.log"
           & dotnet run --project tests/OpenCode.Sdk.Sandbox --configuration Release --no-launch-profile `
             -- --standalone 2>&1 | Tee-Object -FilePath $log
           if ($LASTEXITCODE -ne 0) {
             throw "The sandbox standalone demo exited with $LASTEXITCODE."
           }
-
-      # always(): a failed leg must still stop the server it left running, and the whole tree goes
-      # because the server spawns children of its own (the terminal daemons among them).
-      - name: Stop the distributed build
-        if: always()
-        shell: pwsh
-        run: |
-          # Not $pid: that name is a read-only automatic variable in PowerShell and assigning it
-          # fails the step.
-          $serverPid = $env:OPENCODE_SERVER_PID
-          if (-not $serverPid) {
-            Write-Host "No server pid was recorded; nothing to stop."
-            exit 0
-          }
-
-          if ($IsWindows) {
-            & taskkill /PID $serverPid /T /F
-          } else {
-            # The recorded pid is the server itself (the start step's shell exec'd into it), so its
-            # children go first and it follows; a process that already exited is not a failure here.
-            & bash -c "pkill -TERM -P $serverPid || true; kill -TERM $serverPid || true; sleep 2; pkill -KILL -P $serverPid || true; kill -KILL $serverPid || true"
-          }
-
-          exit 0
 
       - name: Upload consumer leg artifacts
         if: always()
@@ -463,8 +226,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: consumer-leg-${{ matrix.name }}-${{ github.run_number }}
-          # Workspace-relative: LOG_ROOT is absolute for the scripts, and on Windows that mixes
-          # the runner's backslashes with this file's separators, which the glob matcher should
-          # not have to reconcile.
-          path: .consumer-leg/logs/**
+          # Already git-ignored by the repository's [Tt]est[Rr]esult*/ rule, so the run leaves no
+          # untracked junk behind in a local reproduction either.
+          path: TestResults/consumer-leg/**
           retention-days: 7
