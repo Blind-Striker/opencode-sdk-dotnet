@@ -359,7 +359,7 @@ internal sealed class SchemaNameResolver
         {
             if (string.Equals(segments[index], "properties", StringComparison.Ordinal))
             {
-                _ = result.Append(CSharpNamePolicy.ToPascalCase(DecodePointer(segments[index + 1])));
+                _ = result.Append(CSharpNamePolicy.ToPascalCaseFragment(DecodePointer(segments[index + 1])));
                 index += 2;
                 continue;
             }
@@ -367,13 +367,16 @@ internal sealed class SchemaNameResolver
             // A promoted union branch is keyed by its marker ("anyOf/type=inline") or, for
             // unmarked branches, by ordinal; the branch name appends the marker value so
             // sibling branches (and their root) never collide: Prompt.FileSource#/anyOf/
-            // type=inline -> PromptFileSourceInline.
+            // type=inline -> PromptFileSourceInline. An ordinal appends as a bare digit
+            // (ToPascalCaseFragment): the whole-name digit guard belongs to the stem, and an
+            // interior underscore is a spelling the format pass rewrites out from under the
+            // file the emitter named.
             if (string.Equals(segments[index], "anyOf", StringComparison.Ordinal)
                 || string.Equals(segments[index], "oneOf", StringComparison.Ordinal))
             {
                 var branch = DecodePointer(segments[index + 1]);
                 var separator = branch.IndexOf('=', StringComparison.Ordinal);
-                _ = result.Append(CSharpNamePolicy.ToPascalCase(separator >= 0 ? branch[(separator + 1)..] : branch));
+                _ = result.Append(CSharpNamePolicy.ToPascalCaseFragment(separator >= 0 ? branch[(separator + 1)..] : branch));
                 index += 2;
                 continue;
             }

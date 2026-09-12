@@ -50,4 +50,11 @@ public sealed record SessionCreateRequest
     [JsonPropertyName("metadata")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyDictionary<string, JsonElement>? Metadata { get; init; }
+
+    /// <summary>
+    /// Gets the permissions value.
+    /// </summary>
+    [JsonPropertyName("permissions")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<PermissionRule>? Permissions { get; init; }
 }

@@ -1,6 +1,9 @@
 v2.agent.get
 v2.agent.list
 v2.command.list
+v2.config.preferences
+v2.config.shells
+v2.config.updatePreferences
 v2.credential.activate
 v2.credential.remove
 v2.credential.update
@@ -98,6 +101,7 @@ v2.session.permission.create
 v2.session.permission.get
 v2.session.permission.list
 v2.session.permission.reply
+v2.session.permission.rules
 v2.session.prompt
 v2.session.remove
 v2.session.rename

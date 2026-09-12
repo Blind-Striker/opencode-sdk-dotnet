@@ -95,6 +95,25 @@ public static class OpenCodeRoutes
     }
 
     /// <summary>
+    /// Defines the &apos;Config&apos; routes.
+    /// </summary>
+    public static class Config
+    {
+        /// <summary>
+        /// The &apos;GET /api/config/preferences&apos; route.
+        /// </summary>
+        public const string GetPreferences = "/api/config/preferences";
+        /// <summary>
+        /// The &apos;GET /api/config/shell&apos; route.
+        /// </summary>
+        public const string GetShells = "/api/config/shell";
+        /// <summary>
+        /// The &apos;PATCH /api/config/preferences&apos; route.
+        /// </summary>
+        public const string PatchUpdatePreferences = "/api/config/preferences";
+    }
+
+    /// <summary>
     /// Defines the &apos;Credentials&apos; routes.
     /// </summary>
     public static class Credentials
@@ -2638,6 +2657,26 @@ public static class OpenCodeRoutes
             }
 
             return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/instructions/entries/" + RouteValuePolicy.Escape(key, nameof(key));
+        }
+
+        /// <summary>
+        /// The &apos;PUT /api/session/{sessionID}/permission/rules&apos; route template.
+        /// </summary>
+        public const string PutPermissionRulesTemplate = "/api/session/{sessionID}/permission/rules";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/permission/rules&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string PutPermissionRules(string sessionId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            return "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/permission/rules";
         }
 
         /// <summary>

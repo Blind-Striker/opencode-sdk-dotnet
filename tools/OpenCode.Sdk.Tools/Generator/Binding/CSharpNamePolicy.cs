@@ -6,6 +6,30 @@ internal static class CSharpNamePolicy
 {
     public static string ToPascalCase(string wireName)
     {
+        var result = PascalWords(wireName);
+
+        // A C# identifier cannot open with a digit, so a whole name that would needs the guard.
+        if (char.IsDigit(result[0]))
+        {
+            result = string.Concat("_", result);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Pascal-cases a fragment that is appended to a non-empty stem — a JSON pointer segment, and
+    /// above all a promoted union branch's ordinal. A leading digit needs no identifier guard in
+    /// that position, and applying <see cref="ToPascalCase"/>'s guard would instead place an
+    /// interior underscore inside the finished name. That spelling does not survive: the
+    /// post-generation format pass rewrites it (IDE1006, and Sonar S101 reports it with no fix),
+    /// which renames the declared type without renaming the file the emitter wrote it to, so the
+    /// generated tree fails MA0048 rather than merely looking unusual.
+    /// </summary>
+    public static string ToPascalCaseFragment(string wireName) => PascalWords(wireName);
+
+    private static string PascalWords(string wireName)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(wireName);
 
         var words = SplitWords(wireName);
@@ -18,11 +42,6 @@ internal static class CSharpNamePolicy
         if (result.Length is 0)
         {
             throw new ArgumentException("Wire name must contain at least one letter or digit.", nameof(wireName));
-        }
-
-        if (char.IsDigit(result[0]))
-        {
-            result.Insert(0, '_');
         }
 
         return result.ToString();

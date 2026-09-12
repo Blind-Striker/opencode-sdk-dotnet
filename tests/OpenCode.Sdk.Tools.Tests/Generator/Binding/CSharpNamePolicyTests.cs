@@ -18,6 +18,22 @@ public sealed class CSharpNamePolicyTests
         await Assert.That(result).IsEqualTo(expected);
     }
 
+    /// <summary>
+    /// A whole name that opens with a digit needs the underscore guard; a fragment appended to a
+    /// stem does not, and taking it there would spell an interior underscore the repository's
+    /// format pass rewrites out of the declaration without renaming the file it was written to.
+    /// </summary>
+    [Test]
+    [Arguments("0", "_0", "0")]
+    [Arguments("2xx", "_2Xx", "2Xx")]
+    [Arguments("websearch", "Websearch", "Websearch")]
+    public async Task ToPascalCaseFragment_Should_Leave_A_Leading_Digit_Unguarded(string wireName, string wholeName,
+        string fragment)
+    {
+        await Assert.That(CSharpNamePolicy.ToPascalCase(wireName)).IsEqualTo(wholeName);
+        await Assert.That(CSharpNamePolicy.ToPascalCaseFragment(wireName)).IsEqualTo(fragment);
+    }
+
     [Test]
     [Arguments("class", false)]
     [Arguments("string", false)]
