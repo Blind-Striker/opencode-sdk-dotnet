@@ -19,4 +19,6 @@ public sealed record IntegrationAttemptStatusPending : IIntegrationAttemptStatus
     /// </summary>
     [JsonPropertyName("time")]
     public required IntegrationAttemptStatusPendingTime Time { get; init; }
+
+    IIntegrationAttemptStatusTime? IIntegrationAttemptStatus.Time => Time;
 }

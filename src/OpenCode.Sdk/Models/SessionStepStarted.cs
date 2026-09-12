@@ -52,4 +52,8 @@ public sealed record SessionStepStarted : ISessionEventDurable, IEvent
     /// </summary>
     [JsonPropertyName("data")]
     public required SessionStepStartedData Data { get; init; }
+
+    double? ISessionEventDurable.Created => Created;
+
+    IDurableEnvelope? ISessionEventDurable.Durable => Durable;
 }

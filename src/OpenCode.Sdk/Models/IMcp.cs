@@ -15,4 +15,22 @@ public interface IMcp
     /// </summary>
     [JsonPropertyName("type")]
     public string Type { get; }
+
+    /// <summary>
+    /// Gets the disabled value. Every declared variant carries it; the value is null when the payload is an unrecognized variant preserved as UnknownMcp.
+    /// </summary>
+    [JsonPropertyName("disabled")]
+    public bool? Disabled { get; }
+
+    /// <summary>
+    /// Gets the codemode value. Every declared variant carries it; the value is null when the payload is an unrecognized variant preserved as UnknownMcp.
+    /// </summary>
+    [JsonPropertyName("codemode")]
+    public bool? Codemode { get; }
+
+    /// <summary>
+    /// Gets the timeout value. Every declared variant carries it; the value is null when the payload is an unrecognized variant preserved as UnknownMcp.
+    /// </summary>
+    [JsonPropertyName("timeout")]
+    public IMcpTimeout? Timeout { get; }
 }

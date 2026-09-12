@@ -38,4 +38,8 @@ public sealed record UnknownReferenceSource : IReferenceSource
     /// Gets the preserved raw JSON payload.
     /// </summary>
     public JsonElement Payload { get; }
+
+    string? IReferenceSource.Description => null;
+
+    bool? IReferenceSource.Hidden => null;
 }

@@ -52,4 +52,8 @@ public sealed record SessionMoved : ISessionEventDurable, IEvent
     /// </summary>
     [JsonPropertyName("data")]
     public required SessionMovedData Data { get; init; }
+
+    double? ISessionEventDurable.Created => Created;
+
+    IDurableEnvelope? ISessionEventDurable.Durable => Durable;
 }

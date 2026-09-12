@@ -52,4 +52,8 @@ public sealed record SessionCompactionFailed : ISessionEventDurable, IEvent
     /// </summary>
     [JsonPropertyName("data")]
     public required SessionCompactionFailedData Data { get; init; }
+
+    double? ISessionEventDurable.Created => Created;
+
+    IDurableEnvelope? ISessionEventDurable.Durable => Durable;
 }

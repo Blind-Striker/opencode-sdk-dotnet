@@ -15,4 +15,10 @@ public interface IIntegrationAttemptStatus
     /// </summary>
     [JsonPropertyName("status")]
     public string Status { get; }
+
+    /// <summary>
+    /// Gets the time value. Every declared variant carries it; the value is null when the payload is an unrecognized variant preserved as UnknownIntegrationAttemptStatus.
+    /// </summary>
+    [JsonPropertyName("time")]
+    public IIntegrationAttemptStatusTime? Time { get; }
 }

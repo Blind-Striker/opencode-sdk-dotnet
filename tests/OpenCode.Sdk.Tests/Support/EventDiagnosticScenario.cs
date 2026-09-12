@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk.Tests.Support;
@@ -62,5 +63,14 @@ internal sealed class EventDiagnosticScenario : SessionClient
         .Select(index => new Observation("event-" + index.ToString("D4", CultureInfo.InvariantCulture)
                                         + "-" + new string('x', 4000)));
 
-    private sealed record Observation(string Type) : ISessionLogItem, IEvent;
+    /// <summary>
+    /// A stand-in event: the diagnostic under test reads only the marker, so the members the
+    /// live event union hoists are answered explicitly and stay out of the probe's own surface.
+    /// </summary>
+    private sealed record Observation(string Type) : ISessionLogItem, IEvent
+    {
+        string? IEvent.Id => null;
+
+        IReadOnlyDictionary<string, JsonElement>? IEvent.Metadata => null;
+    }
 }

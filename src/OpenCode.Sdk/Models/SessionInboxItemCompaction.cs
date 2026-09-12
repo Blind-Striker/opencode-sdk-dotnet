@@ -26,4 +26,6 @@ public sealed record SessionInboxItemCompaction : ISessionInboxItem
     /// </summary>
     [JsonPropertyName("delivery")]
     public required SessionInboxDelivery Delivery { get; init; }
+
+    SessionInboxDelivery? ISessionInboxItem.Delivery => Delivery;
 }

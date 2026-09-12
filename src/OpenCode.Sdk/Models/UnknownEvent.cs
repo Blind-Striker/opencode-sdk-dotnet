@@ -43,4 +43,8 @@ public sealed record UnknownEvent : IEvent
     /// Gets the preserved raw JSON payload.
     /// </summary>
     public JsonElement Payload { get; }
+
+    string? IEvent.Id => null;
+
+    IReadOnlyDictionary<string, JsonElement>? IEvent.Metadata => null;
 }

@@ -32,6 +32,17 @@ internal sealed record EmitPlan
         }
     } = Array.AsReadOnly(Array.Empty<UnionPlan>());
 
+    /// <summary>Gets the interfaces emitted for hoisted promoted-object members (ADR-0011).</summary>
+    public IReadOnlyList<HoistedInterfacePlan> HoistedInterfaces
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<HoistedInterfacePlan>());
+
     public required RegistryPlan Registry { get; init; }
 
     public required IReadOnlyList<ClientPlan> Clients

@@ -9,6 +9,14 @@
   "schemaNames": [],
   "envelopePayloadNames": {},
   "schemaAliases": [],
+  "hoistedMemberNames": [
+    {
+      "owner": "ISessionEventDurable",
+      "property": "durable",
+      "dotnetName": "IDurableEnvelope",
+      "reason": "The domain already calls this shape the durable envelope."
+    }
+  ],
   "transportOwned": [],
   "declined": []
 }

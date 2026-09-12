@@ -42,7 +42,8 @@ Location it happened in. Every Event is either durable or ephemeral.
 The two durability classes every Event belongs to. A durable Event carries an envelope naming its
 Aggregate, its sequence in that Aggregate's log, and the schema version that committed it, so it
 can be read back later; an ephemeral Event carries none and exists only for subscribers attached
-at the time.
+at the time. In the SDK the envelope is `IDurableEnvelope`, which every durable Event's own
+envelope record implements and which `ISessionEventDurable.Durable` returns.
 
 **Aggregate**:
 The unit a durable Event log is kept per: an id read from a named field of the Event's own `data`,
@@ -311,6 +312,15 @@ the model catalog fills. `v2.plugin.awaitActivation` is its settle signal; a hea
 process liveness and says nothing about it, so a catalog read issued before activation settles
 legitimately observes an empty or partial registry.
 _Avoid_: readiness (that is the launcher's stdout contract, a different thing).
+
+**Hoisted member**:
+A property a generated union interface declares because every member of that union already
+declares it in the same shape — the same wire name, required-ness, nullability, and represented
+type, ignoring a literal value that discriminates nothing. It is nullable on the interface
+because the union's unknown carrier materializes none of them, and it is never the discriminator.
+Where each member promotes its own record for one identical shape, the hoisted member's type is a
+generated **carrier interface** those records implement; the records keep their own identity.
+_Avoid_: shared member (ambiguous with a property two unrelated schemas happen to share)
 
 **Plugin RPC**:
 A method surface a server-side plugin registers under an `rpcID`; `v2.rpc.call` dispatches one

@@ -52,4 +52,8 @@ public sealed record SessionShellEnded : ISessionEventDurable, IEvent
     /// </summary>
     [JsonPropertyName("data")]
     public required SessionShellEndedData Data { get; init; }
+
+    double? ISessionEventDurable.Created => Created;
+
+    IDurableEnvelope? ISessionEventDurable.Durable => Durable;
 }

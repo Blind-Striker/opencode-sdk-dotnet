@@ -6,7 +6,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a mcp remote config timeout value.
 /// </summary>
-public sealed record McpRemoteConfigTimeout
+public sealed record McpRemoteConfigTimeout : IMcpTimeout
 {
     /// <summary>
     /// Gets the startup value.

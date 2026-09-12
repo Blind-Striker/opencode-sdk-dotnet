@@ -25,4 +25,6 @@ public sealed record IntegrationAttemptStatusFailed : IIntegrationAttemptStatus
     /// </summary>
     [JsonPropertyName("time")]
     public required IntegrationAttemptStatusFailedTime Time { get; init; }
+
+    IIntegrationAttemptStatusTime? IIntegrationAttemptStatus.Time => Time;
 }

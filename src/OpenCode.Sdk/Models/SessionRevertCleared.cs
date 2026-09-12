@@ -52,4 +52,8 @@ public sealed record SessionRevertCleared : ISessionEventDurable, IEvent
     /// </summary>
     [JsonPropertyName("data")]
     public required SessionRevertClearedData Data { get; init; }
+
+    double? ISessionEventDurable.Created => Created;
+
+    IDurableEnvelope? ISessionEventDurable.Durable => Durable;
 }

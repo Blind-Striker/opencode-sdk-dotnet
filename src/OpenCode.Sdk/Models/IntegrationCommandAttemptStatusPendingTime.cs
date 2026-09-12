@@ -6,7 +6,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a integration command attempt status pending time value.
 /// </summary>
-public sealed record IntegrationCommandAttemptStatusPendingTime
+public sealed record IntegrationCommandAttemptStatusPendingTime : IIntegrationCommandAttemptStatusTime
 {
     /// <summary>
     /// Gets the created value.

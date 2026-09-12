@@ -351,13 +351,14 @@ public sealed class SessionLogLiveTests(SimulatedDriveServerFixture server)
         return created.Session.Id;
     }
 
+    /// <summary>
+    /// The durable union promises the identity and the envelope, so the lookup needs no arm per
+    /// leaf type and cannot go quietly incomplete when the pin gains another durable event.
+    /// </summary>
     private static int FindIndex(List<ISessionLogItem> items, string id, long sequence) =>
-        items.FindIndex(item => item switch
-        {
-            SessionTextEnded text => text.Id == id && text.Durable.Seq == sequence,
-            SessionExecutionSucceeded succeeded => succeeded.Id == id && succeeded.Durable.Seq == sequence,
-            _ => false,
-        });
+        items.FindIndex(item => item is ISessionEventDurable durable
+                                && durable.Id == id
+                                && durable.Durable?.Seq == sequence);
 
     private static string Number(long value) => value.ToString(CultureInfo.InvariantCulture);
 }

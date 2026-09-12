@@ -1,7 +1,6 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using OpenCode.Sdk.Tools.Generator.Binding;
 using OpenCode.Sdk.Tools.Generator.Binding.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 
@@ -58,14 +57,17 @@ internal static class ModelEmitter
             [
                 .. model.Properties.Select(property => EmitProperty(property, CarriedMarker(chainMarkers, property))),
                 .. model.RequestQueryProperties.Select(static property => EmitRequestQueryProperty(property)),
+                .. model.ExplicitHoistedImplementations.Select(static implementation => EmitHoistedImplementation(implementation)),
             ]))
-            .WithLeadingTrivia(EmissionSyntax.Documentation(model.Description ?? $"Represents a {DisplayName(model.Name)} value."));
-        if (model.ImplementedUnionNames.Count > 0)
+            .WithLeadingTrivia(EmissionSyntax.Documentation(model.Description ?? $"Represents a {GeneratedDisplayName.Of(model.Name)} value."));
+        // A hoisted carrier joins the base list beside the unions the schema is a branch of: the
+        // record keeps one identity per wire schema and answers one more contract (ADR-0011).
+        var baseTypes = model.ImplementedUnionNames.Concat(model.ImplementedHoistedInterfaceNames).ToArray();
+        if (baseTypes.Length > 0)
         {
             declaration = declaration.WithBaseList(SyntaxFactory.BaseList(SyntaxFactory.SeparatedList<BaseTypeSyntax>(
             [
-                .. model.ImplementedUnionNames.Select(static name =>
-                    SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.EmitNamed(name))),
+                .. baseTypes.Select(static name => SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.EmitNamed(name))),
             ])));
         }
 
@@ -88,13 +90,27 @@ internal static class ModelEmitter
                 .EnumMemberDeclaration(value.Name)
                 .AddAttributeLists(EmissionSyntax.Attribute("JsonStringEnumMemberName", EmissionSyntax.StringArgument(value.WireValue)))
                 .WithLeadingTrivia(EmissionSyntax.Documentation($"Represents the '{value.WireValue}' wire value.")))))
-            .WithLeadingTrivia(EmissionSyntax.Documentation(model.Description ?? $"Defines the supported {DisplayName(model.Name)} values."));
+            .WithLeadingTrivia(EmissionSyntax.Documentation(model.Description ?? $"Defines the supported {GeneratedDisplayName.Of(model.Name)} values."));
         var unit = EmissionSyntax.CompilationUnit(
             model.Namespace,
             ["System.Text.Json.Serialization", "OpenCode.Sdk.Internal.Serialization"],
             [declaration]);
         return EmissionSyntax.CreateSource($"Models/{model.Name}.cs", unit);
     }
+
+    /// <summary>
+    /// Answers one hoisted interface member the record's own property cannot satisfy on its own —
+    /// a value type against a nullable member, or a promoted record against its hoisted carrier.
+    /// An explicit implementation is not a public property, so System.Text.Json ignores it and the
+    /// serialized shape is exactly what it was before the member was hoisted.
+    /// </summary>
+    private static PropertyDeclarationSyntax EmitHoistedImplementation(HoistedImplementationPlan implementation) =>
+        SyntaxFactory
+            .PropertyDeclaration(TypeSyntaxEmitter.Emit(implementation.MemberType), implementation.MemberName)
+            .WithExplicitInterfaceSpecifier(SyntaxFactory.ExplicitInterfaceSpecifier(
+                SyntaxFactory.IdentifierName(implementation.InterfaceName)))
+            .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(SyntaxFactory.IdentifierName(implementation.PropertyName)))
+            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
 
     /// <summary>A merged request's query-side property never serializes; the route builder reads it.</summary>
     private static PropertyDeclarationSyntax EmitRequestQueryProperty(QueryPropertyPlan property)
@@ -121,7 +137,7 @@ internal static class ModelEmitter
         var declaration = SyntaxFactory
             .PropertyDeclaration(TypeSyntaxEmitter.Emit(property.Type), memberName)
             .AddAttributeLists(EmissionSyntax.Attribute("JsonPropertyName", EmissionSyntax.StringArgument(property.WireName)))
-            .WithLeadingTrivia(EmissionSyntax.Documentation(property.Description ?? $"Gets the {DisplayName(memberName)} value."));
+            .WithLeadingTrivia(EmissionSyntax.Documentation(property.Description ?? $"Gets the {GeneratedDisplayName.Of(memberName)} value."));
         if (ContainsSpecialNumber(property.Type))
         {
             declaration = declaration.AddAttributeLists(EmissionSyntax.Attribute(
@@ -243,6 +259,11 @@ internal static class ModelEmitter
             _ = result.Add("System.Text.Json.Serialization");
         }
 
+        foreach (var implementation in model.ExplicitHoistedImplementations)
+        {
+            TypeUsingCollector.Collect(implementation.MemberType, result);
+        }
+
         // The guarded marker's initializer throws BCL argument exceptions and compares ordinally.
         if (guardsPrefix)
         {
@@ -251,7 +272,7 @@ internal static class ModelEmitter
 
         foreach (var property in model.Properties)
         {
-            CollectTypeUsings(property.Type, result);
+            TypeUsingCollector.Collect(property.Type, result);
         }
 
         return [.. result.Order(StringComparer.Ordinal)];
@@ -264,30 +285,6 @@ internal static class ModelEmitter
         DictionaryTypeReferencePlan dictionary => ContainsSpecialNumber(dictionary.ValueType),
         _ => false,
     };
-
-    private static void CollectTypeUsings(TypeReferencePlan type, ISet<string> usings)
-    {
-        switch (type)
-        {
-            case NamedTypeReferencePlan { Name: "Uri" }:
-                _ = usings.Add("System");
-                break;
-            case NamedTypeReferencePlan { Name: "JsonElement" }:
-                _ = usings.Add("System.Text.Json");
-                break;
-            case BinaryTypeReferencePlan:
-                _ = usings.Add("System");
-                break;
-            case ListTypeReferencePlan list:
-                _ = usings.Add("System.Collections.Generic");
-                CollectTypeUsings(list.ElementType, usings);
-                break;
-            case DictionaryTypeReferencePlan dictionary:
-                _ = usings.Add("System.Collections.Generic");
-                CollectTypeUsings(dictionary.ValueType, usings);
-                break;
-        }
-    }
 
     private static List<UnionPlan> ResolveImplementedUnions(ObjectModelPlan model, Dictionary<string, UnionPlan> unions) =>
     [
@@ -352,9 +349,6 @@ internal static class ModelEmitter
         && string.Equals(prefix.MarkerWireName, wireName, StringComparison.Ordinal)
             ? prefix.Prefix
             : null;
-
-    private static string DisplayName(string name) =>
-        string.Join(' ', CSharpNamePolicy.SplitWords(name).Select(static word => word.ToLowerInvariant()));
 
     /// <summary>
     /// One marker a union in the schema's chain expects it to carry: the wire property, the

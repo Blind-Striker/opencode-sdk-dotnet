@@ -38,4 +38,6 @@ public sealed record UnknownSessionForkBoundary : ISessionForkBoundary
     /// Gets the preserved raw JSON payload.
     /// </summary>
     public JsonElement Payload { get; }
+
+    string? ISessionForkBoundary.MessageId => null;
 }

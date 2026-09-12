@@ -64,6 +64,20 @@ internal sealed record UnionPlan
         }
     } = Array.AsReadOnly(Array.Empty<string>());
 
+    /// <summary>
+    /// Gets the properties every member declares with an identical shape, promoted onto the
+    /// interface. Each is declared nullable because the unknown carrier answers null for it.
+    /// </summary>
+    public IReadOnlyList<HoistedMemberPlan> HoistedMembers
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<HoistedMemberPlan>());
+
     public string? Description { get; init; }
 
     /// <summary>Gets the outer union base type when this union is itself a nested variant.</summary>

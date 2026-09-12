@@ -64,9 +64,30 @@ var session = client.Sessions.GetSessionClient(sessionId);
 
 await foreach (var item in session.GetLogAsync(new SessionLogRequest { Follow = QueryBoolean.True }, cancellationToken))
 {
-    Console.WriteLine($"{item.GetType().Name} ({item.Type})");
+    switch (item)
+    {
+        case ISessionEventDurable durable:
+            Console.WriteLine($"{durable.Type} seq={durable.Durable?.Seq}");
+            break;
+        case EventLogSynced marker:
+            Console.WriteLine($"replay caught up at seq={marker.Seq}");
+            break;
+    }
 }
 ```
+
+Two arms cover the whole union, because the log is exactly *durable events plus one marker*. Every
+durable event — all 43 of them — implements `ISessionEventDurable`, which carries the members they
+all declare: `Id`, `Created`, `Metadata`, `Location`, and the `Durable` envelope with
+`AggregateId`, `Seq`, and `Version`. The marker is not one of them: `log.synced` is a transition
+boundary rather than something committed against the aggregate, so it sits beside the durable union
+under `ISessionLogItem` and reports its watermark on its own `Seq`.
+
+Those members are nullable on the interface for one reason: a `type` this build has never heard of
+arrives as `UnknownSessionLogItem` or `UnknownSessionEventDurable`, which preserve the raw payload
+and materialize no typed member. A concrete event's own `Durable` property is still non-nullable —
+`SessionCreated.Durable` is a `SessionCreatedDurable` — so only the interface route needs the
+`?.`.
 
 `SessionLogRequest` has two members and both matter:
 
@@ -76,18 +97,24 @@ await foreach (var item in session.GetLogAsync(new SessionLogRequest { Follow = 
 | `After` | `string?` | Continue after an aggregate sequence you have already processed — the explicit continuation channel the global bus does not have. |
 
 The cursor is an exclusive numeric aggregate sequence, encoded as a string. Record the
-`Durable.Seq` from the concrete durable event you processed, then format it with invariant culture:
+`Durable.Seq` of the last durable event you processed — through the union interface, so the recipe
+works for every durable event rather than one leaf type — then format it with invariant culture:
 
 ```csharp
 using System.Globalization;
 
-static SessionLogRequest FollowAfter(SessionExecutionSucceeded lastProcessed) =>
-    new()
-    {
-        After = lastProcessed.Durable.Seq.ToString(CultureInfo.InvariantCulture),
-        Follow = QueryBoolean.True,
-    };
+static SessionLogRequest? FollowAfter(ISessionEventDurable lastProcessed) =>
+    lastProcessed.Durable is { } envelope
+        ? new SessionLogRequest
+        {
+            After = envelope.Seq.ToString(CultureInfo.InvariantCulture),
+            Follow = QueryBoolean.True,
+        }
+        : null;
 ```
+
+An unknown durable event has no envelope to read, so there is no sequence to resume from; keep the
+last one you did read.
 
 With `Follow = False`, a server that persists the requested history replays the available durable
 events and ends with one `EventLogSynced`. The marker reports the captured aggregate watermark.
@@ -131,7 +158,8 @@ case UnknownEvent unknown:
 The per-session log has the same escape hatch, `UnknownSessionLogItem`, with the same two members.
 Practically: a server upgrade cannot break your event loop, you can log or even handle a new event
 type before the SDK is regenerated, and when it is regenerated the frame simply arrives as its
-typed self instead.
+typed self instead. This is also why the members a union interface promises are nullable: a carrier
+answers `null` for every one of them and hands you `Payload` instead.
 
 What this is *not* is a bucket for malformed data. A frame whose `type` is known but whose body
 cannot be read is a protocol failure and throws — the carrier is for *unknown*, not for *broken*.

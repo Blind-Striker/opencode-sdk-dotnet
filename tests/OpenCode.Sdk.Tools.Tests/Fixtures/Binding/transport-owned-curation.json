@@ -9,6 +9,7 @@
   "schemaNames": [],
   "envelopePayloadNames": {},
   "schemaAliases": [],
+  "hoistedMemberNames": [],
   "transportOwned": [
     {
       "operationId": "v2.pty.connect",

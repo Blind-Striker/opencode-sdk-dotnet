@@ -52,4 +52,8 @@ public sealed record SessionUsageRecorded : ISessionEventDurable
     /// </summary>
     [JsonPropertyName("data")]
     public required SessionUsageRecordedData Data { get; init; }
+
+    double? ISessionEventDurable.Created => Created;
+
+    IDurableEnvelope? ISessionEventDurable.Durable => Durable;
 }

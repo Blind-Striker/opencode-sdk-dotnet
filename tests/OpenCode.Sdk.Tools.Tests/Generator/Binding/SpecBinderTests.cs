@@ -48,6 +48,33 @@ public sealed class SpecBinderTests
     ];
 
     [Test]
+    public async Task Bind_Should_Hoist_The_Durable_Envelope_Of_The_Pinned_Session_Log()
+    {
+        var plan = await new BindingTestHost().BindPinnedAsync();
+
+        var durable = plan.Unions.Single(static union => union.Name == "ISessionEventDurable");
+        await Assert
+            .That(durable.HoistedMembers.Select(static member => member.Name))
+            .IsEquivalentTo(["Id", "Created", "Metadata", "Durable", "Location"]);
+        var envelope = plan.HoistedInterfaces.Single(static carrier => carrier.Name == "IDurableEnvelope");
+        await Assert.That(envelope.Members.Select(static member => member.Name)).IsEquivalentTo(["AggregateId", "Seq", "Version"]);
+        await Assert.That(envelope.ImplementedBy).Contains("SessionCreatedDurable");
+        await Assert.That(envelope.ImplementedBy).Contains("SessionDeletedDurable");
+        // The worktree envelope has the same shape but belongs to no union that hoists it.
+        await Assert.That(envelope.ImplementedBy).DoesNotContain("WorktreeResolvedDurable");
+
+        // The sync marker sits outside the durable union, so the outer union promises its tag alone.
+        await Assert.That(plan.Unions.Single(static union => union.Name == "ISessionLogItem").HoistedMembers).IsEmpty();
+        // The nested compaction union inherits 'Id' and 'Metadata' from the message union, its
+        // fixed 'type' marker and its own 'status' marker dispatch, and 'reason' binds to a
+        // different generated enum per arm — so only the promoted time carrier is left to hoist.
+        await Assert
+            .That(plan.Unions.Single(static union => union.Name == "ISessionMessageCompaction").HoistedMembers
+                .Select(static member => member.Name))
+            .IsEquivalentTo(["Time"]);
+    }
+
+    [Test]
     public async Task Bind_Should_Create_The_Selected_Pinned_Emit_Plan()
     {
         var (document, selection, curation) = await LoadPinnedInputsAsync();

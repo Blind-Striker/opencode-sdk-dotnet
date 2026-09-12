@@ -89,6 +89,7 @@ internal sealed class SpecBinder(
             SelectedOperationIds = selection.OperationIds,
             Models = models,
             Unions = schemaResult.Unions,
+            HoistedInterfaces = schemaResult.HoistedInterfaces,
             Registry = ComposeRegistry(schemaResult.Registry, clients),
             Clients = clients,
             PendingOperations = pending,

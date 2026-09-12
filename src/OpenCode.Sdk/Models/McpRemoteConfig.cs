@@ -54,4 +54,6 @@ public sealed record McpRemoteConfig : IMcp
     [JsonPropertyName("timeout")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public McpRemoteConfigTimeout? Timeout { get; init; }
+
+    IMcpTimeout? IMcp.Timeout => Timeout;
 }

@@ -19,4 +19,6 @@ public sealed record IntegrationCommandAttemptStatusComplete : IIntegrationComma
     /// </summary>
     [JsonPropertyName("time")]
     public required IntegrationCommandAttemptStatusCompleteTime Time { get; init; }
+
+    IIntegrationCommandAttemptStatusTime? IIntegrationCommandAttemptStatus.Time => Time;
 }

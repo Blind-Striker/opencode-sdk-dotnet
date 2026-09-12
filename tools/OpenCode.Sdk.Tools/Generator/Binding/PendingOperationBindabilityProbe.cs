@@ -107,5 +107,6 @@ internal sealed class PendingOperationBindabilityProbe(ISpecBinder binder)
             SchemaAliases = [],
             TransportOwned = [],
             Declined = [],
+            HoistedMemberNames = [],
         };
 }

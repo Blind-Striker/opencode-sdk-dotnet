@@ -6,7 +6,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session revert committed durable value.
 /// </summary>
-public sealed record SessionRevertCommittedDurable
+public sealed record SessionRevertCommittedDurable : IDurableEnvelope
 {
     /// <summary>
     /// Gets the aggregate id value.

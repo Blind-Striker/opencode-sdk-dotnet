@@ -6,7 +6,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session step streamed durable value.
 /// </summary>
-public sealed record SessionStepStreamedDurable
+public sealed record SessionStepStreamedDurable : IDurableEnvelope
 {
     /// <summary>
     /// Gets the aggregate id value.

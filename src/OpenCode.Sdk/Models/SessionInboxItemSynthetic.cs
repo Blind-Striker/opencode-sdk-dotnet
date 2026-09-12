@@ -25,4 +25,6 @@ public sealed record SessionInboxItemSynthetic : ISessionInboxItem
     /// </summary>
     [JsonPropertyName("delivery")]
     public required SessionInboxDelivery Delivery { get; init; }
+
+    SessionInboxDelivery? ISessionInboxItem.Delivery => Delivery;
 }

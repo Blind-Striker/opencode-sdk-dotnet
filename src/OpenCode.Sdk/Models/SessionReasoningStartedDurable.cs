@@ -6,7 +6,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a session reasoning started durable value.
 /// </summary>
-public sealed record SessionReasoningStartedDurable
+public sealed record SessionReasoningStartedDurable : IDurableEnvelope
 {
     /// <summary>
     /// Gets the aggregate id value.

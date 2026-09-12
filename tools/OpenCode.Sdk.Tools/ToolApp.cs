@@ -46,6 +46,7 @@ public static class ToolApp
         services.AddSingleton<StructuralUnionPlanBinder>();
         services.AddSingleton<UnionMembershipValidator>();
         services.AddSingleton<UnionDiscriminatorSelector>();
+        services.AddSingleton<UnionMemberHoistBinder>();
         services.AddSingleton<SchemaPlanBinder>();
         services.AddSingleton<OperationPlanBinder>();
         services.AddSingleton<ISpecBinder, SpecBinder>();

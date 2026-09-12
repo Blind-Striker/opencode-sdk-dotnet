@@ -17,7 +17,8 @@ internal static class BindingScenarioData
         IReadOnlyList<SchemaNameCuration>? schemaNames = null,
         IReadOnlyList<OperationIdentityCuration>? operationIdentities = null,
         IReadOnlyList<TransportOwnedCuration>? transportOwned = null,
-        IReadOnlyList<DeclinedCuration>? declined = null) =>
+        IReadOnlyList<DeclinedCuration>? declined = null,
+        IReadOnlyList<HoistedMemberNameCuration>? hoistedMemberNames = null) =>
         new()
         {
             Groups = groups,
@@ -28,6 +29,7 @@ internal static class BindingScenarioData
             SchemaAliases = schemaAliases ?? [],
             TransportOwned = transportOwned ?? [],
             Declined = declined ?? [],
+            HoistedMemberNames = hoistedMemberNames ?? [],
         };
 
     public static DeclinedCuration Declined(string operationId,
@@ -81,6 +83,18 @@ internal static class BindingScenarioData
             DotNetName = dotnetName,
             Reason = reason,
         };
+
+    public static HoistedMemberNameCuration HoistedMemberName(string owner, string property, string dotnetName,
+        string reason = "The reviewed .NET surface names the hoisted member's carrier explicitly.") =>
+        new()
+        {
+            Owner = owner,
+            Property = property,
+            DotNetName = dotnetName,
+            Reason = reason,
+        };
+
+    public static Dictionary<string, GroupCuration> Groups() => new(StringComparer.Ordinal);
 
     public static Dictionary<string, GroupCuration> Groups(string wireName, GroupCuration group) =>
         new(StringComparer.Ordinal)

@@ -11,6 +11,7 @@ internal static class SourceEmitter
         sources.AddRange(ModelEmitter.Emit(plan));
         sources.AddRange(StructuralUnionEmitter.Emit([.. plan.Models.OfType<StructuralUnionModelPlan>()]));
         sources.AddRange(UnionEmitter.Emit(plan.Unions));
+        sources.AddRange(HoistedInterfaceEmitter.Emit(plan.HoistedInterfaces));
         sources.AddRange(RegistryEmitter.Emit(plan.Registry));
         if (plan.Clients.Count > 0)
         {

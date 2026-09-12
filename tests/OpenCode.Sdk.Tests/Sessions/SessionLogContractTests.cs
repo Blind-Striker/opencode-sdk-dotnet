@@ -52,6 +52,34 @@ public sealed class SessionLogContractTests
     }
 
     [Test]
+    public async Task GetLogAsync_Should_Read_The_Durable_Envelope_Through_The_Union_Interface()
+    {
+        using var scenario = ContractScenario.RespondingWithFrames(WireBodyData.Frames(
+            WireBodyData.SessionCreatedEvent,
+            WireBodyData.SessionDeletedEvent,
+            WireBodyData.LogSyncedEvent));
+
+        var items = await CollectAsync(scenario);
+
+        // A generic relay reads the shared envelope without knowing any of the 43 leaf types.
+        var durable = items.OfType<ISessionEventDurable>().ToArray();
+        await Assert.That(durable).Count().IsEqualTo(2);
+        await Assert.That(durable[0].Id).IsEqualTo("evt_1");
+        await Assert.That(durable[0].Durable!.Seq).IsEqualTo(1L);
+        await Assert.That(durable[0].Durable!.Version).IsEqualTo(1d);
+        await Assert.That(durable[0].Durable!.AggregateId).IsEqualTo("ses_9");
+        await Assert.That(durable[1].Id).IsEqualTo("evt_2");
+        await Assert.That(durable[1].Durable!.Seq).IsEqualTo(2L);
+        await Assert.That(durable[1].Durable!.Version).IsEqualTo(2d);
+        await Assert.That(durable[1].Durable!.AggregateId).IsEqualTo("ses_9");
+
+        // The sync marker is not a durable event; it carries its own watermark instead.
+        var marker = (EventLogSynced)items[2];
+        await Assert.That(marker).IsNotAssignableTo<ISessionEventDurable>();
+        await Assert.That(marker.Seq).IsEqualTo(2L);
+    }
+
+    [Test]
     public async Task GetLogAsync_Should_Group_Durable_Events_Apart_From_The_Watermark()
     {
         using var scenario = ContractScenario.RespondingWithFrames(WireBodyData.Frames(

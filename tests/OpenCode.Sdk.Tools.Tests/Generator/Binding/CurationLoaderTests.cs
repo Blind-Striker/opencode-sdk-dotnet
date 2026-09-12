@@ -28,6 +28,12 @@ public sealed class CurationLoaderTests
         await Assert.That(curation.SchemaAliases).IsEmpty();
         await Assert.That(curation.TransportOwned).IsEmpty();
         await Assert.That(curation.Declined).IsEmpty();
+
+        var hoisted = curation.HoistedMemberNames.Single();
+        await Assert.That(hoisted.Owner).IsEqualTo("ISessionEventDurable");
+        await Assert.That(hoisted.Property).IsEqualTo("durable");
+        await Assert.That(hoisted.DotNetName).IsEqualTo("IDurableEnvelope");
+        await Assert.That(hoisted.Reason).Contains("durable envelope");
     }
 
     [Test]
@@ -54,8 +60,8 @@ public sealed class CurationLoaderTests
         await Assert
             .That(sections)
             .IsEquivalentTo([
-                "declined", "envelopePayloadNames", "groups", "operationIdentities", "operationNames", "schemaAliases",
-                "schemaNames", "transportOwned"
+                "declined", "envelopePayloadNames", "groups", "hoistedMemberNames", "operationIdentities", "operationNames",
+                "schemaAliases", "schemaNames", "transportOwned"
             ]);
     }
 

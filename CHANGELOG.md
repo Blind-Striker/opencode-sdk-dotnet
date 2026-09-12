@@ -36,6 +36,21 @@ Nightly builds of `master` are on
   unchanged and stays the raw door — partial input, control sequences, and bytes a terminal
   emulator produced.
 
+- **A union interface now carries what all its members share.** A marked union whose members all
+  declare a property in the same shape promises that property on its interface, so a generic
+  consumer reads it without a `switch` over concrete types. The landmark case is the session log:
+  `ISessionEventDurable` gained `Id`, `Created`, `Metadata`, `Location`, and `Durable`, and the 43
+  per-event envelope records now implement one new `IDurableEnvelope` carrying `AggregateID`,
+  `Seq`, and `Version` — so `item.Durable?.Seq` replaces a partial type switch. `IEvent`,
+  `IFormField`, `IMcp`, `IReferenceSource`, `ISessionMessageInfo`, `ISessionMessageCompaction`,
+  `ISessionInboxInfo`, `ISessionInboxItem`, `ISessionForkBoundary`, `IIntegrationAttemptStatus`,
+  and `IIntegrationCommandAttemptStatus` gained members the same way, with `IMcpTimeout`,
+  `ISessionMessageCompactionTime`, `IIntegrationAttemptStatusTime`, and
+  `IIntegrationCommandAttemptStatusTime` as further carriers. Members are declared nullable because
+  a union's `Unknown*` carrier preserves a raw payload and materializes none of them; the concrete
+  records keep their existing non-nullable properties, the wire shape is unchanged, and no type was
+  removed. Implementing one of these interfaces outside the SDK now requires the new members.
+
 - **Session listing enumerates too.** `SessionsClient.EnumerateSessionsAsync` joins
   `SessionClient.EnumerateMessagesAsync` as an automatic cursor walk. A list query now binds the
   shared `ListRequest` spine whenever it *includes* `limit`, `order`, and `cursor` — extra filters

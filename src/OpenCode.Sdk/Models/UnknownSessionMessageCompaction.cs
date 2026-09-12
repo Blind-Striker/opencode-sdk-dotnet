@@ -45,4 +45,10 @@ public sealed record UnknownSessionMessageCompaction : ISessionMessageCompaction
     /// Gets the preserved raw JSON payload.
     /// </summary>
     public JsonElement Payload { get; }
+
+    ISessionMessageCompactionTime? ISessionMessageCompaction.Time => null;
+
+    string? ISessionMessageInfo.Id => null;
+
+    IReadOnlyDictionary<string, JsonElement>? ISessionMessageInfo.Metadata => null;
 }

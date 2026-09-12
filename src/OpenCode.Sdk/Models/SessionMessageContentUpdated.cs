@@ -52,4 +52,8 @@ public sealed record SessionMessageContentUpdated : ISessionEventDurable
     /// </summary>
     [JsonPropertyName("data")]
     public required SessionMessageContentUpdatedData Data { get; init; }
+
+    double? ISessionEventDurable.Created => Created;
+
+    IDurableEnvelope? ISessionEventDurable.Durable => Durable;
 }

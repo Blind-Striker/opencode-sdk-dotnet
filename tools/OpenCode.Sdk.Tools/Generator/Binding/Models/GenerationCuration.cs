@@ -83,6 +83,18 @@ internal sealed record GenerationCuration
         }
     } = Array.AsReadOnly(Array.Empty<TransportOwnedCuration>());
 
+    /// <summary>Names for the interfaces hoisted promoted-object members are declared with.</summary>
+    [JsonPropertyName("hoistedMemberNames")]
+    public required IReadOnlyList<HoistedMemberNameCuration> HoistedMemberNames
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<HoistedMemberNameCuration>());
+
     /// <summary>Operations a standing wall refuses and the maintainer has decided to leave out of the generated surface.</summary>
     [JsonPropertyName("declined")]
     public required IReadOnlyList<DeclinedCuration> Declined

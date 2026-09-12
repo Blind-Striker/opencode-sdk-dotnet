@@ -1,3 +1,4 @@
+using OpenCode.Sdk.Tools.Generator.Binding;
 using OpenCode.Sdk.Tools.Generator.Binding.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 using static OpenCode.Sdk.Tools.Tests.Support.BindingScenarioData;
@@ -969,5 +970,159 @@ internal static class EmitterPlanFixture
             ValueType = valueType,
             IsNullable = isNullable,
             JsonNullRepresentation = JsonNullRepresentation.ClrNull,
+        };
+
+    /// <summary>
+    /// A marked union whose arms share an id, a timestamp, and a per-arm promoted durable
+    /// envelope, nested under a second union that shares one more member. The plan runs through
+    /// the production hoist binder so the emitters are exercised against the shape the binder
+    /// actually produces, with the curated carrier name the repository uses for the envelope.
+    /// </summary>
+    public static EmitPlan CreateHoistPlan()
+    {
+        var models = new ModelPlan[]
+        {
+            HoistVariant("CreatedEvent", "created", "IExampleEvent"),
+            HoistVariant("DeletedEvent", "deleted", "IExampleEvent"),
+            HoistPhase("PhaseStartedEvent", "started"),
+            HoistPhase("PhaseEndedEvent", "ended"),
+            HoistEnvelope("CreatedEventDurable", "1"),
+            HoistEnvelope("DeletedEventDurable", "2"),
+            HoistEnvelope("PhaseStartedEventDurable", "1"),
+            HoistEnvelope("PhaseEndedEventDurable", "2"),
+        };
+        var unions = new[] { CreateHoistEvent(), CreateHoistPhase(), };
+        var errors = new BindingErrorCollector();
+        var hoisted = new UnionMemberHoistBinder().Bind(unions, models, HoistCuration(), errors);
+        errors.ThrowIfAny();
+        return new EmitPlan
+        {
+            ImplicitAliases = StabilizeDuplicateCollapse.Empty,
+            SelectedOperationIds = [],
+            Models = hoisted.Models,
+            Unions = hoisted.Unions,
+            HoistedInterfaces = hoisted.Interfaces,
+            Clients = [],
+            Registry = new RegistryPlan
+            {
+                TypeNames =
+                [
+                    .. hoisted
+                        .Models.Select(static model => model.Name)
+                        .Concat(hoisted.Unions.SelectMany(static union => new[] { union.Name, union.UnknownTypeName, }))
+                        .Order(StringComparer.Ordinal),
+                ],
+            },
+            PendingOperations = [],
+            DeclinedOperations = [],
+            TransportOwnedOperationIds = [],
+        };
+    }
+
+    private static GenerationCuration HoistCuration() =>
+        Curation(
+            Groups(),
+            hoistedMemberNames:
+            [
+                HoistedMemberName("IExampleEvent", "durable", "IDurableEnvelope",
+                    "The domain calls this shape the durable envelope."),
+            ]);
+
+    private static ObjectModelPlan HoistVariant(string name, string tag, string unionName) =>
+        new()
+        {
+            Name = name,
+            Namespace = "OpenCode.Sdk.Models",
+            Description = null,
+            ImplementedUnionNames = [unionName],
+            Properties =
+            [
+                Property("id", "Id", Named("string"), isRequired: true, "Gets the event identifier."),
+                Property("created", "Created", Named("double"), isRequired: true, "Gets the creation timestamp."),
+                LiteralProperty("type", "Type", tag),
+                Property("durable", "Durable", Named($"{name}Durable"), isRequired: true, "Gets the durable envelope."),
+            ],
+        };
+
+    private static ObjectModelPlan HoistPhase(string name, string tag)
+    {
+        var variant = HoistVariant(name, "phase", "IExamplePhase");
+        return variant with
+        {
+            Properties =
+            [
+                .. variant.Properties,
+                LiteralProperty("status", "Status", tag),
+                Property("phase", "Phase", Named("string"), isRequired: true, "Gets the phase name."),
+            ],
+        };
+    }
+
+    private static ObjectModelPlan HoistEnvelope(string name, string version) =>
+        new()
+        {
+            Name = name,
+            Namespace = "OpenCode.Sdk.Models",
+            Description = null,
+            Properties =
+            [
+                Property("seq", "Seq", Named("long"), isRequired: true, "Gets the aggregate sequence."),
+                new ModelPropertyPlan
+                {
+                    WireName = "version",
+                    Name = "Version",
+                    Type = Named("double"),
+                    IsRequired = true,
+                    IsLiteral = true,
+                    LiteralKind = LiteralKind.Number,
+                    LiteralValue = version,
+                    Description = "Gets the schema version that committed the event.",
+                },
+            ],
+        };
+
+    private static UnionPlan CreateHoistEvent() =>
+        new()
+        {
+            Name = "IExampleEvent",
+            ConceptName = "ExampleEvent",
+            Namespace = "OpenCode.Sdk.Models",
+            UnknownTypeName = "UnknownExampleEvent",
+            MarkerWireName = "type",
+            MarkerName = "Type",
+            MarkerKind = LiteralKind.String,
+            Variants =
+            [
+                new UnionVariantPlan { TypeName = "CreatedEvent", Tag = "created", MarkerWireName = "type" },
+                new UnionVariantPlan { TypeName = "DeletedEvent", Tag = "deleted", MarkerWireName = "type" },
+                new UnionVariantPlan { TypeName = "IExamplePhase", Tag = "phase", MarkerWireName = "type", IsNestedUnion = true },
+            ],
+            Description = "Represents an example event.",
+        };
+
+    private static UnionPlan CreateHoistPhase() =>
+        new()
+        {
+            Name = "IExamplePhase",
+            ConceptName = "ExamplePhase",
+            Namespace = "OpenCode.Sdk.Models",
+            UnknownTypeName = "UnknownExamplePhase",
+            MarkerWireName = "status",
+            MarkerName = "Status",
+            MarkerKind = LiteralKind.String,
+            BaseTypeName = "IExampleEvent",
+            FixedMarker = new UnionFixedMarkerPlan
+            {
+                WireName = "type",
+                Name = "Type",
+                Kind = LiteralKind.String,
+                Value = "phase",
+            },
+            Variants =
+            [
+                new UnionVariantPlan { TypeName = "PhaseStartedEvent", Tag = "started", MarkerWireName = "status" },
+                new UnionVariantPlan { TypeName = "PhaseEndedEvent", Tag = "ended", MarkerWireName = "status" },
+            ],
+            Description = "Represents an example nested phase union.",
         };
 }

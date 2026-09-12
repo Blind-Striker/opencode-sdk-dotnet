@@ -6,7 +6,7 @@ namespace OpenCode.Sdk.Models;
 /// <summary>
 /// Represents a integration command attempt status expired time value.
 /// </summary>
-public sealed record IntegrationCommandAttemptStatusExpiredTime
+public sealed record IntegrationCommandAttemptStatusExpiredTime : IIntegrationCommandAttemptStatusTime
 {
     /// <summary>
     /// Gets the created value.

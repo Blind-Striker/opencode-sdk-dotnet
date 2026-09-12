@@ -15,4 +15,28 @@ public interface ISessionInboxInfo
     /// </summary>
     [JsonPropertyName("type")]
     public string Type { get; }
+
+    /// <summary>
+    /// Gets the id value. Every declared variant carries it; the value is null when the payload is an unrecognized variant preserved as UnknownSessionInboxInfo.
+    /// </summary>
+    [JsonPropertyName("id")]
+    public string? Id { get; }
+
+    /// <summary>
+    /// Gets the session id value. Every declared variant carries it; the value is null when the payload is an unrecognized variant preserved as UnknownSessionInboxInfo.
+    /// </summary>
+    [JsonPropertyName("sessionID")]
+    public string? SessionId { get; }
+
+    /// <summary>
+    /// Gets the time created value. Every declared variant carries it; the value is null when the payload is an unrecognized variant preserved as UnknownSessionInboxInfo.
+    /// </summary>
+    [JsonPropertyName("timeCreated")]
+    public double? TimeCreated { get; }
+
+    /// <summary>
+    /// Gets the delivery value. Every declared variant carries it; the value is null when the payload is an unrecognized variant preserved as UnknownSessionInboxInfo.
+    /// </summary>
+    [JsonPropertyName("delivery")]
+    public SessionInboxDelivery? Delivery { get; }
 }

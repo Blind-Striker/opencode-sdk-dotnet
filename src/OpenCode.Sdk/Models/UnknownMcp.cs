@@ -38,4 +38,10 @@ public sealed record UnknownMcp : IMcp
     /// Gets the preserved raw JSON payload.
     /// </summary>
     public JsonElement Payload { get; }
+
+    bool? IMcp.Disabled => null;
+
+    bool? IMcp.Codemode => null;
+
+    IMcpTimeout? IMcp.Timeout => null;
 }

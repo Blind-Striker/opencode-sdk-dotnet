@@ -38,4 +38,12 @@ public sealed record UnknownSessionInboxInfo : ISessionInboxInfo
     /// Gets the preserved raw JSON payload.
     /// </summary>
     public JsonElement Payload { get; }
+
+    string? ISessionInboxInfo.Id => null;
+
+    string? ISessionInboxInfo.SessionId => null;
+
+    double? ISessionInboxInfo.TimeCreated => null;
+
+    SessionInboxDelivery? ISessionInboxInfo.Delivery => null;
 }

@@ -57,4 +57,6 @@ public sealed record SessionMessageCompactionRunning : ISessionMessageCompaction
     /// </summary>
     [JsonPropertyName("recent")]
     public required string Recent { get; init; }
+
+    ISessionMessageCompactionTime? ISessionMessageCompaction.Time => Time;
 }

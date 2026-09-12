@@ -63,6 +63,45 @@ public sealed class OpenCodeJsonContextTests
     }
 
     [Test]
+    public async Task Serialize_Should_Write_A_Durable_Event_Exactly_As_It_Arrived()
+    {
+        var result = _serializer.Deserialize<ISessionLogItem>(WireBodyData.SessionCreatedEvent);
+
+        var written = _serializer.Serialize(result);
+
+        // A hoisted member is an explicit interface implementation, which is not a public
+        // property, so System.Text.Json never sees it and the wire shape is unchanged.
+        await Assert.That(written).IsEqualTo(WireBodyData.SessionCreatedEvent);
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Answer_Null_Hoisted_Members_On_The_Durable_Unknown_Carrier()
+    {
+        var result = _serializer.Deserialize<ISessionEventDurable>(WireBodyData.UnknownLogEvent);
+
+        await Assert.That(result).IsTypeOf<UnknownSessionEventDurable>();
+        await Assert.That(result.Type).IsEqualTo("session.invented.tomorrow");
+        // The carrier holds a raw payload and materializes no typed member (ADR-0009).
+        await Assert.That(result.Durable).IsNull();
+        await Assert.That(result.Id).IsNull();
+        await Assert.That(result.Created).IsNull();
+        await Assert.That(result.Location).IsNull();
+        await Assert.That(result.Metadata).IsNull();
+        await Assert.That(((UnknownSessionEventDurable)result).Payload.GetProperty("durable").GetProperty("seq").GetInt64())
+            .IsEqualTo(3L);
+    }
+
+    [Test]
+    public async Task Deserialize_Should_Read_The_Durable_Envelope_Through_The_Union_Interface()
+    {
+        var result = _serializer.Deserialize<ISessionEventDurable>(WireBodyData.SessionDeletedEvent);
+
+        await Assert.That(result.Durable!.Seq).IsEqualTo(2L);
+        await Assert.That(result.Durable.Version).IsEqualTo(2d);
+        await Assert.That(result.Durable.AggregateId).IsEqualTo("ses_9");
+    }
+
+    [Test]
     public async Task DeserializeAsyncEnumerable_Should_Dispatch_Unions_From_A_Partial_Reader()
     {
         var json = _fixtures.LoadJson("Serialization.stream-session-messages.json");
