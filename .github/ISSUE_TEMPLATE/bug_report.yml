@@ -57,7 +57,7 @@ body:
     attributes:
       label: opencode server version
       description: The `version` field `GetHealthAsync` returns.
-      placeholder: 2.0.2
+      placeholder: 2.0.3
     validations:
       required: true
 

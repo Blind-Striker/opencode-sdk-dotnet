@@ -9,8 +9,27 @@ Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
 `0.8.0-nightly.{yyyyMMdd}.{shortSha}`.
 
+### ✨ New features
+
+- **Turn diffs.** `SessionClient.GetDiffAsync` binds `v2.session.diff`, new in upstream `v2.0.3`:
+  the structured per-file diffs of the files one turn changed, where a turn runs from the first
+  prompt after the session was last idle to its next idle marker. `SessionDiffRequest` carries the
+  optional `From` and `To` user-message anchors and the `Context` line count, and
+  `SessionDiffResponse.Diffs` is the same `FileDiffInfo` list the VCS diff returns. A live test
+  proves the declared 200, 400, and 404 arms against the pinned server.
+- **The idle turn marker is a typed message.** `SessionMessageIdle` joins the message union with
+  its `Outcome` (`Succeeded`, `Failed`, or `Interrupted`). A `2.0.3` server writes one at the end
+  of every turn; on `0.8.0-preview.2` those entries surfaced as `UnknownSessionMessageInfo`.
+
 ### 🔧 Changes
 
+- **The accepted snapshot moved to upstream release tag `v2.0.3`**
+  (`d44b52ca66b6bf69626c0384626d1a9cd9555977`), which published as `@opencode/cli@2.0.3`, the
+  npm `latest` at the time of the refresh; install it with `npm install -g @opencode/cli@2.0.3`.
+  The document gained the one operation and the one message kind above and nothing else; 139 of
+  its 144 operations are generated. The Restore patch that repairs upstream's lost SSE payload
+  schemas ([anomalyco/opencode#44911](https://github.com/anomalyco/opencode/issues/44911)) is
+  still required at this tag and was rebased onto it.
 - **The published opencode build is tested now, not only the pinned source.** The live-test fixture
   takes a new optional `OPENCODE_SDK_TESTS_SERVER_COMMAND` (`|`-separated, e.g. `opencode|serve`):
   it replaces the command the fixture starts and changes nothing else, so the whole suite can be

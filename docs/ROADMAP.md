@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-09-12
+Date: 2026-09-15
 
 Operational state: what ships today, what is queued next, what is still open, and what is known to
 be incomplete. This file is a summary and shrinks as work lands. `../AGENTS.md` routes to the
@@ -15,7 +15,7 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
 - **Protocol pin** — generation reads an accepted snapshot of upstream's OpenAPI document taken at
   a release tag, never a live branch, and refreshes are receipt-governed (ADR-0020).
   `../spec/SNAPSHOT.md` owns the exact commit and the refresh procedure.
-- **Coverage** — **138 of 143 operations selected** across 29 client families, with 3 declined by
+- **Coverage** — **139 of 144 operations selected** across 29 client families, with 3 declined by
   decision and 2 transport-owned (Known Gaps below); `src/OpenCode.Sdk/.generation-incomplete` is
   the committed marker and names every one. One-shot calls, server-sent event streams (the global
   bus and the per-session log), PTY and persistent-PTY WebSocket sessions, cursor pagination, typed
@@ -28,10 +28,15 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
   targets. Linux and macOS live verification also passed on net8/net9/net10, including the persistent daemon
   round trip and normal PTY reuse after read cancellation. `architecture/client-runtime.md` and
   ADR-0023 own the contract.
-- **Official launch watch** — upstream's own 1.x npm package (`opencode-ai`, still 1.18.30) and its
-  GitHub Releases page (still `v1.18.30` as latest) remain the 1.x line, so the 2.x line has not had
+- **Official launch watch** — upstream's own 1.x npm package (`opencode-ai`, still 1.18.31) and its
+  GitHub Releases page (still `v1.18.31` as latest) remain the 1.x line, so the 2.x line has not had
   its official launch yet. The pin tracks upstream release tags and is refreshed under receipt at
   milestone boundaries; package names and documentation are re-checked when the launch lands.
+  Past `v2.0.3`, the `v2` branch has already dropped the `v2.` prefix from every operation id and
+  replaced the `/api/health` route with `/api/status` (a `{version, pid, urls}` body, no `healthy`
+  member); the next refresh that crosses those commits reshapes the generated surface, the
+  protocol-surface identity in ADR-0005, and the background-service probe, so it is a milestone
+  boundary in its own right rather than a routine pin move.
 - **Packages** — the two packages publish as `OpenCodeAI.Sdk` and `OpenCodeAI.Sdk.Extensions`
   (the assemblies stay `OpenCode.Sdk`) and pack at the single-sourced
   `VersionPrefix 0.8.0`. Every `master` push publishes a `0.8.0-nightly.*` build to GitHub
@@ -70,7 +75,7 @@ is revisited at each boundary.
    dispatches on `status`, one branch with two values), a hand-written door over the wildcard
    octet-stream route with a watched upstream handler (`v2.fs.read`), and counting the two
    transport-owned WebSocket doors as the covered operations they are — so the surface reads
-   143 of 143 usable. Each path is an ADR-0016 or ADR-0013 question first; the investigation
+   144 of 144 usable. Each path is an ADR-0016 or ADR-0013 question first; the investigation
    decides whether every one holds.
 5. **M5 — Full surface.** Target admission over the refreshed surface, driven by the `refresh-spec`
    synchronizer (ADR-0020) and the ownership pattern for the terminal families (ADR-0021). Coverage
