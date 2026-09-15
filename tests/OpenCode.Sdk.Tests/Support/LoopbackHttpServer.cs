@@ -145,6 +145,7 @@ internal sealed class LoopbackHttpServer : IAsyncDisposable
         var requestLine = await reader.ReadLineAsync()
                           ?? throw new InvalidOperationException("The loopback request ended before its request line.");
         var contentLength = 0;
+        var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var header = await reader.ReadLineAsync();
         while (!string.IsNullOrEmpty(header))
         {
@@ -153,6 +154,12 @@ internal sealed class LoopbackHttpServer : IAsyncDisposable
                 contentLength = int.Parse(
                     header[ContentLengthPrefix.Length..].Trim(),
                     CultureInfo.InvariantCulture);
+            }
+
+            var separator = header.IndexOf(':', StringComparison.Ordinal);
+            if (separator > 0)
+            {
+                headers[header[..separator].Trim()] = header[(separator + 1)..].Trim();
             }
 
             header = await reader.ReadLineAsync();
@@ -183,7 +190,7 @@ internal sealed class LoopbackHttpServer : IAsyncDisposable
             body = new string(buffer, 0, read);
         }
 
-        return new LoopbackRequest(parts[0], parts[1], body);
+        return new LoopbackRequest(parts[0], parts[1], body, headers);
     }
 
     private static async Task WriteResponseAsync(Stream stream, LoopbackHttpResponse response)
