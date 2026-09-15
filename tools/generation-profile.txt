@@ -73,6 +73,7 @@ v2.session.command
 v2.session.compact
 v2.session.context
 v2.session.create
+v2.session.diff
 v2.session.environment
 v2.session.export
 v2.session.fork

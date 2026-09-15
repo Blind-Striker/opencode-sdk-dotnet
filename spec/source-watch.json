@@ -138,7 +138,7 @@
     },
     {
       "path": "packages/cli/package.json",
-      "sha256": "b288f7b4d447d8d65c02ce7cd075dea519eafbd0f183e7eaa7ac166ed81c51cd",
+      "sha256": "651a3d0dae5c975e19fa1181665fac3a83bf4ed635fad3cab6f5c118c739df7b",
       "behavior": "The CLI package bin map names \u0022opencode\u0022 as the installed command and keeps \u0022opencode2\u0022 as a transitional alias of the same launcher, so the shipped launcher default resolves \u0022opencode\u0022 from PATH.",
       "anchor": {
         "type": "contains",
@@ -147,7 +147,7 @@
     },
     {
       "path": "packages/core/package.json",
-      "sha256": "6c359eb10cf9f40eb04c70f0223b40be6471a649790c094b5e08141224d48d61",
+      "sha256": "216f3f5e06ad0e14804d8fac7c87c3cd55fe3018df719e1c1c9bd9e842e6f17a",
       "behavior": "The opencode-pty daemon dependency is pinned at 0.1.13, which fixes the daemon protocol the persistent-PTY door speaks.",
       "anchor": {
         "type": "contains",
@@ -264,7 +264,7 @@
     },
     {
       "path": "packages/protocol/src/groups/session.ts",
-      "sha256": "c3e613d1fe3c6b4a8ad47a8ddbfb056634541a937fb3cb6e65efbee9910e5165",
+      "sha256": "f1cf4001ba3971cf8f98ef74c2c1611b4896af8b11442a68fee7e391abf2c018",
       "behavior": "The session list declares limit, order and cursor, where order applies to the first page only and the opaque cursor carries the continuation, which the cursor-list spine and CursorSequence depend on; the file is also the Restore patch preimage for the SSE payloads.",
       "anchor": {
         "type": "contains",

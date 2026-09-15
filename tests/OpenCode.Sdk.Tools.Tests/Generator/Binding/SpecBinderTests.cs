@@ -100,7 +100,7 @@ public sealed class SpecBinderTests
 
         var sessionMessage = plan.Unions.Single(static union => union.Name == "ISessionMessageInfo");
         await Assert.That(sessionMessage.MarkerWireName).IsEqualTo("type");
-        await Assert.That(sessionMessage.Variants).Count().IsEqualTo(10);
+        await Assert.That(sessionMessage.Variants).Count().IsEqualTo(11);
 
         var compaction = plan.Unions.Single(static union => union.Name == "ISessionMessageCompaction");
         await Assert.That(compaction.MarkerWireName).IsEqualTo("status");

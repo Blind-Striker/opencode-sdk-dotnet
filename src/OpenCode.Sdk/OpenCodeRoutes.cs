@@ -1750,6 +1750,37 @@ public static class OpenCodeRoutes
         }
 
         /// <summary>
+        /// The &apos;GET /api/session/{sessionID}/diff&apos; route template.
+        /// </summary>
+        public const string GetDiffTemplate = "/api/session/{sessionID}/diff";
+        /// <summary>
+        /// Builds the &apos;/api/session/{sessionID}/diff&apos; route.
+        /// </summary>
+        /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetDiff(string sessionId, SessionDiffRequest? request = null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+            if (sessionId is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(sessionId));
+            }
+
+            var path = "/api/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/diff";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddText("from", request.From);
+            query.AddText("to", request.To);
+            query.AddText("context", request.Context);
+            return path + query.Value;
+        }
+
+        /// <summary>
         /// The &apos;GET /api/session/{sessionID}/export&apos; route template.
         /// </summary>
         public const string GetExportTemplate = "/api/session/{sessionID}/export";

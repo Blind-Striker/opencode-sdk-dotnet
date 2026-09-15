@@ -115,7 +115,7 @@ not what this repository tests. The pinned release tag and its npm version are o
 [`spec/SNAPSHOT.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/spec/SNAPSHOT.md).
 
 ```sh
-npm install -g @opencode/cli@2.0.2
+npm install -g @opencode/cli@2.0.3
 ```
 
 Then either run it yourself:

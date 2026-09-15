@@ -544,6 +544,66 @@ public sealed class SessionClientContractTests
     }
 
     [Test]
+    public async Task GetDiffAsync_Should_Return_The_Typed_Turn_Diffs()
+    {
+        var diff = new FixtureLoader().LoadJson("Serialization.known-diff-status.json");
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope($"[{diff}]"));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetDiffAsync();
+
+        await Assert.That(response.Diffs.Count).IsEqualTo(1);
+        await Assert.That(response.Diffs[0].File).IsEqualTo("src/App.cs");
+        await Assert.That(response.Diffs[0].Additions).IsEqualTo(1);
+        await Assert.That(response.Diffs[0].Status).IsEqualTo(FileDiffInfoStatus.Modified);
+        await Assert.That(scenario.Requests.Single().RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/diff"));
+    }
+
+    [Test]
+    public async Task GetDiffAsync_Should_Compose_The_From_To_And_Context_Query()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope("[]"));
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetDiffAsync(new SessionDiffRequest
+        {
+            From = "msg_1",
+            To = "msg_2",
+            Context = "3",
+        });
+
+        await Assert.That(response.Diffs).IsEmpty();
+        await Assert.That(scenario.Requests.Single().RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/diff?from=msg_1&to=msg_2&context=3"));
+    }
+
+    [Test]
+    public async Task GetDiffAsync_Should_Throw_The_Declared_404_Error()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.MessageNotFoundError);
+
+        var exception = await Assert
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100")
+                .GetDiffAsync(new SessionDiffRequest { From = "msg_9" }))
+            .Throws<OpenCodeApiException>();
+
+        await Assert.That(exception!.Status).IsEqualTo(404);
+        await Assert.That(exception.Error).IsTypeOf<MessageNotFoundError>();
+    }
+
+    [Test]
+    public async Task GetDiffAsync_Should_Return_The_400_Error_On_The_NoThrow_Spine()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.InvalidRequestError);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100")
+            .GetDiffAsync(requestOptions: OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.IsError).IsTrue();
+        await Assert.That(response.Status).IsEqualTo(400);
+        await Assert.That(response.Error).IsTypeOf<InvalidRequestError>();
+    }
+
+    [Test]
     public async Task GetContextAsync_Should_Throw_The_Declared_404_Error()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.SessionNotFoundError);

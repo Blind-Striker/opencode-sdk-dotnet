@@ -18,8 +18,9 @@ pinned document types it only as an object.
 
 **Message**:
 One entry in a Session's projected history; a discriminated union keyed by a literal `type` marker
-(user, assistant, synthetic, system, skill, shell, compaction, and the agent/model/location
-selection records). Only an assistant Message carries a content list; the rest are flat.
+(user, assistant, synthetic, system, skill, shell, compaction, idle, and the agent/model/location
+selection records). Only an assistant Message carries a content list; the rest are flat. An idle
+Message marks where a turn ended and carries the turn's outcome.
 
 **Assistant content**:
 A typed fragment of an assistant Message (text, reasoning, tool); a discriminated union keyed by a
