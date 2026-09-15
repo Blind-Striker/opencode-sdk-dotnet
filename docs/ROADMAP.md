@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-09-15
+Date: 2026-09-16
 
 Operational state: what ships today, what is queued next, what is still open, and what is known to
 be incomplete. This file is a summary and shrinks as work lands. `../AGENTS.md` routes to the
@@ -64,9 +64,10 @@ is revisited at each boundary.
    start, explicit endpoint, and the registration-file background service. The standalone door
    (`OpenCodeServer.StartAsync`, ADR-0001) and the explicit-endpoint validation option are landed
    with three-OS acceptance, an exact-pin server fixture, and a deterministic simulated-model
-   session workflow (ADR-0022). **The background-service parity arc is queued** —
-   `OpenCodeService.DiscoverAsync/EnsureAsync/StopAsync` over the registration file, an
-   upstream-observed contract outside the OpenAPI pin, so canary-guarded.
+   session workflow (ADR-0022). **The background-service parity arc is in flight** —
+   `OpenCodeServer.DiscoverAsync/EnsureAsync/StopAsync` over the registration file, an
+   upstream-observed contract outside the OpenAPI pin, so source-watched (ADR-0024, ADR-0025);
+   discovery is the first slice, Ensure and Stop follow as their own slices.
    **Surface completeness is queued beside it, for detailed investigation before any code:**
    admitting the five operations that sit outside generation today. The sketched paths are an
    opaque `JsonElement` arm for an object-only union with no marker literal (`v2.config.get`,

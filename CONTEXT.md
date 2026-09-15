@@ -193,7 +193,8 @@ _Avoid_: v2, V2 (in public naming); legacy (the retired 1.x dual-surface vocabul
 **Launcher**:
 The in-core component that starts, monitors, and stops a local `opencode serve` process —
 `OpenCodeServer.StartAsync` and its working object, covering the standalone-server connection
-mode. Discovery/attachment of background services is deliberately not the launcher's job.
+mode. Discovery/attachment of background services is deliberately not the launcher's job; those
+are `OpenCodeServer`'s other modes.
 
 **Standalone server**:
 A fresh private `opencode serve --stdio --port 0` child owned by the SDK caller through
@@ -202,12 +203,23 @@ Upstream's `Standalone.start` connection mode.
 
 **Background service**:
 Upstream's registered daemon connection mode (`Service.discover/ensure/stop` over a
-registration file); the SDK's `DiscoverAsync`/`EnsureAsync`/`StopAsync` parity is a queued
-follow-up arc, not part of M4.
+registration file); in the SDK, `OpenCodeServer.DiscoverAsync` and the Ensure and Stop doors that
+follow it.
 
 **Registration file**:
 The on-disk record a background service publishes (address, credential, instance identity) so
 clients can discover it; an upstream-observed contract outside the OpenAPI pin.
+
+**Registered server handle**:
+A non-owning `OpenCodeServer` produced by discovery (and later by Ensure): `OwnsProcess` is false
+and disposal never stops the shared service.
+_Avoid_: guarded server handle, shared handle (draft names for the same thing)
+
+**Service channel**:
+The CLI's compiled release identity that selects the registration and service-config filenames and
+the legacy-migration rules; the release channels share `service.json`, `local` and custom channels
+use distinct names. The SDK has none compiled in: a caller may name one, and the null default reads
+the shared release registration.
 
 **Accepted snapshot**:
 The reviewed protocol identity the SDK builds against: an exact upstream commit, the committed

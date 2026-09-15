@@ -1,6 +1,6 @@
 # Client Runtime Architecture
 
-Date: 2026-09-12
+Date: 2026-09-16
 
 Canonical current rules for client construction, transport ownership, API errors, streams, and the
 local server launcher. Protocol and generated-model rules live in
@@ -26,8 +26,12 @@ local server launcher. Protocol and generated-model rules live in
 - No consumer transport-composition seam is public today. Adding one requires a concrete consumer
   need and a deliberate design; omission is reversible because a future public seam is additive
   (ADR-0010).
-- Client options are snapshotted at construction. The SDK does not read process environment
-  variables to discover endpoint or credentials; consumers resolve their own configuration.
+- Client options are snapshotted at construction. Explicit-endpoint construction reads no process
+  environment variable; consumers resolve their own configuration. `OpenCodeServer.DiscoverAsync`
+  is the one door that reads the environment, and it reads exactly `XDG_STATE_HOME`,
+  `XDG_CONFIG_HOME`, `OPENCODE_CONFIG_DIR`, and the user profile (`USERPROFILE` on Windows, `HOME`
+  elsewhere), because the registration file those roots locate is that mode's complete
+  endpoint-and-credential contract; it reads no `OPENCODE_*` credential variable.
 
 ### Location
 
@@ -91,8 +95,9 @@ local server launcher. Protocol and generated-model rules live in
 - `PtyClient.ConnectAsync` opens `PtySession`, the family's live working object: `ReadAsync`
   enumerates `PtyFrame` values, `WriteAsync` sends input, and `DisposeAsync` closes. The caller
   owns disposal of the session; peer closure and transport failure can also end the connection.
-- **Transport divergence.** This is one of the two SDK doors that do not ride the HTTP pipeline
-  (the persistent PTY session is the other). The upgrade builds its own `ClientWebSocket`, so a
+- **Transport divergence.** This is one of the two public SDK doors that do not ride the HTTP
+  pipeline (the persistent PTY session is the other; the background-service health probe is an
+  internal third). The upgrade builds its own `ClientWebSocket`, so a
   caller-supplied `HttpClient`, its proxy, its handler chain, the redirect policy, the
   pooled-connection lifetime, and the pipeline's progress window **do not apply** to a PTY session.
   What the session does inherit is the construction-time `ConnectionSnapshot` the pipeline
@@ -434,8 +439,9 @@ set; the object the delegate received stays identity-unset for as long as the ca
 reference to it. Every call builds a new client over its own owned transport, which the caller
 disposes.
 
-The failure plane is `OpenCodeServerException : OpenCodeException`. A bounded stderr tail rides
-every startup failure that reaches a running child: an exit before readiness (naming the exit
+The failure plane of every local-server door, standalone start and background-service discovery
+alike, is `OpenCodeServerException : OpenCodeException`. A bounded stderr tail rides every startup
+failure that reaches a running child: an exit before readiness (naming the exit
 code), a readiness timeout (naming the configured bound), and a non-contract first stdout line
 (quoting it) all carry it. The three pre-spawn failures carry none, because nothing ran: an
 unresolvable command (naming the command, the directories searched, and the extensions tried), a
@@ -477,6 +483,19 @@ tail without `StartAsync` once a caller already holds an endpoint. *Noted for la
 the M6 network-timeout knob lands as an option rather than a caller-owned
 `CancellationTokenSource` — a bounded-probe helper only earns public surface at that point.
 
-**Background service** (`Service.discover/ensure/stop`, public export `@opencode/client/service`,
-upstream `packages/client/src/promise/service.ts:255`) → the queued follow-up arc; the SDK has no
-`DiscoverAsync`/`EnsureAsync`/`StopAsync` parity yet. See `docs/ROADMAP.md` §4 for status.
+**Background service** (`Service.discover/ensure/stop`, public export `@opencode/client/service`)
+→ the registration-file mode. The first-party CLI's `opencode serve --service` publishes `url`,
+`pid`, `password`, `version`, and `id` in a registration file under the XDG state root, and
+`OpenCodeServer.DiscoverAsync` reads that file, checks the daemon's authenticated health, and
+returns a non-owning handle: `OwnsProcess` is false and disposal is a no-op (ADR-0024). The
+contract is not in the OpenAPI document; the SDK ports the accepted-pin first-party chain and
+pins every file it reads in `spec/source-watch.json` (ADR-0025). The null channel reads the shared
+release registration `service.json` with no legacy migration; a named channel follows the CLI's
+filename, sanitization, and legacy-migration rules; a direct registration path bypasses all three.
+The health probe is a raw authenticated `GET` through an owned non-redirecting handler with a
+two-second bound: it rides neither the pipeline's decoration policy nor its progress window, and
+its path, body classification, and generated model live in one internal class so a later pin can
+move them without touching the door. Discovery returns null for a missing, unusable, or not-ready
+registration and throws only for refused input (`ArgumentException`), caller cancellation, and an
+unresolvable user home (`OpenCodeServerException`). Ensure and Stop are tracked in
+`docs/ROADMAP.md` §4.
