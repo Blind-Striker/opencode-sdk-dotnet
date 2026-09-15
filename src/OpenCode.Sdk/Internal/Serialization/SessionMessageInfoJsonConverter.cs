@@ -14,6 +14,7 @@ internal sealed class SessionMessageInfoJsonConverter : JsonConverter<ISessionMe
         ["agent-switched"] = typeof(SessionMessageAgentSelected),
         ["assistant"] = typeof(SessionMessageAssistant),
         ["compaction"] = typeof(ISessionMessageCompaction),
+        ["idle"] = typeof(SessionMessageIdle),
         ["location-switched"] = typeof(SessionMessageLocationSwitched),
         ["model-switched"] = typeof(SessionMessageModelSelected),
         ["shell"] = typeof(SessionMessageShell),

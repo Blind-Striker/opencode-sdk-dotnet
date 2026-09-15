@@ -322,6 +322,7 @@ public sealed class OperationPlanBinderTests
         "CreatePermissionAsync",
         "DeleteInboxCancelAsync",
         "GetContextAsync",
+        "GetDiffAsync",
         "GetExportAsync",
         "GetFormAsync",
         "GetFormStateAsync",

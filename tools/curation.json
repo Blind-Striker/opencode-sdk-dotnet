@@ -428,7 +428,8 @@
     "v2.session.permission.list": "Requests",
     "v2.fs.list": "Entries",
     "v2.fs.find": "Entries",
-    "v2.vcs.diff": "Diffs"
+    "v2.vcs.diff": "Diffs",
+    "v2.session.diff": "Diffs"
   },
   "schemaAliases": [
     {

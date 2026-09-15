@@ -31,6 +31,23 @@ public sealed class OpenCodeJsonContextTests
     }
 
     [Test]
+    public async Task Deserialize_Should_Create_The_Idle_Turn_Marker_With_Its_Outcome()
+    {
+        var json = _fixtures.LoadJson("Serialization.known-session-message-idle.json");
+
+        var result = _serializer.Deserialize<ISessionMessageInfo>(json);
+
+        await Assert.That(result).IsTypeOf<SessionMessageIdle>();
+        var idle = (SessionMessageIdle)result;
+        await Assert.That(idle.Id).IsEqualTo("msg_9");
+        await Assert.That(idle.Outcome).IsEqualTo(SessionMessageIdleOutcome.Interrupted);
+        var serialized = _serializer.Serialize<ISessionMessageInfo>(idle);
+        using var document = JsonDocument.Parse(serialized);
+        await Assert.That(document.RootElement.GetProperty("type").GetString()).IsEqualTo("idle");
+        await Assert.That(document.RootElement.GetProperty("outcome").GetString()).IsEqualTo("interrupted");
+    }
+
+    [Test]
     public async Task Deserialize_Should_Use_The_Last_Duplicate_Marker_For_A_Known_Variant()
     {
         var json = _fixtures.LoadJson("Serialization.duplicate-known-session-message-marker.json");
