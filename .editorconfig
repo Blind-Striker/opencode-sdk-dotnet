@@ -1012,6 +1012,34 @@ dotnet_diagnostic.MA0045.severity = none
 [tests/OpenCode.Sdk.Tests/OpenCodeServerContractTests.cs]
 dotnet_diagnostic.CA2000.severity = none
 
+# ServiceLegacyFilename reproduces the pinned CLI's earlier registration filename,
+# service-<sha1(channel)>.json (packages/util/src/hash.ts, createHash("sha1") over the raw channel
+# name): a filename derivation over a public string, not a security primitive. Winner: byte-for-byte
+# parity with the pinned CLI; CA5350 and its Sonar twin S4790 stay enabled for every other file.
+[src/OpenCode.Sdk/Internal/BackgroundService/ServiceLegacyFilename.cs]
+dotnet_diagnostic.CA5350.severity = none
+dotnet_diagnostic.S4790.severity = none
+
+# ServiceFileSystem.CreateExclusive writes a registration copy of a few hundred bytes through a
+# synchronous `using var stream = new FileStream(...)`; FileStream implements IAsyncDisposable, which
+# is what MA0045 reacts to, but the create, the Unix mode, the write, and the close must stay inside
+# one scope with no await interleaving a half-written password-bearing file, and the partial-file
+# cleanup is one catch over that scope. The async seam member wraps the result in Task.FromResult.
+# Winner: the single-scope exclusive-create contract; MA0045 remains enabled for every other file.
+[src/OpenCode.Sdk/Internal/BackgroundService/ServiceFileSystem.cs]
+dotnet_diagnostic.MA0045.severity = none
+
+# ServiceFileSystemTests seeds and reads its owned temporary directory through IFile.WriteAllText,
+# WriteAllBytes, ReadAllText, and ReadAllBytes. The test project also compiles for net472, whose
+# Testably asset is the netstandard2.0 one and carries none of the async overloads the modern asset
+# adds, so one source file cannot await them; the calls are a few bytes of test arrangement, not the
+# behavior under test. Winner: one source for every test leg; CA1849, VSTHRD103, and S6966 remain
+# enabled for every other file.
+[tests/OpenCode.Sdk.Tests/BackgroundService/ServiceFileSystemTests.cs]
+dotnet_diagnostic.CA1849.severity = none
+dotnet_diagnostic.VSTHRD103.severity = none
+dotnet_diagnostic.S6966.severity = none
+
 # DriveManifestTests targets net472 in this project's Windows leg. The regex source generator's
 # GeneratedRegexAttribute is not available there (no polyfill covers it), so the instance-name
 # check uses a plain static Regex with an explicit match timeout instead — a shape MA0110 always
