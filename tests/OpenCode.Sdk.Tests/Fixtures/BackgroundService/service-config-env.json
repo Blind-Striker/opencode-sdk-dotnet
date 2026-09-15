@@ -1,0 +1,10 @@
+{
+  "hostname": "127.0.0.1",
+  "port": 49374,
+  "password": "c0nf1g-p455w0rd",
+  "cors": ["http://localhost:5173"],
+  "env": {
+    "OPENCODE_DISABLE_MODELS_FETCH": "1",
+    "HTTPS_PROXY": "http://proxy.internal:3128"
+  }
+}
