@@ -29,10 +29,6 @@ public sealed class OpenCodeServerDiscoveryLiveTests(PinnedManagedServiceFixture
         // way to find it: what a consumer on this machine would see, minus the developer profile.
         var environment = service.Environment.ToDictionary(
             static pair => pair.Key, static pair => (string?)pair.Value, StringComparer.Ordinal);
-        foreach (var name in ServerIsolation.Uninherited)
-        {
-            environment[name] = null;
-        }
 
         var result = await new ServiceFixtureCommand(FileSystem)
             .RunAsync(["discover-channel", PinnedManagedServiceFixture.Channel], environment, cancellationToken);

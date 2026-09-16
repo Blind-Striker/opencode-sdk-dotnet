@@ -22,7 +22,7 @@ covered. All three of opencode's connection modes are open: a private server the
 endpoint you already run, and the background service the CLI registers. What is still outstanding
 on that third mode is ensuring and stopping the service, which follow discovery as their own slices.
 
-- ✅ **138 of 143 operations** callable, across 29 client families — sessions, PTYs, persistent
+- ✅ **139 of 144 operations** callable, across 29 client families — sessions, PTYs, persistent
   PTYs, shells, events, MCP servers, integrations, providers, permissions, credentials, config,
   VCS, worktrees, websearch, RPC, and more
 - ✅ **6,299 tests** green on Windows — the fullest leg, the only one that adds the `net472`

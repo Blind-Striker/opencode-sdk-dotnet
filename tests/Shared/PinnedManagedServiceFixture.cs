@@ -90,11 +90,6 @@ public sealed class PinnedManagedServiceFixture : IAsyncInitializer, IAsyncDispo
             startInfo.Environment[pair.Key] = pair.Value;
         }
 
-        foreach (var name in ServerIsolation.Uninherited)
-        {
-            _ = startInfo.Environment.Remove(name);
-        }
-
         _process = Process.Start(startInfo)
             ?? throw new InvalidOperationException($"Starting '{startInfo.FileName}' returned no process.");
         _drain = Task.WhenAll(
