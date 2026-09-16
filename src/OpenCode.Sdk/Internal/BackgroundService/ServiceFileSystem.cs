@@ -55,7 +55,7 @@ internal sealed class ServiceFileSystem : IServiceFileSystem
         catch when (created)
         {
             // A partial file this call created must not survive as a registration candidate.
-            TryDelete(path);
+            _ = TryDelete(path);
             throw;
         }
     }
@@ -91,19 +91,22 @@ internal sealed class ServiceFileSystem : IServiceFileSystem
     }
 #endif
 
-    private static void TryDelete(string path)
+    private static bool TryDelete(string path)
     {
         try
         {
             File.Delete(path);
+            return true;
         }
         catch (IOException)
         {
             // The original failure is the one worth reporting.
+            return false;
         }
         catch (UnauthorizedAccessException)
         {
             // Same: the create failed for a reason the caller already sees.
+            return false;
         }
     }
 }

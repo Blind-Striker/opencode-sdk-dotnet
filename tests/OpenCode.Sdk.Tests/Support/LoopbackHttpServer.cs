@@ -94,6 +94,15 @@ internal sealed class LoopbackHttpServer : IAsyncDisposable
             try
             {
                 var request = await ReadRequestAsync(stream);
+                if (request is null)
+                {
+                    // The peer opened the connection and closed it before writing a request line:
+                    // a client whose own bound fired first (the probe's request timeout under a
+                    // loaded machine), not a handler that wrote something wrong.
+                    _ = _clientDisconnected.TrySetResult(null);
+                    return;
+                }
+
                 _requests.Enqueue(request);
                 var response = _respond(request.Path);
                 await WriteResponseAsync(stream, response);
@@ -133,8 +142,9 @@ internal sealed class LoopbackHttpServer : IAsyncDisposable
     /// <summary>
     /// Reads the request head and, when the head declares one, exactly the declared body, so a
     /// test can assert what the platform handler really wrote rather than what it was handed.
+    /// Returns null when the peer closed the connection before writing anything.
     /// </summary>
-    private static async Task<LoopbackRequest> ReadRequestAsync(Stream stream)
+    private static async Task<LoopbackRequest?> ReadRequestAsync(Stream stream)
     {
         using var reader = new StreamReader(
             stream,
@@ -142,8 +152,12 @@ internal sealed class LoopbackHttpServer : IAsyncDisposable
             detectEncodingFromByteOrderMarks: false,
             bufferSize: 1024,
             leaveOpen: true);
-        var requestLine = await reader.ReadLineAsync()
-                          ?? throw new InvalidOperationException("The loopback request ended before its request line.");
+        var requestLine = await reader.ReadLineAsync();
+        if (requestLine is null)
+        {
+            return null;
+        }
+
         var contentLength = 0;
         var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var header = await reader.ReadLineAsync();

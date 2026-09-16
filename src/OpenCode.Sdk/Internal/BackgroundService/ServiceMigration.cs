@@ -43,7 +43,7 @@ internal sealed class ServiceMigration(IServiceFileSystem fileSystem)
                 continue;
             }
 
-            await TryCopyAsync(paths.RegistrationFile, bytes, cancellationToken).ConfigureAwait(false);
+            _ = await TryCopyAsync(paths.RegistrationFile, bytes, cancellationToken).ConfigureAwait(false);
         }
 
         if (paths.LegacyConfigFile is { } legacyConfig && paths.ConfigFile is { } configFile)
@@ -52,7 +52,7 @@ internal sealed class ServiceMigration(IServiceFileSystem fileSystem)
             var bytes = await TryReadAsync(legacyConfig, cancellationToken).ConfigureAwait(false);
             if (bytes is not null && ServiceConfigReader.TryReadEnvironment(bytes) is not null)
             {
-                await TryCopyAsync(configFile, bytes, cancellationToken).ConfigureAwait(false);
+                _ = await TryCopyAsync(configFile, bytes, cancellationToken).ConfigureAwait(false);
             }
         }
     }
@@ -140,23 +140,26 @@ internal sealed class ServiceMigration(IServiceFileSystem fileSystem)
         }
     }
 
-    private async Task TryCopyAsync(string target, byte[] bytes, CancellationToken cancellationToken)
+    private async Task<bool> TryCopyAsync(string target, byte[] bytes, CancellationToken cancellationToken)
     {
         try
         {
-            _ = await fileSystem.TryCreateExclusiveAsync(target, bytes, cancellationToken).ConfigureAwait(false);
+            return await fileSystem.TryCreateExclusiveAsync(target, bytes, cancellationToken).ConfigureAwait(false);
         }
         catch (IOException)
         {
             // Parity with Effect.ignore: a missing directory, a locked target, a full disk.
+            return false;
         }
         catch (UnauthorizedAccessException)
         {
             // A read-only state or config directory never fails a lookup.
+            return false;
         }
         catch (PlatformNotSupportedException)
         {
             // The one arm that cannot create the copy safely reports it this way.
+            return false;
         }
     }
 }
