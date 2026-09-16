@@ -157,7 +157,7 @@
     {
       "path": "packages/server/src/process.ts",
       "sha256": "88d89a520b684cba37499ad2f2f3f51f2cb60a4c397c550d09d70735b8514f42",
-      "behavior": "A ticketed PTY connect is admitted before the server reports ready. It also answers an uncredentialed or wrongly credentialed request above the API layer with an empty 401 carrying only the Basic challenge, which is why the SDK\u0027s 401 diagnostic sentence exists and why such a caller gets nothing typed to read.",
+      "behavior": "A ticketed PTY connect is admitted before the server reports ready. It also answers an uncredentialed or wrongly credentialed request above the API layer with an empty 401 carrying only the Basic challenge, which is why the SDK\u0027s 401 diagnostic sentence exists and why such a caller gets nothing typed to read. In service mode /api/health answers under Basic auth with 200 {healthy, version, pid} once ready, 500 with service_failed after a failed boot, and 503 with service_starting or service_stopping otherwise; the SDK\u0027s probe classifies exactly these three answers.",
       "anchor": {
         "type": "contains",
         "text": "!hasPtyConnectTicketURL(url)"
@@ -296,6 +296,150 @@
       "anchor": {
         "type": "contains",
         "text": "Message order for the first page"
+      }
+    },
+    {
+      "path": "packages/client/src/service.ts",
+      "sha256": "d8818849fcb4e25cb83043b227329c7529ab36a7ddfb2bee844b310d833b3b7b",
+      "behavior": "Info is the registration record a service publishes: an optional id and version, the raw url string, a positive integer pid, and an optional password; the SDK\u0027s strict registration reader admits exactly these members.",
+      "anchor": {
+        "type": "contains",
+        "text": "export type Info = {"
+      }
+    },
+    {
+      "path": "packages/client/src/effect/service.ts",
+      "sha256": "4da2c12d9e0d37e2c6b038e4d525ee63b969bf8062deb5d70a683445e34ea615",
+      "behavior": "discover reads the registration file, probes /api/health with the Basic credential under the request timeout, requires the answer\u0027s pid to equal the registration\u0027s and its version to match when one is expected, and returns nothing for a waiting, failed, legacy, or timed-out service; DiscoverAsync reproduces exactly this decision table.",
+      "anchor": {
+        "type": "contains",
+        "text": "export const discover = Effect.fn(\u0022service.discover\u0022)"
+      }
+    },
+    {
+      "path": "packages/client/src/service-timing.ts",
+      "sha256": "41fb1170b3231cad4cea9c9760ba37f12a34d936070d987cc3c4df9189539249",
+      "behavior": "The client\u0027s timing constants: a 2-second health request timeout and the poll and startup bounds ServiceTiming.Default mirrors value for value.",
+      "anchor": {
+        "type": "contains",
+        "text": "requestTimeout: 2_000,"
+      }
+    },
+    {
+      "path": "packages/client/src/service-version.ts",
+      "sha256": "517b341ccd4460a1adf7122b26ff07d641150c4ed5ce8697cd65f8ae0bc045a5",
+      "behavior": "A discovered service matches only when its reported version equals the expected one ordinally, and any version matches when none is expected; ExpectedVersion applies the same rule.",
+      "anchor": {
+        "type": "contains",
+        "text": "return version === options.version"
+      }
+    },
+    {
+      "path": "packages/cli/src/services/service-config.ts",
+      "sha256": "9fc7e6cf6541b030846db5f3a215ff320835dcae107deea8236e0f7f1f7dc2be",
+      "behavior": "The release channels latest, dev, beta, and next share service.json; every other channel is sanitized into service-\u003Cchannel\u003E.json; a legacy SHA-1 filename exists for every channel except latest and local; versionBelongsToChannel admits the exact installed version or the 0.0.0-\u003Cchannel\u003E-N[.M] spelling; migration copies a donor exclusively with mode 0600 and ignores write failures.",
+      "anchor": {
+        "type": "contains",
+        "text": "export function filename(channel = OPENCODE_CHANNEL)"
+      }
+    },
+    {
+      "path": "packages/cli/src/services/service-registration.ts",
+      "sha256": "f570523cc38ec390d726b76dd504ee6e4e527dea037bc124bd5033137a4aa787",
+      "behavior": "The service writes its registration atomically through a temp file and rename with mode 0600, carrying id, the compiled version, the bound url, its own pid, and the password, then re-reads the file every five seconds and shuts down when another instance replaced it.",
+      "anchor": {
+        "type": "contains",
+        "text": "export const register = Effect.fnUntraced"
+      }
+    },
+    {
+      "path": "packages/cli/src/version.ts",
+      "sha256": "91bc229970b2ddf688f2aa5b3e582229b8ac600a5232af1d8d4e4171a3757ab2",
+      "behavior": "A source run compiles the version and channel as the literal local, which is the channel and version the managed-service fixture registers under.",
+      "anchor": {
+        "type": "contains",
+        "text": "const channel = typeof OPENCODE_CHANNEL"
+      }
+    },
+    {
+      "path": "packages/util/src/global.ts",
+      "sha256": "56929986af9096e499e028d4f9090341ddbfb3e3b28e4d6039787f5f685fab15",
+      "behavior": "OPENCODE_CONFIG_DIR replaces the whole config root with no opencode segment beneath it, and OPENCODE_TEST_HOME replaces the home directory service mode changes into.",
+      "anchor": {
+        "type": "contains",
+        "text": "process.env.OPENCODE_CONFIG_DIR ?? Path.config"
+      }
+    },
+    {
+      "path": "packages/util/src/global-roots.ts",
+      "sha256": "6cdc234ac155e308dadeb62682c687468ba656fd463482d00fce025c9dc819b6",
+      "behavior": "Each global root is its XDG variable when set and non-empty, otherwise the home-relative default: .local/share, .cache, .config, and .local/state.",
+      "anchor": {
+        "type": "contains",
+        "text": "const state = process.env.XDG_STATE_HOME"
+      }
+    },
+    {
+      "path": "packages/util/src/hash.ts",
+      "sha256": "0d0816d1eb3cabcbea8394fe30c4e28206a32ff3cd07bb09b7999a86b14dd100",
+      "behavior": "Hash.fast is a hex SHA-1 digest of the UTF-8 input, the function the legacy registration filename is derived from.",
+      "anchor": {
+        "type": "contains",
+        "text": "createHash(\u0022sha1\u0022)"
+      }
+    },
+    {
+      "path": "packages/server/src/service-status.ts",
+      "sha256": "8af6c5d8bbb5eb6d5f1db371c50b6d3cbf211cec637828cdcaa8ffb441e203da",
+      "behavior": "The service status states starting, ready, failed, and stopping are what the health handler maps to 503, 200, 500, and 503.",
+      "anchor": {
+        "type": "contains",
+        "text": "export type State ="
+      }
+    },
+    {
+      "path": "packages/protocol/src/groups/health.ts",
+      "sha256": "b5639900d7a572ed5f56e5b83977bb3c6059cc81bcf44ccd8be8d9795a2cd77e",
+      "behavior": "The health answer is healthy: true with the server\u0027s version and pid, the shape the generated ServiceHealth model decodes and the probe revalidates.",
+      "anchor": {
+        "type": "contains",
+        "text": "healthy: Schema.Literal(true)"
+      }
+    },
+    {
+      "path": "packages/client/test/service.test.ts",
+      "sha256": "079bdae86bbfbd8fd9efe239d921fa6e61a192743a72ef88c745170355d0ba62",
+      "behavior": "Upstream\u0027s own discovery expectations: a compatible registered service is reused, a waiting one is awaited, a failed one is reported without spawning, and a legacy health answer is replaced.",
+      "anchor": {
+        "type": "contains",
+        "text": "reuses a compatible registered service"
+      }
+    },
+    {
+      "path": "packages/cli/test/service.test.ts",
+      "sha256": "df0cb1708a672399e434884afeb42d3c9dad205e4e69b0707f7628dd675e1f04",
+      "behavior": "Upstream\u0027s own filename and channel expectations: the release channels share service.json, custom channels are sanitized, and version-to-channel membership follows the pre-release spelling.",
+      "anchor": {
+        "type": "contains",
+        "text": "service filenames share release channels"
+      }
+    },
+    {
+      "path": "packages/cli/test/server-connection.test.ts",
+      "sha256": "6d01d388b45a75a81e49c6a14af9a94d3015749f8bcad99076224aed0f97fcb7",
+      "behavior": "The version gate is opt-in: service options only require a matching version when the caller asks for the check, which is why ExpectedVersion is null by default.",
+      "anchor": {
+        "type": "contains",
+        "text": "service options only require a matching version when requested"
+      }
+    },
+    {
+      "path": "packages/cli/script/service-smoke.ts",
+      "sha256": "2bcb80e952a8f4a4d7e61d92ddf6c005d919d90c8e6ccc263330186fcfdcc7e6",
+      "behavior": "Upstream\u0027s end-to-end service smoke expects the registration to carry the service identity (id, version, pid) and refuses one without it.",
+      "anchor": {
+        "type": "contains",
+        "text": "Registration is missing service identity"
       }
     }
   ]
