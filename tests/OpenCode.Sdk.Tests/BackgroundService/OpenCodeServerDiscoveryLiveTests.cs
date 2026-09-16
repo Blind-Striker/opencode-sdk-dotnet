@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Net;
 using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
 using Testably.Abstractions;
@@ -11,14 +9,13 @@ namespace OpenCode.Sdk.Tests.BackgroundService;
 /// pin's own <c>serve --service</c> daemon under isolated roots, found by channel from an isolated
 /// process and by registration file in this one; a client that answers health; the
 /// <c>ExpectedVersion</c> gate; a handle that owns nothing and leaves the shared service alive on
-/// disposal. The two isolated-process cases prove the default shared registration and the home
-/// fallback against a loopback health server, so no test ever reads the developer's own profile.
+/// disposal. The environment-reading proofs against a loopback daemon live in
+/// <see cref="OpenCodeServerDiscoveryIsolatedProcessTests"/>.
 /// </summary>
 [ClassDataSource<PinnedManagedServiceFixture>(Shared = SharedType.PerTestSession)]
 [NotInParallel(ParallelConstraintKeys.ServerProcess)]
 public sealed class OpenCodeServerDiscoveryLiveTests(PinnedManagedServiceFixture service)
 {
-    private const string IsolatedPassword = "isolated-p455";
     private static readonly RealFileSystem FileSystem = new();
 
     [Test]
@@ -34,7 +31,9 @@ public sealed class OpenCodeServerDiscoveryLiveTests(PinnedManagedServiceFixture
             .RunAsync(["discover-channel", PinnedManagedServiceFixture.Channel], environment, cancellationToken);
 
         await Assert.That(result.ExitCode).IsEqualTo(0).Because(result.StandardError);
-        await Assert.That(result.StandardOutput.Trim()).IsEqualTo(FoundLine(service.ProcessId, service.Endpoint));
+        await Assert.That(result.StandardOutput.Trim())
+            .IsEqualTo(ServiceFixtureOutput.FoundLine(service.ProcessId, service.Endpoint))
+            .Because(result.StandardError);
     }
 
     [Test]
@@ -99,54 +98,6 @@ public sealed class OpenCodeServerDiscoveryLiveTests(PinnedManagedServiceFixture
         await Assert.That(mismatching).IsNull();
     }
 
-    [Test]
-    [Timeout(120_000)]
-    public async Task DiscoverAsync_Should_Use_The_Default_Shared_Registration_In_An_Isolated_Process(CancellationToken cancellationToken)
-    {
-        using var root = new TestRunRoot(FileSystem);
-        await using var health = LoopbackHttpServer.Start(static _ => ReadyHealth());
-        var state = FileSystem.Path.Combine(root.Path, "state");
-        Seed(FileSystem.Path.Combine(state, "opencode", "service.json"), health.Endpoint);
-        var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
-        {
-            ["XDG_STATE_HOME"] = state,
-            ["XDG_CONFIG_HOME"] = FileSystem.Path.Combine(root.Path, "config"),
-            ["OPENCODE_CONFIG_DIR"] = null,
-        };
-
-        var result = await new ServiceFixtureCommand(FileSystem).RunAsync(["discover-default"], environment, cancellationToken);
-
-        await Assert.That(result.ExitCode).IsEqualTo(0).Because(result.StandardError);
-        await Assert.That(result.StandardOutput.Trim()).IsEqualTo(FoundLine(ServiceHealthBodyData.Pid, health.Endpoint));
-        await Assert.That(health.RequestPaths).IsEquivalentTo(["/api/health"]);
-    }
-
-    [Test]
-    [Timeout(120_000)]
-    public async Task DiscoverAsync_Should_Fall_Back_To_The_Home_Directory_In_An_Isolated_Process(CancellationToken cancellationToken)
-    {
-        using var root = new TestRunRoot(FileSystem);
-        await using var health = LoopbackHttpServer.Start(static _ => ReadyHealth());
-        var home = FileSystem.Path.Combine(root.Path, "home");
-        Seed(FileSystem.Path.Combine(home, ".local", "state", "opencode", "service.json"), health.Endpoint);
-        // No XDG state root at all: the only way to the registration is the redirected home,
-        // read through USERPROFILE on Windows and HOME elsewhere (the libuv rule the SDK follows).
-        var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
-        {
-            ["XDG_STATE_HOME"] = null,
-            ["XDG_CONFIG_HOME"] = null,
-            ["OPENCODE_CONFIG_DIR"] = null,
-            ["HOME"] = home,
-            ["USERPROFILE"] = home,
-        };
-
-        var result = await new ServiceFixtureCommand(FileSystem).RunAsync(["discover-default"], environment, cancellationToken);
-
-        await Assert.That(result.ExitCode).IsEqualTo(0).Because(result.StandardError);
-        await Assert.That(result.StandardOutput.Trim()).IsEqualTo(FoundLine(ServiceHealthBodyData.Pid, health.Endpoint));
-        await Assert.That(health.RequestPaths).IsEquivalentTo(["/api/health"]);
-    }
-
     private async Task<OpenCodeServer> DiscoverByFileAsync(CancellationToken cancellationToken)
     {
         var server = await OpenCodeServer.DiscoverAsync(
@@ -154,21 +105,5 @@ public sealed class OpenCodeServerDiscoveryLiveTests(PinnedManagedServiceFixture
             cancellationToken);
         return server ?? throw new InvalidOperationException(
             $"The managed service registered at '{service.RegistrationFile}' was not discovered; the fixture reported it ready.");
-    }
-
-    private static string FoundLine(int processId, Uri endpoint) =>
-        $"found owns=false pid={processId.ToString(CultureInfo.InvariantCulture)} endpoint={endpoint}";
-
-    private static LoopbackHttpResponse ReadyHealth() =>
-        new() { StatusCode = HttpStatusCode.OK, Body = ServiceHealthBodyData.Ready, ContentType = "application/json" };
-
-    /// <summary>Writes the registration the loopback daemon (pid 42, version 0.0.0-test) would have published.</summary>
-    private static void Seed(string path, Uri endpoint)
-    {
-        var document = "{\"id\":\"isolated\",\"version\":\"" + ServiceHealthBodyData.Version + "\",\"url\":\"" + endpoint
-            + "\",\"pid\":" + ServiceHealthBodyData.Pid.ToString(CultureInfo.InvariantCulture)
-            + ",\"password\":\"" + IsolatedPassword + "\"}";
-        _ = FileSystem.Directory.CreateDirectory(FileSystem.Path.GetDirectoryName(path)!);
-        FileSystem.File.WriteAllText(path, document);
     }
 }

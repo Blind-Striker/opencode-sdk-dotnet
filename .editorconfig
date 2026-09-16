@@ -1055,10 +1055,10 @@ dotnet_diagnostic.MA0045.severity = none
 [tests/OpenCode.Sdk.Tests/BackgroundService/ServiceDiscoveryTests.cs]
 dotnet_diagnostic.MA0045.severity = none
 
-# OpenCodeServerDiscoveryLiveTests seeds an isolated registration on the real filesystem through the
-# same synchronous member, for the same reason. Winner: one source for every test leg; MA0045
-# remains enabled elsewhere.
-[tests/OpenCode.Sdk.Tests/BackgroundService/OpenCodeServerDiscoveryLiveTests.cs]
+# OpenCodeServerDiscoveryIsolatedProcessTests seeds an isolated registration on the real filesystem
+# through the same synchronous member, for the same reason. Winner: one source for every test leg;
+# MA0045 remains enabled elsewhere.
+[tests/OpenCode.Sdk.Tests/BackgroundService/OpenCodeServerDiscoveryIsolatedProcessTests.cs]
 dotnet_diagnostic.MA0045.severity = none
 
 # DriveManifestTests targets net472 in this project's Windows leg. The regex source generator's

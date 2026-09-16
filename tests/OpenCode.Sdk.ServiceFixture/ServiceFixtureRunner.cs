@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 
 namespace OpenCode.Sdk.ServiceFixture;
@@ -35,7 +36,14 @@ internal static class ServiceFixtureRunner
 
         try
         {
+            // The elapsed time goes to stderr, never to the stdout contract: a "missing" that took
+            // the whole request bound is a timed-out probe, one that took milliseconds is a
+            // registration the process never found, and a test reading both can tell them apart.
+            var stopwatch = Stopwatch.StartNew();
             var server = await OpenCodeServer.DiscoverAsync(options).ConfigureAwait(false);
+            await Console.Error
+                .WriteLineAsync($"discovery took {stopwatch.ElapsedMilliseconds.ToString(CultureInfo.InvariantCulture)} ms")
+                .ConfigureAwait(false);
             if (server is null)
             {
                 await Console.Out.WriteLineAsync("missing").ConfigureAwait(false);
