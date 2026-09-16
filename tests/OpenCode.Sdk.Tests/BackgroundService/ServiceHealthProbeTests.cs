@@ -189,9 +189,15 @@ public sealed class ServiceHealthProbeTests
         await Assert.That(result.ToString()).DoesNotContain(Password);
         await Assert.That(result.ToString()).DoesNotContain("Basic");
     }
+    /// <summary>
+    /// Classification tests are about the answer, not the bound: a loaded runner (the macOS leg,
+    /// three assemblies at once) can miss the pinned two-second request timeout on a loopback
+    /// exchange, which would report a timeout where a state was expected. The bound itself is
+    /// proven once, with <see cref="FastTiming"/>, against a kept-open response.
+    /// </summary>
+    private static readonly ServiceTiming PatientTiming = ServiceTiming.Default with { RequestTimeout = TimeSpan.FromSeconds(30) };
 
-    private static ServiceHealthProbe Probe() => new(ServiceTiming.Default);
-
+    private static ServiceHealthProbe Probe() => new(PatientTiming);
     private static ServiceRegistration Registration(Uri endpoint, string? version = ServiceHealthBodyData.Version, string? password = Password) =>
         new("srv_1", version, endpoint.ToString(), endpoint, ServiceHealthBodyData.Pid, password);
 
