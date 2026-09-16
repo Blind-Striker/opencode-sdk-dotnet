@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-09-15
+Date: 2026-09-16
 
 Operational state: what ships today, what is queued next, what is still open, and what is known to
 be incomplete. This file is a summary and shrinks as work lands. `../AGENTS.md` routes to the
@@ -39,7 +39,7 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
   boundary in its own right rather than a routine pin move.
 - **Packages** — the two packages publish as `OpenCodeAI.Sdk` and `OpenCodeAI.Sdk.Extensions`
   (the assemblies stay `OpenCode.Sdk`) and pack at the single-sourced
-  `VersionPrefix 0.8.0`. Every `master` push publishes a `0.8.0-nightly.*` build to GitHub
+  `VersionPrefix 0.9.0`. Every `master` push publishes a `0.9.0-nightly.*` build to GitHub
   Packages, and `0.8.0-preview.2` is on NuGet.org, owned by `OpenCode.NET` and pushed through the
   manual lane over Trusted Publishing. The ids carry `OpenCodeAI` because nuget.org reserves the
   `OpenCode.` prefix for an unrelated owner; that dispute is still open and no longer blocks
@@ -64,9 +64,12 @@ is revisited at each boundary.
    start, explicit endpoint, and the registration-file background service. The standalone door
    (`OpenCodeServer.StartAsync`, ADR-0001) and the explicit-endpoint validation option are landed
    with three-OS acceptance, an exact-pin server fixture, and a deterministic simulated-model
-   session workflow (ADR-0022). **The background-service parity arc is queued** —
-   `OpenCodeService.DiscoverAsync/EnsureAsync/StopAsync` over the registration file, an
-   upstream-observed contract outside the OpenAPI pin, so canary-guarded.
+   session workflow (ADR-0022). **The background-service parity arc is in flight, and its first
+   slice has landed**: `OpenCodeServer.DiscoverAsync` over the registration file — an
+   upstream-observed contract outside the OpenAPI pin, so source-watched (ADR-0024, ADR-0025) —
+   with a non-owning handle (`OwnsProcess`), the CLI's channel, migration, and health rules, and
+   live proof against the pin's own `serve --service` daemon on every runtime leg. `EnsureAsync`
+   and `StopAsync` follow as their own slices.
    **Surface completeness is queued beside it, for detailed investigation before any code:**
    admitting the five operations that sit outside generation today. The sketched paths are an
    opaque `JsonElement` arm for an object-only union with no marker literal (`v2.config.get`,
@@ -131,6 +134,15 @@ is revisited at each boundary.
   path parameter the document does not declare (ADR-0013), and the upstream report is drafted.
   All three now have a sketched admission path (Milestones, M4: surface completeness), so these
   are scheduled decisions to revisit, not standing ones.
+- **The downlevel Unix arm of the legacy-registration copy shells out for its file mode.**
+  Discovery's one-time copy of an older hashed registration is created exclusively at mode `0600`:
+  `net8.0` and later set the mode at creation through `FileStreamOptions.UnixCreateMode`, while
+  `net472` and `netstandard2.0` have no such API and apply it through Polyfill's
+  `File.SetUnixFileMode`, which spawns `chmod` with an unquoted path and no exit-code check. The
+  copy is a convenience the daemon's own registration supersedes, the population is .NET Framework
+  or Mono on Unix, and no CI leg runs that combination, so this is recorded rather than tested; the
+  README's Known Issues carries the consumer-facing sentence. Reopens if a supported target ever
+  needs that arm or if Polyfill quotes the path.
 - **Two allocation follow-ups are queued behind a benchmark gate** — on `net472` and
   `netstandard2.0` a response body over 1 MB costs one wire-sized copy, and each terminal connection
   allocates one 16 KiB receive buffer, reused across consumer reads. Both are described for consumers

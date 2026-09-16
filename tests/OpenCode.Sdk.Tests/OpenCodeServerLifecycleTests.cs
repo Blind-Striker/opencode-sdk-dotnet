@@ -34,6 +34,7 @@ public sealed class OpenCodeServerLifecycleTests
 
         await Assert.That(server.Endpoint.IsLoopback).IsTrue();
         await Assert.That(server.Endpoint.Port).IsNotEqualTo(0);
+        await Assert.That(server.OwnsProcess).IsTrue();
 
         using var client = server.CreateClient();
         var health = await client.GetHealthAsync(cancellationToken: cancellationToken);

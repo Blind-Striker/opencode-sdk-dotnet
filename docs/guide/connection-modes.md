@@ -1,15 +1,16 @@
 # 🔌 Connection modes
 
-Date: 2026-09-08
+Date: 2026-09-16
 
-There are two ways to get a client bound to a running opencode server: **let the SDK start one**,
-or **point it at one you already have**. Dependency injection is not a third way in — it is how you
-register either of them with a container.
+There are three ways to get a client bound to a running opencode server: **let the SDK start one**,
+**point it at one you already have**, or **discover the background service the opencode CLI runs
+for every client on the machine**. Dependency injection is not a fourth way in — it is how you
+register any of them with a container.
 
 - [🚀 The SDK starts the server](#-the-sdk-starts-the-server)
 - [🔗 A server you already run](#-a-server-you-already-run)
+- [🛰️ Discovering the background service](#️-discovering-the-background-service)
 - [🧩 Registering with dependency injection](#-registering-with-dependency-injection)
-- [🔜 Attaching to a background service](#-attaching-to-a-background-service)
 
 ## 🚀 The SDK starts the server
 
@@ -90,7 +91,7 @@ The rules, in full:
 
 When a bare name matches nothing, the start fails with `OpenCodeServerException` before any process
 exists, naming how many directories were searched and which extensions were tried — see
-[errors and responses](errors-and-responses.md#-when-the-launcher-fails).
+[errors and responses](errors-and-responses.md#-when-a-local-server-door-fails).
 
 > **⚙️ Batch shims run through `cmd.exe`.** When resolution lands on a `.cmd` or `.bat` file, the
 > launcher starts the system `cmd.exe` explicitly (`/d /s /c`) with the script and every argument
@@ -153,7 +154,7 @@ dies before disposal runs, the operating system closes the lease and the child e
 
 Startup failures throw `OpenCodeServerException`, carrying a bounded tail of the child's stderr
 whenever a child actually ran — see
-[errors and responses](errors-and-responses.md#-when-the-launcher-fails).
+[errors and responses](errors-and-responses.md#-when-a-local-server-door-fails).
 
 ## 🔗 A server you already run
 
@@ -194,9 +195,101 @@ OPENCODE_PASSWORD=your-password opencode serve --hostname 127.0.0.1 --port 4096
 
 — and the client must present the same value as its Basic password. `OPENCODE_SERVER_PASSWORD` is
 the CLI's legacy name for the same value, still honored as a fallback, so an older setup keeps
-working. The SDK never reads either one, or any other environment variable, for you. Reading it in
-the snippet above is your application's choice; a configuration section or a secret store works
-exactly as well.
+working. The client never reads either one, or any other environment variable, for you. Reading it
+in the snippet above is your application's choice; a configuration section or a secret store works
+exactly as well. The one door that does read the environment is
+[background-service discovery](#️-discovering-the-background-service), and it reads exactly the four
+variables that section names — never a credential.
+
+## 🛰️ Discovering the background service
+
+The opencode CLI runs one background service per user and publishes where it listens in a
+registration file: the URL, the daemon's pid, its version, and the Basic password. Every opencode
+client on the machine — the CLI, the desktop app, now this SDK — finds the same daemon through that
+file. `OpenCodeServer.DiscoverAsync` is that lookup, and nothing more: it starts nothing, owns
+nothing, and stops nothing.
+
+```csharp
+var server = await OpenCodeServer.DiscoverAsync();
+if (server is null)
+{
+    // No ready registered service: start a private one with StartAsync, or run `opencode` once.
+    return;
+}
+
+using var client = server.CreateClient();
+var health = await client.GetHealthAsync();
+Console.WriteLine($"discovered opencode {health.Health.Version} (pid {server.ProcessId})");
+// server.DisposeAsync() is a no-op here: OwnsProcess is false, and the service stays up for
+// everyone else.
+```
+
+The answer is the daemon's identity or **null** — never a half-usable handle. Null covers every
+ordinary way a service can be absent or unusable: no registration file, one that does not decode,
+one without a password, a daemon that is still starting or has failed, a health probe that did not
+answer within its two-second bound, or a version other than the one you asked for. You decide what
+null means for your application; the SDK does not start a daemon on your behalf.
+
+### What discovery reads
+
+Discovery follows the CLI's own rules for locating the registration, which makes it the one door
+in the SDK that reads the environment. It reads exactly four variables, all of them paths:
+
+| Variable | Role |
+|---|---|
+| `XDG_STATE_HOME` | the state root the registration file lives under (`<state>/opencode/…`) |
+| `XDG_CONFIG_HOME` | the config root the CLI's service configuration lives under |
+| `OPENCODE_CONFIG_DIR` | replaces the whole config root when set, with no `opencode` segment beneath it |
+| the user profile | `USERPROFILE` first on Windows, `HOME` elsewhere; the fallback root when an XDG variable is unset |
+
+No credential is ever read from the environment: the password comes from the registration file the
+daemon wrote, which is why the file is created readable by its owner only.
+
+### Shaping the lookup
+
+`OpenCodeServerDiscoverOptions` has four optional members. Leave the whole thing out to read the
+shared release registration.
+
+| Member | Meaning |
+|---|---|
+| `Channel` | The CLI's service channel. Null reads the shared release registration (`service.json`), which the `latest`, `dev`, `beta`, and `next` builds all publish to. `local` and any other name read `service-<channel>.json`; for a channel that ever had the CLI's earlier hashed filename, discovery first performs the same one-time copy the CLI performs. |
+| `RegistrationFilePath` | An absolute path to read directly. It bypasses the channel rules and the environment entirely — the test double's door, and the door for a daemon whose file you already know. Cannot be combined with `Channel` or `InstalledVersion`. |
+| `ExpectedVersion` | Accept only a daemon whose health answer reports exactly this version; null accepts any ready daemon. |
+| `InstalledVersion` | The version the channel migration compares a legacy registration against, the way the CLI compares its own compiled version. Defaults to `ExpectedVersion`; when both are set they must be equal. |
+
+Every member is validated at the call: a blank string, a relative path, or a contradictory pair
+throws `ArgumentException` before anything is read.
+
+### How the daemon is checked
+
+A decoded registration is probed with `GET /api/health` under Basic authentication using the
+registered password, bounded at two seconds. A 2xx answer whose pid matches the registration is a
+ready service; a 500 is a daemon that failed to boot; anything else is a daemon still starting —
+and only the first becomes a handle. The probe follows no redirects and sends the credential to the
+registered origin only.
+
+### What the handle is
+
+A discovered `OpenCodeServer` carries the same `Endpoint`, `Username`, `Password`, and `ProcessId`
+a started one does, and `CreateClient()` binds a client to it the same way. The difference is
+ownership, and it is visible: **`OwnsProcess` is false**, `DisposeAsync` ends nothing, and the pid
+is the daemon's own rather than a child of yours. Do not kill that pid: it is shared with every
+other opencode client on the machine.
+
+### What can fail
+
+Three things throw; everything else is null.
+
+- `ArgumentException` — the options were blank or contradictory (see above).
+- `OpenCodeServerException` — an XDG variable was unset and no user home resolved either, so the
+  registration roots cannot be located at all. This is the same failure plane as the launcher's;
+  see [when a local-server door fails](errors-and-responses.md#-when-a-local-server-door-fails).
+- `OperationCanceledException` — your own token was cancelled. The internal two-second probe bound
+  never surfaces as cancellation; it is a null.
+
+Ensuring a daemon exists (starting one when discovery finds nothing) and stopping the registered
+daemon are the CLI's remaining two service operations; the SDK's parity for them is queued behind
+discovery and tracked in [the roadmap](../ROADMAP.md).
 
 > **🔑 `opencode serve` always has a password.** Setting neither variable does not start an open
 > server — it makes the CLI generate one and print it as `server password <pw>` on startup, and no
@@ -277,13 +370,21 @@ example in the root README's [dependency-injection quickstart](../../README.md#d
 — worth reading side by side with the binding above.
 
 Nothing about DI changes which door you came in through: an `AddOpenCode` registration is the
-explicit-endpoint door, and a launcher-started server joins a container by registering
-`CreateClient()`'s result yourself.
+explicit-endpoint door. A launcher-started or a discovered server joins a container through the
+same door — hand its identity to the configure-action overload, and the container builds and owns
+the client and the 29 families exactly as it would for an endpoint you typed in:
 
-## 🔜 Attaching to a background service
+```csharp
+var server = await OpenCodeServer.DiscoverAsync()
+    ?? await OpenCodeServer.StartAsync();
 
-opencode has a third connection mode of its own — discovering a registered background daemon
-through its registration file (`Service.discover` / `ensure` / `stop`). **The SDK has no parity for
-it yet.** You can point a client at an endpoint you already know, or start a private server; what
-you cannot do today is find a daemon somebody else started. That is a queued follow-up, tracked in
-the root README's [known issues](../../README.md#known-issues).
+builder.Services.AddOpenCode(options =>
+{
+    options.Endpoint = server.Endpoint;
+    options.Password = server.Password;
+});
+```
+
+Registering `server.CreateClient()` as a singleton instead would register one bare client with no
+families behind it. Either way the `OpenCodeServer` handle stays yours: dispose it when the host
+stops, and a started child ends while a discovered service does not.

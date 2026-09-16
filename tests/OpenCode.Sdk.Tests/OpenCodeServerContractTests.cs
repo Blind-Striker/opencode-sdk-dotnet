@@ -11,6 +11,75 @@ public sealed class OpenCodeServerContractTests
 
     private static OpenCodeServer CreateStartedDoor() => new(DoorEndpoint, DoorPassword);
 
+    private static OpenCodeServer CreateDiscoveredDoor() => new(DoorEndpoint, DoorPassword, processId: 48213, ownsProcess: false);
+
+    [Test]
+    public async Task OwnsProcess_Should_Be_False_For_The_Contract_Seam()
+    {
+        await Assert.That(CreateStartedDoor().OwnsProcess).IsFalse();
+    }
+
+    [Test]
+    public async Task OwnsProcess_Should_Be_False_For_A_Bare_Mock()
+    {
+        await Assert.That(new MockableServer().OwnsProcess).IsFalse();
+    }
+
+    [Test]
+    public async Task A_Discovered_Door_Should_Carry_The_Registration_Identity_And_Own_Nothing()
+    {
+        var server = CreateDiscoveredDoor();
+
+        await Assert.That(server.OwnsProcess).IsFalse();
+        await Assert.That(server.Endpoint).IsEqualTo(DoorEndpoint);
+        await Assert.That(server.Password).IsEqualTo(DoorPassword);
+        await Assert.That(server.ProcessId).IsEqualTo(48213);
+    }
+
+    [Test]
+    public async Task DisposeAsync_Should_Not_Stop_A_Discovered_Server()
+    {
+        var server = CreateDiscoveredDoor();
+
+        // Twice: idempotent, and nothing to end either time; the identity stays readable.
+        await server.DisposeAsync();
+        await server.DisposeAsync();
+
+        await Assert.That(server.ProcessId).IsEqualTo(48213);
+        await Assert.That(server.Endpoint).IsEqualTo(DoorEndpoint);
+    }
+
+    [Test]
+    public async Task CreateClient_Should_Use_The_Discovered_Identity()
+    {
+        var server = CreateDiscoveredDoor();
+        OpenCodeClientOptions? observed = null;
+
+        using var client = server.CreateClient(options => observed = options);
+
+        // The delegate sees identity unset, and the built client carries the registration's
+        // endpoint and password: the discovered handle is a first-class door, not a mock.
+        await Assert.That(observed!.Endpoint).IsNull();
+        await Assert.That(observed.Password).IsNull();
+        var pipeline = (Pipeline)typeof(OpenCodeClient)
+            .GetField("_pipeline", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .GetValue(client)!;
+        await Assert.That(pipeline.Connection.EndpointBase).IsEqualTo("http://127.0.0.1:4096");
+        await Assert.That(pipeline.Connection.Authorization).IsNotNull();
+    }
+
+    [Test]
+    public async Task DiscoverAsync_Should_Refuse_Contradictory_Options_With_ArgumentException()
+    {
+        var options = new OpenCodeServerDiscoverOptions { Channel = "dev", InstalledVersion = "2.0.2", ExpectedVersion = "2.0.3" };
+
+        var exception = await Assert
+            .That(async () => _ = await OpenCodeServer.DiscoverAsync(options))
+            .Throws<ArgumentException>();
+
+        await Assert.That(exception!.ParamName).IsEqualTo("options");
+    }
+
     [Test]
     public async Task CreateClient_Should_Hand_The_Delegate_Identity_Unset_Options()
     {

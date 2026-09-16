@@ -63,9 +63,12 @@ the server's working directory. Session listing filters with `SessionListRequest
 `Project`, independently of these headers. See the [location contract](../architecture/client-runtime.md#location)
 for ambient and per-call header behavior.
 
-> **🔑 The SDK reads no environment variables of its own.** `OPENCODE_PASSWORD` above is
+> **🔑 The client reads no environment variables of its own.** `OPENCODE_PASSWORD` above is
 > *your* code reading *your* environment — exactly how opencode's own CLI layers it. Options are
-> snapshotted at construction, so changing the environment later never reaches a live client.
+> snapshotted at construction, so changing the environment later never reaches a live client. The
+> one door that does read the environment is `OpenCodeServer.DiscoverAsync`, which locates the
+> CLI's background-service registration through the same four path variables the CLI uses — see
+> [discovering the background service](connection-modes.md#️-discovering-the-background-service).
 
 Options are validated when the client is built: a missing endpoint or a blank password throws
 straight away rather than on the first call.

@@ -1,6 +1,6 @@
 # Testing Style — authoring tests
 
-Date: 2026-08-29
+Date: 2026-09-16
 
 Binding authorship style for every test in this repository. `quality-gates.md` owns the
 current assurance posture and completion gates; operational build-out state belongs in
@@ -56,15 +56,20 @@ sized to need:
 
 ## 2. Filesystem rule
 
-**Testably supplies the repository's only filesystem seam** through the shared
+**Testably supplies the repository's only filesystem double** through the shared
 `System.IO.Abstractions.IFileSystem` contract (sealed decision; the independent TestableIO
-analyzer enforces it repo-wide — even test code reaches `Path` through `IFileSystem.Path`):
+analyzer enforces it wherever an abstractions assembly is referenced — even test code reaches
+`Path` through `IFileSystem.Path`):
 
 - Levels 1–2 (unit, contract): `Testably.Abstractions.Testing.MockFileSystem`, assembled
   through the scenario builders.
 - Level 3 and full-artifact smoke tests: `Testably.Abstractions.RealFileSystem`.
 - Raw `System.IO` never appears in test code, and no second filesystem fake is ever
   introduced — one canonical fake per repository.
+- Repository tooling and tests consume `IFileSystem` directly. Shipped SDK code carries no
+  filesystem-abstraction dependency: the file access it performs sits behind its own internal
+  seam (`IServiceFileSystem` for the background-service slice), whose test implementation is a
+  `tests/Shared/` adapter over the same `IFileSystem`, so the fake stays the one above.
 
 ## 3. Test data policy — no inline dumps
 

@@ -18,24 +18,28 @@ call is exactly what the server declares.
 ## 🎉 Project Status
 
 **Published and pre-1.0; the protocol surface is complete.** Everything below is landed and
-covered. What is still outstanding is opencode's third connection mode — attaching to a registered
-background service.
+covered. All three of opencode's connection modes are open: a private server the SDK starts, an
+endpoint you already run, and the background service the CLI registers. What is still outstanding
+on that third mode is ensuring and stopping the service, which follow discovery as their own slices.
 
-- ✅ **138 of 143 operations** callable, across 29 client families — sessions, PTYs, persistent
+- ✅ **139 of 144 operations** callable, across 29 client families — sessions, PTYs, persistent
   PTYs, shells, events, MCP servers, integrations, providers, permissions, credentials, config,
   VCS, worktrees, websearch, RPC, and more
-- ✅ **5,612 tests** green on Windows — the fullest leg, the only one that adds the `net472`
+- ✅ **6,295 tests** green on Windows — the fullest leg, the only one that adds the `net472`
   assemblies. Linux and macOS run the same suite on `net8.0`, `net9.0`, and `net10.0`
 - ✅ **Server-sent event streams**, global and per-session, over the same transport as one-shot calls
 - ✅ **PTY and persistent-PTY terminal sessions** through hand-written WebSocket doors
 - ✅ **A launcher** — `OpenCodeServer.StartAsync()` starts, monitors, and stops a private
   `opencode serve` child for you
+- ✅ **Background-service discovery** — `OpenCodeServer.DiscoverAsync()` finds the daemon the
+  opencode CLI registers for every client on the machine, through the CLI's own registration
+  rules, and hands you a non-owning handle; proven against the pinned service on every runtime leg
 - ✅ **Source-generated `System.Text.Json`** with no reflection fallback; both packages declare
   `IsAotCompatible` on `net10.0`
-- 🚧 **Pre-1.0 and iterating** — released as `0.8.0-preview.N`; the public surface is
+- 🚧 **Pre-1.0 and iterating** — released as `0.9.0-preview.N`; the public surface is
   locked by a reviewed baseline but may still move before `1.0.0`. See [CHANGELOG.md](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/CHANGELOG.md)
-- 🔜 **Background-service attachment** and an **MCP server** over this SDK — both planned, neither
-  started
+- 🔜 **Ensuring and stopping the background service**, and an **MCP server** over this SDK —
+  planned, not started
 
 **Versioning**: the SDK builds against an accepted OpenAPI snapshot taken at an upstream release
 tag, never a live branch. The exact commit and the refresh procedure live in
@@ -92,10 +96,10 @@ on, and the `net472` leg is what exercises its compile surface.
   envelope, and typed error models — including opencode's discriminator-free unions, which the
   repository's own generator represents faithfully because off-the-shelf .NET OpenAPI generators
   did not.
-- **One transport, either way in.** Point the client at a server you already run, or let
-  `OpenCodeServer.StartAsync()` start a private one for you — the same pipeline owns endpoint
-  authority, authentication, buffering, and failure mapping in both. (opencode's third connection
-  mode, attaching to a registered background service, is not implemented yet.)
+- **One transport, every way in.** Point the client at a server you already run, let
+  `OpenCodeServer.StartAsync()` start a private one for you, or let `OpenCodeServer.DiscoverAsync()`
+  find the background service the opencode CLI registers — the same pipeline owns endpoint
+  authority, authentication, buffering, and failure mapping in all three.
 - **Errors you can branch on.** Every call throws typed exceptions by default, or returns the
   failure as data with `OpenCodeRequestOptions.NoThrow` when a 404 is a normal answer.
 - **Broad .NET reach.** `netstandard2.0` and `net472` are first-class, so this works inside
@@ -146,7 +150,7 @@ the GitHub Packages feed below.
 
 ### Nightly builds (GitHub Packages)
 
-Every code push to `master` publishes `0.8.0-nightly.{yyyyMMdd}.{shortSha}` to GitHub Packages:
+Every code push to `master` publishes `0.9.0-nightly.{yyyyMMdd}.{shortSha}` to GitHub Packages:
 
 ```bash
 # Add the GitHub Packages source (PAT: classic token with the read:packages scope)
@@ -232,8 +236,34 @@ var health = await client.GetHealthAsync();
 Console.WriteLine(health.Health.Version);
 ```
 
-The SDK reads no environment variables of its own — resolving a password from the environment is
-the caller's decision, exactly as opencode's own CLI layers it.
+The client reads no environment variables of its own — resolving a password from the environment
+is the caller's decision, exactly as opencode's own CLI layers it. The one door that does read the
+environment is background-service discovery, below, and it reads only the four path variables the
+CLI itself uses to locate its registration.
+
+### The background service the CLI runs
+
+The opencode CLI keeps one background service per user and publishes where it listens in a
+registration file. `DiscoverAsync` reads that file the way the CLI does, checks the daemon's
+authenticated health, and hands you a handle that owns nothing — disposing it never stops the
+service other clients share. Null means no ready service; start a private one, or run `opencode`.
+
+```csharp
+var server = await OpenCodeServer.DiscoverAsync();
+if (server is null)
+{
+    return; // no ready registered service
+}
+
+using var client = server.CreateClient();
+var health = await client.GetHealthAsync();
+Console.WriteLine($"opencode {health.Health.Version}, pid {server.ProcessId}, owned: {server.OwnsProcess}");
+```
+
+`OpenCodeServerDiscoverOptions` selects a service channel, names a registration file directly, or
+requires an exact version; the
+[connection guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/connection-modes.md#️-discovering-the-background-service)
+has the full table.
 
 ### Dependency injection
 
@@ -337,11 +367,20 @@ Architecture, decision records, and engineering policy live under [`docs/`](http
   receiver also queues undelivered frames, so slow or absent consumers can grow memory; see the
   [terminal lifetime contract](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/architecture/client-runtime.md).
 
-- **Attaching to an existing background service is not implemented.** opencode's third connection
-  mode — discovering a registered daemon through its registration file (`Service.discover` /
-  `ensure` / `stop`) — has no SDK parity yet. You can point the client at an endpoint you already
-  know, or let `OpenCodeServer.StartAsync()` start a private server; what you cannot do is find a
-  daemon someone else started. That parity is a queued follow-up arc, not a defect in what ships.
+- **Discovery finds the background service; it does not start or stop one.** `DiscoverAsync`
+  answers null when no ready registered daemon exists, and the CLI's `ensure` (start one when
+  nothing is registered) and `stop` operations have no SDK parity yet; they follow as their own
+  slices. Start a private server with `OpenCodeServer.StartAsync()` or run `opencode` in the
+  meantime.
+
+- **On `net472` and `netstandard2.0` running on Unix, the legacy-registration copy applies its
+  owner-only mode through a `chmod` child process.** Discovery reproduces the CLI's one-time copy
+  of an older hashed registration filename with mode `0600`. Modern targets set the mode at creation
+  through the runtime; the downlevel targets have no such API and use the Polyfill package's
+  `File.SetUnixFileMode`, which shells out to `chmod` without quoting the path or checking its exit
+  code. The copy is a convenience the daemon's own registration supersedes, and the file is created
+  exclusively either way, so the practical exposure is a legacy copy left at the default mode on an
+  exotic path — on a runtime combination (.NET Framework or Mono on Unix) this SDK does not test.
 
 - **The event bus has no replay contract.** `EventsClient.SubscribeAsync` is a live, volatile
   stream: events published while you are disconnected are gone, and a consumer slower than the

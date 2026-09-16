@@ -4,16 +4,20 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using OpenCode.Sdk.Internal;
+using OpenCode.Sdk.Internal.BackgroundService;
 
 namespace OpenCode.Sdk;
 
 /// <summary>
-/// A running standalone opencode server owned by this process: started on port zero with its
-/// own generated lease credential, held through an open stdin pipe, and ended by disposal —
-/// stdin EOF first, then a bounded grace, then a forced tree kill. This working object is the
-/// only owner: disposal ends exactly its own child, and the operating system closes the lease
-/// even when the owner crashes before disposal runs. It never discovers or attaches to another
-/// server, so coexistence with any running server is safe by construction.
+/// A local opencode server reached through one of its process-backed modes, with the ownership
+/// the mode implies visible through <see cref="OwnsProcess"/>. <see cref="StartAsync"/> returns
+/// an owned standalone server: started on port zero with its own generated lease credential, held
+/// through an open stdin pipe, and ended by disposal — stdin EOF first, then a bounded grace, then
+/// a forced tree kill; disposal ends exactly its own child, and the operating system closes the
+/// lease even when the owner crashes before disposal runs. <see cref="DiscoverAsync"/> returns a
+/// shared registered background service the first-party CLI runs for every client on the machine:
+/// nothing here owns it, and disposing the handle is a no-op. Either way the handle carries the
+/// endpoint and credential a client needs, and <see cref="CreateClient"/> is the door to them.
 /// </summary>
 public class OpenCodeServer : IAsyncDisposable
 {
@@ -38,6 +42,7 @@ public class OpenCodeServer : IAsyncDisposable
     private readonly TimeSpan _gracefulShutdownTimeout;
     private readonly OpenCodeServerOutput? _output;
     private readonly int? _processId;
+    private readonly bool _ownsProcess;
     private int _disposed;
 
     private OpenCodeServer(
@@ -52,6 +57,7 @@ public class OpenCodeServer : IAsyncDisposable
         _password = password;
         _gracefulShutdownTimeout = gracefulShutdownTimeout;
         _output = output;
+        _ownsProcess = true;
 
         // Captured while the handle is live: the identity stays readable for diagnostics after
         // disposal has released the process handle.
@@ -69,30 +75,75 @@ public class OpenCodeServer : IAsyncDisposable
     }
 
     /// <summary>
+    /// Initializes a handle over a server another process runs: the identity a registration
+    /// published, no child, no ownership. Disposal is a no-op.
+    /// </summary>
+    internal OpenCodeServer(Uri endpoint, string password, int processId, bool ownsProcess)
+    {
+        _endpoint = endpoint;
+        _password = password;
+        _processId = processId;
+        _ownsProcess = ownsProcess;
+    }
+
+    /// <summary>
     /// Initializes a mocking instance; members invoked without an override throw an instructive failure.
     /// </summary>
     protected OpenCodeServer()
     {
     }
 
-    /// <summary>Gets the endpoint the started server bound on port zero.</summary>
+    /// <summary>
+    /// Gets a value indicating whether this handle owns the server process: true for a server
+    /// <see cref="StartAsync"/> started, whose disposal ends it; false for a registered background
+    /// service <see cref="DiscoverAsync"/> found, whose disposal is a no-op because other clients
+    /// share it. A bare mock reports false unless it overrides this member.
+    /// </summary>
+    public virtual bool OwnsProcess => _ownsProcess;
+
+    /// <summary>Gets the endpoint: the port-zero binding of a started server, or the URL a registration published.</summary>
     public virtual Uri Endpoint => _endpoint ?? throw MockSeam.CreateError("OpenCodeServer", "Endpoint");
 
     /// <summary>Gets the basic-authentication username; the pinned server accepts only <c>opencode</c>.</summary>
     public virtual string Username => "opencode";
 
-    /// <summary>Gets the generated lease credential this start injected into the child.</summary>
+    /// <summary>Gets the credential: the generated lease a start injected into its child, or the password a registration published.</summary>
     public virtual string Password => _password ?? throw MockSeam.CreateError("OpenCodeServer", "Password");
 
     /// <summary>
-    /// Gets the child process identifier, for diagnostics and process-truth assertions. It
-    /// remains readable after disposal, when the process handle itself is gone. It identifies the
-    /// process this door owns, which for a Windows batch shim is the cmd.exe host the shim's own
-    /// child runs under rather than the server process; ask the server for its own pid when that
-    /// distinction matters.
+    /// Gets the server's process identifier, for diagnostics and process-truth assertions. It
+    /// remains readable after disposal, when any process handle is gone. For a started server it
+    /// identifies the process this door owns, which for a Windows batch shim is the cmd.exe host
+    /// the shim's own child runs under rather than the server process; ask the server for its own
+    /// pid when that distinction matters. For a discovered service it is the pid the registration
+    /// published and the health answer confirmed.
     /// </summary>
     public virtual int ProcessId =>
         _processId ?? throw MockSeam.CreateError("OpenCodeServer", "ProcessId");
+
+    /// <summary>
+    /// Finds the registered background service the first-party CLI publishes for this user,
+    /// without starting, owning, or stopping it: resolves the registration file from the channel
+    /// and the XDG roots (or reads the file the options name directly), runs the channel's legacy
+    /// migration, decodes the registration, and asks the daemon for its health under a two-second
+    /// bound. A ready daemon that carries a password and, when <see cref="OpenCodeServerDiscoverOptions.ExpectedVersion"/>
+    /// is set, reports exactly that version, comes back as a non-owning handle; anything else is null.
+    /// </summary>
+    /// <param name="options">The discovery options; null reads the shared release registration.</param>
+    /// <param name="cancellationToken">The caller's token; its cancellation propagates, the internal request bound does not.</param>
+    /// <returns>A non-owning handle over the ready service, or null when there is no usable one.</returns>
+    /// <exception cref="ArgumentException">An option is blank, the registration path is relative, or the options contradict one another.</exception>
+    /// <exception cref="OpenCodeServerException">No user home directory resolves for an XDG fallback.</exception>
+    public static async Task<OpenCodeServer?> DiscoverAsync(
+        OpenCodeServerDiscoverOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        var discovery = new ServiceDiscovery(new ServiceEnvironment(), new ServiceFileSystem(), new ServiceHealthProbe(ServiceTiming.Default));
+        var registration = await discovery.DiscoverAsync(options, cancellationToken).ConfigureAwait(false);
+        return registration is null
+            ? null
+            : new OpenCodeServer(registration.Endpoint, registration.Password!, registration.ProcessId, ownsProcess: false);
+    }
 
     /// <summary>
     /// Starts a fresh private standalone server: resolves the command the way a shell would,
@@ -200,9 +251,10 @@ public class OpenCodeServer : IAsyncDisposable
     /// <summary>
     /// Ends the owned child: closes stdin (the ownership lease), waits the configured grace,
     /// then escalates to a forced tree kill. Idempotent, bounded, and quiet for a child that is
-    /// already gone.
+    /// already gone. A handle that owns no process (<see cref="OwnsProcess"/> false) has nothing
+    /// to end: disposing a discovered service never stops it.
     /// </summary>
-    /// <returns>A task that completes once the child is ended and released.</returns>
+    /// <returns>A task that completes once any owned child is ended and released.</returns>
     public virtual async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) is 1)

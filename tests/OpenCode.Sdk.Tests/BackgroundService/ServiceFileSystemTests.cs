@@ -1,0 +1,119 @@
+using System.Text;
+using OpenCode.Sdk.Internal.BackgroundService;
+using Testably.Abstractions;
+
+namespace OpenCode.Sdk.Tests.BackgroundService;
+
+/// <summary>
+/// The shipped <see cref="ServiceFileSystem"/> against the real filesystem, inside one owned
+/// temporary directory: exclusive creation, the existing-target refusal that keeps a live
+/// registration intact, and exact reads. Level 3 by design; the level-1/2 double is the
+/// <c>TestablyServiceFileSystem</c> adapter.
+/// </summary>
+public sealed class ServiceFileSystemTests
+{
+    private static readonly byte[] Content = Encoding.UTF8.GetBytes("{\"url\":\"http://127.0.0.1:1\"}");
+
+    [Test]
+    public async Task TryCreateExclusiveAsync_Should_Create_A_Missing_File_With_Its_Bytes()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        var path = directory.File("created.json");
+
+        var created = await new ServiceFileSystem().TryCreateExclusiveAsync(path, Content, CancellationToken.None);
+
+        await Assert.That(created).IsTrue();
+        await Assert.That(directory.FileSystem.File.ReadAllBytes(path)).IsEquivalentTo(Content);
+    }
+
+    [Test]
+    public async Task TryCreateExclusiveAsync_Should_Return_False_For_An_Existing_File_And_Keep_Its_Content()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        var path = directory.File("existing.json");
+        directory.FileSystem.File.WriteAllText(path, "live");
+
+        var created = await new ServiceFileSystem().TryCreateExclusiveAsync(path, Content, CancellationToken.None);
+
+        await Assert.That(created).IsFalse();
+        await Assert.That(directory.FileSystem.File.ReadAllText(path)).IsEqualTo("live");
+    }
+
+    [Test]
+    public async Task TryCreateExclusiveAsync_Should_Throw_For_A_Missing_Directory_And_Create_Nothing()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        var path = directory.File("missing", "nested.json");
+
+        _ = await Assert
+            .That(async () => _ = await new ServiceFileSystem().TryCreateExclusiveAsync(path, Content, CancellationToken.None))
+            .Throws<DirectoryNotFoundException>();
+
+        await Assert.That(directory.FileSystem.Directory.Exists(directory.File("missing"))).IsFalse();
+    }
+
+    [Test]
+    public async Task ReadAllBytesAsync_Should_Read_Exact_Bytes()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        var path = directory.File("read.json");
+        directory.FileSystem.File.WriteAllBytes(path, Content);
+
+        var bytes = await new ServiceFileSystem().ReadAllBytesAsync(path, CancellationToken.None);
+
+        await Assert.That(bytes).IsEquivalentTo(Content);
+    }
+
+    [Test]
+    public async Task FileExists_Should_Report_Presence()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        var present = directory.File("present.json");
+        directory.FileSystem.File.WriteAllText(present, "x");
+
+        var fileSystem = new ServiceFileSystem();
+
+        await Assert.That(fileSystem.FileExists(present)).IsTrue();
+        await Assert.That(fileSystem.FileExists(directory.File("absent.json"))).IsFalse();
+    }
+
+#if NET
+    [Test]
+    public async Task TryCreateExclusiveAsync_Should_Create_With_User_Only_Access_On_Unix()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        var path = directory.File("secret.json");
+
+        _ = await new ServiceFileSystem().TryCreateExclusiveAsync(path, Content, CancellationToken.None);
+
+        if (OperatingSystem.IsWindows())
+        {
+            // Windows has no Unix mode; the file inherits the parent directory's DACL, which is
+            // the documented behavior, and the assertion is that creation itself succeeded.
+            await Assert.That(directory.FileSystem.File.Exists(path)).IsTrue();
+            return;
+        }
+
+        await Assert.That(directory.FileSystem.File.GetUnixFileMode(path))
+            .IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
+    }
+#endif
+
+    /// <summary>One per-test directory under the temp root, removed with everything it holds.</summary>
+    private sealed class OwnedTemporaryDirectory : IDisposable
+    {
+        public OwnedTemporaryDirectory()
+        {
+            Path = FileSystem.Path.Combine(FileSystem.Path.GetTempPath(), "opencode-sdk-service-fs-" + Guid.NewGuid().ToString("N"));
+            _ = FileSystem.Directory.CreateDirectory(Path);
+        }
+
+        public RealFileSystem FileSystem { get; } = new();
+
+        public string Path { get; }
+
+        public string File(params string[] segments) => FileSystem.Path.Combine([Path, .. segments]);
+
+        public void Dispose() => FileSystem.Directory.Delete(Path, recursive: true);
+    }
+}

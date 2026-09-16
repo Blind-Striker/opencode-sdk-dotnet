@@ -23,9 +23,7 @@
   "normalizedDocumentPath": null,
   "operationSetDigest": "dfefb0a9deb8997dc35950fbd490d80a04f622f9e2a58b8a9012d41a6b59fcbc",
   "operationCount": 144,
-  "addedOperations": [
-    "v2.session.diff"
-  ],
+  "addedOperations": [],
   "removedOperations": [],
   "componentCount": 361,
   "contentSchemaCount": 2,
@@ -193,6 +191,91 @@
     {
       "path": "packages/protocol/src/groups/message.ts",
       "sha256": "ac8d2be3a658559f981b3d1e704e57690ac948e29d830a21a64bcee781b982db",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/client/src/service.ts",
+      "sha256": "d8818849fcb4e25cb83043b227329c7529ab36a7ddfb2bee844b310d833b3b7b",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/client/src/effect/service.ts",
+      "sha256": "4da2c12d9e0d37e2c6b038e4d525ee63b969bf8062deb5d70a683445e34ea615",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/client/src/service-timing.ts",
+      "sha256": "41fb1170b3231cad4cea9c9760ba37f12a34d936070d987cc3c4df9189539249",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/client/src/service-version.ts",
+      "sha256": "517b341ccd4460a1adf7122b26ff07d641150c4ed5ce8697cd65f8ae0bc045a5",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/cli/src/services/service-config.ts",
+      "sha256": "9fc7e6cf6541b030846db5f3a215ff320835dcae107deea8236e0f7f1f7dc2be",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/cli/src/services/service-registration.ts",
+      "sha256": "f570523cc38ec390d726b76dd504ee6e4e527dea037bc124bd5033137a4aa787",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/cli/src/version.ts",
+      "sha256": "91bc229970b2ddf688f2aa5b3e582229b8ac600a5232af1d8d4e4171a3757ab2",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/util/src/global.ts",
+      "sha256": "56929986af9096e499e028d4f9090341ddbfb3e3b28e4d6039787f5f685fab15",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/util/src/global-roots.ts",
+      "sha256": "6cdc234ac155e308dadeb62682c687468ba656fd463482d00fce025c9dc819b6",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/util/src/hash.ts",
+      "sha256": "0d0816d1eb3cabcbea8394fe30c4e28206a32ff3cd07bb09b7999a86b14dd100",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/server/src/service-status.ts",
+      "sha256": "8af6c5d8bbb5eb6d5f1db371c50b6d3cbf211cec637828cdcaa8ffb441e203da",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/protocol/src/groups/health.ts",
+      "sha256": "b5639900d7a572ed5f56e5b83977bb3c6059cc81bcf44ccd8be8d9795a2cd77e",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/client/test/service.test.ts",
+      "sha256": "079bdae86bbfbd8fd9efe239d921fa6e61a192743a72ef88c745170355d0ba62",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/cli/test/service.test.ts",
+      "sha256": "df0cb1708a672399e434884afeb42d3c9dad205e4e69b0707f7628dd675e1f04",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/cli/test/server-connection.test.ts",
+      "sha256": "6d01d388b45a75a81e49c6a14af9a94d3015749f8bcad99076224aed0f97fcb7",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/cli/script/service-smoke.ts",
+      "sha256": "2bcb80e952a8f4a4d7e61d92ddf6c005d919d90c8e6ccc263330186fcfdcc7e6",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/cli/src/services/server-connection.ts",
+      "sha256": "96ab1cac491e2780fb3cd4c51a618003427bf4fb3ec2bc0926cc16f5149c1077",
       "anchorMatched": true
     }
   ]

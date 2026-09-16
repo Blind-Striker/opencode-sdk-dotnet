@@ -29,10 +29,14 @@ internal static class GeneratedSourceCompiler
     /// (<c>SourceEmitterTests.Emit_Should_Produce_Every_GeneratedSurfaceConsumers_RequiredEmission</c>),
     /// so a renamed or dropped twin fails that assertion loudly instead of silently vanishing
     /// from this probe's coverage. A synthetic emitter fixture is free to omit a twin, in which
-    /// case its consumers are skipped here rather than failing to compile.
+    /// case its consumers are skipped here rather than failing to compile. The background-service
+    /// health probe decodes the pinned <c>/api/health</c> answer through the generated
+    /// <c>ServiceHealth</c> model, and the launcher composes that probe, so both ride along only
+    /// when the plan emitted the model.
     /// </summary>
     internal static readonly (string Consumer, string RequiredEmission)[] GeneratedSurfaceConsumers =
     [
+        ("Internal/BackgroundService/ServiceHealthProbe.cs", "Models/ServiceHealth.cs"),
         ("Internal/PersistentPtyFrameDecoder.cs", "Models/PersistentPtyInfo.cs"),
         ("PersistentPtys/PersistentPtyAttachedFrame.cs", "Models/PersistentPtyInfo.cs"),
         ("PersistentPtys/PersistentPtyAttachment.cs", "Models/PersistentPtyInfo.cs"),
@@ -41,6 +45,7 @@ internal static class GeneratedSourceCompiler
         ("PersistentPtys/PersistentPtySession.cs", "Models/PersistentPtyInfo.cs"),
         ("PersistentPtys/PersistentPtysClient.cs", "Models/PersistentPtyInfo.cs"),
         ("PersistentPtys/PersistentPtysClient.cs", "PersistentPtys/PersistentPtysRawClient.cs"),
+        ("OpenCodeServer.cs", "Models/ServiceHealth.cs"),
         ("Ptys/PtyClient.cs", "Ptys/PtyRawClient.cs"),
         ("Ptys/PtysClient.cs", "Ptys/PtysRawClient.cs"),
     ];

@@ -48,6 +48,7 @@ internal static class ReservedNamePolicy
             "OpenCodeRequestOptions",
             "OpenCodeResponse",
             "OpenCodeServer",
+            "OpenCodeServerDiscoverOptions",
             "OpenCodeServerException",
             "OpenCodeServerOptions",
             "OpenCodeServerOutput",
