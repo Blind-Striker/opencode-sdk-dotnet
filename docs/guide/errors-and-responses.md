@@ -12,7 +12,7 @@ or a transport failure you cannot. Nothing is stringly typed, and nothing is swa
 - [🏷️ The typed error family](#️-the-typed-error-family)
 - [🔍 Guarded payload accessors](#-guarded-payload-accessors)
 - [🔌 Transport failures are a different plane](#-transport-failures-are-a-different-plane)
-- [🚀 When the launcher fails](#-when-the-launcher-fails)
+- [🚀 When a local-server door fails](#-when-a-local-server-door-fails)
 
 ## 🧩 The response spine
 
@@ -57,7 +57,7 @@ OpenCodeException
 ├── OpenCodeApiException          declared API failure (has Status / Error / RawBody)
 ├── OpenCodeTransportException    the call never produced a usable response
 │   └── OpenCodeStreamFailureException   a stream ended with a declared failure frame
-└── OpenCodeServerException       the standalone launcher could not start or keep a server
+└── OpenCodeServerException       a local-server door failed: a start, or discovery with no home to search
 ```
 
 ## 🤝 Ask for the failure as data instead
@@ -244,9 +244,19 @@ must not blow up, catch `OpenCodeTransportException` even when you are using `No
 
 `OperationCanceledException` is never repackaged: your cancellation stays your cancellation.
 
-## 🚀 When the launcher fails
+## 🚀 When a local-server door fails
 
-`OpenCodeServer.StartAsync` has its own failure type, `OpenCodeServerException`:
+Both local-server doors — `OpenCodeServer.StartAsync` and `OpenCodeServer.DiscoverAsync` — share
+one failure type, `OpenCodeServerException`. Discovery uses it for exactly one cause: an XDG
+variable was unset and no user home directory resolved either (`USERPROFILE` on Windows, `HOME`
+elsewhere, and the profile folder all empty), so the registration roots cannot be located. Every
+ordinary way a background service can be absent or unusable — no registration, an undecodable or
+passwordless one, a daemon still starting or failed, a probe that timed out, a version other than
+the one you expected — is **not** an exception: `DiscoverAsync` answers null, and blank or
+contradictory options throw `ArgumentException` before anything is read. The
+[connection guide](connection-modes.md#️-discovering-the-background-service) lists the full table.
+
+The launcher has more to say, because a child process ran:
 
 ```csharp
 try

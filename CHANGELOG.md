@@ -7,10 +7,28 @@ Each released version links straight to its GitHub Release tag.
 
 Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
-`0.8.0-nightly.{yyyyMMdd}.{shortSha}`.
+`0.9.0-nightly.{yyyyMMdd}.{shortSha}`.
 
 ### ✨ New features
 
+- **Background-service discovery.** `OpenCodeServer.DiscoverAsync` opens opencode's third
+  connection mode: it finds the background service the opencode CLI registers for every client on
+  the machine, through the CLI's own rules — the registration file resolved by service channel
+  under the XDG state root (or named directly), the CLI's one-time copy of an older hashed
+  registration filename, a strict decode of the registration, and an authenticated `/api/health`
+  probe under a two-second bound whose pid must match. A ready daemon comes back as a
+  **non-owning** `OpenCodeServer`: the new `OwnsProcess` member is false, `DisposeAsync` is a
+  no-op, and `CreateClient()` binds a client to the daemon exactly as it does to a started server.
+  Everything unusable — no registration, an undecodable or passwordless one, a daemon still
+  starting or failed, a probe timeout, a version other than the expected one — is a null answer,
+  never a half-usable handle. `OpenCodeServerDiscoverOptions` carries `Channel`,
+  `RegistrationFilePath`, `ExpectedVersion`, and `InstalledVersion`, validated at the call. This is
+  the one SDK door that reads the environment, and it reads exactly `XDG_STATE_HOME`,
+  `XDG_CONFIG_HOME`, `OPENCODE_CONFIG_DIR`, and the user profile (`USERPROFILE` first on Windows,
+  `HOME` elsewhere) — never a credential. The behaviour is the pinned CLI's, source-watched at the
+  accepted commit (ADR-0025); live tests prove it against the pin's own `serve --service` daemon on
+  every runtime leg, from an isolated process whose environment the test owns. Ensuring and
+  stopping the service follow as their own slices.
 - **Turn diffs.** `SessionClient.GetDiffAsync` binds `v2.session.diff`, new in upstream `v2.0.3`:
   the structured per-file diffs of the files one turn changed, where a turn runs from the first
   prompt after the session was last idle to its next idle marker. `SessionDiffRequest` carries the
@@ -23,6 +41,14 @@ Nightly builds of `master` are on
 
 ### 🔧 Changes
 
+- **The version line moved to `0.9.0`.** Discovery is the M4 milestone's background-service
+  boundary, so the next release is `0.9.0-preview.1` and nightlies are `0.9.0-nightly.*`.
+- **`OpenCodeServerException` now covers every local-server door.** Discovery throws it for one
+  cause only — an XDG variable unset with no user home to fall back to — beside the launcher's
+  start, readiness, and stop failures. The class summary and the errors guide say so.
+- **`OpenCodeServer` is the home of every local-server handle** (ADR-0024): its summary no longer
+  promises that it never attaches to another server, because a discovered handle is exactly that,
+  with its ownership visible through `OwnsProcess`.
 - **The accepted snapshot moved to upstream release tag `v2.0.3`**
   (`d44b52ca66b6bf69626c0384626d1a9cd9555977`), which published as `@opencode/cli@2.0.3`, the
   npm `latest` at the time of the refresh; install it with `npm install -g @opencode/cli@2.0.3`.
