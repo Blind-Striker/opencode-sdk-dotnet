@@ -45,6 +45,7 @@ internal static class GeneratedSourceCompiler
         ("PersistentPtys/PersistentPtySession.cs", "Models/PersistentPtyInfo.cs"),
         ("PersistentPtys/PersistentPtysClient.cs", "Models/PersistentPtyInfo.cs"),
         ("PersistentPtys/PersistentPtysClient.cs", "PersistentPtys/PersistentPtysRawClient.cs"),
+        ("OpenCodeServer.cs", "Models/ServiceHealth.cs"),
         ("Ptys/PtyClient.cs", "Ptys/PtyRawClient.cs"),
         ("Ptys/PtysClient.cs", "Ptys/PtysRawClient.cs"),
     ];

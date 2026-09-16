@@ -918,12 +918,22 @@
     {
         protected OpenCodeServer() { }
         public virtual System.Uri Endpoint { get; }
+        public virtual bool OwnsProcess { get; }
         public virtual string Password { get; }
         public virtual int ProcessId { get; }
         public virtual string Username { get; }
         public virtual OpenCode.Sdk.OpenCodeClient CreateClient(System.Action<OpenCode.Sdk.OpenCodeClientOptions>? configure = null) { }
         public virtual System.Threading.Tasks.ValueTask DisposeAsync() { }
+        public static System.Threading.Tasks.Task<OpenCode.Sdk.OpenCodeServer?> DiscoverAsync(OpenCode.Sdk.OpenCodeServerDiscoverOptions? options = null, System.Threading.CancellationToken cancellationToken = default) { }
         public static System.Threading.Tasks.Task<OpenCode.Sdk.OpenCodeServer> StartAsync(OpenCode.Sdk.OpenCodeServerOptions? options = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class OpenCodeServerDiscoverOptions
+    {
+        public OpenCodeServerDiscoverOptions() { }
+        public string? Channel { get; set; }
+        public string? ExpectedVersion { get; set; }
+        public string? InstalledVersion { get; set; }
+        public string? RegistrationFilePath { get; set; }
     }
     public class OpenCodeServerException : OpenCode.Sdk.OpenCodeException
     {

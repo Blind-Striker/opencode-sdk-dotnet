@@ -1050,6 +1050,11 @@ dotnet_diagnostic.VSTHRD103.severity = none
 dotnet_diagnostic.S6966.severity = none
 dotnet_diagnostic.MA0045.severity = none
 
+# ServiceDiscoveryTests seeds registrations on the same double through the same synchronous
+# member, for the same reason. Winner: one source for every test leg; MA0045 remains enabled elsewhere.
+[tests/OpenCode.Sdk.Tests/BackgroundService/ServiceDiscoveryTests.cs]
+dotnet_diagnostic.MA0045.severity = none
+
 # DriveManifestTests targets net472 in this project's Windows leg. The regex source generator's
 # GeneratedRegexAttribute is not available there (no polyfill covers it), so the instance-name
 # check uses a plain static Regex with an explicit match timeout instead — a shape MA0110 always
