@@ -52,6 +52,12 @@ internal static class ServiceRegistrationData
     /// <summary>A pre-release registration a <c>dev</c> build wrote, the shape the channel-prefix migration arm admits.</summary>
     public const string DevPrerelease = "{\"version\":\"0.0.0-dev-19646\",\"url\":\"http://127.0.0.1:49374\",\"pid\":48213,\"password\":\"dev-p455\"}";
 
+    /// <summary>A custom-channel (<c>preview/a</c>) donor under the hashed legacy name; the migration prefers it.</summary>
+    public const string CustomChannelHashedDonor = "{\"version\":\"0.0.0-preview/a-1234\",\"url\":\"http://127.0.0.1:1\",\"pid\":1}";
+
+    /// <summary>The same channel's donor under the shared <c>service.json</c> name; the fallback when the hashed donor is absent.</summary>
+    public const string CustomChannelSharedDonor = "{\"version\":\"0.0.0-preview/a-5678\",\"url\":\"http://127.0.0.1:2\",\"pid\":2}";
+
     public const string DevPrereleaseDotted = "{\"version\":\"0.0.0-dev-19646.2\",\"url\":\"http://127.0.0.1:49374\",\"pid\":48213}";
 
     public const string DevPrereleaseThreeSegments = "{\"version\":\"0.0.0-dev-19646.2.1\",\"url\":\"http://127.0.0.1:49374\",\"pid\":48213}";

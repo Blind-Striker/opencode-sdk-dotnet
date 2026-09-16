@@ -441,6 +441,15 @@
         "type": "contains",
         "text": "Registration is missing service identity"
       }
+    },
+    {
+      "path": "packages/cli/src/services/server-connection.ts",
+      "sha256": "96ab1cac491e2780fb3cd4c51a618003427bf4fb3ec2bc0926cc16f5149c1077",
+      "behavior": "resolve routes the CLI\u0027s default connection through ServiceConfig.options, which runs the legacy registration migration before the managed service is discovered or ensured, and requests the version gate only when the mismatch policy is not ignore; --server attaches to an explicit endpoint with a 5-second health check and merely warns on a version mismatch. This is why DiscoverAsync migrates in channel mode and why ExpectedVersion is opt-in.",
+      "anchor": {
+        "type": "contains",
+        "text": "ServiceConfig.options({ checkVersion: mismatch !== \u0022ignore\u0022 })"
+      }
     }
   ]
 }

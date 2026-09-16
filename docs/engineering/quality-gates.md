@@ -118,7 +118,10 @@ falls under the job's floor, fails on the count, because an empty run must not r
 
 Bun, the pinned ripgrep, and the pinned server's dependencies come from the shared composite action
 `.github/actions/setup-pinned-server`, which CI uses too: this lane still runs the simulated-server
-fixtures from source, and the two lanes must not drift.
+fixtures from source, and the two lanes must not drift. The background-service fixture behind the
+discovery live tests is also always the pinned source: it starts the submodule CLI's
+`serve --service` and takes no command override, so discovery is proven against the pinned commit
+on this lane, not against the distributed build.
 
 It is `workflow_dispatch` (with an input that overrides the pinned version, for trying a candidate
 build) plus weekly, deliberately not a pull-request gate: it downloads a platform CLI build per run

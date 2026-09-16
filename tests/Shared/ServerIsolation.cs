@@ -10,6 +10,17 @@ namespace OpenCode.Sdk.TestSupport;
 /// </summary>
 internal static class ServerIsolation
 {
+    /// <summary>
+    /// Variables a spawned server must not inherit from the runner. <c>OPENCODE_CONFIG_DIR</c>
+    /// replaces the whole config root (<c>packages/util/src/global.ts</c> at the pin), which would
+    /// steer a service-mode child away from the service config seeded under <c>XDG_CONFIG_HOME</c>,
+    /// drop the reserved port for the channel default, and persist the generated password into the
+    /// developer's own directory; upstream's own fixture sets the variable explicitly for the same
+    /// reason. A fixture that starts a process removes these; a fixture that hands a child an
+    /// environment overlay with null-removes sets them to null.
+    /// </summary>
+    public static IReadOnlyList<string> Uninherited { get; } = ["OPENCODE_CONFIG_DIR"];
+
     public static Dictionary<string, string> Environment(IFileSystem fileSystem, string runRoot) =>
         new(StringComparer.Ordinal)
         {

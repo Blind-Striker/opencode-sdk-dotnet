@@ -77,8 +77,8 @@ public sealed class ServiceMigrationTests
     public async Task ApplyAsync_Should_Prefer_The_Hashed_Donor_Over_The_Shared_File_For_A_Custom_Channel()
     {
         var paths = ChannelPaths(CustomChannel);
-        var hashed = "{\"version\":\"0.0.0-preview/a-1234\",\"url\":\"http://127.0.0.1:1\",\"pid\":1}";
-        var shared = "{\"version\":\"0.0.0-preview/a-5678\",\"url\":\"http://127.0.0.1:2\",\"pid\":2}";
+        const string hashed = ServiceRegistrationData.CustomChannelHashedDonor;
+        const string shared = ServiceRegistrationData.CustomChannelSharedDonor;
         Seed(paths.LegacyRegistrationFiles[0], hashed);
         Seed(paths.LegacyRegistrationFiles[1], shared);
 
@@ -91,7 +91,7 @@ public sealed class ServiceMigrationTests
     public async Task ApplyAsync_Should_Fall_Through_To_The_Shared_File_When_The_Hashed_Donor_Is_Absent()
     {
         var paths = ChannelPaths(CustomChannel);
-        var shared = "{\"version\":\"0.0.0-preview/a-5678\",\"url\":\"http://127.0.0.1:2\",\"pid\":2}";
+        const string shared = ServiceRegistrationData.CustomChannelSharedDonor;
         Seed(paths.LegacyRegistrationFiles[1], shared);
 
         await Migration().ApplyAsync(Select(CustomChannel), paths, CancellationToken.None);

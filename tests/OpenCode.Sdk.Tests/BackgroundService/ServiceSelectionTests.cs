@@ -59,6 +59,24 @@ public sealed class ServiceSelectionTests
     }
 
     [Test]
+    [Arguments("C:service.json")]
+    [Arguments("C:")]
+    [Arguments("\\opencode\\service.json")]
+    [Arguments("/")]
+    public async Task Snapshot_Should_Refuse_A_Direct_File_That_Is_Rooted_But_Not_Fully_Qualified(string registrationFilePath)
+    {
+        // Drive-relative and current-drive-relative spellings pass Path.IsPathRooted on Windows and
+        // resolve against process state; on Unix they are plainly relative. A bare "/" is a
+        // directory on every platform, and the bare drive is a directory on Windows; the direct
+        // door names a file. Every case is refused on every platform, which keeps the test one.
+        var exception = await Assert
+            .That(() => Select(null, registrationFilePath, null, null))
+            .Throws<ArgumentException>();
+
+        await Assert.That(exception!.ParamName).IsEqualTo("options");
+    }
+
+    [Test]
     [Arguments(" ", null, null, null)]
     [Arguments(null, " ", null, null)]
     [Arguments(null, null, " ", null)]

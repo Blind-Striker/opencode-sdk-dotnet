@@ -13,7 +13,7 @@ namespace OpenCode.Sdk.Tests.BackgroundService;
 /// </summary>
 public sealed class ServiceHealthProbeTests
 {
-    private const string Password = "s3cr3t-p455w0rd";
+    private const string Password = ServiceRegistrationData.Password;
     private static readonly ServiceTiming FastTiming = ServiceTiming.Default with { RequestTimeout = TimeSpan.FromMilliseconds(100) };
 
     [Test]

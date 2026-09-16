@@ -25,7 +25,7 @@ on that third mode is ensuring and stopping the service, which follow discovery 
 - ✅ **138 of 143 operations** callable, across 29 client families — sessions, PTYs, persistent
   PTYs, shells, events, MCP servers, integrations, providers, permissions, credentials, config,
   VCS, worktrees, websearch, RPC, and more
-- ✅ **6,283 tests** green on Windows — the fullest leg, the only one that adds the `net472`
+- ✅ **6,299 tests** green on Windows — the fullest leg, the only one that adds the `net472`
   assemblies. Linux and macOS run the same suite on `net8.0`, `net9.0`, and `net10.0`
 - ✅ **Server-sent event streams**, global and per-session, over the same transport as one-shot calls
 - ✅ **PTY and persistent-PTY terminal sessions** through hand-written WebSocket doors

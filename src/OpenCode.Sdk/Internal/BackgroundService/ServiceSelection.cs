@@ -61,7 +61,7 @@ internal sealed record ServiceSelection(
                 throw new ArgumentException(Prefix + "RegistrationFilePath and Channel cannot both be set; a direct registration file has no channel.", nameof(options));
             }
 
-            if (!Path.IsPathRooted(registrationFilePath))
+            if (!IsFullyQualified(registrationFilePath))
             {
                 throw new ArgumentException(Prefix + "RegistrationFilePath must be an absolute path.", nameof(options));
             }
@@ -84,4 +84,36 @@ internal sealed record ServiceSelection(
     }
 
     private static bool IsBlank(string? value) => value is not null && string.IsNullOrWhiteSpace(value);
+
+    /// <summary>
+    /// Absolute means fully qualified, not merely rooted: on Windows <c>C:service.json</c> is
+    /// drive-relative and <c>\service.json</c> is current-drive-relative, and both resolve against
+    /// process state the caller never named, so both are refused rather than answered with null.
+    /// </summary>
+    private static bool IsFullyQualified(string path)
+    {
+#if NET
+        return Path.IsPathFullyQualified(path);
+#else
+        // netstandard2.0 and net472 have no IsPathFullyQualified; this is the rule it applies.
+        if (Path.DirectorySeparatorChar == '\\')
+        {
+            if (path.Length >= 2 && IsSeparator(path[0]) && IsSeparator(path[1]))
+            {
+                // A UNC or device path.
+                return true;
+            }
+
+            return path.Length >= 3 && IsAsciiLetter(path[0]) && path[1] == ':' && IsSeparator(path[2]);
+        }
+
+        return path.Length > 0 && path[0] == '/';
+#endif
+    }
+
+#if !NET
+    private static bool IsSeparator(char value) => value is '\\' or '/';
+
+    private static bool IsAsciiLetter(char value) => value is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z');
+#endif
 }

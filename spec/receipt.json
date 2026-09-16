@@ -272,6 +272,11 @@
       "path": "packages/cli/script/service-smoke.ts",
       "sha256": "2bcb80e952a8f4a4d7e61d92ddf6c005d919d90c8e6ccc263330186fcfdcc7e6",
       "anchorMatched": true
+    },
+    {
+      "path": "packages/cli/src/services/server-connection.ts",
+      "sha256": "96ab1cac491e2780fb3cd4c51a618003427bf4fb3ec2bc0926cc16f5149c1077",
+      "anchorMatched": true
     }
   ]
 }
