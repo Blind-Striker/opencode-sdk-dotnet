@@ -42,6 +42,7 @@ public sealed class PinnedManagedServiceFixture : IAsyncInitializer, IAsyncDispo
     private string? _registrationFile;
     private Uri? _endpoint;
     private string? _version;
+    private string? _password;
     private int _processId;
     private int _disposed;
 
@@ -62,6 +63,33 @@ public sealed class PinnedManagedServiceFixture : IAsyncInitializer, IAsyncDispo
 
     /// <summary>Gets the per-run root every global directory is redirected into.</summary>
     public string RunRoot => (_runRoot ?? throw NotInitialized()).Path;
+
+    /// <summary>
+    /// Describes the daemon's health right now, for a failure message: a patient authenticated
+    /// probe through the public client, reporting the answer or the exception. Never the password.
+    /// </summary>
+    /// <param name="cancellationToken">The caller's bound.</param>
+    /// <returns>One line of evidence.</returns>
+    public async Task<string> DescribeHealthAsync(CancellationToken cancellationToken)
+    {
+        var process = _process;
+        var alive = process is { HasExited: false };
+        using var client = new OpenCodeClient(new OpenCodeClientOptions
+        {
+            Endpoint = Endpoint,
+            Password = _password ?? throw NotInitialized(),
+        });
+        try
+        {
+            var health = await client.GetHealthAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+            return $"process alive: {alive}; health now: healthy={health.Health.Healthy}, version={health.Health.Version}, "
+                + $"pid={health.Health.Pid.ToString(CultureInfo.InvariantCulture)}";
+        }
+        catch (OpenCodeException exception)
+        {
+            return $"process alive: {alive}; health now: {exception.GetType().Name}: {exception.Message}";
+        }
+    }
 
     public async Task InitializeAsync()
     {
@@ -190,6 +218,7 @@ public sealed class PinnedManagedServiceFixture : IAsyncInitializer, IAsyncDispo
             {
                 _endpoint = registration.Endpoint;
                 _processId = registration.ProcessId;
+                _password = registration.Password;
                 return;
             }
 

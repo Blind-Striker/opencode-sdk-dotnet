@@ -12,8 +12,17 @@ namespace OpenCode.Sdk.Tests.BackgroundService;
 /// disposal. The environment-reading proofs against a loopback daemon live in
 /// <see cref="OpenCodeServerDiscoveryIsolatedProcessTests"/>.
 /// </summary>
+/// <remarks>
+/// Keyless <c>[NotInParallel]</c> rather than the server-process key, the rule research log Q157
+/// sets for a test whose assertion depends on a wall-clock bound the host can miss under load:
+/// every proof here runs the SDK's own probe, bounded at the pinned two seconds, on this host's
+/// thread pool, and a host busy with the rest of the suite can miss that bound even against a
+/// daemon in another process (one in-process discovery answered null on the Windows leg with the
+/// daemon alive, research log Q172). Running alone after every other test keeps the host quiet
+/// while the probes run; the fixture still starts exactly one process.
+/// </remarks>
 [ClassDataSource<PinnedManagedServiceFixture>(Shared = SharedType.PerTestSession)]
-[NotInParallel(ParallelConstraintKeys.ServerProcess)]
+[NotInParallel]
 public sealed class OpenCodeServerDiscoveryLiveTests(PinnedManagedServiceFixture service)
 {
     private static readonly RealFileSystem FileSystem = new();
@@ -103,7 +112,15 @@ public sealed class OpenCodeServerDiscoveryLiveTests(PinnedManagedServiceFixture
         var server = await OpenCodeServer.DiscoverAsync(
             new OpenCodeServerDiscoverOptions { RegistrationFilePath = service.RegistrationFile },
             cancellationToken);
-        return server ?? throw new InvalidOperationException(
-            $"The managed service registered at '{service.RegistrationFile}' was not discovered; the fixture reported it ready.");
+        if (server is not null)
+        {
+            return server;
+        }
+
+        // A null against a daemon the fixture reported ready is either the daemon or the bound;
+        // a patient probe right now says which.
+        var evidence = await service.DescribeHealthAsync(cancellationToken);
+        throw new InvalidOperationException(
+            $"The managed service registered at '{service.RegistrationFile}' was not discovered although the fixture reported it ready. {evidence}");
     }
 }
