@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Runtime.ExceptionServices;
 using System.Text.Json;
+using OpenCode.Sdk.Models;
 using OpenCode.Sdk.TestSupport.Ownership;
 using Testably.Abstractions;
 using TUnit.Core.Interfaces;
@@ -48,6 +49,15 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
     private static readonly TimeSpan ExternalHealthProbeTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>
+    /// The location a client gets when its test names none. The pinned server resolves a request
+    /// without a directory to its own working directory (<c>packages/server/src/location.ts:43</c>
+    /// at the pin), which bun needs anchored inside the upstream checkout - so a location-less
+    /// request would run against upstream's own development project. An owned, empty directory
+    /// keeps those requests inside the fixture.
+    /// </summary>
+    internal const string DefaultLocationName = "default-location";
+
+    /// <summary>
     /// The launcher's worst case is the 10-second grace, its 10-second forced-exit wait, and the
     /// 2-second output drain; this outer bound keeps a 3-second margin above that.
     /// </summary>
@@ -61,6 +71,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
     private OpenCodeServer? _server;
     private OpenCodeServerOutput? _output;
     private TestRunRoot? _runRoot;
+    private LocationSelector? _defaultLocation;
     private ExternalServerEndpoint? _external;
     private string? _commandSource;
     private bool _retainLogs;
@@ -204,6 +215,10 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
     /// </summary>
     private async Task StartOwnedServerAsync(IReadOnlyList<string> command, string workingDirectory)
     {
+        // An external endpoint may not share this machine's filesystem, so only an owned server
+        // gets a default location.
+        _defaultLocation = new LocationSelector { Directory = RunRoot.CreateSubdirectory(DefaultLocationName) };
+
         // The collector exists before the start and stays readable when the start fails, so a
         // startup failure still has stdout/stderr to write out on teardown.
         _output = new OpenCodeServerOutput();
@@ -242,10 +257,30 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
         {
             Endpoint = _external?.Endpoint ?? Server.Endpoint,
             Password = _external?.Password ?? Server.Password,
-            Location = location,
+            Location = location ?? _defaultLocation,
         });
 
     public TestWorkspace CreateWorkspace() => new(_fileSystem, RunRoot.Path);
+
+    /// <summary>
+    /// The body location for a session whose test names no workspace. Session creation takes its
+    /// location from the body alone and otherwise binds the session to the server's own working
+    /// directory (<c>packages/server/src/handlers/session.ts:136</c> at the pin), whatever the
+    /// location header says. Absent for an external endpoint, which may not share this machine's
+    /// filesystem.
+    /// </summary>
+    internal Optional<LocationPublicRef?> DefaultSessionLocation
+    {
+        get
+        {
+            if (_defaultLocation is { Directory: { } directory })
+            {
+                return new LocationPublicRef { Directory = directory };
+            }
+
+            return default;
+        }
+    }
 
     internal string DiagnosticsDirectory => Artifacts.Directory;
 

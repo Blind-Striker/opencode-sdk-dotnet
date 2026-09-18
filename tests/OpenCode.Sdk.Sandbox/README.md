@@ -40,7 +40,8 @@ earlier session legs answer 500 on a server with no provider configured, and bec
 run first, the PTY and persistent PTY legs are unreachable there. That is the real server's
 answer, not something the walkthrough should swallow: it asserts what the server says, so an
 isolated provider-less server is a server this leg cannot be driven against. `PersistentPtyLiveTests`
-is what proves the persistent PTY round trip; see the WSL2 recipe below.
+is what proves the persistent PTY round trip; on a Windows workstation that needs a Linux-hosted
+server (`docs/engineering/developing-on-windows.md`).
 
 The stream example composes through the Extensions package:
 `AddOpenCode` registers one singleton client family, and the Generic Host injects its
@@ -147,72 +148,21 @@ needs, and the fixture prints which command it started. The distributed-build co
 (`.github/workflows/consumer-leg.yml`) is the standing user: that is how the published
 `@opencode/cli` build gets this suite run against it.
 
-## Live legs against a WSL2 server (Windows workstations)
+Plugin check/update tests use `OwnedPinnedOpenCodeServerFixture`, which owns its server even when an
+external endpoint is configured, so their configuration is package-free by construction. It still
+honors `OPENCODE_SDK_TESTS_SERVER_COMMAND`, so the distributed-build lane exercises these
+operations. `docs/engineering/testing-style.md` owns what every owned server is isolated from.
+Plugin listing asserts on both branches: an owned server carries its builtins plus the seeded RPC
+plugin, and an external endpoint cannot carry that plugin. RPC tests prove `rpc.unavailable`
+through a real call, whose upstream handler awaits activation, before checking absence from
+inventory. Owned event and inventory tests wait for the exact seeded RPC plugin and assert its
+local path and active state.
 
-The `opencode-pty` daemon (`@opencode-ai/pty`) ships darwin/linux platform packages only — no
-win32 package exists at the pinned upstream commit — so a persistentPty live test run directly on
-Windows can only exercise the daemon-absent arms. `PinnedOpenCodeServerFixture`'s
-external-endpoint mode plus `PersistentPtyDaemonGate`'s override (Task 6) let a Windows
-workstation instead run the live leg against a server hosted in WSL2, whose linux package does
-carry the daemon binary.
+## Live legs against a server on another host
 
-Clone into the WSL filesystem instead of reusing the Windows checkout over `/mnt/<drive>`: one
-shared `external/opencode/node_modules` holds the platform package of whichever OS installed last,
-so the two installs clobber each other's daemon binary.
-
-1. In WSL2, clone the repository and initialize the submodule:
-   ```sh
-   git clone https://github.com/Blind-Striker/opencode-sdk-dotnet.git ~/repos/opencode-sdk-dotnet
-   cd ~/repos/opencode-sdk-dotnet
-   git submodule update --init --depth 1 external/opencode
-   ```
-2. Install the bun the pin names in its `packageManager` field, not the workstation's own:
-   ```sh
-   curl -fsSL https://bun.sh/install | bash -s "bun-v$(grep -o '"packageManager": *"bun@[0-9.]*"' \
-     external/opencode/package.json | grep -o '[0-9][0-9.]*')"
-   ```
-3. Install the dependencies — this is what places `@opencode-ai/pty-<platform>/bin/opencode-pty`,
-   which `packages/core` resolves as its `binaryPath`:
-   ```sh
-   cd ~/repos/opencode-sdk-dotnet/external/opencode
-   bun install --frozen-lockfile --ignore-scripts
-   ```
-4. Serve from `packages/cli` under isolated XDG roots and a fixed password, so the run touches no
-   real profile and the Windows side can authenticate:
-   ```sh
-   cd ~/repos/opencode-sdk-dotnet/external/opencode/packages/cli
-   mkdir -p /tmp/ocsdk/data /tmp/ocsdk/cache /tmp/ocsdk/config /tmp/ocsdk/state
-   XDG_DATA_HOME=/tmp/ocsdk/data XDG_CACHE_HOME=/tmp/ocsdk/cache \
-   XDG_CONFIG_HOME=/tmp/ocsdk/config XDG_STATE_HOME=/tmp/ocsdk/state \
-   OPENCODE_CONFIG_CONTENT='{}' OPENCODE_DISABLE_MODELS_FETCH=1 OPENCODE_PASSWORD=<pw> \
-     bun src/index.ts serve --port 4097
-   ```
-5. On Windows, point the fixture at it and run the persistentPty legs:
-   ```powershell
-   $env:OPENCODE_SDK_TESTS_ENDPOINT = "http://localhost:4097"
-   $env:OPENCODE_SDK_TESTS_PASSWORD = "<pw>"
-   $env:OPENCODE_SDK_TESTS_PTY_DAEMON = "1"
-   dotnet test tests/OpenCode.Sdk.Tests --configuration Release --no-build `
-     -- --treenode-filter "/*/*/PersistentPtyLiveTests/*" --report-trx
-   ```
-
-The filter keeps the run to the live legs, which is what the recipe was proven with; the whole suite
-can also run against the same endpoint, because the fixture-driven live legs create their sessions
-without a location, so no Windows path from the workstation reaches the WSL2 server. The
-blank-password guard is real: an unset or whitespace `OPENCODE_SDK_TESTS_PASSWORD` fails
-initialization by name rather than reaching the server.
-
-The exact-pin discipline is the operator's: the WSL2 server must be built from the same submodule
-commit; the fixture prints both so a mismatch is visible, it cannot verify a source run's version.
-
-Two gotchas when driving WSL from a Windows shell. Put the WSL side in a script file and run it as
-`MSYS_NO_PATHCONV=1 wsl.exe -- bash /mnt/c/<path>.sh` — Git Bash otherwise mangles the quoting and
-rewrites `/tmp` paths into Windows ones. Stop the server by pattern
-(`pkill -f "index.ts serve --port 4097"`) rather than by a pid file, because a backgrounded
-`setsid nohup … &` leaves the file empty; the `opencode-pty` daemon exits with the server.
-
-The sandbox can be pointed at the same endpoint, but it is not the proof and was not exercised this
-way: `dotnet run --project tests/OpenCode.Sdk.Sandbox` needs `--no-launch-profile` (the checked-in
-`launchSettings.json` prefills `OPENCODE_SANDBOX_ENDPOINT` at port 4096), and the walkthrough's
-earlier session legs answer 500 on a provider-less isolated server, so it never reaches the
-persistent PTY leg there. `PersistentPtyLiveTests` is what proves the round trip.
+The same external-endpoint mode runs the suite against a server hosted elsewhere. The standing
+case is a Windows workstation driving the persistent PTY legs against a WSL2-hosted server, because
+the `opencode-pty` daemon ships no win32 package; that recipe and its gotchas live in
+`docs/engineering/developing-on-windows.md`. The sandbox can be pointed at such an endpoint with
+`--no-launch-profile`, but it is not the proof: the walkthrough's earlier session legs answer 500 on
+a provider-less isolated server, so it never reaches the persistent PTY leg there.

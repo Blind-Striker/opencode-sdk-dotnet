@@ -60,13 +60,14 @@ public sealed class PersistentPtyLiveTests(PinnedOpenCodeServerFixture server)
     public async Task Terminal_Lifecycle_Should_Round_Trip_Or_Answer_The_Daemon_Absent_Arm(
         CancellationToken cancellationToken)
     {
-        // No workspace and no location: the terminals this family creates live on the server's own
-        // machine, so a Windows path from a location selector would be meaningless to the Linux
-        // server the WSL2 recipe points this test at. The session lands in the server's cwd
-        // instance, which the fixture already isolates through its own XDG roots.
+        // No workspace: the terminals this family creates live on the server's own machine, so a
+        // Windows path would be meaningless to the Linux server the WSL2 recipe points this test
+        // at, and that session lands in the external server's own working directory. An owned
+        // server's session takes the fixture's own default location instead.
         using var client = server.CreateClient();
         var session = await client.Sessions.CreateSessionAsync(
-            new SessionCreateRequest { Title = SessionTitle }, cancellationToken: cancellationToken);
+            new SessionCreateRequest { Title = SessionTitle, Location = server.DefaultSessionLocation },
+            cancellationToken: cancellationToken);
         var created = await client.PersistentPtys.CreatePersistentPtyAsync(
             session.Session.Id, CreateRequest(), OpenCodeRequestOptions.NoThrow, cancellationToken);
 
@@ -93,7 +94,8 @@ public sealed class PersistentPtyLiveTests(PinnedOpenCodeServerFixture server)
     {
         using var client = server.CreateClient();
         var session = await client.Sessions.CreateSessionAsync(
-            new SessionCreateRequest { Title = SessionTitle }, cancellationToken: cancellationToken);
+            new SessionCreateRequest { Title = SessionTitle, Location = server.DefaultSessionLocation },
+            cancellationToken: cancellationToken);
         var created = await client.PersistentPtys.CreatePersistentPtyAsync(
             session.Session.Id, CreateRequest(), OpenCodeRequestOptions.NoThrow, cancellationToken);
 

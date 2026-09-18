@@ -148,7 +148,8 @@ is revisited at each boundary.
   subscriptions to it are being released and re-created, which the server does per location for
   the skills directories of every `.claude`, `.agents`, and `.opencode` root it discovers between a
   location and the drive root. A caller sees `OpenCodeTransportException`, not an SDK fault. The
-  upstream report is drafted but not filed.
+  test fixtures are hermetic against it (`engineering/testing-style.md`); a consumer's server is
+  not, and the upstream report is drafted but not filed.
 - **The downlevel Unix arm of the legacy-registration copy shells out for its file mode.**
   Discovery's one-time copy of an older hashed registration is created exclusively at mode `0600`:
   `net8.0` and later set the mode at creation through `FileStreamOptions.UnixCreateMode`, while

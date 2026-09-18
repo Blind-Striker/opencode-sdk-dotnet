@@ -2,9 +2,18 @@ using System.IO.Abstractions;
 
 namespace OpenCode.Sdk.TestSupport;
 
-/// <summary>An isolated per-run directory under the OS temp root, deleted best-effort on dispose.</summary>
+/// <summary>
+/// An isolated per-run directory, deleted best-effort on dispose. <see cref="TestRunRootLocation"/>
+/// decides where it lives.
+/// </summary>
 internal sealed class TestRunRoot : IDisposable
 {
+    /// <summary>
+    /// Short on purpose: the run root is the prefix of every path the server and git build beneath
+    /// it, and Windows path limits are counted from here.
+    /// </summary>
+    private const int IdentifierLength = 12;
+
     private readonly IFileSystem _fileSystem;
 
     public TestRunRoot(IFileSystem fileSystem)
@@ -13,7 +22,8 @@ internal sealed class TestRunRoot : IDisposable
 
         _fileSystem = fileSystem;
         Path = fileSystem.Path.Combine(
-            fileSystem.Path.GetTempPath(), "opencode-sdk-tests", Guid.NewGuid().ToString("N"));
+            TestRunRootLocation.ForCurrentProcess(fileSystem).Resolve(),
+            Guid.NewGuid().ToString("N")[..IdentifierLength]);
         _ = fileSystem.Directory.CreateDirectory(Path);
     }
 
@@ -30,7 +40,8 @@ internal sealed class TestRunRoot : IDisposable
     {
         // Discarded deliberately: a straggling child handle winning the race is the one outcome
         // this root has no answer for, and retention is harmless where failing a whole test run
-        // over a temp directory is not. The OS temp cleaner owns whatever is left.
+        // over a scratch directory is not. Whatever is left sits outside every repository and the
+        // user profile, where nothing reads it.
         _ = BestEffortDelete.TryDeleteTree(_fileSystem, Path);
     }
 }

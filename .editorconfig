@@ -839,6 +839,15 @@ dotnet_diagnostic.MA0045.severity = none
 [tests/Shared/DriveManifest.cs]
 dotnet_diagnostic.MA0045.severity = none
 
+# ServerIsolation.Environment seeds one empty shell startup file into the home it names, through
+# IFileSystem. Its contract is a synchronous map the launch recipes compose from
+# (SimulatedServerLaunch.Prepare and PinnedServerLaunch.Options are synchronous, and the launcher
+# options they build are plain data), and the write is a zero-byte file in a directory this call
+# just created, so there is nothing to await. Winner: the synchronous isolation-policy contract;
+# MA0045 remains enabled for every other file.
+[tests/Shared/ServerIsolation.cs]
+dotnet_diagnostic.MA0045.severity = none
+
 # The generated route surface deliberately nests one static container per operation
 # group; flattening would erase the grouping the public
 # API promises. Winner: the generated route shape; CA1034 remains enabled for every other

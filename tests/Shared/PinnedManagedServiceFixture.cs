@@ -11,8 +11,8 @@ namespace OpenCode.Sdk.TestSupport;
 
 /// <summary>
 /// The accepted pin's own background service, started once per test session as
-/// <c>bun &lt;cli entry&gt; serve --service</c> under fully isolated roots: the XDG map plus a
-/// redirected home (service mode changes into <c>global.home</c>), a reserved free port seeded
+/// <c>bun &lt;cli entry&gt; serve --service</c> under the shared <see cref="ServerIsolation"/>
+/// roots (service mode changes into the redirected <c>global.home</c>), a reserved free port seeded
 /// into the channel's config file (the <c>local</c> default may be the developer's own), and the
 /// <c>local</c> channel a source run compiles. Readiness is a strict registration under the state
 /// root plus an authenticated health answer that repeats the registered pid. Cleanup kills only the
@@ -97,8 +97,7 @@ public sealed class PinnedManagedServiceFixture : IAsyncInitializer, IAsyncDispo
         var pinned = new PinnedServerCommand(_fileSystem);
         var command = pinned.Resolve();
         var workingDirectory = _fileSystem.Path.Combine(pinned.RepositoryRoot, "external", "opencode", "packages", "cli");
-        _environment = ServerIsolation.HomeAwareEnvironment(_fileSystem, _runRoot.Path);
-        _ = _fileSystem.Directory.CreateDirectory(_environment["OPENCODE_TEST_HOME"]);
+        _environment = ServerIsolation.Environment(_fileSystem, _runRoot.Path);
         _registrationFile = _fileSystem.Path.Combine(_environment["XDG_STATE_HOME"], "opencode", "service-" + Channel + ".json");
         var port = LoopbackPortReservation.Reserve();
         await SeedConfigAsync(port).ConfigureAwait(false);

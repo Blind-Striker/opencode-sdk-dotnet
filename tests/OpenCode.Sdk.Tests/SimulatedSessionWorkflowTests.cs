@@ -32,7 +32,7 @@ public sealed class SimulatedSessionWorkflowTests(SimulatedDriveServerFixture se
         using var workspace = server.CreateWorkspace();
         using var client = server.CreateClient(new LocationSelector { Directory = workspace.Path });
 
-        var sessionId = await CreateSimulatedSessionAsync(client, "simulated-session-workflow", cancellationToken);
+        var sessionId = await CreateSimulatedSessionAsync(client, workspace.Path, "simulated-session-workflow", cancellationToken);
         var session = client.Sessions.GetSessionClient(sessionId);
 
         using var eventWindow = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -115,7 +115,7 @@ public sealed class SimulatedSessionWorkflowTests(SimulatedDriveServerFixture se
         using var workspace = server.CreateWorkspace();
         using var client = server.CreateClient(new LocationSelector { Directory = workspace.Path });
 
-        var sessionId = await CreateSimulatedSessionAsync(client, "simulated-session-interrupt", cancellationToken);
+        var sessionId = await CreateSimulatedSessionAsync(client, workspace.Path, "simulated-session-interrupt", cancellationToken);
         var session = client.Sessions.GetSessionClient(sessionId);
 
         _ = await session.PostPromptAsync(
@@ -223,15 +223,19 @@ public sealed class SimulatedSessionWorkflowTests(SimulatedDriveServerFixture se
     /// Creates a session pinned to the config-seeded simulated model. In simulation the drive
     /// backend answers only the chat route this provider claims, so the explicit
     /// <see cref="ModelRef"/> is what makes every prompt in the suite deterministic rather than
-    /// dependent on whichever catalog model the server would otherwise default to.
+    /// dependent on whichever catalog model the server would otherwise default to. The location is
+    /// named in the body because session creation takes it from there alone: without one the server
+    /// binds the session to its own working directory (<c>packages/server/src/handlers/session.ts:136</c>
+    /// at the pin), whatever the client's location header says.
     /// </summary>
     private static async Task<string> CreateSimulatedSessionAsync(
-        OpenCodeClient client, string title, CancellationToken cancellationToken)
+        OpenCodeClient client, string directory, string title, CancellationToken cancellationToken)
     {
         var created = await client.Sessions.CreateSessionAsync(
             new SessionCreateRequest
             {
                 Title = title,
+                Location = new LocationPublicRef { Directory = directory },
                 Model = new ModelRef { Id = SimulatedModelId, ProviderId = "sim" },
             },
             cancellationToken: cancellationToken);

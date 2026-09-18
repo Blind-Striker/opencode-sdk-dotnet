@@ -1,0 +1,73 @@
+# Developing on Windows
+
+Operational guidance for a Windows workstation. Everything here is about the developer's machine;
+the test suite's own isolation rules live in `testing-style.md` and the gates in `quality-gates.md`.
+
+## Live legs that need a Linux-hosted server
+
+The `opencode-pty` daemon (`@opencode-ai/pty`) ships darwin and linux platform packages only — no
+win32 package exists at the pinned upstream commit — so a persistent PTY live run directly on
+Windows can only exercise the daemon-absent arms. `PinnedOpenCodeServerFixture`'s
+external-endpoint mode plus `PersistentPtyDaemonGate`'s override let a Windows workstation run the
+live leg against a server hosted in WSL2 instead, whose linux package does carry the daemon binary.
+
+Clone into the WSL filesystem instead of reusing the Windows checkout over `/mnt/<drive>`: one
+shared `external/opencode/node_modules` holds the platform package of whichever OS installed last,
+so the two installs clobber each other's daemon binary.
+
+1. In WSL2, clone the repository and initialize the submodule:
+   ```sh
+   git clone https://github.com/Blind-Striker/opencode-sdk-dotnet.git ~/repos/opencode-sdk-dotnet
+   cd ~/repos/opencode-sdk-dotnet
+   git submodule update --init --depth 1 external/opencode
+   ```
+2. Install the bun the pin names in its `packageManager` field, not the workstation's own:
+   ```sh
+   curl -fsSL https://bun.sh/install | bash -s "bun-v$(grep -o '"packageManager": *"bun@[0-9.]*"' \
+     external/opencode/package.json | grep -o '[0-9][0-9.]*')"
+   ```
+3. Install the dependencies — this is what places `@opencode-ai/pty-<platform>/bin/opencode-pty`,
+   which `packages/core` resolves as its `binaryPath`:
+   ```sh
+   cd ~/repos/opencode-sdk-dotnet/external/opencode
+   bun install --frozen-lockfile --ignore-scripts
+   ```
+4. Serve from `packages/cli` under isolated XDG roots and a fixed password, so the run touches no
+   real profile and the Windows side can authenticate:
+   ```sh
+   cd ~/repos/opencode-sdk-dotnet/external/opencode/packages/cli
+   mkdir -p /tmp/ocsdk/data /tmp/ocsdk/cache /tmp/ocsdk/config /tmp/ocsdk/state
+   XDG_DATA_HOME=/tmp/ocsdk/data XDG_CACHE_HOME=/tmp/ocsdk/cache \
+   XDG_CONFIG_HOME=/tmp/ocsdk/config XDG_STATE_HOME=/tmp/ocsdk/state \
+   OPENCODE_CONFIG_CONTENT='{}' OPENCODE_DISABLE_MODELS_FETCH=1 OPENCODE_PASSWORD=<pw> \
+     bun src/index.ts serve --port 4097
+   ```
+5. On Windows, point the fixture at it and run the persistent PTY legs:
+   ```powershell
+   $env:OPENCODE_SDK_TESTS_ENDPOINT = "http://localhost:4097"
+   $env:OPENCODE_SDK_TESTS_PASSWORD = "<pw>"
+   $env:OPENCODE_SDK_TESTS_PTY_DAEMON = "1"
+   dotnet test tests/OpenCode.Sdk.Tests --configuration Release --no-build `
+     -- --treenode-filter "/*/*/PersistentPtyLiveTests/*" --report-trx
+   ```
+
+The filter keeps the run to the live legs, which is what the recipe was proven with; the whole suite
+can also run against the same endpoint, because the fixture-driven live legs create their sessions
+without a Windows location, so no path from the workstation reaches the WSL2 server. The
+blank-password guard is real: an unset or whitespace `OPENCODE_SDK_TESTS_PASSWORD` fails
+initialization by name rather than reaching the server.
+
+The exact-pin discipline is the operator's: the WSL2 server must be built from the same submodule
+commit; the fixture prints both so a mismatch is visible, it cannot verify a source run's version.
+
+The sandbox (`tests/OpenCode.Sdk.Sandbox`) can be pointed at the same endpoint, but it is not the
+proof: its earlier session legs answer 500 on a provider-less isolated server, so the walkthrough
+never reaches the persistent PTY leg there. `PersistentPtyLiveTests` is what proves the round trip.
+
+## Driving WSL from a Windows shell
+
+Put the WSL side in a script file and run it as `MSYS_NO_PATHCONV=1 wsl.exe -- bash
+/mnt/c/<path>.sh` — Git Bash otherwise mangles the quoting and rewrites `/tmp` paths into Windows
+ones. Stop the server by pattern (`pkill -f "index.ts serve --port 4097"`) rather than by a pid
+file, because a backgrounded `setsid nohup … &` leaves the file empty; the `opencode-pty` daemon
+exits with the server.
