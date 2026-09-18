@@ -11,29 +11,29 @@ Nightly builds of `master` are on
 
 ## [0.9.0-preview.1] - 2026-09-18
 
-The first preview of the `0.9.0` line, built against upstream release tag `v2.0.8`. Upstream
-removed and moved operations between `v2.0.2` (the pin of `0.8.0-preview.2`) and this tag; the SDK
-follows the pinned contract and keeps no compatibility layer, so the breaking changes come first,
-each with what to change.
+Two things changed since `0.8.0-preview.2`. The SDK now follows upstream release tag `v2.0.8`
+instead of `v2.0.2`: upstream renamed, moved, or removed many operations in between, and the SDK
+keeps no compatibility layer, so the breaking changes come first, each with what to change. And
+`OpenCodeServer` gained background-service discovery, opencode's third connection mode.
 
 ### 💥 Breaking changes
 
 - **The accepted snapshot moved to upstream release tag `v2.0.8`**
   (`7673ed6bd6547ee0dcb81aab55f1392fb751d652`), which published as `@opencode/cli@2.0.8`; install
   it with `npm install -g @opencode/cli@2.0.8`. Operation identities lost their `v2.` prefix
-  upstream at `v2.0.5` (`session.diff`, `event.subscribe`); routes did not change for that
-  reason. 130 of the document's 136 operations are generated and two more are hand-written
+  upstream (`session.diff`, `event.subscribe`); routes did not change for that reason. 130 of
+  the document's 136 operations are generated and two more are hand-written
   WebSocket transports. The Restore patch that repairs upstream's lost SSE payload schemas
   ([anomalyco/opencode#44911](https://github.com/anomalyco/opencode/issues/44911)) is still
   required at this tag and applies unchanged.
 - **Health became server info.** `OpenCodeClient.GetHealthAsync`, `ServerClient.GetServerAsync`,
   `HealthResponse`, `Health`, and `ServerResponse` are removed with upstream's `/api/health` and
-  `/api/server` (`v2.0.5`), and the `/api/status` door that replaced them became `/api/info` at
-  `v2.0.8`. Call `client.Server.GetInfoAsync()` and read `ServerInfoResponse.ServerInfo`:
-  `Version`, `Pid`, `Urls`, and `Paths.Tmp`, the server's temporary directory. There is no
-  `Healthy` member; an info call that answers is the health signal, and it throws like any other
-  call when the server does not. Background-service discovery probes the same door, and a
-  registered daemon still serving `/api/status` is reported as present but incompatible.
+  `/api/server`. Call `client.Server.GetInfoAsync()` (`GET /api/info`) and read
+  `ServerInfoResponse.ServerInfo`: `Version`, `Pid`, `Urls`, and `Paths.Tmp`, the server's
+  temporary directory. There is no `Healthy` member; an info call that answers is the health
+  signal, and it throws like any other call when the server does not. Background-service discovery
+  probes the same door, and a registered daemon of an older 2.x release, which still serves
+  `/api/status`, is reported as present but incompatible.
 - **Location targeting is directory-only.** `LocationSelector.Workspace` and
   `SessionListRequest.Workspace` are removed: upstream dropped the `location[workspace]` query and
   the `x-opencode-workspace` header. The `Location` a location-scoped response carries is now
@@ -108,31 +108,29 @@ each with what to change.
   accepted commit (ADR-0025); live tests prove it against the pin's own `serve --service` daemon on
   every target-framework leg, from an isolated process whose environment the test owns. Ensuring and
   stopping the service follow as their own slices.
-- **Turn diffs.** `SessionClient.GetDiffAsync` binds `session.diff`, which upstream added in `v2.0.3`:
-  the structured per-file diffs of the files one turn changed, where a turn runs from the first
+- **Turn diffs.** `SessionClient.GetDiffAsync` binds `session.diff`: the structured per-file diffs of the files one turn changed, where a turn runs from the first
   prompt after the session was last idle to its next idle marker. `SessionDiffRequest` carries the
   optional `From` and `To` user-message anchors and the `Context` line count, and
   `SessionDiffResponse.Diffs` is the same `FileDiffInfo` list the VCS diff returns. A live test
   proves the declared 200, 400, and 404 arms against the pinned server.
 - **The idle turn marker is a typed message.** `SessionMessageIdle` joins the message union with
-  its `Outcome` (`Succeeded`, `Failed`, or `Interrupted`). Since upstream `v2.0.3` the server writes
-  one at the end of every turn; on `0.8.0-preview.2` those entries surfaced as
-  `UnknownSessionMessageInfo`.
-- **Reloading every loaded location.** `client.ReloadLocationsAsync()` binds `location.reload`,
-  added upstream in `v2.0.8`: the server shuts down and rebuilds every loaded location, cancels
+  its `Outcome` (`Succeeded`, `Failed`, or `Interrupted`). The server writes one at the end of
+  every turn; on `0.8.0-preview.2` those entries surfaced as `UnknownSessionMessageInfo`.
+- **Reloading every loaded location.** `client.ReloadLocationsAsync()` binds `location.reload`:
+  the server shuts down and rebuilds every loaded location, cancels
   pending permissions and forms, lets running sessions continue with fresh services at their next
   step boundary, and answers once every replacement build settles. The new `location.shutdown`
   event (`LocationShutdown`) arrives on the event stream for each location it tears down, so a
   consumer can revalidate its reads. The declared `ServiceUnavailableError` is its one typed
   failure.
-- **Smaller additions from the same tag.** `SessionStepStartedData.Started` carries the step's
+- **Smaller additions.** `SessionStepStartedData.Started` carries the step's
   request dispatch time, before the provider answers, and every `Form*Field` has an optional
   `Hidden` that skips the interactive prompt when a default exists.
 
 ### 🔧 Changes
 
-- **The version line moved to `0.9.0`.** Discovery is the M4 milestone's background-service
-  boundary, so the next release is `0.9.0-preview.1` and nightlies are `0.9.0-nightly.*`.
+- **The version line is `0.9.0`.** Discovery is the M4 milestone's background-service boundary;
+  nightlies are `0.9.0-nightly.*`.
 - **`OpenCodeServerException` now covers every local-server door.** Discovery throws it for one
   cause only — an XDG variable unset with no user home to fall back to — beside the launcher's
   start, readiness, and stop failures. The class summary and the errors guide say so.
