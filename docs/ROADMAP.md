@@ -71,18 +71,21 @@ is revisited at each boundary.
    slice has landed**: `OpenCodeServer.DiscoverAsync` over the registration file — an
    upstream-observed contract outside the OpenAPI pin, so source-watched (ADR-0024, ADR-0025) —
    with a non-owning handle (`OwnsProcess`), the CLI's channel, migration, and status rules, and
-   live proof against the pin's own `serve --service` daemon on every runtime leg. `EnsureAsync`
-   and `StopAsync` follow as their own slices.
-   **Surface completeness is queued beside it, for detailed investigation before any code:**
-   admitting the five operations that sit outside generation today. The sketched paths are an
-   opaque `JsonElement` arm for an object-only union with no marker literal (`config.get`,
-   whose `lsp`, `mcp.servers`, and `references` map values are exactly that), a marker table
-   that accepts a branch whose literal carries several values (`experimental.migration.v1.status`
-   dispatches on `status`, one branch with two values), a hand-written door over the wildcard
-   octet-stream route with a watched upstream handler (`fs.read`), and counting the two
-   transport-owned WebSocket doors as the covered operations they are — so the surface reads
-   134 of 134 usable. Each path is an ADR-0016 or ADR-0013 question first; the investigation
-   decides whether every one holds.
+   live proof against the pin's own `serve --service` daemon on every runtime leg. `StopAsync`
+   and then `EnsureAsync` follow as their own slices.
+   **Two generator slices ride inside M4 as well.** Fail-closed operation naming
+   ([#86](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/86)): the HTTP method stops
+   being a name source, so every non-`GET` operation whose closing segment is not a naming verb
+   refuses generation until a reason-bearing `operationNames` row names it, and handle clients
+   drop the family from their empty-subject names; it goes first, before the Stop slice reaches
+   for the generated persistent-PTY doors it renames. **Surface completeness** then admits the
+   operations that sit outside generation: `config.get` and `experimental.migration.v1.status`
+   through an ADR-0016 first-match arm that mirrors upstream's own union decode — token kind,
+   literal sentinel, declaration order, required-key presence — proven against upstream's real
+   decoder ([#87](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/87)); `fs.read`
+   through a hand-written door over the wildcard octet-stream route with a watched upstream
+   handler (an ADR-0013 question first); and the two transport-owned WebSocket doors counted as
+   the covered operations they are — so the surface reads 134 of 134 usable.
 5. **M5 — Full surface.** Target admission over the refreshed surface, driven by the `refresh-spec`
    synchronizer (ADR-0020) and the ownership pattern for the terminal families (ADR-0021). Coverage
    has reached its end state; what remains is exclusion fingerprints for the transport-owned
