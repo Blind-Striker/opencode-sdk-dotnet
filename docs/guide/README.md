@@ -1,6 +1,6 @@
 # 📚 The opencode SDK guide
 
-Date: 2026-09-12
+Date: 2026-09-17
 
 Seven pages for people **calling** the SDK. Read them in order the first time: install the package
 and make a call, decide how you reach a server, then how you shape what you send, then the three
@@ -13,7 +13,7 @@ member exists.
 
 | Page | What it covers |
 |---|---|
-| [Getting started](getting-started.md) | Installing the package, constructing a client, your first health check, session, and prompt |
+| [Getting started](getting-started.md) | Installing the package, constructing a client, your first status check, session, and prompt |
 | [Connection modes](connection-modes.md) | The standalone launcher, a server you already run, and registering the client with dependency injection |
 | [Requests](requests.md) | Request records and object initializers, the absent/null/set members, query members, and per-call location |
 | [Streaming](streaming.md) | The global event bus, per-session log streams, cancellation, and what a stream does when it fails |

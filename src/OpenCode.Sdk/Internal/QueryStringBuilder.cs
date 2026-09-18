@@ -72,11 +72,6 @@ internal sealed class QueryStringBuilder
         {
             AppendBracketed(name, "directory", value.Directory);
         }
-
-        if (value.Workspace is not null)
-        {
-            AppendBracketed(name, "workspace", value.Workspace);
-        }
     }
 
     private void Append(string name, string value)

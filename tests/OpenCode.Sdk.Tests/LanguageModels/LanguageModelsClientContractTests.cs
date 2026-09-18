@@ -24,7 +24,7 @@ public sealed class LanguageModelsClientContractTests
         await Assert.That(response.Default.ModelId).IsEqualTo("claude-3-5-sonnet");
         await Assert.That(response.Default.ProviderId).IsEqualTo("anthropic");
         await Assert.That(response.Default.Status).IsEqualTo(ModelInfoStatus.Active);
-        await Assert.That(response.Location.Project.Id).IsEqualTo("prj_1");
+        await Assert.That(response.Location.Directory).IsEqualTo(WireBodyData.ResolvedDirectory);
         await Assert.That(scenario.Requests.Single().RequestUri)
             .IsEqualTo(new Uri("http://localhost:4096/api/model/default"));
     }
@@ -76,7 +76,7 @@ public sealed class LanguageModelsClientContractTests
         await Assert.That(response.Models[0].ModelId).IsEqualTo("claude-3-5-sonnet");
         await Assert.That(response.Models[0].ProviderId).IsEqualTo("anthropic");
         await Assert.That(response.Models[0].Status).IsEqualTo(ModelInfoStatus.Active);
-        await Assert.That(response.Location.Project.Id).IsEqualTo("prj_1");
+        await Assert.That(response.Location.Directory).IsEqualTo(WireBodyData.ResolvedDirectory);
         await Assert.That(scenario.Requests.Single().RequestUri)
             .IsEqualTo(new Uri("http://localhost:4096/api/model"));
     }
@@ -89,7 +89,7 @@ public sealed class LanguageModelsClientContractTests
         var response = await scenario.Client.LanguageModels.ListModelsAsync();
 
         await Assert.That(response.Models.Count).IsEqualTo(0);
-        await Assert.That(response.Location.Project.Id).IsEqualTo("prj_1");
+        await Assert.That(response.Location.Directory).IsEqualTo(WireBodyData.ResolvedDirectory);
     }
 
     [Test]

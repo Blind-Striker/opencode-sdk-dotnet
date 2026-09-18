@@ -1,4 +1,5 @@
 using System.Globalization;
+using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
 
 namespace OpenCode.Sdk.Tests;
@@ -14,10 +15,10 @@ public sealed class LanguageModelsClientLiveTests(SimulatedDriveServerFixture se
     {
         using var workspace = server.CreateWorkspace();
         using var client = server.CreateClient(new LocationSelector { Directory = workspace.Path });
-        var settled = await client.Plugins.AwaitPluginActivationAsync(cancellationToken: cancellationToken);
-        await Assert.That(settled.Status).IsEqualTo(204);
-
-        var listed = await client.LanguageModels.ListModelsAsync(cancellationToken: cancellationToken);
+        var listed = await LiveReadiness.WaitAsync(
+            token => client.LanguageModels.ListModelsAsync(cancellationToken: token),
+            result => result.Models.Any(item => item.ProviderId == SimulationConfigSeed.ProviderId && item.ModelId == SimulationConfigSeed.ModelId),
+            "seeded models", cancellationToken);
 
         await Assert.That(listed.Status).IsEqualTo(200);
         await Assert.That(listed.IsError).IsFalse();

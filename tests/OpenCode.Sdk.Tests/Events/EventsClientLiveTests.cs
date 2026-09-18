@@ -70,14 +70,12 @@ public sealed class EventsClientLiveTests(PinnedOpenCodeServerFixture server)
                 "the rpc event '" + ObservedEventType + "' carrying the nonce", barrier.Token);
             await Assert.That(observed.Data.Count).IsEqualTo(1);
             await Assert.That(observed.Location.Directory).IsEqualTo(resolved.Directory);
-            await Assert.That(observed.Location.WorkspaceId).IsEqualTo(resolved.WorkspaceId);
 
             Console.WriteLine(
                 "rpc-event-live: mode=owned arm=emit status=" + Number(emitted.Status) +
                 " type=" + observed.Type +
                 " nonce=" + nonce +
-                " directory=" + observed.Location.Directory +
-                " workspace=" + observed.Location.WorkspaceId);
+                " directory=" + observed.Location.Directory);
         }
         catch (Exception exception)
         {
@@ -102,8 +100,7 @@ public sealed class EventsClientLiveTests(PinnedOpenCodeServerFixture server)
         TestRpcPlugin ownedPlugin,
         CancellationToken cancellationToken)
     {
-        _ = await client.Plugins.AwaitPluginActivationAsync(cancellationToken: cancellationToken);
-        var listed = await client.Plugins.ListPluginsAsync(cancellationToken: cancellationToken);
+        var listed = await LiveReadiness.PluginAsync(client, TestRpcPlugin.Id, cancellationToken);
         await Assert.That(listed.Status).IsEqualTo(200);
         await Assert.That(listed.IsError).IsFalse();
         var ownedEntries = listed.Plugins.Where(

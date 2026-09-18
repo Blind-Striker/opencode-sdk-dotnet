@@ -1,6 +1,6 @@
 # 📝 Requests
 
-Date: 2026-09-12
+Date: 2026-09-17
 
 Every operation that sends anything takes one request record. They are plain immutable records you
 fill with an object initializer — with one twist worth knowing before you write your first `PATCH`:
@@ -25,8 +25,7 @@ var created = await client.Sessions.CreateSessionAsync(new SessionCreateRequest
 });
 ```
 
-When every member is optional, the request itself is optional — `await client.Config
-.PatchUpdatePreferencesAsync()` sends `{}`. Records are values, so `with` gives you a variation
+When every member is optional, the request itself is optional — `await session.UpdateSessionAsync()` sends `{}`. Records are values, so `with` gives you a variation
 without touching the original.
 
 ## 🔀 Absent, null, and set
@@ -37,38 +36,29 @@ of `T?`, because for those members the server can tell three things apart:
 | You write | Wire | Means |
 |---|---|---|
 | nothing | the member is not written at all | leave whatever the server has |
-| `Shell = null` or `Shell = Optional<string?>.Null` | `"shell": null` | send an explicit null |
-| `Shell = "pwsh"` | `"shell": "pwsh"` | set this value |
+| `Title = null` or `Title = Optional<string?>.Null` | `"title": null` | send an explicit null |
+| `Title = "Revised title"` | `"title": "Revised title"` | set this value |
 
-Setting a value needs no ceremony — an implicit conversion takes the plain value, so `Shell =
-"pwsh"` is what you write. `default` is the absent state, which is why an unassigned member is
+Setting a value needs no ceremony — an implicit conversion takes the plain value, so `Title =
+"Revised title"` is what you write. `default` is the absent state, which is why an unassigned member is
 absent for free.
 
-The preferences patch is where the distinction earns its keep: upstream **deletes** a preference
-when you send an explicit null for it, and leaves it alone when you omit it.
+The session update request illustrates the three wire states:
 
 ```csharp
-// Set it.
-var set = await client.Config.PatchUpdatePreferencesAsync(new ConfigUpdatePreferencesPatchRequest
-{
-    Shell = "pwsh",
-});
-
-// Keep it: the body is {} and the stored value survives.
-var kept = await client.Config.PatchUpdatePreferencesAsync(new ConfigUpdatePreferencesPatchRequest());
-
-// Clear it: the body is {"shell":null} and the preference is gone.
-var cleared = await client.Config.PatchUpdatePreferencesAsync(new ConfigUpdatePreferencesPatchRequest
-{
-    Shell = Optional<string?>.Null,
-});
-
-Console.WriteLine($"{set.UpdatePreferences.Shell} → {kept.UpdatePreferences.Shell} → {cleared.UpdatePreferences.Shell ?? "<unset>"}");
+var session = client.Sessions.GetSessionClient("ses_1");
+await session.UpdateSessionAsync(new SessionUpdatePatchRequest { Title = "Revised title" });
+await session.UpdateSessionAsync(new SessionUpdatePatchRequest()); // {}
+await session.UpdateSessionAsync(new SessionUpdatePatchRequest { Title = Optional<string?>.Null }); // {"title":null}
 ```
 
-> **🧭 What null means is the server's call, not the SDK's.** The SDK sends exactly what you wrote.
-> The preferences patch treats an explicit null as a delete; most other operations treat it the
-> same as omission. When you are not clearing something, just leave the member out.
+The operation returns 204; use `GetSessionAsync` to observe the resulting session. What an explicit
+null does is the server's decision. The SDK preserves the wire distinction and does not promise
+that null always clears a value.
+
+The experimental config update differs: `ExperimentalConfigUpdatePatchRequest.Shell` is a
+**required nullable string**, so callers must supply a shell value or null. There is no omitted
+shell state. A null removes the persisted shell preference; its 204 response has no read-back body.
 
 The rule is keyed on the schema, not on the direction of one call: a schema a request body reaches
 carries the wrapper everywhere it is used. A response-only property is untouched and stays an
@@ -86,13 +76,13 @@ var name = content is ToolFileContent file ? file.Name.Value : null;
 carried value — `null` both when the member is absent and when it carries an explicit null:
 
 ```csharp
-var request = new ConfigUpdatePreferencesPatchRequest { Shell = Optional<string?>.Null };
+var request = new SessionUpdatePatchRequest { Title = Optional<string?>.Null };
 
-Console.WriteLine(request.Shell switch
+Console.WriteLine(request.Title switch
 {
     { IsSet: false } => "absent",
     { Value: null } => "explicit null",
-    { Value: var shell } => shell,
+    { Value: var title } => title,
 });
 ```
 
@@ -106,9 +96,7 @@ carries those members instead. They are ordinary nullable members — a query me
 simply not written, and the server's own default applies:
 
 ```csharp
-var session = client.Sessions.GetSessionClient("ses_1");
-
-var export = await session.GetExportAsync(new SessionExportRequest
+var export = await client.Experimental.GetSessionExportAsync("ses_1", new ExperimentalSessionExportRequest
 {
     Sanitize = QueryBoolean.True,
 });
@@ -132,12 +120,12 @@ var check = await client.Plugins.CheckPluginUpdatesAsync(new PluginCheckPostRequ
 
 ## 📍 Per-call location
 
-The directory and workspace a call addresses reach the server through two different channels, and
+The directory a call addresses reaches the server through two different channels, and
 which one an operation reads is the document's decision, not yours to pick.
 
 `OpenCodeRequestOptions.Location` is the per-call override of the ambient
-`x-opencode-directory`/`x-opencode-workspace` header pair. It merges over
-`OpenCodeClientOptions.Location` member by member — a set member wins, an unset one inherits — and
+`x-opencode-directory` header. It merges over
+`OpenCodeClientOptions.Location` by directory — a set directory wins, an unset one inherits — and
 only operations that resolve location from those headers read it:
 
 ```csharp

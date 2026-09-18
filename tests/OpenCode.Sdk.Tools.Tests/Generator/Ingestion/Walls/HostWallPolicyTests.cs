@@ -20,7 +20,7 @@ public sealed class HostWallPolicyTests
     public async Task Project_Should_Refuse_Unsupported_Method()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.head", method: "head"));
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("test.head", method: "head"));
 
         var ex = await host.ProjectExpectingRefusalAsync(scenario);
 
@@ -31,7 +31,7 @@ public sealed class HostWallPolicyTests
     public async Task Project_Should_Refuse_Cookie_Parameter()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.cookie", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("test.cookie", configure: operation => operation
             .Parameter("session", "cookie", schema => schema.Type("string"))));
 
         var ex = await host.ProjectExpectingRefusalAsync(scenario);
@@ -44,7 +44,7 @@ public sealed class HostWallPolicyTests
     public async Task Project_Should_Refuse_Form_Style_Parameter()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.form", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("test.form", configure: operation => operation
             .ParameterWithStyle("filter", "form", explode: true)));
 
         var ex = await host.ProjectExpectingRefusalAsync(scenario);
@@ -58,7 +58,7 @@ public sealed class HostWallPolicyTests
     {
         var host = new OperationProjectionTestHost();
         var scenario =
-            SpecScenario.Define(spec => spec.WithOperation("v2.test.content", configure: operation => operation.ContentParameter("filter")));
+            SpecScenario.Define(spec => spec.WithOperation("test.content", configure: operation => operation.ContentParameter("filter")));
 
         var ex = await host.ProjectExpectingRefusalAsync(scenario);
 
@@ -70,7 +70,7 @@ public sealed class HostWallPolicyTests
     public async Task Project_Should_Refuse_Duplicate_Parameter_Identity()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.duplicate", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("test.duplicate", configure: operation => operation
             .Parameter("filter", "query", schema => schema.Type("string"))
             .Parameter("filter", "query", schema => schema.Type("string"))));
 
@@ -84,7 +84,7 @@ public sealed class HostWallPolicyTests
     public async Task Project_Should_Refuse_Request_Body_With_Multiple_Media_Types()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.body", method: "post", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("test.body", method: "post", configure: operation => operation
             .RequestBodyMediaTypes("application/json", "text/plain")));
 
         var ex = await host.ProjectExpectingRefusalAsync(scenario);
@@ -97,7 +97,7 @@ public sealed class HostWallPolicyTests
     public async Task Project_Should_Refuse_Response_With_Multiple_Media_Types()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.response", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("test.response", configure: operation => operation
             .ResponseMediaTypes(200, "application/json", "text/plain")));
 
         var ex = await host.ProjectExpectingRefusalAsync(scenario);
@@ -110,7 +110,7 @@ public sealed class HostWallPolicyTests
     public async Task Project_Should_Refuse_Effect_Stream_On_Json_Media()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.effect", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("test.effect", configure: operation => operation
             .JsonResponseWithEffectStreamFromFixture("effect-stream.json")));
 
         var ex = await host.ProjectExpectingRefusalAsync(scenario);
@@ -123,7 +123,7 @@ public sealed class HostWallPolicyTests
     public async Task Project_Should_Refuse_Default_Response_Key()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.default", configure: operation => operation.DefaultResponse()));
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("test.default", configure: operation => operation.DefaultResponse()));
 
         var ex = await host.ProjectExpectingRefusalAsync(scenario);
 
@@ -135,7 +135,7 @@ public sealed class HostWallPolicyTests
     public async Task Project_Should_Locate_Malformed_Media_Type()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.media", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("test.media", configure: operation => operation
             .Response(200, "application-json", schema => schema.Type("string"))));
 
         var ex = await host.ProjectExpectingRefusalAsync(scenario);
@@ -148,7 +148,7 @@ public sealed class HostWallPolicyTests
     public async Task Project_Should_Ignore_Unknown_Operation_Extension()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.extension", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("test.extension", configure: operation => operation
             .Extension("x-unknown", "true")));
 
         var result = await host.ProjectAsync(scenario);

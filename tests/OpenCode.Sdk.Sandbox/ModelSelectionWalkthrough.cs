@@ -5,9 +5,9 @@ namespace OpenCode.Sdk.Sandbox;
 
 /// <summary>
 /// The compile-and-run home for the "choosing a model" recipe in
-/// <c>docs/guide/getting-started.md</c>: wait for plugin activation to settle, read the catalog the
+/// <c>docs/guide/getting-started.md</c>: read the catalog the
 /// location actually has, and place the chosen model on session creation. Runs on the
-/// launcher-started leg, where health has just answered — which is exactly the moment the catalog
+/// launcher-started leg, where status has just answered — which is exactly the moment the catalog
 /// can still be empty.
 /// </summary>
 internal static class ModelSelectionWalkthrough
@@ -16,12 +16,7 @@ internal static class ModelSelectionWalkthrough
     {
         ArgumentNullException.ThrowIfNull(client);
 
-        // Health is process liveness. Plugins activate asynchronously and providers register while
-        // they do, so this is the settle signal a catalog read needs.
-        var settled = await client.Plugins.AwaitPluginActivationAsync().ConfigureAwait(false);
-        Console.WriteLine(
-            string.Create(CultureInfo.InvariantCulture, $"activation: status={settled.Status}"));
-
+        // Catalogs are snapshots: plugins may still be registering providers.
         var providers = await client.Providers.ListProvidersAsync().ConfigureAwait(false);
         var models = await client.LanguageModels.ListModelsAsync().ConfigureAwait(false);
         Console.WriteLine(string.Create(
@@ -34,10 +29,10 @@ internal static class ModelSelectionWalkthrough
         if (model is null)
         {
             // Provider inventory is the machine's ambient opencode configuration: a host with no
-            // provider credentials has nothing to choose from, and that is not a failure here.
+            // provider credentials can have nothing to choose from. Plugin activation may also still be in progress.
             Console.WriteLine(string.Create(
                 CultureInfo.InvariantCulture,
-                $"model: none enabled on this host ({providers.Providers.Count} providers); session stays default"));
+                $"model: none currently available on this host ({providers.Providers.Count} providers); session stays default"));
             return;
         }
 

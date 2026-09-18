@@ -24,7 +24,7 @@ public sealed class SessionInboxLiveTests(SimulatedDriveServerFixture server)
         using var client = server.CreateClient(new LocationSelector { Directory = workspace.Path });
         var sessionId = await CreateOwnedSessionAsync(client, workspace.Path, "session-inbox-cancel", cancellationToken);
         var session = client.Sessions.GetSessionClient(sessionId);
-        var cleanup = new OwnedSessionInboxCleanup(session, sessionId, server.Controller, CleanupTimeout);
+        var cleanup = new OwnedSessionInboxCleanup(session, client.Experimental, sessionId, server.Controller, CleanupTimeout);
         var suffix = Guid.NewGuid().ToString("N");
         var promptA = "task-seven cancel active prompt " + suffix;
         var replyA = "Task seven cancel active reply " + suffix + ".";
@@ -61,16 +61,16 @@ public sealed class SessionInboxLiveTests(SimulatedDriveServerFixture server)
             var pending = await session.ListInboxAsync(cancellationToken: cancellationToken);
             await AssertPendingPromptAsync(pending, sessionId, inboxId, promptB, SessionInboxDelivery.Queue);
 
-            var wait = session.PostWaitAsync(cancellationToken: cancellationToken);
+            var wait = client.Experimental.PostSessionWaitAsync(sessionId, cancellationToken: cancellationToken);
             cleanup.RetainWait(wait);
 
             var cancelled = await session.DeleteInboxCancelAsync(inboxId, cancellationToken: cancellationToken);
             await AssertNoContentAsync(cancelled);
-            var conflict = await session.DeleteInboxCancelAsync(
+            var repeated = await session.DeleteInboxCancelAsync(
                 inboxId,
                 OpenCodeRequestOptions.NoThrow,
                 cancellationToken);
-            await AssertConflictAsync(conflict, inboxId);
+            await AssertNoContentAsync(repeated);
             var afterCancellation = await session.ListInboxAsync(cancellationToken: cancellationToken);
             await AssertInboxAbsentAsync(afterCancellation, inboxId);
             await Assert.That(await server.Controller.PendingCountAsync()).IsEqualTo(1);
@@ -86,7 +86,7 @@ public sealed class SessionInboxLiveTests(SimulatedDriveServerFixture server)
             await AssertInboxAbsentAsync(finalInbox, inboxId);
 
             Console.WriteLine(
-                "session-inbox-cancel-live: active=running enqueue=queue cancel=204 conflict=409 wait=" +
+                "session-inbox-cancel-live: active=running enqueue=queue cancel=204 repeat=204 wait=" +
                 Number(waited.Status));
         }
         catch (Exception exception)
@@ -108,7 +108,7 @@ public sealed class SessionInboxLiveTests(SimulatedDriveServerFixture server)
         using var client = server.CreateClient(new LocationSelector { Directory = workspace.Path });
         var sessionId = await CreateOwnedSessionAsync(client, workspace.Path, "session-inbox-steer", cancellationToken);
         var session = client.Sessions.GetSessionClient(sessionId);
-        var cleanup = new OwnedSessionInboxCleanup(session, sessionId, server.Controller, CleanupTimeout);
+        var cleanup = new OwnedSessionInboxCleanup(session, client.Experimental, sessionId, server.Controller, CleanupTimeout);
         var suffix = Guid.NewGuid().ToString("N");
         var promptA = "task-seven steer active prompt " + suffix;
         var replyA = "Task seven steer first reply " + suffix + ".";
@@ -140,12 +140,13 @@ public sealed class SessionInboxLiveTests(SimulatedDriveServerFixture server)
             var queued = await session.ListInboxAsync(cancellationToken: cancellationToken);
             await AssertPendingPromptAsync(queued, sessionId, inboxId, promptB, SessionInboxDelivery.Queue);
 
-            var steered = await session.PostInboxSteerAsync(inboxId, cancellationToken: cancellationToken);
+            var steered = await session.UpdateInboxAsync(inboxId, new SessionInboxUpdatePatchRequest { Delivery = SessionInboxDelivery.Steer }, cancellationToken: cancellationToken);
             await AssertNoContentAsync(steered);
             var changed = await session.ListInboxAsync(cancellationToken: cancellationToken);
             await AssertPendingPromptAsync(changed, sessionId, inboxId, promptB, SessionInboxDelivery.Steer);
-            var conflict = await session.PostInboxSteerAsync(
+            var conflict = await session.UpdateInboxAsync(
                 inboxId,
+                new SessionInboxUpdatePatchRequest { Delivery = SessionInboxDelivery.Steer },
                 OpenCodeRequestOptions.NoThrow,
                 cancellationToken);
             await AssertConflictAsync(conflict, inboxId);
@@ -159,7 +160,7 @@ public sealed class SessionInboxLiveTests(SimulatedDriveServerFixture server)
             await RequireSimulatedInvocationAsync(invocationB.Invocation);
             await invocationB.ChunkTextAsync(replyB);
             await invocationB.FinishAsync();
-            var waited = await session.PostWaitAsync(cancellationToken: cancellationToken);
+            var waited = await client.Experimental.PostSessionWaitAsync(sessionId, cancellationToken: cancellationToken);
             await AssertNoContentAsync(waited);
 
             var log = await ReadFiniteLogAsync(session, cancellationToken);
@@ -191,7 +192,7 @@ public sealed class SessionInboxLiveTests(SimulatedDriveServerFixture server)
             new SessionCreateRequest
             {
                 Title = title,
-                Location = new LocationRef { Directory = directory },
+                Location = new LocationPublicRef { Directory = directory },
                 Model = new ModelRef { Id = ModelId, ProviderId = ProviderId },
             },
             cancellationToken: cancellationToken);

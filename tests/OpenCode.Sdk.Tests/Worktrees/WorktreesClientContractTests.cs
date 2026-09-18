@@ -7,39 +7,38 @@ namespace OpenCode.Sdk.Tests;
 public sealed class WorktreesClientContractTests
 {
     [Test]
-    public async Task CreateWorktreeAsync_Should_Send_An_Empty_Required_Body_When_Options_Are_Omitted()
+    public async Task CreateWorktreeAsync_Should_Send_The_Required_Project_When_Options_Are_Omitted()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Worktree);
 
-        var response = await scenario.Client.Worktrees.CreateWorktreeAsync();
+        var response = await scenario.Client.Worktrees.CreateWorktreeAsync(new WorktreeCreateRequest { ProjectId = "prj_1" });
 
         await Assert.That(response.Status).IsEqualTo(200);
         var request = scenario.Requests.Single();
         await Assert.That(request.Method).IsEqualTo(HttpMethod.Post);
         await Assert.That(request.RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/worktree"));
-        await Assert.That(request.Body).IsEqualTo("{}");
+        await Assert.That(request.Body).IsEqualTo("{\"projectID\":\"prj_1\"}");
     }
 
     [Test]
-    public async Task CreateWorktreeAsync_Should_Send_Optional_Inputs_Beside_The_Location_Query()
+    public async Task CreateWorktreeAsync_Should_Send_Optional_Inputs_With_The_Project()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Worktree);
 
         _ = await scenario.Client.Worktrees.CreateWorktreeAsync(new WorktreeCreateRequest
         {
-            Strategy = "custom-strategy",
+            ProjectId = "prj_1",
             From = "main",
             Branch = "feature/x",
             Directory = "/repo/feature",
             Name = "feature",
-            Location = new LocationSelector { Directory = "/a b", Workspace = "wrk_1" },
         });
 
         var request = scenario.Requests.Single();
         await Assert.That(request.RequestUri!.AbsoluteUri).IsEqualTo(
-            "http://localhost:4096/api/worktree?location[directory]=%2Fa%20b&location[workspace]=wrk_1");
+            "http://localhost:4096/api/worktree");
         await Assert.That(request.Body).IsEqualTo(
-            "{\"strategy\":\"custom-strategy\",\"from\":\"main\",\"branch\":\"feature/x\",\"directory\":\"/repo/feature\",\"name\":\"feature\"}");
+            "{\"projectID\":\"prj_1\",\"from\":\"main\",\"branch\":\"feature/x\",\"directory\":\"/repo/feature\",\"name\":\"feature\"}");
     }
 
     [Test]
@@ -49,7 +48,7 @@ public sealed class WorktreesClientContractTests
 
         var response = await scenario.Client.Worktrees.CreateWorktreeAsync(new WorktreeCreateRequest
         {
-            Strategy = "branch",
+            ProjectId = "prj_1",
             Directory = "/repo/feature",
             Branch = "feature/x",
         });
@@ -59,7 +58,7 @@ public sealed class WorktreesClientContractTests
         await Assert.That(request.Method.Method).IsEqualTo("POST");
         await Assert.That(request.RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/worktree"));
         await Assert.That(request.Body)
-            .IsEqualTo("{\"strategy\":\"branch\",\"branch\":\"feature/x\",\"directory\":\"/repo/feature\"}");
+            .IsEqualTo("{\"projectID\":\"prj_1\",\"branch\":\"feature/x\",\"directory\":\"/repo/feature\"}");
     }
 
     [Test]
@@ -116,6 +115,7 @@ public sealed class WorktreesClientContractTests
 
         var response = await scenario.Client.Worktrees.RemoveWorktreeAsync(new WorktreeRemoveRequest
         {
+            ProjectId = "prj_1",
             Directory = "/repo/feature",
             Force = true,
         });
@@ -125,7 +125,7 @@ public sealed class WorktreesClientContractTests
         var request = scenario.Requests.Single();
         await Assert.That(request.Method.Method).IsEqualTo("DELETE");
         await Assert.That(request.RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/worktree"));
-        await Assert.That(request.Body).IsEqualTo("{\"directory\":\"/repo/feature\",\"force\":true}");
+        await Assert.That(request.Body).IsEqualTo("{\"projectID\":\"prj_1\",\"directory\":\"/repo/feature\",\"force\":true}");
     }
 
     [Test]
@@ -144,22 +144,22 @@ public sealed class WorktreesClientContractTests
     }
 
     [Test]
-    public async Task RemoveWorktreeAsync_Should_Keep_False_In_The_Body_Beside_The_Location_Query()
+    public async Task RemoveWorktreeAsync_Should_Keep_False_In_The_Body_With_The_Project()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
 
         _ = await scenario.Client.Worktrees.RemoveWorktreeAsync(new WorktreeRemoveRequest
         {
+            ProjectId = "prj_1",
             Directory = "/repo/feature",
             Force = false,
-            Location = new LocationSelector { Directory = "/a b", Workspace = "wrk_1" },
         });
 
         var request = scenario.Requests.Single();
         await Assert.That(request.Method).IsEqualTo(HttpMethod.Delete);
         await Assert.That(request.RequestUri!.AbsoluteUri).IsEqualTo(
-            "http://localhost:4096/api/worktree?location[directory]=%2Fa%20b&location[workspace]=wrk_1");
-        await Assert.That(request.Body).IsEqualTo("{\"directory\":\"/repo/feature\",\"force\":false}");
+            "http://localhost:4096/api/worktree");
+        await Assert.That(request.Body).IsEqualTo("{\"projectID\":\"prj_1\",\"directory\":\"/repo/feature\",\"force\":false}");
     }
 
     [Test]
@@ -180,7 +180,7 @@ public sealed class WorktreesClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
 
-        var response = await scenario.Client.Worktrees.RefreshWorktreesAsync();
+        var response = await scenario.Client.Worktrees.RefreshWorktreesAsync(new WorktreeRefreshPostRequest { ProjectId = "prj_1" });
 
         await Assert.That(response.Status).IsEqualTo(204);
         await Assert.That(response.IsError).IsFalse();
@@ -195,7 +195,7 @@ public sealed class WorktreesClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.WorktreeError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Worktrees.RefreshWorktreesAsync())
+            .That(async () => _ = await scenario.Client.Worktrees.RefreshWorktreesAsync(new WorktreeRefreshPostRequest { ProjectId = "prj_1" }))
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(400);
@@ -203,19 +203,19 @@ public sealed class WorktreesClientContractTests
     }
 
     [Test]
-    public async Task RefreshWorktreesAsync_Should_Compose_The_Location_Query()
+    public async Task RefreshWorktreesAsync_Should_Send_The_Project()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
 
         _ = await scenario.Client.Worktrees.RefreshWorktreesAsync(new WorktreeRefreshPostRequest
         {
-            Location = new LocationSelector { Directory = "/a b", Workspace = "wrk_1" },
+            ProjectId = "prj_1",
         });
 
         var request = scenario.Requests.Single();
         await Assert.That(request.Method).IsEqualTo(HttpMethod.Post);
         await Assert.That(request.RequestUri!.AbsoluteUri).IsEqualTo(
-            "http://localhost:4096/api/worktree/refresh?location[directory]=%2Fa%20b&location[workspace]=wrk_1");
+            "http://localhost:4096/api/worktree/refresh");
     }
 
     [Test]
@@ -224,7 +224,7 @@ public sealed class WorktreesClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
 
         var response = await scenario.Client.Worktrees
-            .RefreshWorktreesAsync(requestOptions: OpenCodeRequestOptions.NoThrow);
+            .RefreshWorktreesAsync(new WorktreeRefreshPostRequest { ProjectId = "prj_1" }, requestOptions: OpenCodeRequestOptions.NoThrow);
 
         await Assert.That(response.IsError).IsTrue();
         await Assert.That(response.Status).IsEqualTo(401);
@@ -236,7 +236,7 @@ public sealed class WorktreesClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Worktrees);
 
-        var response = await scenario.Client.Worktrees.ListWorktreesAsync();
+        var response = await scenario.Client.Worktrees.ListWorktreesAsync(new WorktreeListRequest { ProjectId = "prj_1" });
 
         await Assert.That(response.Worktrees.Count).IsEqualTo(2);
         await Assert.That(response.Worktrees[0].Directory).IsEqualTo("/repo");
@@ -244,7 +244,7 @@ public sealed class WorktreesClientContractTests
         await Assert.That(response.Worktrees[1].Directory).IsEqualTo("/repo-2");
         await Assert.That(response.Worktrees[1].Strategy).IsNull();
         await Assert.That(scenario.Requests.Single().RequestUri)
-            .IsEqualTo(new Uri("http://localhost:4096/api/worktree"));
+            .IsEqualTo(new Uri("http://localhost:4096/api/worktree?projectID=prj_1"));
     }
 
     [Test]
@@ -252,38 +252,38 @@ public sealed class WorktreesClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, "[]");
 
-        var response = await scenario.Client.Worktrees.ListWorktreesAsync();
+        var response = await scenario.Client.Worktrees.ListWorktreesAsync(new WorktreeListRequest { ProjectId = "prj_1" });
 
         await Assert.That(response.Worktrees).IsEmpty();
     }
 
     [Test]
-    public async Task ListWorktreesAsync_Should_Compose_The_Location_Query()
+    public async Task ListWorktreesAsync_Should_Send_The_Project()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Worktrees);
 
         _ = await scenario.Client.Worktrees.ListWorktreesAsync(new WorktreeListRequest
         {
-            Location = new LocationSelector { Directory = "/a b", Workspace = "wrk_1" },
+            ProjectId = "prj_1",
         });
 
         var request = scenario.Requests.Single();
         await Assert.That(request.Method).IsEqualTo(HttpMethod.Get);
         await Assert.That(request.RequestUri!.AbsoluteUri).IsEqualTo(
-            "http://localhost:4096/api/worktree?location[directory]=%2Fa%20b&location[workspace]=wrk_1");
+            "http://localhost:4096/api/worktree?projectID=prj_1");
     }
 
     [Test]
-    public async Task ListWorktreesAsync_Should_Return_The_Declared_Worktree_Error_On_The_NoThrow_Spine()
+    public async Task ListWorktreesAsync_Should_Return_The_Declared_Project_Not_Found_Error_On_The_NoThrow_Spine()
     {
-        using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.WorktreeError);
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.ProjectNotFoundError);
 
-        var response = await scenario.Client.Worktrees.ListWorktreesAsync(requestOptions: OpenCodeRequestOptions.NoThrow);
+        var response = await scenario.Client.Worktrees.ListWorktreesAsync(new WorktreeListRequest { ProjectId = "prj_1" }, requestOptions: OpenCodeRequestOptions.NoThrow);
 
-        await Assert.That(response.Status).IsEqualTo(400);
+        await Assert.That(response.Status).IsEqualTo(404);
         await Assert.That(response.IsError).IsTrue();
-        await Assert.That(response.Error).IsTypeOf<WorktreeError>();
-        await Assert.That(((WorktreeError)response.Error!).Data.ForceRequired).IsTrue();
+        await Assert.That(response.Error).IsTypeOf<ProjectNotFoundError>();
+        await Assert.That(((ProjectNotFoundError)response.Error!).ProjectId).IsEqualTo("prj_9");
     }
 
     [Test]
@@ -292,7 +292,7 @@ public sealed class WorktreesClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.InvalidRequestError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Worktrees.ListWorktreesAsync())
+            .That(async () => _ = await scenario.Client.Worktrees.ListWorktreesAsync(new WorktreeListRequest { ProjectId = "prj_1" }))
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(400);
@@ -305,7 +305,7 @@ public sealed class WorktreesClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
 
         var response = await scenario.Client.Worktrees
-            .ListWorktreesAsync(requestOptions: OpenCodeRequestOptions.NoThrow);
+            .ListWorktreesAsync(new WorktreeListRequest { ProjectId = "prj_1" }, requestOptions: OpenCodeRequestOptions.NoThrow);
 
         await Assert.That(response.IsError).IsTrue();
         await Assert.That(response.Status).IsEqualTo(401);
@@ -315,13 +315,14 @@ public sealed class WorktreesClientContractTests
     private static WorktreeCreateRequest CreateRequest() =>
         new()
         {
-            Strategy = "branch",
+            ProjectId = "prj_1",
             Directory = "/repo/feature",
         };
 
     private static WorktreeRemoveRequest RemoveRequest() =>
         new()
         {
+            ProjectId = "prj_1",
             Directory = "/repo/feature",
             Force = false,
         };

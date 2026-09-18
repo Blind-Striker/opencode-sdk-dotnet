@@ -13,4 +13,10 @@ public sealed record McpStatusNeedsAuth : IMcpStatus
     /// </summary>
     [JsonPropertyName("status")]
     public string Status => "needs_auth";
+
+    /// <summary>
+    /// Gets the error value.
+    /// </summary>
+    [JsonPropertyName("error")]
+    public required string Error { get; init; }
 }

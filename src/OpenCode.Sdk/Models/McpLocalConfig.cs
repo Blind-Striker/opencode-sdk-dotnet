@@ -55,5 +55,12 @@ public sealed record McpLocalConfig : IMcp
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public McpLocalConfigTimeout? Timeout { get; init; }
 
+    /// <summary>
+    /// Gets the protocol value.
+    /// </summary>
+    [JsonPropertyName("protocol")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public McpProtocol? Protocol { get; init; }
+
     IMcpTimeout? IMcp.Timeout => Timeout;
 }

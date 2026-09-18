@@ -10,6 +10,7 @@ internal sealed class IntegrationCommandConnectPostResponseAdapter : ResponseAda
 {
     private static readonly string[] Status400Tags = ["InvalidRequestError"];
     private static readonly string[] Status401Tags = ["UnauthorizedError"];
+    private static readonly string[] Status404Tags = ["IntegrationMethodNotFoundError", "IntegrationNotFoundError"];
     private IntegrationCommandConnectPostResponseAdapter()
     {
     }
@@ -28,6 +29,7 @@ internal sealed class IntegrationCommandConnectPostResponseAdapter : ResponseAda
         >= 200 and < 300 => StatusVerdict.UndeclaredSuccess,
         400 => StatusVerdict.DeclaredError,
         401 => StatusVerdict.DeclaredError,
+        404 => StatusVerdict.DeclaredError,
         _ => StatusVerdict.UndeclaredError
     };
     /// <summary>
@@ -46,6 +48,7 @@ internal sealed class IntegrationCommandConnectPostResponseAdapter : ResponseAda
             >= 200 and < 300 => throw StatusVerdictFailures.UndeclaredSuccess(status),
             400 => new IntegrationCommandConnectPostResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),
             401 => new IntegrationCommandConnectPostResponse(status, ReadTolerantError(rawBody, Status401Tags), rawBody),
+            404 => new IntegrationCommandConnectPostResponse(status, ReadTolerantError(rawBody, Status404Tags), rawBody),
             _ => new IntegrationCommandConnectPostResponse(status, ReadTolerantError(rawBody, null), rawBody)
         };
     }

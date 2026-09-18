@@ -16,8 +16,8 @@ internal sealed partial class SessionLogWorker(
     {
         try
         {
-            var health = await client.GetHealthAsync(cancellationToken: stoppingToken).ConfigureAwait(false);
-            LogServerIdentity(logger, health.Health.Version, health.Health.Pid);
+            var health = await client.Server.GetStatusAsync(cancellationToken: stoppingToken).ConfigureAwait(false);
+            LogServerIdentity(logger, health.ServerStatus.Version, health.ServerStatus.Pid);
 
             var created = await sessions
                 .CreateSessionAsync(new SessionCreateRequest

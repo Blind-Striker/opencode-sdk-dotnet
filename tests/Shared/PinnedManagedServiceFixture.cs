@@ -11,8 +11,8 @@ namespace OpenCode.Sdk.TestSupport;
 
 /// <summary>
 /// The accepted pin's own background service, started once per test session as
-/// <c>bun &lt;cli entry&gt; serve --service</c> under fully isolated roots: the XDG map plus a
-/// redirected home (service mode changes into <c>global.home</c>), a reserved free port seeded
+/// <c>bun &lt;cli entry&gt; serve --service</c> under the shared <see cref="ServerIsolation"/>
+/// roots (service mode changes into the redirected <c>global.home</c>), a reserved free port seeded
 /// into the channel's config file (the <c>local</c> default may be the developer's own), and the
 /// <c>local</c> channel a source run compiles. Readiness is a strict registration under the state
 /// root plus an authenticated health answer that repeats the registered pid. Cleanup kills only the
@@ -81,9 +81,9 @@ public sealed class PinnedManagedServiceFixture : IAsyncInitializer, IAsyncDispo
         });
         try
         {
-            var health = await client.GetHealthAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-            return $"process alive: {alive}; health now: healthy={health.Health.Healthy}, version={health.Health.Version}, "
-                + $"pid={health.Health.Pid.ToString(CultureInfo.InvariantCulture)}";
+            var health = await client.Server.GetStatusAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+            return $"process alive: {alive}; health now: status={health.Status.ToString(CultureInfo.InvariantCulture)}, version={health.ServerStatus.Version}, "
+                + $"pid={health.ServerStatus.Pid.ToString(CultureInfo.InvariantCulture)}";
         }
         catch (OpenCodeException exception)
         {
@@ -97,8 +97,7 @@ public sealed class PinnedManagedServiceFixture : IAsyncInitializer, IAsyncDispo
         var pinned = new PinnedServerCommand(_fileSystem);
         var command = pinned.Resolve();
         var workingDirectory = _fileSystem.Path.Combine(pinned.RepositoryRoot, "external", "opencode", "packages", "cli");
-        _environment = ServerIsolation.HomeAwareEnvironment(_fileSystem, _runRoot.Path);
-        _ = _fileSystem.Directory.CreateDirectory(_environment["OPENCODE_TEST_HOME"]);
+        _environment = ServerIsolation.Environment(_fileSystem, _runRoot.Path);
         _registrationFile = _fileSystem.Path.Combine(_environment["XDG_STATE_HOME"], "opencode", "service-" + Channel + ".json");
         var port = LoopbackPortReservation.Reserve();
         await SeedConfigAsync(port).ConfigureAwait(false);
@@ -260,13 +259,13 @@ public sealed class PinnedManagedServiceFixture : IAsyncInitializer, IAsyncDispo
         using var attempt = new CancellationTokenSource(HealthAttemptTimeout);
         try
         {
-            var health = await client.GetHealthAsync(cancellationToken: attempt.Token).ConfigureAwait(false);
-            if (!health.Health.Healthy || health.Health.Pid != registration.ProcessId)
+            var health = await client.Server.GetStatusAsync(cancellationToken: attempt.Token).ConfigureAwait(false);
+            if (health.ServerStatus.Pid != registration.ProcessId)
             {
                 return false;
             }
 
-            _version = health.Health.Version;
+            _version = health.ServerStatus.Version;
             return true;
         }
         catch (OpenCodeException)

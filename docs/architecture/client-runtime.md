@@ -1,6 +1,6 @@
 # Client Runtime Architecture
 
-Date: 2026-09-16
+Date: 2026-09-17
 
 Canonical current rules for client construction, transport ownership, API errors, streams, and the
 local server launcher. Protocol and generated-model rules live in
@@ -35,34 +35,20 @@ local server launcher. Protocol and generated-model rules live in
 
 ### Location
 
-- `OpenCodeClientOptions.Location` is the ambient location, snapshotted at construction into a
-  precomputed `x-opencode-directory` / `x-opencode-workspace` header pair — the fast path for
-  every call that does not override it.
-- `OpenCodeRequestOptions.Location` is the per-call override. `RequestDecorationPolicy` merges
-  it over the ambient snapshot **member by member**: a set `Directory` or `Workspace` always
-  wins over its ambient counterpart; an unset (`null`) member inherits the ambient value
-  unchanged. There is no client-side concept of "both locations set the same member" producing
-  anything other than the per-call value — per-call always wins when set.
-- Because `LocationSelector` refuses blank (`""`/whitespace) members at construction, `null` is
-  the only spelling of "leave this member alone." There is no way to clear an ambient member for
-  one call — only to leave it inherited or replace it with a different non-blank value.
-- **Encoding asymmetry**: the directory member is percent-encoded with `Uri.EscapeDataString`
-  before it rides the header (the server percent-decodes it), while the workspace member rides
-  the header verbatim (the server reads it as-is). This asymmetry applies identically to the
-  ambient snapshot and to a per-call override — encoding is a property of which member is being
-  sent, not of which channel set it.
-- **Uniform injection, not a query channel.** Both the ambient and the per-call location travel
-  on the same `x-opencode-directory` / `x-opencode-workspace` header pair; the SDK performs the
-  member-by-member merge itself before sending. This is a deliberate simplification, not the
-  per-operation `location[directory]` / `location[workspace]` query-string channel some
-  operations declare independently (`QueryStringBuilder.AddLocation`). The two channels are
-  unrelated: an operation that accepts an explicit `location` query parameter is unaffected by
-  this header merge.
-- **Session-route no-op.** The server honors these headers only on the operations whose group
-  resolves location from the request; operations that resolve location from a session instead
-  (or that do not resolve it at all) ignore both headers server-side. Sending a per-call location
-  to a session route is therefore a harmless no-op, not an error — the SDK does not attempt to
-  suppress or validate it per route.
+- `LocationSelector` addresses a directory only. `OpenCodeClientOptions.Location` is the ambient
+  default, snapshotted at construction into a precomputed `x-opencode-directory` header.
+- `OpenCodeRequestOptions.Location` overrides that directory per call. A set `Directory` wins;
+  a null selector or directory inherits the ambient value. Blank values are refused, so a caller
+  can inherit or replace the ambient directory but cannot clear it for one call.
+- The directory is percent-encoded before it rides the header; the server percent-decodes it.
+  This applies to both the ambient snapshot and per-call overrides, including Unicode paths.
+- An operation's declared `location[directory]` query is a separate channel, emitted by
+  `QueryStringBuilder.AddLocation`. It does not participate in the ambient/per-call header merge.
+- The server ignores the directory header on operations that resolve location from a session
+  or do not resolve location. The SDK sends it uniformly and adds no per-route validation.
+- The pinned server has no workspace targeting channel, so none exists in the public selector or
+  in the header/query serializers. A generated wire model may still contain a workspace ID
+  when its own pinned component declares one; that is not a request-targeting channel.
 
 ## PTY family ownership
 
@@ -79,13 +65,13 @@ local server launcher. Protocol and generated-model rules live in
   fixed `x-opencode-ticket` value that exists only in upstream implementation source, which
   ADR-0013 forbids importing into generation; the constant therefore lives in the hand-written
   door alone and is never a caller's argument, never in curation, and never in generated output.
-  The request's `location` query — not the ambient header pair — fixes the scope the ticket is
+  The request's `location` query — not the ambient directory header — fixes the scope the ticket is
   minted for.
 - **Declared headers are the runtime channel that carries it.** An operation's document-declared
   header parameters ride `PipelineMessage.DeclaredHeaders` (`IReadOnlyList<DeclaredHeader>?`),
   written by `Pipeline` from the value the generated raw method collected and read by
   `RequestDecorationPolicy`, which adds each entry with `TryAddWithoutValidation` exactly as it
-  adds the location pair. The policy never learns a family or a header name, so no operation's
+  adds the directory header. The policy never learns a family or a header name, so no operation's
   knowledge leaks into it. This is not a general header facility: the channel is assembly-internal,
   only generated internal-raw methods feed it, and only a parameter the pinned document declares
   ever becomes an entry.
@@ -96,7 +82,7 @@ local server launcher. Protocol and generated-model rules live in
   enumerates `PtyFrame` values, `WriteAsync` sends input, and `DisposeAsync` closes. The caller
   owns disposal of the session; peer closure and transport failure can also end the connection.
 - **Transport divergence.** This is one of the two public SDK doors that do not ride the HTTP
-  pipeline (the persistent PTY session is the other; the background-service health probe is an
+  pipeline (the persistent PTY session is the other; the background-service status probe is an
   internal third). The upgrade builds its own `ClientWebSocket`, so a
   caller-supplied `HttpClient`, its proxy, its handler chain, the redirect policy, the
   pooled-connection lifetime, and the pipeline's progress window **do not apply** to a PTY session.
@@ -109,7 +95,7 @@ local server launcher. Protocol and generated-model rules live in
   strictly worse than the header the client already holds. `CreateConnectTokenAsync` stays the
   public door for handing a browser one, and `PtyConnectOptions` deliberately has no ticket member.
 - **Address.** `http`/`https` become `ws`/`wss`; the path is `/api/pty/{ptyID}/connect`. The query
-  carries the merged location as `location[directory]`/`location[workspace]` plus `cursor` when
+  carries the merged location as `location[directory]` plus `cursor` when
   set, built through the same `QueryStringBuilder` every generated route uses. The connect scope
   must resolve identically to the scope the token door resolved.
 - **Location merge.** `PtyConnectOptions.Location` merges over the ambient location member by
@@ -308,7 +294,7 @@ local server launcher. Protocol and generated-model rules live in
   observe an async read token; disposal-induced I/O failures remain caller cancellation.
 - The SDK never auto-reconnects. A live-stream consumer refreshes authoritative state and
   resubscribes after failure.
-- Durable continuation is requested explicitly through `v2.session.log`'s `after` parameter, an
+- Durable continuation is requested explicitly through `session.log`'s `after` parameter, an
   exclusive aggregate sequence read from a durable envelope or from the sync marker. One
   `log.synced` marker reports the watermark the replay was captured at; it is a boundary rather
   than a durable event, and under `follow` the events committed while that replay was in flight
@@ -468,11 +454,11 @@ caller redirects `XDG_DATA_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME`, and `XDG_C
 through `Environment` — observed on Windows as well as on Unix. This door has landed.
 
 **Explicit endpoint** (CLI `--server` parity; upstream builds a plain client plus a 5-second-bounded
-health check and a version warning, `server-connection.ts:24-39`) → plain `OpenCodeClient`
+status check and a version warning, `server-connection.ts:24-39`) → plain `OpenCodeClient`
 construction. There is no dedicated SDK verb or member for this door; the validation recipe
 composes two existing pieces: construct the client against the known endpoint, call
-`GetHealthAsync` under a caller-owned `CancellationTokenSource(TimeSpan.FromSeconds(5))`, and
-compare the returned `Health.Version` against the caller's own expectation. The SDK carries no
+`Server.GetStatusAsync` under a caller-owned `CancellationTokenSource(TimeSpan.FromSeconds(5))`, and
+compare the returned `ServerStatus.Version` against the caller's own expectation. The SDK carries no
 version comparand of its own — the accepted snapshot (`spec/SNAPSHOT.md`) is a protocol identity,
 not a runtime version — and the network-timeout knob a first-class helper would want is
 M6-deferred, so **no new public member lands for this door in this arc**: a dedicated helper would
@@ -486,16 +472,17 @@ the M6 network-timeout knob lands as an option rather than a caller-owned
 **Background service** (`Service.discover/ensure/stop`, public export `@opencode/client/service`)
 → the registration-file mode. The first-party CLI's `opencode serve --service` publishes `url`,
 `pid`, `password`, `version`, and `id` in a registration file under the XDG state root, and
-`OpenCodeServer.DiscoverAsync` reads that file, checks the daemon's authenticated health, and
+`OpenCodeServer.DiscoverAsync` reads that file, checks the daemon's authenticated status, and
 returns a non-owning handle: `OwnsProcess` is false and disposal is a no-op (ADR-0024). The
 contract is not in the OpenAPI document; the SDK ports the accepted-pin first-party chain and
 pins every file it reads in `spec/source-watch.json` (ADR-0025). The null channel reads the shared
 release registration `service.json` with no legacy migration; a named channel follows the CLI's
 filename, sanitization, and legacy-migration rules; a direct registration path bypasses all three.
-The health probe is a raw authenticated `GET` through an owned non-redirecting handler with a
+The status probe is a raw authenticated `GET /api/status` through an owned non-redirecting handler with a
 two-second bound: it rides neither the pipeline's decoration policy nor its progress window, and
-its path, body classification, and generated model live in one internal class so a later pin can
-move them without touching the door. Discovery returns null for a missing, unusable, or not-ready
+`ServiceStatusProbe` owns its transport and path, while `ServiceProbeResponseClassifier` decodes
+only the required first-party pid/version evidence. This private discovery decoder is independent
+of the generated public `ServerStatus` model, whose required `Urls` does not constrain discovery. Discovery returns null for a missing, unusable, or not-ready
 registration and throws only for refused input (`ArgumentException`), caller cancellation, and an
 unresolvable user home (`OpenCodeServerException`). Ensure and Stop are tracked in
 `docs/ROADMAP.md` §4.

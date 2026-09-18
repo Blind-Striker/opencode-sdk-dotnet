@@ -27,7 +27,7 @@ public sealed record EventServerConnected : IEvent
     /// </summary>
     [JsonPropertyName("location")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public LocationRef? Location { get; init; }
+    public LocationPublicRef? Location { get; init; }
 
     /// <summary>
     /// Gets the type value.

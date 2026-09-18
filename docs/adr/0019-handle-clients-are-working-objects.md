@@ -11,16 +11,17 @@ supports both; nothing but the curation row decides. Decision: **a family gets a
 only when its per-id operations form a working object** — several operations that naturally
 chain on the same id, or a live stateful lifecycle. Single-shot lookups and admin actions take
 the id as a method argument; a handle there is pure ceremony that moves the id away from the
-call and adds an object per invocation. Under this rule sessions, shells, ptys, integrations,
-and MCP servers keep handles; agents, credentials, saved permissions, and providers are flat.
+call and adds an object per invocation. Under this rule sessions, shells, ptys, and integrations
+keep handles; agents, credentials, saved permissions, and providers are flat. Each family's
+curation row records its placement and the reason.
 
 **The judgment runs against the family's complete pinned surface, never the currently selected
 slice.** The selection profile admits operations in batches, so the visible slice understates a
 family mid-series and placement would flip between batches; the near-miss that motivated this
-rule was exactly that — `mcp` showed one selected per-id operation and was almost flattened,
-while its full pinned surface carries four (`add`, `remove`, `connect`, `disconnect`) with a
-connect/disconnect lifecycle, which is handle territory. Placement is decided when the family
-is first admitted and revisited only at a sanctioned spec refresh.
+rule was exactly that — a family whose selected slice showed one per-id operation was almost
+flattened while its full pinned surface carried a connect/disconnect lifecycle across four,
+which is handle territory. Placement is decided when the family is first admitted and revisited
+only at a sanctioned spec refresh, which may also move operations between families.
 
 The rule and the emitted shape align with the [Azure SDK .NET guidelines](https://azure.github.io/azure-sdk/dotnet_introduction.html):
 subclients exist to "group operations related to a service resource or functional area to

@@ -122,7 +122,7 @@ for a pile of static steps.
   the slice root. Similar things sit together; a reader predicts where a type lives
   before opening the tree.
 - **The shipped SDK slices by client family with flat public namespaces** (maintainer,
-  2026-08-14): client families are folders (`Sessions/`, `Health/`), the pagination
+  2026-08-14): client families are folders (`Sessions/`, `Server/`), the pagination
   spine sits under `Pagination/`, wire models under `Models/`, runtime internals under
   `Internal/`, and the root client with the response/exception spine at the project
   root. Public namespaces stay `OpenCode.Sdk` and `OpenCode.Sdk.Models` — a namespace

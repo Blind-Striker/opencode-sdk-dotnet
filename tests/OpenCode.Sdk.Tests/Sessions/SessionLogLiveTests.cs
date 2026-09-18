@@ -344,7 +344,7 @@ public sealed class SessionLogLiveTests(SimulatedDriveServerFixture server)
             new SessionCreateRequest
             {
                 Title = title,
-                Location = new LocationRef { Directory = directory },
+                Location = new LocationPublicRef { Directory = directory },
                 Model = new ModelRef { Id = "sim-model", ProviderId = "sim" },
             },
             cancellationToken: cancellationToken);

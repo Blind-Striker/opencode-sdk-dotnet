@@ -54,7 +54,7 @@ public sealed class SessionToolPermissionLiveTests(SimulatedDriveServerFixture s
 
             var reply = await scenario.Session.PostPermissionReplyAsync(
                 asked.Data.Id,
-                new SessionPermissionReplyPostRequest { Reply = PermissionReply.Once },
+                new SessionPermissionReplyPostRequest { Decision = PermissionReply.Once },
                 cancellationToken: cancellationToken);
             await Assert.That(reply.Status).IsEqualTo(204);
             await Assert.That(reply.IsError).IsFalse();

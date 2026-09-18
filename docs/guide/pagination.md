@@ -1,6 +1,6 @@
 # 📑 Pagination
 
-Date: 2026-09-11
+Date: 2026-09-17
 
 Two operations in the API return more than fits in one response, and both use the same opaque
 cursor envelope: **listing a session's messages** and **listing sessions**. Both can be paged by
@@ -17,7 +17,7 @@ hand or walked for you. Everything else returns its whole answer at once.
 
 | Response | Items | Cursor |
 |---|---|---|
-| `MessageListResponse` | `Messages` (`IReadOnlyList<ISessionMessageInfo>`) | `Cursor` |
+| `SessionMessageListResponse` | `Messages` (`IReadOnlyList<ISessionMessageInfo>`) | `Cursor` |
 | `SessionListResponse` | `Sessions` (`IReadOnlyList<SessionInfo>`) | `Cursor` |
 
 `ListCursor` has two members, both nullable strings:
@@ -54,9 +54,9 @@ Three channels do the paging, and both request types carry all three:
 | `Order` | `ListOrder?` | `Ascending` or `Descending`. **First page only.** |
 | `Cursor` | `string?` | The opaque continuation from the previous page's `Cursor.Next`. |
 
-`MessageListRequest` and `SessionListRequest` both inherit all three from the shared abstract
+`SessionMessageListRequest` and `SessionListRequest` both inherit all three from the shared abstract
 `ListRequest`. A request may also carry filters of its own beside them: `SessionListRequest` adds
-`Search`, `Project`, `Workspace`, `Directory`, `Subpath`, and `ParentId`.
+`Search`, `Project`, `Directory`, `Subpath`, and `ParentId`.
 
 > **🧭 `Order` belongs to the first request.** The order is fixed when the walk starts; a
 > continuation carries `Limit`, `Cursor`, and every filter — but not `Order`. Paging by hand, that
@@ -69,7 +69,7 @@ Ask for a page, use it, and stop when `Next` is gone:
 
 ```csharp
 var session = client.Sessions.GetSessionClient(sessionId);
-var request = new MessageListRequest { Limit = "50", Order = ListOrder.Ascending };
+var request = new SessionMessageListRequest { Limit = "50", Order = ListOrder.Ascending };
 
 while (true)
 {
@@ -85,7 +85,7 @@ while (true)
         break;
     }
 
-    request = new MessageListRequest { Limit = request.Limit, Cursor = next };
+    request = new SessionMessageListRequest { Limit = request.Limit, Cursor = next };
 }
 ```
 
@@ -122,7 +122,7 @@ companions to `ListMessagesAsync` and `ListSessionsAsync`. Each yields the **ite
 following `Next` for you:
 
 ```csharp
-var stream = session.EnumerateMessagesAsync(new MessageListRequest
+var stream = session.EnumerateMessagesAsync(new SessionMessageListRequest
 {
     Limit = "50",
     Order = ListOrder.Ascending,
@@ -171,7 +171,7 @@ Four things to know:
 ## 📄 The same walk, one page at a time
 
 `Enumerate*Async` returns a `CursorSequence<TPage, TItem>`. Enumerating it gives you the items; its
-`Pages` property gives you the same walk as **page envelopes** — the very `MessageListResponse` or
+`Pages` property gives you the same walk as **page envelopes** — the very `SessionMessageListResponse` or
 `SessionListResponse` the one-page call would have handed you, `Status`, `Cursor`, `RawBody` and
 all:
 

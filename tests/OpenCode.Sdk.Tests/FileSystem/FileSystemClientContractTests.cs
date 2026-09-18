@@ -19,7 +19,7 @@ public sealed class FileSystemClientContractTests
         await Assert.That(response.Entries[0].Type).IsEqualTo(FileSystemEntryType.Directory);
         await Assert.That(response.Entries[1].Path).IsEqualTo("README.md");
         await Assert.That(response.Entries[1].Type).IsEqualTo(FileSystemEntryType.File);
-        await Assert.That(response.Location.Project.Id).IsEqualTo("prj_1");
+        await Assert.That(response.Location.Directory).IsEqualTo(WireBodyData.ResolvedDirectory);
         await Assert.That(scenario.Requests.Single().RequestUri)
             .IsEqualTo(new Uri("http://localhost:4096/api/fs/list"));
     }
@@ -32,7 +32,7 @@ public sealed class FileSystemClientContractTests
         var response = await scenario.Client.FileSystem.ListEntriesAsync();
 
         await Assert.That(response.Entries.Count).IsEqualTo(0);
-        await Assert.That(response.Location.Project.Id).IsEqualTo("prj_1");
+        await Assert.That(response.Location.Directory).IsEqualTo(WireBodyData.ResolvedDirectory);
     }
 
     [Test]
@@ -43,11 +43,11 @@ public sealed class FileSystemClientContractTests
         _ = await scenario.Client.FileSystem.ListEntriesAsync(new FsListRequest
         {
             Path = "src",
-            Location = new LocationSelector { Workspace = "wrk_1" },
+            Location = new LocationSelector { Directory = "/repo" },
         });
 
         await Assert.That(scenario.Requests.Single().RequestUri!.AbsoluteUri)
-            .IsEqualTo("http://localhost:4096/api/fs/list?location[workspace]=wrk_1&path=src");
+            .IsEqualTo("http://localhost:4096/api/fs/list?location[directory]=%2Frepo&path=src");
     }
 
     [Test]
@@ -86,7 +86,7 @@ public sealed class FileSystemClientContractTests
         await Assert.That(response.Entries.Count).IsEqualTo(1);
         await Assert.That(response.Entries[0].Path).IsEqualTo("src/App.cs");
         await Assert.That(response.Entries[0].Type).IsEqualTo(FileSystemEntryType.File);
-        await Assert.That(response.Location.Project.Id).IsEqualTo("prj_1");
+        await Assert.That(response.Location.Directory).IsEqualTo(WireBodyData.ResolvedDirectory);
         await Assert.That(scenario.Requests.Single().RequestUri!.AbsoluteUri)
             .IsEqualTo("http://localhost:4096/api/fs/find?query=todo");
     }

@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Tests;
 /// The worktree family's live proof against the simulated server over an owned local Git
 /// repository: the root row, a linked Git worktree created under an owned parent with a fixed
 /// absent name, refresh preserving the inventory, the dirty-removal refusal that names force,
-/// forced removal, and the unavailable-strategy refusal. Physical ownership of every
+/// and forced removal. Physical ownership of every
 /// server-returned directory is proven through independently seeded markers, never through
 /// the spelling of a temporary path.
 /// </summary>
@@ -18,8 +18,6 @@ namespace OpenCode.Sdk.Tests;
 public sealed class WorktreesClientLiveTests(SimulatedDriveServerFixture server)
 {
     private const string GitStrategy = "git";
-
-    private const string MissingStrategy = "sdk-live-missing";
 
     [Test]
     [Timeout(60_000)]
@@ -32,7 +30,7 @@ public sealed class WorktreesClientLiveTests(SimulatedDriveServerFixture server)
         Exception? failure = null;
         try
         {
-            var request = new WorktreeListRequest { Location = repository.Location };
+            var request = new WorktreeListRequest { ProjectId = scenario.ProjectId };
             var before = await client.Worktrees.ListWorktreesAsync(request, cancellationToken: cancellationToken);
             await Assert.That(before.Status).IsEqualTo(200);
             await Assert.That(before.IsError).IsFalse();
@@ -40,7 +38,7 @@ public sealed class WorktreesClientLiveTests(SimulatedDriveServerFixture server)
             await Assert.That(repository.OwnsDirectory(root.Directory)).IsTrue();
             await Assert.That(root.Strategy).IsNull();
 
-            var created = await CreateLinkedWorktreeAsync(client, repository, cancellationToken);
+            var created = await CreateLinkedWorktreeAsync(client, repository, scenario.ProjectId, cancellationToken);
 
             var after = await client.Worktrees.ListWorktreesAsync(request, cancellationToken: cancellationToken);
             await Assert.That(after.Status).IsEqualTo(200);
@@ -51,7 +49,7 @@ public sealed class WorktreesClientLiveTests(SimulatedDriveServerFixture server)
                 .IsEqualTo(GitStrategy);
 
             var refreshed = await client.Worktrees.RefreshWorktreesAsync(
-                new WorktreeRefreshPostRequest { Location = repository.Location },
+                new WorktreeRefreshPostRequest { ProjectId = scenario.ProjectId },
                 cancellationToken: cancellationToken);
             await Assert.That(refreshed.Status).IsEqualTo(204);
             await Assert.That(refreshed.IsError).IsFalse();
@@ -85,12 +83,12 @@ public sealed class WorktreesClientLiveTests(SimulatedDriveServerFixture server)
         Exception? failure = null;
         try
         {
-            var created = await CreateLinkedWorktreeAsync(client, repository, cancellationToken);
+            var created = await CreateLinkedWorktreeAsync(client, repository, scenario.ProjectId, cancellationToken);
             repository.WriteDirtyWorktreeFile();
 
             var remove = new WorktreeRemoveRequest
             {
-                Location = repository.Location,
+                ProjectId = scenario.ProjectId,
                 Directory = created.Worktree.Directory,
                 Force = false,
             };
@@ -109,7 +107,7 @@ public sealed class WorktreesClientLiveTests(SimulatedDriveServerFixture server)
             await Assert.That(removed.IsError).IsFalse();
 
             var final = await client.Worktrees.ListWorktreesAsync(
-                new WorktreeListRequest { Location = repository.Location }, cancellationToken: cancellationToken);
+                new WorktreeListRequest { ProjectId = scenario.ProjectId }, cancellationToken: cancellationToken);
             await Assert.That(final.Status).IsEqualTo(200);
             await Assert.That(final.IsError).IsFalse();
             var root = final.Worktrees.Single();
@@ -130,35 +128,6 @@ public sealed class WorktreesClientLiveTests(SimulatedDriveServerFixture server)
         await scenario.CompleteAsync(failure);
     }
 
-    [Test]
-    [Timeout(60_000)]
-    public async Task CreateWorktreeAsync_Should_Report_An_Unavailable_Strategy_Without_Creating_A_Checkout(
-        CancellationToken cancellationToken)
-    {
-        using var client = server.CreateClient();
-        var scenario = await OwnedWorktreeScenario.CreateAsync(server, client, cancellationToken);
-        var repository = scenario.Repository;
-        Exception? failure = null;
-        try
-        {
-            var response = await client.Worktrees.CreateWorktreeAsync(
-                CreateRequest(repository, MissingStrategy), OpenCodeRequestOptions.NoThrow, cancellationToken);
-            var error = await RequireWorktreeErrorAsync(response.Status, response.IsError, response.Error);
-            await Assert.That(error.Data.Message).IsEqualTo("Worktree strategy unavailable: " + MissingStrategy);
-            await Assert.That(error.Data.ForceRequired).IsNull();
-            await Assert.That(string.IsNullOrWhiteSpace(response.RawBody)).IsFalse();
-            await Assert.That(repository.WorktreeExists).IsFalse();
-
-            Console.WriteLine("worktree-live: mode=owned arm=strategy-unavailable status=" + Number(response.Status));
-        }
-        catch (Exception exception)
-        {
-            failure = exception;
-        }
-
-        await scenario.CompleteAsync(failure);
-    }
-
     /// <summary>
     /// Creates the linked Git worktree and proves the server created exactly the intended child:
     /// the fixed name is observed absent first, the returned directory resolves to the owned
@@ -167,11 +136,12 @@ public sealed class WorktreesClientLiveTests(SimulatedDriveServerFixture server)
     private static async Task<WorktreeCreateResponse> CreateLinkedWorktreeAsync(
         OpenCodeClient client,
         GitRepositoryWorkspace repository,
+        string projectId,
         CancellationToken cancellationToken)
     {
         await Assert.That(repository.WorktreeExists).IsFalse();
         var created = await client.Worktrees.CreateWorktreeAsync(
-            CreateRequest(repository, GitStrategy), cancellationToken: cancellationToken);
+            CreateRequest(repository, projectId), cancellationToken: cancellationToken);
         await Assert.That(created.Status).IsEqualTo(200);
         await Assert.That(created.IsError).IsFalse();
         await Assert.That(repository.OwnsWorktreeDirectory(created.Worktree.Directory)).IsTrue();
@@ -189,13 +159,12 @@ public sealed class WorktreesClientLiveTests(SimulatedDriveServerFixture server)
     }
 
     /// <summary>
-    /// Every create names its strategy, its owned parent, and its fixed absent child name, so
-    /// nothing is written under server-owned data and nothing depends on plugin defaults.
+    /// Every create names its project, its owned parent, and its fixed absent child name, so
+    /// nothing is written under server-owned data.
     /// </summary>
-    private static WorktreeCreateRequest CreateRequest(GitRepositoryWorkspace repository, string strategy) => new()
+    private static WorktreeCreateRequest CreateRequest(GitRepositoryWorkspace repository, string projectId) => new()
     {
-        Location = repository.Location,
-        Strategy = strategy,
+        ProjectId = projectId,
         Directory = repository.WorktreeParentPath,
         Name = GitRepositoryWorkspace.WorktreeName,
     };

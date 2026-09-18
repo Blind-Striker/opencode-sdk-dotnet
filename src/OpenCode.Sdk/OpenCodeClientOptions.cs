@@ -29,13 +29,13 @@ public sealed class OpenCodeClientOptions : IOpenCodeClientOptions
 
     /// <summary>
     /// Gets or sets the ambient location, sent on every request as the
-    /// <c>x-opencode-directory</c> and <c>x-opencode-workspace</c> headers;
-    /// <see langword="null"/> leaves the server's own resolution in place. The server
-    /// honors these headers only on the operations whose group resolves location from the
-    /// request — operations that resolve it from a session instead, and those that do not
-    /// resolve it at all, ignore them. A per-request location travels on the query channel
-    /// and takes precedence <em>per member</em>: it overrides only the members it sets, and
-    /// the rest still come from here.
+    /// <c>x-opencode-directory</c> header; <see langword="null"/> leaves the server's own
+    /// resolution in place. The server honors the header only on the operations whose group
+    /// resolves location from the request — operations that resolve it from a session instead,
+    /// and those that do not resolve it at all, ignore it. A directory set for one call through
+    /// <see cref="OpenCodeRequestOptions.Location"/> replaces this one on the same header for
+    /// that call, and a generated request's own location member travels on the query channel,
+    /// which the server reads first.
     /// </summary>
     public LocationSelector? Location { get; set; }
 }

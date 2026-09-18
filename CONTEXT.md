@@ -68,9 +68,9 @@ refresh authoritative state and resubscribe after a disconnect.
 The gate on agent actions, expressed as rules matching an action and a resource to an effect —
 allow, deny, or ask. An `ask` raises a permission request answered through the API, and an answer
 may be kept as a standing Project-scoped grant. Every Agent carries its own ruleset, and so does
-every Session: a Session's ruleset is set at creation, replaced wholesale through the permission
-rules operation, evaluated after the Agent's rules with the last matching rule winning, and each
-replacement raises the durable `session.permissions.updated` Event.
+every Session: a Session's ruleset is set at creation, replaced wholesale through `session.update`
+with its Permissions member, evaluated after the Agent's rules with the last matching rule winning, and each
+replacement raises the durable `session.permissions` Event.
 
 **Form**:
 A structured question the server raises and a client answers — typed fields, optional visibility
@@ -102,29 +102,29 @@ _Avoid_: mode (an Agent's `mode` is its primary/subagent eligibility, not its pe
 **Server process**:
 One running `opencode serve` process (one endpoint); the API is bound to a single Server
 process, and cross-process aggregation lives above the SDK. Owns process-global state (auth store,
-the live event stream and the durable Event log, Sessions, Projects, Workspaces, saved
+the live event stream and the durable Event log, Sessions, Projects, saved
 Permissions). Configuration is not among them; it belongs to the Instance.
 
 **Location**:
-The addressing pair every request, Session, and Event carries: an absolute directory plus an
-optional Workspace. Resolving one yields the Project it belongs to.
+Public HTTP addressing by absolute directory. Resolving one yields its Project. Core and some
+event/log schemas retain workspace fields; those are distinct contracts, not an HTTP selector.
 
 **Project**:
 The repository root a Location resolves to, carrying its own id and canonical path. Sessions,
 saved Permissions, and worktrees are scoped to it.
 
 **Worktree**:
-A managed local directory in a Project's worktree inventory. The API resolves that Project
-through a requested Location; create, list, remove, and refresh are location-scoped operations.
+A managed local directory in a Project's worktree inventory. Create, list, remove, and refresh take an explicit projectID. A caller can resolve that ID through
+`location.get` for its directory. Creation optionally names a parent directory and a child name.
 
 **Worktree strategy**:
-A server-registered strategy used to discover and create Worktrees. Creation may select one by
-its string identifier; removal uses the recorded strategy. The SDK does not define a closed
+A server-registered strategy used to discover and create Worktrees. The canonical Project
+selects a registered strategy for creation; removal uses the recorded strategy. The SDK does not define a closed
 strategy list or choose server defaults.
 
 **Workspace**:
-A separately provisioned place a Location can point into, created and destroyed through the API;
-the optional second member of a Location.
+An upstream core addressing concept retained in some event/log contracts. The 2.0.5 public HTTP
+API exposes neither workspace lifecycle operations nor workspace request targeting.
 
 **Instance**:
 One Location's working context inside a Server process — its configuration, agents, tools, and MCP
@@ -133,8 +133,8 @@ Location. The Project is resolved from the Location, not chosen alongside it.
 
 **Directory targeting**:
 Per-request Location targeting via `location[...]` query parameters, with the
-`x-opencode-directory`/`x-opencode-workspace` headers as the ambient channel the server resolves
-per member after any query value; an unset directory falls back to the server's own working
+`x-opencode-directory` header as the ambient channel the server resolves
+after an explicit directory query value; an unset directory falls back to the server's own working
 directory.
 
 **PTY**:
@@ -186,8 +186,8 @@ every input or control message carries the viewport it was typed at.
 ### This project's language
 
 **Protocol surface** (historically "modern surface" in dated research docs):
-The `v2.*`-prefixed protocol operation block — the surface this SDK generates (ADR-0005);
-public names carry no prefix.
+The pinned protocol API document — the surface this SDK generates (ADR-0005). Operation IDs
+are prefixless in 2.0.5; public names carry no protocol-version prefix.
 _Avoid_: v2, V2 (in public naming); legacy (the retired 1.x dual-surface vocabulary)
 
 **Launcher**:
@@ -324,9 +324,9 @@ union's prefix-tagged arm at runtime (tag string + raw payload).
 
 **Plugin activation**:
 The asynchronous per-Location settling of a server's plugins, during which Providers register and
-the model catalog fills. `v2.plugin.awaitActivation` is its settle signal; a health answer is
-process liveness and says nothing about it, so a catalog read issued before activation settles
-legitimately observes an empty or partial registry.
+the model catalog fills. The 2.0.5 HTTP API has no activation barrier. A status answer proves
+process liveness only; a catalog read can observe an empty or partial registry. Consumers that
+require a particular registration wait for that identity under a bounded cancellation token.
 _Avoid_: readiness (that is the launcher's stdout contract, a different thing).
 
 **Hoisted member**:
@@ -339,7 +339,7 @@ generated **carrier interface** those records implement; the records keep their 
 _Avoid_: shared member (ambiguous with a property two unrelated schemas happen to share)
 
 **Plugin RPC**:
-A method surface a server-side plugin registers under an `rpcID`; `v2.rpc.call` dispatches one
+A method surface a server-side plugin registers under an `rpcID`; `rpc.call` dispatches one
 `method` to it at a Location with an untyped JSON `input` and returns an untyped `output`, and the
 plugin's notifications ride the live event stream as `rpc.*` events (the prefix-tagged arm).
 _Avoid_: RPC alone (the SDK's own HTTP calls are not RPC).

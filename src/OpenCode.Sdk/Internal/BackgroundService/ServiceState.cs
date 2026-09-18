@@ -1,7 +1,7 @@
 namespace OpenCode.Sdk.Internal.BackgroundService;
 
 /// <summary>
-/// The daemon's application state as its health status code reports it (server
+/// The daemon's application state as the status route's response code reports it (server
 /// <c>service-status.ts</c>): a 2xx answer is ready, 500 is failed, every other decodable answer
 /// (503 while starting or stopping) is waiting.
 /// </summary>

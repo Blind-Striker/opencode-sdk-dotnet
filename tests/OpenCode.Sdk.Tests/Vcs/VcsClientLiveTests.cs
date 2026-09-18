@@ -1,5 +1,6 @@
 using System.Globalization;
 using OpenCode.Sdk.Models;
+using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
 
 namespace OpenCode.Sdk.Tests;
@@ -10,27 +11,21 @@ public sealed class VcsClientLiveTests(SimulatedDriveServerFixture server)
 {
     [Test]
     [Timeout(60_000)]
-    public async Task GetVcsAsync_GetBranchesAsync_And_GetBaseAsync_Should_Report_The_Initialized_Main_Branch(
+    public async Task GetVcsAsync_ListBranchesAsync_And_GetBaseAsync_Should_Report_The_Initialized_Main_Branch(
         CancellationToken cancellationToken)
     {
         using var repository = await server.CreateGitRepositoryWorkspaceAsync(cancellationToken);
         var location = repository.Location;
         using var client = server.CreateClient();
-        var activation = await client.Plugins.AwaitPluginActivationAsync(
-            new PluginAwaitActivationPostRequest { Location = location },
-            cancellationToken: cancellationToken);
-        await Assert.That(activation.Status).IsEqualTo(204);
-
-        var vcs = await client.Vcs.GetVcsAsync(
-            new VcsRequest { Location = location }, cancellationToken: cancellationToken);
+        var vcs = await LiveReadiness.GitAsync(client, location, cancellationToken);
         await Assert.That(vcs.Status).IsEqualTo(200);
         await Assert.That(vcs.IsError).IsFalse();
         await Assert.That(repository.OwnsDirectory(vcs.Location.Directory)).IsTrue();
         await Assert.That(vcs.Vcs.Branch.Current).IsEqualTo("main");
         await Assert.That(vcs.Vcs.Branch.Default).IsEqualTo("main");
 
-        var branches = await client.Vcs.GetBranchesAsync(
-            new VcsBranchesRequest { Location = location, Search = "mai", Limit = "1" },
+        var branches = await client.Vcs.ListBranchesAsync(
+            new VcsBranchListRequest { Location = location, Search = "mai", Limit = "1" },
             cancellationToken: cancellationToken);
         await Assert.That(branches.Status).IsEqualTo(200);
         await Assert.That(branches.IsError).IsFalse();
@@ -60,10 +55,7 @@ public sealed class VcsClientLiveTests(SimulatedDriveServerFixture server)
         using var repository = await server.CreateGitRepositoryWorkspaceAsync(cancellationToken);
         var location = repository.Location;
         using var client = server.CreateClient();
-        var activation = await client.Plugins.AwaitPluginActivationAsync(
-            new PluginAwaitActivationPostRequest { Location = location },
-            cancellationToken: cancellationToken);
-        await Assert.That(activation.Status).IsEqualTo(204);
+        _ = await LiveReadiness.GitAsync(client, location, cancellationToken);
         repository.WriteModifiedTrackedFile();
 
         var status = await client.Vcs.GetStatusAsync(

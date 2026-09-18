@@ -22,10 +22,9 @@ public sealed class DebugClientLiveTests(SimulatedDriveServerFixture server)
         await Assert.That(warmed.Status).IsEqualTo(200);
         await Assert.That(warmed.IsError).IsFalse();
         await Assert.That(warmed.ResolvedLocation.Directory).IsEqualTo(workspace.Path);
-        var ownedLocation = new LocationRef
+        var ownedLocation = new LocationPublicRef
         {
             Directory = warmed.ResolvedLocation.Directory,
-            WorkspaceId = warmed.ResolvedLocation.WorkspaceId,
         };
 
         var beforeEviction = await rootClient.Debug.ListLocationsAsync(cancellationToken: cancellationToken);
@@ -39,8 +38,7 @@ public sealed class DebugClientLiveTests(SimulatedDriveServerFixture server)
             {
                 Location = new LocationSelector
                 {
-                    Directory = ownedLocation.Directory,
-                    Workspace = ownedLocation.WorkspaceId,
+                    Directory = ownedLocation.Directory
                 },
             },
             cancellationToken: cancellationToken);
@@ -59,7 +57,6 @@ public sealed class DebugClientLiveTests(SimulatedDriveServerFixture server)
         await Assert.That(reopened.Status).IsEqualTo(200);
         await Assert.That(reopened.IsError).IsFalse();
         await Assert.That(reopened.ResolvedLocation.Directory).IsEqualTo(ownedLocation.Directory);
-        await Assert.That(reopened.ResolvedLocation.WorkspaceId).IsEqualTo(ownedLocation.WorkspaceId);
 
         var afterReopening = await rootClient.Debug.ListLocationsAsync(cancellationToken: cancellationToken);
 
@@ -71,14 +68,12 @@ public sealed class DebugClientLiveTests(SimulatedDriveServerFixture server)
             "debug-location-live: warm=" + Number(warmed.Status) +
             " evict=" + Number(eviction.Status) +
             " reopen=" + Number(reopened.Status) +
-            " directory=" + ownedLocation.Directory +
-            " workspace=" + (ownedLocation.WorkspaceId ?? "<none>"));
+            " directory=" + ownedLocation.Directory);
     }
 
-    private static bool Contains(IReadOnlyList<LocationRef> locations, LocationRef expected) =>
+    private static bool Contains(IReadOnlyList<LocationPublicRef> locations, LocationPublicRef expected) =>
         locations.Any(location =>
-            string.Equals(location.Directory, expected.Directory, StringComparison.Ordinal) &&
-            string.Equals(location.WorkspaceId, expected.WorkspaceId, StringComparison.Ordinal));
+            string.Equals(location.Directory, expected.Directory, StringComparison.Ordinal));
 
     private static string Number(int value) => value.ToString(CultureInfo.InvariantCulture);
 }

@@ -10,7 +10,7 @@ public sealed class TransportOwnedFingerprintTests
     public async Task ComputeSha256_Should_Produce_A_Lowercase_Hex_Digest()
     {
         var document = await BindingTestHost.IngestAsync(Scenario());
-        var operation = document.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
+        var operation = document.Operations.Single(static candidate => candidate.OperationId == "pty.connect");
 
         var hash = TransportOwnedFingerprint.ComputeSha256(operation);
 
@@ -25,7 +25,7 @@ public sealed class TransportOwnedFingerprintTests
     {
         var forward = await BindingTestHost.IngestAsync(Scenario());
         var reordered = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.pty.connect", path: "/api/pty/{ptyID}/connect", configure: operation => operation
+            .WithOperation("pty.connect", path: "/api/pty/{ptyID}/connect", configure: operation => operation
                 .Parameter("ticket", "query", schema => schema.Type("string"))
                 .Parameter("cursor", "query", schema => schema.Type("string"))
                 .Parameter("location[workspace]", "query", schema => schema.Type("string"))
@@ -33,8 +33,8 @@ public sealed class TransportOwnedFingerprintTests
                 .Parameter("ptyID", "path", schema => schema.Type("string"), required: true)
                 .Extension("x-websocket", "true"))));
 
-        var forwardOperation = forward.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
-        var reorderedOperation = reordered.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
+        var forwardOperation = forward.Operations.Single(static candidate => candidate.OperationId == "pty.connect");
+        var reorderedOperation = reordered.Operations.Single(static candidate => candidate.OperationId == "pty.connect");
 
         await Assert
             .That(TransportOwnedFingerprint.ComputeSha256(reorderedOperation))
@@ -46,15 +46,15 @@ public sealed class TransportOwnedFingerprintTests
     {
         var withMarker = await BindingTestHost.IngestAsync(Scenario());
         var withoutMarker = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.pty.connect", path: "/api/pty/{ptyID}/connect", configure: operation => operation
+            .WithOperation("pty.connect", path: "/api/pty/{ptyID}/connect", configure: operation => operation
                 .Parameter("ptyID", "path", schema => schema.Type("string"), required: true)
                 .Parameter("location[directory]", "query", schema => schema.Type("string"))
                 .Parameter("location[workspace]", "query", schema => schema.Type("string"))
                 .Parameter("cursor", "query", schema => schema.Type("string"))
                 .Parameter("ticket", "query", schema => schema.Type("string")))));
 
-        var withMarkerOperation = withMarker.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
-        var withoutMarkerOperation = withoutMarker.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
+        var withMarkerOperation = withMarker.Operations.Single(static candidate => candidate.OperationId == "pty.connect");
+        var withoutMarkerOperation = withoutMarker.Operations.Single(static candidate => candidate.OperationId == "pty.connect");
 
         await Assert
             .That(TransportOwnedFingerprint.ComputeSha256(withoutMarkerOperation))
@@ -66,7 +66,7 @@ public sealed class TransportOwnedFingerprintTests
     {
         var baseline = await BindingTestHost.IngestAsync(Scenario());
         var extended = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.pty.connect", path: "/api/pty/{ptyID}/connect", configure: operation => operation
+            .WithOperation("pty.connect", path: "/api/pty/{ptyID}/connect", configure: operation => operation
                 .Parameter("ptyID", "path", schema => schema.Type("string"), required: true)
                 .Parameter("location[directory]", "query", schema => schema.Type("string"))
                 .Parameter("location[workspace]", "query", schema => schema.Type("string"))
@@ -75,8 +75,8 @@ public sealed class TransportOwnedFingerprintTests
                 .Parameter("extra", "query", schema => schema.Type("string"))
                 .Extension("x-websocket", "true"))));
 
-        var baselineOperation = baseline.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
-        var extendedOperation = extended.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
+        var baselineOperation = baseline.Operations.Single(static candidate => candidate.OperationId == "pty.connect");
+        var extendedOperation = extended.Operations.Single(static candidate => candidate.OperationId == "pty.connect");
 
         await Assert
             .That(TransportOwnedFingerprint.ComputeSha256(extendedOperation))
@@ -116,7 +116,7 @@ public sealed class TransportOwnedFingerprintTests
     private static SpecOperation ResponseOf(SchemaNode schema) =>
         new()
         {
-            OperationId = "v2.probe.get",
+            OperationId = "probe.get",
             Segments = ["probe", "get"],
             Method = "get",
             Path = "/api/probe",
@@ -139,7 +139,7 @@ public sealed class TransportOwnedFingerprintTests
 
     private static SpecScenario Scenario() =>
         SpecScenario.Define(spec => spec
-            .WithOperation("v2.pty.connect", path: "/api/pty/{ptyID}/connect", configure: operation => operation
+            .WithOperation("pty.connect", path: "/api/pty/{ptyID}/connect", configure: operation => operation
                 .Parameter("ptyID", "path", schema => schema.Type("string"), required: true)
                 .Parameter("location[directory]", "query", schema => schema.Type("string"))
                 .Parameter("location[workspace]", "query", schema => schema.Type("string"))

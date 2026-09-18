@@ -18,7 +18,7 @@ public sealed class PinnedSpecSmokeTests
         await Assert.That(document.Operations).IsNotEmpty();
         await Assert
             .That(document.Operations.All(static operation =>
-                operation.OperationId.StartsWith("v2.", StringComparison.Ordinal)))
+                !operation.OperationId.StartsWith("v2.", StringComparison.Ordinal)))
             .IsTrue();
     }
 
@@ -27,17 +27,17 @@ public sealed class PinnedSpecSmokeTests
     {
         var document = await IngestPinnedSpecAsync();
 
-        var sessionLog = document.Operations.Single(static operation => operation.OperationId == "v2.session.log");
+        var sessionLog = document.Operations.Single(static operation => operation.OperationId == "session.log");
         await Assert.That(sessionLog.IsSse).IsTrue();
         await Assert.That(sessionLog.Responses.Single(static response => response.IsSse).EffectStream).IsNotNull();
         await Assert
-            .That(document.Operations.Single(static operation => operation.OperationId == "v2.event.subscribe").IsSse)
+            .That(document.Operations.Single(static operation => operation.OperationId == "event.subscribe").IsSse)
             .IsTrue();
         await Assert
-            .That(document.Operations.Single(static operation => operation.OperationId == "v2.fs.read").HasWildcardPath)
+            .That(document.Operations.Single(static operation => operation.OperationId == "fs.read").HasWildcardPath)
             .IsTrue();
         await Assert
-            .That(document.Operations.Single(static operation => operation.OperationId == "v2.pty.connect").IsWebSocket)
+            .That(document.Operations.Single(static operation => operation.OperationId == "pty.connect").IsWebSocket)
             .IsTrue();
     }
 
@@ -85,7 +85,7 @@ public sealed class PinnedSpecSmokeTests
     {
         var document = await IngestPinnedSpecAsync();
 
-        foreach (var operationId in new[] { "v2.session.log", "v2.event.subscribe", })
+        foreach (var operationId in new[] { "session.log", "event.subscribe", })
         {
             var causeKey = $"op:{operationId}#/responses/200/content/text~1event-stream/x-effect-stream/causeSchema/items";
             var found = document.Schemas.TryGetValue(causeKey, out var causeNode);
@@ -129,9 +129,9 @@ public sealed class PinnedSpecSmokeTests
     {
         var document = await IngestPinnedSpecAsync();
 
-        await Assert.That(EnvelopeOf(document, "v2.session.list")).IsEqualTo(SpecEnvelopeShape.CursorData);
-        await Assert.That(EnvelopeOf(document, "v2.agent.list")).IsEqualTo(SpecEnvelopeShape.DataLocation);
-        await Assert.That(EnvelopeOf(document, "v2.session.message")).IsEqualTo(SpecEnvelopeShape.Data);
+        await Assert.That(EnvelopeOf(document, "session.list")).IsEqualTo(SpecEnvelopeShape.CursorData);
+        await Assert.That(EnvelopeOf(document, "agent.list")).IsEqualTo(SpecEnvelopeShape.DataLocation);
+        await Assert.That(EnvelopeOf(document, "session.message.get")).IsEqualTo(SpecEnvelopeShape.Data);
     }
 
     [Test]

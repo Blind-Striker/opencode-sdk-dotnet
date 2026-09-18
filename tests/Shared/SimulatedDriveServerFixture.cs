@@ -28,6 +28,7 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
     private OpenCodeServerOutput? _output;
     private DriveController? _controller;
     private TestRunRoot? _runRoot;
+    private LocationSelector? _defaultLocation;
     private bool _retainLogs;
     private ServerFailureArtifacts? _artifacts;
     private int _disposed;
@@ -41,12 +42,19 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
     internal OpenCodeServer Server =>
         _server ?? throw new InvalidOperationException("The fixture has not initialized.");
 
+    private LocationSelector DefaultLocation =>
+        _defaultLocation ?? throw new InvalidOperationException("The fixture has not initialized.");
+
     internal TestRunRoot RunRoot =>
         _runRoot ?? throw new InvalidOperationException("The fixture has not initialized.");
 
     public async Task InitializeAsync()
     {
         _runRoot = new TestRunRoot(_fileSystem);
+        _defaultLocation = new LocationSelector
+        {
+            Directory = _runRoot.CreateSubdirectory(PinnedOpenCodeServerFixture.DefaultLocationName),
+        };
         try
         {
             _controller = await StartAsync(_runRoot);
@@ -87,13 +95,22 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
         return await DriveController.ConnectAsync(manifest.BackendEndpoint, ControllerTimeout);
     }
 
+    /// <summary>A client on <paramref name="location"/>, or on the fixture's owned default location (<see cref="PinnedOpenCodeServerFixture.DefaultLocationName"/>).</summary>
     public OpenCodeClient CreateClient(LocationSelector? location = null) =>
         new(new OpenCodeClientOptions
         {
             Endpoint = Server.Endpoint,
             Password = Server.Password,
-            Location = location,
+            Location = location ?? DefaultLocation,
         });
+
+    internal async Task<string> ReadGlobalConfigAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var reader = _fileSystem.File.OpenText(
+            _fileSystem.Path.Combine(RunRoot.Path, "config", "opencode", "opencode.jsonc"));
+        return await reader.ReadToEndAsync(cancellationToken);
+    }
 
     public TestWorkspace CreateWorkspace() => new(_fileSystem, RunRoot.Path);
 

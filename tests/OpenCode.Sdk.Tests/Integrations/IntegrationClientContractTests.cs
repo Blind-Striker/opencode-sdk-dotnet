@@ -18,7 +18,7 @@ public sealed class IntegrationClientContractTests
         await Assert.That(response.CommandStatus).IsTypeOf<IntegrationCommandAttemptStatusComplete>();
         var complete = (IntegrationCommandAttemptStatusComplete)response.CommandStatus;
         await Assert.That(complete.Time.Created).IsEqualTo(1755200000);
-        await Assert.That(response.Location.Project.Id).IsEqualTo("prj_1");
+        await Assert.That(response.Location.Directory).IsEqualTo(WireBodyData.ResolvedDirectory);
         await Assert.That(scenario.Requests.Single().RequestUri)
             .IsEqualTo(new Uri("http://localhost:4096/api/integration/int_1/connect/command/att_1"));
     }
@@ -31,23 +31,27 @@ public sealed class IntegrationClientContractTests
 
         var response = await scenario.Client.Integrations.GetIntegrationClient("int_1").GetIntegrationAsync();
 
-        await Assert.That(response.Integration!.Id).IsEqualTo("int_1");
+        await Assert.That(response.Integration.Id).IsEqualTo("int_1");
         await Assert.That(response.Integration.Name).IsEqualTo("GitHub");
         await Assert.That(response.Integration.Methods).IsEmpty();
         await Assert.That(response.Integration.Connections).IsEmpty();
-        await Assert.That(response.Location.Project.Id).IsEqualTo("prj_1");
+        await Assert.That(response.Location.Directory).IsEqualTo(WireBodyData.ResolvedDirectory);
         await Assert.That(scenario.Requests.Single().RequestUri)
             .IsEqualTo(new Uri("http://localhost:4096/api/integration/int_1"));
     }
 
     [Test]
-    public async Task GetIntegrationAsync_Should_Return_Null_When_The_Integration_Is_Unknown()
+    public async Task GetIntegrationAsync_Should_Throw_The_Declared_404_When_The_Integration_Is_Unknown()
     {
-        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.LocationEnvelope("null"));
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.IntegrationNotFoundError);
 
-        var response = await scenario.Client.Integrations.GetIntegrationClient("int_9").GetIntegrationAsync();
+        var exception = await Assert.That(async () =>
+            _ = await scenario.Client.Integrations.GetIntegrationClient("int_9").GetIntegrationAsync())
+            .Throws<OpenCodeApiException>();
 
-        await Assert.That(response.Integration).IsNull();
+        await Assert.That(exception!.Status).IsEqualTo(404);
+        await Assert.That(exception.Error).IsTypeOf<IntegrationNotFoundError>();
+        await Assert.That(((IntegrationNotFoundError)exception.Error!).IntegrationId).IsEqualTo("int_9");
     }
 
     [Test]

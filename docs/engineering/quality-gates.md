@@ -108,8 +108,9 @@ removed from a published build without anyone looking.
 
 The mechanism is one environment variable, not a second harness. `OPENCODE_SDK_TESTS_SERVER_COMMAND`
 (`|`-separated, for example `opencode|serve`) replaces the command the exact-pin fixture starts and
-changes nothing else: the same isolated roots, the same seeded repository-owned RPC plugin, the same
-launcher-owned readiness and teardown, the same retained logs. The executable is resolved by the
+changes nothing else: the same hermetic boundary (`testing-style.md`), the same seeded
+repository-owned RPC plugin, the same launcher-owned readiness and teardown, the same retained
+logs. The executable is resolved by the
 shipped launcher from `PATH` (with `PATHEXT`, which is what starts an npm `.cmd` shim), so the lane
 also re-proves that resolution on every run. The job therefore installs the build, asserts
 `opencode --version`, and runs the whole `OpenCode.Sdk.Tests` project on `net10.0` plus the

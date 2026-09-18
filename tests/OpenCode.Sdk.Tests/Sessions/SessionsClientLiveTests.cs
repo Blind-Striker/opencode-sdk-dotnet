@@ -38,11 +38,11 @@ public sealed class SessionsClientLiveTests(SimulatedDriveServerFixture server)
             var turn = new SimulatedSessionTurn(server, sourceClient, session, created.Id);
             _ = await turn.CompleteAsync(TransferPrompt, TransferReply, cancellationToken);
             cleanup.MarkTurnCompleted();
-            var exported = await session.GetExportAsync(
-                new SessionExportRequest { Sanitize = QueryBoolean.False },
+            var exported = await sourceClient.Experimental.GetSessionExportAsync(created.Id,
+                new ExperimentalSessionExportRequest { Sanitize = QueryBoolean.False },
                 cancellationToken: cancellationToken);
             var exportedEvidence = await AssertRawExportAsync(exported, created.Id);
-            var importRequest = CreateImportRequest(exported.Export, destination.Path);
+            var importRequest = CreateImportRequest(exported.SessionExport, destination.Path);
 
             await AssertDuplicateImportConflictAsync(
                 destinationClient, importRequest, created.Id, cancellationToken);
@@ -51,15 +51,15 @@ public sealed class SessionsClientLiveTests(SimulatedDriveServerFixture server)
             await Assert.That(removed.Status).IsEqualTo(204);
             await Assert.That(removed.IsError).IsFalse();
 
-            var imported = await destinationClient.Sessions.PostImportAsync(
+            var imported = await destinationClient.Experimental.PostSessionImportAsync(
                 importRequest, cancellationToken: cancellationToken);
             await Assert.That(imported.Status).IsEqualTo(200);
             await Assert.That(imported.IsError).IsFalse();
-            await Assert.That(imported.Import.Id).IsEqualTo(created.Id);
-            await Assert.That(imported.Import.Location.Directory).IsEqualTo(destination.Path);
+            await Assert.That(imported.SessionImport.Id).IsEqualTo(created.Id);
+            await Assert.That(imported.SessionImport.Location.Directory).IsEqualTo(destination.Path);
 
             var importedMessages = await destinationClient.Sessions.GetSessionClient(created.Id).ListMessagesAsync(
-                new MessageListRequest { Order = ListOrder.Ascending },
+                new SessionMessageListRequest { Order = ListOrder.Ascending },
                 cancellationToken: cancellationToken);
             await Assert.That(importedMessages.Status).IsEqualTo(200);
             await Assert.That(importedMessages.IsError).IsFalse();
@@ -99,14 +99,14 @@ public sealed class SessionsClientLiveTests(SimulatedDriveServerFixture server)
             _ = await turn.CompleteAsync(StatsPrompt, StatsReply, cancellationToken);
             cleanup.MarkTurnCompleted();
             var messages = await session.ListMessagesAsync(
-                new MessageListRequest { Order = ListOrder.Ascending },
+                new SessionMessageListRequest { Order = ListOrder.Ascending },
                 cancellationToken: cancellationToken);
             var observed = _messageEvidence.Project(messages.Messages);
             await Assert.That(observed.Count).IsGreaterThan(0);
             var from = observed.Min(message => message.Created) - 1;
             var to = observed.Max(message => message.Created) + 1;
 
-            var response = await client.Sessions.GetStatsAsync(new SessionStatsRequest
+            var response = await client.Experimental.GetSessionStatsAsync(new ExperimentalSessionStatsRequest
             {
                 From = Number(from),
                 To = Number(to),
@@ -115,18 +115,18 @@ public sealed class SessionsClientLiveTests(SimulatedDriveServerFixture server)
 
             await Assert.That(response.Status).IsEqualTo(200);
             await Assert.That(response.IsError).IsFalse();
-            await Assert.That(response.Stats.Range.From).IsEqualTo(from);
-            await Assert.That(response.Stats.Range.To).IsEqualTo(to);
-            await Assert.That(response.Stats.Sessions).IsGreaterThan(0);
-            await Assert.That(response.Stats.Prompts).IsGreaterThan(0);
-            await Assert.That(response.Stats.Steps).IsGreaterThan(0);
-            await Assert.That(response.Stats.Models.Any(model =>
+            await Assert.That(response.SessionStats.Range.From).IsEqualTo(from);
+            await Assert.That(response.SessionStats.Range.To).IsEqualTo(to);
+            await Assert.That(response.SessionStats.Sessions).IsGreaterThan(0);
+            await Assert.That(response.SessionStats.Prompts).IsGreaterThan(0);
+            await Assert.That(response.SessionStats.Steps).IsGreaterThan(0);
+            await Assert.That(response.SessionStats.Models.Any(model =>
                 model.Model is { Id: ModelId, ProviderId: ProviderId })).IsTrue();
 
             Console.WriteLine(
-                "session-stats-live: sessions=" + Number(response.Stats.Sessions) +
-                " prompts=" + Number(response.Stats.Prompts) +
-                " steps=" + Number(response.Stats.Steps) + " model=sim/sim-model");
+                "session-stats-live: sessions=" + Number(response.SessionStats.Sessions) +
+                " prompts=" + Number(response.SessionStats.Prompts) +
+                " steps=" + Number(response.SessionStats.Steps) + " model=sim/sim-model");
         }
         catch (Exception exception)
         {
@@ -215,7 +215,7 @@ public sealed class SessionsClientLiveTests(SimulatedDriveServerFixture server)
         var response = await client.Sessions.CreateSessionAsync(new SessionCreateRequest
         {
             Title = title,
-            Location = new LocationRef { Directory = directory },
+            Location = new LocationPublicRef { Directory = directory },
             Model = new ModelRef { Id = ModelId, ProviderId = ProviderId },
         }, cancellationToken: cancellationToken);
         return response.Session;
@@ -232,16 +232,16 @@ public sealed class SessionsClientLiveTests(SimulatedDriveServerFixture server)
     }
 
     private async Task<IReadOnlyList<SessionMessageEvidence>> AssertRawExportAsync(
-        SessionExportResponse response,
+        ExperimentalSessionExportResponse response,
         string sessionId)
     {
         await Assert.That(response.Status).IsEqualTo(200);
         await Assert.That(response.IsError).IsFalse();
-        await Assert.That(response.Export.Info.Id).IsEqualTo(sessionId);
-        await Assert.That(response.Export.Messages.Count).IsGreaterThan(0);
-        await Assert.That(response.Export.Messages.OfType<SessionMessageUser>().Any()).IsTrue();
-        await Assert.That(response.Export.Messages.OfType<SessionMessageAssistant>().Any()).IsTrue();
-        var evidence = _messageEvidence.Project(response.Export.Messages);
+        await Assert.That(response.SessionExport.Info.Id).IsEqualTo(sessionId);
+        await Assert.That(response.SessionExport.Messages.Count).IsGreaterThan(0);
+        await Assert.That(response.SessionExport.Messages.OfType<SessionMessageUser>().Any()).IsTrue();
+        await Assert.That(response.SessionExport.Messages.OfType<SessionMessageAssistant>().Any()).IsTrue();
+        var evidence = _messageEvidence.Project(response.SessionExport.Messages);
         await Assert.That(evidence.Any(message =>
             message is { Type: "user", Text: TransferPrompt })).IsTrue();
         await Assert.That(evidence.Any(message =>
@@ -251,11 +251,11 @@ public sealed class SessionsClientLiveTests(SimulatedDriveServerFixture server)
 
     private static async Task AssertDuplicateImportConflictAsync(
         OpenCodeClient destinationClient,
-        SessionImportPostRequest request,
+        ExperimentalSessionImportPostRequest request,
         string sessionId,
         CancellationToken cancellationToken)
     {
-        var response = await destinationClient.Sessions.PostImportAsync(
+        var response = await destinationClient.Experimental.PostSessionImportAsync(
             request, OpenCodeRequestOptions.NoThrow, cancellationToken);
 
         await Assert.That(response.Status).IsEqualTo(409);
@@ -265,14 +265,14 @@ public sealed class SessionsClientLiveTests(SimulatedDriveServerFixture server)
         await Assert.That(conflict?.Resource).IsEqualTo(sessionId);
     }
 
-    private static SessionImportPostRequest CreateImportRequest(
+    private static ExperimentalSessionImportPostRequest CreateImportRequest(
         SessionTransferData exported,
         string destination) =>
         new()
         {
             Info = exported.Info,
             Messages = exported.Messages,
-            Location = new LocationRef { Directory = destination },
+            Location = new LocationPublicRef { Directory = destination },
         };
 
     private static async Task RemoveOwnedSessionAsync(

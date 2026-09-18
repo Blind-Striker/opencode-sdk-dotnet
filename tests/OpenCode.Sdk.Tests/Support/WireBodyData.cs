@@ -5,19 +5,35 @@ namespace OpenCode.Sdk.Tests.Support;
 /// <summary>Canned wire bodies and envelope shapes for the contract tests.</summary>
 internal static class WireBodyData
 {
-    public const string HealthOk = "{\"healthy\":true,\"version\":\"0.0.0-test\",\"pid\":42}";
+    public const string ConfigShells =
+        "[{\"path\":\"/bin/zsh\",\"name\":\"zsh\",\"acceptable\":true},"
+        + "{\"path\":\"/bin/sh\",\"name\":\"sh\",\"acceptable\":false}]";
 
-    public const string HealthWithUnknownField =
-        "{\"healthy\":true,\"version\":\"0.0.0-test\",\"pid\":42,\"unexpected\":true}";
+    public const string FormPendingState = "{\"status\":\"pending\"}";
 
-    public const string HealthMissingRequiredMember = "{\"healthy\":true,\"pid\":42}";
+    public const string FormAnsweredState = "{\"status\":\"answered\",\"answer\":{\"q1\":\"blue\"}}";
 
-    public const string HealthWithWrongTokenType = "{\"healthy\":true,\"version\":\"0.0.0-test\",\"pid\":\"forty-two\"}";
+    public static string FormDetail(string state) =>
+        "{\"id\":\"frm_1\",\"sessionID\":\"ses_100\",\"title\":\"Approve deploy\",\"fields\":[],\"state\":" + state + "}";
 
-    public static byte[] HealthWithMalformedUtf8UnknownField()
+    public const string IntegrationNotFoundError =
+        "{\"_tag\":\"IntegrationNotFoundError\",\"integrationID\":\"int_9\",\"message\":\"gone\"}";
+
+    public const string StatusOk = "{\"urls\":[\"http://localhost:4096\"],\"version\":\"0.0.0-test\",\"pid\":42}";
+
+    public const string StatusWithUnknownField =
+        "{\"urls\":[\"http://localhost:4096\"],\"version\":\"0.0.0-test\",\"pid\":42,\"unexpected\":true}";
+
+    public const string StatusMissingRequiredMember = "{\"urls\":[\"http://localhost:4096\"],\"pid\":42}";
+
+    public const string StatusMissingUrls = "{\"version\":\"0.0.0-test\",\"pid\":42}";
+
+    public const string StatusWithWrongTokenType = "{\"urls\":[\"http://localhost:4096\"],\"version\":\"0.0.0-test\",\"pid\":\"forty-two\"}";
+
+    public static byte[] StatusWithMalformedUtf8UnknownField()
     {
         var prefix = Encoding.UTF8.GetBytes(
-            "{\"healthy\":true,\"version\":\"0.0.0-test\",\"pid\":42,\"unexpected\":\"");
+            "{\"urls\":[\"http://localhost:4096\"],\"version\":\"0.0.0-test\",\"pid\":42,\"unexpected\":\"");
         var suffix = Encoding.UTF8.GetBytes("\"}");
         return [.. prefix, 0xFF, .. suffix];
     }
@@ -80,8 +96,11 @@ internal static class WireBodyData
     public const string ShellOutputPage =
         "{\"output\":\"build ok\\n\",\"cursor\":24,\"size\":96,\"truncated\":true}";
 
+    /// <summary>The directory every location-scoped envelope in this corpus answers from.</summary>
+    public const string ResolvedDirectory = "/repo";
+
     public const string ResolvedLocation =
-        "{\"directory\":\"/repo\",\"project\":{\"id\":\"prj_1\",\"directory\":\"/repo\",\"canonical\":\"/repo\"}}";
+        "{\"directory\":\"" + ResolvedDirectory + "\",\"project\":{\"id\":\"prj_1\",\"directory\":\"/repo\",\"canonical\":\"/repo\"}}";
 
     public static string Envelope(string datum)
     {

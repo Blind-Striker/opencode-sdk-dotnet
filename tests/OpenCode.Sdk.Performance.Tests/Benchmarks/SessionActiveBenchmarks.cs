@@ -18,7 +18,7 @@ namespace OpenCode.Sdk.Performance.Tests.Benchmarks;
 /// The two other envelope shapes envelope completion produced deliberately get no rung here or
 /// elsewhere: the Data-list shape (<c>{"data": [...]}</c> plus cursor) is already
 /// component-laddered by <see cref="MessageListBenchmarks"/>, and the bare-container shape (no
-/// envelope at all) is already component-laddered by <see cref="HealthBenchmarks"/>. Neither
+/// envelope at all) is already component-laddered by <see cref="StatusBenchmarks"/>. Neither
 /// materializes a dictionary, so neither stands in for this shape — this is the asymmetry's only
 /// new rung, not an oversight.
 /// </remarks>

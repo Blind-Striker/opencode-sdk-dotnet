@@ -107,7 +107,7 @@ public sealed class PendingPermissionCleanupTests
             string requestId, SessionPermissionReplyPostRequest request,
             OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
         {
-            Reply = request.Reply;
+            Reply = request.Decision;
             Options = requestOptions;
             return Task.FromResult(response);
         }

@@ -36,7 +36,7 @@ internal sealed class DebugLocationListResponseAdapter : ResponseAdapter<DebugLo
     public override DebugLocationListResponse AdaptSuccess(int status, ReadOnlySpan<byte> utf8Body) => new()
     {
         Status = status,
-        Locations = ReadBarePayload(utf8Body, OpenCodeJsonContext.Default.LocationRefList)
+        Locations = ReadBarePayload(utf8Body, OpenCodeJsonContext.Default.LocationPublicRefList)
     };
     /// <summary>
     /// Maps one buffered response onto the typed envelope.
@@ -49,7 +49,7 @@ internal sealed class DebugLocationListResponseAdapter : ResponseAdapter<DebugLo
             200 => new DebugLocationListResponse
             {
                 Status = status,
-                Locations = ReadBarePayload(rawBody, OpenCodeJsonContext.Default.LocationRefList)
+                Locations = ReadBarePayload(rawBody, OpenCodeJsonContext.Default.LocationPublicRefList)
             },
             >= 200 and < 300 => throw StatusVerdictFailures.UndeclaredSuccess(status),
             400 => new DebugLocationListResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),

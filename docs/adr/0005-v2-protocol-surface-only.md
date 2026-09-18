@@ -3,14 +3,15 @@
 Date: 2026-08-13
 
 opencode's active successor line (branch `v2`) serves exactly one HTTP surface — the protocol
-contract behind the `v2.*`-prefixed operationIds — and has deleted the legacy root block
+contract of `packages/protocol` — and has deleted the legacy root block
 wholesale: `packages/opencode` no longer exists there, the server's handlers mirror the 30
 protocol groups 1:1, the TUI runs on the protocol-derived client, and the product ships a
 v1→v2 session-history migration. This SDK therefore generates the v2 protocol surface only;
 the 1.x legacy surface is never built, and the generation target moves to the `v2` branch's
 `packages/protocol/openapi.json`, pinned as a snapshot under `spec/` (the retarget executes
-as the first task of the M1 callable-client arc). Public naming strips the `v2.` operationId
-prefix and never bakes "V2" into type or client names (unchanged). This revises the
+as the first task of the M1 callable-client arc). Public naming never bakes "V2" into type or
+client names: operation identities are dotted group/action segments with no version prefix, and
+the `V2Event` component identities that remain carry explicit reviewed .NET names. This revises the
 2026-08-08 both-surfaces decision in place — itself a revision of an earlier v2-only
 position; the difference now is evidence, not taste: the both-surfaces premise ("the modern
 block does not cover today's capability; the MCP-server goal needs all of it today") expired
@@ -30,3 +31,7 @@ internal research, 2026-08-08, "Upstream v1/v2: product version vs HTTP API surf
   machinery (ADR-0020) carries the pin across upstream releases.
 - The spec pin is a snapshot taken at an upstream release tag: refreshes stay deliberate and
   receipt-governed (ADR-0020), never HEAD-tracking.
+- Operation-scoped names derive from the dotted identities directly. An `experimental.*`
+  identity selects the flat ExperimentalClient with explicit route ids, and an identity that
+  leaks its upstream group qualification is a reason-bearing defect repair, never a
+  client-placement mechanism (ADR-0013).

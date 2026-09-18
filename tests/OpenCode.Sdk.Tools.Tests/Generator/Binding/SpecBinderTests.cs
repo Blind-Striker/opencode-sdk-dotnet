@@ -27,6 +27,9 @@ public sealed class SpecBinderTests
         "FormInvalidAnswerError",
         "FormNotFoundError",
         "InstructionEntryValueTooLargeError",
+        "IntegrationAttemptNotFoundError",
+        "IntegrationMethodNotFoundError",
+        "IntegrationNotFoundError",
         "InvalidCursorError",
         "InvalidRequestError",
         "McpServerNotFoundError",
@@ -198,12 +201,12 @@ public sealed class SpecBinderTests
                     branch => branch.Type("number"),
                     branch => branch.Type("null")), required: true)
                 .Property("extra", property => property.Unrestricted()))
-            .WithOperation("v2.widget.item", path: "/api/widget/item", configure: operation => operation
+            .WithOperation("widget.item", path: "/api/widget/item", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.item"),
+            Selection("widget.item"),
             Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null))));
 
         var item = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "ItemInfo");
@@ -257,15 +260,15 @@ public sealed class SpecBinderTests
                     branch => branch.Type("string"),
                     branch => branch.Type("null")))
                 .Property("shared", property => property.Ref("SharedPatch"), required: true))
-            .WithOperation("v2.widget.item", path: "/api/widget/item", configure: operation => operation
+            .WithOperation("widget.item", path: "/api/widget/item", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo")))
-            .WithOperation("v2.widget.patch", method: "post", path: "/api/widget/patch", configure: operation => operation
+            .WithOperation("widget.patch", method: "post", path: "/api/widget/patch", configure: operation => operation
                 .RequestBody("application/json", body => body.Ref("Widget.PatchPayload"), required: true)
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.item", "v2.widget.patch"),
+            Selection("widget.item", "widget.patch"),
             Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null))));
 
         var shared = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "SharedPatch");
@@ -348,8 +351,8 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Report_Selection_And_Curation_Errors_Together()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.health.get")));
-        var selection = Selection("v2.health.get", "v2.missing.get");
+            .WithOperation("health.get")));
+        var selection = Selection("health.get", "missing.get");
         var curation = Curation(
             new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
             {
@@ -357,7 +360,7 @@ public sealed class SpecBinderTests
             },
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["v2.orphan.get"] = "Orphan",
+                ["orphan.get"] = "Orphan",
             });
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(document, selection, curation));
@@ -373,13 +376,13 @@ public sealed class SpecBinderTests
             .WithSchema("EventReady", schema => schema
                 .Type("object")
                 .Property("ready", property => property.Type("boolean"), required: true))
-            .WithOperation("v2.event.subscribe", path: "/api/event", configure: operation => operation
+            .WithOperation("event.subscribe", path: "/api/event", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("EventReady")))));
         var curation = Curation(
             Groups("event", ClientGroup(clientName: "Events", handleName: null, handleParameter: null)),
-            operationNames: [OperationName("v2.event.subscribe", "SubscribeAsync")]);
+            operationNames: [OperationName("event.subscribe", "SubscribeAsync")]);
 
-        var plan = new BindingTestHost().Bind(document, Selection("v2.event.subscribe"), curation);
+        var plan = new BindingTestHost().Bind(document, Selection("event.subscribe"), curation);
 
         var operation = plan.Clients.Single(static client => client.Name == "EventsClient").Operations.Single();
         await Assert.That(operation.MethodName).IsEqualTo("SubscribeAsync");
@@ -391,11 +394,11 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Refuse_A_Group_Without_A_Reason()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.health.get")));
+            .WithOperation("health.get")));
         var curation = Curation(Groups("health", RootGroup() with { Reason = " " }));
 
         var exception = Assert.Throws<BindingException>(
-            () => _ = new BindingTestHost().Bind(document, Selection("v2.health.get"), curation));
+            () => _ = new BindingTestHost().Bind(document, Selection("health.get"), curation));
 
         var error = exception.Errors.Single(static error => error.Problem.Contains("reason", StringComparison.Ordinal));
         await Assert.That(error.Subject).IsEqualTo("health");
@@ -408,24 +411,24 @@ public sealed class SpecBinderTests
             .WithSchema("ThingEncoded", schema => schema
                 .Type("object")
                 .Property("value", property => property.Type("string"), required: true))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("ThingEncoded")))));
         var curation = Curation(Groups("health", RootGroup()));
 
-        var plan = new BindingTestHost().Bind(document, Selection("v2.health.get"), curation);
+        var plan = new BindingTestHost().Bind(document, Selection("health.get"), curation);
 
         await Assert.That(plan.Models.Any(static model => model.Name == "Thing")).IsTrue();
         await Assert.That(plan.Models.Any(static model => model.Name == "ThingEncoded")).IsFalse();
     }
 
     [Test]
-    public async Task Bind_Should_Strip_The_Protocol_Prefix_From_An_Operation_Scoped_Derived_Name()
+    public async Task Bind_Should_Derive_An_Operation_Scoped_Name_From_Its_Identity()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
             .WithSchema("WidgetInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.update", method: "put", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.update", method: "put", path: "/api/widget", configure: operation => operation
                 .RequestBody("application/json", body => body
                     .Type("object")
                     .Property("size", property => property
@@ -435,12 +438,9 @@ public sealed class SpecBinderTests
                 .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
         var curation = Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)));
 
-        var plan = new BindingTestHost().Bind(document, Selection("v2.widget.update"), curation);
+        var plan = new BindingTestHost().Bind(document, Selection("widget.update"), curation);
 
-        // A promoted inline member under an operation-scoped root has nowhere to take a name from
-        // but the operation identity, which carries the transport's v2. prefix. The resolver strips
-        // it the same mechanical way every other public identifier does, so no curation row exists
-        // to undo it. The pinned guard above proves the shipped surface; this proves the mechanism.
+        // Inline members derive their names from the current group/action identity.
         await Assert.That(plan.Models.Any(static model => model.Name == "WidgetUpdateSize")).IsTrue();
         await Assert.That(plan.Registry.TypeNames.Any(static name => name.Contains("V2", StringComparison.Ordinal))).IsFalse();
     }
@@ -459,11 +459,11 @@ public sealed class SpecBinderTests
                 .Type("object")
                 .Property("decoded", property => property.Ref("Thing"), required: true)
                 .Property("encoded", property => property.Ref("ThingEncoded"), required: true))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("Pair")))));
         var curation = Curation(Groups("health", RootGroup()));
 
-        var plan = new BindingTestHost().Bind(document, Selection("v2.health.get"), curation);
+        var plan = new BindingTestHost().Bind(document, Selection("health.get"), curation);
 
         await Assert.That(plan.Models.Any(static model => model.Name == "Thing")).IsTrue();
         await Assert.That(plan.Models.Any(static model => model.Name == "ThingEncoded")).IsTrue();
@@ -473,12 +473,12 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Refuse_A_Selected_Operation_With_A_Header_Parameter()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Parameter("x-opencode-ticket", "header", schema => schema.Type("string"), required: true))));
         var curation = Curation(Groups("health", RootGroup()));
 
         var exception = Assert.Throws<BindingException>(
-            () => _ = new BindingTestHost().Bind(document, Selection("v2.health.get"), curation));
+            () => _ = new BindingTestHost().Bind(document, Selection("health.get"), curation));
 
         var error = exception.Errors.Single(static error => error.Problem.Contains("header parameter", StringComparison.Ordinal));
         await Assert.That(error.Problem).Contains("x-opencode-ticket");
@@ -495,11 +495,11 @@ public sealed class SpecBinderTests
                     "checkpoint",
                     property => property.Type("string").Format("byte").Raw("contentEncoding", "\"base64\""),
                     required: true))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("Snapshot")))));
         var curation = Curation(Groups("health", RootGroup()));
 
-        var plan = new BindingTestHost().Bind(document, Selection("v2.health.get"), curation);
+        var plan = new BindingTestHost().Bind(document, Selection("health.get"), curation);
 
         var checkpoint = plan.Models
             .OfType<ObjectModelPlan>()
@@ -520,12 +520,12 @@ public sealed class SpecBinderTests
                     .Format("byte")
                     .Raw("contentEncoding", "\"base32\""), required: true)
                 .AdditionalPropertiesFalse())
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("Snapshot")))));
         var curation = Curation(Groups("health", RootGroup()));
 
         var exception = Assert.Throws<BindingException>(
-            () => _ = new BindingTestHost().Bind(document, Selection("v2.health.get"), curation));
+            () => _ = new BindingTestHost().Bind(document, Selection("health.get"), curation));
 
         var error = exception.Errors.Single(static error => error.Problem.Contains("content encoding", StringComparison.Ordinal));
         await Assert.That(error.Problem).Contains("base32");
@@ -535,37 +535,37 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Refuse_Orphaned_And_Duplicated_Operation_Name_Rows()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.health.get")
-            .WithOperation("v2.event.subscribe", path: "/api/event")));
+            .WithOperation("health.get")
+            .WithOperation("event.subscribe", path: "/api/event")));
         var curation = Curation(
             Groups("health", RootGroup()),
             operationNames:
             [
-                OperationName("v2.event.subscribe", "SubscribeAsync"),
-                OperationName("v2.health.get", "HealthAsync", reason: " "),
-                OperationName("v2.health.get", "OtherHealthAsync"),
-                OperationName("v2.missing.get", "MissingAsync"),
+                OperationName("event.subscribe", "SubscribeAsync"),
+                OperationName("health.get", "HealthAsync", reason: " "),
+                OperationName("health.get", "OtherHealthAsync"),
+                OperationName("missing.get", "MissingAsync"),
             ]);
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             curation));
 
         await Assert
-            .That(exception.Errors.Any(static error => error.Subject == "v2.event.subscribe"
+            .That(exception.Errors.Any(static error => error.Subject == "event.subscribe"
                                                        && error.Problem.Contains("not selected", StringComparison.Ordinal)))
             .IsTrue();
         await Assert
-            .That(exception.Errors.Any(static error => error.Subject == "v2.health.get"
+            .That(exception.Errors.Any(static error => error.Subject == "health.get"
                                                        && error.Problem.Contains("duplicated", StringComparison.Ordinal)))
             .IsTrue();
         await Assert
-            .That(exception.Errors.Any(static error => error.Subject == "v2.health.get"
+            .That(exception.Errors.Any(static error => error.Subject == "health.get"
                                                        && error.Problem.Contains("declare a reason", StringComparison.Ordinal)))
             .IsTrue();
         await Assert
-            .That(exception.Errors.Any(static error => error.Subject == "v2.missing.get"
+            .That(exception.Errors.Any(static error => error.Subject == "missing.get"
                                                        && error.Problem.Contains("does not exist", StringComparison.Ordinal)))
             .IsTrue();
     }
@@ -577,21 +577,21 @@ public sealed class SpecBinderTests
             .WithSchema("EventReady", schema => schema
                 .Type("object")
                 .Property("ready", property => property.Type("boolean"), required: true))
-            .WithOperation("v2.event.subscribe", path: "/api/event", configure: operation => operation
+            .WithOperation("event.subscribe", path: "/api/event", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("EventReady")))
-            .WithOperation("v2.event.watch", path: "/api/event/watch", configure: operation => operation
+            .WithOperation("event.watch", path: "/api/event/watch", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("EventReady")))));
         var curation = Curation(
             Groups("event", ClientGroup(clientName: "Events", handleName: null, handleParameter: null)),
             operationNames:
             [
-                OperationName("v2.event.subscribe", "SubscribeAsync"),
-                OperationName("v2.event.watch", "SubscribeAsync"),
+                OperationName("event.subscribe", "SubscribeAsync"),
+                OperationName("event.watch", "SubscribeAsync"),
             ]);
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.event.subscribe", "v2.event.watch"),
+            Selection("event.subscribe", "event.watch"),
             curation));
 
         await Assert
@@ -611,7 +611,7 @@ public sealed class SpecBinderTests
             .WithSchema("Item", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.item.get", configure: operation => operation
+            .WithOperation("item.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("Item")))));
         var curation = Curation(
             Groups("item", RootGroup()),
@@ -624,7 +624,7 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.item.get"),
+            Selection("item.get"),
             curation));
 
         await Assert
@@ -649,12 +649,12 @@ public sealed class SpecBinderTests
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true)
                 .AdditionalProperties(value => value.Type("string")))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("HybridInfo")))));
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(Groups("health", RootGroup()))));
 
         var error = exception.Errors.Single(static candidate =>
@@ -667,19 +667,19 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Refuse_Operation_Curation_For_Pending_Operation()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.health.get")
-            .WithOperation("v2.session.message", path: "/api/session/message", configure: operation => operation
+            .WithOperation("health.get")
+            .WithOperation("session.message", path: "/api/session/message", configure: operation => operation
                 .Response(200, "application/json", schema => schema
                     .Type("object")
                     .Property("data", property => property.Type("string"), required: true)))));
         var envelopeNames = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["v2.session.message"] = "Message",
+            ["session.message"] = "Message",
         };
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
             {
                 ["health"] = RootGroup(),
@@ -701,12 +701,12 @@ public sealed class SpecBinderTests
                 .Type("object")
                 .Property("first", property => property.Ref("Shared"), required: true)
                 .Property("items", property => property.Type("array").Items(item => item.Ref("Shared")), required: true))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("Container")))));
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
             {
                 ["health"] = RootGroup(),
@@ -737,12 +737,12 @@ public sealed class SpecBinderTests
                 .Property("status", property => property.Type("string").Enum("two"), required: true))
             .WithSchema("Wrap", schema => schema.AnyOf(one => one.Ref("WrapOne"), two => two.Ref("WrapTwo")))
             .WithSchema("Outer", schema => schema.AnyOf(alpha => alpha.Ref("Alpha"), wrap => wrap.Ref("Wrap")))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("Outer")))));
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
             {
                 ["health"] = RootGroup(),
@@ -775,12 +775,12 @@ public sealed class SpecBinderTests
                 .Type("object")
                 .Property("type", property => property.Type("string").Enum("same"), required: true))
             .WithSchema("Twin", schema => schema.AnyOf(first => first.Ref("First"), second => second.Ref("Second")))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("Twin")))));
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
             {
                 ["health"] = RootGroup(),
@@ -795,7 +795,7 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Refuse_HandleName_Without_HandleParameter()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.session.message", path: "/api/session/{sessionID}/message", configure: operation => operation
+            .WithOperation("session.message", path: "/api/session/{sessionID}/message", configure: operation => operation
                 .Parameter("sessionID", "path", schema => schema.Type("string"), required: true)
                 .Response(200, "application/json", schema => schema
                     .Type("object")
@@ -807,7 +807,7 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.session.message"),
+            Selection("session.message"),
             Curation(groups)));
 
         await Assert
@@ -819,7 +819,7 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Refuse_HandleParameter_Without_HandleName()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.session.message", path: "/api/session/{sessionID}/message", configure: operation => operation
+            .WithOperation("session.message", path: "/api/session/{sessionID}/message", configure: operation => operation
                 .Parameter("sessionID", "path", schema => schema.Type("string"), required: true)
                 .Response(200, "application/json", schema => schema
                     .Type("object")
@@ -831,7 +831,7 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.session.message"),
+            Selection("session.message"),
             Curation(groups)));
 
         await Assert
@@ -842,7 +842,7 @@ public sealed class SpecBinderTests
     [Test]
     public async Task Bind_Should_Refuse_HandleParameter_On_Root_Group()
     {
-        var document = await IngestAsync(SpecScenario.Define(spec => spec.WithOperation("v2.health.get")));
+        var document = await IngestAsync(SpecScenario.Define(spec => spec.WithOperation("health.get")));
         var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
         {
             ["health"] = new GroupCuration
@@ -854,7 +854,7 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(groups)));
 
         await Assert
@@ -867,7 +867,7 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Require_HandleParameter_To_Name_A_Selected_Required_Path_Parameter()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.session.message", path: "/api/session/message/{messageID}", configure: operation => operation
+            .WithOperation("session.message", path: "/api/session/message/{messageID}", configure: operation => operation
                 .Parameter("messageID", "path", schema => schema.Type("string"), required: true)
                 .Response(200, "application/json", schema => schema
                     .Type("object")
@@ -879,7 +879,7 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.session.message"),
+            Selection("session.message"),
             Curation(groups)));
 
         await Assert
@@ -890,11 +890,11 @@ public sealed class SpecBinderTests
     [Test]
     public async Task Bind_Should_Require_Curation_For_Every_Selected_Group()
     {
-        var document = await IngestAsync(SpecScenario.Define(spec => spec.WithOperation("v2.health.get")));
+        var document = await IngestAsync(SpecScenario.Define(spec => spec.WithOperation("health.get")));
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal))));
 
         await Assert
@@ -910,12 +910,12 @@ public sealed class SpecBinderTests
                 .Type("object")
                 .Property("formatted", property => property.Type("string").Format("uri"), required: true)
                 .Property("namedUri", property => property.Type("string"), required: true))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("Resource")))));
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(Groups("health", RootGroup())));
 
         var resource = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "Resource");
@@ -932,12 +932,12 @@ public sealed class SpecBinderTests
             .WithSchema("VersionedItem", schema => schema
                 .Type("object")
                 .Property("version", property => property.Type("number").Raw("enum", "[3]"), required: true))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("VersionedItem")))));
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
             {
                 ["health"] = RootGroup(),
@@ -966,12 +966,12 @@ public sealed class SpecBinderTests
                 .Property("status", property => property.Type("string").Enum("two"), required: true))
             .WithSchema("Wrap", schema => schema.OneOf(one => one.Ref("WrapOne"), two => two.Ref("WrapTwo")))
             .WithSchema("Outer", schema => schema.AnyOf(alpha => alpha.Ref("Alpha"), wrap => wrap.Ref("Wrap")))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("Outer")))));
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
             {
                 ["health"] = RootGroup(),
@@ -991,12 +991,12 @@ public sealed class SpecBinderTests
                 .Property("digest", property => property.AnyOf(
                     branch => branch.Type("string").Raw("pattern", "\"^[a-f0-9]{64}$\""),
                     branch => branch.Type("string").Enum("removed")), required: true))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
             {
                 ["health"] = RootGroup(),
@@ -1068,12 +1068,12 @@ public sealed class SpecBinderTests
             .WithSchema("Container", schema => schema
                 .Type("object")
                 .Property("choice", property => property.Ref("Choice"), required: true))
-            .WithOperation("v2.choice.get", configure: operation => operation
+            .WithOperation("choice.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("Container")))));
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.choice.get"),
+            Selection("choice.get"),
             Curation(Groups("choice", RootGroup()))));
 
         var problems = string.Join(Environment.NewLine, exception.Errors.Select(static error => $"{error.Subject}: {error.Problem}"));
@@ -1094,12 +1094,12 @@ public sealed class SpecBinderTests
             .WithSchema("Container", schema => schema
                 .Type("object")
                 .Property("choice", property => property.Ref("Choice"), required: true))
-            .WithOperation("v2.choice.get", configure: operation => operation
+            .WithOperation("choice.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("Container")))));
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.choice.get"),
+            Selection("choice.get"),
             Curation(Groups("choice", RootGroup()))));
 
         await Assert
@@ -1119,12 +1119,12 @@ public sealed class SpecBinderTests
             .WithSchema("Container", schema => schema
                 .Type("object")
                 .Property("choice", property => property.Ref("Choice"), required: true))
-            .WithOperation("v2.choice.get", configure: operation => operation
+            .WithOperation("choice.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("Container")))));
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.choice.get"),
+            Selection("choice.get"),
             Curation(Groups("choice", RootGroup()))));
 
         await Assert
@@ -1146,12 +1146,12 @@ public sealed class SpecBinderTests
             .WithSchema("Container", schema => schema
                 .Type("object")
                 .Property("choice", property => property.Ref("Choice"), required: true))
-            .WithOperation("v2.choice.get", configure: operation => operation
+            .WithOperation("choice.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("Container")))));
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.choice.get"),
+            Selection("choice.get"),
             Curation(Groups("choice", RootGroup()))));
 
         await Assert
@@ -1170,12 +1170,12 @@ public sealed class SpecBinderTests
             .WithSchema("Container", schema => schema
                 .Type("object")
                 .Property("choice", property => property.Ref("Choice"), required: true))
-            .WithOperation("v2.choice.get", configure: operation => operation
+            .WithOperation("choice.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("Container")))));
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.choice.get"),
+            Selection("choice.get"),
             Curation(Groups("choice", RootGroup()))));
 
         await Assert
@@ -1194,12 +1194,12 @@ public sealed class SpecBinderTests
                 .Property("payload", property => property.AnyOf(
                     branch => branch.Type("object"),
                     branch => branch.Type("array")), required: true))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
             {
                 ["health"] = RootGroup(),
@@ -1225,12 +1225,12 @@ public sealed class SpecBinderTests
                 .Property("type", property => property.Type("string").Enum("synced"), required: true))
             .WithSchema("Durable", schema => schema.OneOf(one => one.Ref("Created"), two => two.Ref("Renamed")))
             .WithSchema("LogItem", schema => schema.AnyOf(one => one.Ref("Durable"), two => two.Ref("Synced")))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("LogItem")))));
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
             {
                 ["health"] = RootGroup(),
@@ -1280,12 +1280,12 @@ public sealed class SpecBinderTests
                 .Type("object")
                 .Property("durable", property => property.Ref("Durable"), required: true)
                 .Property("live", property => property.Ref("Live"), required: true))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("Feed")))));
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
             {
                 ["health"] = RootGroup(),
@@ -1317,14 +1317,14 @@ public sealed class SpecBinderTests
                 .Type("object")
                 .Property("_tag", property => property.Type("string").Enum("SharedError"), required: true)
                 .Property("detail", property => property.Type("string"), required: true))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo"))
                 .Response(404, "application/json", schema => schema.Ref("GoneError"))
                 .Response(410, "application/json", schema => schema.Ref("LostError")))));
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
             {
                 ["health"] = RootGroup(),
@@ -1352,7 +1352,7 @@ public sealed class SpecBinderTests
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
             {
                 ["health"] = RootGroup(),
@@ -1393,7 +1393,7 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
             {
                 ["health"] = RootGroup(),
@@ -1418,7 +1418,7 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
             {
                 ["health"] = RootGroup(),
@@ -1434,7 +1434,7 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Refuse_An_Unrecognized_Group_Placement()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema
                     .Type("object")
                     .Property("data", property => property.Type("string"), required: true)))));
@@ -1448,7 +1448,7 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(groups)));
 
         await Assert
@@ -1461,7 +1461,7 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Refuse_An_Unrecognized_Group_Emission()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema
                     .Type("object")
                     .Property("data", property => property.Type("string"), required: true)))));
@@ -1475,7 +1475,7 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(groups)));
 
         await Assert
@@ -1487,7 +1487,7 @@ public sealed class SpecBinderTests
     [Test]
     public async Task Bind_Should_Refuse_Internal_Raw_Emission_On_A_Root_Group()
     {
-        var document = await IngestAsync(SpecScenario.Define(spec => spec.WithOperation("v2.health.get")));
+        var document = await IngestAsync(SpecScenario.Define(spec => spec.WithOperation("health.get")));
         var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
         {
             ["health"] = RootGroup() with
@@ -1498,7 +1498,7 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(groups)));
 
         await Assert
@@ -1513,8 +1513,8 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Refuse_Internal_Raw_Emission_On_A_Group_Without_Selected_Operations()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.health.get")
-            .WithOperation("v2.pty.get", path: "/api/pty/{ptyID}", configure: operation => operation
+            .WithOperation("health.get")
+            .WithOperation("pty.get", path: "/api/pty/{ptyID}", configure: operation => operation
                 .Parameter("ptyID", "path", schema => schema.Type("string"), required: true))));
         var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
         {
@@ -1525,7 +1525,7 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(groups)));
 
         await Assert
@@ -1542,14 +1542,14 @@ public sealed class SpecBinderTests
     {
         var plan = await BindTransportOwnedScenarioAsync();
 
-        await Assert.That(plan.SelectedOperationIds.Single()).IsEqualTo("v2.health.get");
+        await Assert.That(plan.SelectedOperationIds.Single()).IsEqualTo("health.get");
     }
 
     [Test]
     public async Task Bind_Should_Refuse_A_Transport_Owned_Fingerprint_Mismatch()
     {
         var baseline = await IngestAsync(TransportOwnedScenario());
-        var baselineOperation = baseline.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
+        var baselineOperation = baseline.Operations.Single(static candidate => candidate.OperationId == "pty.connect");
         var staleHash = TransportOwnedFingerprint.ComputeSha256(baselineOperation);
 
         var reshaped = await IngestAsync(TransportOwnedScenario(operation => operation
@@ -1557,12 +1557,12 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             reshaped,
-            Selection("v2.health.get"),
-            Curation(Groups("health", RootGroup()), transportOwned: [TransportOwned("v2.pty.connect", staleHash)])));
+            Selection("health.get"),
+            Curation(Groups("health", RootGroup()), transportOwned: [TransportOwned("pty.connect", staleHash)])));
 
         await Assert
             .That(exception.Errors.Any(error => error.Category == BindingErrorCategory.Curation
-                                               && error.Subject == "v2.pty.connect"
+                                               && error.Subject == "pty.connect"
                                                && error.Problem.Contains("no longer matches", StringComparison.Ordinal)
                                                && error.Problem.Contains(staleHash, StringComparison.Ordinal)))
             .IsTrue();
@@ -1571,16 +1571,16 @@ public sealed class SpecBinderTests
     [Test]
     public async Task Bind_Should_Refuse_A_Transport_Owned_Row_For_An_Unknown_Operation()
     {
-        var document = await IngestAsync(SpecScenario.Define(spec => spec.WithOperation("v2.health.get")));
+        var document = await IngestAsync(SpecScenario.Define(spec => spec.WithOperation("health.get")));
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
-            Curation(Groups("health", RootGroup()), transportOwned: [TransportOwned("v2.pty.connect", new string('0', 64))])));
+            Selection("health.get"),
+            Curation(Groups("health", RootGroup()), transportOwned: [TransportOwned("pty.connect", new string('0', 64))])));
 
         await Assert
             .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
-                                                       && error.Subject == "v2.pty.connect"
+                                                       && error.Subject == "pty.connect"
                                                        && error.Problem.Contains("does not exist in the spec", StringComparison.Ordinal)))
             .IsTrue();
     }
@@ -1589,17 +1589,17 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Refuse_A_Transport_Owned_Row_Without_A_Reason()
     {
         var document = await IngestAsync(TransportOwnedScenario());
-        var operation = document.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
+        var operation = document.Operations.Single(static candidate => candidate.OperationId == "pty.connect");
         var hash = TransportOwnedFingerprint.ComputeSha256(operation);
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
-            Curation(Groups("health", RootGroup()), transportOwned: [TransportOwned("v2.pty.connect", hash, reason: " ")])));
+            Selection("health.get"),
+            Curation(Groups("health", RootGroup()), transportOwned: [TransportOwned("pty.connect", hash, reason: " ")])));
 
         await Assert
             .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
-                                                       && error.Subject == "v2.pty.connect"
+                                                       && error.Subject == "pty.connect"
                                                        && error.Problem.Contains("must declare a reason", StringComparison.Ordinal)))
             .IsTrue();
     }
@@ -1611,14 +1611,14 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
-            Curation(Groups("health", RootGroup()), transportOwned: [TransportOwned("v2.pty.connect", "not-a-hash")])));
+            Selection("health.get"),
+            Curation(Groups("health", RootGroup()), transportOwned: [TransportOwned("pty.connect", "not-a-hash")])));
 
         // A malformed hash must yield exactly one error: the hex-shape refusal, not a second
         // spurious "no longer matches" error from comparing the malformed value against a
         // freshly computed fingerprint.
         var errors = exception.Errors
-            .Where(error => error.Category == BindingErrorCategory.Curation && error.Subject == "v2.pty.connect")
+            .Where(error => error.Category == BindingErrorCategory.Curation && error.Subject == "pty.connect")
             .ToArray();
         await Assert.That(errors.Length).IsEqualTo(1);
         await Assert.That(errors[0].Problem).Contains("64 lowercase hex", StringComparison.Ordinal);
@@ -1628,19 +1628,19 @@ public sealed class SpecBinderTests
     public async Task Bind_Should_Refuse_A_Duplicated_Transport_Owned_Row()
     {
         var document = await IngestAsync(TransportOwnedScenario());
-        var operation = document.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
+        var operation = document.Operations.Single(static candidate => candidate.OperationId == "pty.connect");
         var hash = TransportOwnedFingerprint.ComputeSha256(operation);
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(
                 Groups("health", RootGroup()),
-                transportOwned: [TransportOwned("v2.pty.connect", hash), TransportOwned("v2.pty.connect", hash)])));
+                transportOwned: [TransportOwned("pty.connect", hash), TransportOwned("pty.connect", hash)])));
 
         await Assert
             .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
-                                                       && error.Subject == "v2.pty.connect"
+                                                       && error.Subject == "pty.connect"
                                                        && error.Problem.Contains("duplicated", StringComparison.Ordinal)))
             .IsTrue();
     }
@@ -1651,14 +1651,14 @@ public sealed class SpecBinderTests
         var plan = await BindTransportOwnedScenarioAsync();
 
         await Assert.That(plan.PendingOperations).IsEmpty();
-        await Assert.That(plan.TransportOwnedOperationIds.SequenceEqual(["v2.pty.connect"], StringComparer.Ordinal)).IsTrue();
+        await Assert.That(plan.TransportOwnedOperationIds.SequenceEqual(["pty.connect"], StringComparer.Ordinal)).IsTrue();
     }
 
     [Test]
     public async Task Bind_Should_Refuse_A_Transport_Owned_Operation_That_Is_Also_Selected()
     {
         var document = await IngestAsync(TransportOwnedScenario());
-        var operation = document.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
+        var operation = document.Operations.Single(static candidate => candidate.OperationId == "pty.connect");
         var hash = TransportOwnedFingerprint.ComputeSha256(operation);
         var groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
         {
@@ -1668,12 +1668,12 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get", "v2.pty.connect"),
-            Curation(groups, transportOwned: [TransportOwned("v2.pty.connect", hash)])));
+            Selection("health.get", "pty.connect"),
+            Curation(groups, transportOwned: [TransportOwned("pty.connect", hash)])));
 
         await Assert
             .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
-                                                       && error.Subject == "v2.pty.connect"
+                                                       && error.Subject == "pty.connect"
                                                        && error.Problem.Contains("transport-owned operation cannot be selected", StringComparison.Ordinal)))
             .IsTrue();
     }
@@ -1683,16 +1683,16 @@ public sealed class SpecBinderTests
     private static async Task<EmitPlan> BindTransportOwnedScenarioAsync()
     {
         var document = await IngestAsync(TransportOwnedScenario());
-        var operation = document.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
+        var operation = document.Operations.Single(static candidate => candidate.OperationId == "pty.connect");
         var hash = TransportOwnedFingerprint.ComputeSha256(operation);
 
         return new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
-            Curation(Groups("health", RootGroup()), transportOwned: [TransportOwned("v2.pty.connect", hash)]));
+            Selection("health.get"),
+            Curation(Groups("health", RootGroup()), transportOwned: [TransportOwned("pty.connect", hash)]));
     }
 
-    /// <summary>A miniature stand-in for <c>v2.pty.connect</c>'s real shape (Task 4 brief): a path
+    /// <summary>A miniature stand-in for <c>pty.connect</c>'s real shape (Task 4 brief): a path
     /// parameter plus four query parameters, WebSocket-marked, alongside a selected root operation
     /// so <see cref="OperationSelection"/> is never empty.</summary>
     private static SpecScenario TransportOwnedScenario(Action<OperationBuilder>? mutate = null) =>
@@ -1700,7 +1700,7 @@ public sealed class SpecBinderTests
             .WithSchema("TransportOwnedScenarioHealth", schema => schema
                 .Type("object")
                 .Property("healthy", property => property.Type("boolean"), required: true))
-            .WithOperation("v2.pty.connect", path: "/api/pty/{ptyID}/connect", configure: operation =>
+            .WithOperation("pty.connect", path: "/api/pty/{ptyID}/connect", configure: operation =>
             {
                 operation
                     .Parameter("ptyID", "path", schema => schema.Type("string"), required: true)
@@ -1711,7 +1711,7 @@ public sealed class SpecBinderTests
                     .Extension("x-websocket", "true");
                 mutate?.Invoke(operation);
             })
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("TransportOwnedScenarioHealth"))));
 
     [Test]
@@ -1721,12 +1721,12 @@ public sealed class SpecBinderTests
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
-            Curation(Groups("health", RootGroup()), declined: [Declined("v2.widget.tail")]));
+            Selection("health.get"),
+            Curation(Groups("health", RootGroup()), declined: [Declined("widget.tail")]));
 
         await Assert.That(plan.PendingOperations).IsEmpty();
         var declined = plan.DeclinedOperations.Single();
-        await Assert.That(declined.OperationId).IsEqualTo("v2.widget.tail");
+        await Assert.That(declined.OperationId).IsEqualTo("widget.tail");
         await Assert.That(declined.Reason).Contains("maintainer", StringComparison.Ordinal);
     }
 
@@ -1737,12 +1737,12 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
-            Curation(Groups("health", RootGroup()), declined: [Declined("v2.health.get"), Declined("v2.widget.tail")])));
+            Selection("health.get"),
+            Curation(Groups("health", RootGroup()), declined: [Declined("health.get"), Declined("widget.tail")])));
 
         await Assert
             .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
-                                                       && error.Subject == "v2.health.get"
+                                                       && error.Subject == "health.get"
                                                        && error.Problem.Contains("declined operation cannot be selected", StringComparison.Ordinal)))
             .IsTrue();
     }
@@ -1756,12 +1756,12 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
-            Curation(Groups("health", RootGroup()), declined: [Declined("v2.widget.tail"), Declined("v2.gadget.gone")])));
+            Selection("health.get"),
+            Curation(Groups("health", RootGroup()), declined: [Declined("widget.tail"), Declined("gadget.gone")])));
 
         await Assert
             .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
-                                                       && error.Subject == "v2.gadget.gone"
+                                                       && error.Subject == "gadget.gone"
                                                        && error.Problem.Contains("does not exist in the spec", StringComparison.Ordinal)))
             .IsTrue();
     }
@@ -1773,12 +1773,12 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
-            Curation(Groups("health", RootGroup()), declined: [Declined("v2.widget.tail", reason: " ")])));
+            Selection("health.get"),
+            Curation(Groups("health", RootGroup()), declined: [Declined("widget.tail", reason: " ")])));
 
         await Assert
             .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
-                                                       && error.Subject == "v2.widget.tail"
+                                                       && error.Subject == "widget.tail"
                                                        && error.Problem.Contains("must declare a reason", StringComparison.Ordinal)))
             .IsTrue();
     }
@@ -1790,12 +1790,12 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
-            Curation(Groups("health", RootGroup()), declined: [Declined("v2.widget.tail"), Declined("v2.widget.tail")])));
+            Selection("health.get"),
+            Curation(Groups("health", RootGroup()), declined: [Declined("widget.tail"), Declined("widget.tail")])));
 
         await Assert
             .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
-                                                       && error.Subject == "v2.widget.tail"
+                                                       && error.Subject == "widget.tail"
                                                        && error.Problem.Contains("duplicated", StringComparison.Ordinal)))
             .IsTrue();
     }
@@ -1806,20 +1806,20 @@ public sealed class SpecBinderTests
         // Two admission states claiming one operation would double-count it in the marker and leave
         // the reader without a single answer to "why is this operation not generated?".
         var document = await IngestAsync(TransportOwnedScenario());
-        var operation = document.Operations.Single(static candidate => candidate.OperationId == "v2.pty.connect");
+        var operation = document.Operations.Single(static candidate => candidate.OperationId == "pty.connect");
         var hash = TransportOwnedFingerprint.ComputeSha256(operation);
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(
                 Groups("health", RootGroup()),
-                transportOwned: [TransportOwned("v2.pty.connect", hash)],
-                declined: [Declined("v2.pty.connect")])));
+                transportOwned: [TransportOwned("pty.connect", hash)],
+                declined: [Declined("pty.connect")])));
 
         await Assert
             .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Curation
-                                                       && error.Subject == "v2.pty.connect"
+                                                       && error.Subject == "pty.connect"
                                                        && error.Problem.Contains("cannot also be transport-owned", StringComparison.Ordinal)))
             .IsTrue();
     }
@@ -1831,16 +1831,16 @@ public sealed class SpecBinderTests
             .WithSchema("DeclinedScenarioHealth", schema => schema
                 .Type("object")
                 .Property("healthy", property => property.Type("boolean"), required: true))
-            .WithOperation("v2.widget.tail", path: "/api/widget/*", configure: operation => operation
+            .WithOperation("widget.tail", path: "/api/widget/*", configure: operation => operation
                 .Extension("x-websocket", "true"))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("DeclinedScenarioHealth"))));
 
     [Test]
     public async Task Ingest_Should_Refuse_A_Repeated_Path_Token()
     {
         var scenario = SpecScenario.Define(spec => spec
-            .WithOperation("v2.health.get", path: "/api/{id}/echo/{id}", configure: operation => operation
+            .WithOperation("health.get", path: "/api/{id}/echo/{id}", configure: operation => operation
                 .Parameter("id", "path", schema => schema.Type("string"), required: true)));
 
         var exception = await Assert
@@ -1860,7 +1860,7 @@ public sealed class SpecBinderTests
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.gadget.get"),
+            Selection("gadget.get"),
             GadgetCuration(Alias("GadgetError1", "GadgetError")));
 
         var gadget = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
@@ -1884,7 +1884,7 @@ public sealed class SpecBinderTests
     {
         var document = await IngestAsync(DuplicateTagScenario(duplicateName: "GadgetError_1"));
 
-        var plan = new BindingTestHost().Bind(document, Selection("v2.gadget.get"), GadgetCuration());
+        var plan = new BindingTestHost().Bind(document, Selection("gadget.get"), GadgetCuration());
 
         var gadget = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         var status = gadget.ErrorMap.Statuses.Single(static entry => entry.StatusCode == 400);
@@ -1933,7 +1933,7 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.gadget.get"),
+            Selection("gadget.get"),
             GadgetCuration()));
 
         await Assert
@@ -2000,7 +2000,7 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.gadget.get"),
+            Selection("gadget.get"),
             GadgetCuration(Alias("GadgetError2", "GadgetError1"), Alias("GadgetError1", "GadgetError"))));
 
         await Assert
@@ -2016,7 +2016,7 @@ public sealed class SpecBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.gadget.get"),
+            Selection("gadget.get"),
             GadgetCuration(Alias("GadgetError1", "GadgetError"), Alias("GadgetError1", "GadgetError"))));
 
         await Assert
@@ -2058,7 +2058,7 @@ public sealed class SpecBinderTests
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
             {
                 ["health"] = RootGroup(),
@@ -2099,7 +2099,7 @@ public sealed class SpecBinderTests
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
             {
                 ["health"] = RootGroup(),
@@ -2138,12 +2138,12 @@ public sealed class SpecBinderTests
             .WithSchema("Outer", static schema => schema.AnyOf(
                 static alpha => alpha.Ref("Alpha"),
                 static wrap => wrap.Ref("Wrap")))
-            .WithOperation("v2.health.get", configure: static operation => operation
+            .WithOperation("health.get", configure: static operation => operation
                 .Response(200, "application/json", static schema => schema.Ref("Outer")))));
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
             {
                 ["health"] = RootGroup(),
@@ -2239,7 +2239,7 @@ public sealed class SpecBinderTests
                 static branch => branch.Ref("Accepted"),
                 static branch => branch.Ref("Rejected"),
                 static branch => branch.Ref("RpcEvent")))
-            .WithOperation("v2.health.get", configure: static operation => operation
+            .WithOperation("health.get", configure: static operation => operation
                 .Response(200, "application/json", static schema => schema.Ref("Event")))));
 
         await Assert
@@ -2268,7 +2268,7 @@ public sealed class SpecBinderTests
             .WithSchema("Outer", static schema => schema.AnyOf(
                 static alpha => alpha.Ref("Alpha"),
                 static wrap => wrap.Ref("Wrap")))
-            .WithOperation("v2.health.get", configure: static operation => operation
+            .WithOperation("health.get", configure: static operation => operation
                 .Response(200, "application/json", static schema => schema.Ref("Outer")))));
 
         await Assert
@@ -2311,7 +2311,7 @@ public sealed class SpecBinderTests
                     static branch => branch.Ref("Created"),
                     static branch => branch.Ref("Deleted"),
                     static branch => branch.Ref("RpcEvent")))
-                .WithOperation("v2.health.get", configure: static operation => operation
+                .WithOperation("health.get", configure: static operation => operation
                     .Response(200, "application/json", static schema => schema.Ref("Event")));
             extra?.Invoke(spec);
         });
@@ -2335,7 +2335,7 @@ public sealed class SpecBinderTests
         {
             _ = new BindingTestHost().Bind(
                 document,
-                Selection("v2.health.get"),
+                Selection("health.get"),
                 Curation(new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
                 {
                     ["health"] = RootGroup(),
@@ -2353,7 +2353,7 @@ public sealed class SpecBinderTests
     {
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.gadget.get"),
+            Selection("gadget.get"),
             GadgetCuration(alias)));
 
         await Assert
@@ -2377,7 +2377,7 @@ public sealed class SpecBinderTests
                 .Property("_tag", property => property.Type("string").Enum("GoneError"), required: true)
                 .Property("message", property => property.Type("string"), required: true))
             .WithSchema("WorkError", second)
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo"))
                 .Response(400, "application/json", schema => schema.Ref("WorkError"))
                 .Response(404, "application/json", schema => schema.Ref("GoneError"))));
@@ -2395,7 +2395,7 @@ public sealed class SpecBinderTests
             .WithSchema("GadgetError", DefaultDuplicate)
             .WithSchema("GadgetError_1", DefaultDuplicate)
             .WithSchema("GadgetErrorAlt", DefaultDuplicate)
-            .WithOperation("v2.gadget.get", path: "/api/gadget", configure: static operation => operation
+            .WithOperation("gadget.get", path: "/api/gadget", configure: static operation => operation
                 .Response(200, "application/json", static schema => schema.Ref("GadgetInfo"))
                 .Response(400, "application/json", static schema => schema.AnyOf(
                     static branch => branch.Ref("GadgetError_1"),
@@ -2414,7 +2414,7 @@ public sealed class SpecBinderTests
                 .Property("id", property => property.Type("string"), required: true))
             .WithSchema("GadgetError", DefaultDuplicate)
             .WithSchema(duplicateName, duplicate)
-            .WithOperation("v2.gadget.get", path: "/api/gadget", configure: operation => operation
+            .WithOperation("gadget.get", path: "/api/gadget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("GadgetInfo"))
                 .Response(400, "application/json", schema => schema.AnyOf(
                     branch => branch.Ref(duplicateName),

@@ -21,17 +21,21 @@ namespace OpenCode.Sdk.Tools.Generator.Binding;
 /// the candidate set shrinks to a fixpoint: a refused duplicate can break a pair that only matched
 /// through it, and every survivor is <see cref="SchemaNodeComparer.DeepEquals"/> under the map the
 /// survivors themselves form.
+/// Non-equivalent candidates require explicit name curation to remain distinct; the binder's
+/// ordinary curation and naming checks validate those rows after this policy resolves aliases. A
+/// row naming a candidate that folds is refused as redundant.
 /// </remarks>
 internal sealed class StabilizeDuplicatePolicy
 {
     private readonly StringComparer _comparer = StringComparer.Ordinal;
 
-    /// <summary>Resolves the implicit alias set, reporting every refused duplicate by both keys.</summary>
+    /// <summary>Resolves aliases and reports non-equivalent candidates without explicit names.</summary>
     public StabilizeDuplicateCollapse Resolve(SpecDocument document, ReachableSchemaSet reachable,
-        BindingErrorCollector errors)
+        IReadOnlyList<SchemaNameCuration> schemaNames, BindingErrorCollector errors)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(reachable);
+        ArgumentNullException.ThrowIfNull(schemaNames);
         ArgumentNullException.ThrowIfNull(errors);
 
         var candidates = CollectCandidates(document, reachable);
@@ -40,12 +44,38 @@ internal sealed class StabilizeDuplicatePolicy
             return StabilizeDuplicateCollapse.Empty;
         }
 
+        var explicitlyNamed = schemaNames.Select(static row => row.Schema).ToHashSet(_comparer);
+        var responseRoots = reachable.ResponseRootKeys.ToHashSet(_comparer);
         foreach (var (schema, baseKey) in ReduceToFixpoint(document, candidates))
         {
+            // A reason-bearing name can preserve a distinct shape. The ordinary curation
+            // and name-resolution walls still validate the row and reject collisions.
+            if (explicitlyNamed.Contains(schema)
+                && !responseRoots.Contains(schema)
+                && SchemaNameResolver.IsNominal(document.Schemas[schema], document.Schemas))
+            {
+                continue;
+            }
+
             errors.Add(
                 BindingErrorCategory.Schema,
                 schema,
                 $"stabilize duplicate '{schema}' is not structurally identical to its base '{baseKey}'");
+        }
+
+        // A row that names a candidate the collapse folds distinguishes nothing any more: the
+        // refresh that made the pair equivalent is the moment to retire it, so it is refused
+        // rather than carried along silently (the schemaAliases validator treats a redundant
+        // alias row the same way).
+        foreach (var (schema, baseKey) in candidates.OrderBy(static pair => pair.Key, _comparer))
+        {
+            if (explicitlyNamed.Contains(schema))
+            {
+                errors.Add(
+                    BindingErrorCategory.Curation,
+                    schema,
+                    $"stabilize duplicate '{schema}' folds into '{baseKey}' mechanically, so its schemaNames row is redundant; remove the row");
+            }
         }
 
         return new StabilizeDuplicateCollapse { Aliases = candidates, };

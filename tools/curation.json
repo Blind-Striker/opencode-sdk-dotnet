@@ -5,10 +5,6 @@
       "clientName": "Events",
       "reason": "The global event bus is its own family surface; no per-id operations exist."
     },
-    "health": {
-      "placement": "root",
-      "reason": "A single health probe belongs on the root client, not behind a one-method container."
-    },
     "session": {
       "placement": "client",
       "clientName": "Sessions",
@@ -16,19 +12,12 @@
       "handleParameter": "sessionID",
       "reason": "The session is the SDK's primary working object: two dozen operations chain on one sessionID (ADR-0019)."
     },
-    "message": {
-      "placement": "client",
-      "clientName": "Sessions",
-      "handleName": "SessionClient",
-      "handleParameter": "sessionID",
-      "reason": "Message operations are session-scoped and ride the session working object (ADR-0019)."
-    },
     "shell": {
       "placement": "client",
       "clientName": "Shells",
       "handleName": "ShellClient",
       "handleParameter": "id",
-      "reason": "A shell is a live process worked over its id: get, timeout, remove, and the pending output stream (ADR-0019)."
+      "reason": "A shell is a live process worked over its id: get, remove and output share the shell working object (ADR-0019)."
     },
     "integration": {
       "placement": "client",
@@ -40,9 +29,7 @@
     "mcp": {
       "placement": "client",
       "clientName": "McpServers",
-      "handleName": "McpServerClient",
-      "handleParameter": "server",
-      "reason": "The full pinned surface works one server by name - add, remove, connect, disconnect - a lifecycle, not a lookup (ADR-0019)."
+      "reason": "MCP inventory and resource catalog form a flat client; experimental lifecycle operations take the server identifier explicitly on ExperimentalClient."
     },
     "pty": {
       "placement": "client",
@@ -98,12 +85,7 @@
     "experimental": {
       "placement": "client",
       "clientName": "Experimental",
-      "reason": "The experimental surface carries no per-id operations; a mass-noun container flags its stability."
-    },
-    "generate": {
-      "placement": "client",
-      "clientName": "Generation",
-      "reason": "The group name is a verb; 'Generates' is not a reviewed .NET name, the mass noun is (ADR-0019)."
+      "reason": "Experimental operations share a flat client that flags their stability; route identifiers are explicit method arguments rather than session handles."
     },
     "model": {
       "placement": "client",
@@ -118,7 +100,7 @@
     "project": {
       "placement": "client",
       "clientName": "Projects",
-      "reason": "Update is a single-shot admin action on a project id, not a chained working object; the id rides as an argument, exactly like credential (ADR-0019). The list and current lookups carry no per-id operation of their own."
+      "reason": "Project update is a single-shot admin action with an explicit id; list has no per-id operation (ADR-0019)."
     },
     "reference": {
       "placement": "client",
@@ -137,17 +119,12 @@
     },
     "location": {
       "placement": "root",
-      "reason": "Like health, location resolution is a cross-cutting utility every call can reach directly, not a domain-scoped operation; it belongs on the root client, not behind a one-method container."
+      "reason": "Location resolution is a cross-cutting utility and belongs on the root client."
     },
     "server": {
       "placement": "client",
       "clientName": "Server",
-      "reason": "The server tag is its own domain group, exactly like every other family in this profile; root placement is reserved for the cross-cutting utility probes (health, location), not domain-scoped ones. A flat singular-noun client also leaves room for upstream to grow this group later without a placement change."
-    },
-    "workspace": {
-      "placement": "client",
-      "clientName": "Workspaces",
-      "reason": "Create and destroy are two single-shot admin actions on a workspace id, not a chained working object; the id rides as an argument, exactly like credential (ADR-0019)."
+      "reason": "Status and server lifecycle operations form one server-scoped surface; the singular client exposes status as GetStatusAsync."
     },
     "worktree": {
       "placement": "client",
@@ -157,7 +134,7 @@
     "form": {
       "placement": "client",
       "clientName": "Forms",
-      "reason": "v2.form.request.list is the family's entire pinned surface (unlike v2.session.form.*, a distinct group that rides the session working object): a bare GET with no id in its path, so it carries no per-id operations, ever, and a flat container holds its one call (ADR-0019)."
+      "reason": "form.list is the family's entire pinned surface (unlike session.form.*, a distinct group that rides the session working object): a bare GET with no id in its path, so it carries no per-id operations, ever, and a flat container holds its one call (ADR-0019)."
     },
     "fs": {
       "placement": "client",
@@ -167,194 +144,239 @@
     "rpc": {
       "placement": "client",
       "clientName": "Rpc",
-      "reason": "v2.rpc.call is the family's only pinned operation and its two route values (rpcID, method) ride as arguments, exactly like agent.get and provider.get (ADR-0019); the initialism does not pluralize, so the flat container keeps the domain name, exactly like vcs."
+      "reason": "rpc.call is the family's only pinned operation and its two route values (rpcID, method) ride as arguments, exactly like agent.get and provider.get (ADR-0019); the initialism does not pluralize, so the flat container keeps the domain name, exactly like vcs."
     },
     "config": {
       "placement": "client",
       "clientName": "Config",
-      "reason": "Preferences read and patch and the shell list carry no per-id operations; a mass-noun container names the configuration surface. config.get stays declined at the ADR-0016 structural-union wall and is not part of the emitted family."
+      "reason": "config.shells is the family's entire selected surface and carries no per-id operations; configuration reading (config.get) remains declined at the structural-union wall, and the configuration patch is experimental.config.update on the experimental family."
     }
   },
   "operationIdentities": [
     {
       "operationId": "server.experimental.persistentPty.connectToken",
-      "identity": "v2.persistentPty.connectToken",
-      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
+      "identity": "persistentPty.connectToken",
+      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives with its intended group/action identity."
     },
     {
       "operationId": "server.experimental.persistentPty.create",
-      "identity": "v2.persistentPty.create",
-      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
+      "identity": "persistentPty.create",
+      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives with its intended group/action identity."
     },
     {
       "operationId": "server.experimental.persistentPty.get",
-      "identity": "v2.persistentPty.get",
-      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
+      "identity": "persistentPty.get",
+      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives with its intended group/action identity."
     },
     {
       "operationId": "server.experimental.persistentPty.handoff",
-      "identity": "v2.persistentPty.handoff",
-      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
+      "identity": "persistentPty.handoff",
+      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives with its intended group/action identity."
     },
     {
       "operationId": "server.experimental.persistentPty.list",
-      "identity": "v2.persistentPty.list",
-      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
+      "identity": "persistentPty.list",
+      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives with its intended group/action identity."
     },
     {
       "operationId": "server.experimental.persistentPty.read",
-      "identity": "v2.persistentPty.read",
-      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
+      "identity": "persistentPty.read",
+      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives with its intended group/action identity."
     },
     {
       "operationId": "server.experimental.persistentPty.remove",
-      "identity": "v2.persistentPty.remove",
-      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
+      "identity": "persistentPty.remove",
+      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives with its intended group/action identity."
     },
     {
       "operationId": "server.experimental.persistentPty.shutdown",
-      "identity": "v2.persistentPty.shutdown",
-      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
+      "identity": "persistentPty.shutdown",
+      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives with its intended group/action identity."
     },
     {
       "operationId": "server.experimental.persistentPty.snapshot",
-      "identity": "v2.persistentPty.snapshot",
-      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
+      "identity": "persistentPty.snapshot",
+      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives with its intended group/action identity."
     },
     {
       "operationId": "server.experimental.persistentPty.update",
-      "identity": "v2.persistentPty.update",
-      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives v2-prefixed."
+      "identity": "persistentPty.update",
+      "reason": "Upstream omits the per-endpoint identifier annotation, leaking the internal group id into the document (doc 21 T3; the upstream report is parked in the roadmap). Retires when the id arrives with its intended group/action identity."
     }
   ],
   "operationNames": [
     {
-      "operationId": "v2.event.subscribe",
+      "operationId": "event.subscribe",
       "methodName": "SubscribeAsync",
       "reason": "The reviewed public surface names the global event subscription directly."
     },
     {
-      "operationId": "v2.mcp.list",
+      "operationId": "mcp.list",
       "methodName": "ListMcpServersAsync",
       "reason": "The upstream domain calls these entries MCP servers; the mechanical group plural 'Mcps' is not part of the reviewed .NET domain name."
     },
     {
-      "operationId": "v2.mcp.remove",
+      "operationId": "experimental.mcp.remove",
       "methodName": "RemoveMcpServerAsync",
       "reason": "The upstream domain calls these entries MCP servers; the mechanical group singular 'Mcp' is not part of the reviewed .NET domain name."
     },
     {
-      "operationId": "v2.credential.update",
+      "operationId": "credential.update",
       "methodName": "UpdateCredentialAsync",
       "reason": "The operation's own verb is update; the mechanical PATCH prefix is transport detail, not part of the reviewed surface."
     },
     {
-      "operationId": "v2.permission.request.list",
+      "operationId": "permission.request.list",
       "methodName": "ListRequestsAsync",
       "reason": "List methods name their subject in the plural across the reviewed surface; the mechanical singular reads as a different operation."
     },
     {
-      "operationId": "v2.pty.list",
+      "operationId": "pty.list",
       "methodName": "ListPtysAsync",
       "reason": "The group singular 'pty' does not pluralize naively; the reviewed .NET domain name for a set of pseudo-terminals is 'Ptys'."
     },
     {
-      "operationId": "v2.websearch.query",
+      "operationId": "websearch.query",
       "methodName": "QueryAsync",
       "reason": "The websearch container already names the domain; the mechanical POST prefix is transport detail, not part of the reviewed surface."
     },
     {
-      "operationId": "v2.generate.text",
+      "operationId": "experimental.generate.text",
       "methodName": "GenerateTextAsync",
       "reason": "The group name is itself the verb; the mechanical POST prefix is transport detail, not part of the reviewed surface."
     },
     {
-      "operationId": "v2.debug.location.evict",
+      "operationId": "debug.location.evict",
       "methodName": "EvictLocationAsync",
       "reason": "The operation's own verb is evict; the mechanical DELETE prefix is transport detail, not part of the reviewed surface."
     },
     {
-      "operationId": "v2.experimental.integration.wellknown.add",
+      "operationId": "experimental.integration.wellknown.add",
       "methodName": "AddIntegrationWellknownAsync",
       "reason": "The operation's own verb is add; the mechanical POST prefix is transport detail, not part of the reviewed surface."
     },
     {
-      "operationId": "v2.session.form.list",
+      "operationId": "session.form.list",
       "methodName": "ListFormsAsync",
-      "reason": "List methods name their subject in the plural across the reviewed surface (v2.mcp.list, v2.pty.list, v2.permission.request.list); the mechanical singular 'Form' would misleadingly read as returning one form instead of the session's pending forms. v2.session.form.create is now selected in this same client family (no-wall sweep batch B): its own single-object payload binds independently as SessionFormCreateResponse.Form under CreateFormAsync, so the two read distinctly (one form created vs. the session's pending forms listed) with no name or payload collision."
+      "reason": "List methods name their subject in the plural across the reviewed surface (mcp.list, pty.list, permission.request.list); the mechanical singular 'Form' would misleadingly read as returning one form instead of the session's pending forms. session.form.create is now selected in this same client family (no-wall sweep batch B): its own single-object payload binds independently as SessionFormCreateResponse.Form under CreateFormAsync, so the two read distinctly (one form created vs. the session's pending forms listed) with no name or payload collision."
     },
     {
-      "operationId": "v2.session.permission.list",
+      "operationId": "session.permission.list",
       "methodName": "ListRequestsAsync",
-      "reason": "List methods name their subject in the plural across the reviewed surface, exactly like v2.permission.request.list; the mechanical singular 'Permission' also already names SessionPermissionCreateResponse's single-object payload in this same client family, so it would misleadingly read as returning one permission instead of the session's pending permission requests."
+      "reason": "List methods name their subject in the plural across the reviewed surface, exactly like permission.request.list; the mechanical singular 'Permission' also already names SessionPermissionCreateResponse's single-object payload in this same client family, so it would misleadingly read as returning one permission instead of the session's pending permission requests."
     },
     {
-      "operationId": "v2.debug.location.list",
+      "operationId": "debug.location.list",
       "methodName": "ListLocationsAsync",
-      "reason": "The mechanical payload name 'Location' collides with ReservedNamePolicy.PayloadNames (the response-spine name every DataLocation envelope's sibling reserves), forcing a payload rename regardless; the operation returns a list, so 'Locations' is both the collision fix and the accurate shape. The method name is renamed in lockstep to the same plural, following the reviewed surface's uniform list-verb-pluralizes-its-subject convention (v2.mcp.list, v2.pty.list, v2.permission.request.list, v2.session.form.list, v2.session.permission.list) so it does not read as returning a single location."
+      "reason": "The mechanical payload name 'Location' collides with ReservedNamePolicy.PayloadNames (the response-spine name every DataLocation envelope's sibling reserves), forcing a payload rename regardless; the operation returns a list, so 'Locations' is both the collision fix and the accurate shape. The method name is renamed in lockstep to the same plural, following the reviewed surface's uniform list-verb-pluralizes-its-subject convention (mcp.list, pty.list, permission.request.list, session.form.list, session.permission.list) so it does not read as returning a single location."
     },
     {
-      "operationId": "v2.credential.activate",
+      "operationId": "credential.activate",
       "methodName": "ActivateCredentialAsync",
-      "reason": "The operation's own verb is activate; the mechanical POST prefix is transport detail, not part of the reviewed surface, exactly like v2.credential.update's own 'update' verb."
+      "reason": "The operation's own verb is activate; the mechanical POST prefix is transport detail, not part of the reviewed surface, exactly like credential.update's own 'update' verb."
     },
     {
-      "operationId": "v2.form.request.list",
-      "methodName": "ListRequestsAsync",
-      "reason": "List methods name their subject in the plural across the reviewed surface, exactly like v2.permission.request.list and v2.session.permission.list; the mechanical singular 'Request' would misleadingly read as returning one pending form request instead of the full list."
+      "operationId": "form.list",
+      "methodName": "ListFormsAsync",
+      "reason": "List methods name their subject in the plural across the reviewed surface, exactly like session.form.list over the same Form.Info items; the mechanical singular 'Form' would misleadingly read as returning one form instead of the location's pending forms."
     },
     {
-      "operationId": "v2.project.update",
+      "operationId": "project.update",
       "methodName": "UpdateProjectAsync",
-      "reason": "The operation's own verb is update; the mechanical PATCH prefix is transport detail, not part of the reviewed surface, exactly like v2.credential.update's own 'update' verb."
+      "reason": "The operation's own verb is update; the mechanical PATCH prefix is transport detail, not part of the reviewed surface, exactly like credential.update's own 'update' verb."
     },
     {
-      "operationId": "v2.workspace.destroy",
-      "methodName": "DestroyWorkspaceAsync",
-      "reason": "The operation's own verb is destroy; the mechanical DELETE prefix is transport detail, not part of the reviewed surface, exactly like v2.debug.location.evict's own 'evict' verb."
-    },
-    {
-      "operationId": "v2.persistentPty.list",
+      "operationId": "persistentPty.list",
       "methodName": "ListPersistentPtysAsync",
-      "reason": "The group singular 'persistentPty' does not pluralize naively; the reviewed .NET domain name for a set of persistent pseudo-terminals is 'PersistentPtys', exactly like v2.pty.list's 'Ptys'."
+      "reason": "The group singular 'persistentPty' does not pluralize naively; the reviewed .NET domain name for a set of persistent pseudo-terminals is 'PersistentPtys', exactly like pty.list's 'Ptys'."
     },
     {
-      "operationId": "v2.fs.list",
+      "operationId": "fs.list",
       "methodName": "ListEntriesAsync",
-      "reason": "The group singular 'fs' does not pluralize naively, exactly like v2.pty.list; the reviewed subject is the directory's entries."
+      "reason": "The group singular 'fs' does not pluralize naively, exactly like pty.list; the reviewed subject is the directory's entries."
     },
     {
-      "operationId": "v2.fs.find",
+      "operationId": "fs.find",
       "methodName": "FindEntriesAsync",
-      "reason": "The operation's own verb is find; the mechanical GET prefix is transport detail, not part of the reviewed surface, exactly like v2.credential.update's own 'update' verb. The subject is the directory's entries, matching v2.fs.list's reviewed subject in the same client family."
+      "reason": "The operation's own verb is find; the mechanical GET prefix is transport detail, not part of the reviewed surface, exactly like credential.update's own 'update' verb. The subject is the directory's entries, matching fs.list's reviewed subject in the same client family."
     },
     {
-      "operationId": "v2.worktree.refresh",
+      "operationId": "worktree.refresh",
       "methodName": "RefreshWorktreesAsync",
       "reason": "The operation's own verb is refresh; the mechanical POST prefix is transport detail, not part of the reviewed surface. The plural subject matches ListWorktreesAsync in the same location-scoped client family."
     },
     {
-      "operationId": "v2.rpc.call",
+      "operationId": "rpc.call",
       "methodName": "CallAsync",
       "reason": "The RPC container already names the domain; the operation's own verb is call, and the mechanical POST prefix is transport detail."
     },
     {
-      "operationId": "v2.plugin.awaitActivation",
-      "methodName": "AwaitPluginActivationAsync",
-      "reason": "The operation waits for plugin activation; the reviewed name states that completion boundary without the mechanical POST prefix."
-    },
-    {
-      "operationId": "v2.plugin.check",
+      "operationId": "plugin.check",
       "methodName": "CheckPluginUpdatesAsync",
       "reason": "The operation checks plugins for updates; the reviewed name keeps the plugin subject and names the update check rather than the transport verb."
     },
     {
-      "operationId": "v2.plugin.update",
+      "operationId": "plugin.update",
       "methodName": "UpdatePluginsAsync",
       "reason": "The operation updates plugins; the reviewed name keeps the plural plugin subject instead of the mechanical POST prefix."
+    },
+    {
+      "operationId": "server.status",
+      "methodName": "GetStatusAsync",
+      "reason": "The server container already names the subject; this operation reads its current status."
+    },
+    {
+      "operationId": "session.update",
+      "methodName": "UpdateSessionAsync",
+      "reason": "Name the operation action and domain subject directly, without the HTTP verb; list subjects are plural."
+    },
+    {
+      "operationId": "session.inbox.update",
+      "methodName": "UpdateInboxAsync",
+      "reason": "Name the operation action and domain subject directly, without the HTTP verb; list subjects are plural."
+    },
+    {
+      "operationId": "vcs.branch.list",
+      "methodName": "ListBranchesAsync",
+      "reason": "List subjects are plural; name the branch collection directly."
+    },
+    {
+      "operationId": "session.message.list",
+      "methodName": "ListMessagesAsync",
+      "reason": "Name the operation action and domain subject directly, without the HTTP verb; list subjects are plural."
+    },
+    {
+      "operationId": "experimental.config.update",
+      "methodName": "UpdateConfigAsync",
+      "reason": "Name the operation action and domain subject directly, without the HTTP verb; list subjects are plural."
+    },
+    {
+      "operationId": "experimental.mcp.add",
+      "methodName": "AddMcpServerAsync",
+      "reason": "Name the operation action and domain subject directly, without the HTTP verb; list subjects are plural."
+    },
+    {
+      "operationId": "experimental.mcp.connect",
+      "methodName": "ConnectMcpServerAsync",
+      "reason": "Name the operation action and domain subject directly, without the HTTP verb; list subjects are plural."
+    },
+    {
+      "operationId": "experimental.mcp.disconnect",
+      "methodName": "DisconnectMcpServerAsync",
+      "reason": "Name the operation action and domain subject directly, without the HTTP verb; list subjects are plural."
     }
   ],
   "schemaNames": [
+    {
+      "schema": "Session.Message.LocationSwitched#/properties/previous/anyOf/0",
+      "dotnetName": "SessionMessageLocationSwitchedPrevious",
+      "reason": "Name the previous-location object by its domain role; the nullable anyOf branch ordinal is a schema pointer detail."
+    },
+    {
+      "schema": "Session.Inbox.MovePayload_1",
+      "dotnetName": "SessionInboxMoveEventPayload",
+      "reason": "Inbox events and the session log carry Location.Ref with optional workspaceID; the inbox-list MovePayload uses directory-only Location.PublicRef. Preserve these non-equivalent contracts under distinct semantic names."
+    },
     {
       "schema": "V2Event",
       "dotnetName": "IEvent",
@@ -371,14 +393,9 @@
       "reason": "The v2 prefix identifies the selected transport line and is not part of the reviewed .NET domain name."
     },
     {
-      "schema": "Config.PreferencesPatch#/properties/websearch/anyOf/0",
-      "dotnetName": "ConfigPreferencesPatchWebsearch",
-      "reason": "Config.PreferencesPatch.websearch wraps the websearch choice in a nullable anyOf, so the patch-side union is a distinct inline schema from Config.Preferences.websearch and the mechanical name carries the wrapper's branch ordinal (ConfigPreferencesPatchWebsearch0). The ordinal is a pointer artifact, not domain vocabulary; the reviewed name matches the property it patches and parallels ConfigPreferencesWebsearch."
-    },
-    {
       "schema": "Provider.Request",
       "dotnetName": "ProviderRequestOptions",
-      "reason": "The generated operation request records own the '<Subject>Request' names; this model shapes the outbound provider request (settings, headers, body), so it takes the options suffix instead of colliding with v2.provider.get's request record."
+      "reason": "The generated operation request records own the '<Subject>Request' names; this model shapes the outbound provider request (settings, headers, body), so it takes the options suffix instead of colliding with provider.get's request record."
     }
   ],
   "hoistedMemberNames": [
@@ -391,50 +408,53 @@
   ],
   "transportOwned": [
     {
-      "operationId": "v2.pty.connect",
-      "subtreeSha256": "467add4eb0b2979b5095fa071b2bc775453af06d86086822560e6e081f7063b2",
+      "operationId": "pty.connect",
+      "subtreeSha256": "3dd5553b9d0c54d4954475fd394a1cb6601bec4630c37484e60ead650c0dafdc",
       "reason": "The WebSocket session door is hand-written over its own URL/query construction (ADR-0021 Task 5); the operation is never selected into the generation profile, so this fingerprint is the only generation-time check that a spec refresh reshaping method, path, parameters, the x-websocket marker, or declared responses fails loudly instead of drifting silently under the hand-written door."
     },
     {
-      "operationId": "v2.persistentPty.connect",
+      "operationId": "persistentPty.connect",
       "subtreeSha256": "f4469e4e309536f004c116c72894b04b5ed7f0c677f9b8bcbf8c0d4f81c10a17",
       "reason": "The persistent PTY WebSocket session door is hand-written over its own URL/query construction (ADR-0021 pattern, Task 4); the operation is never selected into the generation profile, so this fingerprint is the only generation-time check that a spec refresh reshaping method, path, the six connect queries, the x-websocket marker, or declared responses fails loudly instead of drifting silently under the hand-written door."
     }
   ],
   "declined": [
     {
-      "operationId": "v2.config.get",
+      "operationId": "config.get",
       "reason": "Config.InfoEncoded carries same-token-kind structural unions the ADR-0016 union mechanism cannot distinguish, so the operation does not bind; moving it needs a union mechanism, not a curation row, and the maintainer stood the wall on 2026-08-30."
     },
     {
-      "operationId": "v2.experimental.migration.v1.status",
-      "reason": "The status response is the same class of same-token-kind structural union wall as v2.config.get and does not bind; the maintainer stood the wall on 2026-08-28 and has not reopened it."
+      "operationId": "experimental.migration.v1.status",
+      "reason": "The status response is the same class of same-token-kind structural union wall as config.get and does not bind; the maintainer stood the wall on 2026-08-28 and has not reopened it."
     },
     {
-      "operationId": "v2.fs.read",
+      "operationId": "fs.read",
       "reason": "Upstream declares the route as the framework wildcard '/api/fs/read/*' rather than an OpenAPI path template, so the document gives the generator no path parameter to bind and inventing one is forbidden (ADR-0013); the upstream report is drafted and parked, maintainer 2026-08-30."
     }
   ],
   "envelopePayloadNames": {
-    "v2.debug.location.list": "Locations",
-    "v2.form.request.list": "Requests",
-    "v2.mcp.list": "McpServers",
-    "v2.permission.request.list": "Requests",
-    "v2.persistentPty.list": "PersistentPtys",
-    "v2.pty.list": "Ptys",
-    "v2.vcs.status": "Changes",
-    "v2.location.get": "ResolvedLocation",
-    "v2.session.form.list": "Forms",
-    "v2.session.permission.list": "Requests",
-    "v2.fs.list": "Entries",
-    "v2.fs.find": "Entries",
-    "v2.vcs.diff": "Diffs",
-    "v2.session.diff": "Diffs"
+    "vcs.branch.list": "Branches",
+    "session.message.list": "Messages",
+    "debug.location.list": "Locations",
+    "form.list": "Forms",
+    "mcp.list": "McpServers",
+    "permission.request.list": "Requests",
+    "persistentPty.list": "PersistentPtys",
+    "pty.list": "Ptys",
+    "vcs.status": "Changes",
+    "location.get": "ResolvedLocation",
+    "session.form.list": "Forms",
+    "session.permission.list": "Requests",
+    "fs.list": "Entries",
+    "fs.find": "Entries",
+    "vcs.diff": "Diffs",
+    "session.diff": "Diffs",
+    "server.status": "ServerStatus"
   },
   "schemaAliases": [
     {
-      "schema": "op:v2.event.subscribe#/responses/200/content/text~1event-stream/x-effect-stream/causeSchema/items",
-      "aliasOf": "op:v2.session.log#/responses/200/content/text~1event-stream/x-effect-stream/causeSchema/items",
+      "schema": "op:event.subscribe#/responses/200/content/text~1event-stream/x-effect-stream/causeSchema/items",
+      "aliasOf": "op:session.log#/responses/200/content/text~1event-stream/x-effect-stream/causeSchema/items",
       "reason": "The pinned stream declarations promote structurally identical inline Effect cause unions under operation-scoped graph keys."
     }
   ]

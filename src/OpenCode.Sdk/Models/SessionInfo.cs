@@ -82,12 +82,6 @@ public sealed record SessionInfo
     public string? Title { get; init; }
 
     /// <summary>
-    /// Gets the location value.
-    /// </summary>
-    [JsonPropertyName("location")]
-    public required LocationRef Location { get; init; }
-
-    /// <summary>
     /// Gets the subpath value.
     /// </summary>
     [JsonPropertyName("subpath")]
@@ -114,4 +108,10 @@ public sealed record SessionInfo
     [JsonPropertyName("revert")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public SessionRevert? Revert { get; init; }
+
+    /// <summary>
+    /// Gets the location value.
+    /// </summary>
+    [JsonPropertyName("location")]
+    public required LocationPublicRef Location { get; init; }
 }

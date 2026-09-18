@@ -16,13 +16,6 @@ public sealed record SessionMovePostRequest
     public required string Directory { get; init; }
 
     /// <summary>
-    /// Gets the workspace id value.
-    /// </summary>
-    [JsonPropertyName("workspaceID")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? WorkspaceId { get; init; }
-
-    /// <summary>
     /// Gets the delivery value.
     /// </summary>
     [JsonPropertyName("delivery")]

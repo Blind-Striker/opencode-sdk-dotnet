@@ -87,7 +87,7 @@ public class PaginationBenchmarks : IDisposable
     {
         var session = _session!;
         var count = 0;
-        MessageListRequest? request = null;
+        SessionMessageListRequest? request = null;
         while (true)
         {
             var page = await session.ListMessagesAsync(request).ConfigureAwait(false);
@@ -102,7 +102,7 @@ public class PaginationBenchmarks : IDisposable
                 return count;
             }
 
-            request = new MessageListRequest
+            request = new SessionMessageListRequest
             {
                 Cursor = next,
             };

@@ -89,11 +89,11 @@ public sealed class PtysClientContractTests
 
         _ = await scenario.Client.Ptys.ListPtysAsync(new PtyListRequest
         {
-            Location = new LocationSelector { Directory = "/repo", Workspace = "wrk_1" },
+            Location = new LocationSelector { Directory = "/repo" },
         });
 
         await Assert.That(scenario.Requests.Single().RequestUri!.Query)
-            .IsEqualTo("?location[directory]=%2Frepo&location[workspace]=wrk_1");
+            .IsEqualTo("?location[directory]=%2Frepo");
     }
 
     [Test]
@@ -145,7 +145,7 @@ public sealed class PtysClientContractTests
         using var client = new OpenCodeClient(httpClient, new OpenCodeClientOptions
         {
             Endpoint = ContractScenario.Endpoint,
-            Location = new LocationSelector { Directory = "/amb/dir", Workspace = "amb-ws" },
+            Location = new LocationSelector { Directory = "/amb/dir" },
         });
 
         _ = await client.Ptys.GetPtyClient("pty_100").CreateConnectTokenAsync(
@@ -154,7 +154,7 @@ public sealed class PtysClientContractTests
 
         var request = handler.Requests.Single();
         await Assert.That(request.Headers["x-opencode-directory"]).IsEqualTo("%2Fper%2Fdir");
-        await Assert.That(request.Headers["x-opencode-workspace"]).IsEqualTo("amb-ws");
+        await Assert.That(request.Headers.ContainsKey("x-opencode-workspace")).IsFalse();
         await Assert.That(request.Headers[TicketHeader]).IsEqualTo("1");
     }
 
@@ -297,14 +297,8 @@ public sealed class PtysClientContractTests
     {
     }
 
-    private static LocationInfo MockedLocation => new()
+    private static LocationPublicRef MockedLocation => new()
     {
         Directory = "/repo",
-        Project = new LocationInfoProject
-        {
-            Id = "prj_1",
-            Directory = "/repo",
-            Canonical = "/repo",
-        },
     };
 }

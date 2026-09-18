@@ -1,6 +1,6 @@
 # 🚀 Getting started
 
-Date: 2026-09-08
+Date: 2026-09-17
 
 Install the package, point a client at a server, and make three calls. Ten minutes, and the last
 one talks to a model.
@@ -56,7 +56,7 @@ using var client = new OpenCodeClient(new OpenCodeClientOptions
 | `Endpoint` | `Uri?` | The server's base address. Required. |
 | `Password` | `string?` | The HTTP Basic password. Required for any server the `opencode` CLI started — it always runs with one, generated and printed as `server password <pw>` when you set none. `null` sends no credential at all, which only a server embedded without authentication accepts; an empty or whitespace value is refused at construction. |
 | `Username` | `string` | The Basic username. Defaults to `opencode` — the only username the pinned server accepts — so leave it alone unless upstream changes. |
-| `Location` | `LocationSelector?` | The ambient directory/workspace header values, overridable per call; only operations that resolve location from those headers use them. |
+| `Location` | `LocationSelector?` | The ambient directory header values, overridable per call; only operations that resolve location from those headers use them. |
 
 Session creation selects its location from `SessionCreateRequest.Location`; leaving it unset uses
 the server's working directory. Session listing filters with `SessionListRequest.Directory` or
@@ -78,13 +78,12 @@ straight away rather than on the first call.
 ### Is the server alive?
 
 ```csharp
-var health = await client.GetHealthAsync();
+var status = await client.Server.GetStatusAsync();
 
-Console.WriteLine($"opencode {health.Health.Version} (pid {health.Health.Pid}) healthy: {health.Health.Healthy}");
+Console.WriteLine($"opencode {status.ServerStatus.Version} (pid {status.ServerStatus.Pid})");
 ```
 
-`GetHealthAsync` and `GetLocationAsync` are the only two operations that hang off the root client
-directly. Everything else lives on a family.
+`GetLocationAsync` is the only operation directly on the root client. Status lives on `Server`.
 
 ### Create a session and send a prompt
 
@@ -111,52 +110,33 @@ Console.WriteLine(generated.Generate.Text);
 
 ### Choosing a model
 
-The calls above let the server pick a model. To pick one yourself, the *order* is the part worth
-knowing, because a server that has just answered a health check does not necessarily have a catalog
-yet:
+The calls above let the server pick a model. To pick one yourself, read the current catalog:
 
 ```csharp
-// 1. Health is process liveness. It says nothing at all about the model catalog.
-var health = await client.GetHealthAsync();
-
-// 2. Providers register while the location's plugins activate, and activation is asynchronous.
-//    This is the settle signal; a health probe is not.
-await client.Plugins.AwaitPluginActivationAsync();
-
-// 3. Now the catalog is worth reading.
 var providers = await client.Providers.ListProvidersAsync();
 var models = await client.LanguageModels.ListModelsAsync();
-
 Console.WriteLine($"{providers.Providers.Count} providers, {models.Models.Count} models");
 
-// 4. Listing already filters to enabled models of available providers, so this guards an empty
-//    catalog rather than filtering one.
 var model = models.Models.FirstOrDefault(candidate => candidate.Enabled);
-
 if (model is not null)
 {
-    // 5. A session reference carries the catalog id.
     var created = await client.Sessions.CreateSessionAsync(new SessionCreateRequest
     {
         Title = "picked a model",
         Model = new ModelRef { ProviderId = model.ProviderId, Id = model.Id },
     });
-
     Console.WriteLine($"session {created.Session.Id} on {model.ProviderId}/{model.Id}");
 }
 ```
 
-Three things the types do not tell you:
-
-- **`ModelRef.Id` takes `ModelInfo.Id`, never `ModelInfo.ModelId`.** `Id` is the catalog identity;
-  `ModelId` is the id the provider's own API uses. They hold the same string for most models — which
-  is exactly why the mistake survives a first test and then fails on an aliased one. Upstream's own
-  TUI matches on `ProviderId` plus `Id`.
-- **An empty list right after health is ordinary, not a failure.** Plugins activate asynchronously
-  and providers register as they go, so a list issued too early observes a partial or empty
-  registry. `AwaitPluginActivationAsync` is the wait for it, and it is cheap to call again.
-- **Neither create nor prompt validates the ref.** A wrong `ProviderId`/`Id` pair is accepted by
-  both and surfaces later as a failed turn — there is no typed model error to catch at the call.
+- **`ModelRef.Id` takes `ModelInfo.Id`, never `ModelInfo.ModelId`.** The former is the catalog
+  identity; the latter is the provider's own model id. They can differ for an aliased model.
+- **Catalogs are observations during asynchronous plugin activation.** A successful status call
+  does not make them complete, and the server exposes no activation barrier: when your application
+  expects a particular provider or model, wait for that identity under a caller-owned cancellation
+  deadline (`CONTEXT.md`, Plugin activation).
+- **Neither create nor prompt validates the ref.** A wrong provider/catalog-id pair surfaces later
+  as a failed turn rather than a typed model error at the call.
 
 Every call above resolves its location the same way the rest of the client does: from the client's
 ambient `Location`, or the server's own working directory when you set none. Each request type
@@ -171,14 +151,14 @@ location's default model, whose `Default` payload is legitimately `null` on such
 
 ### Export a session transcript
 
-`GetExportAsync` hands back the session plus every settled message in one `SessionTransferData`,
-and `PostImportAsync` takes that same shape back at a location (answering 409 for an id that
+`Experimental.GetSessionExportAsync` hands back the session plus every settled message in one `SessionTransferData`,
+and `Experimental.PostSessionImportAsync` takes that same shape back at a location (answering 409 for an id that
 already exists):
 
 ```csharp
-var export = await session.GetExportAsync(new SessionExportRequest { Sanitize = QueryBoolean.True });
+var export = await client.Experimental.GetSessionExportAsync(created.Session.Id, new ExperimentalSessionExportRequest { Sanitize = QueryBoolean.True });
 
-Console.WriteLine($"{export.Export.Messages.Count} messages from {export.Export.Info.Id}");
+Console.WriteLine($"{export.SessionExport.Messages.Count} messages from {export.SessionExport.Info.Id}");
 ```
 
 > **✂️ `Sanitize` redacts by design.** With `Sanitize = QueryBoolean.True` the server rewrites
@@ -189,12 +169,15 @@ Console.WriteLine($"{export.Export.Messages.Count} messages from {export.Export.
 > comparing transcripts: compare ids, not text. Leave `Sanitize` unset or `False` when you want the
 > conversation itself. Verified on `@opencode/cli@2.0.2`.
 
+`Experimental` methods take route identifiers explicitly, including session IDs. Import uses
+`ExperimentalSessionImportPostRequest`.
+
 ## 🧭 How the client is organised
 
-The root client exposes **29 families** as properties — `Sessions`, `Events`, `Ptys`,
+The root client exposes **27 families** as properties — `Sessions`, `Events`, `Ptys`,
 `PersistentPtys`, `Shells`, `Providers`, `LanguageModels`, `Agents`, `Skills`, `Commands`,
-`Permissions`, `Credentials`, `Config`, `Projects`, `Workspaces`, `Worktrees`, `Vcs`, `FileSystem`,
-`Forms`, `Generation`, `Integrations`, `McpServers`, `Plugins`, `References`, `Rpc`, `Server`,
+`Permissions`, `Credentials`, `Config`, `Projects`, `Worktrees`, `Vcs`, `FileSystem`,
+`Forms`, `Integrations`, `McpServers`, `Plugins`, `References`, `Rpc`, `Server`,
 `Websearch`, `Debug`, and `Experimental`:
 
 ```csharp

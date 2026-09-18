@@ -10,21 +10,20 @@ namespace OpenCode.Sdk.Tools.Generator.Binding;
 internal static class SpineShapePolicy
 {
     /// <summary>
-    /// Recognizes the dual-channel location selector structurally — exactly the
-    /// optional-nullable string <c>directory</c> and <c>workspace</c> members — so the
+    /// Recognizes the location selector structurally — exactly the
+    /// optional-nullable string <c>directory</c> member — so the
     /// route serializer's fixed member set stays safe.
     /// </summary>
     public static bool IsLocationSelectorShape(OperationFacetContext context, SchemaNode schema)
     {
         if (context.Resolve(schema) is not ObjectNode selector
             || selector.Format is not null
-            || selector.Properties.Count is not 2
-            || selector.Properties.Select(static property => property.Name).Distinct(StringComparer.Ordinal).Count() is not 2)
+            || selector.Properties.Count is not 1)
         {
             return false;
         }
 
-        return selector.Properties.All(property => property is { IsRequired: false, Name: "directory" or "workspace" }
+        return selector.Properties.All(property => property is { IsRequired: false, Name: "directory" }
                                                    && IsNullableUnformattedString(context, property.Schema));
     }
 

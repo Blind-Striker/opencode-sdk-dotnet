@@ -55,11 +55,11 @@ public sealed record ProviderInfo
     public IProviderCompaction? Compaction { get; init; }
 
     /// <summary>
-    /// Gets the websocket value.
+    /// Gets the transport value.
     /// </summary>
-    [JsonPropertyName("websocket")]
+    [JsonPropertyName("transport")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public bool? Websocket { get; init; }
+    public ProviderTransport? Transport { get; init; }
 
     /// <summary>
     /// Gets the settings value.

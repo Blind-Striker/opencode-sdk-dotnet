@@ -44,8 +44,8 @@ public sealed class PtyFailureDiagnosticsTests
             await Assert.That(observed).IsSameReferenceAs(primary);
             await Assert.That(fileSystem.Directory.GetFiles(fixture.DiagnosticsDirectory, "stdout.log").Length).IsEqualTo(0);
             await Assert.That(fileSystem.Directory.GetFiles(fixture.DiagnosticsDirectory, "stderr.log").Length).IsEqualTo(0);
-            var health = await client.GetHealthAsync(cancellationToken: cancellationToken);
-            await Assert.That(health.Health.Healthy).IsTrue();
+            var health = await client.Server.GetStatusAsync(cancellationToken: cancellationToken);
+            await Assert.That(health.Status).IsEqualTo(200);
             if (stall)
             {
                 var lateReport = diagnostics.LateFailures ?? throw new InvalidOperationException("The status deadline did not retain its operation.");

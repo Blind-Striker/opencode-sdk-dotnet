@@ -13,5 +13,5 @@ internal sealed record WebsearchProvidersResponseEnvelope
     public required IReadOnlyList<WebSearchProvider> Data { get; init; }
 
     [JsonPropertyName("location")]
-    public required LocationInfo Location { get; init; }
+    public required LocationPublicRef Location { get; init; }
 }

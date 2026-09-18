@@ -21,10 +21,10 @@ public sealed record SessionInboxSynthetic : ISessionInboxInfo
     public required string SessionId { get; init; }
 
     /// <summary>
-    /// Gets the time created value.
+    /// Gets the time value.
     /// </summary>
-    [JsonPropertyName("timeCreated")]
-    public required double TimeCreated { get; init; }
+    [JsonPropertyName("time")]
+    public required SessionInboxSyntheticTime Time { get; init; }
 
     /// <summary>
     /// Gets the type value.
@@ -44,7 +44,7 @@ public sealed record SessionInboxSynthetic : ISessionInboxInfo
     [JsonPropertyName("delivery")]
     public required SessionInboxDelivery Delivery { get; init; }
 
-    double? ISessionInboxInfo.TimeCreated => TimeCreated;
+    ISessionInboxInfoTime? ISessionInboxInfo.Time => Time;
 
     SessionInboxDelivery? ISessionInboxInfo.Delivery => Delivery;
 }

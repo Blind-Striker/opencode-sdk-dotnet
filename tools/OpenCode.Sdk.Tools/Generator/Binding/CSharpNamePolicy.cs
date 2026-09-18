@@ -8,10 +8,11 @@ internal static class CSharpNamePolicy
     {
         var result = PascalWords(wireName);
 
-        // A C# identifier cannot open with a digit, so a whole name that would needs the guard.
+        // A letter prefix survives the public PascalCase naming rule. An underscore guard
+        // is stripped by formatting and leaves numeric wire values as invalid identifiers.
         if (char.IsDigit(result[0]))
         {
-            result = string.Concat("_", result);
+            result = string.Concat("Value", result);
         }
 
         return result;

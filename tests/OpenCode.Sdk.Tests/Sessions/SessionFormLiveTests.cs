@@ -24,7 +24,7 @@ public sealed class SessionFormLiveTests(SimulatedDriveServerFixture server)
         var createdSession = await client.Sessions.CreateSessionAsync(new SessionCreateRequest
         {
             Title = "session-form-answer-live",
-            Location = new LocationRef { Directory = workspace.Path },
+            Location = new LocationPublicRef { Directory = workspace.Path },
         }, cancellationToken: cancellationToken);
         var session = client.Sessions.GetSessionClient(createdSession.Session.Id);
         var formId = CreateOwnedFormId("answer");
@@ -55,11 +55,11 @@ public sealed class SessionFormLiveTests(SimulatedDriveServerFixture server)
             await Assert.That(created.Form.Fields.Single()).IsTypeOf<FormStringField>();
 
             var sessionPending = await session.ListFormsAsync(cancellationToken: cancellationToken);
-            var locationPending = await client.Forms.ListRequestsAsync(cancellationToken: cancellationToken);
+            var locationPending = await client.Forms.ListFormsAsync(cancellationToken: cancellationToken);
             await Assert.That(sessionPending.Forms.Any(form => form.Id == formId)).IsTrue();
-            await Assert.That(locationPending.Requests.Any(form => form.Id == formId)).IsTrue();
-            var pending = await session.GetFormStateAsync(formId, cancellationToken: cancellationToken);
-            await Assert.That(pending.FormState).IsTypeOf<FormStatePending>();
+            await Assert.That(locationPending.Forms.Any(form => form.Id == formId)).IsTrue();
+            var pending = await session.GetFormAsync(formId, cancellationToken: cancellationToken);
+            await Assert.That(pending.Form.State).IsTypeOf<FormStatePending>();
 
             var replyRequest = new SessionFormReplyPostRequest
             {
@@ -70,16 +70,16 @@ public sealed class SessionFormLiveTests(SimulatedDriveServerFixture server)
             };
             var replied = await session.PostFormReplyAsync(formId, replyRequest, cancellationToken: cancellationToken);
             await Assert.That(replied.Status).IsEqualTo(204);
-            var terminal = await session.GetFormStateAsync(formId, cancellationToken: cancellationToken);
-            await Assert.That(terminal.FormState).IsTypeOf<FormStateAnswered>();
-            var answered = (FormStateAnswered)terminal.FormState;
+            var terminal = await session.GetFormAsync(formId, cancellationToken: cancellationToken);
+            await Assert.That(terminal.Form.State).IsTypeOf<FormStateAnswered>();
+            var answered = (FormStateAnswered)terminal.Form.State;
             await Assert.That(answered.Answer[FieldKey].Kind).IsEqualTo(FormValueKind.Text);
             await Assert.That(answered.Answer[FieldKey].Text).IsEqualTo(AnswerText);
 
             sessionPending = await session.ListFormsAsync(cancellationToken: cancellationToken);
-            locationPending = await client.Forms.ListRequestsAsync(cancellationToken: cancellationToken);
+            locationPending = await client.Forms.ListFormsAsync(cancellationToken: cancellationToken);
             await Assert.That(sessionPending.Forms.Any(form => form.Id == formId)).IsFalse();
-            await Assert.That(locationPending.Requests.Any(form => form.Id == formId)).IsFalse();
+            await Assert.That(locationPending.Forms.Any(form => form.Id == formId)).IsFalse();
             var repeated = await session.PostFormReplyAsync(
                 formId, replyRequest, OpenCodeRequestOptions.NoThrow, cancellationToken);
             await Assert.That(repeated.Status).IsEqualTo(409);
@@ -110,7 +110,7 @@ public sealed class SessionFormLiveTests(SimulatedDriveServerFixture server)
         var createdSession = await client.Sessions.CreateSessionAsync(new SessionCreateRequest
         {
             Title = "session-form-cancel-live",
-            Location = new LocationRef { Directory = workspace.Path },
+            Location = new LocationPublicRef { Directory = workspace.Path },
         }, cancellationToken: cancellationToken);
         var session = client.Sessions.GetSessionClient(createdSession.Session.Id);
         var formId = CreateOwnedFormId("cancel");
@@ -143,12 +143,12 @@ public sealed class SessionFormLiveTests(SimulatedDriveServerFixture server)
             await Assert.That(created.Form.Fields).Count().IsEqualTo(1);
             await Assert.That(created.Form.Fields[0]).IsTypeOf<FormStringField>();
 
-            var cancelled = await session.PostFormCancelAsync(formId, cancellationToken: cancellationToken);
+            var cancelled = await session.DeleteFormCancelAsync(formId, cancellationToken: cancellationToken);
             await Assert.That(cancelled.Status).IsEqualTo(204);
-            var terminal = await session.GetFormStateAsync(formId, cancellationToken: cancellationToken);
-            await Assert.That(terminal.FormState).IsTypeOf<FormStateCancelled>();
+            var terminal = await session.GetFormAsync(formId, cancellationToken: cancellationToken);
+            await Assert.That(terminal.Form.State).IsTypeOf<FormStateCancelled>();
 
-            var repeated = await session.PostFormCancelAsync(
+            var repeated = await session.DeleteFormCancelAsync(
                 formId, OpenCodeRequestOptions.NoThrow, cancellationToken);
             await Assert.That(repeated.Status).IsEqualTo(409);
             await Assert.That(repeated.Error).IsTypeOf<FormAlreadySettledError>();
@@ -161,7 +161,7 @@ public sealed class SessionFormLiveTests(SimulatedDriveServerFixture server)
             await Assert.That((missing.Error as FormNotFoundError)?.Id).IsEqualTo(missingFormId);
 
             Console.WriteLine(
-                "session-form-cancel-live: cancelled=" + terminal.FormState.Status +
+                "session-form-cancel-live: cancelled=" + terminal.Form.State.Status +
                 " repeated-cancel=" + Number(repeated.Status) +
                 " missing=" + Number(missing.Status));
         }
@@ -186,7 +186,7 @@ public sealed class SessionFormLiveTests(SimulatedDriveServerFixture server)
         string formId,
         CancellationToken cancellationToken)
     {
-        var response = await session.PostFormCancelAsync(
+        var response = await session.DeleteFormCancelAsync(
             formId, OpenCodeRequestOptions.NoThrow, cancellationToken);
         if (response.Status is not (204 or 404 or 409))
         {

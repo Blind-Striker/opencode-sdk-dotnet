@@ -77,6 +77,9 @@ internal sealed class OwnedToolScenario
         });
     }
 
+    public Task<ExperimentalSessionWaitPostResponse> WaitAsync(CancellationToken cancellationToken) =>
+        _client.Experimental.PostSessionWaitAsync(SessionId, cancellationToken: cancellationToken);
+
     public SessionEventProbe Probe { get; }
 
     public string SessionId => _sessionId ?? throw new InvalidOperationException("The scenario has no session yet.");
@@ -266,7 +269,7 @@ internal sealed class OwnedToolScenario
                 Title = title,
                 Agent = SimulationConfigSeed.ReadAskAgentId,
                 Model = new ModelRef { Id = SimulationConfigSeed.ModelId, ProviderId = SimulationConfigSeed.ProviderId },
-                Location = new LocationRef { Directory = _workspace.Path },
+                Location = new LocationPublicRef { Directory = _workspace.Path },
             },
             cancellationToken: cancellationToken);
         _sessionId = created.Session.Id;
@@ -315,7 +318,7 @@ internal sealed class OwnedToolScenario
             return;
         }
 
-        var response = await Session.PostWaitAsync(OpenCodeRequestOptions.NoThrow, cancellationToken);
+        var response = await _client.Experimental.PostSessionWaitAsync(SessionId, OpenCodeRequestOptions.NoThrow, cancellationToken);
         if (response.Status != 204 || response.IsError)
         {
             throw new InvalidOperationException(

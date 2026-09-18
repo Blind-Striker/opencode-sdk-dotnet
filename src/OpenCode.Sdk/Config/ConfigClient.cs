@@ -2,8 +2,6 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Internal.ResponseAdapters;
-using OpenCode.Sdk.Internal.Serialization;
-using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk;
 /// <summary>
@@ -11,7 +9,6 @@ namespace OpenCode.Sdk;
 /// </summary>
 public class ConfigClient
 {
-    private static readonly ConfigUpdatePreferencesPatchRequest EmptyConfigUpdatePreferencesPatchRequest = new();
     private readonly Pipeline? _pipeline;
     internal ConfigClient(Pipeline pipeline)
     {
@@ -29,19 +26,6 @@ public class ConfigClient
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("ConfigClient", "Pipeline");
 
     /// <summary>
-    /// Get global preferences. Return preferences from the highest-precedence global configuration document.
-    /// </summary>
-    /// <param name = "requestOptions">The per-call options.</param>
-    /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;ConfigPreferencesResponse&apos; envelope.</returns>
-    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
-    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<ConfigPreferencesResponse> GetPreferencesAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
-    {
-        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Config.GetPreferences, ConfigPreferencesResponseAdapter.Instance, requestOptions, cancellationToken);
-    }
-
-    /// <summary>
     /// List available shells. Return shells available to terminal and agent execution.
     /// </summary>
     /// <param name = "requestOptions">The per-call options.</param>
@@ -52,19 +36,5 @@ public class ConfigClient
     public virtual Task<ConfigShellsResponse> GetShellsAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Config.GetShells, ConfigShellsResponseAdapter.Instance, requestOptions, cancellationToken);
-    }
-
-    /// <summary>
-    /// Update global preferences. Patch preferences in the highest-precedence global configuration document.
-    /// </summary>
-    /// <param name = "request">The request body; an empty body is sent when omitted.</param>
-    /// <param name = "requestOptions">The per-call options.</param>
-    /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;ConfigUpdatePreferencesPatchResponse&apos; envelope.</returns>
-    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
-    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<ConfigUpdatePreferencesPatchResponse> PatchUpdatePreferencesAsync(ConfigUpdatePreferencesPatchRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
-    {
-        return Pipeline.ExecuteAsync(OpenCodeHttpMethod.Patch, OpenCodeRoutes.Config.PatchUpdatePreferences, request ?? EmptyConfigUpdatePreferencesPatchRequest, OpenCodeJsonContext.Default.ConfigUpdatePreferencesPatchRequest, ConfigUpdatePreferencesPatchResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }

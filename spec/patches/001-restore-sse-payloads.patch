@@ -44,12 +44,11 @@ index 61c4ddecd1..799ce56e43 100644
    printWidth: 120,
  })
 diff --git a/packages/protocol/src/groups/session.ts b/packages/protocol/src/groups/session.ts
-index 3b537f5079..2ca8e89aa8 100644
 --- a/packages/protocol/src/groups/session.ts
 +++ b/packages/protocol/src/groups/session.ts
-@@ -33,6 +33,10 @@ import { SessionEvent } from "@opencode/schema/session-event"
- import { EventLog } from "@opencode/schema/event-log"
- import { FileDiff } from "@opencode/schema/file-diff"
+@@ -43,6 +43,10 @@
+ import { Form } from "@opencode/schema/form"
+ import { PublicSessionMessage } from "./message.js"
  
 +export const SessionLogItem = Schema.Union([SessionEvent.Durable, EventLog.Synced]).annotate({
 +  identifier: "SessionLogItem",
@@ -58,7 +57,7 @@ index 3b537f5079..2ca8e89aa8 100644
  const ParentIDFilter = Schema.Union([
    Session.ID,
    Schema.Null.pipe(
-@@ -676,7 +680,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
+@@ -727,7 +731,7 @@
            follow: BooleanFromString.pipe(Schema.optional),
          },
          success: HttpApiSchema.StreamSse({

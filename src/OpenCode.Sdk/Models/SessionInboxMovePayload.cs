@@ -9,12 +9,6 @@ namespace OpenCode.Sdk.Models;
 public sealed record SessionInboxMovePayload
 {
     /// <summary>
-    /// Gets the location value.
-    /// </summary>
-    [JsonPropertyName("location")]
-    public required LocationRef Location { get; init; }
-
-    /// <summary>
     /// Gets the project id value.
     /// </summary>
     [JsonPropertyName("projectID")]
@@ -26,4 +20,10 @@ public sealed record SessionInboxMovePayload
     [JsonPropertyName("subpath")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Subpath { get; init; }
+
+    /// <summary>
+    /// Gets the location value.
+    /// </summary>
+    [JsonPropertyName("location")]
+    public required LocationPublicRef Location { get; init; }
 }

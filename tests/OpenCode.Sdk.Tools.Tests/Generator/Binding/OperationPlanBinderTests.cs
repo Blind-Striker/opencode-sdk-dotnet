@@ -20,11 +20,9 @@ public sealed class OperationPlanBinderTests
         "ExperimentalClient",
         "FileSystemClient",
         "FormsClient",
-        "GenerationClient",
         "IntegrationClient",
         "IntegrationsClient",
         "LanguageModelsClient",
-        "McpServerClient",
         "McpServersClient",
         "PermissionsClient",
         "PersistentPtyRawClient",
@@ -44,7 +42,6 @@ public sealed class OperationPlanBinderTests
         "SkillsClient",
         "VcsClient",
         "WebsearchClient",
-        "WorkspacesClient",
         "WorktreesClient",
     ];
 
@@ -59,7 +56,6 @@ public sealed class OperationPlanBinderTests
         "Experimental",
         "FileSystem",
         "Forms",
-        "Generation",
         "Integrations",
         "LanguageModels",
         "McpServers",
@@ -77,7 +73,6 @@ public sealed class OperationPlanBinderTests
         "Skills",
         "Vcs",
         "Websearch",
-        "Workspaces",
         "Worktrees",
     ];
 
@@ -92,7 +87,6 @@ public sealed class OperationPlanBinderTests
         "ExperimentalClient",
         "FileSystemClient",
         "FormsClient",
-        "GenerationClient",
         "IntegrationsClient",
         "LanguageModelsClient",
         "McpServersClient",
@@ -110,7 +104,6 @@ public sealed class OperationPlanBinderTests
         "SkillsClient",
         "VcsClient",
         "WebsearchClient",
-        "WorkspacesClient",
         "WorktreesClient",
     ];
 
@@ -141,20 +134,21 @@ public sealed class OperationPlanBinderTests
         await Assert.That(root.HandleFactory).IsNull();
         await Assert.That(root.HandleParameter).IsNull();
 
-        var health = root.Operations.Single(static operation => operation.MethodName == "GetHealthAsync");
-        await Assert.That(health.MethodName).IsEqualTo("GetHealthAsync");
+        var health = plan.Clients.Single(static client => client.Name == "ServerClient")
+            .Operations.Single(static operation => operation.MethodName == "GetStatusAsync");
+        await Assert.That(health.MethodName).IsEqualTo("GetStatusAsync");
         await Assert.That(health.HttpMethod).IsEqualTo("get");
-        await Assert.That(health.RouteTemplate).IsEqualTo("/api/health");
-        await Assert.That(health.RouteContainerName).IsEqualTo("Health");
-        await Assert.That(health.RouteMemberName).IsEqualTo("Get");
+        await Assert.That(health.RouteTemplate).IsEqualTo("/api/status");
+        await Assert.That(health.RouteContainerName).IsEqualTo("Server");
+        await Assert.That(health.RouteMemberName).IsEqualTo("GetStatus");
         await Assert.That(health.Parameters).IsEmpty();
-        await Assert.That(health.Summary).IsEqualTo("Check server health");
+        await Assert.That(health.Summary).IsEqualTo("Get server status");
         await Assert.That(health.Description).IsNotNull();
-        await Assert.That(health.Envelope!.ResponseTypeName).IsEqualTo("HealthResponse");
-        await Assert.That(health.Envelope.AdapterTypeName).IsEqualTo("HealthResponseAdapter");
-        await Assert.That(health.Envelope.PayloadName).IsEqualTo("Health");
+        await Assert.That(health.Envelope!.ResponseTypeName).IsEqualTo("ServerStatusResponse");
+        await Assert.That(health.Envelope.AdapterTypeName).IsEqualTo("ServerStatusResponseAdapter");
+        await Assert.That(health.Envelope.PayloadName).IsEqualTo("ServerStatus");
         await Assert.That(health.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
-        await Assert.That(((NamedTypeReferencePlan)health.Envelope.PayloadType!).Name).IsEqualTo("ServiceHealth");
+        await Assert.That(((NamedTypeReferencePlan)health.Envelope.PayloadType!).Name).IsEqualTo("ServerStatus");
         await Assert.That(health.Envelope.Kind).IsEqualTo(EnvelopeKind.Bare);
         await Assert
             .That(health
@@ -175,7 +169,7 @@ public sealed class OperationPlanBinderTests
         await Assert.That(location.Envelope.AdapterTypeName).IsEqualTo("LocationResponseAdapter");
         await Assert.That(location.Envelope.PayloadName).IsEqualTo("ResolvedLocation");
         await Assert.That(location.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
-        await Assert.That(((NamedTypeReferencePlan)location.Envelope.PayloadType!).Name).IsEqualTo("LocationInfo");
+        await Assert.That(((NamedTypeReferencePlan)location.Envelope.PayloadType!).Name).IsEqualTo("LocationPublicInfo");
         await Assert.That(location.Envelope.Kind).IsEqualTo(EnvelopeKind.Bare);
         await Assert
             .That(location
@@ -185,7 +179,7 @@ public sealed class OperationPlanBinderTests
         await Assert.That(location.ErrorMap.Statuses[0].Tags.Single().Tag).IsEqualTo("InvalidRequestError");
         await Assert.That(location.ErrorMap.Statuses[1].Tags.Single().Tag).IsEqualTo("UnauthorizedError");
 
-        await Assert.That(root.Operations.Count).IsEqualTo(2);
+        await Assert.That(root.Operations.Count).IsEqualTo(1);
         await Assert.That(root.ContainerName).IsNull();
     }
 
@@ -201,7 +195,7 @@ public sealed class OperationPlanBinderTests
 
         await Assert
             .That(plan.TransportOwnedOperationIds.SequenceEqual(
-                ["v2.persistentPty.connect", "v2.pty.connect"],
+                ["persistentPty.connect", "pty.connect"],
                 StringComparer.Ordinal))
             .IsTrue();
     }
@@ -221,7 +215,7 @@ public sealed class OperationPlanBinderTests
             .That(plan
                 .DeclinedOperations.Select(static operation => operation.OperationId)
                 .SequenceEqual(
-                    ["v2.config.get", "v2.experimental.migration.v1.status", "v2.fs.read"],
+                    ["config.get", "experimental.migration.v1.status", "fs.read"],
                     StringComparer.Ordinal))
             .IsTrue();
         await Assert.That(plan.DeclinedOperations.All(static operation => operation.Reason.Length > 0)).IsTrue();
@@ -238,7 +232,7 @@ public sealed class OperationPlanBinderTests
         await Assert
             .That(sessions
                 .Operations.Select(static operation => operation.MethodName)
-                .SequenceEqual(["CreateSessionAsync", "GetActiveAsync", "GetStatsAsync", "ListSessionsAsync", "PostImportAsync"],
+                .SequenceEqual(["CreateSessionAsync", "GetActiveAsync", "ListSessionsAsync"],
                     StringComparer.Ordinal))
             .IsTrue();
         await Assert.That(sessions.HandleFactory!.MethodName).IsEqualTo("GetSessionClient");
@@ -254,7 +248,7 @@ public sealed class OperationPlanBinderTests
             .That(list
                 .QueryRequest.Properties.Select(static property => property.PropertyName)
                 .SequenceEqual(
-                    ["Workspace", "Limit", "Order", "Search", "ParentId", "Directory", "Project", "Subpath", "Cursor"],
+                    ["Limit", "Order", "Search", "ParentId", "Directory", "Project", "Subpath", "Cursor"],
                     StringComparer.Ordinal))
             .IsTrue();
         await Assert
@@ -307,7 +301,7 @@ public sealed class OperationPlanBinderTests
         await Assert.That(createShell.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocation);
         await Assert.That(createShell.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
         await Assert.That(((NamedTypeReferencePlan)createShell.Envelope.PayloadType!).Name).IsEqualTo("ShellInfo");
-        await Assert.That(createShell.Envelope.LocationTypeName).IsEqualTo("LocationInfo");
+        await Assert.That(createShell.Envelope.LocationTypeName).IsEqualTo("LocationPublicRef");
 
         var listShells = shells.Operations.Single(static operation => operation.MethodName == "ListShellsAsync");
         await Assert.That(listShells.QueryRequest!.TypeName).IsEqualTo("ShellListRequest");
@@ -320,50 +314,41 @@ public sealed class OperationPlanBinderTests
     [
         "CreateFormAsync",
         "CreatePermissionAsync",
+        "DeleteFormCancelAsync",
         "DeleteInboxCancelAsync",
+        "DeleteRevertClearAsync",
         "GetContextAsync",
         "GetDiffAsync",
-        "GetExportAsync",
         "GetFormAsync",
-        "GetFormStateAsync",
         "GetLogAsync",
         "GetMessageAsync",
         "GetPermissionAsync",
         "GetSessionAsync",
         "ListFormsAsync",
         "ListInboxAsync",
-        "ListInstructionsEntryAsync",
         "ListMessagesAsync",
         "ListRequestsAsync",
         "PostBackgroundAsync",
         "PostCommandAsync",
         "PostCompactAsync",
         "PostForkAsync",
-        "PostFormCancelAsync",
         "PostFormReplyAsync",
         "PostGenerateAsync",
-        "PostInboxQueueAsync",
-        "PostInboxSteerAsync",
         "PostInterruptAsync",
         "PostMoveAsync",
         "PostPermissionReplyAsync",
         "PostPromptAsync",
-        "PostRevertClearAsync",
         "PostRevertCommitAsync",
         "PostRevertStageAsync",
         "PostShellAsync",
-        "PostSkillAsync",
         "PostSwitchAgentAsync",
         "PostSwitchModelAsync",
         "PostSyntheticAsync",
         "PostViewAsync",
-        "PostWaitAsync",
         "PutEnvironmentAsync",
-        "PutInstructionsEntryAsync",
-        "PutPermissionRulesAsync",
-        "RemoveInstructionsEntryAsync",
         "RemoveSessionAsync",
-        "RenameSessionAsync",
+        "UpdateInboxAsync",
+        "UpdateSessionAsync",
     ];
 
     [Test]
@@ -392,20 +377,15 @@ public sealed class OperationPlanBinderTests
         await Assert
             .That(shell
                 .Operations.Select(static operation => operation.MethodName)
-                .SequenceEqual(["GetOutputAsync", "GetShellAsync", "RemoveShellAsync", "TimeoutShellAsync"], StringComparer.Ordinal))
+                .SequenceEqual(["GetOutputAsync", "GetShellAsync", "RemoveShellAsync"], StringComparer.Ordinal))
             .IsTrue();
-
-        var timeout = shell.Operations.Single(static operation => operation.MethodName == "TimeoutShellAsync");
-        await Assert.That(timeout.HttpMethod).IsEqualTo("patch");
-        await Assert.That(timeout.RequestBody!.TypeName).IsEqualTo("ShellTimeoutRequest");
-        await Assert.That(timeout.QueryRequest!.RidesRequestBody).IsTrue();
 
         var getShell = shell.Operations.Single(static operation => operation.MethodName == "GetShellAsync");
         await Assert.That(getShell.QueryRequest!.TypeName).IsEqualTo("ShellRequest");
         await Assert.That(getShell.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocation);
 
         var messages = session.Operations.Single(static operation => operation.MethodName == "ListMessagesAsync");
-        await Assert.That(messages.QueryRequest!.TypeName).IsEqualTo("MessageListRequest");
+        await Assert.That(messages.QueryRequest!.TypeName).IsEqualTo("SessionMessageListRequest");
         await Assert.That(messages.QueryRequest.DerivesFromListRequest).IsTrue();
         await Assert.That(messages.Envelope!.Kind).IsEqualTo(EnvelopeKind.CursorList);
         await Assert.That(messages.Envelope.PayloadName).IsEqualTo("Messages");
@@ -467,14 +447,14 @@ public sealed class OperationPlanBinderTests
         await Assert.That(output.Envelope.PayloadName).IsEqualTo("Output");
         await Assert.That(output.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
         await Assert.That(((NamedTypeReferencePlan)output.Envelope.PayloadType!).Name).IsEqualTo("ShellOutputData");
-        await Assert.That(output.Envelope.LocationTypeName).IsEqualTo("LocationInfo");
+        await Assert.That(output.Envelope.LocationTypeName).IsEqualTo("LocationPublicRef");
         await Assert
             .That(plan.Models.Any(static model => string.Equals(model.Name, "ShellOutputData", StringComparison.Ordinal)))
             .IsTrue();
     }
 
     /// <summary>
-    /// The pinned document's two single-key success bodies flatten: the payload arrives under
+    /// The pinned handoff's single-key success body flattens: the payload arrives under
     /// the body's own key, so the wrapper never becomes a model and the caller reads the value
     /// directly.
     /// </summary>
@@ -482,16 +462,6 @@ public sealed class OperationPlanBinderTests
     public async Task Bind_Should_Flatten_The_Pinned_Single_Key_Success_Envelopes()
     {
         var plan = await new BindingTestHost().BindPinnedAsync();
-
-        var server = plan
-            .Clients.Single(static client => client.Name == "ServerClient")
-            .Operations.Single(static operation => operation.MethodName == "GetServerAsync");
-        await Assert.That(server.Envelope!.Kind).IsEqualTo(EnvelopeKind.Data);
-        await Assert.That(server.Envelope.WireMemberName).IsEqualTo("urls");
-        await Assert.That(server.Envelope.PayloadName).IsEqualTo("Urls");
-        await Assert.That(server.Envelope.PayloadType).IsTypeOf<ListTypeReferencePlan>();
-        await Assert.That(plan.Models.Any(static model => string.Equals(model.Name, "ServerData", StringComparison.Ordinal)))
-            .IsFalse();
 
         var handoff = plan
             .Clients.Single(static client => client.Name == "PersistentPtysRawClient")
@@ -517,8 +487,8 @@ public sealed class OperationPlanBinderTests
 
         await Assert.That(pagination).IsNotNull();
         await Assert.That(pagination.MethodName).IsEqualTo("EnumerateMessagesAsync");
-        await Assert.That(pagination.RequestTypeName).IsEqualTo("MessageListRequest");
-        await Assert.That(pagination.PageTypeName).IsEqualTo("MessageListResponse");
+        await Assert.That(pagination.RequestTypeName).IsEqualTo("SessionMessageListRequest");
+        await Assert.That(pagination.PageTypeName).IsEqualTo("SessionMessageListResponse");
         await Assert.That(pagination.ItemTypeName).IsEqualTo("ISessionMessageInfo");
         await Assert.That(pagination.PayloadName).IsEqualTo("Messages");
 
@@ -578,7 +548,7 @@ public sealed class OperationPlanBinderTests
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.gadget.part"),
+            Selection("gadget.part"),
             Curation(Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID"))));
 
         var root = plan.Clients.Single(static client => client.Role == ClientRole.Root);
@@ -618,13 +588,13 @@ public sealed class OperationPlanBinderTests
             .WithSchema("ItemInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.item", path: "/api/widget/{sessionID}/item", configure: operation => operation
+            .WithOperation("widget.item", path: "/api/widget/{sessionID}/item", configure: operation => operation
                 .Parameter("sessionID", "path", schema => schema.Type("string"), required: true)
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.item"),
+            Selection("widget.item"),
             Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null))));
 
         await Assert.That(plan.Clients.Any(static client => client.Role == ClientRole.Handle)).IsFalse();
@@ -640,12 +610,12 @@ public sealed class OperationPlanBinderTests
     public async Task Bind_Should_Keep_Collection_Operations_On_The_Collection_Client()
     {
         var document = await BindingTestHost.IngestAsync(GadgetScenario(spec => spec
-            .WithOperation("v2.gadget.overview", path: "/api/gadget-overview", configure: operation => operation
+            .WithOperation("gadget.overview", path: "/api/gadget-overview", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("GadgetPart")))));
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.gadget.part", "v2.gadget.overview"),
+            Selection("gadget.part", "gadget.overview"),
             Curation(Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID"))));
 
         var gadgets = plan.Clients.Single(static client => client.Role == ClientRole.Collection);
@@ -661,7 +631,7 @@ public sealed class OperationPlanBinderTests
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.gadget.part"),
+            Selection("gadget.part"),
             Curation(Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID"))));
 
         var part = plan.Clients.Single(static client => client.Role == ClientRole.Handle).Operations.Single();
@@ -681,12 +651,12 @@ public sealed class OperationPlanBinderTests
             .WithSchema(schemaName, schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.item", path: "/api/widget/item", configure: operation => operation
+            .WithOperation("widget.item", path: "/api/widget/item", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref(schemaName)))));
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.item"),
+            Selection("widget.item"),
             Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)))));
 
         await Assert
@@ -702,10 +672,10 @@ public sealed class OperationPlanBinderTests
             .WithSchema("WidgetInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.create", method: "post", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.create", method: "post", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
 
-        var plan = BindWidgets(document, "v2.widget.create");
+        var plan = BindWidgets(document, "widget.create");
 
         var create = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(create.HttpMethod).IsEqualTo("post");
@@ -720,13 +690,13 @@ public sealed class OperationPlanBinderTests
             .WithSchema("WidgetInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.update", method: "put", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.update", method: "put", path: "/api/widget", configure: operation => operation
                 .RequestBody("application/json", schema => schema
                     .Type("object")
                     .Property("title", property => property.Type("string"), required: true), required: true)
                 .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
 
-        var plan = BindWidgets(document, "v2.widget.update");
+        var plan = BindWidgets(document, "widget.update");
 
         var update = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(update.HttpMethod).IsEqualTo("put");
@@ -747,7 +717,7 @@ public sealed class OperationPlanBinderTests
                 static branch => branch.Type("string"),
                 static branch => branch.Type("null")))));
 
-        var plan = BindWidgets(document, "v2.widget.create");
+        var plan = BindWidgets(document, "widget.create");
 
         var create = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(create.HttpMethod).IsEqualTo("post");
@@ -766,7 +736,7 @@ public sealed class OperationPlanBinderTests
             .Type("object")
             .Property("title", property => property.Type("string"), required: true)));
 
-        var plan = BindWidgets(document, "v2.widget.create");
+        var plan = BindWidgets(document, "widget.create");
 
         var create = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(create.RequestBody!.IsOptional).IsFalse();
@@ -779,7 +749,7 @@ public sealed class OperationPlanBinderTests
             body => body.Type("object").Property("title", property => property.Type("string")),
             mediaType: "text/plain"));
 
-        await AssertWidgetRefusalAsync(document, "JSON", "v2.widget.create");
+        await AssertWidgetRefusalAsync(document, "JSON", "widget.create");
     }
 
     [Test]
@@ -787,7 +757,7 @@ public sealed class OperationPlanBinderTests
     {
         var document = await BindingTestHost.IngestAsync(WidgetCreateScenario(body => body.Type("string")));
 
-        await AssertWidgetRefusalAsync(document, "object schema", "v2.widget.create");
+        await AssertWidgetRefusalAsync(document, "object schema", "widget.create");
     }
 
     [Test]
@@ -797,7 +767,7 @@ public sealed class OperationPlanBinderTests
             body => body.Type("object").Property("title", property => property.Type("string")),
             required: false));
 
-        await AssertWidgetRefusalAsync(document, "declared required", "v2.widget.create");
+        await AssertWidgetRefusalAsync(document, "declared required", "widget.create");
     }
 
     [Test]
@@ -962,7 +932,7 @@ public sealed class OperationPlanBinderTests
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.gadget.part"),
+            Selection("gadget.part"),
             Curation(Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID"))));
 
         var part = plan.Clients.Single(static client => client.Role == ClientRole.Handle).Operations.Single();
@@ -1057,11 +1027,11 @@ public sealed class OperationPlanBinderTests
             .Parameter("cursor", "query", QueryScenarioData.NullableString)));
         var curation = Curation(
             Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)),
-            operationNames: [OperationName("v2.widget.list", "BrowseWidgetsAsync")]);
+            operationNames: [OperationName("widget.list", "BrowseWidgetsAsync")]);
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.list"),
+            Selection("widget.list"),
             curation));
 
         await Assert
@@ -1208,14 +1178,14 @@ public sealed class OperationPlanBinderTests
                 .Property("data", property => property
                     .Type("object")
                     .Property("id", static inner => inner.Type("string"), required: true), required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetsEnvelope")))
-            .WithOperation("v2.widget.summary", path: "/api/widget-summary", configure: operation => operation
+            .WithOperation("widget.summary", path: "/api/widget-summary", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetsEnvelope")))));
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.list", "v2.widget.summary"),
+            Selection("widget.list", "widget.summary"),
             Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)))));
 
         await Assert
@@ -1263,7 +1233,7 @@ public sealed class OperationPlanBinderTests
                 .Property("location", property => property.Ref("PlaceInfo"), required: true)
                 .Property("data", property => property.Type("array").Items(static item => item.Ref("WidgetAlias")),
                     required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetEnvelope")))));
 
         await AssertWidgetRefusalAsync(document, "named component schema");
@@ -1291,7 +1261,7 @@ public sealed class OperationPlanBinderTests
                 .AdditionalPropertiesFalse()
                 .Property("location", property => property.Ref("PlaceInfo"), required: true)
                 .Property("data", property => property.Ref("WidgetNameList"), required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetEnvelope")))));
 
         var plan = BindWidgets(document);
@@ -1323,7 +1293,7 @@ public sealed class OperationPlanBinderTests
                 .AdditionalPropertiesFalse()
                 .Property("location", property => property.Ref("PlaceInfo"), required: true)
                 .Property("data", property => property.Ref("WidgetEnvelope"), required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetEnvelope")))));
 
         await AssertWidgetRefusalAsync(document, "named component schema");
@@ -1352,7 +1322,7 @@ public sealed class OperationPlanBinderTests
                 .AdditionalPropertiesFalse()
                 .Property("location", property => property.Ref("PlaceInfo"), required: true)
                 .Property("data", property => property.Ref("NullableWidgetNameList"), required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetEnvelope")))));
 
         await AssertWidgetRefusalAsync(document, "named component schema");
@@ -1375,14 +1345,14 @@ public sealed class OperationPlanBinderTests
                     .Items(static item => item
                         .Type("object")
                         .Property("id", static inner => inner.Type("string"), required: true)), required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetsEnvelope")))
-            .WithOperation("v2.widget.summary", path: "/api/widget-summary", configure: operation => operation
+            .WithOperation("widget.summary", path: "/api/widget-summary", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetsEnvelope")))));
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.list", "v2.widget.summary"),
+            Selection("widget.list", "widget.summary"),
             Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)))));
 
         await Assert
@@ -1419,7 +1389,7 @@ public sealed class OperationPlanBinderTests
                     .Property("next", static property => property.AnyOf(
                         static branch => branch.Type("string"),
                         static branch => branch.Type("null"))), required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetsResponse")))));
 
         var exception = Assert.Throws<BindingException>(() => _ = BindWidgets(document));
@@ -1440,11 +1410,11 @@ public sealed class OperationPlanBinderTests
             .WithSchema("Widget.CreatePayload", schema => schema
                 .Type("object")
                 .Property("title", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.create", method: "post", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.create", method: "post", path: "/api/widget", configure: operation => operation
                 .RequestBody("application/json", body => body.Ref("Widget.CreatePayload"), required: true)
                 .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
 
-        var plan = BindWidgets(document, "v2.widget.create");
+        var plan = BindWidgets(document, "widget.create");
 
         var create = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(create.RequestBody!.TypeName).IsEqualTo("WidgetCreateRequest");
@@ -1464,9 +1434,9 @@ public sealed class OperationPlanBinderTests
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true)
                 .Property("shared", property => property.Ref("WidgetShared"), required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))
-            .WithOperation("v2.widget.create", method: "post", path: "/api/widget-create", configure: operation => operation
+            .WithOperation("widget.create", method: "post", path: "/api/widget-create", configure: operation => operation
                 .RequestBody("application/json", body => body.Ref("WidgetShared"), required: true)
                 .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
 
@@ -1486,14 +1456,14 @@ public sealed class OperationPlanBinderTests
             .WithSchema("Widget.CreatePayload", schema => schema
                 .Type("object")
                 .Property("title", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.create", method: "post", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.create", method: "post", path: "/api/widget", configure: operation => operation
                 .Parameter("search", "query", static schema => schema.AnyOf(
                     static branch => branch.Type("string"),
                     static branch => branch.Type("null")), required: false)
                 .RequestBody("application/json", body => body.Ref("Widget.CreatePayload"), required: true)
                 .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
 
-        await AssertWidgetRefusalAsync(document, "request body and query", "v2.widget.create");
+        await AssertWidgetRefusalAsync(document, "request body and query", "widget.create");
     }
 
     [Test]
@@ -1507,7 +1477,7 @@ public sealed class OperationPlanBinderTests
                 .Type("object")
                 .AdditionalPropertiesFalse()
                 .Property("data", property => property.Ref("WidgetInfo"), required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetResponse")))));
 
         var plan = BindWidgets(document);
@@ -1534,10 +1504,10 @@ public sealed class OperationPlanBinderTests
                 .Type("object")
                 .AdditionalPropertiesFalse()
                 .Property("data", property => property.Type("array").Items(item => item.Ref("WidgetInfo")), required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetListEnvelope")))));
 
-        var plan = BindWidgets(document, "v2.widget.list");
+        var plan = BindWidgets(document, "widget.list");
 
         var operation = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(operation.Envelope!.Kind).IsEqualTo(EnvelopeKind.Data);
@@ -1560,10 +1530,10 @@ public sealed class OperationPlanBinderTests
                 .AdditionalPropertiesFalse()
                 .Property("data", property => property.Type("object").AdditionalProperties(value => value.Ref("WidgetInfo")),
                     required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetMapEnvelope")))));
 
-        var plan = BindWidgets(document, "v2.widget.list");
+        var plan = BindWidgets(document, "widget.list");
 
         var operation = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(operation.Envelope!.Kind).IsEqualTo(EnvelopeKind.Data);
@@ -1581,10 +1551,10 @@ public sealed class OperationPlanBinderTests
             .WithSchema("WidgetInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Type("array").Items(item => item.Ref("WidgetInfo"))))));
 
-        var plan = BindWidgets(document, "v2.widget.list");
+        var plan = BindWidgets(document, "widget.list");
 
         var operation = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(operation.Envelope!.Kind).IsEqualTo(EnvelopeKind.Bare);
@@ -1602,10 +1572,10 @@ public sealed class OperationPlanBinderTests
             .WithSchema("WidgetInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Type("object").AdditionalProperties(value => value.Ref("WidgetInfo"))))));
 
-        var plan = BindWidgets(document, "v2.widget.list");
+        var plan = BindWidgets(document, "widget.list");
 
         var operation = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(operation.Envelope!.Kind).IsEqualTo(EnvelopeKind.Bare);
@@ -1627,7 +1597,7 @@ public sealed class OperationPlanBinderTests
             .Property("count", static property => property.Type("integer"), required: true)
             .Property("label", static property => property.Type("string"), required: true)));
 
-        var plan = BindWidgets(document, "v2.widget.stats");
+        var plan = BindWidgets(document, "widget.stats");
 
         var stats = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(stats.Envelope!.Kind).IsEqualTo(EnvelopeKind.Bare);
@@ -1652,7 +1622,7 @@ public sealed class OperationPlanBinderTests
                 static branch => branch.Ref("WidgetInfo"),
                 static branch => branch.Type("null")), required: true)));
 
-        var plan = BindWidgets(document, "v2.widget.stats");
+        var plan = BindWidgets(document, "widget.stats");
 
         var stats = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(stats.Envelope!.Kind).IsEqualTo(EnvelopeKind.Data);
@@ -1682,7 +1652,7 @@ public sealed class OperationPlanBinderTests
         await AssertWidgetRefusalAsync(
             document,
             "single-key envelope must reference an object requiring exactly one property",
-            "v2.widget.stats");
+            "widget.stats");
     }
 
     [Test]
@@ -1696,10 +1666,10 @@ public sealed class OperationPlanBinderTests
                     .Type("object")
                     .AdditionalPropertiesFalse()
                     .Property("count", inner => inner.Type("integer"), required: true), required: true))
-            .WithOperation("v2.widget.stats", path: "/api/widget/stats", configure: operation => operation
+            .WithOperation("widget.stats", path: "/api/widget/stats", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetStatsEnvelope")))));
 
-        var plan = BindWidgets(document, "v2.widget.stats");
+        var plan = BindWidgets(document, "widget.stats");
 
         var stats = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(stats.Envelope!.Kind).IsEqualTo(EnvelopeKind.Data);
@@ -1722,14 +1692,14 @@ public sealed class OperationPlanBinderTests
                     .Type("object")
                     .AdditionalPropertiesFalse()
                     .Property("count", inner => inner.Type("integer"), required: true), required: true))
-            .WithOperation("v2.widget.stats", path: "/api/widget/stats", configure: operation => operation
+            .WithOperation("widget.stats", path: "/api/widget/stats", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetStatsEnvelope")))
-            .WithOperation("v2.widget.summary", path: "/api/widget/summary", configure: operation => operation
+            .WithOperation("widget.summary", path: "/api/widget/summary", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetStatsEnvelope")))));
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.stats", "v2.widget.summary"),
+            Selection("widget.stats", "widget.summary"),
             Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)))));
 
         await Assert
@@ -1747,7 +1717,7 @@ public sealed class OperationPlanBinderTests
             .WithSchema("WidgetStatsData", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.stats", path: "/api/widget/stats", configure: operation => operation
+            .WithOperation("widget.stats", path: "/api/widget/stats", configure: operation => operation
                 .Response(200, "application/json", schema => schema
                     .Type("object")
                     // Two properties keep the body a promoted bare payload; one would be the
@@ -1755,7 +1725,7 @@ public sealed class OperationPlanBinderTests
                     .Property("related", property => property.Ref("WidgetStatsData"), required: true)
                     .Property("count", property => property.Type("integer"), required: true)))));
 
-        var exception = Assert.Throws<BindingException>(() => _ = BindWidgets(document, "v2.widget.stats"));
+        var exception = Assert.Throws<BindingException>(() => _ = BindWidgets(document, "widget.stats"));
 
         await Assert
             .That(exception.Errors.Any(static error => error.Category == BindingErrorCategory.Naming
@@ -1795,7 +1765,7 @@ public sealed class OperationPlanBinderTests
                     .PrefixItems(item => item.Type("string"))
                     .MinItems(1)
                     .MaxItems(1), required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetTupleEnvelope")))));
 
         await AssertWidgetRefusalAsync(document, "does not bind to a supported type plan");
@@ -1814,7 +1784,7 @@ public sealed class OperationPlanBinderTests
                 .Property("data", property => property.AnyOf(
                     static branch => branch.Ref("WidgetInfo"),
                     static branch => branch.Type("null")), required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetResponse")))));
 
         var plan = BindWidgets(document);
@@ -1833,7 +1803,7 @@ public sealed class OperationPlanBinderTests
             .WithSchema("WidgetInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.AnyOf(
                     static branch => branch.Ref("WidgetInfo"),
                     static branch => branch.Type("null"))))));
@@ -1851,7 +1821,7 @@ public sealed class OperationPlanBinderTests
     public async Task Bind_Should_Promote_A_Bare_Marked_Union_Payload_With_An_I_Prefixed_Name()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.widget.condition", path: "/api/widget-condition", configure: operation => operation
+            .WithOperation("widget.condition", path: "/api/widget-condition", configure: operation => operation
                 .Response(200, "application/json", schema => schema.AnyOf(
                     static branch => branch
                         .Type("object")
@@ -1863,7 +1833,7 @@ public sealed class OperationPlanBinderTests
                         .AdditionalPropertiesFalse()
                         .Property("_tag", static inner => inner.Type("string").Enum("Beta"), required: true))))));
 
-        var plan = BindWidgets(document, "v2.widget.condition");
+        var plan = BindWidgets(document, "widget.condition");
 
         var condition = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(condition.Envelope!.Kind).IsEqualTo(EnvelopeKind.Bare);
@@ -1914,7 +1884,7 @@ public sealed class OperationPlanBinderTests
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.gadget.part", "v2.gizmo.list"),
+            Selection("gadget.part", "gizmo.list"),
             Curation(groups));
 
         var root = plan.Clients.Single(static client => client.Role == ClientRole.Root);
@@ -1944,7 +1914,7 @@ public sealed class OperationPlanBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.gadget.part", "v2.gizmo.list"),
+            Selection("gadget.part", "gizmo.list"),
             Curation(groups)));
 
         await Assert
@@ -1974,7 +1944,7 @@ public sealed class OperationPlanBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.gadget.part", "v2.gizmo.list"),
+            Selection("gadget.part", "gizmo.list"),
             Curation(groups)));
 
         await Assert
@@ -2000,7 +1970,7 @@ public sealed class OperationPlanBinderTests
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.gadget.part", "v2.gizmo.list"),
+            Selection("gadget.part", "gizmo.list"),
             Curation(groups));
 
         var root = plan.Clients.Single(static client => client.Role == ClientRole.Root);
@@ -2109,7 +2079,7 @@ public sealed class OperationPlanBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.list"),
+            Selection("widget.list"),
             Curation(Groups(
                 "widget",
                 ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null, emission: EmissionMode.InternalRaw)))));
@@ -2148,13 +2118,13 @@ public sealed class OperationPlanBinderTests
                 .Type("object")
                 .Property("_tag", property => property.Type("string").Enum("UnknownFailure"), required: true)
                 .Property("message", property => property.Type("string"), required: true))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo"))
                 .Response(500, "application/json", schema => schema.Ref("UnknownFailure")))));
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get"),
+            Selection("health.get"),
             Curation(Groups("health", RootGroup())));
 
         var health = plan.Clients.Single(static client => client.Role == ClientRole.Root).Operations.Single();
@@ -2203,7 +2173,7 @@ public sealed class OperationPlanBinderTests
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
             .WithSchema("Widget.Mode", schema => schema.Type("string").Enum("working", "branch"))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Parameter("mode", "query", schema => schema.Ref("Widget.Mode"), required: true)
                 .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
 
@@ -2344,14 +2314,14 @@ public sealed class OperationPlanBinderTests
             .WithSchema("WidgetInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.create", method: "post", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.create", method: "post", path: "/api/widget", configure: operation => operation
                 .Parameter("location", "query", QueryScenarioData.NullableLocationSelector, deepObject: true)
                 .RequestBody("application/json", body => body
                     .Type("object")
                     .Property("title", property => property.Type("string"), required: true), required: true)
                 .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
 
-        var plan = BindWidgets(document, "v2.widget.create");
+        var plan = BindWidgets(document, "widget.create");
 
         var create = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(create.RequestBody!.TypeName).IsEqualTo("WidgetCreateRequest");
@@ -2412,7 +2382,7 @@ public sealed class OperationPlanBinderTests
     public async Task Bind_Should_Bind_A_Delete_Operation_With_A_No_Content_Success()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.widget.remove", method: "delete", path: "/api/widget/{id}", configure: operation =>
+            .WithOperation("widget.remove", method: "delete", path: "/api/widget/{id}", configure: operation =>
             {
                 _ = operation
                     .Parameter("id", "path", schema => schema.Type("string"), required: true)
@@ -2420,7 +2390,7 @@ public sealed class OperationPlanBinderTests
                     .Response(204);
             })));
 
-        var plan = BindWidgets(document, "v2.widget.remove");
+        var plan = BindWidgets(document, "widget.remove");
 
         var remove = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(remove.MethodName).IsEqualTo("RemoveWidgetAsync");
@@ -2436,7 +2406,7 @@ public sealed class OperationPlanBinderTests
     public async Task Bind_Should_Bind_A_Request_Body_On_A_Delete_Operation()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.widget.remove", method: "delete", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.remove", method: "delete", path: "/api/widget", configure: operation => operation
                 .RequestBody(
                     "application/json",
                     schema => schema.Type("object").Property("id", property => property.Type("string"), required: true),
@@ -2444,7 +2414,7 @@ public sealed class OperationPlanBinderTests
                 .WithoutResponse(200)
                 .Response(204))));
 
-        var plan = BindWidgets(document, "v2.widget.remove");
+        var plan = BindWidgets(document, "widget.remove");
 
         var remove = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(remove.HttpMethod).IsEqualTo("delete");
@@ -2460,10 +2430,10 @@ public sealed class OperationPlanBinderTests
             .WithSchema("WidgetInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.timeout", method: "patch", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.timeout", method: "patch", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
 
-        await AssertWidgetRefusalAsync(document, "must carry a request body", "v2.widget.timeout");
+        await AssertWidgetRefusalAsync(document, "must carry a request body", "widget.timeout");
     }
 
     [Test]
@@ -2473,10 +2443,10 @@ public sealed class OperationPlanBinderTests
             .WithSchema("WidgetInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.update", method: "put", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.update", method: "put", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
 
-        await AssertWidgetRefusalAsync(document, "must carry a request body", "v2.widget.update");
+        await AssertWidgetRefusalAsync(document, "must carry a request body", "widget.update");
     }
 
     /// <summary>
@@ -2488,7 +2458,7 @@ public sealed class OperationPlanBinderTests
     public async Task Ingest_Should_Refuse_A_Head_Operation_Carrying_A_Request_Body()
     {
         var context = SpecScenario.Define(spec => spec
-            .WithOperation("v2.widget.remove", method: "head", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.remove", method: "head", path: "/api/widget", configure: operation => operation
                 .RequestBody(
                     "application/json",
                     schema => schema.Type("object").Property("id", property => property.Type("string"), required: true),
@@ -2511,13 +2481,13 @@ public sealed class OperationPlanBinderTests
             .WithSchema("ItemInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .RequestBody("application/json", schema => schema
                     .Type("object")
                     .Property("value", property => property.Type("string"), required: true))
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
 
-        await AssertOperationRefusalAsync(document, "v2.health.get", "must not carry a request body");
+        await AssertOperationRefusalAsync(document, "health.get", "must not carry a request body");
     }
 
     [Test]
@@ -2527,11 +2497,11 @@ public sealed class OperationPlanBinderTests
             .WithSchema("ItemInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo"))
                 .Response(201, "application/json", schema => schema.Ref("ItemInfo")))));
 
-        await AssertOperationRefusalAsync(document, "v2.health.get", "exactly one success response");
+        await AssertOperationRefusalAsync(document, "health.get", "exactly one success response");
     }
 
     [Test]
@@ -2541,11 +2511,11 @@ public sealed class OperationPlanBinderTests
             .WithSchema("ItemInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .WithoutResponse(200)
                 .Response(201, "application/json", schema => schema.Ref("ItemInfo")))));
 
-        await AssertOperationRefusalAsync(document, "v2.health.get", "status 200");
+        await AssertOperationRefusalAsync(document, "health.get", "status 200");
     }
 
     [Test]
@@ -2553,7 +2523,7 @@ public sealed class OperationPlanBinderTests
     {
         var document = await BindingTestHost.IngestAsync(NoContentScenario());
 
-        var plan = BindWidgets(document, "v2.widget.create");
+        var plan = BindWidgets(document, "widget.create");
 
         var create = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(create.Envelope!.Kind).IsEqualTo(EnvelopeKind.NoContent);
@@ -2585,16 +2555,16 @@ public sealed class OperationPlanBinderTests
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))));
 
-        await AssertWidgetRefusalAsync(document, "must not carry content", "v2.widget.create");
+        await AssertWidgetRefusalAsync(document, "must not carry content", "widget.create");
     }
 
     [Test]
     public async Task Bind_Should_Refuse_A_Success_Without_Json_Content()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
-            .WithOperation("v2.health.get")));
+            .WithOperation("health.get")));
 
-        await AssertOperationRefusalAsync(document, "v2.health.get", "JSON schema");
+        await AssertOperationRefusalAsync(document, "health.get", "JSON schema");
     }
 
     [Test]
@@ -2604,13 +2574,13 @@ public sealed class OperationPlanBinderTests
             .WithSchema("ItemInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema
                     .Type("object")
                     .Property("data", property => property.Ref("ItemInfo"), required: true)
                     .Property("hasMore", property => property.Type("boolean"), required: true)))));
 
-        await AssertOperationRefusalAsync(document, "v2.health.get", "envelope shape");
+        await AssertOperationRefusalAsync(document, "health.get", "envelope shape");
     }
 
     [Test]
@@ -2620,12 +2590,12 @@ public sealed class OperationPlanBinderTests
             .WithSchema("ItemInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema
                     .Type("string")
                     .ContentSchema("application/json", inner => inner.Ref("ItemInfo"))))));
 
-        await AssertOperationRefusalAsync(document, "v2.health.get", "does not bind to a supported type plan");
+        await AssertOperationRefusalAsync(document, "health.get", "does not bind to a supported type plan");
     }
 
     [Test]
@@ -2638,11 +2608,11 @@ public sealed class OperationPlanBinderTests
             .WithSchema("PlainProblem", schema => schema
                 .Type("object")
                 .Property("message", property => property.Type("string"), required: true))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo"))
                 .Response(404, "application/json", schema => schema.Ref("PlainProblem")))));
 
-        await AssertOperationRefusalAsync(document, "v2.health.get", "tagged error");
+        await AssertOperationRefusalAsync(document, "health.get", "tagged error");
     }
 
     [Test]
@@ -2652,10 +2622,10 @@ public sealed class OperationPlanBinderTests
             .WithSchema("ItemInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .SseResponse(schema => schema.Ref("ItemInfo")))));
 
-        await AssertOperationRefusalAsync(document, "v2.health.get", "event frame");
+        await AssertOperationRefusalAsync(document, "health.get", "event frame");
     }
 
     [Test]
@@ -2769,10 +2739,10 @@ public sealed class OperationPlanBinderTests
             .WithSchema("ItemInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.health.get", path: "/api/health/*", configure: operation => operation
+            .WithOperation("health.get", path: "/api/health/*", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
 
-        await AssertOperationRefusalAsync(document, "v2.health.get", "wildcard");
+        await AssertOperationRefusalAsync(document, "health.get", "wildcard");
     }
 
     [Test]
@@ -2782,13 +2752,13 @@ public sealed class OperationPlanBinderTests
             .WithSchema("ItemInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.item", path: "/api/widget/{request}", configure: operation => operation
+            .WithOperation("widget.item", path: "/api/widget/{request}", configure: operation => operation
                 .Parameter("request", "path", schema => schema.Type("string"), required: true)
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.item"),
+            Selection("widget.item"),
             Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)))));
 
         await Assert
@@ -2805,13 +2775,13 @@ public sealed class OperationPlanBinderTests
             .WithSchema("ItemInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.item", path: "/api/widget/{options}", configure: operation => operation
+            .WithOperation("widget.item", path: "/api/widget/{options}", configure: operation => operation
                 .Parameter("options", "path", schema => schema.Type("string"), required: true)
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.item"),
+            Selection("widget.item"),
             Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null))));
 
         var item = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
@@ -2825,7 +2795,7 @@ public sealed class OperationPlanBinderTests
             .WithSchema("WidgetInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.create", method: "post", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.create", method: "post", path: "/api/widget", configure: operation => operation
                 .Parameter("dryRun", "query", QueryScenarioData.NullableString)
                 .RequestBody("application/json", body => body
                     .Type("object")
@@ -2834,7 +2804,7 @@ public sealed class OperationPlanBinderTests
                         static branch => branch.Type("null"))), required: true)
                 .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))));
 
-        await AssertWidgetRefusalAsync(document, "request body and query", "v2.widget.create");
+        await AssertWidgetRefusalAsync(document, "request body and query", "widget.create");
     }
 
     [Test]
@@ -2844,12 +2814,12 @@ public sealed class OperationPlanBinderTests
             .WithSchema("WidgetStateResponse", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.state", path: "/api/widget-state", configure: operation => operation
+            .WithOperation("widget.state", path: "/api/widget-state", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetStateResponse")))));
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.state"),
+            Selection("widget.state"),
             Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)))));
 
         await Assert
@@ -2866,7 +2836,7 @@ public sealed class OperationPlanBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.gadget.part"),
+            Selection("gadget.part"),
             Curation(Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: "ListCursor", handleParameter: "gadgetID")))));
 
         await Assert
@@ -2879,7 +2849,7 @@ public sealed class OperationPlanBinderTests
     public async Task Bind_Should_Refuse_Colliding_Method_Names_On_A_Client()
     {
         var document = await BindingTestHost.IngestAsync(GadgetScenario(spec => spec
-            .WithOperation("v2.gadget.part.get", path: "/api/gadget/{gadgetID}/part-alias/{partID}", configure: operation => operation
+            .WithOperation("gadget.part.get", path: "/api/gadget/{gadgetID}/part-alias/{partID}", configure: operation => operation
                 .Parameter("gadgetID", "path", schema => schema.Type("string"), required: true)
                 .Parameter("partID", "path", schema => schema.Type("string"), required: true)
                 .Response(200, "application/json", schema => schema
@@ -2888,7 +2858,7 @@ public sealed class OperationPlanBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.gadget.part", "v2.gadget.part.get"),
+            Selection("gadget.part", "gadget.part.get"),
             Curation(Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID")))));
 
         await Assert
@@ -2905,12 +2875,12 @@ public sealed class OperationPlanBinderTests
     public async Task Bind_Should_Refuse_Colliding_Route_Members_In_A_Container()
     {
         var document = await BindingTestHost.IngestAsync(GadgetScenario(spec => spec
-            .WithOperation("v2.gadget.part.get", path: "/api/gadget-part", configure: operation => operation
+            .WithOperation("gadget.part.get", path: "/api/gadget-part", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("GadgetPart")))));
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.gadget.part", "v2.gadget.part.get"),
+            Selection("gadget.part", "gadget.part.get"),
             Curation(Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID")))));
 
         await Assert
@@ -2927,7 +2897,7 @@ public sealed class OperationPlanBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.gadget.part"),
+            Selection("gadget.part"),
             Curation(Groups("gadget", ClientGroup(clientName: "Gadget", handleName: "GadgetClient", handleParameter: "gadgetID")))));
 
         await Assert
@@ -2942,12 +2912,12 @@ public sealed class OperationPlanBinderTests
         var document = await BindingTestHost.IngestAsync(GadgetScenario());
         var payloadNames = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["v2.gadget.part"] = "Component",
+            ["gadget.part"] = "Component",
         };
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.gadget.part"),
+            Selection("gadget.part"),
             Curation(
                 Groups("gadget", ClientGroup(clientName: "Gadgets", handleName: "GadgetClient", handleParameter: "gadgetID")),
                 payloadNames));
@@ -2963,7 +2933,7 @@ public sealed class OperationPlanBinderTests
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.status"),
+            Selection("widget.status"),
             Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)))));
 
         await Assert
@@ -2981,12 +2951,12 @@ public sealed class OperationPlanBinderTests
         var document = await BindingTestHost.IngestAsync(StatusScenario());
         var payloadNames = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["v2.widget.status"] = payloadName,
+            ["widget.status"] = payloadName,
         };
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.status"),
+            Selection("widget.status"),
             Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)), payloadNames)));
 
         await Assert
@@ -3001,12 +2971,12 @@ public sealed class OperationPlanBinderTests
         var document = await BindingTestHost.IngestAsync(StatusScenario());
         var payloadNames = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["v2.widget.status"] = "WidgetStatus",
+            ["widget.status"] = "WidgetStatus",
         };
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.status"),
+            Selection("widget.status"),
             Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)), payloadNames));
 
         var status = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
@@ -3020,16 +2990,16 @@ public sealed class OperationPlanBinderTests
             .WithSchema("ItemInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.health.get", configure: operation => operation
+            .WithOperation("health.get", configure: operation => operation
                 .Parameter("limit", "query", schema => schema.Type("string").Format("uri"))
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo")))
-            .WithOperation("v2.health.probe", path: "/api/health-probe", configure: operation => operation
+            .WithOperation("health.probe", path: "/api/health-probe", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("ItemInfo"))
                 .Response(302, "application/json", schema => schema.Ref("ItemInfo")))));
 
         var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
             document,
-            Selection("v2.health.get", "v2.health.probe"),
+            Selection("health.get", "health.probe"),
             Curation(Groups("health", RootGroup()))));
 
         var subjects = exception
@@ -3037,8 +3007,8 @@ public sealed class OperationPlanBinderTests
             .Where(static error => error.Category == BindingErrorCategory.Operation)
             .Select(static error => error.Subject)
             .ToArray();
-        await Assert.That(subjects).Contains("v2.health.get");
-        await Assert.That(subjects).Contains("v2.health.probe");
+        await Assert.That(subjects).Contains("health.get");
+        await Assert.That(subjects).Contains("health.probe");
     }
 
     private static async Task AssertOperationRefusalAsync(SpecDocument document, string operationId, string expectedProblem,
@@ -3068,7 +3038,7 @@ public sealed class OperationPlanBinderTests
             .WithSchema("WidgetInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation =>
+            .WithOperation("widget.list", path: "/api/widget", configure: operation =>
             {
                 configureParameters(operation);
                 _ = operation.Response(200, "application/json", schema => schema.Ref("WidgetInfo"));
@@ -3087,7 +3057,7 @@ public sealed class OperationPlanBinderTests
                     .Type("array")
                     .Items(items ?? (static item => item.Ref("WidgetInfo"))), required: true)
                 .Property("cursor", cursor ?? DefaultCursor, required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation =>
+            .WithOperation("widget.list", path: "/api/widget", configure: operation =>
             {
                 configure?.Invoke(operation);
                 _ = operation.Response(200, "application/json", schema => schema.Ref("WidgetsResponse"));
@@ -3109,7 +3079,7 @@ public sealed class OperationPlanBinderTests
             .WithSchema("WidgetInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.create", method: "post", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.create", method: "post", path: "/api/widget", configure: operation => operation
                 .RequestBody(mediaType, configureBody, required)
                 .Response(200, "application/json", schema => schema.Ref("WidgetInfo"))));
 
@@ -3127,7 +3097,7 @@ public sealed class OperationPlanBinderTests
                 .AdditionalPropertiesFalse()
                 .Property("location", location ?? (static property => property.Ref("PlaceInfo")), required: locationRequired)
                 .Property("data", data ?? (static property => property.Ref("WidgetInfo")), required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetEnvelope"))));
 
     /// <summary>
@@ -3139,7 +3109,7 @@ public sealed class OperationPlanBinderTests
             .WithSchema("WidgetInfo", schema => schema
                 .Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.stats", path: "/api/widget/stats", configure: operation => operation
+            .WithOperation("widget.stats", path: "/api/widget/stats", configure: operation => operation
                 .Response(200, "application/json", schema =>
                 {
                     _ = schema.Type("object").AdditionalPropertiesFalse();
@@ -3148,7 +3118,7 @@ public sealed class OperationPlanBinderTests
 
     private static SpecScenario NoContentScenario(Action<OperationBuilder>? configure = null) =>
         SpecScenario.Define(spec => spec
-            .WithOperation("v2.widget.create", method: "post", path: "/api/widget", configure: operation =>
+            .WithOperation("widget.create", method: "post", path: "/api/widget", configure: operation =>
             {
                 _ = operation
                     .RequestBody("application/json", schema => schema
@@ -3166,7 +3136,7 @@ public sealed class OperationPlanBinderTests
     /// </summary>
     private static SpecScenario MergedGadgetScenario(bool gizmoDeclaresHeader = false) =>
         GadgetScenario(spec => spec
-            .WithOperation("v2.gizmo.list", path: "/api/gadget/{gadgetID}/gizmo", configure: operation =>
+            .WithOperation("gizmo.list", path: "/api/gadget/{gadgetID}/gizmo", configure: operation =>
             {
                 _ = operation.Parameter("gadgetID", "path", static schema => schema.Type("string"), required: true);
                 if (gizmoDeclaresHeader)
@@ -3188,10 +3158,10 @@ public sealed class OperationPlanBinderTests
             .WithSchema("PtyTicket", schema => schema
                 .Type("object")
                 .Property("token", property => property.Type("string"), required: true))
-            .WithOperation("v2.pty.get", path: "/api/pty/{ptyID}", configure: operation => operation
+            .WithOperation("pty.get", path: "/api/pty/{ptyID}", configure: operation => operation
                 .Parameter("ptyID", "path", schema => schema.Type("string"), required: true)
                 .Response(200, "application/json", schema => schema.Ref("PtyInfo")))
-            .WithOperation("v2.pty.connect.token", method: "post", path: "/api/pty/{ptyID}/connect-token",
+            .WithOperation("pty.connect.token", method: "post", path: "/api/pty/{ptyID}/connect-token",
                 configure: operation => operation
                     .Parameter("ptyID", "path", schema => schema.Type("string"), required: true)
                     .Parameter(
@@ -3204,19 +3174,19 @@ public sealed class OperationPlanBinderTests
     private static EmitPlan BindPtys(SpecDocument document, EmissionMode emission) =>
         new BindingTestHost().Bind(
             document,
-            Selection("v2.pty.get", "v2.pty.connect.token"),
+            Selection("pty.get", "pty.connect.token"),
             Curation(Groups(
                 "pty",
                 ClientGroup(clientName: "Ptys", handleName: "PtyClient", handleParameter: "ptyID", emission: emission))));
 
-    private static EmitPlan BindWidgets(SpecDocument document, string operationId = "v2.widget.list") =>
+    private static EmitPlan BindWidgets(SpecDocument document, string operationId = "widget.list") =>
         new BindingTestHost().Bind(
             document,
             Selection(operationId),
             Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null))));
 
     private static async Task AssertWidgetRefusalAsync(SpecDocument document, string expectedProblem,
-        string operationId = "v2.widget.list")
+        string operationId = "widget.list")
     {
         var exception = Assert.Throws<BindingException>(() => _ = BindWidgets(document, operationId));
 
@@ -3258,9 +3228,6 @@ public sealed class OperationPlanBinderTests
                 .AdditionalPropertiesFalse()
                 .Property("directory", static property => property.AnyOf(
                     static inner => inner.Type("string"),
-                    static inner => inner.Type("null")))
-                .Property("workspace", static property => property.AnyOf(
-                    static inner => inner.Type("string"),
                     static inner => inner.Type("null"))),
             static branch => branch.Type("null"));
 
@@ -3270,9 +3237,6 @@ public sealed class OperationPlanBinderTests
                 .AdditionalPropertiesFalse()
                 .Property("directory", static property => property.AnyOf(
                     static inner => inner.Type("string").Format("uri"),
-                    static inner => inner.Type("null")))
-                .Property("workspace", static property => property.AnyOf(
-                    static inner => inner.Type("string"),
                     static inner => inner.Type("null"))),
             static branch => branch.Type("null"));
 
@@ -3303,7 +3267,7 @@ public sealed class OperationPlanBinderTests
                     .Type("object")
                     .Property("_tag", property => property.Type("string").Enum("GadgetMissingError"), required: true)
                     .Property("message", property => property.Type("string"), required: true))
-                .WithOperation("v2.gadget.part", path: "/api/gadget/{gadgetID}/part/{partID}", configure: operation =>
+                .WithOperation("gadget.part", path: "/api/gadget/{gadgetID}/part/{partID}", configure: operation =>
                 {
                     if (parametersReversed)
                     {
@@ -3333,6 +3297,6 @@ public sealed class OperationPlanBinderTests
             .WithSchema("WidgetState", schema => schema
                 .Type("object")
                 .Property("value", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.status", path: "/api/widget-status", configure: operation => operation
+            .WithOperation("widget.status", path: "/api/widget-status", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetState"))));
 }

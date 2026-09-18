@@ -7,10 +7,6 @@ namespace OpenCode.Sdk;
 public sealed record SessionListRequest : ListRequest
 {
     /// <summary>
-    /// Gets the &apos;workspace&apos; query value; the server default applies when unset.
-    /// </summary>
-    public string? Workspace { get; init; }
-    /// <summary>
     /// Gets the &apos;search&apos; query value; the server default applies when unset.
     /// </summary>
     public string? Search { get; init; }

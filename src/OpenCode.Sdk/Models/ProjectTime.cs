@@ -19,11 +19,4 @@ public sealed record ProjectTime
     /// </summary>
     [JsonPropertyName("updated")]
     public required long Updated { get; init; }
-
-    /// <summary>
-    /// Gets the initialized value.
-    /// </summary>
-    [JsonPropertyName("initialized")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public long? Initialized { get; init; }
 }

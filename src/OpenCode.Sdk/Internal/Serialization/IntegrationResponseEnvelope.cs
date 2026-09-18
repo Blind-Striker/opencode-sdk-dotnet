@@ -10,8 +10,8 @@ namespace OpenCode.Sdk.Internal.Serialization;
 internal sealed record IntegrationResponseEnvelope
 {
     [JsonPropertyName("data")]
-    public required IntegrationInfo? Data { get; init; }
+    public required IntegrationInfo Data { get; init; }
 
     [JsonPropertyName("location")]
-    public required LocationInfo Location { get; init; }
+    public required LocationPublicRef Location { get; init; }
 }

@@ -1,6 +1,6 @@
 {
   "patch": "001-restore-sse-payloads.patch",
-  "sha256": "fb4c40b51a9fe46b4bf190e09d90b64cb3f67faa3bdd4c2abccfc58b4a558274",
+  "sha256": "f5f596711455c27e2de7b16075e9ec27f8fde5afb4089690a98f9990136ced73",
   "upstreamReport": "https://github.com/anomalyco/opencode/pull/45182",
   "order": 1,
   "touches": [

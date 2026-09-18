@@ -28,13 +28,6 @@ public sealed record SkillInfo
     public string? Description { get; init; }
 
     /// <summary>
-    /// Gets the slash value.
-    /// </summary>
-    [JsonPropertyName("slash")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public bool? Slash { get; init; }
-
-    /// <summary>
     /// Gets the autoinvoke value.
     /// </summary>
     [JsonPropertyName("autoinvoke")]
@@ -42,10 +35,10 @@ public sealed record SkillInfo
     public bool? Autoinvoke { get; init; }
 
     /// <summary>
-    /// Gets the location value.
+    /// Gets the path value.
     /// </summary>
-    [JsonPropertyName("location")]
-    public required string Location { get; init; }
+    [JsonPropertyName("path")]
+    public required string Path { get; init; }
 
     /// <summary>
     /// Gets the content value.

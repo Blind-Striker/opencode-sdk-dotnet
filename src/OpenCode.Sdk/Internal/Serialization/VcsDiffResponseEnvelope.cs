@@ -13,5 +13,5 @@ internal sealed record VcsDiffResponseEnvelope
     public required IReadOnlyList<FileDiffInfo> Data { get; init; }
 
     [JsonPropertyName("location")]
-    public required LocationInfo Location { get; init; }
+    public required LocationPublicRef Location { get; init; }
 }

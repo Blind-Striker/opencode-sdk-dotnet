@@ -7,7 +7,7 @@ namespace OpenCode.Sdk;
 public sealed record WorktreeListRequest
 {
     /// <summary>
-    /// Gets the &apos;location&apos; query value; the server default applies when unset.
+    /// Gets the required &apos;projectID&apos; query value.
     /// </summary>
-    public LocationSelector? Location { get; init; }
+    public required string ProjectId { get; init; }
 }

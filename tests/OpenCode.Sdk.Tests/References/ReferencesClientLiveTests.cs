@@ -1,5 +1,6 @@
 using System.Globalization;
 using OpenCode.Sdk.Models;
+using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
 
 namespace OpenCode.Sdk.Tests;
@@ -15,10 +16,10 @@ public sealed class ReferencesClientLiveTests(SimulatedDriveServerFixture server
     {
         using var workspace = server.CreateWorkspace();
         using var client = server.CreateClient(new LocationSelector { Directory = workspace.Path });
-        var settled = await client.Plugins.AwaitPluginActivationAsync(cancellationToken: cancellationToken);
-        await Assert.That(settled.Status).IsEqualTo(204);
-
-        var response = await client.References.ListReferencesAsync(cancellationToken: cancellationToken);
+        var response = await LiveReadiness.WaitAsync(
+            token => client.References.ListReferencesAsync(cancellationToken: token),
+            result => result.References.Any(item => item.Name == SimulationConfigSeed.ReferenceName),
+            "seeded references", cancellationToken);
 
         await Assert.That(response.Status).IsEqualTo(200);
         await Assert.That(response.IsError).IsFalse();

@@ -22,10 +22,11 @@ covered. All three of opencode's connection modes are open: a private server the
 endpoint you already run, and the background service the CLI registers. What is still outstanding
 on that third mode is ensuring and stopping the service, which follow discovery as their own slices.
 
-- ✅ **139 of 144 operations** callable, across 29 client families — sessions, PTYs, persistent
-  PTYs, shells, events, MCP servers, integrations, providers, permissions, credentials, config,
-  VCS, worktrees, websearch, RPC, and more
-- ✅ **6,295 tests** green on Windows — the fullest leg, the only one that adds the `net472`
+- ✅ **131 of 134 operations** callable — 129 generated, two through hand-written WebSocket
+  transports — across 27 client families: sessions, PTYs, persistent PTYs, shells, events, MCP
+  servers, integrations, providers, permissions, credentials, config, VCS, worktrees, websearch,
+  RPC, and more
+- ✅ **6,278 tests** green on Windows — the fullest leg, the only one that adds the `net472`
   assemblies. Linux and macOS run the same suite on `net8.0`, `net9.0`, and `net10.0`
 - ✅ **Server-sent event streams**, global and per-session, over the same transport as one-shot calls
 - ✅ **PTY and persistent-PTY terminal sessions** through hand-written WebSocket doors
@@ -33,7 +34,8 @@ on that third mode is ensuring and stopping the service, which follow discovery 
   `opencode serve` child for you
 - ✅ **Background-service discovery** — `OpenCodeServer.DiscoverAsync()` finds the daemon the
   opencode CLI registers for every client on the machine, through the CLI's own registration
-  rules, and hands you a non-owning handle; proven against the pinned service on every runtime leg
+  rules, and hands you a non-owning handle; proven against the pinned service on every
+  target-framework leg
 - ✅ **Source-generated `System.Text.Json`** with no reflection fallback; both packages declare
   `IsAotCompatible` on `net10.0`
 - 🚧 **Pre-1.0 and iterating** — released as `0.9.0-preview.N`; the public surface is
@@ -119,7 +121,7 @@ not what this repository tests. The pinned release tag and its npm version are o
 [`spec/SNAPSHOT.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/spec/SNAPSHOT.md).
 
 ```sh
-npm install -g @opencode/cli@2.0.3
+npm install -g @opencode/cli@2.0.5
 ```
 
 Then either run it yourself:
@@ -210,8 +212,8 @@ using OpenCode.Sdk.Models;
 await using var server = await OpenCodeServer.StartAsync();
 using var client = server.CreateClient();
 
-var health = await client.GetHealthAsync();
-Console.WriteLine($"opencode {health.Health.Version} is healthy: {health.Health.Healthy}");
+var status = await client.Server.GetStatusAsync();
+Console.WriteLine($"opencode {status.ServerStatus.Version} (pid {status.ServerStatus.Pid})");
 
 var created = await client.Sessions.CreateSessionAsync(new SessionCreateRequest { Title = "hello from .NET" });
 Console.WriteLine($"session {created.Session.Id}: {created.Session.Title}");
@@ -232,8 +234,8 @@ using var client = new OpenCodeClient(new OpenCodeClientOptions
     Password = Environment.GetEnvironmentVariable("OPENCODE_PASSWORD"),
 });
 
-var health = await client.GetHealthAsync();
-Console.WriteLine(health.Health.Version);
+var status = await client.Server.GetStatusAsync();
+Console.WriteLine(status.ServerStatus.Version);
 ```
 
 The client reads no environment variables of its own — resolving a password from the environment
@@ -245,7 +247,7 @@ CLI itself uses to locate its registration.
 
 The opencode CLI keeps one background service per user and publishes where it listens in a
 registration file. `DiscoverAsync` reads that file the way the CLI does, checks the daemon's
-authenticated health, and hands you a handle that owns nothing — disposing it never stops the
+authenticated status, and hands you a handle that owns nothing — disposing it never stops the
 service other clients share. Null means no ready service; start a private one, or run `opencode`.
 
 ```csharp
@@ -256,8 +258,8 @@ if (server is null)
 }
 
 using var client = server.CreateClient();
-var health = await client.GetHealthAsync();
-Console.WriteLine($"opencode {health.Health.Version}, pid {server.ProcessId}, owned: {server.OwnsProcess}");
+var status = await client.Server.GetStatusAsync();
+Console.WriteLine($"opencode {status.ServerStatus.Version}, pid {server.ProcessId}, owned: {server.OwnsProcess}");
 ```
 
 `OpenCodeServerDiscoverOptions` selects a service channel, names a registration file directly, or
@@ -309,24 +311,27 @@ overload shown above.
 
 ## 🧭 API Coverage
 
-**138 of the 143 operations** in the pinned snapshot are callable. The remaining five are not
-omissions — each one is a recorded decision with a named cause, and
+**129 of 134 operations** in the pinned snapshot are generated; two more have hand-written
+WebSocket transports. The five operations outside generation are recorded decisions — each one has a named cause, and
 [`src/OpenCode.Sdk/.generation-incomplete`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/src/OpenCode.Sdk/.generation-incomplete) is the
 machine-readable map that the build itself reads.
 
 **Three operations are declined**, because admitting them would mean inventing a contract upstream
 does not declare:
 
-- **`v2.config.get`** — the config schema nests unions whose branches are all JSON objects with no
+- **`config.get`** — the config schema nests unions whose branches are all JSON objects with no
   discriminator (`lsp`'s and `references`' map values), so a decoder cannot tell one branch from
-  another without guessing. Moving this needs a new union mechanism, not a mapping row.
-- **`v2.fs.read`** — the route is `/api/fs/read/*`, a framework wildcard rather than an OpenAPI
+  another without guessing. The generation marker also records naming and inline-model walls;
+  admission requires resolving all of them, not just adding a mapping row. At this pin it is also
+  the only configuration read upstream offers, so the SDK writes configuration
+  (`Experimental.UpdateConfigAsync`) but cannot read it back yet.
+- **`fs.read`** — the route is `/api/fs/read/*`, a framework wildcard rather than an OpenAPI
   path template. There is no declared path parameter to bind, and inventing one would put a
   fabricated contract in a generated client. An upstream report is drafted.
-- **`v2.experimental.migration.v1.status`** — the same undiscriminated-object-union wall as
-  `v2.config.get`, on an operation upstream itself marks experimental.
+- **`experimental.migration.v1.status`** — the same undiscriminated-object-union wall as
+  `config.get`, on an operation upstream itself marks experimental.
 
-**Two operations are transport-owned**: `v2.pty.connect` and `v2.persistentPty.connect` are
+**Two operations are transport-owned**: `pty.connect` and `persistentPty.connect` are
 WebSocket upgrades that the HTTP pipeline cannot carry. They are fully usable — through the
 hand-written `PtySession` and `PersistentPtySession` doors described in
 [the terminals guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/terminals.md) — they simply are not generated.

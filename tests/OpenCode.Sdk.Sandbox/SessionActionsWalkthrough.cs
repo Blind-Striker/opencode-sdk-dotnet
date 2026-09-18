@@ -4,18 +4,19 @@ namespace OpenCode.Sdk.Sandbox;
 
 /// <summary>
 /// The session-breadth leg of the standing walkthrough: export with its query, the permission
-/// round trip, the tagged fork boundary, and the NoThrow spine carrying whatever the live
+/// round trip, forking the current session, and the NoThrow spine carrying whatever the live
 /// server declares for compact.
 /// </summary>
 internal static class SessionActionsWalkthrough
 {
-    public static async Task RunAsync(SessionClient handle)
+    public static async Task RunAsync(OpenCodeClient client, SessionClient handle, string sessionId)
     {
+        ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(handle);
 
-        var export = await handle.GetExportAsync(new SessionExportRequest { Sanitize = QueryBoolean.True }).ConfigureAwait(false);
+        var export = await client.Experimental.GetSessionExportAsync(sessionId, new ExperimentalSessionExportRequest { Sanitize = QueryBoolean.True }).ConfigureAwait(false);
 
-        Console.WriteLine($"export:  status={export.Status} id={export.Export.Info.Id} messages={export.Export.Messages.Count}");
+        Console.WriteLine($"export:  status={export.Status} id={export.SessionExport.Info.Id} messages={export.SessionExport.Messages.Count}");
 
         var permission = await handle.CreatePermissionAsync(new SessionPermissionCreateRequest
         {
@@ -33,7 +34,7 @@ internal static class SessionActionsWalkthrough
 
         var reply = await handle.PostPermissionReplyAsync(
                 permission.Permission.Id,
-                new SessionPermissionReplyPostRequest { Reply = PermissionReply.Once },
+                new SessionPermissionReplyPostRequest { Decision = PermissionReply.Once },
                 OpenCodeRequestOptions.NoThrow)
             .ConfigureAwait(false);
 
@@ -46,7 +47,7 @@ internal static class SessionActionsWalkthrough
             : $"compact: status={compact.Status} inbox={compact.Compact.Id} delivery={compact.Compact.Delivery}");
 
         var fork = await handle.PostForkAsync(
-                new SessionForkPostRequest { Boundary = new SessionForkRequestBoundaryThrough() },
+                new SessionForkPostRequest(),
                 OpenCodeRequestOptions.NoThrow)
             .ConfigureAwait(false);
 

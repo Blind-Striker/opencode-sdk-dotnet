@@ -9,6 +9,13 @@ namespace OpenCode.Sdk.Models;
 public sealed record VcsInfo
 {
     /// <summary>
+    /// Gets the provider value.
+    /// </summary>
+    [JsonPropertyName("provider")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Provider { get; init; }
+
+    /// <summary>
     /// Gets the branch value.
     /// </summary>
     [JsonPropertyName("branch")]

@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-09-16
+Date: 2026-09-17
 
 Operational state: what ships today, what is queued next, what is still open, and what is known to
 be incomplete. This file is a summary and shrinks as work lands. `../AGENTS.md` routes to the
@@ -15,7 +15,7 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
 - **Protocol pin** — generation reads an accepted snapshot of upstream's OpenAPI document taken at
   a release tag, never a live branch, and refreshes are receipt-governed (ADR-0020).
   `../spec/SNAPSHOT.md` owns the exact commit and the refresh procedure.
-- **Coverage** — **139 of 144 operations selected** across 29 client families, with 3 declined by
+- **Coverage** — **129 of 134 operations selected** across 27 client families, with 3 declined by
   decision and 2 transport-owned (Known Gaps below); `src/OpenCode.Sdk/.generation-incomplete` is
   the committed marker and names every one. One-shot calls, server-sent event streams (the global
   bus and the per-session log), PTY and persistent-PTY WebSocket sessions, cursor pagination, typed
@@ -28,15 +28,19 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
   targets. Linux and macOS live verification also passed on net8/net9/net10, including the persistent daemon
   round trip and normal PTY reuse after read cancellation. `architecture/client-runtime.md` and
   ADR-0023 own the contract.
-- **Official launch watch** — upstream's own 1.x npm package (`opencode-ai`, still 1.18.31) and its
-  GitHub Releases page (still `v1.18.31` as latest) remain the 1.x line, so the 2.x line has not had
-  its official launch yet. The pin tracks upstream release tags and is refreshed under receipt at
-  milestone boundaries; package names and documentation are re-checked when the launch lands.
-  Past `v2.0.3`, the `v2` branch has already dropped the `v2.` prefix from every operation id and
-  replaced the `/api/health` route with `/api/status` (a `{version, pid, urls}` body, no `healthy`
-  member); the next refresh that crosses those commits reshapes the generated surface, the
-  protocol-surface identity in ADR-0005, and the background-service probe, so it is a milestone
-  boundary in its own right rather than a routine pin move.
+- **2.0.5 refresh** — the accepted pin, prefixless operation identities, regenerated clients with
+  `experimental.*` on the flat `ExperimentalClient`, directory-only location targeting, and the
+  status-based discovery probe are migrated, with no compatibility layer. The default Windows
+  source gate passes on `net472`, `net8.0`, `net9.0`, and `net10.0` (6,278 tests), the Linux source
+  suite passes under WSL on `net8.0`, `net9.0`, and `net10.0` (4,900 tests), and regeneration and
+  receipt verification pass. macOS is not requalified at this pin; the three-OS CI run on the
+  refresh's pull request is that qualification. The remaining M4 slices (Stop, then Ensure) resume
+  after the refresh lands.
+- **Official launch watch** — upstream's own 1.x npm package (`opencode-ai`) and its GitHub Releases
+  page were both still at `1.18.31` when last observed on 2026-09-16, so the 2.x line had not had
+  its official launch then. The pin tracks upstream release tags and is refreshed under receipt at
+  milestone boundaries; package names and launch documentation are re-checked when the launch
+  lands. The accepted protocol identity is owned by `../spec/SNAPSHOT.md`.
 - **Packages** — the two packages publish as `OpenCodeAI.Sdk` and `OpenCodeAI.Sdk.Extensions`
   (the assemblies stay `OpenCode.Sdk`) and pack at the single-sourced
   `VersionPrefix 0.9.0`. Every `master` push publishes a `0.9.0-nightly.*` build to GitHub
@@ -67,18 +71,18 @@ is revisited at each boundary.
    session workflow (ADR-0022). **The background-service parity arc is in flight, and its first
    slice has landed**: `OpenCodeServer.DiscoverAsync` over the registration file — an
    upstream-observed contract outside the OpenAPI pin, so source-watched (ADR-0024, ADR-0025) —
-   with a non-owning handle (`OwnsProcess`), the CLI's channel, migration, and health rules, and
+   with a non-owning handle (`OwnsProcess`), the CLI's channel, migration, and status rules, and
    live proof against the pin's own `serve --service` daemon on every runtime leg. `EnsureAsync`
    and `StopAsync` follow as their own slices.
    **Surface completeness is queued beside it, for detailed investigation before any code:**
    admitting the five operations that sit outside generation today. The sketched paths are an
-   opaque `JsonElement` arm for an object-only union with no marker literal (`v2.config.get`,
+   opaque `JsonElement` arm for an object-only union with no marker literal (`config.get`,
    whose `lsp`, `mcp.servers`, and `references` map values are exactly that), a marker table
-   that accepts a branch whose literal carries several values (`v2.experimental.migration.v1.status`
+   that accepts a branch whose literal carries several values (`experimental.migration.v1.status`
    dispatches on `status`, one branch with two values), a hand-written door over the wildcard
-   octet-stream route with a watched upstream handler (`v2.fs.read`), and counting the two
+   octet-stream route with a watched upstream handler (`fs.read`), and counting the two
    transport-owned WebSocket doors as the covered operations they are — so the surface reads
-   144 of 144 usable. Each path is an ADR-0016 or ADR-0013 question first; the investigation
+   134 of 134 usable. Each path is an ADR-0016 or ADR-0013 question first; the investigation
    decides whether every one holds.
 5. **M5 — Full surface.** Target admission over the refreshed surface, driven by the `refresh-spec`
    synchronizer (ADR-0020) and the ownership pattern for the terminal families (ADR-0021). Coverage
@@ -96,7 +100,7 @@ is revisited at each boundary.
 
 ## Open Questions
 
-- **`v2.session.log` resume guarantees** — the pinned document exposes `after` as an optional
+- **`session.log` resume guarantees** — the pinned document exposes `after` as an optional
   string, and the generated surface stays faithful to it; ADR-0013 forbids importing the narrower
   type upstream's implementation decodes. Replay mechanics and retention are established and
   carried by canon. What stays open is the wire behaviour nothing upstream pins: no server-level
@@ -106,7 +110,7 @@ is revisited at each boundary.
 - **OpenAPI projection fidelity** — the pinned document loses detail upstream's implementation
   carries. Confirmed losses are reported upstream
   ([anomalyco/opencode#44911](https://github.com/anomalyco/opencode/issues/44911), restored by the
-  still-open [PR #45182](https://github.com/anomalyco/opencode/pull/45182)); further candidates are
+  proposed [PR #45182](https://github.com/anomalyco/opencode/pull/45182)); further candidates are
   parked for filing at the maintainer's choosing — off-convention `persistentPty.*` operation ids,
   a missing security-scheme declaration, 25 lost `Config.Info` descriptions, an undeclared header
   value, a numeric range and a file path both invisible behind bare strings, a WebSocket close code
@@ -127,13 +131,25 @@ is revisited at each boundary.
 ## Known Gaps
 
 - **Three operations stay declined by decision, not by omission.** The generation marker carries
-  each reason. `v2.config.get` and `v2.experimental.migration.v1.status` meet the ADR-0016
+  each reason. `config.get` and `experimental.migration.v1.status` meet the ADR-0016
   structural-union wall: same-token-kind unions need a union mechanism, not a curation row.
-  `v2.fs.read` is declared on a framework wildcard rather than an OpenAPI path template, so the file
+  `fs.read` is declared on a framework wildcard rather than an OpenAPI path template, so the file
   path the call must carry is invisible to any generated client; admitting it would mean inventing a
   path parameter the document does not declare (ADR-0013), and the upstream report is drafted.
-  All three now have a sketched admission path (Milestones, M4: surface completeness), so these
-  are scheduled decisions to revisit, not standing ones.
+  The current marker also records config naming and inline-model walls. All three have a sketched
+  admission path (Milestones, M4: surface completeness), so these are scheduled decisions to
+  revisit, not standing ones.
+- **There is no configuration read at the 2.0.5 pin.** Upstream removed `/api/config/preferences`
+  and folded reading into `config.get`, which stays declined above, so the SDK writes configuration
+  through `Experimental.UpdateConfigAsync` and cannot read it back. Admitting `config.get` is what
+  restores the read; it raises that decision's cost without changing its mechanism.
+- **An opencode server on Windows can die inside its native file watcher.** `@parcel/watcher` 2.5.1
+  crashes the server process when a directory it watches natively is written to while
+  subscriptions to it are being released and re-created, which the server does per location for
+  the skills directories of every `.claude`, `.agents`, and `.opencode` root it discovers between a
+  location and the drive root. A caller sees `OpenCodeTransportException`, not an SDK fault. The
+  test fixtures are hermetic against it (`engineering/testing-style.md`); a consumer's server is
+  not, and the upstream report is drafted but not filed.
 - **The downlevel Unix arm of the legacy-registration copy shells out for its file mode.**
   Discovery's one-time copy of an older hashed registration is created exclusively at mode `0600`:
   `net8.0` and later set the mode at creation through `FileStreamOptions.UnixCreateMode`, while
@@ -163,7 +179,7 @@ is revisited at each boundary.
   killed processes already surface at once. A consumer cannot bound this from outside the SDK,
   because the server's keepalive comments carry no event and never reach the enumeration. The bound
   has to be per operation rather than a property of every SSE body: upstream writes a keepalive
-  every fifteen seconds on `v2.event.subscribe` and none on `v2.session.log`, whose follow mode is
+  every fifteen seconds on `event.subscribe` and none on `session.log`, whose follow mode is
   silent by design while a session is idle. Queued behind M6's public network-timeout knob so the
   bound arrives configurable rather than as a behavior no caller can widen. Upstream's own clients
   place this one layer above their core client, which does not reconnect either
@@ -173,6 +189,11 @@ is revisited at each boundary.
   Windows. Harmless today, because every timing-bounded test runs alone, and queued as a hygiene
   candidate: the first suspect is .NET Framework's synchronous pipe reads holding thread-pool
   threads for every piped child. Measure before changing anything.
+- **Live tests are serialized by one mutex within a host** ([#83](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/83)):
+  every live class carries the `ServerProcess` key, so a host's live tests run one at a time.
+  Bounded parallelism (`ParallelLimiter`) needs the simulated drive controller demultiplexed by
+  session first; until then the remaining gain is about 8% per host and not worth the Windows
+  watcher-churn risk.
 - **Small cleanups queued for their next natural touch** — `envelopePayloadNames` is the one
   curation section whose rows cannot carry a reason (a mechanical loader change, though authoring
   fifteen verified reasons is not); the generator still inlines the dot-segment refusal into every

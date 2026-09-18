@@ -128,10 +128,10 @@ public sealed class ToolAppTests
 
         await Assert.That(result.ExitCode).IsEqualTo(0);
         var marker = await fileSystem.File.ReadAllTextAsync(GenerationTestData.MarkerPath, CancellationToken.None);
-        await Assert.That(marker).Contains("- v2.plugin.list [bindable]");
-        await Assert.That(marker).Contains("- v2.session.list [refused: the success response must carry a JSON schema]");
+        await Assert.That(marker).Contains("- plugin.list [bindable]");
+        await Assert.That(marker).Contains("- session.list [refused: the success response must carry a JSON schema]");
         await Assert.That(marker).Contains(
-            "- v2.widget.tail [refused: wildcard paths are not supported in M1; WebSocket operations are not supported in M1]");
+            "- widget.tail [refused: wildcard paths are not supported in M1; WebSocket operations are not supported in M1]");
     }
 
     [Test]
@@ -153,9 +153,9 @@ public sealed class ToolAppTests
         await Assert.That(result.Output).Contains("Transport-owned operations: 1");
         var marker = await fileSystem.File.ReadAllTextAsync(GenerationTestData.MarkerPath, CancellationToken.None);
         await Assert.That(marker).Contains("Pending operations: 3\nDeclined operations: 0\nTransport-owned operations: 1\n");
-        await Assert.That(marker).Contains("- v2.plugin.list [bindable]");
-        await Assert.That(marker).Contains("Transport-owned:\n- v2.pty.connect [fingerprint-pinned]\n");
-        await Assert.That(marker).DoesNotContain("- v2.pty.connect [refused");
+        await Assert.That(marker).Contains("- plugin.list [bindable]");
+        await Assert.That(marker).Contains("Transport-owned:\n- pty.connect [fingerprint-pinned]\n");
+        await Assert.That(marker).DoesNotContain("- pty.connect [refused");
     }
 
     [Test]
@@ -180,10 +180,10 @@ public sealed class ToolAppTests
         // The declined line carries the decision and the wall the binder finds today, so the two
         // are reviewed against each other in one place.
         await Assert.That(marker).Contains(
-            "Declined:\n- v2.widget.tail [declined: The route is an upstream wildcard and the operation is WebSocket-marked, "
+            "Declined:\n- widget.tail [declined: The route is an upstream wildcard and the operation is WebSocket-marked, "
             + "so it does not bind; maintainer 2026-08-30.] "
             + "[refused: wildcard paths are not supported in M1; WebSocket operations are not supported in M1]\n");
-        await Assert.That(marker).DoesNotContain("Pending:\n- v2.widget.tail");
+        await Assert.That(marker).DoesNotContain("Pending:\n- widget.tail");
     }
 
     [Test]
@@ -207,7 +207,7 @@ public sealed class ToolAppTests
         // released surface omits, and the packing wall reads its pending count, not its existence.
         await Assert.That(marker).StartsWith("Generation is complete at the declared coverage; packages may be published.\n");
         await Assert.That(marker).Contains("Pending operations: 0\nDeclined operations: 2\nTransport-owned operations: 0\n");
-        await Assert.That(marker).Contains("Pending:\nDeclined:\n- v2.session.list [declined: ");
+        await Assert.That(marker).Contains("Pending:\nDeclined:\n- session.list [declined: ");
     }
 
     [Test]
@@ -237,7 +237,7 @@ public sealed class ToolAppTests
 
         var error = exception!.Errors.Single();
         await Assert.That(error.Category).IsEqualTo(BindingErrorCategory.Curation);
-        await Assert.That(error.Subject).IsEqualTo("v2.plugin.list");
+        await Assert.That(error.Subject).IsEqualTo("plugin.list");
         await Assert.That(error.Problem).Contains("a bindable operation cannot be declined");
         await Assert.That(fileSystem.File.Exists(GenerationTestData.MarkerPath)).IsFalse();
     }

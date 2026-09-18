@@ -10,7 +10,7 @@ namespace OpenCode.Sdk.Tests;
 /// The rpc family's live proof against the pinned server: the repository-owned local plugin
 /// exercises exact input/output plus every deterministic 400/500 RPC arm. An rpc id nobody
 /// registered retains the declared <see cref="RpcError"/> unavailable proof on both error channels.
-/// External mode first proves the owned plugin id absent, then exercises only that unavailable arm.
+/// External mode exercises the unavailable arm, then checks inventory after the RPC activation barrier.
 /// </summary>
 [ClassDataSource<PinnedOpenCodeServerFixture>(Shared = SharedType.PerTestSession)]
 [NotInParallel(ParallelConstraintKeys.ServerProcess)]
@@ -219,7 +219,7 @@ public sealed class RpcClientLiveTests(PinnedOpenCodeServerFixture server)
         CancellationToken cancellationToken)
     {
         using var client = server.CreateClient();
-        var external = await PrepareRpcModeAsync(client, cancellationToken);
+        var external = await PrepareRpcModeAsync();
         var rpcId = external ? TestRpcPlugin.Id : UnregisteredRpcId;
 
         var response = await client.Rpc.CallAsync(
@@ -251,7 +251,7 @@ public sealed class RpcClientLiveTests(PinnedOpenCodeServerFixture server)
         CancellationToken cancellationToken)
     {
         using var client = server.CreateClient();
-        var external = await PrepareRpcModeAsync(client, cancellationToken);
+        var external = await PrepareRpcModeAsync();
         var rpcId = external ? TestRpcPlugin.Id : UnregisteredRpcId;
 
         var exception = await Assert
@@ -288,7 +288,7 @@ public sealed class RpcClientLiveTests(PinnedOpenCodeServerFixture server)
         string requestedArm,
         CancellationToken cancellationToken)
     {
-        if (!await PrepareRpcModeAsync(client, cancellationToken))
+        if (!await PrepareRpcModeAsync())
         {
             return false;
         }
@@ -304,13 +304,19 @@ public sealed class RpcClientLiveTests(PinnedOpenCodeServerFixture server)
         await Assert.That(error.Message).IsEqualTo("RPC is unavailable: " + TestRpcPlugin.Id);
         await Assert.That(error.Data).IsNull();
 
+        var listed = await client.Plugins.ListPluginsAsync(cancellationToken: cancellationToken);
+        await Assert.That(listed.Status).IsEqualTo(200);
+        await Assert.That(listed.IsError).IsFalse();
+        await Assert.That(listed.Plugins.Where(
+            static plugin => string.Equals(plugin.Id, TestRpcPlugin.Id, StringComparison.Ordinal)).ToArray()).IsEmpty();
+
         Console.WriteLine(
             "rpc-live: mode=external arm=rpc.unavailable requested-arm=" + requestedArm +
             " status=" + Number(response.Status));
         return true;
     }
 
-    private async Task<bool> PrepareRpcModeAsync(OpenCodeClient client, CancellationToken cancellationToken)
+    private async Task<bool> PrepareRpcModeAsync()
     {
         // Every owned server carries the seeded plugin, whichever build the fixture started, so a
         // missing plugin is the external endpoint and nothing else.
@@ -320,12 +326,6 @@ public sealed class RpcClientLiveTests(PinnedOpenCodeServerFixture server)
         }
 
         await Assert.That(server.IsExternal).IsTrue();
-        _ = await client.Plugins.AwaitPluginActivationAsync(cancellationToken: cancellationToken);
-        var listed = await client.Plugins.ListPluginsAsync(cancellationToken: cancellationToken);
-        await Assert.That(listed.Status).IsEqualTo(200);
-        await Assert.That(listed.IsError).IsFalse();
-        await Assert.That(listed.Plugins.Where(
-            static plugin => string.Equals(plugin.Id, TestRpcPlugin.Id, StringComparison.Ordinal)).ToArray()).IsEmpty();
         return true;
     }
 

@@ -44,7 +44,7 @@ public sealed class CurationLoaderTests
         var curation = await new CurationLoader(fileSystem).LoadAsync(CurationPath, CancellationToken.None);
 
         var row = curation.Declined.Single();
-        await Assert.That(row.OperationId).IsEqualTo("v2.fs.read");
+        await Assert.That(row.OperationId).IsEqualTo("fs.read");
         await Assert.That(row.Reason).Contains("wildcard");
     }
 
@@ -73,7 +73,7 @@ public sealed class CurationLoaderTests
         var curation = await new CurationLoader(fileSystem).LoadAsync(CurationPath, CancellationToken.None);
 
         var operationName = curation.OperationNames.Single();
-        await Assert.That(operationName.OperationId).IsEqualTo("v2.event.subscribe");
+        await Assert.That(operationName.OperationId).IsEqualTo("event.subscribe");
         await Assert.That(operationName.MethodName).IsEqualTo("SubscribeAsync");
         await Assert.That(operationName.Reason).Contains("reviewed public surface");
         var schemaName = curation.SchemaNames.Single();
@@ -114,7 +114,7 @@ public sealed class CurationLoaderTests
         var curation = await new CurationLoader(fileSystem).LoadAsync(CurationPath, CancellationToken.None);
 
         var row = curation.TransportOwned.Single();
-        await Assert.That(row.OperationId).IsEqualTo("v2.pty.connect");
+        await Assert.That(row.OperationId).IsEqualTo("pty.connect");
         await Assert.That(row.SubtreeSha256.Length).IsEqualTo(64);
         await Assert.That(row.Reason).Contains("hand-written");
     }

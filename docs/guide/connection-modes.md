@@ -1,6 +1,6 @@
 # 🔌 Connection modes
 
-Date: 2026-09-16
+Date: 2026-09-17
 
 There are three ways to get a client bound to a running opencode server: **let the SDK start one**,
 **point it at one you already have**, or **discover the background service the opencode CLI runs
@@ -24,9 +24,9 @@ using var client = server.CreateClient();
 
 Console.WriteLine($"started {server.Endpoint} (pid {server.ProcessId})");
 
-var health = await client.GetHealthAsync();
+var status = await client.Server.GetStatusAsync();
 
-Console.WriteLine($"healthy: {health.Health.Healthy}");
+Console.WriteLine($"opencode {status.ServerStatus.Version} (pid {status.ServerStatus.Pid})");
 ```
 
 The signature is
@@ -101,7 +101,7 @@ exists, naming how many directories were searched and which extensions were trie
 > - **`ProcessId` is then the `cmd.exe` host**, not the server itself — the shim's own child. The
 >   stdin ownership lease and the stdout readiness line pass straight through it, and disposal's
 >   whole-tree kill covers the server underneath, so nothing else about the lifecycle changes. Ask
->   the server for its own pid (`health.Health.Pid`) if you need that one.
+>   the server for its own pid (`status.ServerStatus.Pid`) if you need that one.
 > - **Arguments carrying `cmd` metacharacters are refused**, not escaped. `cmd.exe` re-parses the
 >   line it is handed, so any leading argument of yours containing `&`, `|`, `<`, `>`, `^`, `%`,
 >   `!`, `"`, a carriage return, or a line feed fails the start with `OpenCodeServerException`
@@ -171,18 +171,15 @@ using var client = new OpenCodeClient(new OpenCodeClientOptions
 });
 
 using var probe = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-var health = await client.GetHealthAsync(cancellationToken: probe.Token);
+var status = await client.Server.GetStatusAsync(cancellationToken: probe.Token);
 
-if (!health.Health.Healthy)
-{
-    throw new InvalidOperationException($"opencode at {endpoint} answered unhealthy");
-}
+Console.WriteLine($"opencode {status.ServerStatus.Version} (pid {status.ServerStatus.Pid})");
 ```
 
-That bounded health probe is the whole validation recipe for *reaching* the server, and it is
+That bounded status probe is the whole validation recipe for *reaching* the server, and it is
 deliberately yours to write: the SDK carries no version comparand of its own and no network-timeout
 knob yet, so a `CancellationTokenSource` is the honest timeout and your own expectation is the
-honest version check. It is liveness only — a healthy server can still have an empty model catalog
+honest version check. It is liveness only — a server answering status can still have an empty model catalog
 for a second or two while its plugins activate, which
 [choosing a model](getting-started.md#choosing-a-model) covers.
 
@@ -218,15 +215,15 @@ if (server is null)
 }
 
 using var client = server.CreateClient();
-var health = await client.GetHealthAsync();
-Console.WriteLine($"discovered opencode {health.Health.Version} (pid {server.ProcessId})");
+var status = await client.Server.GetStatusAsync();
+Console.WriteLine($"discovered opencode {status.ServerStatus.Version} (pid {server.ProcessId})");
 // server.DisposeAsync() is a no-op here: OwnsProcess is false, and the service stays up for
 // everyone else.
 ```
 
 The answer is the daemon's identity or **null** — never a half-usable handle. Null covers every
 ordinary way a service can be absent or unusable: no registration file, one that does not decode,
-one without a password, a daemon that is still starting or has failed, a health probe that did not
+one without a password, a daemon that is still starting or has failed, a status probe that did not
 answer within its two-second bound, or a version other than the one you asked for. You decide what
 null means for your application; the SDK does not start a daemon on your behalf.
 
@@ -262,10 +259,11 @@ throws `ArgumentException` before anything is read.
 
 ### How the daemon is checked
 
-A decoded registration is probed with `GET /api/health` under Basic authentication using the
+A decoded registration is probed with `GET /api/status` under Basic authentication using the
 registered password, bounded at two seconds. A 2xx answer whose pid matches the registration is a
-ready service; a 500 is a daemon that failed to boot; anything else is a daemon still starting —
-and only the first becomes a handle. The probe follows no redirects and sends the credential to the
+ready service; a 404 identifies a registered daemon that speaks another protocol version, a 500
+is a daemon that failed to boot, and anything else is a daemon still starting — and only the
+first becomes a handle. The probe follows no redirects and sends the credential to the
 registered origin only.
 
 ### What the handle is
@@ -304,7 +302,7 @@ discovery and tracked in [the roadmap](../ROADMAP.md).
 
 `OpenCode.Sdk.Extensions` adds `AddOpenCode` to `IServiceCollection`. What lands in the container is
 deliberately small: **one `OpenCodeClient` singleton** holding the transport open for the
-container's lifetime, and **each of the 29 families registered as its own singleton resolved from
+container's lifetime, and **each of the 27 families registered as its own singleton resolved from
 that one client**. A service therefore asks for the family it actually uses — `EventsClient`,
 `PtysClient`, `WorktreesClient` — and all of them share a single pipeline and a single disposal at
 shutdown.
@@ -372,7 +370,7 @@ example in the root README's [dependency-injection quickstart](../../README.md#d
 Nothing about DI changes which door you came in through: an `AddOpenCode` registration is the
 explicit-endpoint door. A launcher-started or a discovered server joins a container through the
 same door — hand its identity to the configure-action overload, and the container builds and owns
-the client and the 29 families exactly as it would for an endpoint you typed in:
+the client and the 27 families exactly as it would for an endpoint you typed in:
 
 ```csharp
 var server = await OpenCodeServer.DiscoverAsync()

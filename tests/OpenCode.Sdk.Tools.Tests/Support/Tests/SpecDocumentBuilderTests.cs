@@ -55,7 +55,7 @@ public sealed class SpecDocumentBuilderTests
                     .Property("id", property => property.Type("string"), required: true)
                     .AdditionalPropertiesFalse())
             .WithOperation(
-                "v2.session.get",
+                "session.get",
                 method: "get",
                 path: "/api/session/{sessionID}",
                 configure: operation => operation
@@ -77,7 +77,7 @@ public sealed class SpecDocumentBuilderTests
             .IsEqualTo(1);
         await Assert
             .That(root["paths"]!["/api/session/{sessionID}"]!["get"]!["operationId"]!.GetValue<string>())
-            .IsEqualTo("v2.session.get");
+            .IsEqualTo("session.get");
     }
 
     [Test]
@@ -186,7 +186,7 @@ public sealed class SpecDocumentBuilderTests
     {
         var json = new SpecDocumentBuilder()
             .WithOperation(
-                "v2.events.subscribe",
+                "events.subscribe",
                 method: "post",
                 path: "/api/events",
                 configure: operation => operation

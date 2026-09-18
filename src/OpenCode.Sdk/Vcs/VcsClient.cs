@@ -40,20 +40,6 @@ public class VcsClient
     }
 
     /// <summary>
-    /// VCS branches. List local and remote branches available at the requested location.
-    /// </summary>
-    /// <param name = "request">The request shaping the query.</param>
-    /// <param name = "requestOptions">The per-call options.</param>
-    /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;VcsBranchesResponse&apos; envelope.</returns>
-    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
-    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<VcsBranchesResponse> GetBranchesAsync(VcsBranchesRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
-    {
-        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Vcs.GetBranches(request), VcsBranchesResponseAdapter.Instance, requestOptions, cancellationToken);
-    }
-
-    /// <summary>
     /// VCS diff. Diff HEAD to the working copy (working), the base merge-base to the working copy (branch), or the base merge-base to HEAD (committed). Omitting base preserves repository-default comparison; supplying it overrides the comparison without saving it.
     /// </summary>
     /// <param name = "request">The request shaping the query; its required members have no server default.</param>
@@ -94,5 +80,19 @@ public class VcsClient
     public virtual Task<VcsResponse> GetVcsAsync(VcsRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Vcs.GetVcs(request), VcsResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// VCS branches. List local and remote branches available at the requested location.
+    /// </summary>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;VcsBranchListResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<VcsBranchListResponse> ListBranchesAsync(VcsBranchListRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Vcs.ListBranches(request), VcsBranchListResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }

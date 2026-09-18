@@ -26,15 +26,15 @@ public class ServerClient
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("ServerClient", "Pipeline");
 
     /// <summary>
-    /// Get server information. Return the URLs that can be used to connect to this server.
+    /// Get server status. Return the server identity, connection URLs, and readiness status.
     /// </summary>
     /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;ServerResponse&apos; envelope.</returns>
+    /// <returns>The &apos;ServerStatusResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<ServerResponse> GetServerAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    public virtual Task<ServerStatusResponse> GetStatusAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
-        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Server.GetServer, ServerResponseAdapter.Instance, requestOptions, cancellationToken);
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Server.GetStatus, ServerStatusResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }

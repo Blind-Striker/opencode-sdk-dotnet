@@ -30,7 +30,7 @@ public sealed class IntegrationsClientContractTests
         var single = response.Integrations.Single();
         await Assert.That(single.Id).IsEqualTo("int_1");
         await Assert.That(single.Name).IsEqualTo("GitHub");
-        await Assert.That(response.Location.Project.Id).IsEqualTo("prj_1");
+        await Assert.That(response.Location.Directory).IsEqualTo(WireBodyData.ResolvedDirectory);
         await Assert.That(scenario.Requests.Single().RequestUri)
             .IsEqualTo(new Uri("http://localhost:4096/api/integration"));
     }

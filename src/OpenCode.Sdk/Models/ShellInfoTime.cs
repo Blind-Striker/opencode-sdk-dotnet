@@ -9,7 +9,7 @@ namespace OpenCode.Sdk.Models;
 public sealed record ShellInfoTime
 {
     /// <summary>
-    /// Gets the started value.
+    /// Start time in milliseconds since the Unix epoch
     /// </summary>
     [JsonPropertyName("started")]
     public required double Started { get; init; }

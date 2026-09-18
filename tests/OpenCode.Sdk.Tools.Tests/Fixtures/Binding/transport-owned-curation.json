@@ -12,7 +12,7 @@
   "hoistedMemberNames": [],
   "transportOwned": [
     {
-      "operationId": "v2.pty.connect",
+      "operationId": "pty.connect",
       "subtreeSha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "reason": "The WebSocket door is hand-written; the profile never selects this operation."
     }

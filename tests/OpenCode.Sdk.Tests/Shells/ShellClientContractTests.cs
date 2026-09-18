@@ -17,7 +17,7 @@ public sealed class ShellClientContractTests
 
         await Assert.That(response.Shell.Id).IsEqualTo("sh_100");
         await Assert.That(response.Shell.Time.Started).IsEqualTo(1755200000);
-        await Assert.That(response.Location.Project.Id).IsEqualTo("prj_1");
+        await Assert.That(response.Location.Directory).IsEqualTo(WireBodyData.ResolvedDirectory);
         await Assert.That(scenario.Requests.Single().RequestUri)
             .IsEqualTo(new Uri("http://localhost:4096/api/shell/sh_100"));
     }
@@ -59,25 +59,6 @@ public sealed class ShellClientContractTests
     }
 
     [Test]
-    public async Task TimeoutShellAsync_Should_Send_The_Patch_Body_Beside_The_Location_Query()
-    {
-        var payload = new FixtureLoader().LoadJson("Serialization.known-shell.json");
-        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.LocationEnvelope(payload));
-
-        _ = await scenario.Client.Shells.GetShellClient("sh_100").TimeoutShellAsync(new ShellTimeoutRequest
-        {
-            Timeout = 9000,
-            Location = new LocationSelector { Workspace = "wrk_1" },
-        });
-
-        var request = scenario.Requests.Single();
-        await Assert.That(request.Method.Method).IsEqualTo("PATCH");
-        await Assert.That(request.RequestUri!.AbsoluteUri)
-            .IsEqualTo("http://localhost:4096/api/shell/sh_100/timeout?location[workspace]=wrk_1");
-        await Assert.That(request.Body).IsEqualTo("{\"timeout\":9000}");
-    }
-
-    [Test]
     public async Task GetOutputAsync_Should_Return_The_Typed_Output_Page_With_Its_Location()
     {
         using var scenario = ContractScenario.Responding(
@@ -89,7 +70,7 @@ public sealed class ShellClientContractTests
         await Assert.That(response.Output.Cursor).IsEqualTo(24L);
         await Assert.That(response.Output.Size).IsEqualTo(96L);
         await Assert.That(response.Output.Truncated).IsTrue();
-        await Assert.That(response.Location.Project.Id).IsEqualTo("prj_1");
+        await Assert.That(response.Location.Directory).IsEqualTo(WireBodyData.ResolvedDirectory);
         await Assert.That(scenario.Requests.Single().RequestUri)
             .IsEqualTo(new Uri("http://localhost:4096/api/shell/sh_100/output"));
     }
@@ -102,13 +83,13 @@ public sealed class ShellClientContractTests
 
         _ = await scenario.Client.Shells.GetShellClient("sh_100").GetOutputAsync(new ShellOutputRequest
         {
-            Location = new LocationSelector { Workspace = "wrk_1" },
+            Location = new LocationSelector { Directory = "/repo" },
             Cursor = "1024",
             Limit = "4096",
         });
 
         await Assert.That(scenario.Requests.Single().RequestUri!.AbsoluteUri)
-            .IsEqualTo("http://localhost:4096/api/shell/sh_100/output?location[workspace]=wrk_1&cursor=1024&limit=4096");
+            .IsEqualTo("http://localhost:4096/api/shell/sh_100/output?location[directory]=%2Frepo&cursor=1024&limit=4096");
     }
 
     [Test]

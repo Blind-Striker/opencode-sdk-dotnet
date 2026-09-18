@@ -1,6 +1,6 @@
 # Testing Style — authoring tests
 
-Date: 2026-09-16
+Date: 2026-09-17
 
 Binding authorship style for every test in this repository. `quality-gates.md` owns the
 current assurance posture and completion gates; operational build-out state belongs in
@@ -131,7 +131,40 @@ unsupported OpenAPI constructs and prove the exact required/null-representation 
   sealed uses (emitter micro-snapshots and the public API surface lock); behavior tests
   never snapshot.
 
-## 6. Anti-patterns (never)
+## 6. Owned servers are hermetic
+
+A live test runs against a server its fixture owns, and that server may read nothing the fixture
+did not put there. No test, and no developer running `dotnet test`, exports anything to make that
+true; the fixture hands the boundary to the child process it starts.
+
+- **One environment policy.** `tests/Shared/ServerIsolation.cs` is the only place an owned launch
+  takes its environment from: the XDG roots, the config root and database, an empty config seed, an
+  emptied explicit config file, no model-catalog fetch, and a home that exists inside the fixture's
+  own run root and gives an interactive shell nothing to ask (a terminal the server opens runs the
+  user's own shell there, and zsh meets a home without startup files with a first-run wizard). A
+  variable that can steer a server at the developer's data belongs there, set.
+  The one thing fixtures share is bun's transpiler cache, kept beside the run roots: it is
+  content-addressed output of the pinned source and carries no state, and leaving it under each
+  isolated cache root made every source-run server start transpile the monorepo from cold.
+  Which server an owned fixture starts (`OPENCODE_SDK_TESTS_SERVER_COMMAND`,
+  `OPENCODE_SDK_TESTS_ENDPOINT`) is a separate choice and not part of the boundary.
+- **Run roots have a clean chain above them.** The pinned server loads project configuration from
+  every directory between a location and the drive root, and resolves a workspace inside a
+  repository to that repository's project, whatever the environment says - so where a run root
+  lives is part of the boundary. `TestRunRootLocation` keeps run roots outside the user profile
+  and outside every repository: under the machine-wide application data root on Windows, where the
+  temp root sits inside the profile, and under the temp root elsewhere. It refuses, naming the path
+  and `OPENCODE_SDK_TESTS_RUN_ROOT`, a directory that has a repository, project configuration, or
+  a skills directory anywhere above it.
+- **A client names a location.** The pinned server resolves a request without a directory to its
+  own working directory, which bun needs anchored inside the upstream checkout. An owned fixture's
+  `CreateClient()` therefore defaults to an empty directory of its own; a test passes a
+  `LocationSelector` when the location is its subject. An external endpoint gets no default,
+  because it may not share this machine's filesystem.
+- **Fail fast, never skip.** A missing submodule, a missing install, or a contaminated run-root
+  chain is an instructive error, not a skipped test.
+
+## 7. Anti-patterns (never)
 
 - Inline data dumps (§3), or the same literal appearing in two test methods.
 - Real file I/O in a level-1/2 test; raw `System.IO` anywhere in tests.

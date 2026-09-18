@@ -1,4 +1,5 @@
 using System.Globalization;
+using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
 
 namespace OpenCode.Sdk.Tests;
@@ -14,10 +15,10 @@ public sealed class CommandsClientLiveTests(SimulatedDriveServerFixture server)
     {
         using var workspace = server.CreateWorkspace();
         using var client = server.CreateClient(new LocationSelector { Directory = workspace.Path });
-        var settled = await client.Plugins.AwaitPluginActivationAsync(cancellationToken: cancellationToken);
-        await Assert.That(settled.Status).IsEqualTo(204);
-
-        var response = await client.Commands.ListCommandsAsync(cancellationToken: cancellationToken);
+        var response = await LiveReadiness.WaitAsync(
+            token => client.Commands.ListCommandsAsync(cancellationToken: token),
+            result => result.Commands.Any(item => item.Name == SimulationConfigSeed.CommandName),
+            "seeded commands", cancellationToken);
 
         await Assert.That(response.Status).IsEqualTo(200);
         await Assert.That(response.IsError).IsFalse();

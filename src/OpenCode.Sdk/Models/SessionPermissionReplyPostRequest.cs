@@ -10,10 +10,10 @@ namespace OpenCode.Sdk.Models;
 public sealed record SessionPermissionReplyPostRequest
 {
     /// <summary>
-    /// Gets the reply value.
+    /// Gets the decision value.
     /// </summary>
-    [JsonPropertyName("reply")]
-    public required PermissionReply Reply { get; init; }
+    [JsonPropertyName("decision")]
+    public required PermissionReply Decision { get; init; }
 
     /// <summary>
     /// Gets the message value.

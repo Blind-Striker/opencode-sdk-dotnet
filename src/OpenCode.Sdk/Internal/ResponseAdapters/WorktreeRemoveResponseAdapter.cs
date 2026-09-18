@@ -8,6 +8,7 @@ internal sealed class WorktreeRemoveResponseAdapter : ResponseAdapter<WorktreeRe
 {
     private static readonly string[] Status400Tags = ["InvalidRequestError", "WorktreeError"];
     private static readonly string[] Status401Tags = ["UnauthorizedError"];
+    private static readonly string[] Status404Tags = ["ProjectNotFoundError"];
     private WorktreeRemoveResponseAdapter()
     {
     }
@@ -26,6 +27,7 @@ internal sealed class WorktreeRemoveResponseAdapter : ResponseAdapter<WorktreeRe
         >= 200 and < 300 => StatusVerdict.UndeclaredSuccess,
         400 => StatusVerdict.DeclaredError,
         401 => StatusVerdict.DeclaredError,
+        404 => StatusVerdict.DeclaredError,
         _ => StatusVerdict.UndeclaredError
     };
     /// <summary>
@@ -50,6 +52,7 @@ internal sealed class WorktreeRemoveResponseAdapter : ResponseAdapter<WorktreeRe
             >= 200 and < 300 => throw StatusVerdictFailures.UndeclaredSuccess(status),
             400 => new WorktreeRemoveResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),
             401 => new WorktreeRemoveResponse(status, ReadTolerantError(rawBody, Status401Tags), rawBody),
+            404 => new WorktreeRemoveResponse(status, ReadTolerantError(rawBody, Status404Tags), rawBody),
             _ => new WorktreeRemoveResponse(status, ReadTolerantError(rawBody, null), rawBody)
         };
     }

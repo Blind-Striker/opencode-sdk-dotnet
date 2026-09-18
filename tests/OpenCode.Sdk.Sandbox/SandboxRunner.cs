@@ -84,8 +84,8 @@ internal static class SandboxRunner
 
         var client = host.Services.GetRequiredService<OpenCodeClient>();
 
-        var health = await client.GetHealthAsync().ConfigureAwait(false);
-        Console.WriteLine($"health:  status={health.Status} healthy={health.Health.Healthy} version={health.Health.Version} pid={health.Health.Pid}");
+        var health = await client.Server.GetStatusAsync().ConfigureAwait(false);
+        Console.WriteLine($"health:  status={health.Status} version={health.ServerStatus.Version} pid={health.ServerStatus.Pid}");
 
         return paginationMode
             ? await RunPaginationModeAsync(client).ConfigureAwait(false)
@@ -118,7 +118,7 @@ internal static class SandboxRunner
         var count = 0;
         var sessionClient = client.Sessions.GetSessionClient(sessionId);
 
-        var listRequest = new MessageListRequest
+        var listRequest = new SessionMessageListRequest
         {
             Limit = "1",
             Order = ListOrder.Ascending,
@@ -176,7 +176,7 @@ internal static class SandboxRunner
 
         Console.WriteLine($"get:     status={fetched.Status} id={fetched.Session.Id} directory={fetched.Session.Location.Directory}");
 
-        var messageListRequest = new MessageListRequest
+        var messageListRequest = new SessionMessageListRequest
         {
             Limit = "5",
         };
@@ -189,8 +189,8 @@ internal static class SandboxRunner
             Console.WriteLine($"         {message.GetType().Name}");
         }
 
-        await SessionActionsWalkthrough.RunAsync(handle).ConfigureAwait(false);
-        await MechanismActionsWalkthrough.RunAsync(client, handle).ConfigureAwait(false);
+        await SessionActionsWalkthrough.RunAsync(client, handle, created.Session.Id).ConfigureAwait(false);
+        await MechanismActionsWalkthrough.RunAsync(client, handle, created.Session.Id).ConfigureAwait(false);
         await EnvelopeCompletionWalkthrough.RunAsync(client, handle).ConfigureAwait(false);
         await PtySessionWalkthrough.RunAsync(client).ConfigureAwait(false);
         await PersistentPtyWalkthrough.RunAsync(client, created.Session.Id).ConfigureAwait(false);

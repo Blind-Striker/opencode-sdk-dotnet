@@ -308,21 +308,21 @@ public sealed class SessionsClientContractTests
         var stats = new FixtureLoader().LoadJson("Serialization.known-session-stats.json");
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(stats));
 
-        var response = await scenario.Client.Sessions.GetStatsAsync();
+        var response = await scenario.Client.Experimental.GetSessionStatsAsync();
 
-        await Assert.That(response.Stats.Sessions).IsEqualTo(12);
-        await Assert.That(response.Stats.Range.From).IsEqualTo(1_735_689_600d);
-        await Assert.That(response.Stats.Tokens.Cache.Read).IsEqualTo(256d);
-        await Assert.That(response.Stats.Cost).IsEqualTo(1.25d);
-        await Assert.That(response.Stats.Activity.Count).IsEqualTo(2);
-        await Assert.That(response.Stats.Models.Single().Model.ProviderId).IsEqualTo("anthropic");
-        await Assert.That(response.Stats.Tools).IsTypeOf<SessionStatsToolsDetail>();
-        var tools = (SessionStatsToolsDetail)response.Stats.Tools;
+        await Assert.That(response.SessionStats.Sessions).IsEqualTo(12);
+        await Assert.That(response.SessionStats.Range.From).IsEqualTo(1_735_689_600d);
+        await Assert.That(response.SessionStats.Tokens.Cache.Read).IsEqualTo(256d);
+        await Assert.That(response.SessionStats.Cost).IsEqualTo(1.25d);
+        await Assert.That(response.SessionStats.Activity.Count).IsEqualTo(2);
+        await Assert.That(response.SessionStats.Models.Single().Model.ProviderId).IsEqualTo("anthropic");
+        await Assert.That(response.SessionStats.Tools).IsTypeOf<SessionStatsToolsDetail>();
+        var tools = (SessionStatsToolsDetail)response.SessionStats.Tools;
         await Assert.That(tools.Totals.Calls).IsEqualTo(20);
         await Assert.That(tools.Usage[0].Name).IsEqualTo("bash");
         await Assert.That(tools.Usage[1].DurationP50).IsNull();
         await Assert.That(scenario.Requests.Single().RequestUri!.AbsoluteUri)
-            .IsEqualTo("http://localhost:4096/api/session/stats");
+            .IsEqualTo("http://localhost:4096/api/experimental/session/stats");
     }
 
     [Test]
@@ -331,14 +331,14 @@ public sealed class SessionsClientContractTests
         var stats = new FixtureLoader().LoadJson("Serialization.known-session-stats.json");
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(stats));
 
-        _ = await scenario.Client.Sessions.GetStatsAsync(new SessionStatsRequest
+        _ = await scenario.Client.Experimental.GetSessionStatsAsync(new ExperimentalSessionStatsRequest
         {
             From = "2026-08-01",
-            Tools = SessionStatsRequestTools.Summary,
+            Tools = ExperimentalSessionStatsRequestTools.Summary,
         });
 
         await Assert.That(scenario.Requests.Single().RequestUri!.AbsoluteUri)
-            .IsEqualTo("http://localhost:4096/api/session/stats?from=2026-08-01&tools=summary");
+            .IsEqualTo("http://localhost:4096/api/experimental/session/stats?from=2026-08-01&tools=summary");
     }
 
     [Test]
@@ -347,7 +347,7 @@ public sealed class SessionsClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.InvalidRequestError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetStatsAsync())
+            .That(async () => _ = await scenario.Client.Experimental.GetSessionStatsAsync())
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(400);
@@ -359,7 +359,7 @@ public sealed class SessionsClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
 
-        var response = await scenario.Client.Sessions.GetStatsAsync(requestOptions: OpenCodeRequestOptions.NoThrow);
+        var response = await scenario.Client.Experimental.GetSessionStatsAsync(requestOptions: OpenCodeRequestOptions.NoThrow);
 
         await Assert.That(response.IsError).IsTrue();
         await Assert.That(response.Status).IsEqualTo(401);

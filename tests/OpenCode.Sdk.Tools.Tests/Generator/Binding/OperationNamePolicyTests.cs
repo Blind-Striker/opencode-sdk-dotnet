@@ -7,17 +7,17 @@ namespace OpenCode.Sdk.Tools.Tests.Generator.Binding;
 public sealed class OperationNamePolicyTests
 {
     [Test]
-    [Arguments("v2.health.get", "get", "GetHealthAsync")]
-    [Arguments("v2.session.message", "get", "GetMessageAsync")]
-    [Arguments("v2.session.get", "get", "GetSessionAsync")]
-    [Arguments("v2.session.list", "get", "ListSessionsAsync")]
-    [Arguments("v2.session.create", "post", "CreateSessionAsync")]
-    [Arguments("v2.message.list", "get", "ListMessagesAsync")]
-    [Arguments("v2.session.remove", "delete", "RemoveSessionAsync")]
-    [Arguments("v2.session.rename", "post", "RenameSessionAsync")]
-    [Arguments("v2.shell.list", "get", "ListShellsAsync")]
-    [Arguments("v2.shell.timeout", "patch", "TimeoutShellAsync")]
-    [Arguments("v2.shell.output", "get", "GetOutputAsync")]
+    [Arguments("health.get", "get", "GetHealthAsync")]
+    [Arguments("session.message", "get", "GetMessageAsync")]
+    [Arguments("session.get", "get", "GetSessionAsync")]
+    [Arguments("session.list", "get", "ListSessionsAsync")]
+    [Arguments("session.create", "post", "CreateSessionAsync")]
+    [Arguments("message.list", "get", "ListMessagesAsync")]
+    [Arguments("session.remove", "delete", "RemoveSessionAsync")]
+    [Arguments("session.rename", "post", "RenameSessionAsync")]
+    [Arguments("shell.list", "get", "ListShellsAsync")]
+    [Arguments("shell.timeout", "patch", "TimeoutShellAsync")]
+    [Arguments("shell.output", "get", "GetOutputAsync")]
     public async Task MethodName_Should_Lead_With_The_Structural_Verb(string operationId, string method, string expected)
     {
         await Assert.That(OperationNamePolicy.MethodName(Operation(operationId, method))).IsEqualTo(expected);
@@ -26,14 +26,14 @@ public sealed class OperationNamePolicyTests
     [Test]
     public async Task MethodName_Should_Keep_A_Mid_Position_Verb_Segment_In_The_Subject()
     {
-        await Assert.That(OperationNamePolicy.MethodName(Operation("v2.cache.get.entry")))
+        await Assert.That(OperationNamePolicy.MethodName(Operation("cache.get.entry")))
             .IsEqualTo("GetGetEntryAsync");
     }
 
     [Test]
     public async Task MethodName_Should_Return_Null_When_The_Group_Cannot_Be_Pluralized()
     {
-        await Assert.That(OperationNamePolicy.MethodName(Operation("v2.boss.list"))).IsNull();
+        await Assert.That(OperationNamePolicy.MethodName(Operation("boss.list"))).IsNull();
     }
 
     [Test]
@@ -53,26 +53,26 @@ public sealed class OperationNamePolicyTests
     }
 
     [Test]
-    [Arguments("v2.health.get", "get", "HealthResponse")]
-    [Arguments("v2.session.message", "get", "SessionMessageResponse")]
-    [Arguments("v2.session.get", "get", "SessionResponse")]
-    [Arguments("v2.session.list", "get", "SessionListResponse")]
-    [Arguments("v2.session.create", "post", "SessionCreateResponse")]
-    [Arguments("v2.message.list", "get", "MessageListResponse")]
-    [Arguments("v2.session.remove", "delete", "SessionRemoveResponse")]
-    [Arguments("v2.shell.timeout", "patch", "ShellTimeoutResponse")]
-    [Arguments("v2.shell.output", "get", "ShellOutputResponse")]
-    [Arguments("v2.shell.get", "get", "ShellResponse")]
+    [Arguments("health.get", "get", "HealthResponse")]
+    [Arguments("session.message", "get", "SessionMessageResponse")]
+    [Arguments("session.get", "get", "SessionResponse")]
+    [Arguments("session.list", "get", "SessionListResponse")]
+    [Arguments("session.create", "post", "SessionCreateResponse")]
+    [Arguments("message.list", "get", "MessageListResponse")]
+    [Arguments("session.remove", "delete", "SessionRemoveResponse")]
+    [Arguments("shell.timeout", "patch", "ShellTimeoutResponse")]
+    [Arguments("shell.output", "get", "ShellOutputResponse")]
+    [Arguments("shell.get", "get", "ShellResponse")]
     public async Task ResponseTypeName_Should_Fold_Non_Get_Verbs(string operationId, string method, string expected)
     {
         await Assert.That(OperationNamePolicy.ResponseTypeName(Operation(operationId, method))).IsEqualTo(expected);
     }
 
     [Test]
-    [Arguments("v2.health.get", "get", "HealthData")]
-    [Arguments("v2.session.message", "get", "SessionMessageData")]
-    [Arguments("v2.session.create", "post", "SessionCreateData")]
-    [Arguments("v2.shell.timeout", "patch", "ShellTimeoutData")]
+    [Arguments("health.get", "get", "HealthData")]
+    [Arguments("session.message", "get", "SessionMessageData")]
+    [Arguments("session.create", "post", "SessionCreateData")]
+    [Arguments("shell.timeout", "patch", "ShellTimeoutData")]
     public async Task PayloadTypeName_Should_Replace_The_Response_Spine_Suffix(string operationId, string method,
         string expected)
     {
@@ -80,12 +80,12 @@ public sealed class OperationNamePolicyTests
     }
 
     [Test]
-    [Arguments("v2.health.get", "get", false, "Get")]
-    [Arguments("v2.session.message", "get", true, "GetMessage")]
-    [Arguments("v2.session.get", "get", true, "GetSession")]
-    [Arguments("v2.session.list", "get", true, "ListSessions")]
-    [Arguments("v2.session.create", "post", true, "CreateSession")]
-    [Arguments("v2.message.list", "get", true, "ListMessages")]
+    [Arguments("health.get", "get", false, "Get")]
+    [Arguments("session.message", "get", true, "GetMessage")]
+    [Arguments("session.get", "get", true, "GetSession")]
+    [Arguments("session.list", "get", true, "ListSessions")]
+    [Arguments("session.create", "post", true, "CreateSession")]
+    [Arguments("message.list", "get", true, "ListMessages")]
     public async Task RouteMemberName_Should_Fall_Back_To_The_Group_On_Client_Placement_Only(string operationId,
         string method, bool clientPlacement, string expected)
     {
@@ -95,12 +95,12 @@ public sealed class OperationNamePolicyTests
     }
 
     [Test]
-    [Arguments("v2.health.get", "get", "Health")]
-    [Arguments("v2.session.message", "get", "Message")]
-    [Arguments("v2.session.get", "get", "Session")]
-    [Arguments("v2.session.list", "get", "Sessions")]
-    [Arguments("v2.session.create", "post", "Session")]
-    [Arguments("v2.message.list", "get", "Messages")]
+    [Arguments("health.get", "get", "Health")]
+    [Arguments("session.message", "get", "Message")]
+    [Arguments("session.get", "get", "Session")]
+    [Arguments("session.list", "get", "Sessions")]
+    [Arguments("session.create", "post", "Session")]
+    [Arguments("message.list", "get", "Messages")]
     public async Task PayloadName_Should_Pluralize_The_Group_For_List_Operations(string operationId, string method,
         string expected)
     {
@@ -110,17 +110,17 @@ public sealed class OperationNamePolicyTests
     [Test]
     public async Task PayloadName_Should_Return_Null_When_The_Group_Cannot_Be_Pluralized()
     {
-        await Assert.That(OperationNamePolicy.PayloadName(Operation("v2.boss.list"))).IsNull();
+        await Assert.That(OperationNamePolicy.PayloadName(Operation("boss.list"))).IsNull();
     }
 
     [Test]
-    [Arguments("v2.session.list", "get", "SessionListRequest")]
-    [Arguments("v2.message.list", "get", "MessageListRequest")]
-    [Arguments("v2.session.create", "post", "SessionCreateRequest")]
-    [Arguments("v2.session.rename", "post", "SessionRenameRequest")]
-    [Arguments("v2.shell.timeout", "patch", "ShellTimeoutRequest")]
-    [Arguments("v2.shell.output", "get", "ShellOutputRequest")]
-    [Arguments("v2.shell.get", "get", "ShellRequest")]
+    [Arguments("session.list", "get", "SessionListRequest")]
+    [Arguments("message.list", "get", "MessageListRequest")]
+    [Arguments("session.create", "post", "SessionCreateRequest")]
+    [Arguments("session.rename", "post", "SessionRenameRequest")]
+    [Arguments("shell.timeout", "patch", "ShellTimeoutRequest")]
+    [Arguments("shell.output", "get", "ShellOutputRequest")]
+    [Arguments("shell.get", "get", "ShellRequest")]
     public async Task RequestTypeName_Should_Compose_Group_Subject_And_Verb(string operationId, string method,
         string expected)
     {
@@ -134,7 +134,7 @@ public sealed class OperationNamePolicyTests
         return new SpecOperation
         {
             OperationId = operationId,
-            Segments = [.. operationId.Split('.').Skip(1)],
+            Segments = [.. operationId.Split('.')],
             Method = method,
             Path = "/api/x",
             HasWildcardPath = false,

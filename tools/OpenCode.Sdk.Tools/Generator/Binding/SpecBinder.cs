@@ -37,7 +37,7 @@ internal sealed class SpecBinder(
         // Upstream stabilize's per-site duplicates collapse mechanically, ahead of curation:
         // curated rows are then judged against the graph as it will be bound, and a row that
         // repeats a mechanical fold is refused as redundant instead of shadowing it.
-        var collapse = _stabilizeDuplicates.Resolve(document, reachable, errors);
+        var collapse = _stabilizeDuplicates.Resolve(document, reachable, curation.SchemaNames, errors);
         _curationValidator.Validate(document, selected, reachable, curation, errors);
         _schemaAliasValidator.Validate(document, reachable, curation, collapse, errors);
 
