@@ -30,12 +30,11 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
   ADR-0023 own the contract.
 - **2.0.5 refresh** — the accepted pin, prefixless operation identities, regenerated clients with
   `experimental.*` on the flat `ExperimentalClient`, directory-only location targeting, and the
-  status-based discovery probe are migrated, with no compatibility layer. The default Windows
-  source gate passes on `net472`, `net8.0`, `net9.0`, and `net10.0` (6,278 tests), the Linux source
-  suite passes under WSL on `net8.0`, `net9.0`, and `net10.0` (4,900 tests), and regeneration and
-  receipt verification pass. macOS is not requalified at this pin; the three-OS CI run on the
-  refresh's pull request is that qualification. The remaining M4 slices (Stop, then Ensure) resume
-  after the refresh lands.
+  status-based discovery probe are migrated, with no compatibility layer, and landed as PR #85.
+  Its CI run qualified every leg at this pin: Windows on `net472`, `net8.0`, `net9.0`, and
+  `net10.0` (6,278 tests), Linux and macOS on `net8.0`, `net9.0`, and `net10.0` (4,901 tests
+  each), with regeneration and receipt verification passing. The remaining M4 slices (Stop, then
+  Ensure) are next.
 - **Official launch watch** — upstream's own 1.x npm package (`opencode-ai`) and its GitHub Releases
   page were both still at `1.18.31` when last observed on 2026-09-16, so the 2.x line had not had
   its official launch then. The pin tracks upstream release tags and is refreshed under receipt at
@@ -149,7 +148,9 @@ is revisited at each boundary.
   the skills directories of every `.claude`, `.agents`, and `.opencode` root it discovers between a
   location and the drive root. A caller sees `OpenCodeTransportException`, not an SDK fault. The
   test fixtures are hermetic against it (`engineering/testing-style.md`); a consumer's server is
-  not, and the upstream report is drafted but not filed.
+  not. The defect is
+  [parcel-bundler/watcher#262](https://github.com/parcel-bundler/watcher/issues/262), where the
+  standalone reproducer from this repository's investigation is on record.
 - **The downlevel Unix arm of the legacy-registration copy shells out for its file mode.**
   Discovery's one-time copy of an older hashed registration is created exclusively at mode `0600`:
   `net8.0` and later set the mode at creation through `FileStreamOptions.UnixCreateMode`, while
