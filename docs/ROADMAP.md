@@ -156,12 +156,6 @@ is revisited at each boundary.
   not. The defect is
   [parcel-bundler/watcher#262](https://github.com/parcel-bundler/watcher/issues/262), where the
   standalone reproducer from this repository's investigation is on record.
-- **The README test badge has not updated since 2026-09-08.** The badge tool this workflow
-  checks out from `localstack-dotnet/badge-smith` at its pinned commit fails NuGet audit
-  (`Microsoft.Build.Tasks.Git` 10.0.300, CVE-2026-62900) under that repository's
-  warnings-as-errors, on every OS leg; the step is `continue-on-error`, so CI stays green and the
-  counts stay stale. The fix lands in badge-smith (SourceLink 10.0.303); `ci.yml` then re-pins
-  its `ref:` to that commit. Queued inside M4.
 - **The downlevel Unix arm of the legacy-registration copy shells out for its file mode.**
   Discovery's one-time copy of an older hashed registration is created exclusively at mode `0600`:
   `net8.0` and later set the mode at creation through `FileStreamOptions.UnixCreateMode`, while
