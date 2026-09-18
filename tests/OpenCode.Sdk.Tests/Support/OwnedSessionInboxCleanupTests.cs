@@ -15,7 +15,7 @@ public sealed class OwnedSessionInboxCleanupTests
         var freshWaitFailure = new InvalidOperationException("fresh wait failed");
         var removalFailure = new InvalidOperationException("removal failed");
         var disconnectFailure = new InvalidOperationException("drive disconnect failed");
-        var wait = new TaskCompletionSource<SessionWaitPostResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var wait = new TaskCompletionSource<ExperimentalSessionWaitPostResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
         var operations = new List<string>();
         var cleanup = CreateCleanup(
             _ =>

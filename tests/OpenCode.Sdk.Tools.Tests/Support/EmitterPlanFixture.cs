@@ -39,7 +39,7 @@ internal static class EmitterPlanFixture
         return new EmitPlan
         {
             ImplicitAliases = StabilizeDuplicateCollapse.Empty,
-            SelectedOperationIds = ["v2.example.get"],
+            SelectedOperationIds = ["example.get"],
             Models = models,
             Unions = unions,
             Clients = CreateClientPlans(),

@@ -15,7 +15,7 @@ public sealed class SpecIngestionTests
         var context = SpecScenario.Define(spec => spec
             .WithSchema("Session", schema => schema.Type("object")
                 .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("v2.session.get", path: "/api/session/{sessionID}", configure: operation => operation
+            .WithOperation("session.get", path: "/api/session/{sessionID}", configure: operation => operation
                 .Parameter("sessionID", "path", parameter => parameter.Type("string"), required: true)
                 .Response(200, "application/json", schema => schema.Ref("Session"))))
             .Build();
@@ -23,7 +23,8 @@ public sealed class SpecIngestionTests
         var document = await new SpecIngestion(context.FileSystem).IngestAsync(context.SpecPath, CancellationToken.None);
 
         await Assert.That(document.Operations).Count().IsEqualTo(1);
-        await Assert.That(document.Operations[0].OperationId).IsEqualTo("v2.session.get");
+        await Assert.That(document.Operations[0].OperationId).IsEqualTo("session.get");
+        await Assert.That(document.Operations[0].Segments).IsEquivalentTo(["session", "get"]);
         await Assert.That(document.Schemas["Session"]).IsTypeOf<ObjectNode>();
     }
 

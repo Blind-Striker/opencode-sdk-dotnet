@@ -44,4 +44,6 @@ public sealed record UnknownMcp : IMcp
     bool? IMcp.Codemode => null;
 
     IMcpTimeout? IMcp.Timeout => null;
+
+    McpProtocol? IMcp.Protocol => null;
 }

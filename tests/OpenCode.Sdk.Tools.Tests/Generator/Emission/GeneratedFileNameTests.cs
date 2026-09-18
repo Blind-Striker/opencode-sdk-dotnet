@@ -19,7 +19,7 @@ namespace OpenCode.Sdk.Tools.Tests.Generator.Emission;
 public sealed class GeneratedFileNameTests
 {
     private const string GroupName = "preference";
-    private const string OperationId = "v2.preference.get";
+    private const string OperationId = "preference.get";
 
     [Test]
     public async Task Bind_Should_Name_An_Ordinal_Union_Branch_Without_An_Interior_Underscore()

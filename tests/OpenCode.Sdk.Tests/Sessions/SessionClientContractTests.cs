@@ -8,7 +8,7 @@ namespace OpenCode.Sdk.Tests;
 
 public sealed class SessionClientContractTests
 {
-    private static readonly SessionPermissionRulesPutRequest EmptyRuleset = new() { Permissions = [], };
+    private static readonly SessionUpdatePatchRequest EmptyRuleset = new() { Permissions = new Optional<IReadOnlyList<PermissionRule>?>([]), };
 
     [Test]
     public async Task GetSessionAsync_Should_Return_The_Typed_Session()
@@ -89,7 +89,7 @@ public sealed class SessionClientContractTests
         var payload = new FixtureLoader().LoadJson("Serialization.known-session-message.json");
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Page(payload, previous: "cur_0"));
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ListMessagesAsync(new MessageListRequest
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ListMessagesAsync(new SessionMessageListRequest
         {
             Limit = "2",
             Order = ListOrder.Ascending,
@@ -135,7 +135,7 @@ public sealed class SessionClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Page(""));
 
-        _ = await scenario.Client.Sessions.GetSessionClient("ses_100").ListMessagesAsync(new MessageListRequest
+        _ = await scenario.Client.Sessions.GetSessionClient("ses_100").ListMessagesAsync(new SessionMessageListRequest
         {
             Order = ListOrder.Ascending,
             Cursor = "cur_1",
@@ -143,6 +143,21 @@ public sealed class SessionClientContractTests
 
         await Assert.That(scenario.Requests.Single().RequestUri!.AbsoluteUri)
             .IsEqualTo("http://localhost:4096/api/session/ses_100/message?order=asc&cursor=cur_1");
+    }
+
+    [Test]
+    public async Task ListMessagesAsync_Should_Send_The_Type_Filter_As_Its_Wire_Name()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Page(""));
+
+        _ = await scenario.Client.Sessions.GetSessionClient("ses_100").ListMessagesAsync(new SessionMessageListRequest
+        {
+            Type = SessionMessageListRequestType.LocationSwitched,
+        });
+
+        // The hyphenated wire name, not the C# member name, is what the server filters on.
+        await Assert.That(scenario.Requests.Single().RequestUri!.AbsoluteUri)
+            .IsEqualTo("http://localhost:4096/api/session/ses_100/message?type=location-switched");
     }
 
     [Test]
@@ -164,7 +179,7 @@ public sealed class SessionClientContractTests
         {
             Content = new StringContent(responses.Dequeue()),
         });
-        var messages = scenario.Client.Sessions.GetSessionClient("ses_100").EnumerateMessagesAsync(new MessageListRequest
+        var messages = scenario.Client.Sessions.GetSessionClient("ses_100").EnumerateMessagesAsync(new SessionMessageListRequest
         {
             Limit = "2",
             Order = ListOrder.Ascending,
@@ -303,35 +318,35 @@ public sealed class SessionClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").RenameSessionAsync(new SessionRenameRequest
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").UpdateSessionAsync(new SessionUpdatePatchRequest
         {
             Title = "Renamed session",
         });
 
         await Assert.That(response.Status).IsEqualTo(204);
         var request = scenario.Requests.Single();
-        await Assert.That(request.Method).IsEqualTo(HttpMethod.Post);
+        await Assert.That(request.Method.Method).IsEqualTo("PATCH");
         await Assert.That(request.RequestUri!.AbsoluteUri)
-            .IsEqualTo("http://localhost:4096/api/session/ses_100/rename");
+            .IsEqualTo("http://localhost:4096/api/session/ses_100");
         await Assert.That(request.Body).IsEqualTo("{\"title\":\"Renamed session\"}");
     }
 
     [Test]
-    public async Task PostForkAsync_Should_Send_The_Tagged_Boundary_Variant()
+    public async Task PostForkAsync_Should_Send_The_Before_Message_Id()
     {
         var payload = new FixtureLoader().LoadJson("Serialization.known-session.json");
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(payload));
 
         var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PostForkAsync(new SessionForkPostRequest
         {
-            Boundary = new SessionForkRequestBoundaryBefore { MessageId = "msg_1" },
+            Before = "msg_1",
         });
 
         await Assert.That(response.Fork.Id).IsEqualTo("ses_100");
         var request = scenario.Requests.Single();
         await Assert.That(request.Method).IsEqualTo(HttpMethod.Post);
         await Assert.That(request.RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/fork"));
-        await Assert.That(request.Body).IsEqualTo("{\"boundary\":{\"type\":\"before\",\"messageID\":\"msg_1\"}}");
+        await Assert.That(request.Body).IsEqualTo("{\"before\":\"msg_1\"}");
     }
 
     [Test]
@@ -358,15 +373,15 @@ public sealed class SessionClientContractTests
             HttpStatusCode.OK,
             WireBodyData.Envelope($"{{\"info\":{session},\"messages\":[]}}"));
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetExportAsync(new SessionExportRequest
+        var response = await scenario.Client.Experimental.GetSessionExportAsync("ses_100", new ExperimentalSessionExportRequest
         {
             Sanitize = QueryBoolean.True,
         });
 
-        await Assert.That(response.Export.Info.Id).IsEqualTo("ses_100");
-        await Assert.That(response.Export.Messages).IsEmpty();
+        await Assert.That(response.SessionExport.Info.Id).IsEqualTo("ses_100");
+        await Assert.That(response.SessionExport.Messages).IsEmpty();
         await Assert.That(scenario.Requests.Single().RequestUri)
-            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/export?sanitize=true"));
+            .IsEqualTo(new Uri("http://localhost:4096/api/experimental/session/ses_100/export?sanitize=true"));
     }
 
     [Test]
@@ -385,7 +400,7 @@ public sealed class SessionClientContractTests
     }
 
     [Test]
-    public async Task DeleteInboxCancelAsync_Should_Throw_The_Declared_409_Conflict()
+    public async Task DeleteInboxCancelAsync_Should_Throw_The_Undeclared_409_As_An_Unknown_Error()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.Conflict, WireBodyData.ConflictError);
 
@@ -394,7 +409,7 @@ public sealed class SessionClientContractTests
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(409);
-        await Assert.That(exception.Error).IsTypeOf<ConflictError>();
+        await Assert.That(exception.Error).IsTypeOf<UnknownOpenCodeError>();
     }
 
     [Test]
@@ -423,15 +438,15 @@ public sealed class SessionClientContractTests
             "{\"_tag\":\"FormAlreadySettledError\",\"id\":\"frm_1\",\"message\":\"settled\"}");
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").PostFormCancelAsync("frm_1"))
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").DeleteFormCancelAsync("frm_1"))
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(409);
         await Assert.That(exception.Error).IsTypeOf<FormAlreadySettledError>();
         var request = scenario.Requests.Single();
-        await Assert.That(request.Method).IsEqualTo(HttpMethod.Post);
+        await Assert.That(request.Method).IsEqualTo(HttpMethod.Delete);
         await Assert.That(request.RequestUri)
-            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/form/frm_1/cancel"));
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/form/frm_1"));
         await Assert.That(request.Body).IsNull();
     }
 
@@ -441,15 +456,15 @@ public sealed class SessionClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
         using var value = JsonDocument.Parse("\"be terse\"");
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PutInstructionsEntryAsync(
+        var response = await scenario.Client.Experimental.PutSessionInstructionsEntryAsync("ses_100",
             "style",
-            new SessionInstructionsEntryPutRequest { Value = value.RootElement });
+            new ExperimentalSessionInstructionsEntryPutRequest { Value = value.RootElement });
 
         await Assert.That(response.Status).IsEqualTo(204);
         var request = scenario.Requests.Single();
         await Assert.That(request.Method).IsEqualTo(HttpMethod.Put);
         await Assert.That(request.RequestUri)
-            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/instructions/entries/style"));
+            .IsEqualTo(new Uri("http://localhost:4096/api/experimental/session/ses_100/instructions/entries/style"));
         await Assert.That(request.Body).IsEqualTo("{\"value\":\"be terse\"}");
     }
 
@@ -462,9 +477,9 @@ public sealed class SessionClientContractTests
         using var value = JsonDocument.Parse("\"be terse\"");
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").PutInstructionsEntryAsync(
+            .That(async () => _ = await scenario.Client.Experimental.PutSessionInstructionsEntryAsync("ses_100",
                 "style",
-                new SessionInstructionsEntryPutRequest { Value = value.RootElement }))
+                new ExperimentalSessionInstructionsEntryPutRequest { Value = value.RootElement }))
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(413);
@@ -683,9 +698,9 @@ public sealed class SessionClientContractTests
     [Test]
     public async Task ListInboxAsync_Should_Return_The_Typed_Inbox_Items()
     {
-        const string items = "[{\"id\":\"msg_1\",\"sessionID\":\"ses_100\",\"timeCreated\":1,\"type\":\"user\","
+        const string items = "[{\"id\":\"msg_1\",\"sessionID\":\"ses_100\",\"time\":{\"created\":1},\"type\":\"user\","
             + "\"payload\":{\"text\":\"hello\"},\"delivery\":\"queue\"},"
-            + "{\"id\":\"msg_2\",\"sessionID\":\"ses_100\",\"timeCreated\":2,\"type\":\"compaction\","
+            + "{\"id\":\"msg_2\",\"sessionID\":\"ses_100\",\"time\":{\"created\":2},\"type\":\"compaction\","
             + "\"payload\":{},\"delivery\":\"steer\"}]";
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(items));
 
@@ -742,14 +757,14 @@ public sealed class SessionClientContractTests
         const string entries = "[{\"key\":\"style\",\"value\":\"be terse\"},{\"key\":\"tone\",\"value\":\"friendly\"}]";
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(entries));
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ListInstructionsEntryAsync();
+        var response = await scenario.Client.Experimental.ListSessionInstructionsEntryAsync("ses_100");
 
-        await Assert.That(response.InstructionsEntry.Count).IsEqualTo(2);
-        await Assert.That(response.InstructionsEntry[0].Key).IsEqualTo("style");
-        await Assert.That(response.InstructionsEntry[0].Value.GetString()).IsEqualTo("be terse");
-        await Assert.That(response.InstructionsEntry[1].Key).IsEqualTo("tone");
+        await Assert.That(response.SessionInstructionsEntry.Count).IsEqualTo(2);
+        await Assert.That(response.SessionInstructionsEntry[0].Key).IsEqualTo("style");
+        await Assert.That(response.SessionInstructionsEntry[0].Value.GetString()).IsEqualTo("be terse");
+        await Assert.That(response.SessionInstructionsEntry[1].Key).IsEqualTo("tone");
         await Assert.That(scenario.Requests.Single().RequestUri)
-            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/instructions/entries"));
+            .IsEqualTo(new Uri("http://localhost:4096/api/experimental/session/ses_100/instructions/entries"));
     }
 
     [Test]
@@ -757,9 +772,9 @@ public sealed class SessionClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope("[]"));
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ListInstructionsEntryAsync();
+        var response = await scenario.Client.Experimental.ListSessionInstructionsEntryAsync("ses_100");
 
-        await Assert.That(response.InstructionsEntry).IsEmpty();
+        await Assert.That(response.SessionInstructionsEntry).IsEmpty();
     }
 
     [Test]
@@ -768,7 +783,7 @@ public sealed class SessionClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.SessionNotFoundError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").ListInstructionsEntryAsync())
+            .That(async () => _ = await scenario.Client.Experimental.ListSessionInstructionsEntryAsync("ses_9"))
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(404);
@@ -780,7 +795,7 @@ public sealed class SessionClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ListInstructionsEntryAsync(OpenCodeRequestOptions.NoThrow);
+        var response = await scenario.Client.Experimental.ListSessionInstructionsEntryAsync("ses_100", OpenCodeRequestOptions.NoThrow);
 
         await Assert.That(response.IsError).IsTrue();
         await Assert.That(response.Status).IsEqualTo(401);
@@ -940,7 +955,7 @@ public sealed class SessionClientContractTests
     [Test]
     public async Task GetFormAsync_Should_Return_The_Typed_Form()
     {
-        const string form = "{\"id\":\"frm_1\",\"sessionID\":\"ses_100\",\"title\":\"Approve deploy\",\"fields\":[]}";
+        var form = WireBodyData.FormDetail(WireBodyData.FormPendingState);
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(form));
 
         var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetFormAsync("frm_1");
@@ -979,55 +994,26 @@ public sealed class SessionClientContractTests
     }
 
     [Test]
-    public async Task GetFormStateAsync_Should_Return_The_Typed_Pending_State()
+    public async Task GetFormAsync_Should_Return_The_Typed_Pending_State()
     {
-        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope("{\"status\":\"pending\"}"));
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(WireBodyData.FormDetail(WireBodyData.FormPendingState)));
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetFormStateAsync("frm_1");
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetFormAsync("frm_1");
 
-        await Assert.That(response.FormState).IsTypeOf<FormStatePending>();
+        await Assert.That(response.Form.State).IsTypeOf<FormStatePending>();
         await Assert.That(scenario.Requests.Single().RequestUri)
-            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/form/frm_1/state"));
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/form/frm_1"));
     }
 
     [Test]
-    public async Task GetFormStateAsync_Should_Return_The_Typed_Answered_State()
+    public async Task GetFormAsync_Should_Return_The_Typed_Answered_State()
     {
-        const string state = "{\"status\":\"answered\",\"answer\":{\"q1\":\"blue\"}}";
-        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(state));
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(WireBodyData.FormDetail(WireBodyData.FormAnsweredState)));
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetFormStateAsync("frm_1");
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetFormAsync("frm_1");
 
-        var answered = (FormStateAnswered)response.FormState;
+        var answered = (FormStateAnswered)response.Form.State;
         await Assert.That(answered.Answer["q1"].Text).IsEqualTo("blue");
-    }
-
-    [Test]
-    public async Task GetFormStateAsync_Should_Throw_The_Declared_404_Error()
-    {
-        using var scenario = ContractScenario.Responding(
-            HttpStatusCode.NotFound,
-            "{\"_tag\":\"FormNotFoundError\",\"id\":\"frm_9\",\"message\":\"gone\"}");
-
-        var exception = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").GetFormStateAsync("frm_9"))
-            .Throws<OpenCodeApiException>();
-
-        await Assert.That(exception!.Status).IsEqualTo(404);
-        await Assert.That(exception.Error).IsTypeOf<FormNotFoundError>();
-    }
-
-    [Test]
-    public async Task GetFormStateAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
-    {
-        using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
-
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100")
-            .GetFormStateAsync("frm_1", OpenCodeRequestOptions.NoThrow);
-
-        await Assert.That(response.IsError).IsTrue();
-        await Assert.That(response.Status).IsEqualTo(401);
-        await Assert.That(response.Error).IsTypeOf<UnauthorizedError>();
     }
 
     [Test]
@@ -1127,38 +1113,37 @@ public sealed class SessionClientContractTests
     }
 
     [Test]
-    public async Task PutPermissionRulesAsync_Should_Send_The_Ruleset_On_The_204()
+    public async Task UpdateSessionAsync_Should_Send_The_Ruleset_On_The_204()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PutPermissionRulesAsync(
-            new SessionPermissionRulesPutRequest
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").UpdateSessionAsync(
+            new SessionUpdatePatchRequest
             {
-                Permissions =
-                [
+                Permissions = new Optional<IReadOnlyList<PermissionRule>?>([
                     new PermissionRule { Action = "run", Resource = "bash", Effect = PermissionEffect.Ask },
                     new PermissionRule { Action = "edit", Resource = "**/*.cs", Effect = PermissionEffect.Allow },
-                ],
+                ]),
             });
 
         await Assert.That(response.Status).IsEqualTo(204);
         await Assert.That(response.IsError).IsFalse();
         var request = scenario.Requests.Single();
-        await Assert.That(request.Method).IsEqualTo(HttpMethod.Put);
+        await Assert.That(request.Method.Method).IsEqualTo("PATCH");
         await Assert.That(request.RequestUri)
-            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100/permission/rules"));
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100"));
         await Assert.That(request.Body).IsEqualTo(
             "{\"permissions\":[{\"action\":\"run\",\"resource\":\"bash\",\"effect\":\"ask\"},"
             + "{\"action\":\"edit\",\"resource\":\"**/*.cs\",\"effect\":\"allow\"}]}");
     }
 
     [Test]
-    public async Task PutPermissionRulesAsync_Should_Throw_The_Declared_400_Error()
+    public async Task UpdateSessionAsync_Should_Throw_The_Declared_400_Error()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.InvalidRequestError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").PutPermissionRulesAsync(
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").UpdateSessionAsync(
                 EmptyRuleset))
             .Throws<OpenCodeApiException>();
 
@@ -1167,12 +1152,12 @@ public sealed class SessionClientContractTests
     }
 
     [Test]
-    public async Task PutPermissionRulesAsync_Should_Throw_The_Declared_404_Error()
+    public async Task UpdateSessionAsync_Should_Throw_The_Declared_404_Error()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.SessionNotFoundError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").PutPermissionRulesAsync(
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").UpdateSessionAsync(
                 EmptyRuleset))
             .Throws<OpenCodeApiException>();
 
@@ -1181,11 +1166,11 @@ public sealed class SessionClientContractTests
     }
 
     [Test]
-    public async Task PutPermissionRulesAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    public async Task UpdateSessionAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PutPermissionRulesAsync(
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").UpdateSessionAsync(
             EmptyRuleset,
             OpenCodeRequestOptions.NoThrow);
 

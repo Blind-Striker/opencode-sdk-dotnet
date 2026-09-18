@@ -32,7 +32,7 @@ public sealed class SessionMessagePaginationLiveTests(SimulatedDriveServerFixtur
             turnCompleted = true;
 
             var manual = new List<ISessionMessageInfo>();
-            var request = new MessageListRequest { Limit = "1", Order = ListOrder.Ascending };
+            var request = new SessionMessageListRequest { Limit = "1", Order = ListOrder.Ascending };
             while (true)
             {
                 var page = await session.ListMessagesAsync(request, cancellationToken: cancellationToken);
@@ -45,7 +45,7 @@ public sealed class SessionMessagePaginationLiveTests(SimulatedDriveServerFixtur
                 await Assert.That(page.Messages).Count().IsEqualTo(1);
                 await Assert.That(page.Cursor.Next).IsNotNull();
                 manual.Add(page.Messages[0]);
-                request = new MessageListRequest { Limit = "1", Cursor = page.Cursor.Next };
+                request = new SessionMessageListRequest { Limit = "1", Cursor = page.Cursor.Next };
             }
 
             var manualUsers = manual.OfType<SessionMessageUser>().Where(message => message.Text == Prompt).ToList();
@@ -77,7 +77,7 @@ public sealed class SessionMessagePaginationLiveTests(SimulatedDriveServerFixtur
             await Assert.That(enumeratedAssistants).Count().IsEqualTo(1);
             await Assert.That(enumerated.IndexOf(enumeratedUsers[0])).IsLessThan(enumerated.IndexOf(enumeratedAssistants[0]));
 
-            var invalid = await session.ListMessagesAsync(new MessageListRequest { Cursor = "garbage" }, OpenCodeRequestOptions.NoThrow, cancellationToken);
+            var invalid = await session.ListMessagesAsync(new SessionMessageListRequest { Cursor = "garbage" }, OpenCodeRequestOptions.NoThrow, cancellationToken);
             await Assert.That(invalid.Status).IsEqualTo(400);
             await Assert.That(invalid.Error).IsTypeOf<InvalidCursorError>();
             var error = invalid.Error as InvalidCursorError;
@@ -162,7 +162,7 @@ public sealed class SessionMessagePaginationLiveTests(SimulatedDriveServerFixtur
             new SessionCreateRequest
             {
                 Title = "message-pagination-live",
-                Location = new LocationRef { Directory = directory },
+                Location = new LocationPublicRef { Directory = directory },
                 Model = new ModelRef { Id = "sim-model", ProviderId = "sim" },
             },
             cancellationToken: cancellationToken);
@@ -197,7 +197,7 @@ public sealed class SessionMessagePaginationLiveTests(SimulatedDriveServerFixtur
     {
         var messages = new List<ISessionMessageInfo>();
         await foreach (var message in session.EnumerateMessagesAsync(
-                           new MessageListRequest { Limit = "1", Order = ListOrder.Ascending },
+                           new SessionMessageListRequest { Limit = "1", Order = ListOrder.Ascending },
                            cancellationToken))
         {
             messages.Add(message);

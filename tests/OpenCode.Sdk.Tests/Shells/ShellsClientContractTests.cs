@@ -30,11 +30,11 @@ public sealed class ShellsClientContractTests
 
         _ = await scenario.Client.Shells.ListShellsAsync(new ShellListRequest
         {
-            Location = new LocationSelector { Directory = "/a b", Workspace = "wrk_1" },
+            Location = new LocationSelector { Directory = "/a b" },
         });
 
         await Assert.That(scenario.Requests.Single().RequestUri!.AbsoluteUri).IsEqualTo(
-            "http://localhost:4096/api/shell?location[directory]=%2Fa%20b&location[workspace]=wrk_1");
+            "http://localhost:4096/api/shell?location[directory]=%2Fa%20b");
     }
 
     [Test]

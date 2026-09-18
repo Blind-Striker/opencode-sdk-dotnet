@@ -1,10 +1,9 @@
 namespace OpenCode.Sdk.Tools.Generator.Binding;
 
 /// <summary>
-/// Strips upstream projection artifacts from component names before .NET name derivation, the
-/// same class of mechanical dialect rule as the <c>v2.</c> operation-id prefix strip
-/// (ADR-0005). The declared suffix list carries Effect's encode-side <c>*Encoded</c> fallback
-/// rename (effect 4.0.0-beta.103; the #44911 projection context). A suffix is stripped from
+/// Strips upstream projection artifacts from component names before .NET name derivation.
+/// The declared suffix list carries Effect's encode-side <c>*Encoded</c> fallback
+/// rename (the #44911 projection context). A suffix is stripped from
 /// the final dotted segment only when the unsuffixed component does not itself exist, so a
 /// deliberate pair such as <c>V2Event</c>/<c>V2EventEncoded</c> keeps both names; if upstream
 /// stops emitting the artifact, the rule goes quietly dead.

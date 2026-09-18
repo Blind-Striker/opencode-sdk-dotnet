@@ -51,7 +51,6 @@ public sealed class ConnectionSnapshotTests
         await Assert.That(snapshot.EndpointBase).IsEqualTo(EndpointBase);
         await Assert.That(snapshot.Authorization).IsSameReferenceAs(credential);
         await Assert.That(snapshot.Location!.Directory).IsEqualTo("/repo");
-        await Assert.That(snapshot.Location.Workspace).IsEqualTo("wrk_1");
     }
 
     [Test]
@@ -79,7 +78,7 @@ public sealed class ConnectionSnapshotTests
     private static string Render(ConnectionSnapshot snapshot) =>
         (string)typeof(ConnectionSnapshot).GetMethod(nameof(ToString), Type.EmptyTypes)!.Invoke(snapshot, null)!;
 
-    private static LocationSelector Location => new() { Directory = "/repo", Workspace = "wrk_1" };
+    private static LocationSelector Location => new() { Directory = "/repo" };
 
     private static AuthenticationHeaderValue BasicCredential() => new("Basic", EncodedCredential());
 

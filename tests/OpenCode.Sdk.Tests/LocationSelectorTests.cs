@@ -8,7 +8,6 @@ public sealed class LocationSelectorTests
         var selector = new LocationSelector();
 
         await Assert.That(selector.Directory).IsNull();
-        await Assert.That(selector.Workspace).IsNull();
     }
 
     [Test]
@@ -20,12 +19,4 @@ public sealed class LocationSelectorTests
             .Throws<ArgumentException>();
     }
 
-    [Test]
-    [Arguments("")]
-    [Arguments(" ")]
-    public async Task Workspace_Should_Refuse_A_Blank_Value(string value)
-    {
-        _ = await Assert.That(() => _ = new LocationSelector { Workspace = value })
-            .Throws<ArgumentException>();
-    }
 }

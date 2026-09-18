@@ -73,20 +73,6 @@ public class SessionsClient
     }
 
     /// <summary>
-    /// Get session statistics. Aggregate local session activity, usage, and tool reliability for a time range.
-    /// </summary>
-    /// <param name = "request">The request shaping the query.</param>
-    /// <param name = "requestOptions">The per-call options.</param>
-    /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;SessionStatsResponse&apos; envelope.</returns>
-    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
-    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<SessionStatsResponse> GetStatsAsync(SessionStatsRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
-    {
-        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Sessions.GetStats(request), SessionStatsResponseAdapter.Instance, requestOptions, cancellationToken);
-    }
-
-    /// <summary>
     /// List sessions. Retrieve sessions in the requested order. Items keep that order across pages; use cursor.next or cursor.previous to move through the ordered list.
     /// </summary>
     /// <param name = "request">The request shaping the query.</param>
@@ -111,20 +97,5 @@ public class SessionsClient
     public virtual CursorSequence<SessionListResponse, SessionInfo> EnumerateSessionsAsync(SessionListRequest? request = null, CancellationToken cancellationToken = default)
     {
         return CursorPaginator.EnumerateAsync(ListSessionsAsync, request, SessionListResponseAdapter.Instance, cancellationToken);
-    }
-
-    /// <summary>
-    /// Import session. Import a projected session transcript at the requested location. If parentID is supplied, the parent session must already exist; import parents before children.
-    /// </summary>
-    /// <param name = "request">The request body.</param>
-    /// <param name = "requestOptions">The per-call options.</param>
-    /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;SessionImportPostResponse&apos; envelope.</returns>
-    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 409) and NoThrow was not selected.</exception>
-    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<SessionImportPostResponse> PostImportAsync(SessionImportPostRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Sessions.PostImport, request, OpenCodeJsonContext.Default.SessionImportPostRequest, SessionImportPostResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }

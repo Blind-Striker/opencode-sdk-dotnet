@@ -56,7 +56,6 @@ public static class OpenCodeServiceCollectionExtensions
         _ = services.AddSingleton(static ExperimentalClient (provider) => provider.GetRequiredService<OpenCodeClient>().Experimental);
         _ = services.AddSingleton(static FileSystemClient (provider) => provider.GetRequiredService<OpenCodeClient>().FileSystem);
         _ = services.AddSingleton(static FormsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Forms);
-        _ = services.AddSingleton(static GenerationClient (provider) => provider.GetRequiredService<OpenCodeClient>().Generation);
         _ = services.AddSingleton(static IntegrationsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Integrations);
         _ = services.AddSingleton(static LanguageModelsClient (provider) => provider.GetRequiredService<OpenCodeClient>().LanguageModels);
         _ = services.AddSingleton(static McpServersClient (provider) => provider.GetRequiredService<OpenCodeClient>().McpServers);
@@ -74,7 +73,6 @@ public static class OpenCodeServiceCollectionExtensions
         _ = services.AddSingleton(static SkillsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Skills);
         _ = services.AddSingleton(static VcsClient (provider) => provider.GetRequiredService<OpenCodeClient>().Vcs);
         _ = services.AddSingleton(static WebsearchClient (provider) => provider.GetRequiredService<OpenCodeClient>().Websearch);
-        _ = services.AddSingleton(static WorkspacesClient (provider) => provider.GetRequiredService<OpenCodeClient>().Workspaces);
         _ = services.AddSingleton(static WorktreesClient (provider) => provider.GetRequiredService<OpenCodeClient>().Worktrees);
         return services;
     }

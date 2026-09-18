@@ -9,13 +9,86 @@ Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
 `0.9.0-nightly.{yyyyMMdd}.{shortSha}`.
 
+Built against upstream release tag `v2.0.5`. Upstream removed and moved operations between `v2.0.2`
+and this tag; the SDK follows the pinned contract and keeps no compatibility layer, so the breaking
+changes come first, each with what to change.
+
+### 💥 Breaking changes
+
+- **The accepted snapshot moved to upstream release tag `v2.0.5`**
+  (`79169fe966d58fb0e0a5e41133716184a0ab4ca6`), which published as `@opencode/cli@2.0.5`; install
+  it with `npm install -g @opencode/cli@2.0.5`. Operation identities lost their `v2.` prefix
+  upstream (`session.diff`, `event.subscribe`); routes did not change for that reason. 129 of the
+  document's 134 operations are generated and two more are hand-written WebSocket transports. The
+  Restore patch that repairs upstream's lost SSE payload schemas
+  ([anomalyco/opencode#44911](https://github.com/anomalyco/opencode/issues/44911)) is still
+  required at this tag and was rebased onto it.
+- **Health became status.** `OpenCodeClient.GetHealthAsync`, `ServerClient.GetServerAsync`,
+  `HealthResponse`, `Health`, and `ServerResponse` are removed with upstream's `/api/health` and
+  `/api/server`. Call `client.Server.GetStatusAsync()` and read `ServerStatusResponse.ServerStatus`:
+  `Version`, `Pid`, and `Urls`. There is no `Healthy` member; a status call that answers is the
+  health signal, and it throws like any other call when the server does not.
+- **Location targeting is directory-only.** `LocationSelector.Workspace` and
+  `SessionListRequest.Workspace` are removed: upstream dropped the `location[workspace]` query and
+  the `x-opencode-workspace` header. The `Location` a location-scoped response carries is now
+  `LocationPublicRef` with `Directory` alone, and `location.get` answers `LocationPublicInfo`;
+  `LocationInfo` and `LocationInfoProject` are removed. The `client.Workspaces` family
+  (`WorkspacesClient`) is removed with upstream's workspace routes.
+- **Operations upstream marked experimental moved to `client.Experimental`**, as flat methods that
+  take their ids explicitly:
+  - `SessionClient.GetExportAsync` → `Experimental.GetSessionExportAsync` (payload member
+    `SessionExport`), `SessionsClient.PostImportAsync` → `Experimental.PostSessionImportAsync`,
+    `SessionsClient.GetStatsAsync` → `Experimental.GetSessionStatsAsync`.
+  - `SessionClient.PostSkillAsync` / `PostWaitAsync` → `Experimental.PostSessionSkillAsync` /
+    `PostSessionWaitAsync`, and the three `…InstructionsEntryAsync` methods →
+    `Experimental.ListSessionInstructionsEntryAsync`, `PutSessionInstructionsEntryAsync`, and
+    `RemoveSessionInstructionsEntryAsync`.
+  - The `McpServerClient` handle and `McpServersClient.GetMcpServerClient` are removed; adding,
+    connecting, disconnecting, and removing a server are `Experimental.AddMcpServerAsync`,
+    `ConnectMcpServerAsync`, `DisconnectMcpServerAsync`, and `RemoveMcpServerAsync`.
+    `McpServersClient` keeps the list and the resource catalog.
+  - `client.Generation.GenerateTextAsync` → `Experimental.GenerateTextAsync`; `GenerationClient`
+    is removed.
+- **Configuration preferences are gone upstream.** `ConfigClient.GetPreferencesAsync`,
+  `PatchUpdatePreferencesAsync`, and the `ConfigPreferences*` and `ConfigWebSearchInfo` models are
+  removed with `/api/config/preferences`. Write through `Experimental.UpdateConfigAsync`, whose
+  `Shell` is required and nullable: a string sets the shell, `null` clears it, and there is no
+  "leave it unchanged" form any more. **There is no configuration read at this pin**: upstream
+  folded it into `config.get`, which this SDK does not generate yet
+  ([coverage](README.md#-api-coverage)). `ConfigClient` keeps `GetShellsAsync`.
+- **Session operations that changed shape.** `RenameSessionAsync` and `PutPermissionRulesAsync` →
+  `SessionClient.UpdateSessionAsync` (`Title`, `Permissions`). `PostInboxQueueAsync` and
+  `PostInboxSteerAsync` → `UpdateInboxAsync` with the delivery to switch to. `GetFormStateAsync`
+  is removed; the state is `GetFormAsync(…).Form.State` on the new `FormDetail`.
+  `PostFormCancelAsync` → `DeleteFormCancelAsync` and `PostRevertClearAsync` →
+  `DeleteRevertClearAsync` (upstream changed the method). The fork boundary union
+  (`ISessionForkRequestBoundary`, `SessionForkRequestBoundaryBefore`, `…Through`) is removed; set
+  `SessionForkPostRequest.Before`. `SessionInterruptPostRequest.Continue` → `Resume`.
+  `MessageListRequest`, `MessageListResponse`, and `MessageListRequestType` →
+  `SessionMessageListRequest`, `SessionMessageListResponse`, and `SessionMessageListRequestType`.
+- **Events.** `session.permissions.updated` is now `session.permissions`:
+  `SessionPermissionsUpdated` and its `Data` and `Durable` companions → `SessionPermissions`,
+  `SessionPermissionsData`, and `SessionPermissionsDurable`. `catalog.updated` (`CatalogUpdated`)
+  is removed; `provider.updated` and `model.updated` arrive as `ProviderUpdated` and `ModelUpdated`.
+- **Worktrees name their project.** Every worktree request requires `ProjectId`, and the requests
+  no longer take a `Location`; `WorktreeCreateRequest.Strategy` is removed.
+- **Smaller renames and removals.** `VcsClient.GetBranchesAsync` → `ListBranchesAsync`
+  (`VcsBranchListRequest` / `VcsBranchListResponse`). `FormsClient.ListRequestsAsync` →
+  `ListFormsAsync`, and its payload `Requests` → `Forms`. `ProjectsClient.GetCurrentAsync` is
+  removed; the current project arrives on `client.Location.GetLocationAsync()`.
+  `ShellClient.TimeoutShellAsync` is removed. `SkillInfo.Location` and `Slash` → `Path`. An unknown
+  integration now throws the declared 404 instead of returning null.
+- **`PluginsClient.AwaitPluginActivationAsync` is removed and has no replacement**: the pin exposes
+  no HTTP activation barrier. When your code needs a particular plugin, provider, or model, wait
+  for that identity under your own cancellation deadline; an empty list does not prove absence.
+
 ### ✨ New features
 
 - **Background-service discovery.** `OpenCodeServer.DiscoverAsync` opens opencode's third
   connection mode: it finds the background service the opencode CLI registers for every client on
   the machine, through the CLI's own rules — the registration file resolved by service channel
   under the XDG state root (or named directly), the CLI's one-time copy of an older hashed
-  registration filename, a strict decode of the registration, and an authenticated `/api/health`
+  registration filename, a strict decode of the registration, and an authenticated `/api/status`
   probe under a two-second bound whose pid must match. A ready daemon comes back as a
   **non-owning** `OpenCodeServer`: the new `OwnsProcess` member is false, `DisposeAsync` is a
   no-op, and `CreateClient()` binds a client to the daemon exactly as it does to a started server.
@@ -27,17 +100,18 @@ Nightly builds of `master` are on
   `XDG_CONFIG_HOME`, `OPENCODE_CONFIG_DIR`, and the user profile (`USERPROFILE` first on Windows,
   `HOME` elsewhere) — never a credential. The behaviour is the pinned CLI's, source-watched at the
   accepted commit (ADR-0025); live tests prove it against the pin's own `serve --service` daemon on
-  every runtime leg, from an isolated process whose environment the test owns. Ensuring and
+  every target-framework leg, from an isolated process whose environment the test owns. Ensuring and
   stopping the service follow as their own slices.
-- **Turn diffs.** `SessionClient.GetDiffAsync` binds `v2.session.diff`, new in upstream `v2.0.3`:
+- **Turn diffs.** `SessionClient.GetDiffAsync` binds `session.diff`, which upstream added in `v2.0.3`:
   the structured per-file diffs of the files one turn changed, where a turn runs from the first
   prompt after the session was last idle to its next idle marker. `SessionDiffRequest` carries the
   optional `From` and `To` user-message anchors and the `Context` line count, and
   `SessionDiffResponse.Diffs` is the same `FileDiffInfo` list the VCS diff returns. A live test
   proves the declared 200, 400, and 404 arms against the pinned server.
 - **The idle turn marker is a typed message.** `SessionMessageIdle` joins the message union with
-  its `Outcome` (`Succeeded`, `Failed`, or `Interrupted`). A `2.0.3` server writes one at the end
-  of every turn; on `0.8.0-preview.2` those entries surfaced as `UnknownSessionMessageInfo`.
+  its `Outcome` (`Succeeded`, `Failed`, or `Interrupted`). Since upstream `v2.0.3` the server writes
+  one at the end of every turn; on `0.8.0-preview.2` those entries surfaced as
+  `UnknownSessionMessageInfo`.
 
 ### 🔧 Changes
 
@@ -49,13 +123,6 @@ Nightly builds of `master` are on
 - **`OpenCodeServer` is the home of every local-server handle** (ADR-0024): its summary no longer
   promises that it never attaches to another server, because a discovered handle is exactly that,
   with its ownership visible through `OwnsProcess`.
-- **The accepted snapshot moved to upstream release tag `v2.0.3`**
-  (`d44b52ca66b6bf69626c0384626d1a9cd9555977`), which published as `@opencode/cli@2.0.3`, the
-  npm `latest` at the time of the refresh; install it with `npm install -g @opencode/cli@2.0.3`.
-  The document gained the one operation and the one message kind above and nothing else; 139 of
-  its 144 operations are generated. The Restore patch that repairs upstream's lost SSE payload
-  schemas ([anomalyco/opencode#44911](https://github.com/anomalyco/opencode/issues/44911)) is
-  still required at this tag and was rebased onto it.
 - **The published opencode build is tested now, not only the pinned source.** The live-test fixture
   takes a new optional `OPENCODE_SDK_TESTS_SERVER_COMMAND` (`|`-separated, e.g. `opencode|serve`):
   it replaces the command the fixture starts and changes nothing else, so the whole suite can be

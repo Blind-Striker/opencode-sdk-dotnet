@@ -12,11 +12,11 @@ public sealed class PendingOperationBindabilityProbeTests
         .WithSchema("WidgetInfo", schema => schema
             .Type("object")
             .Property("id", property => property.Type("string"), required: true))
-        .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+        .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
             .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))
-        .WithOperation("v2.widget.connect", path: "/api/widget/connect", configure: operation => operation
+        .WithOperation("widget.connect", path: "/api/widget/connect", configure: operation => operation
             .Extension("x-websocket", "true"))
-        .WithOperation("v2.widget.tail", path: "/api/widget/*", configure: operation => operation
+        .WithOperation("widget.tail", path: "/api/widget/*", configure: operation => operation
             .Extension("x-websocket", "true")));
 
     [Test]
@@ -25,10 +25,10 @@ public sealed class PendingOperationBindabilityProbeTests
         var document = await BindingTestHost.IngestAsync(WidgetScenario);
         var probe = new PendingOperationBindabilityProbe(new BindingTestHost().Binder);
 
-        var marks = probe.Probe(document, ["v2.widget.list"]);
+        var marks = probe.Probe(document, ["widget.list"]);
 
         await Assert.That(marks.Count).IsEqualTo(1);
-        await Assert.That(marks[0].OperationId).IsEqualTo("v2.widget.list");
+        await Assert.That(marks[0].OperationId).IsEqualTo("widget.list");
         await Assert.That(marks[0].IsBindable).IsTrue();
         await Assert.That(marks[0].RefusalMessage).IsNull();
     }
@@ -39,10 +39,10 @@ public sealed class PendingOperationBindabilityProbeTests
         var document = await BindingTestHost.IngestAsync(WidgetScenario);
         var probe = new PendingOperationBindabilityProbe(new BindingTestHost().Binder);
 
-        var marks = probe.Probe(document, ["v2.widget.connect"]);
+        var marks = probe.Probe(document, ["widget.connect"]);
 
         await Assert.That(marks.Count).IsEqualTo(1);
-        await Assert.That(marks[0].OperationId).IsEqualTo("v2.widget.connect");
+        await Assert.That(marks[0].OperationId).IsEqualTo("widget.connect");
         await Assert.That(marks[0].IsBindable).IsFalse();
         await Assert.That(marks[0].RefusalMessage).IsEqualTo("WebSocket operations are not supported in M1");
     }
@@ -53,7 +53,7 @@ public sealed class PendingOperationBindabilityProbeTests
         var document = await BindingTestHost.IngestAsync(WidgetScenario);
         var probe = new PendingOperationBindabilityProbe(new BindingTestHost().Binder);
 
-        var marks = probe.Probe(document, ["v2.widget.tail"]);
+        var marks = probe.Probe(document, ["widget.tail"]);
 
         await Assert.That(marks.Count).IsEqualTo(1);
         await Assert.That(marks[0].IsBindable).IsFalse();
@@ -67,7 +67,7 @@ public sealed class PendingOperationBindabilityProbeTests
         var (document, _, _) = await BindingTestHost.LoadPinnedInputsAsync();
         var probe = new PendingOperationBindabilityProbe(new BindingTestHost().Binder);
 
-        var marks = probe.Probe(document, ["v2.config.get"]);
+        var marks = probe.Probe(document, ["config.get"]);
 
         await Assert.That(marks.Count).IsEqualTo(1);
         await Assert.That(marks[0].IsBindable).IsFalse();
@@ -83,10 +83,10 @@ public sealed class PendingOperationBindabilityProbeTests
         var document = await BindingTestHost.IngestAsync(WidgetScenario);
         var probe = new PendingOperationBindabilityProbe(new ThrowingSpecBinder());
 
-        var marks = probe.Probe(document, ["v2.widget.list"]);
+        var marks = probe.Probe(document, ["widget.list"]);
 
         await Assert.That(marks.Count).IsEqualTo(1);
-        await Assert.That(marks[0].OperationId).IsEqualTo("v2.widget.list");
+        await Assert.That(marks[0].OperationId).IsEqualTo("widget.list");
         await Assert.That(marks[0].IsBindable).IsFalse();
         await Assert.That(marks[0].RefusalMessage).IsNotNull();
         await Assert.That(marks[0].RefusalMessage).Contains(nameof(InvalidOperationException));
@@ -99,28 +99,26 @@ public sealed class PendingOperationBindabilityProbeTests
         var document = await BindingTestHost.IngestAsync(WidgetScenario);
         var probe = new PendingOperationBindabilityProbe(new BindingTestHost().Binder);
 
-        var marks = probe.Probe(document, ["v2.widget.connect", "v2.widget.list"]);
+        var marks = probe.Probe(document, ["widget.connect", "widget.list"]);
 
         await Assert.That(marks.Select(static mark => mark.OperationId)
-                .SequenceEqual(["v2.widget.connect", "v2.widget.list"], StringComparer.Ordinal))
+                .SequenceEqual(["widget.connect", "widget.list"], StringComparer.Ordinal))
             .IsTrue();
     }
 
     [Test]
-    [Arguments("v2.credential.activate")]
-    [Arguments("v2.form.request.list")]
-    [Arguments("v2.integration.connect.key")]
-    [Arguments("v2.integration.list")]
-    [Arguments("v2.integration.oauth.connect")]
-    [Arguments("v2.project.update")]
-    [Arguments("v2.session.environment")]
-    [Arguments("v2.session.form.create")]
-    [Arguments("v2.session.form.get")]
-    [Arguments("v2.session.form.reply")]
-    [Arguments("v2.session.form.state")]
-    [Arguments("v2.session.view")]
-    [Arguments("v2.workspace.destroy")]
-    public async Task Probe_Should_Mark_Every_Known_Wall_Free_Pending_Operation_As_Bindable(string operationId)
+    [Arguments("credential.activate")]
+    [Arguments("form.list")]
+    [Arguments("integration.connect.key")]
+    [Arguments("integration.list")]
+    [Arguments("integration.oauth.connect")]
+    [Arguments("project.update")]
+    [Arguments("session.environment")]
+    [Arguments("session.form.create")]
+    [Arguments("session.form.get")]
+    [Arguments("session.form.reply")]
+    [Arguments("session.view")]
+    public async Task Probe_Should_Mark_A_Wall_Free_Pinned_Operation_As_Bindable(string operationId)
     {
         var (document, _, _) = await BindingTestHost.LoadPinnedInputsAsync();
         var probe = new PendingOperationBindabilityProbe(new BindingTestHost().Binder);

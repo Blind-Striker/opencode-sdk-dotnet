@@ -14,7 +14,7 @@ public sealed record SpecOperation
         }
     }
 
-    /// <summary>Gets operation-identifier segments without the <c>v2.</c> protocol prefix.</summary>
+    /// <summary>Gets the group and action segments of the operation identifier.</summary>
     public required IReadOnlyList<string> Segments
     {
         get;

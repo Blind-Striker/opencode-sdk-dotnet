@@ -56,8 +56,8 @@ body:
     id: server-version
     attributes:
       label: opencode server version
-      description: The `version` field `GetHealthAsync` returns.
-      placeholder: 2.0.3
+      description: The `version` field `Server.GetStatusAsync` returns.
+      placeholder: 2.0.5
     validations:
       required: true
 

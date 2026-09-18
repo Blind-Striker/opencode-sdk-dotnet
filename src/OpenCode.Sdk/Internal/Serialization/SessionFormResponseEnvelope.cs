@@ -10,5 +10,5 @@ namespace OpenCode.Sdk.Internal.Serialization;
 internal sealed record SessionFormResponseEnvelope
 {
     [JsonPropertyName("data")]
-    public required FormInfo Data { get; init; }
+    public required FormDetail Data { get; init; }
 }

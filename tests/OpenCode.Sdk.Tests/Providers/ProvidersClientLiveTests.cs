@@ -1,5 +1,6 @@
 using System.Globalization;
 using OpenCode.Sdk.Models;
+using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
 
 namespace OpenCode.Sdk.Tests;
@@ -15,10 +16,10 @@ public sealed class ProvidersClientLiveTests(SimulatedDriveServerFixture server)
     {
         using var workspace = server.CreateWorkspace();
         using var client = server.CreateClient(new LocationSelector { Directory = workspace.Path });
-        var settled = await client.Plugins.AwaitPluginActivationAsync(cancellationToken: cancellationToken);
-        await Assert.That(settled.Status).IsEqualTo(204);
-
-        var listed = await client.Providers.ListProvidersAsync(cancellationToken: cancellationToken);
+        var listed = await LiveReadiness.WaitAsync(
+            token => client.Providers.ListProvidersAsync(cancellationToken: token),
+            result => result.Providers.Any(item => item.Id == SimulationConfigSeed.ProviderId),
+            "seeded providers", cancellationToken);
 
         await Assert.That(listed.Status).IsEqualTo(200);
         await Assert.That(listed.IsError).IsFalse();
@@ -45,7 +46,10 @@ public sealed class ProvidersClientLiveTests(SimulatedDriveServerFixture server)
     {
         using var workspace = server.CreateWorkspace();
         using var client = server.CreateClient(new LocationSelector { Directory = workspace.Path });
-        _ = await client.Plugins.AwaitPluginActivationAsync(cancellationToken: cancellationToken);
+        _ = await LiveReadiness.WaitAsync(
+            token => client.Providers.ListProvidersAsync(cancellationToken: token),
+            result => result.Providers.Any(item => item.Id == SimulationConfigSeed.ProviderId),
+            "seeded providers", cancellationToken);
         var providerId = "sdk-live-missing-provider-" + Guid.NewGuid().ToString("N");
 
         var response = await client.Providers.GetProviderAsync(

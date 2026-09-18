@@ -26,18 +26,4 @@ public sealed record ReferenceGitSource : IReferenceSource
     [JsonPropertyName("branch")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Branch { get; init; }
-
-    /// <summary>
-    /// Gets the description value.
-    /// </summary>
-    [JsonPropertyName("description")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Description { get; init; }
-
-    /// <summary>
-    /// Gets the hidden value.
-    /// </summary>
-    [JsonPropertyName("hidden")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public bool? Hidden { get; init; }
 }

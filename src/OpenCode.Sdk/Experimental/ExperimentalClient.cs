@@ -41,4 +41,227 @@ public class ExperimentalClient
         ArgumentNullException.ThrowIfNull(request);
         return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Experimental.AddIntegrationWellknown(request), request, OpenCodeJsonContext.Default.ExperimentalIntegrationWellknownAddPostRequest, ExperimentalIntegrationWellknownAddPostResponseAdapter.Instance, requestOptions, cancellationToken);
     }
+
+    /// <summary>
+    /// Add MCP server. Add an MCP server at runtime or replace an existing one, connecting it immediately.
+    /// </summary>
+    /// <param name = "server">The &apos;server&apos; route value.</param>
+    /// <param name = "request">The request body.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ExperimentalMcpAddPutResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<ExperimentalMcpAddPutResponse> AddMcpServerAsync(string server, ExperimentalMcpAddPutRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(server);
+        ArgumentNullException.ThrowIfNull(request);
+        return Pipeline.ExecuteAsync(HttpMethod.Put, OpenCodeRoutes.Experimental.AddMcpServer(server, request), request, OpenCodeJsonContext.Default.ExperimentalMcpAddPutRequest, ExperimentalMcpAddPutResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Connect MCP server. Connect an MCP server at runtime, overriding a disabled configuration until restart.
+    /// </summary>
+    /// <param name = "server">The &apos;server&apos; route value.</param>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ExperimentalMcpConnectPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<ExperimentalMcpConnectPostResponse> ConnectMcpServerAsync(string server, ExperimentalMcpConnectPostRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(server);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Experimental.ConnectMcpServer(server, request), ExperimentalMcpConnectPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Disconnect MCP server. Disconnect an MCP server at runtime, removing its tools until reconnected.
+    /// </summary>
+    /// <param name = "server">The &apos;server&apos; route value.</param>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ExperimentalMcpDisconnectPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<ExperimentalMcpDisconnectPostResponse> DisconnectMcpServerAsync(string server, ExperimentalMcpDisconnectPostRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(server);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Experimental.DisconnectMcpServer(server, request), ExperimentalMcpDisconnectPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Generate text. Run one stateless model generation using the server&apos;s base configuration and return the assistant text. Uses the base configuration&apos;s default model when none is specified.
+    /// </summary>
+    /// <param name = "request">The request body.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ExperimentalGenerateTextPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 503) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<ExperimentalGenerateTextPostResponse> GenerateTextAsync(ExperimentalGenerateTextPostRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Experimental.GenerateText, request, OpenCodeJsonContext.Default.ExperimentalGenerateTextPostRequest, ExperimentalGenerateTextPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Export session. Export a complete projected session transcript.
+    /// </summary>
+    /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ExperimentalSessionExportResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 500) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<ExperimentalSessionExportResponse> GetSessionExportAsync(string sessionId, ExperimentalSessionExportRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(sessionId);
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Experimental.GetSessionExport(sessionId, request), ExperimentalSessionExportResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Get session statistics. Aggregate local session activity, usage, and tool reliability for a time range.
+    /// </summary>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ExperimentalSessionStatsResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<ExperimentalSessionStatsResponse> GetSessionStatsAsync(ExperimentalSessionStatsRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Experimental.GetSessionStats(request), ExperimentalSessionStatsResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// List instruction entries. List API-managed instruction entries attached to the session.
+    /// </summary>
+    /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ExperimentalSessionInstructionsEntryListResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<ExperimentalSessionInstructionsEntryListResponse> ListSessionInstructionsEntryAsync(string sessionId, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(sessionId);
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Experimental.ListSessionInstructionsEntry(sessionId), ExperimentalSessionInstructionsEntryListResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Import session. Import a projected session transcript at the requested location. If parentID is supplied, the parent session must already exist; import parents before children.
+    /// </summary>
+    /// <param name = "request">The request body.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ExperimentalSessionImportPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 409) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<ExperimentalSessionImportPostResponse> PostSessionImportAsync(ExperimentalSessionImportPostRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Experimental.PostSessionImport, request, OpenCodeJsonContext.Default.ExperimentalSessionImportPostRequest, ExperimentalSessionImportPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Activate skill. Activate a skill for a session by appending a skill message and resuming execution.
+    /// </summary>
+    /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+    /// <param name = "request">The request body.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ExperimentalSessionSkillPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<ExperimentalSessionSkillPostResponse> PostSessionSkillAsync(string sessionId, ExperimentalSessionSkillPostRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(sessionId);
+        ArgumentNullException.ThrowIfNull(request);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Experimental.PostSessionSkill(sessionId), request, OpenCodeJsonContext.Default.ExperimentalSessionSkillPostRequest, ExperimentalSessionSkillPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Wait for session. Wait for a session agent loop to become idle.
+    /// </summary>
+    /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ExperimentalSessionWaitPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 503) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<ExperimentalSessionWaitPostResponse> PostSessionWaitAsync(string sessionId, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(sessionId);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Experimental.PostSessionWait(sessionId), ExperimentalSessionWaitPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Put instruction entry. Attach or replace one durable instruction entry. Changes announce as updates at the next step boundary.
+    /// </summary>
+    /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+    /// <param name = "key">The &apos;key&apos; route value.</param>
+    /// <param name = "request">The request body.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ExperimentalSessionInstructionsEntryPutResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 413) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<ExperimentalSessionInstructionsEntryPutResponse> PutSessionInstructionsEntryAsync(string sessionId, string key, ExperimentalSessionInstructionsEntryPutRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(sessionId);
+        ArgumentException.ThrowIfNullOrEmpty(key);
+        ArgumentNullException.ThrowIfNull(request);
+        return Pipeline.ExecuteAsync(HttpMethod.Put, OpenCodeRoutes.Experimental.PutSessionInstructionsEntry(sessionId, key), request, OpenCodeJsonContext.Default.ExperimentalSessionInstructionsEntryPutRequest, ExperimentalSessionInstructionsEntryPutResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Remove MCP server. Stop an MCP server and remove it from the runtime set until restart.
+    /// </summary>
+    /// <param name = "server">The &apos;server&apos; route value.</param>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ExperimentalMcpRemoveResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<ExperimentalMcpRemoveResponse> RemoveMcpServerAsync(string server, ExperimentalMcpRemoveRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(server);
+        return Pipeline.ExecuteAsync(HttpMethod.Delete, OpenCodeRoutes.Experimental.RemoveMcpServer(server, request), ExperimentalMcpRemoveResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Remove instruction entry. Remove one instruction entry; the removal is announced to the model at the next step boundary.
+    /// </summary>
+    /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>
+    /// <param name = "key">The &apos;key&apos; route value.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ExperimentalSessionInstructionsEntryRemoveResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<ExperimentalSessionInstructionsEntryRemoveResponse> RemoveSessionInstructionsEntryAsync(string sessionId, string key, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(sessionId);
+        ArgumentException.ThrowIfNullOrEmpty(key);
+        return Pipeline.ExecuteAsync(HttpMethod.Delete, OpenCodeRoutes.Experimental.RemoveSessionInstructionsEntry(sessionId, key), ExperimentalSessionInstructionsEntryRemoveResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Update global configuration. Patch supported fields in the highest-precedence global configuration document.
+    /// </summary>
+    /// <param name = "request">The request body.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ExperimentalConfigUpdatePatchResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<ExperimentalConfigUpdatePatchResponse> UpdateConfigAsync(ExperimentalConfigUpdatePatchRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return Pipeline.ExecuteAsync(OpenCodeHttpMethod.Patch, OpenCodeRoutes.Experimental.UpdateConfig, request, OpenCodeJsonContext.Default.ExperimentalConfigUpdatePatchRequest, ExperimentalConfigUpdatePatchResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
 }

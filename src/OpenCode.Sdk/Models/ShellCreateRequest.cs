@@ -26,7 +26,8 @@ public sealed record ShellCreateRequest
     /// Gets the timeout value.
     /// </summary>
     [JsonPropertyName("timeout")]
-    public required long Timeout { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? Timeout { get; init; }
 
     /// <summary>
     /// Gets the metadata value.

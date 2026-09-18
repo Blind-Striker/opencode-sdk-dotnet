@@ -19,17 +19,19 @@ internal sealed class OwnedSessionInboxCleanup
 
     public OwnedSessionInboxCleanup(
         SessionClient session,
+        ExperimentalClient experimental,
         string sessionId,
         DriveController controller,
         TimeSpan timeout)
         : this(
             token => InterruptAsync(session, sessionId, token),
-            token => WaitAsync(session, sessionId, token),
+            token => WaitAsync(experimental, sessionId, token),
             token => RemoveAsync(session, sessionId, token),
             invocation => new OwnedDriveInvocation(controller, invocation),
             timeout)
     {
         ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(experimental);
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         ArgumentNullException.ThrowIfNull(controller);
     }
@@ -64,7 +66,7 @@ internal sealed class OwnedSessionInboxCleanup
         return owned;
     }
 
-    public void RetainWait(Task<SessionWaitPostResponse> pending)
+    public void RetainWait(Task<ExperimentalSessionWaitPostResponse> pending)
     {
         ArgumentNullException.ThrowIfNull(pending);
         if (_retainedWaitCleanup is not null)
@@ -135,11 +137,11 @@ internal sealed class OwnedSessionInboxCleanup
     }
 
     private static async Task WaitAsync(
-        SessionClient session,
+        ExperimentalClient experimental,
         string sessionId,
         CancellationToken cancellationToken)
     {
-        var response = await session.PostWaitAsync(OpenCodeRequestOptions.NoThrow, cancellationToken);
+        var response = await experimental.PostSessionWaitAsync(sessionId, OpenCodeRequestOptions.NoThrow, cancellationToken);
         RequireResponse(response, sessionId, "wait", 204);
     }
 

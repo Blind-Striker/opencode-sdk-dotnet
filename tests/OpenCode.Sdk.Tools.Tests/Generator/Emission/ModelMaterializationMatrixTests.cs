@@ -626,7 +626,7 @@ public sealed class ModelMaterializationMatrixTests
                 .AdditionalPropertiesFalse()
                 .Property("_tag", property => property.Type("string").Enum("WidgetError"), required: true)
                 .Property("message", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.handoff", path: "/api/widget/handoff", configure: operation => operation
+            .WithOperation("widget.handoff", path: "/api/widget/handoff", configure: operation => operation
                 .Response(200, "application/json", schema => schema
                     .Type("object")
                     .AdditionalPropertiesFalse()
@@ -637,7 +637,7 @@ public sealed class ModelMaterializationMatrixTests
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.handoff"),
+            Selection("widget.handoff"),
             Curation(Groups("widget", RootGroup())));
 
         var operation = plan.Clients.SelectMany(static client => client.Operations).Single();
@@ -661,13 +661,13 @@ public sealed class ModelMaterializationMatrixTests
                 .Property("data", property => property.AnyOf(
                     static branch => branch.Ref("WidgetInfo"),
                     static branch => branch.Type("null")), required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetResponse"))
                 .Response(400, "application/json", schema => schema.Ref("WidgetError")))));
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.list"),
+            Selection("widget.list"),
             Curation(Groups("widget", RootGroup())));
 
         var operation = plan.Clients.SelectMany(static client => client.Operations).Single();
@@ -717,13 +717,13 @@ public sealed class ModelMaterializationMatrixTests
                     .Items(static item => item
                         .Type("object")
                         .Property("id", static inner => inner.Type("string"), required: true)), required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetEnvelope"))
                 .Response(400, "application/json", schema => schema.Ref("WidgetError")))));
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.list"),
+            Selection("widget.list"),
             Curation(Groups("widget", RootGroup())));
 
         var operation = plan.Clients.SelectMany(static client => client.Operations).Single();
@@ -778,13 +778,13 @@ public sealed class ModelMaterializationMatrixTests
                 .AdditionalPropertiesFalse()
                 .Property("location", property => property.Ref("PlaceInfo"), required: true)
                 .Property("data", property => property.Ref("WidgetNameList"), required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetEnvelope"))
                 .Response(400, "application/json", schema => schema.Ref("WidgetError")))));
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.list"),
+            Selection("widget.list"),
             Curation(Groups("widget", RootGroup())));
 
         var operation = plan.Clients.SelectMany(static client => client.Operations).Single();
@@ -804,14 +804,14 @@ public sealed class ModelMaterializationMatrixTests
                 .Property("message", property => property.Type("string"), required: true))
             // Both bodies carry a second, optional member: a one-member inline body is the
             // single-key facet's, and this plan is about promoted bare payloads.
-            .WithOperation("v2.widget.stats", path: "/api/widget/stats", configure: operation => operation
+            .WithOperation("widget.stats", path: "/api/widget/stats", configure: operation => operation
                 .Response(200, "application/json", schema => schema
                     .Type("object")
                     .AdditionalPropertiesFalse()
                     .Property("count", property => property.Type("integer"), required: true)
                     .Property("label", property => property.Type("string")))
                 .Response(400, "application/json", schema => schema.Ref("WidgetError")))
-            .WithOperation("v2.widget.handoff", path: "/api/widget/handoff", configure: operation => operation
+            .WithOperation("widget.handoff", path: "/api/widget/handoff", configure: operation => operation
                 .Response(200, "application/json", schema => schema
                     .Type("object")
                     .AdditionalPropertiesFalse()
@@ -820,7 +820,7 @@ public sealed class ModelMaterializationMatrixTests
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.stats", "v2.widget.handoff"),
+            Selection("widget.stats", "widget.handoff"),
             Curation(Groups("widget", RootGroup())));
 
         var bound = plan.Clients.SelectMany(static client => client.Operations).ToArray();
@@ -850,28 +850,28 @@ public sealed class ModelMaterializationMatrixTests
                 .AdditionalPropertiesFalse()
                 .Property("_tag", property => property.Type("string").Enum("WidgetError"), required: true)
                 .Property("message", property => property.Type("string"), required: true))
-            .WithOperation("v2.widget.list", path: "/api/widget/list", configure: operation => operation
+            .WithOperation("widget.list", path: "/api/widget/list", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetListEnvelope"))
                 .Response(400, "application/json", schema => schema.Ref("WidgetError")))
-            .WithOperation("v2.widget.map", path: "/api/widget/map", configure: operation => operation
+            .WithOperation("widget.map", path: "/api/widget/map", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("WidgetMapEnvelope")))
-            .WithOperation("v2.widget.bareList", path: "/api/widget/bare-list", configure: operation => operation
+            .WithOperation("widget.bareList", path: "/api/widget/bare-list", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Type("array").Items(item => item.Ref("WidgetInfo"))))
-            .WithOperation("v2.widget.bareMap", path: "/api/widget/bare-map", configure: operation => operation
+            .WithOperation("widget.bareMap", path: "/api/widget/bare-map", configure: operation => operation
                 .Response(200, "application/json",
                     schema => schema.Type("object").AdditionalProperties(value => value.Ref("WidgetInfo"))))));
 
         var plan = new BindingTestHost().Bind(
             document,
-            Selection("v2.widget.list", "v2.widget.map", "v2.widget.bareList", "v2.widget.bareMap"),
+            Selection("widget.list", "widget.map", "widget.bareList", "widget.bareMap"),
             Curation(
                 Groups("widget", RootGroup()),
                 operationNames:
                 [
-                    OperationName("v2.widget.list", "GetWidgetListAsync"),
-                    OperationName("v2.widget.map", "GetWidgetMapAsync"),
-                    OperationName("v2.widget.bareList", "GetWidgetBareListAsync"),
-                    OperationName("v2.widget.bareMap", "GetWidgetBareMapAsync"),
+                    OperationName("widget.list", "GetWidgetListAsync"),
+                    OperationName("widget.map", "GetWidgetMapAsync"),
+                    OperationName("widget.bareList", "GetWidgetBareListAsync"),
+                    OperationName("widget.bareMap", "GetWidgetBareMapAsync"),
                 ]));
 
         var bound = plan.Clients.SelectMany(static client => client.Operations).ToArray();

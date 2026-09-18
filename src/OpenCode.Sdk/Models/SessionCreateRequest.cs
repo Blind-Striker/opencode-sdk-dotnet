@@ -47,8 +47,8 @@ public sealed record SessionCreateRequest
     /// </summary>
     [JsonPropertyName("location")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    [JsonConverter(typeof(OptionalOfLocationRefJsonConverter))]
-    public Optional<LocationRef?> Location { get; init; }
+    [JsonConverter(typeof(OptionalOfLocationPublicRefJsonConverter))]
+    public Optional<LocationPublicRef?> Location { get; init; }
 
     /// <summary>
     /// Gets the metadata value.

@@ -10,7 +10,7 @@ namespace OpenCode.Sdk;
 /// </summary>
 public sealed record LocationResponse : OpenCodeResponse
 {
-    private readonly LocationInfo? _resolvedLocation;
+    private readonly LocationPublicInfo? _resolvedLocation;
     /// <summary>
     /// Initializes a success instance of the &apos;LocationResponse&apos; envelope.
     /// </summary>
@@ -34,7 +34,7 @@ public sealed record LocationResponse : OpenCodeResponse
     /// <summary>
     /// Gets the ResolvedLocation payload; guarded on the error path.
     /// </summary>
-    public required LocationInfo ResolvedLocation { get => _resolvedLocation ?? throw new InvalidOperationException("The response is an error; check IsError before accessing ResolvedLocation."); init => _resolvedLocation = value; }
+    public required LocationPublicInfo ResolvedLocation { get => _resolvedLocation ?? throw new InvalidOperationException("The response is an error; check IsError before accessing ResolvedLocation."); init => _resolvedLocation = value; }
 
     /// <summary>
     /// Prints the shared metadata and appends the payload only when it is present.

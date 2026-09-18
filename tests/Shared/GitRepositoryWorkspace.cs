@@ -110,7 +110,7 @@ public sealed class GitRepositoryWorkspace : IDisposable
         await _gitProcess.RunAsync(RepositoryPath, InitializeArguments, cancellationToken);
         _ = Workspace.WriteTextFile("repository/" + OwnerMarker, _owner);
         await _gitProcess.RunAsync(RepositoryPath, AddArguments, cancellationToken);
-        await _gitProcess.RunAsync(RepositoryPath, CommitArguments, cancellationToken);
+        await _gitProcess.RunAsync(RepositoryPath, CommitArguments + "-" + _owner, cancellationToken);
     }
 
     public bool OwnsDirectory(string directory) => Workspace.HasTextFile(directory, OwnerMarker, _owner);

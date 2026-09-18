@@ -8,13 +8,17 @@ public sealed class PinnedServerFixtureTests(PinnedOpenCodeServerFixture server)
 {
     [Test]
     [Timeout(60_000)]
-    public async Task Fixture_Should_Answer_Health_Through_Its_Own_Client(CancellationToken cancellationToken)
+    public async Task Fixture_Should_Answer_Status_Through_Its_Own_Client(CancellationToken cancellationToken)
     {
         using var client = server.CreateClient();
 
-        var health = await client.GetHealthAsync(cancellationToken: cancellationToken);
+        var status = await client.Server.GetStatusAsync(cancellationToken: cancellationToken);
 
-        await Assert.That(health.Health.Healthy).IsTrue();
+        // The answering process names itself: an owned command override answers from behind a
+        // shim and an external endpoint from another machine, so the pid is only known to be real.
+        await Assert.That(status.Status).IsEqualTo(200);
+        await Assert.That(status.ServerStatus.Pid).IsGreaterThan(0);
+        await Assert.That(status.ServerStatus.Version).IsNotEmpty();
     }
 
     [Test]

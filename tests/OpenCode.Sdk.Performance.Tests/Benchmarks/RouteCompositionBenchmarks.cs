@@ -20,7 +20,7 @@ public class RouteCompositionBenchmarks
     private const string SessionId = "ses_bench0000000000000000001";
     private const string MessageId = "msg_bench0000000000000000001";
 
-    private static readonly MessageListRequest FullQuery = new()
+    private static readonly SessionMessageListRequest FullQuery = new()
     {
         Limit = "50",
         Order = ListOrder.Descending,
@@ -30,10 +30,9 @@ public class RouteCompositionBenchmarks
     /// <summary>
     /// The ambient snapshot a client is constructed with. <see cref="PerCallLocation"/> overrides
     /// its directory and leaves its workspace unset, so the merge below exercises both member
-    /// rules at once: a set member wins (directory, forcing the escape to recompute) and an unset
-    /// member inherits the ambient value (workspace).
+    /// rules at once: a set member wins (directory, forcing the escape to recompute) over the ambient directory.
     /// </summary>
-    private static readonly LocationSelector AmbientLocation = new() { Directory = "/repo", Workspace = "wrk_bench" };
+    private static readonly LocationSelector AmbientLocation = new() { Directory = "/repo" };
 
     private static readonly LocationSelector PerCallLocation = new() { Directory = "/repo/worktree" };
     private static readonly ReadOnlyMemory<PipelinePolicy> Terminal = new PipelinePolicy[] { NoOpTerminalPolicy.Instance };
@@ -45,7 +44,7 @@ public class RouteCompositionBenchmarks
 
     /// <summary>The constant no-parameter route.</summary>
     [Benchmark]
-    public string ConstantRoute() => OpenCodeRoutes.Health.Get;
+    public string ConstantRoute() => OpenCodeRoutes.Server.GetStatus;
 
     /// <summary>The two-parameter path route: segment concatenation plus value escaping.</summary>
     [Benchmark]
@@ -59,8 +58,7 @@ public class RouteCompositionBenchmarks
     /// <summary>
     /// <see cref="PathRoute"/>'s composed route, decorated through the same
     /// <see cref="RequestDecorationPolicy"/> every request rides, with a per-call location that
-    /// merges over the ambient snapshot member by member (directory overridden and re-escaped,
-    /// workspace inherited). Reads against <see cref="PathRoute"/> to isolate the merge's added
+    /// merges over the ambient snapshot member by member (directory overridden and re-escaped). Reads against <see cref="PathRoute"/> to isolate the merge's added
     /// cost from composition alone.
     /// </summary>
     [Benchmark]

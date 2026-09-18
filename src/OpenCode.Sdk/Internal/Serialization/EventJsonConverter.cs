@@ -12,7 +12,6 @@ internal sealed class EventJsonConverter : JsonConverter<IEvent>
     private static readonly FrozenDictionary<string, Type> TypesByTag = new Dictionary<string, Type>(StringComparer.Ordinal)
     {
         ["agent.updated"] = typeof(AgentUpdated),
-        ["catalog.updated"] = typeof(CatalogUpdated),
         ["command.updated"] = typeof(CommandUpdated),
         ["config.updated"] = typeof(ConfigUpdated),
         ["credential.switched"] = typeof(CredentialSwitched),
@@ -26,6 +25,7 @@ internal sealed class EventJsonConverter : JsonConverter<IEvent>
         ["integration.updated"] = typeof(IntegrationUpdated),
         ["mcp.resources.changed"] = typeof(McpResourcesChanged),
         ["mcp.status.changed"] = typeof(McpStatusChanged),
+        ["model.updated"] = typeof(ModelUpdated),
         ["models-dev.refreshed"] = typeof(ModelsDevRefreshed),
         ["permission.asked"] = typeof(PermissionAsked),
         ["permission.replied"] = typeof(PermissionReplied),
@@ -33,6 +33,7 @@ internal sealed class EventJsonConverter : JsonConverter<IEvent>
         ["persistent-pty.removed"] = typeof(PersistentPtyRemoved),
         ["plugin.updated"] = typeof(PluginUpdated),
         ["project.updated"] = typeof(ProjectUpdated),
+        ["provider.updated"] = typeof(ProviderUpdated),
         ["pty.created"] = typeof(PtyCreated),
         ["pty.deleted"] = typeof(PtyDeleted),
         ["pty.exited"] = typeof(PtyExited),
@@ -59,7 +60,7 @@ internal sealed class EventJsonConverter : JsonConverter<IEvent>
         ["session.instructions.updated"] = typeof(SessionInstructionsUpdated),
         ["session.model.selected"] = typeof(SessionModelSelected),
         ["session.moved"] = typeof(SessionMoved),
-        ["session.permissions.updated"] = typeof(SessionPermissionsUpdated),
+        ["session.permissions"] = typeof(SessionPermissions),
         ["session.reasoning.delta"] = typeof(SessionReasoningDelta),
         ["session.reasoning.ended"] = typeof(SessionReasoningEnded),
         ["session.reasoning.started"] = typeof(SessionReasoningStarted),

@@ -1,5 +1,6 @@
 using System.Globalization;
 using OpenCode.Sdk.Models;
+using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
 
 namespace OpenCode.Sdk.Tests;
@@ -17,10 +18,10 @@ public sealed class AgentsClientLiveTests(SimulatedDriveServerFixture server)
     {
         using var workspace = server.CreateWorkspace();
         using var client = server.CreateClient(new LocationSelector { Directory = workspace.Path });
-        var settled = await client.Plugins.AwaitPluginActivationAsync(cancellationToken: cancellationToken);
-        await Assert.That(settled.Status).IsEqualTo(204);
-
-        var listed = await client.Agents.ListAgentsAsync(cancellationToken: cancellationToken);
+        var listed = await LiveReadiness.WaitAsync(
+            token => client.Agents.ListAgentsAsync(cancellationToken: token),
+            result => result.Agents.Any(item => item.Id == BuildAgentId),
+            "seeded agents", cancellationToken);
 
         await Assert.That(listed.Status).IsEqualTo(200);
         await Assert.That(listed.IsError).IsFalse();
@@ -45,7 +46,10 @@ public sealed class AgentsClientLiveTests(SimulatedDriveServerFixture server)
     {
         using var workspace = server.CreateWorkspace();
         using var client = server.CreateClient(new LocationSelector { Directory = workspace.Path });
-        _ = await client.Plugins.AwaitPluginActivationAsync(cancellationToken: cancellationToken);
+        _ = await LiveReadiness.WaitAsync(
+            token => client.Agents.ListAgentsAsync(cancellationToken: token),
+            result => result.Agents.Any(item => item.Id == BuildAgentId),
+            "seeded agents", cancellationToken);
         var agentId = "sdk-live-missing-agent-" + Guid.NewGuid().ToString("N");
 
         var response = await client.Agents.GetAgentAsync(

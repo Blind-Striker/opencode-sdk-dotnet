@@ -8,7 +8,7 @@ public sealed class SessionClientPaginationTests
     public async Task EnumerateMessagesAsync_Should_Use_The_Virtual_Page_Method_And_Preserve_An_Empty_Cursor()
     {
         var client = new StubSessionClient(Page(next: string.Empty), Page(next: null));
-        var initialRequest = new MessageListRequest
+        var initialRequest = new SessionMessageListRequest
         {
             Limit = "2",
             Order = ListOrder.Descending,
@@ -53,7 +53,7 @@ public sealed class SessionClientPaginationTests
         var client = new StubSessionClient(
             Page("cur_1", Message("msg_1")),
             Page(next: null, Message("msg_2")));
-        var received = new List<MessageListResponse>();
+        var received = new List<SessionMessageListResponse>();
 
         await foreach (var page in client.EnumerateMessagesAsync().Pages.WithCancellation(CancellationToken.None))
         {
@@ -183,7 +183,7 @@ public sealed class SessionClientPaginationTests
         await Assert.That(client.Requests[1]?.Order).IsNull();
     }
 
-    private static MessageListResponse Page(string? next, params ISessionMessageInfo[] messages) => new()
+    private static SessionMessageListResponse Page(string? next, params ISessionMessageInfo[] messages) => new()
     {
         Status = 200,
         Messages = messages,
@@ -204,15 +204,15 @@ public sealed class SessionClientPaginationTests
         Time = new SessionMessageUserTime { Created = 0, },
     };
 
-    private sealed class StubSessionClient(params MessageListResponse[] pages) : SessionClient
+    private sealed class StubSessionClient(params SessionMessageListResponse[] pages) : SessionClient
     {
-        private readonly Queue<MessageListResponse> _pages = new(pages);
+        private readonly Queue<SessionMessageListResponse> _pages = new(pages);
 
-        public List<MessageListRequest?> Requests { get; } = [];
+        public List<SessionMessageListRequest?> Requests { get; } = [];
 
         public List<CancellationToken> Tokens { get; } = [];
 
-        public override Task<MessageListResponse> ListMessagesAsync(MessageListRequest? request = null,
+        public override Task<SessionMessageListResponse> ListMessagesAsync(SessionMessageListRequest? request = null,
             OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
         {
             Requests.Add(request);
@@ -221,16 +221,16 @@ public sealed class SessionClientPaginationTests
         }
     }
 
-    private sealed class FailingSessionClient(MessageListResponse firstPage, Exception failure) : SessionClient
+    private sealed class FailingSessionClient(SessionMessageListResponse firstPage, Exception failure) : SessionClient
     {
         private bool _served;
 
-        public override Task<MessageListResponse> ListMessagesAsync(MessageListRequest? request = null,
+        public override Task<SessionMessageListResponse> ListMessagesAsync(SessionMessageListRequest? request = null,
             OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
         {
             if (_served)
             {
-                return Task.FromException<MessageListResponse>(failure);
+                return Task.FromException<SessionMessageListResponse>(failure);
             }
 
             _served = true;

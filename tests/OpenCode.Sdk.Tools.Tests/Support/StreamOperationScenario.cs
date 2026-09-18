@@ -7,7 +7,7 @@ internal sealed class StreamOperationScenario(
     StreamExtensionProfile extensionProfile = StreamExtensionProfile.Valid,
     bool carriesRequestBody = false) : SpecScenario
 {
-    public const string OperationId = "v2.example.events";
+    public const string OperationId = "example.events";
     public const string GroupName = "example";
     public const string FailureEventName = "effect/httpapi/stream/failure";
 

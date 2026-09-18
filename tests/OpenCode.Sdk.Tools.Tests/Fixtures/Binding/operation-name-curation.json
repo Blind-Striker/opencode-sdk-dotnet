@@ -8,7 +8,7 @@
   "operationIdentities": [],
   "operationNames": [
     {
-      "operationId": "v2.event.subscribe",
+      "operationId": "event.subscribe",
       "methodName": "SubscribeAsync",
       "reason": "The reviewed public surface names the global event subscription directly."
     }

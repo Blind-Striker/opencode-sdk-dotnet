@@ -25,32 +25,32 @@ public sealed class PtyConnectUriBuilderTests
     [Test]
     public async Task Build_Should_Carry_The_Ambient_Location_When_The_Call_Sets_None()
     {
-        var connection = Snapshot("http://localhost:4096", new LocationSelector { Directory = "/repo", Workspace = "wrk_1" });
+        var connection = Snapshot("http://localhost:4096", new LocationSelector { Directory = "/repo" });
 
         var uri = PtyConnectUriBuilder.Build(connection, PtyId, options: null);
 
-        await Assert.That(uri.Query).IsEqualTo("?location[directory]=%2Frepo&location[workspace]=wrk_1");
+        await Assert.That(uri.Query).IsEqualTo("?location[directory]=%2Frepo");
     }
 
     [Test]
     public async Task Build_Should_Merge_The_Per_Call_Location_Over_The_Ambient_One_Member_By_Member()
     {
-        var connection = Snapshot("http://localhost:4096", new LocationSelector { Directory = "/amb", Workspace = "amb-ws" });
+        var connection = Snapshot("http://localhost:4096", new LocationSelector { Directory = "/amb" });
         var options = new PtyConnectOptions { Location = new LocationSelector { Directory = "/per" } };
 
         var uri = PtyConnectUriBuilder.Build(connection, PtyId, options);
 
-        await Assert.That(uri.Query).IsEqualTo("?location[directory]=%2Fper&location[workspace]=amb-ws");
+        await Assert.That(uri.Query).IsEqualTo("?location[directory]=%2Fper");
     }
 
     [Test]
     public async Task Build_Should_Carry_The_Per_Call_Location_When_There_Is_No_Ambient_One()
     {
-        var options = new PtyConnectOptions { Location = new LocationSelector { Workspace = "wrk_9" } };
+        var options = new PtyConnectOptions { Location = new LocationSelector { Directory = "/per" } };
 
         var uri = PtyConnectUriBuilder.Build(Snapshot("http://localhost:4096"), PtyId, options);
 
-        await Assert.That(uri.Query).IsEqualTo("?location[workspace]=wrk_9");
+        await Assert.That(uri.Query).IsEqualTo("?location[directory]=%2Fper");
     }
 
     [Test]

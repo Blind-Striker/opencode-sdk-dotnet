@@ -42,4 +42,11 @@ public sealed record McpOAuthConfig
     [JsonPropertyName("redirect_uri")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? RedirectUri { get; init; }
+
+    /// <summary>
+    /// Gets the auth server metadata url value.
+    /// </summary>
+    [JsonPropertyName("auth_server_metadata_url")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? AuthServerMetadataUrl { get; init; }
 }

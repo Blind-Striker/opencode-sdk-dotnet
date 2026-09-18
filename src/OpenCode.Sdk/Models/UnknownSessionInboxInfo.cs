@@ -43,7 +43,7 @@ public sealed record UnknownSessionInboxInfo : ISessionInboxInfo
 
     string? ISessionInboxInfo.SessionId => null;
 
-    double? ISessionInboxInfo.TimeCreated => null;
+    ISessionInboxInfoTime? ISessionInboxInfo.Time => null;
 
     SessionInboxDelivery? ISessionInboxInfo.Delivery => null;
 }

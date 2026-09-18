@@ -37,6 +37,7 @@ public sealed class OwnedTransportTests
 
         var response = await client.Worktrees.RemoveWorktreeAsync(new WorktreeRemoveRequest
         {
+            ProjectId = "prj_1",
             Directory = "/repo/feature",
             Force = true,
         });
@@ -45,7 +46,7 @@ public sealed class OwnedTransportTests
         var request = server.Requests.Single();
         await Assert.That(request.Method).IsEqualTo("DELETE");
         await Assert.That(request.Path).IsEqualTo("/api/worktree");
-        await Assert.That(request.Body).IsEqualTo("{\"directory\":\"/repo/feature\",\"force\":true}");
+        await Assert.That(request.Body).IsEqualTo("{\"projectID\":\"prj_1\",\"directory\":\"/repo/feature\",\"force\":true}");
     }
 
     [Test]
@@ -53,7 +54,7 @@ public sealed class OwnedTransportTests
     {
         await using var server = LoopbackHttpServer.Start(path => path switch
         {
-            "/api/health" => new LoopbackHttpResponse
+            "/api/status" => new LoopbackHttpResponse
             {
                 StatusCode = HttpStatusCode.Found,
                 Location = "/redirect-target",
@@ -62,18 +63,18 @@ public sealed class OwnedTransportTests
             {
                 StatusCode = HttpStatusCode.OK,
                 ContentType = "application/json",
-                Body = WireBodyData.HealthOk,
+                Body = WireBodyData.StatusOk,
             },
             _ => new LoopbackHttpResponse { StatusCode = HttpStatusCode.InternalServerError },
         });
         using var client = new OpenCodeClient(new OpenCodeClientOptions { Endpoint = server.Endpoint });
 
         var exception = await Assert
-            .That(async () => _ = await client.GetHealthAsync())
+            .That(async () => _ = await client.Server.GetStatusAsync())
             .Throws<OpenCodeTransportException>();
 
         await Assert.That(exception!.Message).Contains("302");
-        await Assert.That(server.RequestPaths).IsEquivalentTo(["/api/health"]);
+        await Assert.That(server.RequestPaths).IsEquivalentTo(["/api/status"]);
     }
 
     [Test]
@@ -83,7 +84,7 @@ public sealed class OwnedTransportTests
         {
             StatusCode = HttpStatusCode.OK,
             ContentType = "application/json",
-            Body = WireBodyData.HealthOk,
+            Body = WireBodyData.StatusOk,
             KeepOpen = true,
         });
         using var handler = TransportPolicy.CreateOwnedHttpHandler(server.Endpoint);
@@ -97,7 +98,7 @@ public sealed class OwnedTransportTests
         _ = await Assert
             .That(async () => _ = await pipeline.ExecuteAsync(
                 HttpMethod.Get,
-                "/api/health",
+                "/api/status",
                 new RecordingResponseAdapter(),
                 options: null,
                 CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5)))
@@ -143,7 +144,7 @@ public sealed class OwnedTransportTests
 
             var response = await pipeline.ExecuteAsync(
                 HttpMethod.Get,
-                "/api/health",
+                "/api/status",
                 new RecordingResponseAdapter(),
                 options: null,
                 CancellationToken.None);
@@ -171,7 +172,7 @@ public sealed class OwnedTransportTests
                 Body = WireBodyData.Frames(WireBodyData.StreamTestBodyOpen),
                 KeepOpen = true,
             },
-            "/api/health" => new LoopbackHttpResponse
+            "/api/status" => new LoopbackHttpResponse
             {
                 StatusCode = HttpStatusCode.OK,
                 ContentType = "application/json",
@@ -188,7 +189,7 @@ public sealed class OwnedTransportTests
 
         var response = await pipeline.ExecuteAsync(
                 HttpMethod.Get,
-                "/api/health",
+                "/api/status",
                 new RecordingResponseAdapter(),
                 options: null,
                 CancellationToken.None)
@@ -198,7 +199,7 @@ public sealed class OwnedTransportTests
         await Assert.That(secondOpened).IsTrue();
         await Assert.That(response.Status).IsEqualTo(200);
         await Assert.That(server.RequestPaths.Count(static path => path == "/api/event")).IsEqualTo(2);
-        await Assert.That(server.RequestPaths.Count(static path => path == "/api/health")).IsEqualTo(1);
+        await Assert.That(server.RequestPaths.Count(static path => path == "/api/status")).IsEqualTo(1);
     }
 
     [Test]

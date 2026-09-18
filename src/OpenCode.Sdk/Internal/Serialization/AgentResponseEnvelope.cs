@@ -13,5 +13,5 @@ internal sealed record AgentResponseEnvelope
     public required AgentInfo Data { get; init; }
 
     [JsonPropertyName("location")]
-    public required LocationInfo Location { get; init; }
+    public required LocationPublicRef Location { get; init; }
 }

@@ -31,7 +31,7 @@ public sealed class SessionDiffLiveTests(SimulatedDriveServerFixture server)
             new SessionCreateRequest
             {
                 Title = "session-diff-live",
-                Location = new LocationRef { Directory = workspace.Path },
+                Location = new LocationPublicRef { Directory = workspace.Path },
                 Model = new ModelRef { Id = "sim-model", ProviderId = "sim" },
             },
             cancellationToken: cancellationToken);
@@ -120,7 +120,7 @@ public sealed class SessionDiffLiveTests(SimulatedDriveServerFixture server)
     {
         var messages = new List<ISessionMessageInfo>();
         await foreach (var message in session.EnumerateMessagesAsync(
-                           new MessageListRequest { Order = ListOrder.Ascending },
+                           new SessionMessageListRequest { Order = ListOrder.Ascending },
                            cancellationToken))
         {
             messages.Add(message);

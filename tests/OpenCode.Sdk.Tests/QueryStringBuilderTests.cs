@@ -142,23 +142,13 @@ public sealed class QueryStringBuilderTests
     }
 
     [Test]
-    public async Task AddLocation_Should_Write_Both_Members_With_Literal_Brackets()
+    public async Task AddLocation_Should_Write_The_Directory_With_Literal_Brackets()
     {
         var query = new QueryStringBuilder();
 
-        query.AddLocation("location", new LocationSelector { Directory = "/repo", Workspace = "wrk_1" });
+        query.AddLocation("location", new LocationSelector { Directory = "/repo" });
 
-        await Assert.That(query.Value).IsEqualTo("?location[directory]=%2Frepo&location[workspace]=wrk_1");
-    }
-
-    [Test]
-    public async Task AddLocation_Should_Skip_Unset_Members()
-    {
-        var query = new QueryStringBuilder();
-
-        query.AddLocation("location", new LocationSelector { Workspace = "wrk_1" });
-
-        await Assert.That(query.Value).IsEqualTo("?location[workspace]=wrk_1");
+        await Assert.That(query.Value).IsEqualTo("?location[directory]=%2Frepo");
     }
 
     [Test]

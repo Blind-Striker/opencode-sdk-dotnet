@@ -10,7 +10,7 @@ namespace OpenCode.Sdk;
 /// </summary>
 public sealed record DebugLocationListResponse : OpenCodeResponse
 {
-    private readonly IReadOnlyList<LocationRef>? _locations;
+    private readonly IReadOnlyList<LocationPublicRef>? _locations;
     /// <summary>
     /// Initializes a success instance of the &apos;DebugLocationListResponse&apos; envelope.
     /// </summary>
@@ -34,7 +34,7 @@ public sealed record DebugLocationListResponse : OpenCodeResponse
     /// <summary>
     /// Gets the Locations payload; guarded on the error path.
     /// </summary>
-    public required IReadOnlyList<LocationRef> Locations { get => _locations ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Locations."); init => _locations = value; }
+    public required IReadOnlyList<LocationPublicRef> Locations { get => _locations ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Locations."); init => _locations = value; }
 
     /// <summary>
     /// Prints the shared metadata and appends the payload only when it is present.

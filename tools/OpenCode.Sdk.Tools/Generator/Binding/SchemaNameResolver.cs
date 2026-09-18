@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using OpenCode.Sdk.Tools.Generator.Binding.Models;
 using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
-using OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
 
 namespace OpenCode.Sdk.Tools.Generator.Binding;
 
@@ -132,7 +131,7 @@ internal sealed class SchemaNameResolver
     /// A union that carries no choice is not a type of its own — it binds to what its branches
     /// already are (<see cref="UnstructuredUnionPolicy"/>), so it never claims a C# name.
     /// </summary>
-    private static bool IsNominal(SchemaNode schema, IReadOnlyDictionary<string, SchemaNode> graph) => schema switch
+    internal static bool IsNominal(SchemaNode schema, IReadOnlyDictionary<string, SchemaNode> graph) => schema switch
     {
         UnionNode { Classification: UnionClassification.Structural } union => UnstructuredUnionPolicy.Collapse(union, graph) is null,
         ObjectNode or EnumNode or UnionNode => true,
@@ -393,14 +392,7 @@ internal sealed class SchemaNameResolver
         return hash < 0 ? key : key[..hash];
     }
 
-    /// <summary>
-    /// Operation-scoped roots carry no component identity, so artifact suffixes apply only to
-    /// component roots. What an operation-scoped root does carry is the operation identity, and a
-    /// name derived from one strips the transport's <c>v2.</c> prefix the same mechanical way
-    /// every other public identifier does: <c>V2</c> never appears merely because upstream used
-    /// that prefix (protocol-and-generation.md, ADR-0005). The strip belongs here beside the
-    /// projection-artifact strip, never to a per-row curation act.
-    /// </summary>
+    /// <summary>Component roots normalize projection artifacts; operation roots retain their group/action identity.</summary>
     private static string NormalizeRoot(string root, ProjectionArtifactNamePolicy artifacts)
     {
         const string operationPrefix = "op:";
@@ -409,10 +401,7 @@ internal sealed class SchemaNameResolver
             return artifacts.Normalize(root);
         }
 
-        var operationId = root[operationPrefix.Length..];
-        return operationId.StartsWith(OperationIdentityParser.ProtocolPrefix, StringComparison.Ordinal)
-            ? operationId[OperationIdentityParser.ProtocolPrefix.Length..]
-            : operationId;
+        return root[operationPrefix.Length..];
     }
 
     private static string DecodePointer(string segment) => segment

@@ -19,7 +19,6 @@ public class OpenCodeClient : IDisposable
     private readonly ExperimentalClient? _experimental;
     private readonly FileSystemClient? _fileSystem;
     private readonly FormsClient? _forms;
-    private readonly GenerationClient? _generation;
     private readonly IntegrationsClient? _integrations;
     private readonly LanguageModelsClient? _languageModels;
     private readonly McpServersClient? _mcpServers;
@@ -37,7 +36,6 @@ public class OpenCodeClient : IDisposable
     private readonly SkillsClient? _skills;
     private readonly VcsClient? _vcs;
     private readonly WebsearchClient? _websearch;
-    private readonly WorkspacesClient? _workspaces;
     private readonly WorktreesClient? _worktrees;
     /// <summary>
     /// Initializes a client that owns its connection to the endpoint.
@@ -55,7 +53,6 @@ public class OpenCodeClient : IDisposable
         _experimental = new ExperimentalClient(_pipeline);
         _fileSystem = new FileSystemClient(_pipeline);
         _forms = new FormsClient(_pipeline);
-        _generation = new GenerationClient(_pipeline);
         _integrations = new IntegrationsClient(_pipeline);
         _languageModels = new LanguageModelsClient(_pipeline);
         _mcpServers = new McpServersClient(_pipeline);
@@ -73,7 +70,6 @@ public class OpenCodeClient : IDisposable
         _skills = new SkillsClient(_pipeline);
         _vcs = new VcsClient(_pipeline);
         _websearch = new WebsearchClient(_pipeline);
-        _workspaces = new WorkspacesClient(_pipeline);
         _worktrees = new WorktreesClient(_pipeline);
     }
 
@@ -94,7 +90,6 @@ public class OpenCodeClient : IDisposable
         _experimental = new ExperimentalClient(_pipeline);
         _fileSystem = new FileSystemClient(_pipeline);
         _forms = new FormsClient(_pipeline);
-        _generation = new GenerationClient(_pipeline);
         _integrations = new IntegrationsClient(_pipeline);
         _languageModels = new LanguageModelsClient(_pipeline);
         _mcpServers = new McpServersClient(_pipeline);
@@ -112,7 +107,6 @@ public class OpenCodeClient : IDisposable
         _skills = new SkillsClient(_pipeline);
         _vcs = new VcsClient(_pipeline);
         _websearch = new WebsearchClient(_pipeline);
-        _workspaces = new WorkspacesClient(_pipeline);
         _worktrees = new WorktreesClient(_pipeline);
     }
 
@@ -180,10 +174,6 @@ public class OpenCodeClient : IDisposable
     /// Gets the &apos;Forms&apos; collection client.
     /// </summary>
     public virtual FormsClient Forms => _forms ?? throw MockSeam.CreateError("OpenCodeClient", "Forms");
-    /// <summary>
-    /// Gets the &apos;Generation&apos; collection client.
-    /// </summary>
-    public virtual GenerationClient Generation => _generation ?? throw MockSeam.CreateError("OpenCodeClient", "Generation");
     /// <summary>
     /// Gets the &apos;Integrations&apos; collection client.
     /// </summary>
@@ -253,27 +243,10 @@ public class OpenCodeClient : IDisposable
     /// </summary>
     public virtual WebsearchClient Websearch => _websearch ?? throw MockSeam.CreateError("OpenCodeClient", "Websearch");
     /// <summary>
-    /// Gets the &apos;Workspaces&apos; collection client.
-    /// </summary>
-    public virtual WorkspacesClient Workspaces => _workspaces ?? throw MockSeam.CreateError("OpenCodeClient", "Workspaces");
-    /// <summary>
     /// Gets the &apos;Worktrees&apos; collection client.
     /// </summary>
     public virtual WorktreesClient Worktrees => _worktrees ?? throw MockSeam.CreateError("OpenCodeClient", "Worktrees");
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("OpenCodeClient", "Pipeline");
-
-    /// <summary>
-    /// Check server health. Report the owning server process and its application status.
-    /// </summary>
-    /// <param name = "requestOptions">The per-call options.</param>
-    /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;HealthResponse&apos; envelope.</returns>
-    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
-    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<HealthResponse> GetHealthAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
-    {
-        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Health.Get, HealthResponseAdapter.Instance, requestOptions, cancellationToken);
-    }
 
     /// <summary>
     /// Get location. Resolve the requested location or the server default location.

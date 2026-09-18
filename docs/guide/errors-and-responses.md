@@ -1,6 +1,6 @@
 # 🧱 Errors and responses
 
-Date: 2026-08-31
+Date: 2026-09-17
 
 Every one-shot call answers with a **response envelope** that carries the same four members no
 matter which operation produced it, and every failure is either a typed API error you can branch on
@@ -26,7 +26,7 @@ Every response type derives from `OpenCodeResponse`:
 | `RawBody` | `string?` | The exact response body, retained on failures — including when typed parsing did not succeed. |
 
 On top of the spine each response adds its own payload members: `SessionResponse.Session`,
-`SessionListResponse.Sessions` and `.Cursor`, `HealthResponse.Health`, and so on.
+`SessionListResponse.Sessions` and `.Cursor`, `ServerStatusResponse.ServerStatus`, and so on.
 
 ## 💥 Calls throw by default
 
@@ -228,9 +228,9 @@ match its declared schema, a read that stalled past the internal progress window
 ```csharp
 try
 {
-    var health = await client.GetHealthAsync(OpenCodeRequestOptions.NoThrow);
+    var status = await client.Server.GetStatusAsync(OpenCodeRequestOptions.NoThrow);
 
-    Console.WriteLine(health.Status);
+    Console.WriteLine(status.Status);
 }
 catch (OpenCodeTransportException transport)
 {

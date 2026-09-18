@@ -28,15 +28,11 @@ internal static class StandaloneServerWalkthrough
 
         using var client = server.CreateClient();
         using var probeWindow = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        var health = await client.GetHealthAsync(cancellationToken: probeWindow.Token).ConfigureAwait(false);
+        var status = await client.Server.GetStatusAsync(cancellationToken: probeWindow.Token).ConfigureAwait(false);
         Console.WriteLine(
-            $"healthy: {health.Health.Healthy}, version: {health.Health.Version}, pid: {health.Health.Pid.ToString(CultureInfo.InvariantCulture)}");
-        if (!health.Health.Healthy)
-        {
-            return 1;
-        }
-
-        // Health answered, which is exactly the moment the model catalog can still be empty.
+            $"status: {status.Status}, version: {status.ServerStatus.Version}, pid: {status.ServerStatus.Pid.ToString(CultureInfo.InvariantCulture)}");
+        // The status call throws on anything but its declared success, so reaching this line is
+        // the proof; it is also exactly the moment the model catalog can still be empty.
         await ModelSelectionWalkthrough.RunAsync(client).ConfigureAwait(false);
         return 0;
     }

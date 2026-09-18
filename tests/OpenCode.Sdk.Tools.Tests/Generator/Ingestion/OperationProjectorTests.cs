@@ -10,37 +10,37 @@ public sealed class OperationProjectorTests
     {
         var host = new OperationProjectionTestHost();
         var scenario = SpecScenario.Define(spec => spec
-            .WithOperation("v2.session.list", path: "/api/session")
-            .WithOperation("v2.agent.list", path: "/api/agent"));
+            .WithOperation("session.list", path: "/api/session")
+            .WithOperation("agent.list", path: "/api/agent"));
 
         var result = await host.ProjectAsync(scenario);
 
         await Assert.That(result.Operations).Count().IsEqualTo(2);
-        await Assert.That(result.Operations[0].OperationId).IsEqualTo("v2.session.list");
+        await Assert.That(result.Operations[0].OperationId).IsEqualTo("session.list");
         await Assert.That(result.Operations[0].Segments[0]).IsEqualTo("session");
         await Assert.That(result.Operations[0].Segments[1]).IsEqualTo("list");
-        await Assert.That(result.Operations[1].OperationId).IsEqualTo("v2.agent.list");
+        await Assert.That(result.Operations[1].OperationId).IsEqualTo("agent.list");
         await Assert.That(result.Operations[1].Segments[0]).IsEqualTo("agent");
         await Assert.That(result.Operations[1].Segments[1]).IsEqualTo("list");
     }
 
     [Test]
-    public async Task Project_Should_Refuse_Operation_Without_The_Protocol_Prefix()
+    public async Task Project_Should_Refuse_An_Unrepaired_Group_Qualified_Identity()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("session.list", path: "/api/session"));
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("server.experimental.persistentPty.list", path: "/api/experimental/pty"));
 
         var ex = await host.ProjectExpectingRefusalAsync(scenario);
 
-        await Assert.That(ex.Message).Contains("protocol prefix");
-        await Assert.That(ex.Message).Contains("session.list");
+        await Assert.That(ex.Message).Contains("group/action convention");
+        await Assert.That(ex.Message).Contains("server.experimental.persistentPty.list");
     }
 
     [Test]
     public async Task Project_Should_Preserve_Deep_Operation_Segments()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.session.revert.stage"));
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("session.revert.stage"));
 
         var result = await host.ProjectAsync(scenario);
 
@@ -54,7 +54,7 @@ public sealed class OperationProjectorTests
     public async Task Project_Should_Record_Trailing_Wildcard_Path()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.fs.read", path: "/api/fs/read/*"));
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("fs.read", path: "/api/fs/read/*"));
 
         var result = await host.ProjectAsync(scenario);
 
@@ -66,7 +66,7 @@ public sealed class OperationProjectorTests
     public async Task Project_Should_Refuse_Non_Trailing_Wildcard_Path()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.fs.read", path: "/api/*/read"));
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("fs.read", path: "/api/*/read"));
 
         var ex = await host.ProjectExpectingRefusalAsync(scenario);
 
@@ -78,7 +78,7 @@ public sealed class OperationProjectorTests
     public async Task Project_Should_Record_WebSocket_Flag()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.pty.connect", configure: operation =>
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("pty.connect", configure: operation =>
             operation.Extension("x-websocket", "true")));
 
         var result = await host.ProjectAsync(scenario);
@@ -90,7 +90,7 @@ public sealed class OperationProjectorTests
     public async Task Project_Should_Record_Deprecation_And_Documentation()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.session.old", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("session.old", configure: operation => operation
             .Deprecated()
             .Summary("Old operation")
             .Description("Use the replacement.")));
@@ -106,7 +106,7 @@ public sealed class OperationProjectorTests
     public async Task Project_Should_Ignore_Known_Operation_Metadata()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.session.list", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("session.list", configure: operation => operation
             .WithIgnoredTagsAndSecurity()
             .Extension("x-codeSamples", "[]")));
 
@@ -120,13 +120,13 @@ public sealed class OperationProjectorTests
     {
         var host = new OperationProjectionTestHost();
         var scenario = SpecScenario.Define(spec => spec
-            .WithOperation("v2.session.get", path: "/api/session/one")
-            .WithOperation("v2.session.get", path: "/api/session/two"));
+            .WithOperation("session.get", path: "/api/session/one")
+            .WithOperation("session.get", path: "/api/session/two"));
 
         var ex = await host.ProjectExpectingRefusalAsync(scenario);
 
         await Assert.That(ex.Message).Contains("duplicate operationId");
-        await Assert.That(ex.Message).Contains("v2.session.get");
+        await Assert.That(ex.Message).Contains("session.get");
     }
 
     [Test]
@@ -138,7 +138,7 @@ public sealed class OperationProjectorTests
     public async Task Project_Should_Admit_Supported_Methods(string method)
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.method", method));
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("test.method", method));
 
         var result = await host.ProjectAsync(scenario);
 
@@ -149,7 +149,7 @@ public sealed class OperationProjectorTests
     public async Task Project_Should_Project_DeepObject_Parameter()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.search.list", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("search.list", configure: operation => operation
             .Parameter("filter", "query", schema => schema.Type("object").EmptyProperties(), deepObject: true)));
 
         var result = await host.ProjectAsync(scenario);
@@ -162,7 +162,7 @@ public sealed class OperationProjectorTests
     public async Task Project_Should_Project_Header_Parameter()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.pty.token", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("pty.token", configure: operation => operation
             .Parameter("x-opencode-ticket", "header", schema => schema.Type("string"), required: true)));
 
         var result = await host.ProjectAsync(scenario);
@@ -177,7 +177,7 @@ public sealed class OperationProjectorTests
     public async Task Project_Should_Preserve_Parameter_Order_And_Bracketed_Name()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.search.list", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("search.list", configure: operation => operation
             .Parameter("query", "query", schema => schema.Type("string"))
             .Parameter("filter[status]", "query", schema => schema.Type("string"))));
 
@@ -192,7 +192,7 @@ public sealed class OperationProjectorTests
     public async Task Project_Should_Project_Boolean_Enum_Parameter_As_Union()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.search.list", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("search.list", configure: operation => operation
             .Parameter("enabled", "query", schema => schema.AnyOf(
                 branch => branch.Type("boolean"),
                 branch => branch.Type("boolean").BooleanEnum(true)))));
@@ -207,7 +207,7 @@ public sealed class OperationProjectorTests
     public async Task Project_Should_Project_Required_Request_Body()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.session.create", method: "post", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("session.create", method: "post", configure: operation => operation
             .RequestBody("application/json", schema => schema.Type("string"), required: true)));
 
         var result = await host.ProjectAsync(scenario);
@@ -223,7 +223,7 @@ public sealed class OperationProjectorTests
     public async Task Project_Should_Refuse_Undeclared_Path_Token()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.session.get", path: "/api/session/{sessionID}"));
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("session.get", path: "/api/session/{sessionID}"));
 
         var ex = await host.ProjectExpectingRefusalAsync(scenario);
 
@@ -235,7 +235,7 @@ public sealed class OperationProjectorTests
     public async Task Project_Should_Refuse_Path_Parameter_Absent_From_Template()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.session.get", path: "/api/session", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("session.get", path: "/api/session", configure: operation => operation
             .Parameter("sessionID", "path", schema => schema.Type("string"), required: true)));
 
         var ex = await host.ProjectExpectingRefusalAsync(scenario);
@@ -248,7 +248,7 @@ public sealed class OperationProjectorTests
     public async Task Project_Should_Sort_Responses_By_Status_Code()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.session.get", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("session.get", configure: operation => operation
             .Response(404)
             .Response(200)));
 

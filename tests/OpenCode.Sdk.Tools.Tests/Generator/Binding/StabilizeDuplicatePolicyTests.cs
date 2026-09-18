@@ -60,7 +60,7 @@ public sealed class StabilizeDuplicatePolicyTests
                     .Type("object")
                     .Property("a", static property => property.Ref("Rpc.Event"), required: true)
                     .Property("b", static property => property.Ref("Rpc.Event_1"), required: true))
-                .WithOperation("v2.holder.get", path: "/api/holder", configure: static operation => operation
+                .WithOperation("holder.get", path: "/api/holder", configure: static operation => operation
                     .Response(200, "application/json", static schema => schema.Ref("Holder")))),
             errors);
 
@@ -172,26 +172,28 @@ public sealed class StabilizeDuplicatePolicyTests
     }
 
     [Test]
-    public async Task Resolve_Should_Fold_Every_Reachable_Stabilize_Duplicate_Of_The_Pinned_Spec()
+    public async Task Resolve_Should_Fold_Equivalent_Pinned_Duplicates_And_Retain_The_Curated_Move_Contract()
     {
         var errors = new BindingErrorCollector();
-        var (document, selection, _) = await BindingTestHost.LoadPinnedInputsAsync();
+        var (document, selection, curation) = await BindingTestHost.LoadPinnedInputsAsync();
         var operations = document
             .Operations.Where(operation => selection.OperationIds.Contains(operation.OperationId, StringComparer.Ordinal))
             .ToArray();
         var reachable = new ReachableSchemaCollector().Collect(document, operations, errors);
 
-        var collapse = new StabilizeDuplicatePolicy().Resolve(document, reachable, errors);
+        var collapse = new StabilizeDuplicatePolicy().Resolve(document, reachable, curation.SchemaNames, errors);
 
         await Assert.That(errors.Count).IsEqualTo(0);
         await Assert.That(collapse.Aliases.Count).IsGreaterThan(0);
-        await Assert.That(Folds(collapse)).IsEquivalentTo(ReachableStabilizeDuplicates(document, reachable));
+        await Assert.That(collapse.Aliases.ContainsKey("Session.Inbox.MovePayload_1")).IsFalse();
+        await Assert.That(Folds(collapse)).IsEquivalentTo(ReachableStabilizeDuplicates(document, reachable)
+            .Except(["Session.Inbox.MovePayload_1 -> Session.Inbox.MovePayload"], StringComparer.Ordinal));
     }
 
     /// <summary>
     /// Re-derives the convention independently of the policy: every reachable component key
     /// spelled <c>&lt;base&gt;_&lt;N&gt;</c> over an existing, unsuffixed base. The pinned
-    /// assertion is then "every one of them folds", never a count against the pin.
+    /// assertion covers every candidate except the explicitly distinct move contract.
     /// </summary>
     private static IReadOnlyList<string> ReachableStabilizeDuplicates(SpecDocument document, ReachableSchemaSet reachable)
     {
@@ -228,7 +230,7 @@ public sealed class StabilizeDuplicatePolicyTests
     {
         var document = await BindingTestHost.IngestAsync(scenario);
         var reachable = new ReachableSchemaCollector().Collect(document, document.Operations, errors);
-        return new StabilizeDuplicatePolicy().Resolve(document, reachable, errors);
+        return new StabilizeDuplicatePolicy().Resolve(document, reachable, [], errors);
     }
 
     private static IReadOnlyList<string> Folds(StabilizeDuplicateCollapse collapse) =>
@@ -254,7 +256,7 @@ public sealed class StabilizeDuplicatePolicyTests
             .WithSchema("Part_1", duplicatePart)
             .WithSchema("Gadget", static schema => Gadget(schema, "Part"))
             .WithSchema("Gadget_1", static schema => Gadget(schema, "Part_1"))
-            .WithOperation("v2.gadget.get", path: "/api/gadget", configure: static operation => operation
+            .WithOperation("gadget.get", path: "/api/gadget", configure: static operation => operation
                 .Response(200, "application/json", static schema => schema
                     .Type("object")
                     .Property("primary", static property => property.Ref("Gadget"), required: true)
@@ -269,7 +271,7 @@ public sealed class StabilizeDuplicatePolicyTests
             _ = spec.WithSchema(name, duplicate);
         }
 
-        _ = spec.WithOperation("v2.widget.get", path: "/api/widget", configure: operation => operation
+        _ = spec.WithOperation("widget.get", path: "/api/widget", configure: operation => operation
             .Response(200, "application/json", schema =>
             {
                 _ = schema.Type("object").Property("primary", static property => property.Ref("Widget"), required: true);

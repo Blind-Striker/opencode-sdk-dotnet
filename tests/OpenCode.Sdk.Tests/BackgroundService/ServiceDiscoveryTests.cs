@@ -17,7 +17,7 @@ public sealed class ServiceDiscoveryTests
 
     private readonly MockFileSystem _fileSystem = new();
     private readonly IServiceEnvironment _environment = Substitute.For<IServiceEnvironment>();
-    private readonly IServiceHealthProbe _probe = Substitute.For<IServiceHealthProbe>();
+    private readonly IServiceStatusProbe _probe = Substitute.For<IServiceStatusProbe>();
 
     public ServiceDiscoveryTests()
     {
@@ -55,6 +55,17 @@ public sealed class ServiceDiscoveryTests
     {
         Seed(SharedRegistrationPath(), new FixtureLoader().LoadJson("BackgroundService.registration-modern.json"));
         Answer(new ServiceProbeResult((ServiceState)state, Version, TimedOut: false));
+
+        var registration = await Discovery().DiscoverAsync(options: null, CancellationToken.None);
+
+        await Assert.That(registration).IsNull();
+    }
+
+    [Test]
+    public async Task DiscoverAsync_Should_Return_Null_When_The_Service_Is_Incompatible()
+    {
+        Seed(SharedRegistrationPath(), new FixtureLoader().LoadJson("BackgroundService.registration-modern.json"));
+        Answer(new ServiceProbeResult(ServiceState.Ready, Version, TimedOut: false) { Compatible = false });
 
         var registration = await Discovery().DiscoverAsync(options: null, CancellationToken.None);
 

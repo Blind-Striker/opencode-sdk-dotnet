@@ -5,7 +5,7 @@ using OpenCode.Sdk.TestSupport;
 namespace OpenCode.Sdk.Tests.Sessions;
 
 /// <summary>
-/// The session permission ruleset's live proof against the pinned server: the PUT answers the
+/// The session permission ruleset's live proof against the pinned server: the PATCH answers the
 /// declared 204 and the session the rules were written to reports them back, so the operation is
 /// verified by the state it leaves rather than by its status alone.
 /// </summary>
@@ -26,7 +26,7 @@ public sealed class SessionPermissionRulesLiveTests(SimulatedDriveServerFixture 
             new SessionCreateRequest
             {
                 Title = "session-permission-rules-live",
-                Location = new LocationRef { Directory = workspace.Path },
+                Location = new LocationPublicRef { Directory = workspace.Path },
             },
             cancellationToken: cancellationToken);
         await Assert.That(created.Status).IsEqualTo(200);
@@ -35,18 +35,17 @@ public sealed class SessionPermissionRulesLiveTests(SimulatedDriveServerFixture 
 
         try
         {
-            var response = await session.PutPermissionRulesAsync(
-                new SessionPermissionRulesPutRequest
+            var response = await session.UpdateSessionAsync(
+                new SessionUpdatePatchRequest
                 {
-                    Permissions =
-                    [
+                    Permissions = new Optional<IReadOnlyList<PermissionRule>?>([
                         new PermissionRule
                         {
                             Action = SimulationConfigSeed.PermissionProbeAction,
                             Resource = DeniedResource,
                             Effect = PermissionEffect.Deny,
                         },
-                    ],
+                    ]),
                 },
                 cancellationToken: cancellationToken);
 
@@ -62,7 +61,7 @@ public sealed class SessionPermissionRulesLiveTests(SimulatedDriveServerFixture 
             await Assert.That(rule.Effect).IsEqualTo(PermissionEffect.Deny);
 
             Console.WriteLine(
-                "session-permission-rules-live: put=" + Number(response.Status) +
+                "session-permission-rules-live: patch=" + Number(response.Status) +
                 " reread=" + Number(reread.Status) +
                 " rules=" + Number(reread.Session.Permissions.Count));
         }

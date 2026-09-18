@@ -13,5 +13,5 @@ internal sealed record VcsResponseEnvelope
     public required VcsInfo Data { get; init; }
 
     [JsonPropertyName("location")]
-    public required LocationInfo Location { get; init; }
+    public required LocationPublicRef Location { get; init; }
 }

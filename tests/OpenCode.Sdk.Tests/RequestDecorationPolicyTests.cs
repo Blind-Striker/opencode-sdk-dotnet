@@ -18,19 +18,18 @@ public sealed class RequestDecorationPolicyTests
         using var httpClient = new HttpClient(handler);
         using var pipeline = PipelineFactory.Create(httpClient, location: new LocationSelector
         {
-            Directory = "/amb/dir",
-            Workspace = "amb-ws",
+            Directory = "/amb/dir"
         });
         var options = new OpenCodeRequestOptions
         {
             Location = new LocationSelector { Directory = "/per/dir" },
         };
 
-        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options, CancellationToken.None);
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/status", new RecordingResponseAdapter(), options, CancellationToken.None);
 
         var request = handler.Requests.Single();
         await Assert.That(request.Headers["x-opencode-directory"]).IsEqualTo("%2Fper%2Fdir");
-        await Assert.That(request.Headers["x-opencode-workspace"]).IsEqualTo("amb-ws");
+        await Assert.That(request.Headers.ContainsKey("x-opencode-workspace")).IsFalse();
     }
 
     [Test]
@@ -40,27 +39,26 @@ public sealed class RequestDecorationPolicyTests
         using var httpClient = new HttpClient(handler);
         using var pipeline = PipelineFactory.Create(httpClient, location: new LocationSelector
         {
-            Directory = "/amb/dir",
-            Workspace = "amb-ws",
+            Directory = "/amb/dir"
         });
 
         // LocationSelector refuses blank members, so the only spelling of "clear" is null —
-        // and null inherits. A per-call selector with both members left null must not clear
-        // either ambient header.
+        // and null inherits. A per-call selector with directory left null must not clear
+        // the ambient header.
         var options = new OpenCodeRequestOptions
         {
             Location = new LocationSelector(),
         };
 
-        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options, CancellationToken.None);
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/status", new RecordingResponseAdapter(), options, CancellationToken.None);
 
         var request = handler.Requests.Single();
         await Assert.That(request.Headers["x-opencode-directory"]).IsEqualTo("%2Famb%2Fdir");
-        await Assert.That(request.Headers["x-opencode-workspace"]).IsEqualTo("amb-ws");
+        await Assert.That(request.Headers.ContainsKey("x-opencode-workspace")).IsFalse();
     }
 
     [Test]
-    public async Task RequestDecorationPolicy_Should_PercentEncode_The_Directory_And_Send_The_Workspace_Raw()
+    public async Task RequestDecorationPolicy_Should_PercentEncode_The_Directory()
     {
         using var handler = new RecordingHttpHandler();
         using var httpClient = new HttpClient(handler);
@@ -69,18 +67,17 @@ public sealed class RequestDecorationPolicyTests
         {
             Location = new LocationSelector
             {
-                Directory = "/tmp/päth ü",
-                Workspace = "wsp_123",
+                Directory = "/tmp/päth ü"
             },
         };
 
-        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options, CancellationToken.None);
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/status", new RecordingResponseAdapter(), options, CancellationToken.None);
 
         var request = handler.Requests.Single();
         // Pinned literal for Uri.EscapeDataString("/tmp/päth ü"), computed once rather than
         // recomputed inline so the test does not exercise the very API it is pinning.
         await Assert.That(request.Headers["x-opencode-directory"]).IsEqualTo("%2Ftmp%2Fp%C3%A4th%20%C3%BC");
-        await Assert.That(request.Headers["x-opencode-workspace"]).IsEqualTo("wsp_123");
+        await Assert.That(request.Headers.ContainsKey("x-opencode-workspace")).IsFalse();
     }
 
     [Test]
@@ -90,7 +87,7 @@ public sealed class RequestDecorationPolicyTests
         using var httpClient = new HttpClient(handler);
         using var pipeline = PipelineFactory.Create(httpClient);
 
-        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options: null, CancellationToken.None);
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/status", new RecordingResponseAdapter(), options: null, CancellationToken.None);
 
         var request = handler.Requests.Single();
         await Assert.That(request.Headers.ContainsKey("x-opencode-directory")).IsFalse();
@@ -108,7 +105,7 @@ public sealed class RequestDecorationPolicyTests
         // handed without recognizing the operation or the header.
         _ = await pipeline.ExecuteAsync(
             HttpMethod.Post,
-            "/api/health",
+            "/api/status",
             new RecordingResponseAdapter(),
             options: null,
             [new DeclaredHeader("x-probe-one", "first"), new DeclaredHeader("x-probe-two", "second")],
@@ -129,7 +126,7 @@ public sealed class RequestDecorationPolicyTests
 
         _ = await pipeline.ExecuteAsync(
             HttpMethod.Post,
-            "/api/health",
+            "/api/status",
             new RecordingResponseAdapter(),
             options: null,
             declaredHeaders: null,
@@ -150,7 +147,7 @@ public sealed class RequestDecorationPolicyTests
             Location = new LocationSelector { Directory = "/per/dir" },
         };
 
-        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options, CancellationToken.None);
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/status", new RecordingResponseAdapter(), options, CancellationToken.None);
 
         var request = handler.Requests.Single();
         await Assert.That(request.Headers["x-opencode-directory"]).IsEqualTo("%2Fper%2Fdir");
@@ -159,28 +156,22 @@ public sealed class RequestDecorationPolicyTests
 
     /// <summary>
     /// Pins <see cref="LocationMerge"/>'s query-channel merge and <c>RequestDecorationPolicy</c>'s
-    /// header-channel merge to the same result for the same inputs, across a matrix covering both
-    /// members set on both sides, only one side set, and neither set. The two sites restate the
+    /// header-channel merge to the same result for the same inputs, across a matrix covering
+    /// directories set on both sides, only one side set, and neither set. The two sites restate the
     /// same member-by-member rule independently (<c>client-runtime.md</c>'s "Location merge"
     /// note); this test is what keeps a silent drift between them from going unnoticed.
     /// </summary>
     [Test]
-    [Arguments("/per/dir", "per-ws", "/amb/dir", "amb-ws")]
-    [Arguments("/per/dir", null, "/amb/dir", "amb-ws")]
-    [Arguments(null, "per-ws", "/amb/dir", "amb-ws")]
-    [Arguments(null, null, "/amb/dir", "amb-ws")]
-    [Arguments("/per/dir", "per-ws", null, null)]
-    [Arguments(null, null, null, null)]
-    [Arguments("/per/dir", null, null, "amb-ws")]
+    [Arguments("/per/dir", "/amb/dir")]
+    [Arguments(null, "/amb/dir")]
+    [Arguments("/per/dir", null)]
+    [Arguments(null, null)]
+    [Arguments("/tmp/päth ü", "/amb/dir")]
     public async Task LocationMerge_Should_Equal_What_RequestDecorationPolicy_Puts_On_The_Wire(
-        string? perCallDirectory, string? perCallWorkspace, string? ambientDirectory, string? ambientWorkspace)
+        string? perCallDirectory, string? ambientDirectory)
     {
-        var perCall = perCallDirectory is null && perCallWorkspace is null
-            ? null
-            : new LocationSelector { Directory = perCallDirectory, Workspace = perCallWorkspace };
-        var ambient = ambientDirectory is null && ambientWorkspace is null
-            ? null
-            : new LocationSelector { Directory = ambientDirectory, Workspace = ambientWorkspace };
+        var perCall = perCallDirectory is null ? null : new LocationSelector { Directory = perCallDirectory };
+        var ambient = ambientDirectory is null ? null : new LocationSelector { Directory = ambientDirectory };
         var expected = LocationMerge.Resolve(perCall, ambient);
 
         using var handler = new RecordingHttpHandler();
@@ -188,17 +179,13 @@ public sealed class RequestDecorationPolicyTests
         using var pipeline = PipelineFactory.Create(httpClient, location: ambient);
         var options = perCall is null ? null : new OpenCodeRequestOptions { Location = perCall };
 
-        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/health", new RecordingResponseAdapter(), options, CancellationToken.None);
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/status", new RecordingResponseAdapter(), options, CancellationToken.None);
 
         var request = handler.Requests.Single();
         var wireDirectory = request.Headers.TryGetValue("x-opencode-directory", out var directoryHeader)
             ? Uri.UnescapeDataString(directoryHeader)
             : null;
-        var wireWorkspace = request.Headers.TryGetValue("x-opencode-workspace", out var workspaceHeader)
-            ? workspaceHeader
-            : null;
-
         await Assert.That(wireDirectory).IsEqualTo(expected?.Directory);
-        await Assert.That(wireWorkspace).IsEqualTo(expected?.Workspace);
+        await Assert.That(request.Headers.ContainsKey("x-opencode-workspace")).IsFalse();
     }
 }

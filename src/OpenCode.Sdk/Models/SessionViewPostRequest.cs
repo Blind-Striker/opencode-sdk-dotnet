@@ -12,5 +12,5 @@ public sealed record SessionViewPostRequest
     /// Gets the idle value.
     /// </summary>
     [JsonPropertyName("idle")]
-    public required long Idle { get; init; }
+    public required double Idle { get; init; }
 }

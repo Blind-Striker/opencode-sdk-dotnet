@@ -29,20 +29,6 @@ public class PluginsClient
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("PluginsClient", "Pipeline");
 
     /// <summary>
-    /// Wait for plugin activation. Wait for configured plugin activation at a Location to settle, including missing-package installs. Completion does not imply every plugin succeeded or background resource discovery finished. Cancelling this wait does not cancel activation.
-    /// </summary>
-    /// <param name = "request">The request shaping the query.</param>
-    /// <param name = "requestOptions">The per-call options.</param>
-    /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;PluginAwaitActivationPostResponse&apos; envelope.</returns>
-    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
-    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<PluginAwaitActivationPostResponse> AwaitPluginActivationAsync(PluginAwaitActivationPostRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
-    {
-        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Plugins.AwaitPluginActivation(request), PluginAwaitActivationPostResponseAdapter.Instance, requestOptions, cancellationToken);
-    }
-
-    /// <summary>
     /// Check plugin updates. Check one or all package plugins for available updates.
     /// </summary>
     /// <param name = "request">The request body; an empty body is sent when omitted.</param>

@@ -3,7 +3,7 @@ namespace OpenCode.Sdk.Tools.Tests.Support;
 internal sealed class StructuralUnionScenario : SpecScenario
 {
     public const string GroupName = "structural";
-    public const string OperationId = "v2.structural.get";
+    public const string OperationId = "structural.get";
 
     protected override void Arrange(SpecDocumentBuilder spec) => _ = spec
         .WithSchema("StructuralValue", schema => schema.AnyOf(

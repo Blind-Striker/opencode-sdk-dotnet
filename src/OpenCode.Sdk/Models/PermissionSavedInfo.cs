@@ -31,4 +31,10 @@ public sealed record PermissionSavedInfo
     /// </summary>
     [JsonPropertyName("resource")]
     public required string Resource { get; init; }
+
+    /// <summary>
+    /// Gets the time value.
+    /// </summary>
+    [JsonPropertyName("time")]
+    public required PermissionSavedInfoTime Time { get; init; }
 }

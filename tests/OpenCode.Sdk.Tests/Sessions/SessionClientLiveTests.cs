@@ -26,7 +26,7 @@ public sealed class SessionClientLiveTests(SimulatedDriveServerFixture server)
         var created = await sourceClient.Sessions.CreateSessionAsync(new SessionCreateRequest
         {
             Title = "session-move-live",
-            Location = new LocationRef { Directory = source.Path },
+            Location = new LocationPublicRef { Directory = source.Path },
             Model = new ModelRef { Id = ModelId, ProviderId = ProviderId },
         }, cancellationToken: cancellationToken);
         var sessionId = created.Session.Id;

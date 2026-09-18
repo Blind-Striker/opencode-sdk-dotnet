@@ -23,22 +23,6 @@ public class McpServersClient
     {
     }
 
-    /// <summary>
-    /// Gets a bound &apos;McpServerClient&apos;; the handle never caches server state.
-    /// </summary>
-    /// <param name = "server">The &apos;server&apos; route value.</param>
-    /// <returns>The bound &apos;McpServerClient&apos;.</returns>
-    public virtual McpServerClient GetMcpServerClient(string server)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(server);
-        if (server is "." or "..")
-        {
-            throw new ArgumentException("Route values must not be dot segments.", nameof(server));
-        }
-
-        return new McpServerClient(Pipeline, server);
-    }
-
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("McpServersClient", "Pipeline");
 
     /// <summary>

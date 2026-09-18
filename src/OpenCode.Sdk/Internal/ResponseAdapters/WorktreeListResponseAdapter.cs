@@ -8,8 +8,9 @@ namespace OpenCode.Sdk.Internal.ResponseAdapters;
 /// </summary>
 internal sealed class WorktreeListResponseAdapter : ResponseAdapter<WorktreeListResponse>
 {
-    private static readonly string[] Status400Tags = ["InvalidRequestError", "WorktreeError"];
+    private static readonly string[] Status400Tags = ["InvalidRequestError"];
     private static readonly string[] Status401Tags = ["UnauthorizedError"];
+    private static readonly string[] Status404Tags = ["ProjectNotFoundError"];
     private WorktreeListResponseAdapter()
     {
     }
@@ -28,6 +29,7 @@ internal sealed class WorktreeListResponseAdapter : ResponseAdapter<WorktreeList
         >= 200 and < 300 => StatusVerdict.UndeclaredSuccess,
         400 => StatusVerdict.DeclaredError,
         401 => StatusVerdict.DeclaredError,
+        404 => StatusVerdict.DeclaredError,
         _ => StatusVerdict.UndeclaredError
     };
     /// <summary>
@@ -54,6 +56,7 @@ internal sealed class WorktreeListResponseAdapter : ResponseAdapter<WorktreeList
             >= 200 and < 300 => throw StatusVerdictFailures.UndeclaredSuccess(status),
             400 => new WorktreeListResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),
             401 => new WorktreeListResponse(status, ReadTolerantError(rawBody, Status401Tags), rawBody),
+            404 => new WorktreeListResponse(status, ReadTolerantError(rawBody, Status404Tags), rawBody),
             _ => new WorktreeListResponse(status, ReadTolerantError(rawBody, null), rawBody)
         };
     }

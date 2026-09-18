@@ -25,7 +25,7 @@ public sealed class PermissionsClientContractTests
     [Test]
     public async Task ListSavedAsync_Should_Return_The_Typed_Saved_Permissions()
     {
-        const string saved = "[{\"id\":\"per_1\",\"projectID\":\"prj_1\",\"action\":\"read\",\"resource\":\"fs\"}]";
+        const string saved = "[{\"id\":\"per_1\",\"projectID\":\"prj_1\",\"action\":\"read\",\"resource\":\"fs\",\"time\":{\"created\":1,\"updated\":2}}]";
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(saved));
 
         var response = await scenario.Client.Permissions.ListSavedAsync();
@@ -35,6 +35,8 @@ public sealed class PermissionsClientContractTests
         await Assert.That(permission.ProjectId).IsEqualTo("prj_1");
         await Assert.That(permission.Action).IsEqualTo("read");
         await Assert.That(permission.Resource).IsEqualTo("fs");
+        await Assert.That(permission.Time.Created).IsEqualTo(1);
+        await Assert.That(permission.Time.Updated).IsEqualTo(2);
         await Assert.That(scenario.Requests.Single().RequestUri)
             .IsEqualTo(new Uri("http://localhost:4096/api/permission/saved"));
     }

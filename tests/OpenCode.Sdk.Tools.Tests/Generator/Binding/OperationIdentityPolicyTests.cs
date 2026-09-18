@@ -10,20 +10,30 @@ public sealed class OperationIdentityPolicyTests
     public async Task BuildMap_Should_Return_The_Mapped_Identities()
     {
         var curation = IdentityCuration(
-            OperationIdentity("server.experimental.persistentPty.list", "v2.persistentPty.list"),
-            OperationIdentity("server.experimental.persistentPty.get", "v2.persistentPty.get"));
+            OperationIdentity("server.experimental.persistentPty.list", "persistentPty.list"),
+            OperationIdentity("server.experimental.persistentPty.get", "persistentPty.get"));
 
         var map = OperationIdentityPolicy.BuildMap(curation);
 
         await Assert.That(map).Count().IsEqualTo(2);
-        await Assert.That(map["server.experimental.persistentPty.list"]).IsEqualTo("v2.persistentPty.list");
-        await Assert.That(map["server.experimental.persistentPty.get"]).IsEqualTo("v2.persistentPty.get");
+        await Assert.That(map["server.experimental.persistentPty.list"]).IsEqualTo("persistentPty.list");
+        await Assert.That(map["server.experimental.persistentPty.get"]).IsEqualTo("persistentPty.get");
+    }
+
+    [Test]
+    public async Task BuildMap_Should_Admit_A_Repair_For_Any_Leaked_Upstream_Group()
+    {
+        var curation = IdentityCuration(OperationIdentity("server.session.archive", "session.archive"));
+
+        var map = OperationIdentityPolicy.BuildMap(curation);
+
+        await Assert.That(map["server.session.archive"]).IsEqualTo("session.archive");
     }
 
     [Test]
     public async Task BuildMap_Should_Refuse_A_Row_Without_A_Reason()
     {
-        var curation = IdentityCuration(OperationIdentity("server.experimental.pty.list", "v2.pty.list", reason: " "));
+        var curation = IdentityCuration(OperationIdentity("server.experimental.pty.list", "pty.list", reason: " "));
 
         var exception = Assert.Throws<BindingException>(() => _ = OperationIdentityPolicy.BuildMap(curation));
 
@@ -36,24 +46,24 @@ public sealed class OperationIdentityPolicyTests
     [Test]
     public async Task BuildMap_Should_Refuse_A_Subject_That_Already_Satisfies_The_Convention()
     {
-        var curation = IdentityCuration(OperationIdentity("v2.pty.list", "v2.ptys.list"));
+        var curation = IdentityCuration(OperationIdentity("experimental.session.export", "session.export"));
 
         var exception = Assert.Throws<BindingException>(() => _ = OperationIdentityPolicy.BuildMap(curation));
 
         var error = exception.Errors.Single();
-        await Assert.That(error.Subject).IsEqualTo("v2.pty.list");
+        await Assert.That(error.Subject).IsEqualTo("experimental.session.export");
         await Assert.That(error.Problem).Contains("already satisfies the protocol convention");
     }
 
     [Test]
     public async Task BuildMap_Should_Refuse_A_Malformed_Intended_Identity()
     {
-        var curation = IdentityCuration(OperationIdentity("server.experimental.pty.list", "pty.list"));
+        var curation = IdentityCuration(OperationIdentity("server.experimental.pty.list", "pty..list"));
 
         var exception = Assert.Throws<BindingException>(() => _ = OperationIdentityPolicy.BuildMap(curation));
 
         var error = exception.Errors.Single();
-        await Assert.That(error.Problem).Contains("pty.list");
+        await Assert.That(error.Problem).Contains("pty..list");
         await Assert.That(error.Problem).Contains("must satisfy the protocol convention");
     }
 
@@ -61,8 +71,8 @@ public sealed class OperationIdentityPolicyTests
     public async Task BuildMap_Should_Refuse_A_Duplicated_Subject()
     {
         var curation = IdentityCuration(
-            OperationIdentity("server.experimental.pty.list", "v2.pty.list"),
-            OperationIdentity("server.experimental.pty.list", "v2.ptys.list"));
+            OperationIdentity("server.experimental.pty.list", "pty.list"),
+            OperationIdentity("server.experimental.pty.list", "ptys.list"));
 
         var exception = Assert.Throws<BindingException>(() => _ = OperationIdentityPolicy.BuildMap(curation));
 
@@ -74,8 +84,8 @@ public sealed class OperationIdentityPolicyTests
     public async Task BuildMap_Should_Refuse_An_Intended_Identity_Claimed_Twice()
     {
         var curation = IdentityCuration(
-            OperationIdentity("server.experimental.pty.list", "v2.pty.list"),
-            OperationIdentity("server.experimental.ptys.list", "v2.pty.list"));
+            OperationIdentity("server.experimental.pty.list", "pty.list"),
+            OperationIdentity("server.experimental.ptys.list", "pty.list"));
 
         var exception = Assert.Throws<BindingException>(() => _ = OperationIdentityPolicy.BuildMap(curation));
 

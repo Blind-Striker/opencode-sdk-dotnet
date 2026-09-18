@@ -10,10 +10,10 @@ namespace OpenCode.Sdk.Models;
 public sealed record SessionCommandPostRequest
 {
     /// <summary>
-    /// Gets the command value.
+    /// Gets the name value.
     /// </summary>
-    [JsonPropertyName("command")]
-    public required string Command { get; init; }
+    [JsonPropertyName("name")]
+    public required string Name { get; init; }
 
     /// <summary>
     /// Gets the text value.

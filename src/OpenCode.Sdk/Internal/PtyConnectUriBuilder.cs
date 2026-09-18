@@ -6,7 +6,7 @@ namespace OpenCode.Sdk.Internal;
 /// Composes the address of a PTY WebSocket upgrade. The operation is transport-owned, so no
 /// generated route builder exists for it (ADR-0021): the path is spelled here, while the query
 /// rides the same <see cref="QueryStringBuilder"/> every generated route uses, so the location
-/// pair is encoded exactly as it is everywhere else.
+/// is encoded exactly as it is everywhere else.
 /// </summary>
 internal static class PtyConnectUriBuilder
 {

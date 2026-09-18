@@ -29,10 +29,10 @@ public interface ISessionInboxInfo
     public string? SessionId { get; }
 
     /// <summary>
-    /// Gets the time created value. Every declared variant carries it; the value is null when the payload is an unrecognized variant preserved as UnknownSessionInboxInfo.
+    /// Gets the time value. Every declared variant carries it; the value is null when the payload is an unrecognized variant preserved as UnknownSessionInboxInfo.
     /// </summary>
-    [JsonPropertyName("timeCreated")]
-    public double? TimeCreated { get; }
+    [JsonPropertyName("time")]
+    public ISessionInboxInfoTime? Time { get; }
 
     /// <summary>
     /// Gets the delivery value. Every declared variant carries it; the value is null when the payload is an unrecognized variant preserved as UnknownSessionInboxInfo.

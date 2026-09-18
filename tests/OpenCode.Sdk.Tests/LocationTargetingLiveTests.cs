@@ -38,10 +38,9 @@ public sealed class LocationTargetingLiveTests(SimulatedDriveServerFixture serve
                 new SessionCreateRequest
                 {
                     Title = "location-targeting-a",
-                    Location = new LocationRef
+                    Location = new LocationPublicRef
                     {
                         Directory = resolvedA.Directory,
-                        WorkspaceId = resolvedA.WorkspaceId,
                     },
                 },
                 cancellationToken: cancellationToken)).Session;
@@ -50,10 +49,9 @@ public sealed class LocationTargetingLiveTests(SimulatedDriveServerFixture serve
                 new SessionCreateRequest
                 {
                     Title = "location-targeting-b",
-                    Location = new LocationRef
+                    Location = new LocationPublicRef
                     {
                         Directory = resolvedB.Directory,
-                        WorkspaceId = resolvedB.WorkspaceId,
                     },
                 },
                 cancellationToken: cancellationToken)).Session;
@@ -63,9 +61,7 @@ public sealed class LocationTargetingLiveTests(SimulatedDriveServerFixture serve
             await Assert.That(resolvedB.Directory).IsEqualTo(workspaceB.Path);
             await Assert.That(resolvedA.Directory).IsNotEqualTo(resolvedB.Directory);
             await Assert.That(sessionA.Location.Directory).IsEqualTo(resolvedA.Directory);
-            await Assert.That(sessionA.Location.WorkspaceId).IsEqualTo(resolvedA.WorkspaceId);
             await Assert.That(sessionB.Location.Directory).IsEqualTo(resolvedB.Directory);
-            await Assert.That(sessionB.Location.WorkspaceId).IsEqualTo(resolvedB.WorkspaceId);
             await Assert.That(sessionA.ProjectId).IsEqualTo(resolvedA.Project.Id);
             await Assert.That(sessionB.ProjectId).IsEqualTo(resolvedB.Project.Id);
 

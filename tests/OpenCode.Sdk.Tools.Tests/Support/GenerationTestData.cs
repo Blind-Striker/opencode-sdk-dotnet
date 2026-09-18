@@ -19,10 +19,10 @@ internal static class GenerationTestData
     public const string ProjectPath = "src/OpenCode.Sdk/OpenCode.Sdk.csproj";
 
     /// <summary>The WebSocket operation the transport-owned command roots pin for a hand-written door.</summary>
-    public const string TransportOwnedOperationId = "v2.pty.connect";
+    public const string TransportOwnedOperationId = "pty.connect";
 
     /// <summary>The walled operation the declined command roots leave out of the generated surface by decision.</summary>
-    public const string DeclinedOperationId = "v2.widget.tail";
+    public const string DeclinedOperationId = "widget.tail";
 
     private const string DeclinedReason =
         "The route is an upstream wildcard and the operation is WebSocket-marked, so it does not bind; maintainer 2026-08-30.";
@@ -69,7 +69,7 @@ internal static class GenerationTestData
             transportOwned: [],
             declined:
             [
-                Declined("v2.session.list", "The success response declares no JSON schema, so the operation does not bind; maintainer 2026-08-30."),
+                Declined("session.list", "The success response declares no JSON schema, so the operation does not bind; maintainer 2026-08-30."),
                 Declined(DeclinedOperationId, DeclinedReason),
             ]);
         return fileSystem;
@@ -82,7 +82,7 @@ internal static class GenerationTestData
         WriteCuration(
             fileSystem,
             transportOwned: [],
-            declined: [Declined("v2.plugin.list", "A reason that claims a wall the probe cannot find.")]);
+            declined: [Declined("plugin.list", "A reason that claims a wall the probe cannot find.")]);
         return fileSystem;
     }
 
@@ -116,12 +116,12 @@ internal static class GenerationTestData
             .WithSchema("ExampleHealth", schema => schema
                 .Type("object")
                 .Property("healthy", property => property.Type("boolean"), required: true))
-            .WithOperation("v2.health.get", path: "/api/health", configure: operation => operation
+            .WithOperation("health.get", path: "/api/health", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("ExampleHealth")))
-            .WithOperation("v2.session.list", path: "/api/session")
+            .WithOperation("session.list", path: "/api/session")
             // Two independent wire-shape walls (wildcard path, WebSocket) on the same operation,
             // so the pending map proves the telltale lists every wall, not only the first.
-            .WithOperation("v2.widget.tail", path: "/api/widget/*", configure: operation => operation
+            .WithOperation("widget.tail", path: "/api/widget/*", configure: operation => operation
                 .Extension("x-websocket", "true"));
         // The bindable pending operation is the drift telltale's subject; roots that must reach
         // pending = 0 leave it out, because a bindable operation can never be declined.
@@ -131,7 +131,7 @@ internal static class GenerationTestData
                 .WithSchema("ExamplePlugin", schema => schema
                     .Type("object")
                     .Property("name", property => property.Type("string"), required: true))
-                .WithOperation("v2.plugin.list", path: "/api/plugin", configure: operation => operation
+                .WithOperation("plugin.list", path: "/api/plugin", configure: operation => operation
                     .Response(200, "application/json", schema => schema.Ref("ExamplePlugin")));
         }
 
@@ -141,7 +141,7 @@ internal static class GenerationTestData
             .Initialize()
             .With(
                 new FileDescription(SpecPath, spec.BuildJson()),
-                new FileDescription(ProfilePath, "v2.health.get\n"));
+                new FileDescription(ProfilePath, "health.get\n"));
         return fileSystem;
     }
 

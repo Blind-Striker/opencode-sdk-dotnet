@@ -8,7 +8,7 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 /// <param name="Channel">The caller-named service channel, or null for the shared release registration.</param>
 /// <param name="DirectRegistrationFile">The absolute registration path that bypasses channel resolution, or null.</param>
 /// <param name="InstalledVersion">The migration comparand; in channel mode it defaults from <paramref name="ExpectedVersion"/>.</param>
-/// <param name="ExpectedVersion">The exact health version a discovered service must report, or null for any.</param>
+/// <param name="ExpectedVersion">The exact version a discovered service's status must report, or null for any.</param>
 internal sealed record ServiceSelection(
     string? Channel,
     string? DirectRegistrationFile,

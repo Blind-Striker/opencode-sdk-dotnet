@@ -51,7 +51,7 @@ public sealed record EventRpc : IEvent
     /// Gets the location value.
     /// </summary>
     [JsonPropertyName("location")]
-    public required LocationRef Location { get; init; }
+    public required LocationPublicRef Location { get; init; }
 
     /// <summary>
     /// Gets the data value.

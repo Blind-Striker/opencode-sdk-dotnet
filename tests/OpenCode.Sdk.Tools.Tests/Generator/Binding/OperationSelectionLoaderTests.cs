@@ -13,20 +13,20 @@ public sealed class OperationSelectionLoaderTests
     public async Task LoadAsync_Should_Preserve_Operation_Order()
     {
         var fileSystem = new MockFileSystem();
-        fileSystem.Initialize().With(new FileDescription(ProfilePath, "v2.health.get\nv2.session.message\n"));
+        fileSystem.Initialize().With(new FileDescription(ProfilePath, "health.get\nsession.message\n"));
 
         var selection = await new OperationSelectionLoader(fileSystem).LoadAsync(ProfilePath, CancellationToken.None);
 
         await Assert.That(selection.OperationIds).Count().IsEqualTo(2);
-        await Assert.That(selection.OperationIds[0]).IsEqualTo("v2.health.get");
-        await Assert.That(selection.OperationIds[1]).IsEqualTo("v2.session.message");
+        await Assert.That(selection.OperationIds[0]).IsEqualTo("health.get");
+        await Assert.That(selection.OperationIds[1]).IsEqualTo("session.message");
     }
 
     [Test]
     public async Task LoadAsync_Should_Refuse_Duplicate_Operation_IDs()
     {
         var fileSystem = new MockFileSystem();
-        fileSystem.Initialize().With(new FileDescription(ProfilePath, "v2.health.get\nv2.health.get\n"));
+        fileSystem.Initialize().With(new FileDescription(ProfilePath, "health.get\nhealth.get\n"));
 
         var exception = await Assert
             .That(async () => _ = await new OperationSelectionLoader(fileSystem).LoadAsync(ProfilePath, CancellationToken.None))
@@ -40,7 +40,7 @@ public sealed class OperationSelectionLoaderTests
     public async Task LoadAsync_Should_Refuse_Blank_Lines()
     {
         var fileSystem = new MockFileSystem();
-        fileSystem.Initialize().With(new FileDescription(ProfilePath, "v2.health.get\n\nv2.session.message\n"));
+        fileSystem.Initialize().With(new FileDescription(ProfilePath, "health.get\n\nsession.message\n"));
 
         var exception = await Assert
             .That(async () => _ = await new OperationSelectionLoader(fileSystem).LoadAsync(ProfilePath, CancellationToken.None))

@@ -18,7 +18,7 @@ public sealed record SessionInboxItemMove : ISessionInboxItem
     /// Gets the payload value.
     /// </summary>
     [JsonPropertyName("payload")]
-    public required SessionInboxMovePayload Payload { get; init; }
+    public required SessionInboxMoveEventPayload Payload { get; init; }
 
     /// <summary>
     /// Gets the delivery value.

@@ -33,4 +33,10 @@ public interface IMcp
     /// </summary>
     [JsonPropertyName("timeout")]
     public IMcpTimeout? Timeout { get; }
+
+    /// <summary>
+    /// Gets the protocol value. Every declared variant carries it; the value is null when the payload is an unrecognized variant preserved as UnknownMcp.
+    /// </summary>
+    [JsonPropertyName("protocol")]
+    public McpProtocol? Protocol { get; }
 }

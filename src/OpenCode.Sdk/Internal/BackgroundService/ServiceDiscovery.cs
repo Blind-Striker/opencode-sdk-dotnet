@@ -11,7 +11,7 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 internal sealed class ServiceDiscovery(
     IServiceEnvironment environment,
     IServiceFileSystem fileSystem,
-    IServiceHealthProbe probe)
+    IServiceStatusProbe probe)
 {
     /// <summary>Discovers the registered daemon a selection points at.</summary>
     /// <param name="options">The caller's options; null means every default.</param>
@@ -42,7 +42,7 @@ internal sealed class ServiceDiscovery(
         }
 
         var answer = await probe.ProbeAsync(registration, cancellationToken).ConfigureAwait(false);
-        if (answer.State != ServiceState.Ready)
+        if (answer.State != ServiceState.Ready || !answer.Compatible)
         {
             return null;
         }

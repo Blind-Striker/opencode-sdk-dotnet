@@ -95,6 +95,14 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
             Location = location,
         });
 
+    internal async Task<string> ReadGlobalConfigAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var reader = _fileSystem.File.OpenText(
+            _fileSystem.Path.Combine(RunRoot.Path, "config", "opencode", "opencode.jsonc"));
+        return await reader.ReadToEndAsync(cancellationToken);
+    }
+
     public TestWorkspace CreateWorkspace() => new(_fileSystem, RunRoot.Path);
 
     public Task<GitRepositoryWorkspace> CreateGitRepositoryWorkspaceAsync(CancellationToken cancellationToken) =>

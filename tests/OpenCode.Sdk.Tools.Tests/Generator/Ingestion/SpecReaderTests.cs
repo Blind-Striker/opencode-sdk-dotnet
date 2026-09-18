@@ -50,7 +50,7 @@ public sealed class SpecReaderTests
     public async Task LoadAsync_Should_Promote_Reader_Diagnostics_To_Errors()
     {
         var specScenario = SpecScenario
-            .Define(spec => spec.WithOperation("v2.test.get", configure: operation => operation.Raw("madeUpKey", "{}")));
+            .Define(spec => spec.WithOperation("test.get", configure: operation => operation.Raw("madeUpKey", "{}")));
 
         var ex = await LoadExpectingRefusalAsync(specScenario);
         await Assert.That(ex.Message).Contains("madeUpKey");

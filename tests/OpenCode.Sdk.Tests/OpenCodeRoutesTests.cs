@@ -77,13 +77,13 @@ public sealed class OpenCodeRoutesTests
     {
         var route = OpenCodeRoutes.FileSystem.FindEntries(new FsFindRequest
         {
-            Location = new LocationSelector { Workspace = "wrk_1" },
+            Location = new LocationSelector { Directory = "/repo" },
             Query = "todo",
             Type = FsFindRequestType.Directory,
             Limit = "25",
         });
 
-        await Assert.That(route).IsEqualTo("/api/fs/find?location[workspace]=wrk_1&query=todo&type=directory&limit=25");
+        await Assert.That(route).IsEqualTo("/api/fs/find?location[directory]=%2Frepo&query=todo&type=directory&limit=25");
     }
 
     [Test]
@@ -116,16 +116,16 @@ public sealed class OpenCodeRoutesTests
     [Test]
     public async Task GetStats_Should_Spell_The_Tools_Detail_Value()
     {
-        var route = OpenCodeRoutes.Sessions.GetStats(new SessionStatsRequest { Tools = SessionStatsRequestTools.Detail });
+        var route = OpenCodeRoutes.Experimental.GetSessionStats(new ExperimentalSessionStatsRequest { Tools = ExperimentalSessionStatsRequestTools.Detail });
 
-        await Assert.That(route).IsEqualTo("/api/session/stats?tools=detail");
+        await Assert.That(route).IsEqualTo("/api/experimental/session/stats?tools=detail");
     }
 
     [Test]
     public async Task GetStats_Should_Return_The_Bare_Path_When_Nothing_Is_Set()
     {
-        await Assert.That(OpenCodeRoutes.Sessions.GetStats(new SessionStatsRequest())).IsEqualTo("/api/session/stats");
-        await Assert.That(OpenCodeRoutes.Sessions.GetStats()).IsEqualTo("/api/session/stats");
+        await Assert.That(OpenCodeRoutes.Experimental.GetSessionStats(new ExperimentalSessionStatsRequest())).IsEqualTo("/api/experimental/session/stats");
+        await Assert.That(OpenCodeRoutes.Experimental.GetSessionStats()).IsEqualTo("/api/experimental/session/stats");
     }
 
     /// <summary>
@@ -137,12 +137,12 @@ public sealed class OpenCodeRoutesTests
     {
         var route = OpenCodeRoutes.Shells.GetOutput("sh_100", new ShellOutputRequest
         {
-            Location = new LocationSelector { Workspace = "wrk_1" },
+            Location = new LocationSelector { Directory = "/repo" },
             Cursor = "1.5e3",
             Limit = "+0",
         });
 
-        await Assert.That(route).IsEqualTo("/api/shell/sh_100/output?location[workspace]=wrk_1&cursor=1.5e3&limit=%2B0");
+        await Assert.That(route).IsEqualTo("/api/shell/sh_100/output?location[directory]=%2Frepo&cursor=1.5e3&limit=%2B0");
     }
 
     /// <summary>
@@ -166,11 +166,11 @@ public sealed class OpenCodeRoutesTests
     }
 
     [Test]
-    public async Task Worktree_Routes_Should_Use_Location_Scoped_Paths()
+    public async Task Worktree_Routes_Should_Use_The_Project_Query_Only_For_Listing()
     {
-        await Assert.That(OpenCodeRoutes.Worktrees.CreateWorktree()).IsEqualTo("/api/worktree");
-        await Assert.That(OpenCodeRoutes.Worktrees.ListWorktrees()).IsEqualTo("/api/worktree");
-        await Assert.That(OpenCodeRoutes.Worktrees.RefreshWorktrees()).IsEqualTo("/api/worktree/refresh");
-        await Assert.That(OpenCodeRoutes.Worktrees.RemoveWorktree()).IsEqualTo("/api/worktree");
+        await Assert.That(OpenCodeRoutes.Worktrees.CreateWorktree).IsEqualTo("/api/worktree");
+        await Assert.That(OpenCodeRoutes.Worktrees.ListWorktrees(new WorktreeListRequest { ProjectId = "prj 1" })).IsEqualTo("/api/worktree?projectID=prj%201");
+        await Assert.That(OpenCodeRoutes.Worktrees.RefreshWorktrees).IsEqualTo("/api/worktree/refresh");
+        await Assert.That(OpenCodeRoutes.Worktrees.RemoveWorktree).IsEqualTo("/api/worktree");
     }
 }

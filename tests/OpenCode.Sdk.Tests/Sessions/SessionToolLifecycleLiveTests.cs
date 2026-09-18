@@ -95,7 +95,7 @@ public sealed class SessionToolLifecycleLiveTests(SimulatedDriveServerFixture se
             await Assert.That(cancellation.Reason).IsEqualTo("interrupted");
             scenario.ReleaseTool(tool);
 
-            var waited = await scenario.Session.PostWaitAsync(cancellationToken: cancellationToken);
+            var waited = await scenario.WaitAsync(cancellationToken: cancellationToken);
             await Assert.That(waited.Status).IsEqualTo(204);
 
             using var barrier = SessionEventProbe.Barrier(cancellationToken);

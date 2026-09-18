@@ -7,11 +7,11 @@ public sealed class OpenCodeRequestOptions
     public ErrorBehavior ErrorBehavior { get; init; }
 
     /// <summary>
-    /// Gets the per-call location override. Unset members inherit the ambient
-    /// <see cref="OpenCodeClientOptions.Location"/> member-by-member; a set member always wins
-    /// over its ambient counterpart. <see langword="null"/> uses the ambient location
-    /// unmodified. Because <see cref="LocationSelector"/> refuses blank members, there is no way
-    /// to clear an ambient member for one call — only to leave it inherited or replace it.
+    /// Gets the per-call location override. A set directory wins over the ambient
+    /// <see cref="OpenCodeClientOptions.Location"/>; an unset one inherits it, and
+    /// <see langword="null"/> uses the ambient location unmodified. Because
+    /// <see cref="LocationSelector"/> refuses a blank directory, there is no way to clear the
+    /// ambient directory for one call — only to leave it inherited or replace it.
     /// </summary>
     public LocationSelector? Location { get; init; }
 

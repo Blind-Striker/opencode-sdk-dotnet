@@ -11,7 +11,7 @@ public sealed class EnvelopeClassifierTests
         var host = new OperationProjectionTestHost();
         var scenario = SpecScenario.Define(spec => spec
             .WithRawSchema("DataEnvelope", "envelope-data.json")
-            .WithOperation("v2.test.data", configure: operation => operation
+            .WithOperation("test.data", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("DataEnvelope"))));
 
         var result = await host.ProjectAsync(scenario);
@@ -25,7 +25,7 @@ public sealed class EnvelopeClassifierTests
         var host = new OperationProjectionTestHost();
         var scenario = SpecScenario.Define(spec => spec
             .WithRawSchema("LocatedEnvelope", "envelope-data-location.json")
-            .WithOperation("v2.test.location", configure: operation => operation
+            .WithOperation("test.location", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("LocatedEnvelope"))));
 
         var result = await host.ProjectAsync(scenario);
@@ -37,7 +37,7 @@ public sealed class EnvelopeClassifierTests
     public async Task Classify_Should_Recognize_CursorData_Envelope_From_Inline_Fixture()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.cursor", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("test.cursor", configure: operation => operation
             .ResponseFromFixture(200, "application/json", "envelope-cursor-data.json")));
 
         var result = await host.ProjectAsync(scenario);
@@ -49,7 +49,7 @@ public sealed class EnvelopeClassifierTests
     public async Task Classify_Should_Recognize_DataHasMore_Envelope_From_Inline_Fixture()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.more", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("test.more", configure: operation => operation
             .ResponseFromFixture(200, "application/json", "envelope-data-has-more.json")));
 
         var result = await host.ProjectAsync(scenario);
@@ -61,7 +61,7 @@ public sealed class EnvelopeClassifierTests
     public async Task Classify_Should_Recognize_SingleKey_Envelope_From_An_Inline_Body()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.handoff", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("test.handoff", configure: operation => operation
             .ResponseFromFixture(200, "application/json", "envelope-single-key.json")));
 
         var result = await host.ProjectAsync(scenario);
@@ -75,7 +75,7 @@ public sealed class EnvelopeClassifierTests
         var host = new OperationProjectionTestHost();
         var scenario = SpecScenario.Define(spec => spec
             .WithRawSchema("SingleKeyComponent", "envelope-single-key.json")
-            .WithOperation("v2.test.component", configure: operation => operation
+            .WithOperation("test.component", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("SingleKeyComponent"))));
 
         var result = await host.ProjectAsync(scenario);
@@ -87,7 +87,7 @@ public sealed class EnvelopeClassifierTests
     public async Task Classify_Should_Return_Bare_For_Unrecognized_Json_Shape()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.bare", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("test.bare", configure: operation => operation
             .Response(200, "application/json", schema => schema.Type("string"))));
 
         var result = await host.ProjectAsync(scenario);
@@ -99,7 +99,7 @@ public sealed class EnvelopeClassifierTests
     public async Task Classify_Should_Return_None_For_Response_Without_Content()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.none", configure: operation => operation.Response(204)));
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("test.none", configure: operation => operation.Response(204)));
 
         var result = await host.ProjectAsync(scenario);
 
@@ -110,7 +110,7 @@ public sealed class EnvelopeClassifierTests
     public async Task Classify_Should_Not_Recognize_Envelope_Superset()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.test.superset", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("test.superset", configure: operation => operation
             .Response(200, "application/json", schema => schema
                 .Type("object")
                 .Property("data", property => property.Type("string"))
@@ -128,7 +128,7 @@ public sealed class EnvelopeClassifierTests
         var scenario = SpecScenario.Define(spec => spec
             .WithSchema("First", schema => schema.Ref("Second"))
             .WithSchema("Second", schema => schema.Ref("First"))
-            .WithOperation("v2.test.cycle", configure: operation => operation
+            .WithOperation("test.cycle", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("First"))));
 
         var ex = await host.ProjectExpectingRefusalAsync(scenario);
@@ -141,7 +141,7 @@ public sealed class EnvelopeClassifierTests
     public async Task Classify_Should_Detect_Sse_And_Project_The_Effect_Stream_Contract()
     {
         var host = new OperationProjectionTestHost();
-        var scenario = SpecScenario.Define(spec => spec.WithOperation("v2.session.events", configure: operation => operation
+        var scenario = SpecScenario.Define(spec => spec.WithOperation("session.events", configure: operation => operation
             .SseResponseFromFixture(schema => schema.Type("string"), "effect-stream.json")));
 
         var result = await host.ProjectAsync(scenario);

@@ -1,0 +1,238 @@
+using System.Net;
+using System.Text;
+using OpenCode.Sdk.Internal.BackgroundService;
+using OpenCode.Sdk.Tests.Support;
+
+namespace OpenCode.Sdk.Tests.BackgroundService;
+
+/// <summary>
+/// The raw authenticated status exchange the pinned client performs (<c>probeResult</c>): the
+/// root-relative path, the Basic credential, the status-to-state mapping for a modern body, the
+/// pid and version gates, the required identity fields, and the separation of the internal bound from the
+/// caller's token, all against the loopback server through the SDK's own owned handler.
+/// </summary>
+public sealed class ServiceStatusProbeTests
+{
+    private const string Password = ServiceRegistrationData.Password;
+    private static readonly ServiceTiming FastTiming = ServiceTiming.Default with { RequestTimeout = TimeSpan.FromMilliseconds(100) };
+
+    [Test]
+    public async Task ProbeAsync_Should_Report_A_Ready_Service_And_Send_The_Basic_Credential()
+    {
+        await using var server = LoopbackHttpServer.Start(static _ => Json(HttpStatusCode.OK, ServiceStatusBodyData.Ready));
+
+        var result = await Probe().ProbeAsync(Registration(server.Endpoint), CancellationToken.None);
+
+        await Assert.That(result.State).IsEqualTo(ServiceState.Ready);
+        await Assert.That(result.Version).IsEqualTo(ServiceStatusBodyData.Version);
+        await Assert.That(result.TimedOut).IsFalse();
+        var request = server.Requests.Single();
+        await Assert.That(request.Method).IsEqualTo("GET");
+        await Assert.That(request.Path).IsEqualTo("/api/status");
+        await Assert.That(request.Headers["Authorization"])
+            .IsEqualTo("Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes("opencode:" + Password)));
+    }
+
+    [Test]
+    public async Task ProbeAsync_Should_Ignore_Fields_Outside_The_Identity_Decoder()
+    {
+        await using var server = LoopbackHttpServer.Start(static _ => Json(HttpStatusCode.OK, ServiceStatusBodyData.IgnoredFields));
+
+        var result = await Probe().ProbeAsync(Registration(server.Endpoint), CancellationToken.None);
+
+        await Assert.That(result.State).IsEqualTo(ServiceState.Ready);
+        await Assert.That(result.Version).IsEqualTo(ServiceStatusBodyData.Version);
+    }
+
+    [Test]
+    public async Task ProbeAsync_Should_Resolve_The_Status_Path_Against_The_Authority_Only()
+    {
+        await using var server = LoopbackHttpServer.Start(static _ => Json(HttpStatusCode.OK, ServiceStatusBodyData.Ready));
+        var prefixed = new Uri(server.Endpoint, "/some/prefix/");
+
+        var result = await Probe().ProbeAsync(Registration(prefixed), CancellationToken.None);
+
+        await Assert.That(result.State).IsEqualTo(ServiceState.Ready);
+        await Assert.That(server.RequestPaths).IsEquivalentTo(["/api/status"]);
+    }
+
+    [Test]
+    public async Task ProbeAsync_Should_Send_No_Credential_For_A_Passwordless_Registration()
+    {
+        await using var server = LoopbackHttpServer.Start(static _ => Json(HttpStatusCode.OK, ServiceStatusBodyData.Ready));
+
+        _ = await Probe().ProbeAsync(Registration(server.Endpoint, password: null), CancellationToken.None);
+
+        await Assert.That(server.Requests.Single().Headers.ContainsKey("Authorization")).IsFalse();
+    }
+
+    [Test]
+    [Arguments(HttpStatusCode.InternalServerError, (int)ServiceState.Failed)]
+    [Arguments(HttpStatusCode.ServiceUnavailable, (int)ServiceState.Waiting)]
+    [Arguments(HttpStatusCode.Accepted, (int)ServiceState.Ready)]
+    public async Task ProbeAsync_Should_Map_The_Status_Of_A_Modern_Body(HttpStatusCode status, int expected)
+    {
+        await using var server = LoopbackHttpServer.Start(_ => Json(status, ServiceStatusBodyData.Ready));
+
+        var result = await Probe().ProbeAsync(Registration(server.Endpoint), CancellationToken.None);
+
+        // The enum is internal, so the data row carries its integer; the cast is the assertion's.
+        await Assert.That(result.State).IsEqualTo((ServiceState)expected);
+    }
+
+    [Test]
+    public async Task ProbeAsync_Should_Report_A_Redirect_With_A_Modern_Body_As_Waiting_Without_Following_It()
+    {
+        await using var server = LoopbackHttpServer.Start(static _ => Json(HttpStatusCode.Found, ServiceStatusBodyData.Ready) with { Location = "/elsewhere" });
+
+        var result = await Probe().ProbeAsync(Registration(server.Endpoint), CancellationToken.None);
+
+        await Assert.That(result.State).IsEqualTo(ServiceState.Waiting);
+        await Assert.That(server.RequestPaths).IsEquivalentTo(["/api/status"]);
+    }
+
+    [Test]
+    [Arguments(ServiceStatusBodyData.MissingIdentity)]
+    [Arguments(ServiceStatusBodyData.MissingPid)]
+    [Arguments(ServiceStatusBodyData.OtherPid)]
+    [Arguments(ServiceStatusBodyData.OtherVersion)]
+    [Arguments(ServiceStatusBodyData.PidAboveInt32)]
+    [Arguments(ServiceStatusBodyData.PidAboveInt64)]
+    [Arguments(ServiceStatusBodyData.Malformed)]
+    [Arguments(ServiceStatusBodyData.InvalidVersionUnicode)]
+    [Arguments(ServiceStatusBodyData.ArrayRoot)]
+    [Arguments("")]
+    public async Task ProbeAsync_Should_Report_No_Service_For_A_Body_That_Is_Not_This_Daemon(string body)
+    {
+        await using var server = LoopbackHttpServer.Start(_ => Json(HttpStatusCode.OK, body));
+
+        var result = await Probe().ProbeAsync(Registration(server.Endpoint), CancellationToken.None);
+
+        await Assert.That(result.IsService).IsFalse();
+        await Assert.That(result.TimedOut).IsFalse();
+    }
+
+    [Test]
+    public async Task ProbeAsync_Should_Accept_A_Registration_Without_A_Version()
+    {
+        await using var server = LoopbackHttpServer.Start(static _ => Json(HttpStatusCode.OK, ServiceStatusBodyData.OtherVersion));
+
+        var result = await Probe().ProbeAsync(Registration(server.Endpoint, version: null), CancellationToken.None);
+
+        await Assert.That(result.State).IsEqualTo(ServiceState.Ready);
+        await Assert.That(result.Version).IsEqualTo("0.0.0-other");
+    }
+
+    [Test]
+    public async Task ProbeAsync_Should_Compare_The_Unknown_Version_Literal_As_A_String()
+    {
+        await using var server = LoopbackHttpServer.Start(static _ => Json(HttpStatusCode.OK, ServiceStatusBodyData.UnknownVersion));
+
+        var matched = await Probe().ProbeAsync(Registration(server.Endpoint, version: "unknown"), CancellationToken.None);
+        var mismatched = await Probe().ProbeAsync(Registration(server.Endpoint, version: "2.0.3"), CancellationToken.None);
+
+        await Assert.That(matched.State).IsEqualTo(ServiceState.Ready);
+        await Assert.That(mismatched.IsService).IsFalse();
+    }
+
+    [Test]
+    [Arguments(ServiceStatusBodyData.Ready, false)]
+    [Arguments(ServiceStatusBodyData.Malformed, false)]
+    [Arguments("", false)]
+    [Arguments(ServiceStatusBodyData.Ready, true)]
+    public async Task ProbeAsync_Should_Report_An_Incompatible_Service_For_NotFound_Before_Reading_The_Body(string body, bool keepOpen)
+    {
+        await using var server = LoopbackHttpServer.Start(_ => Json(HttpStatusCode.NotFound, body) with { KeepOpen = keepOpen });
+
+        var result = await Probe().ProbeAsync(Registration(server.Endpoint), CancellationToken.None);
+
+        // The pinned client's own answer (packages/client/src/effect/service.ts:228-240): an
+        // authenticated 404 is the registered daemon, present and ready, speaking another protocol.
+        server.ReleaseResponses();
+        await Assert.That(result.IsService).IsTrue();
+        await Assert.That(result.Compatible).IsFalse();
+        await Assert.That(result.State).IsEqualTo(ServiceState.Ready);
+        await Assert.That(result.Version).IsEqualTo(ServiceStatusBodyData.Version);
+        await Assert.That(result.TimedOut).IsFalse();
+    }
+
+    [Test]
+    public async Task ProbeAsync_Should_Report_No_Service_For_An_Unauthorized_Answer()
+    {
+        await using var server = LoopbackHttpServer.Start(static _ => new LoopbackHttpResponse { StatusCode = HttpStatusCode.Unauthorized });
+
+        var result = await Probe().ProbeAsync(Registration(server.Endpoint), CancellationToken.None);
+
+        await Assert.That(result.IsService).IsFalse();
+        await Assert.That(result.TimedOut).IsFalse();
+    }
+
+    [Test]
+    public async Task ProbeAsync_Should_Report_No_Service_When_Nothing_Listens()
+    {
+        Uri endpoint;
+        await using (var server = LoopbackHttpServer.Start(static _ => Json(HttpStatusCode.OK, ServiceStatusBodyData.Ready)))
+        {
+            endpoint = server.Endpoint;
+        }
+
+        // Whether a closed loopback port refuses at once or stalls until the bound is the host's
+        // business (Windows was observed to stall); the contract is no service, no exception,
+        // inside the bound.
+        var result = await new ServiceStatusProbe(FastTiming).ProbeAsync(Registration(endpoint), CancellationToken.None);
+
+        await Assert.That(result.IsService).IsFalse();
+    }
+
+    [Test]
+    public async Task ProbeAsync_Should_Report_A_Timeout_At_The_Injected_Bound()
+    {
+        await using var server = LoopbackHttpServer.Start(static _ => Json(HttpStatusCode.OK, ServiceStatusBodyData.Ready) with { KeepOpen = true });
+
+        var result = await new ServiceStatusProbe(FastTiming).ProbeAsync(Registration(server.Endpoint), CancellationToken.None);
+
+        await Assert.That(result.TimedOut).IsTrue();
+        await Assert.That(result.IsService).IsFalse();
+        server.ReleaseResponses();
+    }
+
+    [Test]
+    public async Task ProbeAsync_Should_Rethrow_Caller_Cancellation_Rather_Than_Report_A_Timeout()
+    {
+        await using var server = LoopbackHttpServer.Start(static _ => Json(HttpStatusCode.OK, ServiceStatusBodyData.Ready) with { KeepOpen = true });
+        var cancelled = new CancellationToken(canceled: true);
+
+        var exception = await Assert
+            .That(async () => _ = await Probe().ProbeAsync(Registration(server.Endpoint), cancelled))
+            .Throws<OperationCanceledException>();
+
+        await Assert.That(exception!.CancellationToken).IsEqualTo(cancelled);
+        await Assert.That(exception.ToString()).DoesNotContain(Password);
+        server.ReleaseResponses();
+    }
+
+    [Test]
+    public async Task The_Result_Should_Never_Render_The_Credential()
+    {
+        await using var server = LoopbackHttpServer.Start(static _ => Json(HttpStatusCode.OK, ServiceStatusBodyData.Ready));
+
+        var result = await Probe().ProbeAsync(Registration(server.Endpoint), CancellationToken.None);
+
+        await Assert.That(result.ToString()).DoesNotContain(Password);
+        await Assert.That(result.ToString()).DoesNotContain("Basic");
+    }
+    /// <summary>
+    /// Classification tests are about the answer, not the bound: a loaded runner (the macOS leg,
+    /// three assemblies at once) can miss the pinned two-second request timeout on a loopback
+    /// exchange, which would report a timeout where a state was expected. The bound itself is
+    /// proven once, with <see cref="FastTiming"/>, against a kept-open response.
+    /// </summary>
+    private static readonly ServiceTiming PatientTiming = ServiceTiming.Default with { RequestTimeout = TimeSpan.FromSeconds(30) };
+
+    private static ServiceStatusProbe Probe() => new(PatientTiming);
+    private static ServiceRegistration Registration(Uri endpoint, string? version = ServiceStatusBodyData.Version, string? password = Password) =>
+        new("srv_1", version, endpoint.ToString(), endpoint, ServiceStatusBodyData.Pid, password);
+
+    private static LoopbackHttpResponse Json(HttpStatusCode status, string body) =>
+        new() { StatusCode = status, ContentType = "application/json", Body = body };
+}

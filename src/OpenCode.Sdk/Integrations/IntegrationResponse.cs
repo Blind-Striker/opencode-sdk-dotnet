@@ -11,7 +11,7 @@ namespace OpenCode.Sdk;
 public sealed record IntegrationResponse : OpenCodeResponse
 {
     private readonly IntegrationInfo? _integration;
-    private readonly LocationInfo? _location;
+    private readonly LocationPublicRef? _location;
     /// <summary>
     /// Initializes a success instance of the &apos;IntegrationResponse&apos; envelope.
     /// </summary>
@@ -29,18 +29,18 @@ public sealed record IntegrationResponse : OpenCodeResponse
         IsError = true;
         Error = error;
         RawBody = rawBody;
-        Integration = null;
+        Integration = null!;
         Location = null!;
     }
 
     /// <summary>
     /// Gets the Integration payload; guarded on the error path.
     /// </summary>
-    public required IntegrationInfo? Integration { get => !IsError ? _integration : throw new InvalidOperationException("The response is an error; check IsError before accessing Integration."); init => _integration = value; }
+    public required IntegrationInfo Integration { get => _integration ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Integration."); init => _integration = value; }
     /// <summary>
     /// Gets the location the server resolved for the request; guarded on the error path.
     /// </summary>
-    public required LocationInfo Location { get => _location ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Location."); init => _location = value; }
+    public required LocationPublicRef Location { get => _location ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Location."); init => _location = value; }
 
     /// <summary>
     /// Prints the shared metadata and appends the payload only when it is present.
@@ -49,7 +49,7 @@ public sealed record IntegrationResponse : OpenCodeResponse
     {
         ArgumentNullException.ThrowIfNull(builder);
         var printed = base.PrintMembers(builder);
-        if (IsError)
+        if (_integration is null)
         {
             return printed;
         }

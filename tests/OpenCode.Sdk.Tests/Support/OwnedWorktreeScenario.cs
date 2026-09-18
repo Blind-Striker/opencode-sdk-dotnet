@@ -30,6 +30,8 @@ internal sealed class OwnedWorktreeScenario
         });
     }
 
+    public string ProjectId { get; private set; } = string.Empty;
+
     public GitRepositoryWorkspace Repository =>
         _repository ?? throw new InvalidOperationException("The worktree scenario has not initialized.");
 
@@ -57,6 +59,17 @@ internal sealed class OwnedWorktreeScenario
         try
         {
             _repository.PrepareWorktreeDestination();
+            var resolved = await _client.GetLocationAsync(
+                new LocationRequest { Location = _repository.Location }, cancellationToken: cancellationToken);
+            var location = resolved.ResolvedLocation;
+            if (!_repository.OwnsDirectory(location.Directory)
+                || !_repository.OwnsDirectory(location.Project.Directory)
+                || !_repository.OwnsDirectory(location.Project.Canonical))
+            {
+                throw new InvalidOperationException("The worktree project did not resolve to the owned repository.");
+            }
+
+            ProjectId = location.Project.Id;
         }
         catch
         {
@@ -76,7 +89,7 @@ internal sealed class OwnedWorktreeScenario
         var response = await _client.Worktrees.RemoveWorktreeAsync(
             new WorktreeRemoveRequest
             {
-                Location = Repository.Location,
+                ProjectId = ProjectId,
                 Directory = Repository.ExpectedWorktreePath,
                 Force = true,
             },

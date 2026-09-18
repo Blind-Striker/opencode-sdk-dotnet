@@ -10,7 +10,7 @@ namespace OpenCode.Sdk;
 /// </summary>
 public sealed record SessionFormResponse : OpenCodeResponse
 {
-    private readonly FormInfo? _form;
+    private readonly FormDetail? _form;
     /// <summary>
     /// Initializes a success instance of the &apos;SessionFormResponse&apos; envelope.
     /// </summary>
@@ -34,7 +34,7 @@ public sealed record SessionFormResponse : OpenCodeResponse
     /// <summary>
     /// Gets the Form payload; guarded on the error path.
     /// </summary>
-    public required FormInfo Form { get => _form ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Form."); init => _form = value; }
+    public required FormDetail Form { get => _form ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Form."); init => _form = value; }
 
     /// <summary>
     /// Prints the shared metadata and appends the payload only when it is present.

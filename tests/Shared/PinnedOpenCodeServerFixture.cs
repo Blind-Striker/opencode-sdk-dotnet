@@ -54,6 +54,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
     private static readonly TimeSpan TeardownTimeout = TimeSpan.FromSeconds(25);
 
     private readonly RealFileSystem _fileSystem = new();
+    private readonly bool _forceOwned;
     private readonly IReadOnlyList<string>? _commandOverride;
     private readonly string? _workingDirectoryOverride;
     private readonly ExternalServerEndpoint? _externalOverride;
@@ -71,6 +72,11 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
 
     public PinnedOpenCodeServerFixture()
     {
+    }
+
+    internal PinnedOpenCodeServerFixture(bool forceOwned)
+    {
+        _forceOwned = forceOwned;
     }
 
     /// <summary>
@@ -144,7 +150,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
         // left over from an operator's WSL2 recipe session must never hijack that test into
         // attaching to a real server instead, so the environment fallback is only consulted for
         // the two modes that do not already name a fixed mode of their own.
-        if (_commandOverride is null || _workingDirectoryOverride is null)
+        if (!_forceOwned && (_commandOverride is null || _workingDirectoryOverride is null))
         {
             var external = _externalOverride ?? ExternalServerEndpoint.FromEnvironment();
             if (external is not null)
@@ -359,7 +365,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
     {
         using var probeTimeout = new CancellationTokenSource(ExternalHealthProbeTimeout);
 
-        HealthResponse health;
+        ServerStatusResponse health;
         try
         {
             // OpenCodeClient construction lives inside this try, not before it: Pipeline's own
@@ -372,7 +378,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
                 Endpoint = external.Endpoint,
                 Password = external.Password,
             });
-            health = await client.GetHealthAsync(cancellationToken: probeTimeout.Token).ConfigureAwait(false);
+            health = await client.Server.GetStatusAsync(cancellationToken: probeTimeout.Token).ConfigureAwait(false);
         }
         catch (OpenCodeApiException apiException)
         {
@@ -403,7 +409,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
         var upstreamCommit = ReadPinnedUpstreamCommit();
         Console.WriteLine(
             $"Attached to external server at '{external.Endpoint}' (reported version: " +
-            $"{health.Health.Version}; pinned upstream commit: {upstreamCommit}). A source run's version " +
+            $"{health.ServerStatus.Version}; pinned upstream commit: {upstreamCommit}). A source run's version " +
             "cannot be verified mechanically.");
 
         _external = external;

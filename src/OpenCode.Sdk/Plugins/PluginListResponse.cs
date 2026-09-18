@@ -11,7 +11,7 @@ namespace OpenCode.Sdk;
 public sealed record PluginListResponse : OpenCodeResponse
 {
     private readonly IReadOnlyList<PluginInfo>? _plugins;
-    private readonly LocationInfo? _location;
+    private readonly LocationPublicRef? _location;
     /// <summary>
     /// Initializes a success instance of the &apos;PluginListResponse&apos; envelope.
     /// </summary>
@@ -40,7 +40,7 @@ public sealed record PluginListResponse : OpenCodeResponse
     /// <summary>
     /// Gets the location the server resolved for the request; guarded on the error path.
     /// </summary>
-    public required LocationInfo Location { get => _location ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Location."); init => _location = value; }
+    public required LocationPublicRef Location { get => _location ?? throw new InvalidOperationException("The response is an error; check IsError before accessing Location."); init => _location = value; }
 
     /// <summary>
     /// Prints the shared metadata and appends the payload only when it is present.

@@ -56,15 +56,12 @@ events. The bus has no replay or resume contract: events during disconnection ar
 consumer can overflow and fail the stream. Ctrl+C exercises the same host cancellation path.
 
 `--stream` and `--events` are mutually exclusive. Run without either flag to keep driving the
-standing breadth walkthrough: health, session
-create/list/get, message list, export with its sanitize query, the permission
-create/get/reply round trip, the NoThrow spine over compact and a deliberately bad fork
-boundary, the mechanism leg — the bodyless POSTs (interrupt, revert clear), the PUT
-family (mcp add, pty update, the instructions entry), and a typed `FormNotFoundError` over
-NoThrow — the envelope-completion leg (vcs branches' ref-to-array shape, the location sibling,
-the session-active dictionary, the server response's flattened single-key `Urls` list, and a
-session's context read), the PTY leg, and the persistent PTY leg, all through the same Extensions
-registration.
+standing breadth walkthrough: status, session create/list/get, message list, experimental export
+with its sanitize query, permission create/get/reply, compact and fork, interrupt and DELETE
+revert-clear, experimental instructions and MCP mutations, PTY update, and a typed
+`FormNotFoundError` through NoThrow. The envelope leg reads `Vcs.ListBranchesAsync`, the resolved
+directory, the session-active dictionary, `Server.GetStatusAsync().ServerStatus.Urls`, and session
+context. The PTY and persistent PTY legs use the same Extensions registration.
 
 The PTY leg (`PtySessionWalkthrough`) is the hand-written family's live proof (ADR-0021). It
 creates a PTY, lists the family, mints a connect ticket through the token door — whose
@@ -99,18 +96,17 @@ ppty-shutdown: status=204 isError=False
 `StandaloneServerWalkthrough` is the M4 launcher demo leg: unlike every mode above, it needs no
 `OPENCODE_SANDBOX_ENDPOINT` and no ambient server — the SDK starts and owns the server itself
 through `OpenCodeServer.StartAsync` (the standalone-start connection mode; `docs/architecture/
-client-runtime.md` §Connection modes), then calls `CreateClient()` and `GetHealthAsync` under a
+client-runtime.md` §Connection modes), then calls `CreateClient()` and `Server.GetStatusAsync` under a
 5-second-bounded probe, the same recipe door 2 (explicit endpoint) would run against a
 caller-supplied endpoint. It is checked before the `OPENCODE_SANDBOX_ENDPOINT` gate, so it is the
 only mode reachable without a running server.
 
-Health is followed by `ModelSelectionWalkthrough`, the compile-and-run home for the "choosing a
-model" recipe in `docs/guide/getting-started.md`: await plugin activation, read the provider and
-model catalogs, then create a session carrying `ModelRef { ProviderId, Id }` and remove it again.
-This leg runs here rather than in the breadth walkthrough because the moment right after health is
-exactly when the catalog can still be empty. A host with no provider credentials configured prints
-`model: none enabled` and the leg still exits 0 — provider inventory is the machine's ambient
-opencode configuration, and a fresh process is not a fresh machine.
+Status is followed by `ModelSelectionWalkthrough`, the executable "choosing a model" recipe.
+It observes provider/model catalogs, creates a session with an available `ModelRef { ProviderId, Id }`,
+and removes it. Catalogs can still be incomplete during asynchronous plugin activation
+(`CONTEXT.md`, Plugin activation). An empty observation prints `model: none currently available`
+and returns successfully; it does not prove that activation has settled or that no provider is
+configured.
 
 `OPENCODE_SANDBOX_SERVER_COMMAND` overrides the launched command (`|`-separated, to survive paths
 with spaces); unset uses the product default (`opencode serve`, resolved from `PATH` the way a

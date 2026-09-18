@@ -81,9 +81,9 @@ public sealed class PinnedManagedServiceFixture : IAsyncInitializer, IAsyncDispo
         });
         try
         {
-            var health = await client.GetHealthAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-            return $"process alive: {alive}; health now: healthy={health.Health.Healthy}, version={health.Health.Version}, "
-                + $"pid={health.Health.Pid.ToString(CultureInfo.InvariantCulture)}";
+            var health = await client.Server.GetStatusAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+            return $"process alive: {alive}; health now: status={health.Status.ToString(CultureInfo.InvariantCulture)}, version={health.ServerStatus.Version}, "
+                + $"pid={health.ServerStatus.Pid.ToString(CultureInfo.InvariantCulture)}";
         }
         catch (OpenCodeException exception)
         {
@@ -260,13 +260,13 @@ public sealed class PinnedManagedServiceFixture : IAsyncInitializer, IAsyncDispo
         using var attempt = new CancellationTokenSource(HealthAttemptTimeout);
         try
         {
-            var health = await client.GetHealthAsync(cancellationToken: attempt.Token).ConfigureAwait(false);
-            if (!health.Health.Healthy || health.Health.Pid != registration.ProcessId)
+            var health = await client.Server.GetStatusAsync(cancellationToken: attempt.Token).ConfigureAwait(false);
+            if (health.ServerStatus.Pid != registration.ProcessId)
             {
                 return false;
             }
 
-            _version = health.Health.Version;
+            _version = health.ServerStatus.Version;
             return true;
         }
         catch (OpenCodeException)

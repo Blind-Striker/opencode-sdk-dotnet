@@ -7,7 +7,7 @@ namespace OpenCode.Sdk;
 public sealed record SessionInterruptPostRequest
 {
     /// <summary>
-    /// Gets the &apos;continue&apos; query value; the server default applies when unset.
+    /// Gets the &apos;resume&apos; query value; the server default applies when unset.
     /// </summary>
-    public QueryBoolean? Continue { get; init; }
+    public QueryBoolean? Resume { get; init; }
 }

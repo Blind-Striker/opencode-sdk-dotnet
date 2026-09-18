@@ -42,4 +42,11 @@ public sealed record ModelCompatibility
     [JsonPropertyName("requireAssistantAfterTool")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? RequireAssistantAfterTool { get; init; }
+
+    /// <summary>
+    /// Gets the supports prompt cache key value.
+    /// </summary>
+    [JsonPropertyName("supportsPromptCacheKey")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? SupportsPromptCacheKey { get; init; }
 }

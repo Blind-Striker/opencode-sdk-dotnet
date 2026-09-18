@@ -2,9 +2,9 @@ namespace OpenCode.Sdk.Tools.Tests.Support;
 
 internal sealed class MaterializationMatrixScenario : SpecScenario
 {
-    public const string GetOperationId = "v2.matrix.get";
-    public const string ChoiceOperationId = "v2.matrix.choice";
-    public const string PatchOperationId = "v2.matrix.patch";
+    public const string GetOperationId = "matrix.get";
+    public const string ChoiceOperationId = "matrix.choice";
+    public const string PatchOperationId = "matrix.patch";
 
     protected override void Arrange(SpecDocumentBuilder spec) => spec
         .WithSchema("MatrixChoiceAlpha", schema => Choice(schema, "alpha"))

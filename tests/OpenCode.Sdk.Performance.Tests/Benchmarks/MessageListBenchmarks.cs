@@ -58,16 +58,16 @@ public class MessageListBenchmarks : IDisposable
 
     /// <summary>The complete generated page operation.</summary>
     [Benchmark]
-    public Task<MessageListResponse> ListMessagesAsync() => _session!.ListMessagesAsync();
+    public Task<SessionMessageListResponse> ListMessagesAsync() => _session!.ListMessagesAsync();
 
     /// <summary>The generated adapter over validated UTF-8: page materialization plus the response record.</summary>
     [Benchmark]
-    public MessageListResponse AdaptSuccess() => MessageListResponseAdapter.Instance.AdaptSuccess(200, _page);
+    public SessionMessageListResponse AdaptSuccess() => SessionMessageListResponseAdapter.Instance.AdaptSuccess(200, _page);
 
     /// <summary>Source-generated materialization of the page envelope and its items alone.</summary>
     [Benchmark]
     public object? DeserializeEnvelope() =>
-        JsonSerializer.Deserialize(_page, OpenCodeJsonContext.Default.MessageListResponseEnvelope);
+        JsonSerializer.Deserialize(_page, OpenCodeJsonContext.Default.SessionMessageListResponseEnvelope);
 
     [GlobalCleanup]
     public void Cleanup() => Dispose();

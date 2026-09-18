@@ -8,7 +8,7 @@ class because a schema can belong to more than one union: 41 of the 43 branches 
 `Session.Event.Durable` are also direct branches of `V2Event`, so the same leaf must answer to both
 the durable log stream and the live event bus. C# allows one base class, and the binder already
 refuses this by name — *"schema cannot derive from both '…' and '…'"* — which would leave
-`v2.event.subscribe`, the surface every upstream front-end consumes (research doc 02), permanently
+`event.subscribe`, the surface every upstream front-end consumes (research doc 02), permanently
 ungenerable. Interfaces make membership plural, and because both unions discriminate on the same
 wire field the leaf satisfies both contracts with one property.
 

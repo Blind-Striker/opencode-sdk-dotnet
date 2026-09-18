@@ -36,7 +36,7 @@ internal sealed class LocationResponseAdapter : ResponseAdapter<LocationResponse
     public override LocationResponse AdaptSuccess(int status, ReadOnlySpan<byte> utf8Body) => new()
     {
         Status = status,
-        ResolvedLocation = ReadBarePayload(utf8Body, OpenCodeJsonContext.Default.LocationInfo)
+        ResolvedLocation = ReadBarePayload(utf8Body, OpenCodeJsonContext.Default.LocationPublicInfo)
     };
     /// <summary>
     /// Maps one buffered response onto the typed envelope.
@@ -49,7 +49,7 @@ internal sealed class LocationResponseAdapter : ResponseAdapter<LocationResponse
             200 => new LocationResponse
             {
                 Status = status,
-                ResolvedLocation = ReadBarePayload(rawBody, OpenCodeJsonContext.Default.LocationInfo)
+                ResolvedLocation = ReadBarePayload(rawBody, OpenCodeJsonContext.Default.LocationPublicInfo)
             },
             >= 200 and < 300 => throw StatusVerdictFailures.UndeclaredSuccess(status),
             400 => new LocationResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),

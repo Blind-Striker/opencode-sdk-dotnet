@@ -16,9 +16,7 @@ public sealed class DebugClientContractTests
 
         await Assert.That(response.Locations.Count).IsEqualTo(2);
         await Assert.That(response.Locations[0].Directory).IsEqualTo("/repo");
-        await Assert.That(response.Locations[0].WorkspaceId).IsEqualTo("wrk_1");
         await Assert.That(response.Locations[1].Directory).IsEqualTo("/other");
-        await Assert.That(response.Locations[1].WorkspaceId).IsNull();
         await Assert.That(scenario.Requests.Single().RequestUri)
             .IsEqualTo(new Uri("http://localhost:4096/api/debug/location"));
     }

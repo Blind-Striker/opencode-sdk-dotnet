@@ -2,6 +2,7 @@
 // Do not edit by hand — change tools/curation.json or the emitters, then regenerate.
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
@@ -35,12 +36,6 @@ public sealed record SessionMessageLocationSwitched : ISessionMessageInfo
     public string Type => "location-switched";
 
     /// <summary>
-    /// Gets the location value.
-    /// </summary>
-    [JsonPropertyName("location")]
-    public required LocationRef Location { get; init; }
-
-    /// <summary>
     /// Gets the project id value.
     /// </summary>
     [JsonPropertyName("projectID")]
@@ -55,9 +50,16 @@ public sealed record SessionMessageLocationSwitched : ISessionMessageInfo
     public string? Subpath { get; init; }
 
     /// <summary>
+    /// Gets the location value.
+    /// </summary>
+    [JsonPropertyName("location")]
+    public required LocationPublicRef Location { get; init; }
+
+    /// <summary>
     /// Gets the previous value.
     /// </summary>
     [JsonPropertyName("previous")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public SessionMessageLocationSwitchedPrevious? Previous { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    [JsonConverter(typeof(OptionalOfSessionMessageLocationSwitchedPreviousJsonConverter))]
+    public Optional<SessionMessageLocationSwitchedPrevious?> Previous { get; init; }
 }

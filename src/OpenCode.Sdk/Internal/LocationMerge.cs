@@ -33,10 +33,9 @@ internal static class LocationMerge
         }
 
         var directory = perCall.Directory ?? ambient.Directory;
-        var workspace = perCall.Workspace ?? ambient.Workspace;
 
         // Nothing was inherited, so the per-call selector already is the merge.
-        if (ReferenceEquals(directory, perCall.Directory) && ReferenceEquals(workspace, perCall.Workspace))
+        if (ReferenceEquals(directory, perCall.Directory))
         {
             return perCall;
         }
@@ -44,7 +43,6 @@ internal static class LocationMerge
         return new LocationSelector
         {
             Directory = directory,
-            Workspace = workspace,
         };
     }
 }

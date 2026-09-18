@@ -8,7 +8,7 @@
   "schemaAliases": [],
   "mutuallyExclusiveQueries": [
     {
-      "operation": "v2.message.list",
+      "operation": "message.list",
       "parameters": [
         "order",
         "cursor"

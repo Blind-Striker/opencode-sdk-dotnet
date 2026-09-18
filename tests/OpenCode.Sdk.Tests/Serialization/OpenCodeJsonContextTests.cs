@@ -164,7 +164,7 @@ public sealed class OpenCodeJsonContextTests
         var context = new OpenCodeJsonContext(new JsonSerializerOptions { DefaultBufferSize = 16 });
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
 
-        var page = await JsonSerializer.DeserializeAsync(stream, context.MessageListResponseEnvelope);
+        var page = await JsonSerializer.DeserializeAsync(stream, context.SessionMessageListResponseEnvelope);
 
         await Assert.That(page).IsNotNull();
         await Assert.That(page!.Data.Count).IsEqualTo(2);
@@ -900,7 +900,7 @@ public sealed class OpenCodeJsonContextTests
             Id = "evt_1",
             Created = 1,
             Type = type,
-            Location = new LocationRef { Directory = "/repo" },
+            Location = new LocationPublicRef { Directory = "/repo" },
             Data = new Dictionary<string, JsonElement>(StringComparer.Ordinal),
         };
 

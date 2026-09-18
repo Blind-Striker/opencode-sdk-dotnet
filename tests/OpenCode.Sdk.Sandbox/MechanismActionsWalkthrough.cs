@@ -10,7 +10,7 @@ namespace OpenCode.Sdk.Sandbox;
 /// </summary>
 internal static class MechanismActionsWalkthrough
 {
-    public static async Task RunAsync(OpenCodeClient client, SessionClient handle)
+    public static async Task RunAsync(OpenCodeClient client, SessionClient handle, string sessionId)
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(handle);
@@ -19,33 +19,32 @@ internal static class MechanismActionsWalkthrough
 
         Console.WriteLine($"interrupt: status={interrupt.Status} isError={interrupt.IsError}");
 
-        var revertClear = await handle.PostRevertClearAsync(OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
+        var revertClear = await handle.DeleteRevertClearAsync(OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
 
         Console.WriteLine(revertClear.IsError
             ? $"revert-clear: status={revertClear.Status} error={ErrorName(revertClear)}"
             : $"revert-clear: status={revertClear.Status}");
 
         using var value = JsonDocument.Parse("\"answer tersely\"");
-        var entryPut = await handle.PutInstructionsEntryAsync(
+        var entryPut = await client.Experimental.PutSessionInstructionsEntryAsync(sessionId,
                 "style",
-                new SessionInstructionsEntryPutRequest { Value = value.RootElement })
+                new ExperimentalSessionInstructionsEntryPutRequest { Value = value.RootElement })
             .ConfigureAwait(false);
 
         Console.WriteLine($"instructions-put: status={entryPut.Status}");
 
-        var entryRemove = await handle.RemoveInstructionsEntryAsync("style", OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
+        var entryRemove = await client.Experimental.RemoveSessionInstructionsEntryAsync(sessionId, "style", OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
 
         Console.WriteLine($"instructions-remove: status={entryRemove.Status} isError={entryRemove.IsError}");
 
-        var formCancel = await handle.PostFormCancelAsync("frm_missing", OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
+        var formCancel = await handle.DeleteFormCancelAsync("frm_missing", OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
 
         Console.WriteLine(formCancel.IsError
             ? $"form-cancel: status={formCancel.Status} error={ErrorName(formCancel)}"
             : $"form-cancel: status={formCancel.Status}");
 
-        var mcp = client.McpServers.GetMcpServerClient("sandbox-echo");
-        var mcpAdd = await mcp.PutAddAsync(
-                new McpAddPutRequest
+        var mcpAdd = await client.Experimental.AddMcpServerAsync("sandbox-echo",
+                new ExperimentalMcpAddPutRequest
                 {
                     Config = new McpLocalConfig { Command = ["bun", "--version"], Disabled = true },
                 },
@@ -56,13 +55,13 @@ internal static class MechanismActionsWalkthrough
             ? $"mcp-add: status={mcpAdd.Status} error={ErrorName(mcpAdd)}"
             : $"mcp-add: status={mcpAdd.Status}");
 
-        var mcpDisconnect = await mcp.PostDisconnectAsync(null, OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
+        var mcpDisconnect = await client.Experimental.DisconnectMcpServerAsync("sandbox-echo", null, OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
 
         Console.WriteLine(mcpDisconnect.IsError
             ? $"mcp-disconnect: status={mcpDisconnect.Status} error={ErrorName(mcpDisconnect)}"
             : $"mcp-disconnect: status={mcpDisconnect.Status}");
 
-        var mcpRemove = await mcp.RemoveMcpServerAsync(null, OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
+        var mcpRemove = await client.Experimental.RemoveMcpServerAsync("sandbox-echo", null, OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
 
         Console.WriteLine($"mcp-remove: status={mcpRemove.Status} isError={mcpRemove.IsError}");
 

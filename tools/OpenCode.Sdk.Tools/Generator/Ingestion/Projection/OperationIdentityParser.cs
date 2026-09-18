@@ -3,20 +3,21 @@ namespace OpenCode.Sdk.Tools.Generator.Ingestion.Projection;
 internal static class OperationIdentityParser
 {
     /// <summary>
-    /// The transport prefix every well-formed operation identity carries. Shared rather than
-    /// respelled because binding strips it from operation-scoped schema roots too: public
-    /// identifiers never carry <c>V2</c> merely because upstream used that transport prefix
-    /// (ADR-0005), and one literal keeps the two strips from drifting apart.
+    /// Every upstream group id is <c>server.&lt;name&gt;</c>, so an endpoint that omits its own identifier
+    /// is emitted as <c>server.&lt;name&gt;.&lt;endpoint&gt;</c>. The server group's own operations are the only
+    /// identities that legitimately start with this segment, and they have exactly two segments.
     /// </summary>
-    internal const string ProtocolPrefix = "v2.";
+    private const string GroupQualifier = "server";
 
-    /// <summary>Checks whether an operation identity satisfies the protocol-prefix convention.</summary>
+    /// <summary>Checks for a group/action identity without the Effect group qualification defect.</summary>
     public static bool IsWellFormed(string operationId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
 
-        return operationId.StartsWith(ProtocolPrefix, StringComparison.Ordinal)
-               && !operationId[ProtocolPrefix.Length..].Split('.').Any(string.IsNullOrWhiteSpace);
+        var segments = operationId.Split('.');
+        return segments.Length >= 2
+               && !segments.Any(string.IsNullOrWhiteSpace)
+               && !(segments.Length > 2 && string.Equals(segments[0], GroupQualifier, StringComparison.Ordinal));
     }
 
     public static OperationIdentity? Parse(string operationId, string path, string location, IngestionErrorCollector errors)
@@ -26,16 +27,16 @@ internal static class OperationIdentityParser
         ArgumentException.ThrowIfNullOrWhiteSpace(location);
         ArgumentNullException.ThrowIfNull(errors);
 
-        if (!operationId.StartsWith(ProtocolPrefix, StringComparison.Ordinal))
-        {
-            errors.Add(location, $"operationId '{operationId}' does not carry the '{ProtocolPrefix}' protocol prefix");
-            return null;
-        }
-
-        var segments = operationId[ProtocolPrefix.Length..].Split('.');
+        var segments = operationId.Split('.');
         if (segments.Any(string.IsNullOrWhiteSpace))
         {
             errors.Add(location, $"operationId '{operationId}' contains an empty segment");
+            return null;
+        }
+
+        if (!IsWellFormed(operationId))
+        {
+            errors.Add(location, $"operationId '{operationId}' does not satisfy the group/action convention; upstream identity defects require an explicit curation repair");
             return null;
         }
 

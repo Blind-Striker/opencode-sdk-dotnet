@@ -68,13 +68,13 @@ public sealed class OpenCodeServerCommandResolutionTests
             await Assert.That(ProcessObservation.IsRunning(server.ProcessId)).IsTrue();
 
             using var client = server.CreateClient();
-            var health = await client.GetHealthAsync(cancellationToken: cancellationToken);
+            var health = await client.Server.GetStatusAsync(cancellationToken: cancellationToken);
 
-            await Assert.That(health.Health.Healthy).IsTrue();
+            await Assert.That(health.Status).IsEqualTo(200);
 
             // The documented consequence of routing a batch shim through cmd.exe: the owned root
             // is the interpreter, and the server answering health is its grandchild.
-            serverPid = checked((int)health.Health.Pid);
+            serverPid = checked((int)health.ServerStatus.Pid);
             await Assert.That(serverPid).IsNotEqualTo(server.ProcessId);
         }
         catch

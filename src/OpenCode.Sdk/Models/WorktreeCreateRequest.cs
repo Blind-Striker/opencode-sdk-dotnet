@@ -9,11 +9,10 @@ namespace OpenCode.Sdk.Models;
 public sealed record WorktreeCreateRequest
 {
     /// <summary>
-    /// Gets the strategy value.
+    /// Gets the project id value.
     /// </summary>
-    [JsonPropertyName("strategy")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Strategy { get; init; }
+    [JsonPropertyName("projectID")]
+    public required string ProjectId { get; init; }
 
     /// <summary>
     /// Gets the from value.
@@ -42,10 +41,4 @@ public sealed record WorktreeCreateRequest
     [JsonPropertyName("name")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Name { get; init; }
-
-    /// <summary>
-    /// Gets the &apos;location&apos; query value; the server default applies when unset.
-    /// </summary>
-    [JsonIgnore]
-    public LocationSelector? Location { get; init; }
 }

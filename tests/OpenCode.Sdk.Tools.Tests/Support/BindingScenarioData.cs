@@ -50,7 +50,7 @@ internal static class BindingScenarioData
         };
 
     public static OperationIdentityCuration OperationIdentity(string operationId, string identity,
-        string reason = "Upstream emits the operationId without the protocol prefix (reported upstream).") =>
+        string reason = "Upstream leaks the Effect group qualification into the operationId (reported upstream).") =>
         new()
         {
             OperationId = operationId,

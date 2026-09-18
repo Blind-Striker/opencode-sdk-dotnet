@@ -1,6 +1,6 @@
 # Protocol and Generation Architecture
 
-Date: 2026-09-12
+Date: 2026-09-17
 
 Canonical current rules for the protocol surface, generator, generated models, and runtime
 materialization boundary. ADRs record why these decisions were made; dated research records the
@@ -14,11 +14,16 @@ evidence and may contain superseded positions.
   exact identity and the current procedure (ADR-0005, ADR-0013, ADR-0020).
 - Upstream implementation source is provenance and diagnostic evidence only. It never supplies a
   missing wire type, constraint, format, status, media type, or validation rule (ADR-0013).
-- The public SDK covers the v2 protocol surface only. Public identifiers strip the `v2.` operation
-  ID prefix; `V2` never appears merely because upstream used that transport prefix (ADR-0005).
+- The public SDK covers the OpenCode 2.x protocol surface only. At the current pin, operation
+  identities use dotted group/action segments without a version prefix. The first segment selects
+  the curated client family; `experimental.*` operations use the flat ExperimentalClient with
+  explicit route arguments. Every upstream group id is `server.<name>`, so an endpoint that omits
+  its own identifier leaks `server.<name>.<endpoint>`; any such group-qualified identity is refused
+  until an explicit reason-bearing identity repair names it, and well-formed identities cannot be
+  remapped (ADR-0005).
 - Derived model names strip Effect's encode-side `*Encoded` component suffix unless the unsuffixed
-  component itself exists in the document — a mechanical projection-artifact rule beside the `v2.`
-  strip, owned by `ProjectionArtifactNamePolicy`, never a per-row curation act (maintainer-sealed
+  component itself exists in the document — a mechanical projection-artifact rule owned by
+  `ProjectionArtifactNamePolicy`, never a per-row curation act (maintainer-sealed
   2026-08-27, research log Q150).
 
 ## Snapshot production
@@ -76,10 +81,18 @@ Curation may:
   identity through a reason-bearing operation-identity row carrying the upstream report; the row
   retires when upstream's fix makes it stale (ADR-0013).
 
-The structurally-equivalent collapse is mechanical wherever upstream's stabilize suffix names it:
-a reachable `<base>_<N>` component folds into `<base>` when the two are structurally identical and
-refuses by name when they are not, so a `schemaAliases` row remains only for a duplicate no
-convention recognizes.
+The structurally-equivalent collapse is mechanical wherever upstream's stabilize suffix names it: a
+reachable `<base>_<N>` component folds into `<base>` when the two are structurally identical. A
+non-equivalent candidate remains distinct only through an explicit, reason-bearing `schemaNames`
+row, and only when it is a nominal schema outside the response spine — an envelope wrapper or
+operation-inline root is never a model, and a non-nominal shape has no model identity to
+distinguish; every other non-equivalent candidate refuses by name, with or without a row. The
+ordinary curation validity and resolved-name collision checks still apply. Naming never changes
+either shape or prevents an equivalent pair from folding: a row naming a candidate that folds is
+refused as redundant, so the refresh that makes a pair equivalent surfaces the dead row instead of
+carrying it, and a `schemaAliases` row remains only for a duplicate no convention recognizes. This
+distinction handles upstream identifiers reused for different public and event projections without
+treating the numeric suffix as evidence of structural equivalence.
 
 Curation may not add a wire type, format, constraint, cross-field rule, or runtime validation
 absent from the pin. Descriptions generate documentation, not executable semantics. Projection

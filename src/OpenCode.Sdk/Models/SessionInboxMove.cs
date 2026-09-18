@@ -21,10 +21,10 @@ public sealed record SessionInboxMove : ISessionInboxInfo
     public required string SessionId { get; init; }
 
     /// <summary>
-    /// Gets the time created value.
+    /// Gets the time value.
     /// </summary>
-    [JsonPropertyName("timeCreated")]
-    public required double TimeCreated { get; init; }
+    [JsonPropertyName("time")]
+    public required SessionInboxMoveTime Time { get; init; }
 
     /// <summary>
     /// Gets the type value.
@@ -33,18 +33,18 @@ public sealed record SessionInboxMove : ISessionInboxInfo
     public string Type => "move";
 
     /// <summary>
-    /// Gets the payload value.
-    /// </summary>
-    [JsonPropertyName("payload")]
-    public required SessionInboxMovePayload Payload { get; init; }
-
-    /// <summary>
     /// Gets the delivery value.
     /// </summary>
     [JsonPropertyName("delivery")]
     public required SessionInboxDelivery Delivery { get; init; }
 
-    double? ISessionInboxInfo.TimeCreated => TimeCreated;
+    /// <summary>
+    /// Gets the payload value.
+    /// </summary>
+    [JsonPropertyName("payload")]
+    public required SessionInboxMovePayload Payload { get; init; }
+
+    ISessionInboxInfoTime? ISessionInboxInfo.Time => Time;
 
     SessionInboxDelivery? ISessionInboxInfo.Delivery => Delivery;
 }
