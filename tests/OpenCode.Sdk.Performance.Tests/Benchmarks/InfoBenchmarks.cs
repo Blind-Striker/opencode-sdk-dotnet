@@ -15,7 +15,7 @@ namespace OpenCode.Sdk.Performance.Tests.Benchmarks;
 /// above it minus one layer.
 /// </summary>
 [MemoryDiagnoser]
-public class StatusBenchmarks : IDisposable
+public class InfoBenchmarks : IDisposable
 {
     private static readonly OpenCodeClientOptions Options = new()
     {
@@ -31,8 +31,8 @@ public class StatusBenchmarks : IDisposable
 
     public static IEnumerable<WireFixture> Fixtures()
     {
-        var body = BenchmarkFixtures.StatusBody();
-        yield return new WireFixture("status", body, items: 1, payloadBytesPerItem: body.Length);
+        var body = BenchmarkFixtures.InfoBody();
+        yield return new WireFixture("info", body, items: 1, payloadBytesPerItem: body.Length);
     }
 
     [ParamsSource(nameof(Fixtures))]
@@ -47,29 +47,29 @@ public class StatusBenchmarks : IDisposable
         _client = new OpenCodeClient(_httpClient, Options);
         _pipeline = new Pipeline(_httpClient, ownsHttpClient: false, Options);
 
-        var response = await GetStatusAsync().ConfigureAwait(false);
-        if (response.ServerStatus is not { Version: "0.0.0-bench", Pid: 42 })
+        var response = await GetInfoAsync().ConfigureAwait(false);
+        if (response.ServerInfo is not { Version: "0.0.0-bench", Pid: 42 })
         {
-            throw new InvalidOperationException("The status fixture did not materialize the expected server identity.");
+            throw new InvalidOperationException("The info fixture did not materialize the expected server identity.");
         }
     }
 
     /// <summary>The complete generated operation: request, decoration, send, buffer, validate, adapt, materialize.</summary>
     [Benchmark]
-    public Task<ServerStatusResponse> GetStatusAsync() => _client!.Server.GetStatusAsync();
+    public Task<ServerInfoResponse> GetInfoAsync() => _client!.Server.GetInfoAsync();
 
     /// <summary>The same pipeline through a no-op adapter: everything above minus JSON and model cost.</summary>
     [Benchmark]
     public Task<NoOpResponse> ExecuteWithoutAdapterAsync() =>
-        _pipeline!.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Server.GetStatus, NoOpResponseAdapter.Instance, options: null, CancellationToken.None);
+        _pipeline!.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Server.GetInfo, NoOpResponseAdapter.Instance, options: null, CancellationToken.None);
 
     /// <summary>The generated adapter over validated UTF-8: materialization plus the response envelope.</summary>
     [Benchmark]
-    public ServerStatusResponse AdaptSuccess() => ServerStatusResponseAdapter.Instance.AdaptSuccess(200, _body);
+    public ServerInfoResponse AdaptSuccess() => ServerInfoResponseAdapter.Instance.AdaptSuccess(200, _body);
 
     /// <summary>Source-generated materialization alone.</summary>
     [Benchmark]
-    public ServerStatus? Deserialize() => JsonSerializer.Deserialize(_body, OpenCodeJsonContext.Default.ServerStatus);
+    public ServerInfo? Deserialize() => JsonSerializer.Deserialize(_body, OpenCodeJsonContext.Default.ServerInfo);
 
     [GlobalCleanup]
     public void Cleanup() => Dispose();

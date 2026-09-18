@@ -47,9 +47,9 @@ public sealed class OpenCodeServerDiscoveryIsolatedProcessTests
 
         await Assert.That(result.ExitCode).IsEqualTo(0).Because(result.StandardError);
         await Assert.That(result.StandardOutput.Trim())
-            .IsEqualTo(ServiceFixtureOutput.FoundLine(ServiceStatusBodyData.Pid, health.Endpoint))
+            .IsEqualTo(ServiceFixtureOutput.FoundLine(ServiceInfoBodyData.Pid, health.Endpoint))
             .Because(result.StandardError);
-        await Assert.That(health.RequestPaths).IsEquivalentTo(["/api/status"]);
+        await Assert.That(health.RequestPaths).IsEquivalentTo(["/api/info"]);
     }
 
     [Test]
@@ -75,19 +75,19 @@ public sealed class OpenCodeServerDiscoveryIsolatedProcessTests
 
         await Assert.That(result.ExitCode).IsEqualTo(0).Because(result.StandardError);
         await Assert.That(result.StandardOutput.Trim())
-            .IsEqualTo(ServiceFixtureOutput.FoundLine(ServiceStatusBodyData.Pid, health.Endpoint))
+            .IsEqualTo(ServiceFixtureOutput.FoundLine(ServiceInfoBodyData.Pid, health.Endpoint))
             .Because(result.StandardError);
-        await Assert.That(health.RequestPaths).IsEquivalentTo(["/api/status"]);
+        await Assert.That(health.RequestPaths).IsEquivalentTo(["/api/info"]);
     }
 
     private static LoopbackHttpResponse ReadyHealth() =>
-        new() { StatusCode = HttpStatusCode.OK, Body = ServiceStatusBodyData.Ready, ContentType = "application/json" };
+        new() { StatusCode = HttpStatusCode.OK, Body = ServiceInfoBodyData.Ready, ContentType = "application/json" };
 
     /// <summary>Writes the registration the loopback daemon (pid 42, version 0.0.0-test) would have published.</summary>
     private static void Seed(string path, Uri endpoint)
     {
-        var document = "{\"id\":\"isolated\",\"version\":\"" + ServiceStatusBodyData.Version + "\",\"url\":\"" + endpoint
-            + "\",\"pid\":" + ServiceStatusBodyData.Pid.ToString(CultureInfo.InvariantCulture)
+        var document = "{\"id\":\"isolated\",\"version\":\"" + ServiceInfoBodyData.Version + "\",\"url\":\"" + endpoint
+            + "\",\"pid\":" + ServiceInfoBodyData.Pid.ToString(CultureInfo.InvariantCulture)
             + ",\"password\":\"" + IsolatedPassword + "\"}";
         _ = FileSystem.Directory.CreateDirectory(FileSystem.Path.GetDirectoryName(path)!);
         FileSystem.File.WriteAllText(path, document);

@@ -6,15 +6,15 @@ using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk;
 /// <summary>
-/// Represents the response of the &apos;GET /api/status&apos; operation.
+/// Represents the response of the &apos;GET /api/info&apos; operation.
 /// </summary>
-public sealed record ServerStatusResponse : OpenCodeResponse
+public sealed record ServerInfoResponse : OpenCodeResponse
 {
-    private readonly ServerStatus? _serverStatus;
+    private readonly ServerInfo? _serverInfo;
     /// <summary>
-    /// Initializes a success instance of the &apos;ServerStatusResponse&apos; envelope.
+    /// Initializes a success instance of the &apos;ServerInfoResponse&apos; envelope.
     /// </summary>
-    public ServerStatusResponse()
+    public ServerInfoResponse()
     {
     }
 
@@ -22,19 +22,19 @@ public sealed record ServerStatusResponse : OpenCodeResponse
     /// Initializes an error-path instance; the payload stays unset behind its guard.
     /// </summary>
     [SetsRequiredMembers]
-    internal ServerStatusResponse(int status, IOpenCodeError? error, string? rawBody)
+    internal ServerInfoResponse(int status, IOpenCodeError? error, string? rawBody)
     {
         Status = status;
         IsError = true;
         Error = error;
         RawBody = rawBody;
-        ServerStatus = null!;
+        ServerInfo = null!;
     }
 
     /// <summary>
-    /// Gets the ServerStatus payload; guarded on the error path.
+    /// Gets the ServerInfo payload; guarded on the error path.
     /// </summary>
-    public required ServerStatus ServerStatus { get => _serverStatus ?? throw new InvalidOperationException("The response is an error; check IsError before accessing ServerStatus."); init => _serverStatus = value; }
+    public required ServerInfo ServerInfo { get => _serverInfo ?? throw new InvalidOperationException("The response is an error; check IsError before accessing ServerInfo."); init => _serverInfo = value; }
 
     /// <summary>
     /// Prints the shared metadata and appends the payload only when it is present.
@@ -43,7 +43,7 @@ public sealed record ServerStatusResponse : OpenCodeResponse
     {
         ArgumentNullException.ThrowIfNull(builder);
         var printed = base.PrintMembers(builder);
-        if (_serverStatus is null)
+        if (_serverInfo is null)
         {
             return printed;
         }
@@ -53,7 +53,7 @@ public sealed record ServerStatusResponse : OpenCodeResponse
             _ = builder.Append(", ");
         }
 
-        _ = builder.Append("ServerStatus = ").Append(_serverStatus);
+        _ = builder.Append("ServerInfo = ").Append(_serverInfo);
         return true;
     }
 }

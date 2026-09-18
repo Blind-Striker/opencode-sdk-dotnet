@@ -4,20 +4,20 @@ using OpenCode.Sdk.Internal.Serialization;
 
 namespace OpenCode.Sdk.Internal.ResponseAdapters;
 /// <summary>
-/// Adapts the &apos;GET /api/status&apos; responses onto &apos;ServerStatusResponse&apos;.
+/// Adapts the &apos;GET /api/info&apos; responses onto &apos;ServerInfoResponse&apos;.
 /// </summary>
-internal sealed class ServerStatusResponseAdapter : ResponseAdapter<ServerStatusResponse>
+internal sealed class ServerInfoResponseAdapter : ResponseAdapter<ServerInfoResponse>
 {
     private static readonly string[] Status400Tags = ["InvalidRequestError"];
     private static readonly string[] Status401Tags = ["UnauthorizedError"];
-    private ServerStatusResponseAdapter()
+    private ServerInfoResponseAdapter()
     {
     }
 
     /// <summary>
     /// Gets the shared adapter instance.
     /// </summary>
-    public static ServerStatusResponseAdapter Instance { get; } = new ServerStatusResponseAdapter();
+    public static ServerInfoResponseAdapter Instance { get; } = new ServerInfoResponseAdapter();
 
     /// <summary>
     /// Classifies a status under this operation&apos;s pinned contract.
@@ -33,28 +33,28 @@ internal sealed class ServerStatusResponseAdapter : ResponseAdapter<ServerStatus
     /// <summary>
     /// Maps the declared UTF-8 success body onto the typed envelope.
     /// </summary>
-    public override ServerStatusResponse AdaptSuccess(int status, ReadOnlySpan<byte> utf8Body) => new()
+    public override ServerInfoResponse AdaptSuccess(int status, ReadOnlySpan<byte> utf8Body) => new()
     {
         Status = status,
-        ServerStatus = ReadBarePayload(utf8Body, OpenCodeJsonContext.Default.ServerStatus)
+        ServerInfo = ReadBarePayload(utf8Body, OpenCodeJsonContext.Default.ServerInfo)
     };
     /// <summary>
     /// Maps one buffered response onto the typed envelope.
     /// </summary>
-    public override ServerStatusResponse Adapt(int status, string rawBody)
+    public override ServerInfoResponse Adapt(int status, string rawBody)
     {
         ArgumentNullException.ThrowIfNull(rawBody);
         return status switch
         {
-            200 => new ServerStatusResponse
+            200 => new ServerInfoResponse
             {
                 Status = status,
-                ServerStatus = ReadBarePayload(rawBody, OpenCodeJsonContext.Default.ServerStatus)
+                ServerInfo = ReadBarePayload(rawBody, OpenCodeJsonContext.Default.ServerInfo)
             },
             >= 200 and < 300 => throw StatusVerdictFailures.UndeclaredSuccess(status),
-            400 => new ServerStatusResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),
-            401 => new ServerStatusResponse(status, ReadTolerantError(rawBody, Status401Tags), rawBody),
-            _ => new ServerStatusResponse(status, ReadTolerantError(rawBody, null), rawBody)
+            400 => new ServerInfoResponse(status, ReadTolerantError(rawBody, Status400Tags), rawBody),
+            401 => new ServerInfoResponse(status, ReadTolerantError(rawBody, Status401Tags), rawBody),
+            _ => new ServerInfoResponse(status, ReadTolerantError(rawBody, null), rawBody)
         };
     }
 }

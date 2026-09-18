@@ -69,7 +69,7 @@ public class MessageGetBenchmarks : IDisposable
     /// <summary>The same pipeline through a no-op adapter: request, send, buffer, and UTF-8 validation only.</summary>
     [Benchmark]
     public Task<NoOpResponse> ExecuteWithoutAdapterAsync() =>
-        _pipeline!.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Server.GetStatus, NoOpResponseAdapter.Instance, options: null, CancellationToken.None);
+        _pipeline!.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Server.GetInfo, NoOpResponseAdapter.Instance, options: null, CancellationToken.None);
 
     /// <summary>The generated adapter over validated UTF-8: envelope materialization plus the response record.</summary>
     [Benchmark]

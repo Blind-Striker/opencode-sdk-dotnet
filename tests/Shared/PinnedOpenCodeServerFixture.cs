@@ -400,7 +400,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
     {
         using var probeTimeout = new CancellationTokenSource(ExternalHealthProbeTimeout);
 
-        ServerStatusResponse health;
+        ServerInfoResponse health;
         try
         {
             // OpenCodeClient construction lives inside this try, not before it: Pipeline's own
@@ -413,7 +413,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
                 Endpoint = external.Endpoint,
                 Password = external.Password,
             });
-            health = await client.Server.GetStatusAsync(cancellationToken: probeTimeout.Token).ConfigureAwait(false);
+            health = await client.Server.GetInfoAsync(cancellationToken: probeTimeout.Token).ConfigureAwait(false);
         }
         catch (OpenCodeApiException apiException)
         {
@@ -444,7 +444,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
         var upstreamCommit = ReadPinnedUpstreamCommit();
         Console.WriteLine(
             $"Attached to external server at '{external.Endpoint}' (reported version: " +
-            $"{health.ServerStatus.Version}; pinned upstream commit: {upstreamCommit}). A source run's version " +
+            $"{health.ServerInfo.Version}; pinned upstream commit: {upstreamCommit}). A source run's version " +
             "cannot be verified mechanically.");
 
         _external = external;

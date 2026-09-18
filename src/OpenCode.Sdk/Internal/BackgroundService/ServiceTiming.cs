@@ -5,7 +5,7 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 /// injectable and never public: discovery uses the request bound, Ensure and Stop the rest, and
 /// the tests accelerate all of them the way upstream's own fixture does.
 /// </summary>
-/// <param name="RequestTimeout">The bound on one status request.</param>
+/// <param name="RequestTimeout">The bound on one info request.</param>
 /// <param name="PollInterval">The Ensure loop's spacing between iterations.</param>
 /// <param name="Attempts">The Ensure loop's recurrence count after the initial run.</param>
 /// <param name="SpawnDelay">The delay before a contender is started while a registration is unresolved.</param>

@@ -17,7 +17,7 @@ public sealed class PipelineResponseOwnershipTests
         using var pipeline = PipelineFactory.Create(httpClient);
 
         _ = await pipeline.ExecuteAsync(
-            HttpMethod.Get, "/api/status", new RecordingResponseAdapter(), options: null, CancellationToken.None);
+            HttpMethod.Get, "/api/info", new RecordingResponseAdapter(), options: null, CancellationToken.None);
 
         await Assert.That(response.IsDisposed).IsTrue();
         await Assert.That(content.IsDisposed).IsTrue();
@@ -64,7 +64,7 @@ public sealed class PipelineResponseOwnershipTests
 
         _ = await Assert
             .That(async () => _ = await pipeline.ExecuteAsync(
-                HttpMethod.Get, "/api/status", adapter, options: null, CancellationToken.None))
+                HttpMethod.Get, "/api/info", adapter, options: null, CancellationToken.None))
             .Throws<OpenCodeApiException>();
 
         await Assert.That(response.IsDisposed).IsTrue();
@@ -83,7 +83,7 @@ public sealed class PipelineResponseOwnershipTests
         _ = await Assert
             .That(async () => _ = await pipeline.ExecuteAsync(
                 HttpMethod.Get,
-                "/api/status",
+                "/api/info",
                 new RecordingResponseAdapter(),
                 OpenCodeRequestOptions.NoThrow,
                 CancellationToken.None))
@@ -105,7 +105,7 @@ public sealed class PipelineResponseOwnershipTests
 
         _ = await Assert
             .That(async () => _ = await pipeline.ExecuteAsync(
-                HttpMethod.Get, "/api/status", new RecordingResponseAdapter(), options: null, cancellation.Token))
+                HttpMethod.Get, "/api/info", new RecordingResponseAdapter(), options: null, cancellation.Token))
             .Throws<OperationCanceledException>();
 
         await Assert.That(response.IsDisposed).IsTrue();

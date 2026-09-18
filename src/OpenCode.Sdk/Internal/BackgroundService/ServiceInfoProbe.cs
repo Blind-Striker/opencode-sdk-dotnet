@@ -6,14 +6,14 @@ using OpenCode.Sdk.Internal.BackgroundService.Abstractions;
 namespace OpenCode.Sdk.Internal.BackgroundService;
 
 /// <summary>
-/// Performs the pinned client's authenticated status exchange over an owned, non-redirecting
-/// handler. The probe decodes only pid/version; the public generated status model has a different
+/// Performs the pinned client's authenticated info exchange over an owned, non-redirecting
+/// handler. The probe decodes only pid/version; the public generated info model has a different
 /// contract. Discovery keeps its own request bound and never forwards credentials on redirects.
 /// </summary>
-internal sealed class ServiceStatusProbe(ServiceTiming timing) : IServiceStatusProbe
+internal sealed class ServiceInfoProbe(ServiceTiming timing) : IServiceInfoProbe
 {
-    /// <summary>The pin's status route, resolved against the authority only, as <c>new URL("/api/status", info.url)</c> does.</summary>
-    private const string StatusPath = "/api/status";
+    /// <summary>The pin's info route, resolved against the authority only, as <c>new URL("/api/info", info.url)</c> does.</summary>
+    private const string InfoPath = "/api/info";
 
     private static readonly ServiceProbeResult NoService = new(State: null, Version: null, TimedOut: false);
     private static readonly ServiceProbeResult Expired = new(State: null, Version: null, TimedOut: true);
@@ -24,7 +24,7 @@ internal sealed class ServiceStatusProbe(ServiceTiming timing) : IServiceStatusP
         cancellationToken.ThrowIfCancellationRequested();
 
         using var client = TransportPolicy.CreateOwnedHttpClient(registration.Endpoint);
-        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(registration.Endpoint, StatusPath));
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(registration.Endpoint, InfoPath));
         if (registration.Password is { } password)
         {
             // UTF-8, as the pipeline encodes the same credential; upstream's probe uses btoa
@@ -47,9 +47,10 @@ internal sealed class ServiceStatusProbe(ServiceTiming timing) : IServiceStatusP
             status = response.StatusCode;
             if (status == HttpStatusCode.NotFound)
             {
-                // A daemon that predates the status route answers an authenticated 404, which the
-                // pinned client takes as the registered service itself, present and ready but
-                // incompatible, without reading a body (service.ts:228-240 at the pin).
+                // A daemon that predates the info route (one still serving /api/status) answers an
+                // authenticated 404, which the pinned client takes as the registered service itself,
+                // present and ready but incompatible, without reading a body (service.ts:228-240 at
+                // the pin).
                 return new ServiceProbeResult(ServiceState.Ready, registration.Version, TimedOut: false) { Compatible = false };
             }
 

@@ -84,8 +84,8 @@ internal static class SandboxRunner
 
         var client = host.Services.GetRequiredService<OpenCodeClient>();
 
-        var health = await client.Server.GetStatusAsync().ConfigureAwait(false);
-        Console.WriteLine($"health:  status={health.Status} version={health.ServerStatus.Version} pid={health.ServerStatus.Pid}");
+        var health = await client.Server.GetInfoAsync().ConfigureAwait(false);
+        Console.WriteLine($"health:  status={health.Status} version={health.ServerInfo.Version} pid={health.ServerInfo.Pid}");
 
         return paginationMode
             ? await RunPaginationModeAsync(client).ConfigureAwait(false)

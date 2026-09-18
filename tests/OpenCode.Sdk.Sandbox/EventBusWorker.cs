@@ -15,8 +15,8 @@ internal sealed partial class EventBusWorker(
     {
         try
         {
-            var health = await client.Server.GetStatusAsync(cancellationToken: stoppingToken).ConfigureAwait(false);
-            LogServerIdentity(logger, health.ServerStatus.Version, health.ServerStatus.Pid);
+            var health = await client.Server.GetInfoAsync(cancellationToken: stoppingToken).ConfigureAwait(false);
+            LogServerIdentity(logger, health.ServerInfo.Version, health.ServerInfo.Pid);
             LogOpeningBus(logger);
 
             await foreach (var item in events.SubscribeAsync(stoppingToken).ConfigureAwait(false))

@@ -11,7 +11,7 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 internal sealed class ServiceDiscovery(
     IServiceEnvironment environment,
     IServiceFileSystem fileSystem,
-    IServiceStatusProbe probe)
+    IServiceInfoProbe probe)
 {
     /// <summary>Discovers the registered daemon a selection points at.</summary>
     /// <param name="options">The caller's options; null means every default.</param>

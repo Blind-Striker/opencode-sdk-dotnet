@@ -116,7 +116,7 @@ public class OpenCodeServer : IAsyncDisposable
     /// identifies the process this door owns, which for a Windows batch shim is the cmd.exe host
     /// the shim's own child runs under rather than the server process; ask the server for its own
     /// pid when that distinction matters. For a discovered service it is the pid the registration
-    /// published and the status answer confirmed.
+    /// published and the info answer confirmed.
     /// </summary>
     public virtual int ProcessId =>
         _processId ?? throw MockSeam.CreateError("OpenCodeServer", "ProcessId");
@@ -125,7 +125,7 @@ public class OpenCodeServer : IAsyncDisposable
     /// Finds the registered background service the first-party CLI publishes for this user,
     /// without starting, owning, or stopping it: resolves the registration file from the channel
     /// and the XDG roots (or reads the file the options name directly), runs the channel's legacy
-    /// migration, decodes the registration, and asks the daemon for its status under a two-second
+    /// migration, decodes the registration, and asks the daemon for its info under a two-second
     /// bound. A ready daemon that carries a password and, when <see cref="OpenCodeServerDiscoverOptions.ExpectedVersion"/>
     /// is set, reports exactly that version, comes back as a non-owning handle; anything else is null.
     /// </summary>
@@ -138,7 +138,7 @@ public class OpenCodeServer : IAsyncDisposable
         OpenCodeServerDiscoverOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        var discovery = new ServiceDiscovery(new ServiceEnvironment(), new ServiceFileSystem(), new ServiceStatusProbe(ServiceTiming.Default));
+        var discovery = new ServiceDiscovery(new ServiceEnvironment(), new ServiceFileSystem(), new ServiceInfoProbe(ServiceTiming.Default));
         var registration = await discovery.DiscoverAsync(options, cancellationToken).ConfigureAwait(false);
         return registration is null
             ? null

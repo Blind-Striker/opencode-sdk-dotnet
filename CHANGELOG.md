@@ -9,25 +9,28 @@ Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
 `0.9.0-nightly.{yyyyMMdd}.{shortSha}`.
 
-Built against upstream release tag `v2.0.5`. Upstream removed and moved operations between `v2.0.2`
+Built against upstream release tag `v2.0.8`. Upstream removed and moved operations between `v2.0.2`
 and this tag; the SDK follows the pinned contract and keeps no compatibility layer, so the breaking
 changes come first, each with what to change.
 
 ### 💥 Breaking changes
 
-- **The accepted snapshot moved to upstream release tag `v2.0.5`**
-  (`79169fe966d58fb0e0a5e41133716184a0ab4ca6`), which published as `@opencode/cli@2.0.5`; install
-  it with `npm install -g @opencode/cli@2.0.5`. Operation identities lost their `v2.` prefix
-  upstream (`session.diff`, `event.subscribe`); routes did not change for that reason. 129 of the
-  document's 134 operations are generated and two more are hand-written WebSocket transports. The
-  Restore patch that repairs upstream's lost SSE payload schemas
+- **The accepted snapshot moved to upstream release tag `v2.0.8`**
+  (`7673ed6bd6547ee0dcb81aab55f1392fb751d652`), which published as `@opencode/cli@2.0.8`; install
+  it with `npm install -g @opencode/cli@2.0.8`. Operation identities lost their `v2.` prefix
+  upstream at `v2.0.5` (`session.diff`, `event.subscribe`); routes did not change for that
+  reason. 130 of the document's 136 operations are generated and two more are hand-written
+  WebSocket transports. The Restore patch that repairs upstream's lost SSE payload schemas
   ([anomalyco/opencode#44911](https://github.com/anomalyco/opencode/issues/44911)) is still
-  required at this tag and was rebased onto it.
-- **Health became status.** `OpenCodeClient.GetHealthAsync`, `ServerClient.GetServerAsync`,
+  required at this tag and applies unchanged.
+- **Health became server info.** `OpenCodeClient.GetHealthAsync`, `ServerClient.GetServerAsync`,
   `HealthResponse`, `Health`, and `ServerResponse` are removed with upstream's `/api/health` and
-  `/api/server`. Call `client.Server.GetStatusAsync()` and read `ServerStatusResponse.ServerStatus`:
-  `Version`, `Pid`, and `Urls`. There is no `Healthy` member; a status call that answers is the
-  health signal, and it throws like any other call when the server does not.
+  `/api/server` (`v2.0.5`), and the `/api/status` door that replaced them became `/api/info` at
+  `v2.0.8`. Call `client.Server.GetInfoAsync()` and read `ServerInfoResponse.ServerInfo`:
+  `Version`, `Pid`, `Urls`, and `Paths.Tmp`, the server's temporary directory. There is no
+  `Healthy` member; an info call that answers is the health signal, and it throws like any other
+  call when the server does not. Background-service discovery probes the same door, and a
+  registered daemon still serving `/api/status` is reported as present but incompatible.
 - **Location targeting is directory-only.** `LocationSelector.Workspace` and
   `SessionListRequest.Workspace` are removed: upstream dropped the `location[workspace]` query and
   the `x-opencode-workspace` header. The `Location` a location-scoped response carries is now
@@ -88,7 +91,7 @@ changes come first, each with what to change.
   connection mode: it finds the background service the opencode CLI registers for every client on
   the machine, through the CLI's own rules — the registration file resolved by service channel
   under the XDG state root (or named directly), the CLI's one-time copy of an older hashed
-  registration filename, a strict decode of the registration, and an authenticated `/api/status`
+  registration filename, a strict decode of the registration, and an authenticated `/api/info`
   probe under a two-second bound whose pid must match. A ready daemon comes back as a
   **non-owning** `OpenCodeServer`: the new `OwnsProcess` member is false, `DisposeAsync` is a
   no-op, and `CreateClient()` binds a client to the daemon exactly as it does to a started server.
@@ -112,6 +115,16 @@ changes come first, each with what to change.
   its `Outcome` (`Succeeded`, `Failed`, or `Interrupted`). Since upstream `v2.0.3` the server writes
   one at the end of every turn; on `0.8.0-preview.2` those entries surfaced as
   `UnknownSessionMessageInfo`.
+- **Reloading every loaded location.** `client.ReloadLocationsAsync()` binds `location.reload`,
+  added upstream in `v2.0.8`: the server shuts down and rebuilds every loaded location, cancels
+  pending permissions and forms, lets running sessions continue with fresh services at their next
+  step boundary, and answers once every replacement build settles. The new `location.shutdown`
+  event (`LocationShutdown`) arrives on the event stream for each location it tears down, so a
+  consumer can revalidate its reads. The declared `ServiceUnavailableError` is its one typed
+  failure.
+- **Smaller additions from the same tag.** `SessionStepStartedData.Started` carries the step's
+  request dispatch time, before the provider answers, and every `Form*Field` has an optional
+  `Hidden` that skips the interactive prompt when a default exists.
 
 ### 🔧 Changes
 

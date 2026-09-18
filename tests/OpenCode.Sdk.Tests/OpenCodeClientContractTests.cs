@@ -8,55 +8,55 @@ namespace OpenCode.Sdk.Tests;
 public sealed class OpenCodeClientContractTests
 {
     [Test]
-    public async Task GetStatusAsync_Should_Return_The_Typed_Payload()
+    public async Task GetInfoAsync_Should_Return_The_Typed_Payload()
     {
-        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.StatusOk);
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.InfoOk);
 
-        var response = await scenario.Client.Server.GetStatusAsync();
+        var response = await scenario.Client.Server.GetInfoAsync();
 
         await Assert.That(response.Status).IsEqualTo(200);
         await Assert.That(response.IsError).IsFalse();
         await Assert.That(response.RawBody).IsNull();
-        await Assert.That(response.ServerStatus.Version).IsEqualTo("0.0.0-test");
-        await Assert.That(response.ServerStatus.Pid).IsEqualTo(42);
-        await Assert.That(response.ServerStatus.Urls).IsEquivalentTo(["http://localhost:4096"]);
-        await Assert.That(scenario.Requests.Single().RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/status"));
+        await Assert.That(response.ServerInfo.Version).IsEqualTo("0.0.0-test");
+        await Assert.That(response.ServerInfo.Pid).IsEqualTo(42);
+        await Assert.That(response.ServerInfo.Urls).IsEquivalentTo(["http://localhost:4096"]);
+        await Assert.That(scenario.Requests.Single().RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/info"));
         await Assert.That(scenario.Requests.Single().Method).IsEqualTo(HttpMethod.Get);
     }
 
     [Test]
-    public async Task GetStatusAsync_Should_Skip_An_Additive_Unknown_Field()
+    public async Task GetInfoAsync_Should_Skip_An_Additive_Unknown_Field()
     {
-        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.StatusWithUnknownField);
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.InfoWithUnknownField);
 
-        var response = await scenario.Client.Server.GetStatusAsync();
+        var response = await scenario.Client.Server.GetInfoAsync();
 
         await Assert.That(response.IsError).IsFalse();
         await Assert.That(response.Status).IsEqualTo(200);
-        await Assert.That(response.ServerStatus.Version).IsEqualTo("0.0.0-test");
-        await Assert.That(response.ServerStatus.Pid).IsEqualTo(42);
+        await Assert.That(response.ServerInfo.Version).IsEqualTo("0.0.0-test");
+        await Assert.That(response.ServerInfo.Pid).IsEqualTo(42);
     }
 
     [Test]
-    [Arguments(WireBodyData.StatusMissingRequiredMember)]
-    [Arguments(WireBodyData.StatusMissingUrls)]
-    [Arguments(WireBodyData.StatusWithWrongTokenType)]
-    public async Task GetStatusAsync_Should_Treat_Unmaterializable_Known_Members_As_Protocol_Failures(string body)
+    [Arguments(WireBodyData.InfoMissingRequiredMember)]
+    [Arguments(WireBodyData.InfoMissingUrls)]
+    [Arguments(WireBodyData.InfoWithWrongTokenType)]
+    public async Task GetInfoAsync_Should_Treat_Unmaterializable_Known_Members_As_Protocol_Failures(string body)
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, body);
 
         _ = await Assert
-            .That(async () => _ = await scenario.Client.Server.GetStatusAsync())
+            .That(async () => _ = await scenario.Client.Server.GetInfoAsync())
             .Throws<OpenCodeTransportException>();
     }
 
     [Test]
-    public async Task GetStatusAsync_Should_Throw_The_Typed_Error_By_Default()
+    public async Task GetInfoAsync_Should_Throw_The_Typed_Error_By_Default()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Server.GetStatusAsync())
+            .That(async () => _ = await scenario.Client.Server.GetInfoAsync())
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(401);
@@ -74,12 +74,12 @@ public sealed class OpenCodeClientContractTests
     [Test]
     [Arguments(WireBodyData.UnauthorizedError)]
     [Arguments("")]
-    public async Task GetStatusAsync_Should_Name_The_Missing_Credential_When_A_401_Answers_A_Passwordless_Client(string body)
+    public async Task GetInfoAsync_Should_Name_The_Missing_Credential_When_A_401_Answers_A_Passwordless_Client(string body)
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, body);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Server.GetStatusAsync())
+            .That(async () => _ = await scenario.Client.Server.GetInfoAsync())
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(401);
@@ -91,13 +91,13 @@ public sealed class OpenCodeClientContractTests
     }
 
     [Test]
-    public async Task GetStatusAsync_Should_Leave_The_401_Message_Alone_When_A_Password_Was_Configured()
+    public async Task GetInfoAsync_Should_Leave_The_401_Message_Alone_When_A_Password_Was_Configured()
     {
         using var scenario = ContractScenario.RespondingToCredentialed(
             HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError, "wrong-password");
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Server.GetStatusAsync())
+            .That(async () => _ = await scenario.Client.Server.GetInfoAsync())
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(401);
@@ -106,12 +106,12 @@ public sealed class OpenCodeClientContractTests
 
     /// <summary>The hint is scoped to 401: no other status is evidence about the credential.</summary>
     [Test]
-    public async Task GetStatusAsync_Should_Leave_A_Non_401_Message_Alone_For_A_Passwordless_Client()
+    public async Task GetInfoAsync_Should_Leave_A_Non_401_Message_Alone_For_A_Passwordless_Client()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.Forbidden, "");
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Server.GetStatusAsync())
+            .That(async () => _ = await scenario.Client.Server.GetInfoAsync())
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Message).IsEqualTo("The opencode API returned status 403.");
@@ -122,11 +122,11 @@ public sealed class OpenCodeClientContractTests
     /// the envelope carries the status, the typed error and the raw body exactly as before.
     /// </summary>
     [Test]
-    public async Task GetStatusAsync_Should_Leave_The_NoThrow_Spine_Unchanged_On_A_401_Without_A_Password()
+    public async Task GetInfoAsync_Should_Leave_The_NoThrow_Spine_Unchanged_On_A_401_Without_A_Password()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
 
-        var response = await scenario.Client.Server.GetStatusAsync(OpenCodeRequestOptions.NoThrow);
+        var response = await scenario.Client.Server.GetInfoAsync(OpenCodeRequestOptions.NoThrow);
 
         await Assert.That(response.Status).IsEqualTo(401);
         await Assert.That(response.IsError).IsTrue();
@@ -263,54 +263,54 @@ public sealed class OpenCodeClientContractTests
     }
 
     [Test]
-    public async Task GetStatusAsync_Should_Preserve_The_Raw_Body_For_Malformed_Errors()
+    public async Task GetInfoAsync_Should_Preserve_The_Raw_Body_For_Malformed_Errors()
     {
         const string body = "<html>not json</html>";
         using var throwScenario = ContractScenario.Responding(HttpStatusCode.BadRequest, body);
 
         var thrown = await Assert
-            .That(async () => _ = await throwScenario.Client.Server.GetStatusAsync())
+            .That(async () => _ = await throwScenario.Client.Server.GetInfoAsync())
             .Throws<OpenCodeApiException>();
         await Assert.That(thrown!.Error).IsNull();
         await Assert.That(thrown.RawBody).IsEqualTo(body);
 
         using var noThrowScenario = ContractScenario.Responding(HttpStatusCode.BadRequest, body);
-        var response = await noThrowScenario.Client.Server.GetStatusAsync(OpenCodeRequestOptions.NoThrow);
+        var response = await noThrowScenario.Client.Server.GetInfoAsync(OpenCodeRequestOptions.NoThrow);
         await Assert.That(response.Error).IsNull();
         await Assert.That(response.RawBody).IsEqualTo(body);
     }
 
     [Test]
-    public async Task GetStatusAsync_Should_Treat_A_Malformed_Success_As_A_Protocol_Failure()
+    public async Task GetInfoAsync_Should_Treat_A_Malformed_Success_As_A_Protocol_Failure()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, "not json");
 
         _ = await Assert
-            .That(async () => _ = await scenario.Client.Server.GetStatusAsync())
+            .That(async () => _ = await scenario.Client.Server.GetInfoAsync())
             .Throws<OpenCodeTransportException>();
     }
 
     [Test]
-    public async Task GetStatusAsync_Should_Treat_An_Undeclared_2xx_As_A_Protocol_Failure()
+    public async Task GetInfoAsync_Should_Treat_An_Undeclared_2xx_As_A_Protocol_Failure()
     {
-        using var scenario = ContractScenario.Responding(HttpStatusCode.Created, WireBodyData.StatusOk);
+        using var scenario = ContractScenario.Responding(HttpStatusCode.Created, WireBodyData.InfoOk);
 
         _ = await Assert
-            .That(async () => _ = await scenario.Client.Server.GetStatusAsync())
+            .That(async () => _ = await scenario.Client.Server.GetInfoAsync())
             .Throws<OpenCodeTransportException>();
 
         _ = await Assert
-            .That(async () => _ = await scenario.Client.Server.GetStatusAsync(OpenCodeRequestOptions.NoThrow))
+            .That(async () => _ = await scenario.Client.Server.GetInfoAsync(OpenCodeRequestOptions.NoThrow))
             .Throws<OpenCodeTransportException>();
     }
 
     [Test]
-    public async Task GetStatusAsync_Should_Preserve_The_Raw_Body_For_An_Empty_Error_Tag()
+    public async Task GetInfoAsync_Should_Preserve_The_Raw_Body_For_An_Empty_Error_Tag()
     {
         const string body = "{\"_tag\":\"\"}";
         using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, body);
 
-        var response = await scenario.Client.Server.GetStatusAsync(OpenCodeRequestOptions.NoThrow);
+        var response = await scenario.Client.Server.GetInfoAsync(OpenCodeRequestOptions.NoThrow);
 
         await Assert.That(response.IsError).IsTrue();
         await Assert.That(response.Error).IsNull();
@@ -344,12 +344,12 @@ public sealed class OpenCodeClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
 
-        var response = await scenario.Client.Server.GetStatusAsync(OpenCodeRequestOptions.NoThrow);
+        var response = await scenario.Client.Server.GetInfoAsync(OpenCodeRequestOptions.NoThrow);
 
-        _ = Assert.Throws<InvalidOperationException>(() => _ = response.ServerStatus);
+        _ = Assert.Throws<InvalidOperationException>(() => _ = response.ServerInfo);
         var printed = response.ToString();
         await Assert.That(printed).Contains("401");
-        await Assert.That(printed).DoesNotContain("ServerStatus = ");
+        await Assert.That(printed).DoesNotContain("ServerInfo = ");
     }
 
     [Test]
@@ -358,7 +358,7 @@ public sealed class OpenCodeClientContractTests
         using var client = new MockableClient();
 
         var exception = await Assert
-            .That(async () => _ = await client.Server.GetStatusAsync())
+            .That(async () => _ = await client.Server.GetInfoAsync())
             .Throws<InvalidOperationException>();
 
         await Assert.That(exception!.Message).Contains("mocking constructor");

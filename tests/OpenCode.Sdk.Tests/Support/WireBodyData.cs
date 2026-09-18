@@ -19,21 +19,21 @@ internal static class WireBodyData
     public const string IntegrationNotFoundError =
         "{\"_tag\":\"IntegrationNotFoundError\",\"integrationID\":\"int_9\",\"message\":\"gone\"}";
 
-    public const string StatusOk = "{\"urls\":[\"http://localhost:4096\"],\"version\":\"0.0.0-test\",\"pid\":42}";
+    public const string InfoOk = "{\"urls\":[\"http://localhost:4096\"],\"version\":\"0.0.0-test\",\"pid\":42,\"paths\":{\"tmp\":\"/tmp/opencode\"}}";
 
-    public const string StatusWithUnknownField =
-        "{\"urls\":[\"http://localhost:4096\"],\"version\":\"0.0.0-test\",\"pid\":42,\"unexpected\":true}";
+    public const string InfoWithUnknownField =
+        "{\"urls\":[\"http://localhost:4096\"],\"version\":\"0.0.0-test\",\"pid\":42,\"paths\":{\"tmp\":\"/tmp/opencode\"},\"unexpected\":true}";
 
-    public const string StatusMissingRequiredMember = "{\"urls\":[\"http://localhost:4096\"],\"pid\":42}";
+    public const string InfoMissingRequiredMember = "{\"urls\":[\"http://localhost:4096\"],\"pid\":42,\"paths\":{\"tmp\":\"/tmp/opencode\"}}";
 
-    public const string StatusMissingUrls = "{\"version\":\"0.0.0-test\",\"pid\":42}";
+    public const string InfoMissingUrls = "{\"version\":\"0.0.0-test\",\"pid\":42,\"paths\":{\"tmp\":\"/tmp/opencode\"}}";
 
-    public const string StatusWithWrongTokenType = "{\"urls\":[\"http://localhost:4096\"],\"version\":\"0.0.0-test\",\"pid\":\"forty-two\"}";
+    public const string InfoWithWrongTokenType = "{\"urls\":[\"http://localhost:4096\"],\"version\":\"0.0.0-test\",\"pid\":\"forty-two\",\"paths\":{\"tmp\":\"/tmp/opencode\"}}";
 
-    public static byte[] StatusWithMalformedUtf8UnknownField()
+    public static byte[] InfoWithMalformedUtf8UnknownField()
     {
         var prefix = Encoding.UTF8.GetBytes(
-            "{\"urls\":[\"http://localhost:4096\"],\"version\":\"0.0.0-test\",\"pid\":42,\"unexpected\":\"");
+            "{\"urls\":[\"http://localhost:4096\"],\"version\":\"0.0.0-test\",\"pid\":42,\"paths\":{\"tmp\":\"/tmp/opencode\"},\"unexpected\":\"");
         var suffix = Encoding.UTF8.GetBytes("\"}");
         return [.. prefix, 0xFF, .. suffix];
     }

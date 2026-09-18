@@ -57,7 +57,7 @@
     },
     {
       "path": "packages/server/src/routes.ts",
-      "sha256": "a9b43494dad779cf5948fa41737f62f717f9fbeff304575562e4838c03b67a90",
+      "sha256": "9d874bdcf7d3a234740eab520ac306fc364e30dc90ffd234b60c4e81bf5f0108",
       "behavior": "The PTY ticket service and the persistent-PTY service are wired into the server layer graph.",
       "anchor": {
         "type": "contains",
@@ -138,7 +138,7 @@
     },
     {
       "path": "packages/cli/package.json",
-      "sha256": "7c3923f77a5afdac6347567ad250a0a1d2e72e42070b61e7f470f7d82ef91a7e",
+      "sha256": "a19824f22a9375d9a57e9dfab68dd4aaa274bead2f29098fcc36998b526a40ed",
       "behavior": "The CLI package bin map names \u0022opencode\u0022 as the installed command and keeps \u0022opencode2\u0022 as a transitional alias of the same launcher, so the shipped launcher default resolves \u0022opencode\u0022 from PATH.",
       "anchor": {
         "type": "contains",
@@ -147,7 +147,7 @@
     },
     {
       "path": "packages/core/package.json",
-      "sha256": "6c78afe992400eb2efd79fde81091af258a6707094d359a86b17c72392f9a4a8",
+      "sha256": "798196e833362ef970ab7c6516c27c43f9b5d625e9baba1da9e1f9ceec70c006",
       "behavior": "The opencode-pty daemon dependency is pinned at 0.1.13, which fixes the daemon protocol the persistent-PTY door speaks.",
       "anchor": {
         "type": "contains",
@@ -156,8 +156,8 @@
     },
     {
       "path": "packages/server/src/process.ts",
-      "sha256": "886490f025f657e21e24de48cfea037cf502140160e48c5fca5ffe7d293c3ea7",
-      "behavior": "A ticketed PTY connect is admitted before the server reports ready. Uncredentialed or wrongly credentialed requests above the API layer receive an empty 401 with the Basic challenge. GET /api/status answers under Basic auth with the same version, pid, and urls body at 200 when ready, 500 when failed, or 503 when starting or stopping; starting and stopping also carry retry-after: 1.",
+      "sha256": "7047134af264cccdde642e038d4c499157af8bed943d39bd340ab26e12c12cb5",
+      "behavior": "A ticketed PTY connect is admitted before the server reports ready. Uncredentialed or wrongly credentialed requests above the API layer receive an empty 401 with the Basic challenge. While the server is not ready, GET /api/info is answered by the process layer under Basic auth with the version, pid, urls, and paths.tmp body at 500 when failed or 503 when starting or stopping, the latter two with retry-after: 1; once ready the request reaches the API group\u0027s server.info handler, which answers the same shape at 200.",
       "anchor": {
         "type": "contains",
         "text": "!hasPtyConnectTicketURL(url)"
@@ -210,7 +210,7 @@
     },
     {
       "path": "packages/cli/src/server-process.ts",
-      "sha256": "829d71358bd9015febaaeae2b28d62d87d7b6e9c20a3f49b7e46438637326454",
+      "sha256": "53a4296917a39fcfca052b424b43935e5d1e22f5dcc3a1aa839e80c88d399bf5",
       "behavior": "In stdio mode the serve command prints exactly one JSON line carrying the bound url to stdout after full boot and exits when stdin reaches EOF, which is the readiness line ServerReadyLine parses and the lease OpenCodeServer releases.",
       "anchor": {
         "type": "contains",
@@ -282,7 +282,7 @@
     },
     {
       "path": "packages/cli/script/publish.ts",
-      "sha256": "7f453c0e391568755f6ff272a5c51221ad4096243994ac6fd7dfb21f2bd6370d",
+      "sha256": "8df8035798e3efbcac121535368a9add29896ef81255aba6ff268757939b4c7a",
       "behavior": "The published package\u0027s bin map names opencode as the command and opencode2 as the legacy alias of the same binary, which is the contract behind the launcher\u0027s default command.",
       "anchor": {
         "type": "contains",
@@ -309,8 +309,8 @@
     },
     {
       "path": "packages/client/src/effect/service.ts",
-      "sha256": "db776ef89b7338cbb6e720074da5b7a94f12efe8a219e20da01e5a1f43e4f140",
-      "behavior": "discover reads the registration file and probes /api/status with its Basic credential under the request timeout. The probe compares pid and the recorded version; an authenticated 404 marks the registered service incompatible without decoding a body. Discovery returns only a ready, compatible service whose version matches when requested.",
+      "sha256": "29ecd1d9aabc8a24462e8c5b9dba9ec74790e2fe12ac056e463c5f025dc9377c",
+      "behavior": "discover reads the registration file and probes /api/info with its Basic credential under the request timeout. The probe compares pid and the recorded version; an authenticated 404 (an older daemon still serving /api/status) marks the registered service incompatible without decoding a body. Discovery returns only a ready, compatible service whose version matches when requested.",
       "anchor": {
         "type": "contains",
         "text": "export const discover = Effect.fn(\u0022service.discover\u0022)"
@@ -399,16 +399,16 @@
     },
     {
       "path": "packages/protocol/src/groups/server.ts",
-      "sha256": "e322997f32bc5d349167efb6f3eb8abff8cc0b5db41a82693e53adf897dfbbcd",
-      "behavior": "The status answer carries version, pid, and urls; pid may be zero for a runtime without an OS process identity. The background-service probe revalidates the registered process identity and expected version.",
+      "sha256": "3f0a3318066cadfd2e0d43d5b93828a85f09c33fac9463ca6824e9dbdbf81fb7",
+      "behavior": "The info answer carries version, pid, urls, and paths.tmp; pid may be zero for a runtime without an OS process identity. The background-service probe revalidates the registered process identity and expected version.",
       "anchor": {
         "type": "contains",
-        "text": "HttpApiEndpoint.get(\u0022server.status\u0022, \u0022/api/status\u0022, {"
+        "text": "HttpApiEndpoint.get(\u0022server.info\u0022, \u0022/api/info\u0022, {"
       }
     },
     {
       "path": "packages/client/test/service.test.ts",
-      "sha256": "cee9686fb80f69cdc02e55c63636a447b7d508ce867d163a10ea5e1309c973b0",
+      "sha256": "5d7c27716ef4eb67a4d27934fbbd9d79eedd113bed1509bc19fc1a6320e71cc9",
       "behavior": "Upstream\u0027s own discovery expectations: a compatible registered service is reused, a waiting one is awaited, a failed one is reported without spawning, and a legacy health answer is replaced.",
       "anchor": {
         "type": "contains",
@@ -417,7 +417,7 @@
     },
     {
       "path": "packages/cli/test/service.test.ts",
-      "sha256": "e4fd083517a86cca4725931d61100a0d3e6ded6983f6b40c3643e1f9feed632b",
+      "sha256": "c0e75e0b96e271e6a9c62307cf6ef8812fec83873eff11e4129d2ef724bf1cd6",
       "behavior": "Upstream\u0027s own filename and channel expectations: the release channels share service.json, custom channels are sanitized, and version-to-channel membership follows the pre-release spelling.",
       "anchor": {
         "type": "contains",
@@ -435,7 +435,7 @@
     },
     {
       "path": "packages/cli/script/service-smoke.ts",
-      "sha256": "62546c4df395d7a18819f8e610ca7223a94252cdad154960f0255d1d2499406e",
+      "sha256": "b888aadfb8f57bc6234a99ec22623a7c63ad8ac7b921f5a1b0fddb6d93ab58f9",
       "behavior": "Upstream\u0027s end-to-end service smoke expects the registration to carry the service identity (id, version, pid) and refuses one without it.",
       "anchor": {
         "type": "contains",
@@ -444,8 +444,8 @@
     },
     {
       "path": "packages/cli/src/services/server-connection.ts",
-      "sha256": "d54f3d2f098c411fd269ada4af531af8c86128d721d0afd7ce605bd3a5fca6a0",
-      "behavior": "resolve routes the default CLI connection through ServiceConfig.options, which performs legacy registration migration before discovery or ensure and enables the version gate only when mismatch is not ignore. An explicit --server connection uses server.status with a five-second bound and warns on a version mismatch.",
+      "sha256": "cca1a3679d28168e1bec35af8d177cd4854a1e1d54dd9abb2e975cf336a944b5",
+      "behavior": "resolve routes the default CLI connection through ServiceConfig.options, which performs legacy registration migration before discovery or ensure and enables the version gate only when mismatch is not ignore. An explicit --server connection uses server.info with a five-second bound and warns on a version mismatch.",
       "anchor": {
         "type": "contains",
         "text": "ServiceConfig.options({ checkVersion: mismatch !== \u0022ignore\u0022 })"

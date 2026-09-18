@@ -66,11 +66,11 @@ public sealed class OpenCodeServerDiscoveryLiveTests(PinnedManagedServiceFixture
         await using var _ = server;
 
         using var client = server.CreateClient();
-        var health = await client.Server.GetStatusAsync(cancellationToken: cancellationToken);
+        var health = await client.Server.GetInfoAsync(cancellationToken: cancellationToken);
 
         await Assert.That(health.Status).IsEqualTo(200);
-        await Assert.That(health.ServerStatus.Pid).IsEqualTo(server.ProcessId);
-        await Assert.That(health.ServerStatus.Version).IsEqualTo(service.Version);
+        await Assert.That(health.ServerInfo.Pid).IsEqualTo(server.ProcessId);
+        await Assert.That(health.ServerInfo.Version).IsEqualTo(service.Version);
     }
 
     [Test]
@@ -87,8 +87,8 @@ public sealed class OpenCodeServerDiscoveryLiveTests(PinnedManagedServiceFixture
         var again = await DiscoverByFileAsync(cancellationToken);
         await using var _ = again;
         using var client = again.CreateClient();
-        var health = await client.Server.GetStatusAsync(cancellationToken: cancellationToken);
-        await Assert.That(health.ServerStatus.Pid).IsEqualTo(service.ProcessId);
+        var health = await client.Server.GetInfoAsync(cancellationToken: cancellationToken);
+        await Assert.That(health.ServerInfo.Pid).IsEqualTo(service.ProcessId);
     }
 
     [Test]

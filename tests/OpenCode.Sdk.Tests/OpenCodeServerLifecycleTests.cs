@@ -37,13 +37,13 @@ public sealed class OpenCodeServerLifecycleTests
         await Assert.That(server.OwnsProcess).IsTrue();
 
         using var client = server.CreateClient();
-        var health = await client.Server.GetStatusAsync(cancellationToken: cancellationToken);
+        var health = await client.Server.GetInfoAsync(cancellationToken: cancellationToken);
 
         await Assert.That(health.Status).IsEqualTo(200);
         // Process truth: the server answering health is the exact child this start owns. bun
         // runs the entry in-process, so the reported pid is the spawned pid. If a platform leg
         // ever disproves this, record the deviation — do not soften the assertion silently.
-        await Assert.That(health.ServerStatus.Pid).IsEqualTo(server.ProcessId);
+        await Assert.That(health.ServerInfo.Pid).IsEqualTo(server.ProcessId);
     }
 
     [Test]

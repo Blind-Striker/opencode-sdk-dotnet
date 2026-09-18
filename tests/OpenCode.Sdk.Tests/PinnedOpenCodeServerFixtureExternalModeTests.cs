@@ -21,11 +21,11 @@ public sealed class PinnedOpenCodeServerFixtureExternalModeTests
     {
         await using var server = LoopbackHttpServer.Start(static path => path switch
         {
-            "/api/status" => new LoopbackHttpResponse
+            "/api/info" => new LoopbackHttpResponse
             {
                 StatusCode = HttpStatusCode.OK,
                 ContentType = "application/json",
-                Body = WireBodyData.StatusOk,
+                Body = WireBodyData.InfoOk,
             },
             _ => new LoopbackHttpResponse { StatusCode = HttpStatusCode.InternalServerError },
         });
@@ -37,7 +37,7 @@ public sealed class PinnedOpenCodeServerFixtureExternalModeTests
             await Assert.That(fixture.Endpoint).IsEqualTo(server.Endpoint);
             using var client = fixture.CreateClient();
 
-            var health = await client.Server.GetStatusAsync(cancellationToken: cancellationToken);
+            var health = await client.Server.GetInfoAsync(cancellationToken: cancellationToken);
 
             await Assert.That(health.Status).IsEqualTo(200);
         }

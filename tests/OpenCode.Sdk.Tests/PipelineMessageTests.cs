@@ -33,7 +33,7 @@ public sealed class PipelineMessageTests
     public async Task Dispose_Should_Return_The_Pooled_Body()
     {
         var pool = new TrackingByteArrayPool();
-        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("http://localhost:4096/api/status"));
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("http://localhost:4096/api/info"));
         var message = new PipelineMessage
         {
             Request = request,
@@ -48,7 +48,7 @@ public sealed class PipelineMessageTests
     [Test]
     public async Task Dispose_Should_Tolerate_A_Message_Without_A_Response()
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("http://localhost:4096/api/status"));
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("http://localhost:4096/api/info"));
         var message = new PipelineMessage { Request = request };
 
         message.Dispose();

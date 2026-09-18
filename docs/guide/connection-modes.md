@@ -24,9 +24,9 @@ using var client = server.CreateClient();
 
 Console.WriteLine($"started {server.Endpoint} (pid {server.ProcessId})");
 
-var status = await client.Server.GetStatusAsync();
+var info = await client.Server.GetInfoAsync();
 
-Console.WriteLine($"opencode {status.ServerStatus.Version} (pid {status.ServerStatus.Pid})");
+Console.WriteLine($"opencode {info.ServerInfo.Version} (pid {info.ServerInfo.Pid})");
 ```
 
 The signature is
@@ -101,7 +101,7 @@ exists, naming how many directories were searched and which extensions were trie
 > - **`ProcessId` is then the `cmd.exe` host**, not the server itself — the shim's own child. The
 >   stdin ownership lease and the stdout readiness line pass straight through it, and disposal's
 >   whole-tree kill covers the server underneath, so nothing else about the lifecycle changes. Ask
->   the server for its own pid (`status.ServerStatus.Pid`) if you need that one.
+>   the server for its own pid (`info.ServerInfo.Pid`) if you need that one.
 > - **Arguments carrying `cmd` metacharacters are refused**, not escaped. `cmd.exe` re-parses the
 >   line it is handed, so any leading argument of yours containing `&`, `|`, `<`, `>`, `^`, `%`,
 >   `!`, `"`, a carriage return, or a line feed fails the start with `OpenCodeServerException`
@@ -171,12 +171,12 @@ using var client = new OpenCodeClient(new OpenCodeClientOptions
 });
 
 using var probe = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-var status = await client.Server.GetStatusAsync(cancellationToken: probe.Token);
+var info = await client.Server.GetInfoAsync(cancellationToken: probe.Token);
 
-Console.WriteLine($"opencode {status.ServerStatus.Version} (pid {status.ServerStatus.Pid})");
+Console.WriteLine($"opencode {info.ServerInfo.Version} (pid {info.ServerInfo.Pid})");
 ```
 
-That bounded status probe is the whole validation recipe for *reaching* the server, and it is
+That bounded info call is the whole validation recipe for *reaching* the server, and it is
 deliberately yours to write: the SDK carries no version comparand of its own and no network-timeout
 knob yet, so a `CancellationTokenSource` is the honest timeout and your own expectation is the
 honest version check. It is liveness only — a server answering status can still have an empty model catalog
@@ -215,15 +215,15 @@ if (server is null)
 }
 
 using var client = server.CreateClient();
-var status = await client.Server.GetStatusAsync();
-Console.WriteLine($"discovered opencode {status.ServerStatus.Version} (pid {server.ProcessId})");
+var info = await client.Server.GetInfoAsync();
+Console.WriteLine($"discovered opencode {info.ServerInfo.Version} (pid {server.ProcessId})");
 // server.DisposeAsync() is a no-op here: OwnsProcess is false, and the service stays up for
 // everyone else.
 ```
 
 The answer is the daemon's identity or **null** — never a half-usable handle. Null covers every
 ordinary way a service can be absent or unusable: no registration file, one that does not decode,
-one without a password, a daemon that is still starting or has failed, a status probe that did not
+one without a password, a daemon that is still starting or has failed, an info probe that did not
 answer within its two-second bound, or a version other than the one you asked for. You decide what
 null means for your application; the SDK does not start a daemon on your behalf.
 
@@ -259,7 +259,7 @@ throws `ArgumentException` before anything is read.
 
 ### How the daemon is checked
 
-A decoded registration is probed with `GET /api/status` under Basic authentication using the
+A decoded registration is probed with `GET /api/info` under Basic authentication using the
 registered password, bounded at two seconds. A 2xx answer whose pid matches the registration is a
 ready service; a 404 identifies a registered daemon that speaks another protocol version, a 500
 is a daemon that failed to boot, and anything else is a daemon still starting — and only the

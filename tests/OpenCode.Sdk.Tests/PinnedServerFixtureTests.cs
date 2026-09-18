@@ -12,13 +12,13 @@ public sealed class PinnedServerFixtureTests(PinnedOpenCodeServerFixture server)
     {
         using var client = server.CreateClient();
 
-        var status = await client.Server.GetStatusAsync(cancellationToken: cancellationToken);
+        var status = await client.Server.GetInfoAsync(cancellationToken: cancellationToken);
 
         // The answering process names itself: an owned command override answers from behind a
         // shim and an external endpoint from another machine, so the pid is only known to be real.
         await Assert.That(status.Status).IsEqualTo(200);
-        await Assert.That(status.ServerStatus.Pid).IsGreaterThan(0);
-        await Assert.That(status.ServerStatus.Version).IsNotEmpty();
+        await Assert.That(status.ServerInfo.Pid).IsGreaterThan(0);
+        await Assert.That(status.ServerInfo.Version).IsNotEmpty();
     }
 
     [Test]

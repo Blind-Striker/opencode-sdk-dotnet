@@ -44,7 +44,7 @@ public sealed class PtyFailureDiagnosticsTests
             await Assert.That(observed).IsSameReferenceAs(primary);
             await Assert.That(fileSystem.Directory.GetFiles(fixture.DiagnosticsDirectory, "stdout.log").Length).IsEqualTo(0);
             await Assert.That(fileSystem.Directory.GetFiles(fixture.DiagnosticsDirectory, "stderr.log").Length).IsEqualTo(0);
-            var health = await client.Server.GetStatusAsync(cancellationToken: cancellationToken);
+            var health = await client.Server.GetInfoAsync(cancellationToken: cancellationToken);
             await Assert.That(health.Status).IsEqualTo(200);
             if (stall)
             {

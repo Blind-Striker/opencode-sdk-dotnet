@@ -30,7 +30,7 @@ internal static class GeneratedSourceCompiler
     /// so a renamed or dropped twin fails that assertion loudly instead of silently vanishing
     /// from this probe's coverage. A synthetic emitter fixture is free to omit a twin, in which
     /// case its consumers are skipped here rather than failing to compile. The background-service
-    /// status probe has its own decoder and no longer depends on generated models, so it and the
+    /// info probe has its own decoder and no longer depends on generated models, so it and the
     /// launcher participate in every compilation.
     /// </summary>
     internal static readonly (string Consumer, string RequiredEmission)[] GeneratedSurfaceConsumers =

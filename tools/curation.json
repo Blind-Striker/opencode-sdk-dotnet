@@ -124,7 +124,7 @@
     "server": {
       "placement": "client",
       "clientName": "Server",
-      "reason": "Status and server lifecycle operations form one server-scoped surface; the singular client exposes status as GetStatusAsync."
+      "reason": "Status and server lifecycle operations form one server-scoped surface; the singular client exposes the server info as GetInfoAsync."
     },
     "worktree": {
       "placement": "client",
@@ -321,9 +321,14 @@
       "reason": "The operation updates plugins; the reviewed name keeps the plural plugin subject instead of the mechanical POST prefix."
     },
     {
-      "operationId": "server.status",
-      "methodName": "GetStatusAsync",
-      "reason": "The server container already names the subject; this operation reads its current status."
+      "operationId": "server.info",
+      "methodName": "GetInfoAsync",
+      "reason": "The server container already names the subject; this operation reads its identity, connection URLs, paths, and readiness."
+    },
+    {
+      "operationId": "location.reload",
+      "methodName": "ReloadLocationsAsync",
+      "reason": "The operation's own verb is reload and it rebuilds every loaded location, so the plural subject names it beside GetLocationAsync on the root client; the mechanical POST prefix is transport detail, not part of the reviewed surface."
     },
     {
       "operationId": "session.update",
@@ -430,6 +435,10 @@
     {
       "operationId": "fs.read",
       "reason": "Upstream declares the route as the framework wildcard '/api/fs/read/*' rather than an OpenAPI path template, so the document gives the generator no path parameter to bind and inventing one is forbidden (ADR-0013); the upstream report is drafted and parked, maintainer 2026-08-30."
+    },
+    {
+      "operationId": "experimental.fs.write",
+      "reason": "The request body is application/octet-stream and the binder's media-type vocabulary is application/json and text/event-stream only (SpecMediaType), so the operation does not bind; admitting it is the same hand-written-door question as fs.read (ADR-0013, ADR-0021) and is queued in M4 surface completeness, maintainer 2026-09-18."
     }
   ],
   "envelopePayloadNames": {
@@ -449,7 +458,7 @@
     "fs.find": "Entries",
     "vcs.diff": "Diffs",
     "session.diff": "Diffs",
-    "server.status": "ServerStatus"
+    "server.info": "ServerInfo"
   },
   "schemaAliases": [
     {

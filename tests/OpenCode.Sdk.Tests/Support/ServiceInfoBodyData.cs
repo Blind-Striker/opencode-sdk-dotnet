@@ -1,18 +1,18 @@
 namespace OpenCode.Sdk.Tests.Support;
 
 /// <summary>
-/// Status answers the background-service probe classifies, one construct each: the pinned
-/// <c>{ version, pid, urls }</c> body a daemon sends and every body the probe must refuse. The
+/// Info answers the background-service probe classifies, one construct each: the pinned
+/// <c>{ version, pid, urls, paths }</c> body a daemon sends and every body the probe must refuse. The
 /// probe reads only <c>version</c> and <c>pid</c>, as the pinned client does. The daemon in these
 /// bodies is pid 42 at version <c>0.0.0-test</c>, the identity used by the probe fixtures.
 /// </summary>
-internal static class ServiceStatusBodyData
+internal static class ServiceInfoBodyData
 {
     public const int Pid = 42;
 
     public const string Version = "0.0.0-test";
 
-    private const string Urls = "\"urls\":[\"http://127.0.0.1:4096\"]";
+    private const string Urls = "\"urls\":[\"http://127.0.0.1:4096\"],\"paths\":{\"tmp\":\"/tmp/opencode\"}";
 
     public const string Ready = "{\"version\":\"0.0.0-test\",\"pid\":42," + Urls + "}";
 

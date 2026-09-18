@@ -54,7 +54,7 @@ public sealed class OwnedTransportTests
     {
         await using var server = LoopbackHttpServer.Start(path => path switch
         {
-            "/api/status" => new LoopbackHttpResponse
+            "/api/info" => new LoopbackHttpResponse
             {
                 StatusCode = HttpStatusCode.Found,
                 Location = "/redirect-target",
@@ -63,18 +63,18 @@ public sealed class OwnedTransportTests
             {
                 StatusCode = HttpStatusCode.OK,
                 ContentType = "application/json",
-                Body = WireBodyData.StatusOk,
+                Body = WireBodyData.InfoOk,
             },
             _ => new LoopbackHttpResponse { StatusCode = HttpStatusCode.InternalServerError },
         });
         using var client = new OpenCodeClient(new OpenCodeClientOptions { Endpoint = server.Endpoint });
 
         var exception = await Assert
-            .That(async () => _ = await client.Server.GetStatusAsync())
+            .That(async () => _ = await client.Server.GetInfoAsync())
             .Throws<OpenCodeTransportException>();
 
         await Assert.That(exception!.Message).Contains("302");
-        await Assert.That(server.RequestPaths).IsEquivalentTo(["/api/status"]);
+        await Assert.That(server.RequestPaths).IsEquivalentTo(["/api/info"]);
     }
 
     [Test]
@@ -84,7 +84,7 @@ public sealed class OwnedTransportTests
         {
             StatusCode = HttpStatusCode.OK,
             ContentType = "application/json",
-            Body = WireBodyData.StatusOk,
+            Body = WireBodyData.InfoOk,
             KeepOpen = true,
         });
         using var handler = TransportPolicy.CreateOwnedHttpHandler(server.Endpoint);
@@ -98,7 +98,7 @@ public sealed class OwnedTransportTests
         _ = await Assert
             .That(async () => _ = await pipeline.ExecuteAsync(
                 HttpMethod.Get,
-                "/api/status",
+                "/api/info",
                 new RecordingResponseAdapter(),
                 options: null,
                 CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5)))
@@ -144,7 +144,7 @@ public sealed class OwnedTransportTests
 
             var response = await pipeline.ExecuteAsync(
                 HttpMethod.Get,
-                "/api/status",
+                "/api/info",
                 new RecordingResponseAdapter(),
                 options: null,
                 CancellationToken.None);
@@ -172,7 +172,7 @@ public sealed class OwnedTransportTests
                 Body = WireBodyData.Frames(WireBodyData.StreamTestBodyOpen),
                 KeepOpen = true,
             },
-            "/api/status" => new LoopbackHttpResponse
+            "/api/info" => new LoopbackHttpResponse
             {
                 StatusCode = HttpStatusCode.OK,
                 ContentType = "application/json",
@@ -189,7 +189,7 @@ public sealed class OwnedTransportTests
 
         var response = await pipeline.ExecuteAsync(
                 HttpMethod.Get,
-                "/api/status",
+                "/api/info",
                 new RecordingResponseAdapter(),
                 options: null,
                 CancellationToken.None)
@@ -199,7 +199,7 @@ public sealed class OwnedTransportTests
         await Assert.That(secondOpened).IsTrue();
         await Assert.That(response.Status).IsEqualTo(200);
         await Assert.That(server.RequestPaths.Count(static path => path == "/api/event")).IsEqualTo(2);
-        await Assert.That(server.RequestPaths.Count(static path => path == "/api/status")).IsEqualTo(1);
+        await Assert.That(server.RequestPaths.Count(static path => path == "/api/info")).IsEqualTo(1);
     }
 
     [Test]

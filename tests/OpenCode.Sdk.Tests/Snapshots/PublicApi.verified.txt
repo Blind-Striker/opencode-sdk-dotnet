@@ -423,6 +423,10 @@
         public string? Limit { get; init; }
         public OpenCode.Sdk.ListOrder? Order { get; init; }
     }
+    public sealed class LocationReloadPostResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.LocationReloadPostResponse>
+    {
+        public LocationReloadPostResponse() { }
+    }
     public sealed class LocationRequest : System.IEquatable<OpenCode.Sdk.LocationRequest>
     {
         public LocationRequest() { }
@@ -537,6 +541,7 @@
         public void Dispose() { }
         protected virtual void Dispose(bool disposing) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.LocationResponse> GetLocationAsync(OpenCode.Sdk.LocationRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.LocationReloadPostResponse> ReloadLocationsAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class OpenCodeClientOptions : OpenCode.Sdk.IOpenCodeClientOptions
     {
@@ -679,6 +684,7 @@
         public static class Location
         {
             public const string GetTemplate = "/api/location";
+            public const string ReloadLocations = "/api/location/reload";
             public static string Get(OpenCode.Sdk.LocationRequest? request = null) { }
         }
         public static class McpServers
@@ -767,7 +773,7 @@
         }
         public static class Server
         {
-            public const string GetStatus = "/api/status";
+            public const string GetInfo = "/api/info";
         }
         public static class Sessions
         {
@@ -1398,12 +1404,12 @@
     public class ServerClient
     {
         protected ServerClient() { }
-        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ServerStatusResponse> GetStatusAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ServerInfoResponse> GetInfoAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
-    public sealed class ServerStatusResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ServerStatusResponse>
+    public sealed class ServerInfoResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ServerInfoResponse>
     {
-        public ServerStatusResponse() { }
-        public required OpenCode.Sdk.Models.ServerStatus ServerStatus { get; init; }
+        public ServerInfoResponse() { }
+        public required OpenCode.Sdk.Models.ServerInfo ServerInfo { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class SessionActiveResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionActiveResponse>
@@ -2362,6 +2368,9 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("description")]
         public string? Description { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("hidden")]
+        public bool? Hidden { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("key")]
         public required string Key { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -2484,6 +2493,9 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("description")]
         public string? Description { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("hidden")]
+        public bool? Hidden { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("key")]
         public required string Key { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -2528,6 +2540,9 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("description")]
         public string? Description { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("hidden")]
+        public bool? Hidden { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("key")]
         public required string Key { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -2570,6 +2585,9 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("description")]
         public string? Description { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("hidden")]
+        public bool? Hidden { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("key")]
         public required string Key { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -2666,6 +2684,9 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("format")]
         public OpenCode.Sdk.Models.FormStringFieldFormat? Format { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("hidden")]
+        public bool? Hidden { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("key")]
         public required string Key { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -3540,6 +3561,24 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("workspaceID")]
         public string? WorkspaceId { get; init; }
+    }
+    public sealed class LocationShutdown : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.LocationShutdown>
+    {
+        public LocationShutdown() { }
+        [System.Text.Json.Serialization.JsonPropertyName("created")]
+        public required double Created { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
+        public required System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> Data { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
+        public OpenCode.Sdk.Models.LocationRef? Location { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
     }
     public sealed class McpLocalConfig : OpenCode.Sdk.Models.IMcp, System.IEquatable<OpenCode.Sdk.Models.McpLocalConfig>
     {
@@ -5137,15 +5176,23 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("output")]
         public System.Text.Json.JsonElement? Output { get; init; }
     }
-    public sealed class ServerStatus : System.IEquatable<OpenCode.Sdk.Models.ServerStatus>
+    public sealed class ServerInfo : System.IEquatable<OpenCode.Sdk.Models.ServerInfo>
     {
-        public ServerStatus() { }
+        public ServerInfo() { }
+        [System.Text.Json.Serialization.JsonPropertyName("paths")]
+        public required OpenCode.Sdk.Models.ServerInfoPaths Paths { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("pid")]
         public required long Pid { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("urls")]
         public required System.Collections.Generic.IReadOnlyList<string> Urls { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public required string Version { get; init; }
+    }
+    public sealed class ServerInfoPaths : System.IEquatable<OpenCode.Sdk.Models.ServerInfoPaths>
+    {
+        public ServerInfoPaths() { }
+        [System.Text.Json.Serialization.JsonPropertyName("tmp")]
+        public required string Tmp { get; init; }
     }
     public sealed class ServiceUnavailableError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.ServiceUnavailableError>
     {
@@ -8099,6 +8146,8 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("snapshot")]
         public string? Snapshot { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("started")]
+        public required long Started { get; init; }
     }
     public sealed class SessionStepStartedDurable : OpenCode.Sdk.Models.IDurableEnvelope, System.IEquatable<OpenCode.Sdk.Models.SessionStepStartedDurable>
     {
