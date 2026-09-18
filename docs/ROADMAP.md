@@ -31,9 +31,9 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
 - **2.0.5 refresh** — the accepted pin, prefixless operation identities, regenerated clients with
   `experimental.*` on the flat `ExperimentalClient`, directory-only location targeting, and the
   status-based discovery probe are migrated, with no compatibility layer. The default Windows
-  source gate passes on `net472`, `net8.0`, `net9.0`, and `net10.0`, the Linux source suite
-  passes under WSL on `net8.0`, `net9.0`, and `net10.0`, and regeneration and receipt
-  verification pass. macOS is not requalified at this pin; the three-OS CI run on the
+  source gate passes on `net472`, `net8.0`, `net9.0`, and `net10.0` (6,278 tests), the Linux source
+  suite passes under WSL on `net8.0`, `net9.0`, and `net10.0` (4,900 tests), and regeneration and
+  receipt verification pass. macOS is not requalified at this pin; the three-OS CI run on the
   refresh's pull request is that qualification. The remaining M4 slices (Stop, then Ensure) resume
   after the refresh lands.
 - **Official launch watch** — upstream's own 1.x npm package (`opencode-ai`) and its GitHub Releases
@@ -189,6 +189,11 @@ is revisited at each boundary.
   Windows. Harmless today, because every timing-bounded test runs alone, and queued as a hygiene
   candidate: the first suspect is .NET Framework's synchronous pipe reads holding thread-pool
   threads for every piped child. Measure before changing anything.
+- **Live tests are serialized by one mutex within a host** ([#83](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/83)):
+  every live class carries the `ServerProcess` key, so a host's live tests run one at a time.
+  Bounded parallelism (`ParallelLimiter`) needs the simulated drive controller demultiplexed by
+  session first; until then the remaining gain is about 8% per host and not worth the Windows
+  watcher-churn risk.
 - **Small cleanups queued for their next natural touch** — `envelopePayloadNames` is the one
   curation section whose rows cannot carry a reason (a mechanical loader change, though authoring
   fifteen verified reasons is not); the generator still inlines the dot-segment refusal into every

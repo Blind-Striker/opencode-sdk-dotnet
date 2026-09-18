@@ -38,4 +38,24 @@ public sealed class ServerIsolationTests
         // line a test submits.
         await Assert.That(home is { } path && fileSystem.File.Exists(fileSystem.Path.Combine(path, ".zshrc"))).IsTrue();
     }
+
+    [Test]
+    public async Task Environment_Should_Share_One_Transpiler_Cache_Outside_Every_Run_Root()
+    {
+        var fileSystem = new MockFileSystem();
+        var runs = fileSystem.Path.Combine(fileSystem.Path.GetTempPath(), "runs");
+        var first = fileSystem.Path.Combine(runs, "first");
+        var second = fileSystem.Path.Combine(runs, "second");
+
+        _ = ServerIsolation.Environment(fileSystem, first).TryGetValue("BUN_RUNTIME_TRANSPILER_CACHE_PATH", out var firstCache);
+        _ = ServerIsolation.Environment(fileSystem, second).TryGetValue("BUN_RUNTIME_TRANSPILER_CACHE_PATH", out var secondCache);
+
+        // Bun keeps this cache under XDG_CACHE_HOME unless told otherwise, so an isolated cache root
+        // makes every server start transpile the pinned source from cold.
+        await Assert.That(firstCache).IsNotNull();
+        await Assert.That(secondCache).IsEqualTo(firstCache);
+        await Assert.That(firstCache is { } cache
+            && !cache.StartsWith(first + fileSystem.Path.DirectorySeparatorChar, StringComparison.Ordinal)
+            && !cache.StartsWith(second + fileSystem.Path.DirectorySeparatorChar, StringComparison.Ordinal)).IsTrue();
+    }
 }

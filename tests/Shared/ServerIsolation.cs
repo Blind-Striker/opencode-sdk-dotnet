@@ -53,6 +53,15 @@ internal static class ServerIsolation
             ["OPENCODE_CONFIG"] = string.Empty,
             ["OPENCODE_DISABLE_MODELS_FETCH"] = "1",
 
+            // Bun keeps its transpiler cache under XDG_CACHE_HOME unless this names another place,
+            // so the isolated cache root above would make every source-run server transpile the
+            // pinned monorepo from cold - several seconds per start. The cache is content-addressed
+            // output of the pinned source, carries no state, and is shared across processes by
+            // design, so one directory beside the run roots serves every fixture.
+            ["BUN_RUNTIME_TRANSPILER_CACHE_PATH"] = fileSystem.Path.Combine(
+                fileSystem.Path.GetDirectoryName(fileSystem.Path.GetFullPath(runRoot)) ?? runRoot,
+                "bun-transpiler-cache"),
+
             // global.home is OPENCODE_TEST_HOME before os.homedir() (packages/util/src/global.ts:17):
             // the home whose .claude and .agents directories config discovery reads and watches
             // (packages/core/src/config/discovery.ts:28-29). HOME is what os.homedir() answers

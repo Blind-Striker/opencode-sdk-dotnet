@@ -143,6 +143,9 @@ true; the fixture hands the boundary to the child process it starts.
   own run root and gives an interactive shell nothing to ask (a terminal the server opens runs the
   user's own shell there, and zsh meets a home without startup files with a first-run wizard). A
   variable that can steer a server at the developer's data belongs there, set.
+  The one thing fixtures share is bun's transpiler cache, kept beside the run roots: it is
+  content-addressed output of the pinned source and carries no state, and leaving it under each
+  isolated cache root made every source-run server start transpile the monorepo from cold.
   Which server an owned fixture starts (`OPENCODE_SDK_TESTS_SERVER_COMMAND`,
   `OPENCODE_SDK_TESTS_ENDPOINT`) is a separate choice and not part of the boundary.
 - **Run roots have a clean chain above them.** The pinned server loads project configuration from
