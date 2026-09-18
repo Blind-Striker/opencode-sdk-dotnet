@@ -1019,6 +1019,11 @@ public static class OpenCodeRoutes
             query.AddLocation("location", request.Location);
             return path + query.Value;
         }
+
+        /// <summary>
+        /// The &apos;POST /api/location/reload&apos; route.
+        /// </summary>
+        public const string ReloadLocations = "/api/location/reload";
     }
 
     /// <summary>
@@ -1725,9 +1730,9 @@ public static class OpenCodeRoutes
     public static class Server
     {
         /// <summary>
-        /// The &apos;GET /api/status&apos; route.
+        /// The &apos;GET /api/info&apos; route.
         /// </summary>
-        public const string GetStatus = "/api/status";
+        public const string GetInfo = "/api/info";
     }
 
     /// <summary>

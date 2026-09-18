@@ -10,7 +10,7 @@ public sealed class ResponseEncodingPolicyTests
     [Test]
     public async Task Decode_Should_Slice_A_Utf8_Bom_From_The_Byte_Path()
     {
-        var payload = Encoding.UTF8.GetBytes(WireBodyData.StatusOk);
+        var payload = Encoding.UTF8.GetBytes(WireBodyData.InfoOk);
         var body = Encoding.UTF8.GetPreamble().Concat(payload).ToArray();
 
         var decoded = ResponseEncodingPolicy.Decode(body, charset: null);
@@ -22,22 +22,22 @@ public sealed class ResponseEncodingPolicyTests
     [Test]
     public async Task Decode_Should_Use_A_Declared_Non_Utf8_Encoding_Without_A_Bom()
     {
-        var body = Encoding.Unicode.GetBytes(WireBodyData.StatusOk);
+        var body = Encoding.Unicode.GetBytes(WireBodyData.InfoOk);
 
         var decoded = ResponseEncodingPolicy.Decode(body, "utf-16");
 
-        await Assert.That(decoded.DecodedBody).IsEqualTo(WireBodyData.StatusOk);
+        await Assert.That(decoded.DecodedBody).IsEqualTo(WireBodyData.InfoOk);
         await Assert.That(decoded.Utf8Body.IsEmpty).IsTrue();
     }
 
     [Test]
     public async Task Decode_Should_Prefer_A_Utf32_Bom_Over_Its_Utf16_Prefix()
     {
-        var body = Encoding.UTF32.GetPreamble().Concat(Encoding.UTF32.GetBytes(WireBodyData.StatusOk)).ToArray();
+        var body = Encoding.UTF32.GetPreamble().Concat(Encoding.UTF32.GetBytes(WireBodyData.InfoOk)).ToArray();
 
         var decoded = ResponseEncodingPolicy.Decode(body, charset: null);
 
-        await Assert.That(decoded.DecodedBody).IsEqualTo(WireBodyData.StatusOk);
+        await Assert.That(decoded.DecodedBody).IsEqualTo(WireBodyData.InfoOk);
     }
 
     [Test]
@@ -51,12 +51,12 @@ public sealed class ResponseEncodingPolicyTests
     [Test]
     public async Task Decode_Should_Accept_A_Quoted_Utf8_Charset()
     {
-        var body = Encoding.UTF8.GetBytes(WireBodyData.StatusOk);
+        var body = Encoding.UTF8.GetBytes(WireBodyData.InfoOk);
 
         var decoded = ResponseEncodingPolicy.Decode(body, "\"utf-8\"");
 
         await Assert.That(decoded.DecodedBody).IsNull();
-        await Assert.That(decoded.GetDecodedBody()).IsEqualTo(WireBodyData.StatusOk);
+        await Assert.That(decoded.GetDecodedBody()).IsEqualTo(WireBodyData.InfoOk);
     }
 
     [Test]
@@ -70,7 +70,7 @@ public sealed class ResponseEncodingPolicyTests
     [Test]
     public async Task Decode_Should_Bound_Itself_To_The_Count_Over_A_Pooled_Array()
     {
-        var payload = Encoding.UTF8.GetBytes(WireBodyData.StatusOk);
+        var payload = Encoding.UTF8.GetBytes(WireBodyData.InfoOk);
         var pooled = new byte[payload.Length + 32];
         payload.CopyTo(pooled, 0);
         pooled.AsSpan(payload.Length).Fill(0xFF);
@@ -82,25 +82,25 @@ public sealed class ResponseEncodingPolicyTests
 
     public static IEnumerable<Func<(byte[] Body, string? Charset)>> ParityCases() =>
     [
-        static () => (Encoding.UTF8.GetBytes(WireBodyData.StatusOk), null),
+        static () => (Encoding.UTF8.GetBytes(WireBodyData.InfoOk), null),
         static () => (Utf8WithBom(), null),
-        static () => (Encoding.UTF8.GetBytes(WireBodyData.StatusOk), "utf-8"),
-        static () => (Encoding.UTF8.GetBytes(WireBodyData.StatusOk), "UTF-8"),
+        static () => (Encoding.UTF8.GetBytes(WireBodyData.InfoOk), "utf-8"),
+        static () => (Encoding.UTF8.GetBytes(WireBodyData.InfoOk), "UTF-8"),
         static () => (Utf8WithBom(), "utf-8"),
 #if NET
         // net472's own HttpContent rejects a quoted charset outright; the repo ships the
         // modern algorithm on every target (ADR-0014), so this row stays differential on
         // modern frameworks and the dedicated quoted-charset tests pin downlevel behavior.
-        static () => (Encoding.UTF8.GetBytes(WireBodyData.StatusOk), "\"utf-8\""),
+        static () => (Encoding.UTF8.GetBytes(WireBodyData.InfoOk), "\"utf-8\""),
 #endif
-        static () => (Encoding.Unicode.GetBytes(WireBodyData.StatusOk), "utf-16"),
+        static () => (Encoding.Unicode.GetBytes(WireBodyData.InfoOk), "utf-16"),
         static () => (WithPreamble(Encoding.Unicode), "utf-16"),
         static () => (WithPreamble(Encoding.Unicode), null),
         static () => (WithPreamble(Encoding.BigEndianUnicode), null),
         static () => (WithPreamble(Encoding.UTF32), null),
         static () => (WithPreamble(Encoding.UTF32), "utf-32"),
-        static () => (WireBodyData.StatusWithMalformedUtf8UnknownField(), null),
-        static () => (WireBodyData.StatusWithMalformedUtf8UnknownField(), "utf-8"),
+        static () => (WireBodyData.InfoWithMalformedUtf8UnknownField(), null),
+        static () => (WireBodyData.InfoWithMalformedUtf8UnknownField(), "utf-8"),
         static () => (Encoding.UTF8.GetPreamble(), null),
         static () => ([], "not-an-encoding"),
     ];
@@ -130,7 +130,7 @@ public sealed class ResponseEncodingPolicyTests
     [Test]
     public async Task Decode_Should_Refuse_An_Invalid_Charset_Exactly_As_HttpContent_Does()
     {
-        var body = Encoding.UTF8.GetBytes(WireBodyData.StatusOk);
+        var body = Encoding.UTF8.GetBytes(WireBodyData.InfoOk);
         using var content = new ByteArrayContent(body);
         content.Headers.ContentType = new MediaTypeHeaderValue("application/json") { CharSet = "not-an-encoding" };
 
@@ -141,8 +141,8 @@ public sealed class ResponseEncodingPolicyTests
     }
 
     private static byte[] Utf8WithBom() =>
-        [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(WireBodyData.StatusOk)];
+        [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(WireBodyData.InfoOk)];
 
     private static byte[] WithPreamble(Encoding encoding) =>
-        [.. encoding.GetPreamble(), .. encoding.GetBytes(WireBodyData.StatusOk)];
+        [.. encoding.GetPreamble(), .. encoding.GetBytes(WireBodyData.InfoOk)];
 }

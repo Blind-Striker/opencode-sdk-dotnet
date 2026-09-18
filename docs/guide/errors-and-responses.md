@@ -26,7 +26,7 @@ Every response type derives from `OpenCodeResponse`:
 | `RawBody` | `string?` | The exact response body, retained on failures — including when typed parsing did not succeed. |
 
 On top of the spine each response adds its own payload members: `SessionResponse.Session`,
-`SessionListResponse.Sessions` and `.Cursor`, `ServerStatusResponse.ServerStatus`, and so on.
+`SessionListResponse.Sessions` and `.Cursor`, `ServerInfoResponse.ServerInfo`, and so on.
 
 ## 💥 Calls throw by default
 
@@ -228,9 +228,9 @@ match its declared schema, a read that stalled past the internal progress window
 ```csharp
 try
 {
-    var status = await client.Server.GetStatusAsync(OpenCodeRequestOptions.NoThrow);
+    var info = await client.Server.GetInfoAsync(OpenCodeRequestOptions.NoThrow);
 
-    Console.WriteLine(status.Status);
+    Console.WriteLine(info.Status);
 }
 catch (OpenCodeTransportException transport)
 {

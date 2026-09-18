@@ -261,4 +261,17 @@ public class OpenCodeClient : IDisposable
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Location.Get(request), LocationResponseAdapter.Instance, requestOptions, cancellationToken);
     }
+
+    /// <summary>
+    /// Reload configuration. Shut down and rebuild every loaded location. Pending permissions and forms are cancelled; running sessions continue with fresh services at the next step boundary. Emits location.shutdown for client recovery and responds once all replacement builds settle.
+    /// </summary>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;LocationReloadPostResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 503) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<LocationReloadPostResponse> ReloadLocationsAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Location.ReloadLocations, LocationReloadPostResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
 }

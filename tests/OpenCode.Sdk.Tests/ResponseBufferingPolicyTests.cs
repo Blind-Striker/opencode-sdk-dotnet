@@ -13,17 +13,17 @@ public sealed class ResponseBufferingPolicyTests
         var pool = new TrackingByteArrayPool();
         using var handler = new RecordingHttpHandler(static _ => new HttpResponseMessage(HttpStatusCode.OK)
         {
-            Content = new StringContent(WireBodyData.StatusOk),
+            Content = new StringContent(WireBodyData.InfoOk),
         });
         using var httpClient = new HttpClient(handler);
         using var pipeline = PipelineFactory.Create(httpClient, bufferPool: pool);
         var adapter = new RecordingResponseAdapter();
 
-        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/status", adapter, options: null, CancellationToken.None);
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/info", adapter, options: null, CancellationToken.None);
 
         // The tracking pool pre-fills spare capacity with 0xFF, so the adapter seeing the
         // exact body also proves decoding stayed inside the filled length.
-        await Assert.That(adapter.AdaptedRawBody).IsEqualTo(WireBodyData.StatusOk);
+        await Assert.That(adapter.AdaptedRawBody).IsEqualTo(WireBodyData.InfoOk);
         await Assert.That(pool.RentCount).IsGreaterThan(0);
         await Assert.That(pool.OutstandingCount).IsEqualTo(0);
     }
@@ -42,7 +42,7 @@ public sealed class ResponseBufferingPolicyTests
         using var pipeline = PipelineFactory.Create(httpClient, bufferPool: pool);
         var adapter = new RecordingResponseAdapter();
 
-        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/status", adapter, options: null, CancellationToken.None);
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/info", adapter, options: null, CancellationToken.None);
 
         // No declared length starts the buffer small, so a 2 KB body forces the
         // grow-and-copy path; every rented array must still come back exactly once.
@@ -64,7 +64,7 @@ public sealed class ResponseBufferingPolicyTests
 
         _ = await Assert
             .That(async () => _ = await pipeline.ExecuteAsync(
-                HttpMethod.Get, "/api/status", new RecordingResponseAdapter(), options: null, CancellationToken.None))
+                HttpMethod.Get, "/api/info", new RecordingResponseAdapter(), options: null, CancellationToken.None))
             .Throws<OpenCodeTransportException>();
 
         await Assert.That(pool.RentCount).IsGreaterThan(0);
@@ -86,7 +86,7 @@ public sealed class ResponseBufferingPolicyTests
         using var pipeline = PipelineFactory.Create(httpClient, bufferPool: pool);
 
         var execution = pipeline.ExecuteAsync(
-            HttpMethod.Get, "/api/status", new RecordingResponseAdapter(), options: null, callerCancellation.Token);
+            HttpMethod.Get, "/api/info", new RecordingResponseAdapter(), options: null, callerCancellation.Token);
         await content.ReadStarted.WaitAsync(TimeSpan.FromSeconds(1));
         await callerCancellation.CancelAsync();
 
@@ -116,7 +116,7 @@ public sealed class ResponseBufferingPolicyTests
         using var pipeline = PipelineFactory.Create(httpClient, bufferPool: pool);
         var adapter = new RecordingResponseAdapter();
 
-        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/status", adapter, options: null, CancellationToken.None);
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/info", adapter, options: null, CancellationToken.None);
 
         await Assert.That(adapter.AdaptedRawBody).IsEmpty();
         await Assert.That(pool.OutstandingCount).IsEqualTo(0);

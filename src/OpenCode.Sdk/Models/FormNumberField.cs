@@ -36,6 +36,13 @@ public sealed record FormNumberField : IFormField
     public bool? Required { get; init; }
 
     /// <summary>
+    /// Gets the hidden value.
+    /// </summary>
+    [JsonPropertyName("hidden")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Hidden { get; init; }
+
+    /// <summary>
     /// Gets the when value.
     /// </summary>
     [JsonPropertyName("when")]

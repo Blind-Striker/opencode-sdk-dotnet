@@ -56,8 +56,8 @@ body:
     id: server-version
     attributes:
       label: opencode server version
-      description: The `version` field `Server.GetStatusAsync` returns.
-      placeholder: 2.0.5
+      description: The `version` field `Server.GetInfoAsync` returns.
+      placeholder: 2.0.8
     validations:
       required: true
 

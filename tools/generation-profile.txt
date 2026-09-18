@@ -37,6 +37,7 @@ integration.oauth.complete
 integration.oauth.connect
 integration.oauth.status
 location.get
+location.reload
 mcp.list
 mcp.resource.catalog
 model.default
@@ -69,7 +70,7 @@ pty.remove
 pty.update
 reference.list
 rpc.call
-server.status
+server.info
 session.active
 session.background
 session.command

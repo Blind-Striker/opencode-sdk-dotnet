@@ -17,7 +17,7 @@ public sealed class ServiceDiscoveryTests
 
     private readonly MockFileSystem _fileSystem = new();
     private readonly IServiceEnvironment _environment = Substitute.For<IServiceEnvironment>();
-    private readonly IServiceStatusProbe _probe = Substitute.For<IServiceStatusProbe>();
+    private readonly IServiceInfoProbe _probe = Substitute.For<IServiceInfoProbe>();
 
     public ServiceDiscoveryTests()
     {

@@ -82,7 +82,7 @@ local server launcher. Protocol and generated-model rules live in
   enumerates `PtyFrame` values, `WriteAsync` sends input, and `DisposeAsync` closes. The caller
   owns disposal of the session; peer closure and transport failure can also end the connection.
 - **Transport divergence.** This is one of the two public SDK doors that do not ride the HTTP
-  pipeline (the persistent PTY session is the other; the background-service status probe is an
+  pipeline (the persistent PTY session is the other; the background-service info probe is an
   internal third). The upgrade builds its own `ClientWebSocket`, so a
   caller-supplied `HttpClient`, its proxy, its handler chain, the redirect policy, the
   pooled-connection lifetime, and the pipeline's progress window **do not apply** to a PTY session.
@@ -457,8 +457,8 @@ through `Environment` — observed on Windows as well as on Unix. This door has 
 status check and a version warning, `server-connection.ts:24-39`) → plain `OpenCodeClient`
 construction. There is no dedicated SDK verb or member for this door; the validation recipe
 composes two existing pieces: construct the client against the known endpoint, call
-`Server.GetStatusAsync` under a caller-owned `CancellationTokenSource(TimeSpan.FromSeconds(5))`, and
-compare the returned `ServerStatus.Version` against the caller's own expectation. The SDK carries no
+`Server.GetInfoAsync` under a caller-owned `CancellationTokenSource(TimeSpan.FromSeconds(5))`, and
+compare the returned `ServerInfo.Version` against the caller's own expectation. The SDK carries no
 version comparand of its own — the accepted snapshot (`spec/SNAPSHOT.md`) is a protocol identity,
 not a runtime version — and the network-timeout knob a first-class helper would want is
 M6-deferred, so **no new public member lands for this door in this arc**: a dedicated helper would
@@ -478,11 +478,11 @@ contract is not in the OpenAPI document; the SDK ports the accepted-pin first-pa
 pins every file it reads in `spec/source-watch.json` (ADR-0025). The null channel reads the shared
 release registration `service.json` with no legacy migration; a named channel follows the CLI's
 filename, sanitization, and legacy-migration rules; a direct registration path bypasses all three.
-The status probe is a raw authenticated `GET /api/status` through an owned non-redirecting handler with a
+The info probe is a raw authenticated `GET /api/info` through an owned non-redirecting handler with a
 two-second bound: it rides neither the pipeline's decoration policy nor its progress window, and
-`ServiceStatusProbe` owns its transport and path, while `ServiceProbeResponseClassifier` decodes
+`ServiceInfoProbe` owns its transport and path, while `ServiceProbeResponseClassifier` decodes
 only the required first-party pid/version evidence. This private discovery decoder is independent
-of the generated public `ServerStatus` model, whose required `Urls` does not constrain discovery. Discovery returns null for a missing, unusable, or not-ready
+of the generated public `ServerInfo` model, whose required `Urls` does not constrain discovery. Discovery returns null for a missing, unusable, or not-ready
 registration and throws only for refused input (`ArgumentException`), caller cancellation, and an
 unresolvable user home (`OpenCodeServerException`). Ensure and Stop are tracked in
 `docs/ROADMAP.md` §4.

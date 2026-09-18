@@ -3,7 +3,7 @@ namespace OpenCode.Sdk.Sandbox;
 /// <summary>
 /// The envelope-completion leg of the standing walkthrough: the ref-to-array vcs branches call,
 /// the directory location sibling, the session-active dictionary
-/// payload, the status body /api/status answers, and the session-scoped context
+/// payload, the info body /api/info answers, and the session-scoped context
 /// read on the bound SessionClient.
 /// </summary>
 internal static class EnvelopeCompletionWalkthrough
@@ -26,11 +26,11 @@ internal static class EnvelopeCompletionWalkthrough
 
         Console.WriteLine($"session-active: status={active.Status} active={active.Active.Count}");
 
-        var server = await client.Server.GetStatusAsync().ConfigureAwait(false);
+        var server = await client.Server.GetInfoAsync().ConfigureAwait(false);
 
-        var firstUrl = server.ServerStatus.Urls.Count > 0 ? server.ServerStatus.Urls[0] : "<none>";
+        var firstUrl = server.ServerInfo.Urls.Count > 0 ? server.ServerInfo.Urls[0] : "<none>";
 
-        Console.WriteLine($"server: status={server.Status} urls={server.ServerStatus.Urls.Count} first={firstUrl}");
+        Console.WriteLine($"server: status={server.Status} urls={server.ServerInfo.Urls.Count} first={firstUrl}");
 
         var context = await handle.GetContextAsync().ConfigureAwait(false);
 

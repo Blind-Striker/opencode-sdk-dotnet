@@ -78,9 +78,9 @@ straight away rather than on the first call.
 ### Is the server alive?
 
 ```csharp
-var status = await client.Server.GetStatusAsync();
+var info = await client.Server.GetInfoAsync();
 
-Console.WriteLine($"opencode {status.ServerStatus.Version} (pid {status.ServerStatus.Pid})");
+Console.WriteLine($"opencode {info.ServerInfo.Version} (pid {info.ServerInfo.Pid})");
 ```
 
 `GetLocationAsync` is the only operation directly on the root client. Status lives on `Server`.

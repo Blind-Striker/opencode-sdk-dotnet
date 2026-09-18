@@ -61,7 +61,7 @@ standing breadth walkthrough: status, session create/list/get, message list, exp
 with its sanitize query, permission create/get/reply, compact and fork, interrupt and DELETE
 revert-clear, experimental instructions and MCP mutations, PTY update, and a typed
 `FormNotFoundError` through NoThrow. The envelope leg reads `Vcs.ListBranchesAsync`, the resolved
-directory, the session-active dictionary, `Server.GetStatusAsync().ServerStatus.Urls`, and session
+directory, the session-active dictionary, `Server.GetInfoAsync().ServerInfo.Urls`, and session
 context. The PTY and persistent PTY legs use the same Extensions registration.
 
 The PTY leg (`PtySessionWalkthrough`) is the hand-written family's live proof (ADR-0021). It
@@ -97,7 +97,7 @@ ppty-shutdown: status=204 isError=False
 `StandaloneServerWalkthrough` is the M4 launcher demo leg: unlike every mode above, it needs no
 `OPENCODE_SANDBOX_ENDPOINT` and no ambient server — the SDK starts and owns the server itself
 through `OpenCodeServer.StartAsync` (the standalone-start connection mode; `docs/architecture/
-client-runtime.md` §Connection modes), then calls `CreateClient()` and `Server.GetStatusAsync` under a
+client-runtime.md` §Connection modes), then calls `CreateClient()` and `Server.GetInfoAsync` under a
 5-second-bounded probe, the same recipe door 2 (explicit endpoint) would run against a
 caller-supplied endpoint. It is checked before the `OPENCODE_SANDBOX_ENDPOINT` gate, so it is the
 only mode reachable without a running server.

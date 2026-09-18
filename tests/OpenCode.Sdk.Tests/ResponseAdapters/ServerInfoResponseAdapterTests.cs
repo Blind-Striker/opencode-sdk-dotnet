@@ -3,12 +3,12 @@ using OpenCode.Sdk.Internal.ResponseAdapters;
 
 namespace OpenCode.Sdk.Tests.ResponseAdapters;
 
-public sealed class ServerStatusResponseAdapterTests
+public sealed class ServerInfoResponseAdapterTests
 {
     [Test]
     public async Task Classify_Should_Read_The_Pinned_Status_Table()
     {
-        var adapter = ServerStatusResponseAdapter.Instance;
+        var adapter = ServerInfoResponseAdapter.Instance;
 
         await Assert.That(adapter.Classify(200)).IsEqualTo(StatusVerdict.Success);
         await Assert.That(adapter.Classify(204)).IsEqualTo(StatusVerdict.UndeclaredSuccess);

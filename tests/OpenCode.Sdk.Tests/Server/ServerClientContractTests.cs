@@ -7,24 +7,24 @@ namespace OpenCode.Sdk.Tests;
 public sealed class ServerClientContractTests
 {
     [Test]
-    public async Task GetStatusAsync_Should_Return_The_Typed_Urls()
+    public async Task GetInfoAsync_Should_Return_The_Typed_Urls()
     {
-        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.StatusOk);
+        using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.InfoOk);
 
-        var response = await scenario.Client.Server.GetStatusAsync();
+        var response = await scenario.Client.Server.GetInfoAsync();
 
-        await Assert.That(response.ServerStatus.Urls.Single()).IsEqualTo("http://localhost:4096");
-        await Assert.That(scenario.Requests.Single().RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/status"));
+        await Assert.That(response.ServerInfo.Urls.Single()).IsEqualTo("http://localhost:4096");
+        await Assert.That(scenario.Requests.Single().RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/info"));
         await Assert.That(scenario.Requests.Single().Method).IsEqualTo(HttpMethod.Get);
     }
 
     [Test]
-    public async Task GetStatusAsync_Should_Throw_The_Declared_400_Error()
+    public async Task GetInfoAsync_Should_Throw_The_Declared_400_Error()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.InvalidRequestError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Server.GetStatusAsync())
+            .That(async () => _ = await scenario.Client.Server.GetInfoAsync())
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(400);
@@ -32,11 +32,11 @@ public sealed class ServerClientContractTests
     }
 
     [Test]
-    public async Task GetStatusAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
+    public async Task GetInfoAsync_Should_Return_The_401_Error_On_The_NoThrow_Spine()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
 
-        var response = await scenario.Client.Server.GetStatusAsync(OpenCodeRequestOptions.NoThrow);
+        var response = await scenario.Client.Server.GetInfoAsync(OpenCodeRequestOptions.NoThrow);
 
         await Assert.That(response.IsError).IsTrue();
         await Assert.That(response.Status).IsEqualTo(401);

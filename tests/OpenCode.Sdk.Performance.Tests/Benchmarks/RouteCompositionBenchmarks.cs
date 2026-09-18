@@ -44,7 +44,7 @@ public class RouteCompositionBenchmarks
 
     /// <summary>The constant no-parameter route.</summary>
     [Benchmark]
-    public string ConstantRoute() => OpenCodeRoutes.Server.GetStatus;
+    public string ConstantRoute() => OpenCodeRoutes.Server.GetInfo;
 
     /// <summary>The two-parameter path route: segment concatenation plus value escaping.</summary>
     [Benchmark]

@@ -13,7 +13,7 @@ public sealed class ResponseAdapterTests
     [Test]
     public async Task ReadBarePayload_Should_Deserialize_The_Body()
     {
-        var payload = ProbeAdapter.Bare(WireBodyData.StatusOk, OpenCodeJsonContext.Default.ServerStatus);
+        var payload = ProbeAdapter.Bare(WireBodyData.InfoOk, OpenCodeJsonContext.Default.ServerInfo);
 
         await Assert.That(payload.Version).IsEqualTo("0.0.0-test");
         await Assert.That(payload.Pid).IsEqualTo(42);
@@ -23,21 +23,21 @@ public sealed class ResponseAdapterTests
     public async Task ReadBarePayload_Should_Treat_Malformed_Bodies_As_Protocol_Failures()
     {
         _ = Assert.Throws<OpenCodeTransportException>(() =>
-            _ = ProbeAdapter.Bare("not json", OpenCodeJsonContext.Default.ServerStatus));
+            _ = ProbeAdapter.Bare("not json", OpenCodeJsonContext.Default.ServerInfo));
     }
 
     [Test]
     public async Task ReadBarePayload_Should_Treat_Null_Bodies_As_Protocol_Failures()
     {
         _ = Assert.Throws<OpenCodeTransportException>(() =>
-            _ = ProbeAdapter.Bare("null", OpenCodeJsonContext.Default.ServerStatus));
+            _ = ProbeAdapter.Bare("null", OpenCodeJsonContext.Default.ServerInfo));
     }
 
     [Test]
     public async Task ReadBarePayload_Should_Treat_Null_Utf8_Bodies_As_Protocol_Failures()
     {
         _ = Assert.Throws<OpenCodeTransportException>(() =>
-            _ = ProbeAdapter.Bare("null"u8, OpenCodeJsonContext.Default.ServerStatus));
+            _ = ProbeAdapter.Bare("null"u8, OpenCodeJsonContext.Default.ServerInfo));
     }
 
     [Test]

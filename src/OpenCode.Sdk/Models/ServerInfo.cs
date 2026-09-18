@@ -4,9 +4,9 @@ using System.Text.Json.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a server status value.
+/// Represents a server info value.
 /// </summary>
-public sealed record ServerStatus
+public sealed record ServerInfo
 {
     /// <summary>
     /// Gets the version value.
@@ -25,4 +25,10 @@ public sealed record ServerStatus
     /// </summary>
     [JsonPropertyName("urls")]
     public required IReadOnlyList<string> Urls { get; init; }
+
+    /// <summary>
+    /// Gets the paths value.
+    /// </summary>
+    [JsonPropertyName("paths")]
+    public required ServerInfoPaths Paths { get; init; }
 }

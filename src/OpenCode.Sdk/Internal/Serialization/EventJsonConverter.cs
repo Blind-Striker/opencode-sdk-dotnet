@@ -23,6 +23,7 @@ internal sealed class EventJsonConverter : JsonConverter<IEvent>
         ["installation.update-available"] = typeof(InstallationUpdateAvailable),
         ["installation.updated"] = typeof(InstallationUpdated),
         ["integration.updated"] = typeof(IntegrationUpdated),
+        ["location.shutdown"] = typeof(LocationShutdown),
         ["mcp.resources.changed"] = typeof(McpResourcesChanged),
         ["mcp.status.changed"] = typeof(McpStatusChanged),
         ["model.updated"] = typeof(ModelUpdated),

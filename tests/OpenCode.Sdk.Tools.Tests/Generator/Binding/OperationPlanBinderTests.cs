@@ -135,20 +135,20 @@ public sealed class OperationPlanBinderTests
         await Assert.That(root.HandleParameter).IsNull();
 
         var health = plan.Clients.Single(static client => client.Name == "ServerClient")
-            .Operations.Single(static operation => operation.MethodName == "GetStatusAsync");
-        await Assert.That(health.MethodName).IsEqualTo("GetStatusAsync");
+            .Operations.Single(static operation => operation.MethodName == "GetInfoAsync");
+        await Assert.That(health.MethodName).IsEqualTo("GetInfoAsync");
         await Assert.That(health.HttpMethod).IsEqualTo("get");
-        await Assert.That(health.RouteTemplate).IsEqualTo("/api/status");
+        await Assert.That(health.RouteTemplate).IsEqualTo("/api/info");
         await Assert.That(health.RouteContainerName).IsEqualTo("Server");
-        await Assert.That(health.RouteMemberName).IsEqualTo("GetStatus");
+        await Assert.That(health.RouteMemberName).IsEqualTo("GetInfo");
         await Assert.That(health.Parameters).IsEmpty();
-        await Assert.That(health.Summary).IsEqualTo("Get server status");
+        await Assert.That(health.Summary).IsEqualTo("Get server info");
         await Assert.That(health.Description).IsNotNull();
-        await Assert.That(health.Envelope!.ResponseTypeName).IsEqualTo("ServerStatusResponse");
-        await Assert.That(health.Envelope.AdapterTypeName).IsEqualTo("ServerStatusResponseAdapter");
-        await Assert.That(health.Envelope.PayloadName).IsEqualTo("ServerStatus");
+        await Assert.That(health.Envelope!.ResponseTypeName).IsEqualTo("ServerInfoResponse");
+        await Assert.That(health.Envelope.AdapterTypeName).IsEqualTo("ServerInfoResponseAdapter");
+        await Assert.That(health.Envelope.PayloadName).IsEqualTo("ServerInfo");
         await Assert.That(health.Envelope.PayloadType).IsTypeOf<NamedTypeReferencePlan>();
-        await Assert.That(((NamedTypeReferencePlan)health.Envelope.PayloadType!).Name).IsEqualTo("ServerStatus");
+        await Assert.That(((NamedTypeReferencePlan)health.Envelope.PayloadType!).Name).IsEqualTo("ServerInfo");
         await Assert.That(health.Envelope.Kind).IsEqualTo(EnvelopeKind.Bare);
         await Assert
             .That(health
@@ -179,8 +179,33 @@ public sealed class OperationPlanBinderTests
         await Assert.That(location.ErrorMap.Statuses[0].Tags.Single().Tag).IsEqualTo("InvalidRequestError");
         await Assert.That(location.ErrorMap.Statuses[1].Tags.Single().Tag).IsEqualTo("UnauthorizedError");
 
-        await Assert.That(root.Operations.Count).IsEqualTo(1);
+        await Assert.That(root.Operations.Count).IsEqualTo(2);
         await Assert.That(root.ContainerName).IsNull();
+    }
+
+    /// <summary>
+    /// The root client's second pinned operation: location.reload rides beside location.get through
+    /// its reason-bearing naming row, with the declared 503 arm the reload can answer.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Place_The_Location_Reload_On_The_Root_Client()
+    {
+        var plan = await new BindingTestHost().BindPinnedAsync();
+
+        var root = plan.Clients.Single(static client => client.Role == ClientRole.Root);
+        var reload = root.Operations.Single(static operation => operation.MethodName == "ReloadLocationsAsync");
+        await Assert.That(reload.HttpMethod).IsEqualTo("post");
+        await Assert.That(reload.RouteTemplate).IsEqualTo("/api/location/reload");
+        await Assert.That(reload.RouteContainerName).IsEqualTo("Location");
+        await Assert.That(reload.RouteMemberName).IsEqualTo("ReloadLocations");
+        await Assert.That(reload.Parameters).IsEmpty();
+        await Assert.That(reload.Envelope!.ResponseTypeName).IsEqualTo("LocationReloadPostResponse");
+        await Assert
+            .That(reload
+                .ErrorMap.Statuses.Select(static status => status.StatusCode)
+                .SequenceEqual([400, 401, 503]))
+            .IsTrue();
+        await Assert.That(reload.ErrorMap.Statuses[2].Tags.Single().Tag).IsEqualTo("ServiceUnavailableError");
     }
 
     /// <summary>
@@ -201,7 +226,7 @@ public sealed class OperationPlanBinderTests
     }
 
     /// <summary>
-    /// The committed curation's declined rows against the pinned spec: the three operations a
+    /// The committed curation's declined rows against the pinned spec: the four operations a
     /// standing wall refuses and the maintainer decided to leave out of the released surface. With
     /// them out of the pending set the pinned profile reaches pending = 0, which is what opens the
     /// packing wall — so a row added, dropped, or reordered must fail here rather than drift.
@@ -215,7 +240,7 @@ public sealed class OperationPlanBinderTests
             .That(plan
                 .DeclinedOperations.Select(static operation => operation.OperationId)
                 .SequenceEqual(
-                    ["config.get", "experimental.migration.v1.status", "fs.read"],
+                    ["config.get", "experimental.fs.write", "experimental.migration.v1.status", "fs.read"],
                     StringComparer.Ordinal))
             .IsTrue();
         await Assert.That(plan.DeclinedOperations.All(static operation => operation.Reason.Length > 0)).IsTrue();

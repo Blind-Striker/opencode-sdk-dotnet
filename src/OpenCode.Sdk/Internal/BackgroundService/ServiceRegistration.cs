@@ -24,7 +24,7 @@ internal sealed class ServiceRegistration
     /// <summary>Gets the daemon's instance id, when it published one.</summary>
     public string? Id { get; }
 
-    /// <summary>Gets the version the daemon published, when it published one; the status answer must repeat it.</summary>
+    /// <summary>Gets the version the daemon published, when it published one; the info answer must repeat it.</summary>
     public string? Version { get; }
 
     /// <summary>Gets the raw URL string exactly as written; identity comparisons use this, never a normalized form.</summary>
@@ -33,7 +33,7 @@ internal sealed class ServiceRegistration
     /// <summary>Gets the validated absolute HTTP or HTTPS endpoint the probe resolves against.</summary>
     public Uri Endpoint { get; }
 
-    /// <summary>Gets the daemon's process id; the status answer must repeat it.</summary>
+    /// <summary>Gets the daemon's process id; the info answer must repeat it.</summary>
     public int ProcessId { get; }
 
     /// <summary>Gets the Basic password, or null when the record carried none or a blank one.</summary>

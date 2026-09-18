@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace OpenCode.Sdk.Internal.BackgroundService;
 
-/// <summary>Classifies the status probe using the pinned client's pid/version decoder, independently of the public status model.</summary>
+/// <summary>Classifies the info probe using the pinned client's pid/version decoder, independently of the public info model.</summary>
 internal static class ServiceProbeResponseClassifier
 {
     private static readonly ServiceProbeResult NotThisDaemon = new(State: null, Version: null, TimedOut: false);

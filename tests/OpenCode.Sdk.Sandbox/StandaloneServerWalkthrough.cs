@@ -28,9 +28,9 @@ internal static class StandaloneServerWalkthrough
 
         using var client = server.CreateClient();
         using var probeWindow = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        var status = await client.Server.GetStatusAsync(cancellationToken: probeWindow.Token).ConfigureAwait(false);
+        var status = await client.Server.GetInfoAsync(cancellationToken: probeWindow.Token).ConfigureAwait(false);
         Console.WriteLine(
-            $"status: {status.Status}, version: {status.ServerStatus.Version}, pid: {status.ServerStatus.Pid.ToString(CultureInfo.InvariantCulture)}");
+            $"status: {status.Status}, version: {status.ServerInfo.Version}, pid: {status.ServerInfo.Pid.ToString(CultureInfo.InvariantCulture)}");
         // The status call throws on anything but its declared success, so reaching this line is
         // the proof; it is also exactly the moment the model catalog can still be empty.
         await ModelSelectionWalkthrough.RunAsync(client).ConfigureAwait(false);

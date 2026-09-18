@@ -18,7 +18,7 @@ public class ResponseEncodingPolicyBenchmarks
     {
         var deep = BenchmarkFixtures.DeepAssistantMessage();
         var composer = new AssistantMessageComposer(deep);
-        yield return Body("utf8-status", BenchmarkFixtures.StatusBody());
+        yield return Body("utf8-status", BenchmarkFixtures.InfoBody());
         yield return Body("utf8-deep", deep);
         yield return Body("utf8-medium", composer.WithContentParts(MediumParts));
         yield return Body("utf8-bom-deep", BodyEncodings.WithUtf8Bom(deep));

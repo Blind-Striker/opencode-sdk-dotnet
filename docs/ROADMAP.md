@@ -28,13 +28,15 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
   targets. Linux and macOS live verification also passed on net8/net9/net10, including the persistent daemon
   round trip and normal PTY reuse after read cancellation. `architecture/client-runtime.md` and
   ADR-0023 own the contract.
-- **2.0.5 refresh** — the accepted pin, prefixless operation identities, regenerated clients with
-  `experimental.*` on the flat `ExperimentalClient`, directory-only location targeting, and the
-  status-based discovery probe are migrated, with no compatibility layer, and landed as PR #85.
-  Its CI run qualified every leg at this pin: Windows on `net472`, `net8.0`, `net9.0`, and
-  `net10.0` (6,278 tests), Linux and macOS on `net8.0`, `net9.0`, and `net10.0` (4,901 tests
-  each), with regeneration and receipt verification passing. The remaining M4 slices (Stop, then
-  Ensure) are next.
+- **2.0.8 refresh** — the accepted pin follows upstream's release tags inside M4: 2.0.5 brought
+  prefixless operation identities, `experimental.*` on the flat `ExperimentalClient`,
+  directory-only location targeting, and the status-based discovery probe (PR #85); 2.0.8 moves
+  the server identity door from `/api/status` to `/api/info` (`ServerClient.GetInfoAsync`,
+  `ServerInfo` with `Paths`), adds `ReloadLocationsAsync` and the `location.shutdown` event, and
+  declines `experimental.fs.write` beside `fs.read`, with no compatibility layer. Each refresh's
+  CI run qualifies every leg at its pin: Windows on `net472`, `net8.0`, `net9.0`, and `net10.0`,
+  Linux and macOS on `net8.0`, `net9.0`, and `net10.0`, with regeneration and receipt
+  verification passing. The remaining M4 slices follow the order in the milestone paragraph.
 - **Official launch watch** — upstream's own 1.x npm package (`opencode-ai`) and its GitHub Releases
   page were both still at `1.18.31` when last observed on 2026-09-16, so the 2.x line had not had
   its official launch then. The pin tracks upstream release tags and is refreshed under receipt at
@@ -86,8 +88,10 @@ is revisited at each boundary.
    literal sentinel, declaration order, required-key presence — proven against upstream's real
    decoder ([#87](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/87)); `fs.read`
    through a hand-written door over the wildcard octet-stream route with a watched upstream
-   handler (an ADR-0013 question first); and the two transport-owned WebSocket doors counted as
-   the covered operations they are — so the surface reads 134 of 134 usable.
+   handler (an ADR-0013 question first), with `experimental.fs.write` — the same family's
+   octet-stream request body, which the binder's JSON-and-event-stream media-type vocabulary
+   cannot bind — decided alongside it; and the two transport-owned WebSocket doors counted as
+   the covered operations they are — so the surface reads 136 of 136 usable.
 5. **M5 — Full surface.** Target admission over the refreshed surface, driven by the `refresh-spec`
    synchronizer (ADR-0020) and the ownership pattern for the terminal families (ADR-0021). Coverage
    has reached its end state; what remains is exclusion fingerprints for the transport-owned
@@ -134,16 +138,18 @@ is revisited at each boundary.
 
 ## Known Gaps
 
-- **Three operations stay declined by decision, not by omission.** The generation marker carries
+- **Four operations stay declined by decision, not by omission.** The generation marker carries
   each reason. `config.get` and `experimental.migration.v1.status` meet the ADR-0016
   structural-union wall: same-token-kind unions need a union mechanism, not a curation row.
   `fs.read` is declared on a framework wildcard rather than an OpenAPI path template, so the file
   path the call must carry is invisible to any generated client; admitting it would mean inventing a
   path parameter the document does not declare (ADR-0013), and the upstream report is drafted.
-  The current marker also records config naming and inline-model walls. All three have a sketched
-  admission path (Milestones, M4: surface completeness), so these are scheduled decisions to
-  revisit, not standing ones.
-- **There is no configuration read at the 2.0.5 pin.** Upstream removed `/api/config/preferences`
+  `experimental.fs.write` takes its file as an `application/octet-stream` request body, a media
+  type the binder does not bind (its vocabulary is JSON and `text/event-stream`), so it is the
+  same hand-written-door question as `fs.read`. The current marker also records config naming and
+  inline-model walls. All four have a sketched admission path (Milestones, M4: surface
+  completeness), so these are scheduled decisions to revisit, not standing ones.
+- **There is no configuration read at the 2.0.8 pin.** Upstream removed `/api/config/preferences`
   and folded reading into `config.get`, which stays declined above, so the SDK writes configuration
   through `Experimental.UpdateConfigAsync` and cannot read it back. Admitting `config.get` is what
   restores the read; it raises that decision's cost without changing its mechanism.

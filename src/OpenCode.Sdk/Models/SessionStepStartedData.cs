@@ -38,4 +38,10 @@ public sealed record SessionStepStartedData
     [JsonPropertyName("snapshot")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Snapshot { get; init; }
+
+    /// <summary>
+    /// Gets the started value.
+    /// </summary>
+    [JsonPropertyName("started")]
+    public required long Started { get; init; }
 }

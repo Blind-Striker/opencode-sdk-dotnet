@@ -22,11 +22,11 @@ covered. All three of opencode's connection modes are open: a private server the
 endpoint you already run, and the background service the CLI registers. What is still outstanding
 on that third mode is ensuring and stopping the service, which follow discovery as their own slices.
 
-- ✅ **131 of 134 operations** callable — 129 generated, two through hand-written WebSocket
+- ✅ **132 of 136 operations** callable — 130 generated, two through hand-written WebSocket
   transports — across 27 client families: sessions, PTYs, persistent PTYs, shells, events, MCP
   servers, integrations, providers, permissions, credentials, config, VCS, worktrees, websearch,
   RPC, and more
-- ✅ **6,278 tests** green on Windows — the fullest leg, the only one that adds the `net472`
+- ✅ **6,279 tests** green on Windows — the fullest leg, the only one that adds the `net472`
   assemblies. Linux and macOS run the same suite on `net8.0`, `net9.0`, and `net10.0`
 - ✅ **Server-sent event streams**, global and per-session, over the same transport as one-shot calls
 - ✅ **PTY and persistent-PTY terminal sessions** through hand-written WebSocket doors
@@ -121,7 +121,7 @@ not what this repository tests. The pinned release tag and its npm version are o
 [`spec/SNAPSHOT.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/spec/SNAPSHOT.md).
 
 ```sh
-npm install -g @opencode/cli@2.0.5
+npm install -g @opencode/cli@2.0.8
 ```
 
 Then either run it yourself:
@@ -212,8 +212,8 @@ using OpenCode.Sdk.Models;
 await using var server = await OpenCodeServer.StartAsync();
 using var client = server.CreateClient();
 
-var status = await client.Server.GetStatusAsync();
-Console.WriteLine($"opencode {status.ServerStatus.Version} (pid {status.ServerStatus.Pid})");
+var info = await client.Server.GetInfoAsync();
+Console.WriteLine($"opencode {info.ServerInfo.Version} (pid {info.ServerInfo.Pid})");
 
 var created = await client.Sessions.CreateSessionAsync(new SessionCreateRequest { Title = "hello from .NET" });
 Console.WriteLine($"session {created.Session.Id}: {created.Session.Title}");
@@ -234,8 +234,8 @@ using var client = new OpenCodeClient(new OpenCodeClientOptions
     Password = Environment.GetEnvironmentVariable("OPENCODE_PASSWORD"),
 });
 
-var status = await client.Server.GetStatusAsync();
-Console.WriteLine(status.ServerStatus.Version);
+var info = await client.Server.GetInfoAsync();
+Console.WriteLine(info.ServerInfo.Version);
 ```
 
 The client reads no environment variables of its own — resolving a password from the environment
@@ -258,8 +258,8 @@ if (server is null)
 }
 
 using var client = server.CreateClient();
-var status = await client.Server.GetStatusAsync();
-Console.WriteLine($"opencode {status.ServerStatus.Version}, pid {server.ProcessId}, owned: {server.OwnsProcess}");
+var info = await client.Server.GetInfoAsync();
+Console.WriteLine($"opencode {info.ServerInfo.Version}, pid {server.ProcessId}, owned: {server.OwnsProcess}");
 ```
 
 `OpenCodeServerDiscoverOptions` selects a service channel, names a registration file directly, or
@@ -311,13 +311,13 @@ overload shown above.
 
 ## 🧭 API Coverage
 
-**129 of 134 operations** in the pinned snapshot are generated; two more have hand-written
-WebSocket transports. The five operations outside generation are recorded decisions — each one has a named cause, and
+**130 of 136 operations** in the pinned snapshot are generated; two more have hand-written
+WebSocket transports. The six operations outside generation are recorded decisions — each one has a named cause, and
 [`src/OpenCode.Sdk/.generation-incomplete`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/src/OpenCode.Sdk/.generation-incomplete) is the
 machine-readable map that the build itself reads.
 
-**Three operations are declined**, because admitting them would mean inventing a contract upstream
-does not declare:
+**Four operations are declined**, because admitting them would mean inventing a contract upstream
+does not declare or binding one the generator has no mechanism for:
 
 - **`config.get`** — the config schema nests unions whose branches are all JSON objects with no
   discriminator (`lsp`'s and `references`' map values), so a decoder cannot tell one branch from
@@ -328,6 +328,10 @@ does not declare:
 - **`fs.read`** — the route is `/api/fs/read/*`, a framework wildcard rather than an OpenAPI
   path template. There is no declared path parameter to bind, and inventing one would put a
   fabricated contract in a generated client. An upstream report is drafted.
+- **`experimental.fs.write`** — the file travels as an `application/octet-stream` request body,
+  a media type the generator's binder does not bind (its vocabulary is JSON and
+  `text/event-stream`), so it is the same hand-written-door question as `fs.read` and is decided
+  with it.
 - **`experimental.migration.v1.status`** — the same undiscriminated-object-union wall as
   `config.get`, on an operation upstream itself marks experimental.
 

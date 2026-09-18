@@ -13,8 +13,8 @@ internal static class BenchmarkFixtures
     /// </summary>
     public static byte[] DeepAssistantMessage() => Read("deep-assistant-message.json");
 
-    /// <summary>The bare status payload the live server returns.</summary>
-    public static byte[] StatusBody() => "{\"urls\":[\"http://localhost:4096\"],\"version\":\"0.0.0-bench\",\"pid\":42}"u8.ToArray();
+    /// <summary>The bare server info payload the live server returns.</summary>
+    public static byte[] InfoBody() => "{\"urls\":[\"http://localhost:4096\"],\"version\":\"0.0.0-bench\",\"pid\":42,\"paths\":{\"tmp\":\"/tmp/opencode\"}}"u8.ToArray();
 
     /// <summary>
     /// A small framing-only payload, the size the live feed carries most of; the parser

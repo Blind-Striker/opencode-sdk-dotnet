@@ -13,13 +13,13 @@ internal sealed class PtyDiagnosticServer : IAsyncDisposable
         var payload = new FixtureLoader().LoadJson("Serialization.known-pty.json");
         Server = LoopbackHttpServer.Start(path =>
         {
-            if (path == "/api/status")
+            if (path == "/api/info")
             {
                 return new LoopbackHttpResponse
                 {
                     StatusCode = HttpStatusCode.OK,
                     ContentType = "application/json",
-                    Body = WireBodyData.StatusOk,
+                    Body = WireBodyData.InfoOk,
                 };
             }
 
