@@ -174,7 +174,10 @@ jobs:
           test_passed: '${{ steps.test-results.outputs.passed || 0 }}'
           test_failed: '${{ steps.test-results.outputs.failed || 0 }}'
           test_skipped: '${{ steps.test-results.outputs.skipped || 0 }}'
-          test_url_html: ${{ steps.test-results.outputs.url_html || '' }}
+          # dorny/test-reporter writes the job summary (use-actions-summary defaults to true, and
+          # this workflow has no checks:write to create a check run instead), and in that mode it
+          # never sets url_html, so the badge links to the run whose summary carries the report.
+          test_url_html: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
           commit_sha: '${{ github.sha }}'
           run_id: '${{ github.run_id }}'
           repository: '${{ github.repository }}'
