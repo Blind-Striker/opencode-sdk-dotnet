@@ -78,7 +78,9 @@ is revisited at each boundary.
    being a name source, so every non-`GET` operation whose closing segment is not a naming verb
    refuses generation until a reason-bearing `operationNames` row names it, and handle clients
    drop the family from their empty-subject names; it goes first, before the Stop slice reaches
-   for the generated persistent-PTY doors it renames. **Surface completeness** then admits the
+   for the generated persistent-PTY doors it renames, and it carries the enum member naming
+   channel with it ([#84](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/84),
+   `McpProtocol.Value20260728`). **Surface completeness** then admits the
    operations that sit outside generation: `config.get` and `experimental.migration.v1.status`
    through an ADR-0016 first-match arm that mirrors upstream's own union decode — token kind,
    literal sentinel, declaration order, required-key presence — proven against upstream's real
@@ -203,7 +205,7 @@ is revisited at each boundary.
   every live class carries the `ServerProcess` key, so a host's live tests run one at a time.
   Bounded parallelism (`ParallelLimiter`) needs the simulated drive controller demultiplexed by
   session first; until then the remaining gain is about 8% per host and not worth the Windows
-  watcher-churn risk.
+  watcher-churn risk. Queued inside M4.
 - **Small cleanups queued for their next natural touch** — `envelopePayloadNames` is the one
   curation section whose rows cannot carry a reason (a mechanical loader change, though authoring
   fifteen verified reasons is not); the generator still inlines the dot-segment refusal into every
