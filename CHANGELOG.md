@@ -9,9 +9,12 @@ Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
 `0.9.0-nightly.{yyyyMMdd}.{shortSha}`.
 
-Built against upstream release tag `v2.0.8`. Upstream removed and moved operations between `v2.0.2`
-and this tag; the SDK follows the pinned contract and keeps no compatibility layer, so the breaking
-changes come first, each with what to change.
+## [0.9.0-preview.1] - 2026-09-18
+
+The first preview of the `0.9.0` line, built against upstream release tag `v2.0.8`. Upstream
+removed and moved operations between `v2.0.2` (the pin of `0.8.0-preview.2`) and this tag; the SDK
+follows the pinned contract and keeps no compatibility layer, so the breaking changes come first,
+each with what to change.
 
 ### 💥 Breaking changes
 
@@ -405,5 +408,6 @@ migration to perform, because no earlier version was ever published.
 - **Pre-1.0 API.** The public surface is locked by a reviewed baseline, but it may still move
   before `1.0.0`. Breaking changes will be called out here with impact and migration path.
 
+[0.9.0-preview.1]: https://github.com/Blind-Striker/opencode-sdk-dotnet/releases/tag/v0.9.0-preview.1
 [0.8.0-preview.2]: https://github.com/Blind-Striker/opencode-sdk-dotnet/releases/tag/v0.8.0-preview.2
 [0.8.0-preview.1]: https://github.com/Blind-Striker/opencode-sdk-dotnet/releases/tag/v0.8.0-preview.1
