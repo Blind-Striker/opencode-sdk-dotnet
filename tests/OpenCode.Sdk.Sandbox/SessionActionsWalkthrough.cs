@@ -32,22 +32,22 @@ internal static class SessionActionsWalkthrough
             ? $"permission-get: status={permissionGet.Status} error={ErrorName(permissionGet)}"
             : $"permission-get: status={permissionGet.Status} action={permissionGet.Permission.Action}");
 
-        var reply = await handle.PostPermissionReplyAsync(
+        var reply = await handle.ReplyToPermissionAsync(
                 permission.Permission.Id,
-                new SessionPermissionReplyPostRequest { Decision = PermissionReply.Once },
+                new SessionPermissionReplyRequest { Decision = PermissionReply.Once },
                 OpenCodeRequestOptions.NoThrow)
             .ConfigureAwait(false);
 
         Console.WriteLine($"permission-reply: status={reply.Status} isError={reply.IsError}");
 
-        var compact = await handle.PostCompactAsync(null, OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
+        var compact = await handle.CompactAsync(null, OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
 
         Console.WriteLine(compact.IsError
             ? $"compact: status={compact.Status} error={ErrorName(compact)}"
             : $"compact: status={compact.Status} inbox={compact.Compact.Id} delivery={compact.Compact.Delivery}");
 
-        var fork = await handle.PostForkAsync(
-                new SessionForkPostRequest(),
+        var fork = await handle.ForkAsync(
+                new SessionForkRequest(),
                 OpenCodeRequestOptions.NoThrow)
             .ConfigureAwait(false);
 

@@ -49,11 +49,21 @@ envelope; `text/*` → `string`); an unknown content type breaks generation.
   collection operations stay on the collection client. Groups without a handle declaration
   stay flat. Emitters never branch on operation IDs, wire group names, or concrete client
   names.
-- An operation name the mechanical policy cannot derive without semantic guessing rides a
-  reason-bearing, fail-closed curation row. The binder validates the final identifier and all
-  collisions; emitters consume the bound name mechanically and never branch on an operation ID.
-  The first concrete case is `event.subscribe`, whose reviewed surface is
-  `Events.SubscribeAsync`, not the natural `Events.GetSubscribeAsync` derivation.
+- Operation names come from a closed grammar, never from the HTTP method. The closing identifier
+  segment is the verb when it is one of `create`, `get`, `list`, `remove`, `rename`, `timeout`,
+  `update`; a `GET` without one is a read and names `Get<Subject>Async`; every other operation
+  without one has no mechanical name and refuses generation until a reason-bearing, fail-closed
+  `operationNames` row names it (`session.prompt` → `PromptAsync`, never `PostPromptAsync`). On
+  a handle client the handle is the subject, so an empty subject stays empty
+  (`session.GetAsync()`, not `session.GetSessionAsync()`); on a collection client it falls back
+  to the family. Request, response, and payload type names carry the same verb and nothing
+  else (`SessionPromptResponse`, `PtyUpdateResponse`, `SessionListResponse`). A name the
+  grammar derives gracelessly — a plural the naive rule cannot form, a subject the domain calls
+  something else — rides the same row kind (`event.subscribe` → `Events.SubscribeAsync`, not
+  `GetSubscribeAsync`). The binder validates every final identifier and all collisions; emitters
+  consume the bound name mechanically and never branch on an operation ID. Enum members follow
+  the same shape: a value whose mechanical casing is graceless (`2026-07-28` → `Value20260728`)
+  takes its member name from a reason-bearing `enumMemberNames` row (`Revision20260728`).
 - This curation changes only .NET naming. It cannot repair a type, constraint, format, or
   validation missing from the pinned OpenAPI document (ADR-0013).
 

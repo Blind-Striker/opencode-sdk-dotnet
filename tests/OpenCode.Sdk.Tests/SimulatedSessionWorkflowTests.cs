@@ -88,8 +88,8 @@ public sealed class SimulatedSessionWorkflowTests(SimulatedDriveServerFixture se
             throw new InvalidOperationException("The event subscription ended before its first event.");
         }
 
-        _ = await session.PostPromptAsync(
-            new SessionPromptPostRequest { Text = "hello simulated model" },
+        _ = await session.PromptAsync(
+            new SessionPromptRequest { Text = "hello simulated model" },
             cancellationToken: cancellationToken);
 
         var invocation = await DriveAsync(
@@ -118,8 +118,8 @@ public sealed class SimulatedSessionWorkflowTests(SimulatedDriveServerFixture se
         var sessionId = await CreateSimulatedSessionAsync(client, workspace.Path, "simulated-session-interrupt", cancellationToken);
         var session = client.Sessions.GetSessionClient(sessionId);
 
-        _ = await session.PostPromptAsync(
-            new SessionPromptPostRequest { Text = "interrupt me" }, cancellationToken: cancellationToken);
+        _ = await session.PromptAsync(
+            new SessionPromptRequest { Text = "interrupt me" }, cancellationToken: cancellationToken);
         _ = await DriveAsync(
             () => server.Controller.WaitForRequestAsync(RequestWait), "waiting for the model request");
 
@@ -167,7 +167,7 @@ public sealed class SimulatedSessionWorkflowTests(SimulatedDriveServerFixture se
             throw new InvalidOperationException("The event subscription ended before its first event.");
         }
 
-        _ = await session.PostInterruptAsync(cancellationToken: cancellationToken);
+        _ = await session.InterruptAsync(cancellationToken: cancellationToken);
 
         // Upstream publishes session.execution.interrupted only after the interrupted execution
         // fiber's finalizers have fully settled - which include the simulated provider's own

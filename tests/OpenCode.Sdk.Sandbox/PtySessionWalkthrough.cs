@@ -134,7 +134,7 @@ internal static class PtySessionWalkthrough
         // Started, not awaited: the read has to be in flight when the removal closes the connection.
         var reading = ReadAsync(session, PtyStop.Close, ReadBudget);
 
-        var removed = await handle.RemovePtyAsync(null, OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
+        var removed = await handle.RemoveAsync(null, OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
 
         Console.WriteLine($"pty-remove:  status={removed.Status} isError={removed.IsError}");
 

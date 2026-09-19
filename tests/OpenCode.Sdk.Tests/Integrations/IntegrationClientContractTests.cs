@@ -29,7 +29,7 @@ public sealed class IntegrationClientContractTests
         const string integration = "{\"id\":\"int_1\",\"name\":\"GitHub\",\"methods\":[],\"connections\":[]}";
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.LocationEnvelope(integration));
 
-        var response = await scenario.Client.Integrations.GetIntegrationClient("int_1").GetIntegrationAsync();
+        var response = await scenario.Client.Integrations.GetIntegrationClient("int_1").GetAsync();
 
         await Assert.That(response.Integration.Id).IsEqualTo("int_1");
         await Assert.That(response.Integration.Name).IsEqualTo("GitHub");
@@ -46,7 +46,7 @@ public sealed class IntegrationClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.IntegrationNotFoundError);
 
         var exception = await Assert.That(async () =>
-            _ = await scenario.Client.Integrations.GetIntegrationClient("int_9").GetIntegrationAsync())
+            _ = await scenario.Client.Integrations.GetIntegrationClient("int_9").GetAsync())
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(404);
@@ -60,7 +60,7 @@ public sealed class IntegrationClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.InvalidRequestError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Integrations.GetIntegrationClient("int_1").GetIntegrationAsync())
+            .That(async () => _ = await scenario.Client.Integrations.GetIntegrationClient("int_1").GetAsync())
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(400);
@@ -73,7 +73,7 @@ public sealed class IntegrationClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
 
         var response = await scenario.Client.Integrations.GetIntegrationClient("int_1")
-            .GetIntegrationAsync(requestOptions: OpenCodeRequestOptions.NoThrow);
+            .GetAsync(requestOptions: OpenCodeRequestOptions.NoThrow);
 
         await Assert.That(response.IsError).IsTrue();
         await Assert.That(response.Status).IsEqualTo(401);
@@ -86,7 +86,7 @@ public sealed class IntegrationClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
 
         var response = await scenario.Client.Integrations.GetIntegrationClient("int_1")
-            .PostConnectKeyAsync(new IntegrationConnectKeyPostRequest { Key = "sk-test" });
+            .ConnectWithKeyAsync(new IntegrationConnectKeyRequest { Key = "sk-test" });
 
         await Assert.That(response.Status).IsEqualTo(204);
         await Assert.That(response.IsError).IsFalse();
@@ -102,7 +102,7 @@ public sealed class IntegrationClientContractTests
 
         var exception = await Assert
             .That(async () => _ = await scenario.Client.Integrations.GetIntegrationClient("int_1")
-                .PostConnectKeyAsync(new IntegrationConnectKeyPostRequest { Key = "sk-test" }))
+                .ConnectWithKeyAsync(new IntegrationConnectKeyRequest { Key = "sk-test" }))
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(400);
@@ -114,8 +114,8 @@ public sealed class IntegrationClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
 
-        var response = await scenario.Client.Integrations.GetIntegrationClient("int_1").PostConnectKeyAsync(
-            new IntegrationConnectKeyPostRequest { Key = "sk-test" },
+        var response = await scenario.Client.Integrations.GetIntegrationClient("int_1").ConnectWithKeyAsync(
+            new IntegrationConnectKeyRequest { Key = "sk-test" },
             requestOptions: OpenCodeRequestOptions.NoThrow);
 
         await Assert.That(response.IsError).IsTrue();
@@ -131,7 +131,7 @@ public sealed class IntegrationClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.LocationEnvelope(attempt));
 
         var response = await scenario.Client.Integrations.GetIntegrationClient("int_1")
-            .PostOauthConnectAsync(new IntegrationOauthConnectPostRequest { MethodId = "github" });
+            .BeginOauthConnectionAsync(new IntegrationOauthConnectRequest { MethodId = "github" });
 
         await Assert.That(response.OauthConnect.AttemptId).IsEqualTo("att_1");
         await Assert.That(response.OauthConnect.Url).IsEqualTo("https://example.test/authorize");
@@ -148,7 +148,7 @@ public sealed class IntegrationClientContractTests
 
         var exception = await Assert
             .That(async () => _ = await scenario.Client.Integrations.GetIntegrationClient("int_1")
-                .PostOauthConnectAsync(new IntegrationOauthConnectPostRequest { MethodId = "github" }))
+                .BeginOauthConnectionAsync(new IntegrationOauthConnectRequest { MethodId = "github" }))
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(400);
@@ -160,8 +160,8 @@ public sealed class IntegrationClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
 
-        var response = await scenario.Client.Integrations.GetIntegrationClient("int_1").PostOauthConnectAsync(
-            new IntegrationOauthConnectPostRequest { MethodId = "github" },
+        var response = await scenario.Client.Integrations.GetIntegrationClient("int_1").BeginOauthConnectionAsync(
+            new IntegrationOauthConnectRequest { MethodId = "github" },
             requestOptions: OpenCodeRequestOptions.NoThrow);
 
         await Assert.That(response.IsError).IsTrue();

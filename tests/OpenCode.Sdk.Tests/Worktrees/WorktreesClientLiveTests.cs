@@ -49,7 +49,7 @@ public sealed class WorktreesClientLiveTests(SimulatedDriveServerFixture server)
                 .IsEqualTo(GitStrategy);
 
             var refreshed = await client.Worktrees.RefreshWorktreesAsync(
-                new WorktreeRefreshPostRequest { ProjectId = scenario.ProjectId },
+                new WorktreeRefreshRequest { ProjectId = scenario.ProjectId },
                 cancellationToken: cancellationToken);
             await Assert.That(refreshed.Status).IsEqualTo(204);
             await Assert.That(refreshed.IsError).IsFalse();

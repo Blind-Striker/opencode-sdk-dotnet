@@ -43,8 +43,8 @@ public sealed class SessionClientLiveTests(SimulatedDriveServerFixture server)
             probe.Start(sourceClient.Events.SubscribeAsync(reader.Token));
             await probe.WaitForConnectedAsync(cancellationToken);
 
-            var admitted = await sourceSession.PostMoveAsync(
-                new SessionMovePostRequest { Directory = destination.Path },
+            var admitted = await sourceSession.MoveAsync(
+                new SessionMoveRequest { Directory = destination.Path },
                 cancellationToken: cancellationToken);
             await Assert.That(admitted.Status).IsEqualTo(204);
             await Assert.That(admitted.IsError).IsFalse();
@@ -57,7 +57,7 @@ public sealed class SessionClientLiveTests(SimulatedDriveServerFixture server)
             await Assert.That(moved.Data.ProjectId).IsNotEmpty();
 
             var destinationSession = destinationClient.Sessions.GetSessionClient(sessionId);
-            var read = await destinationSession.GetSessionAsync(cancellationToken: cancellationToken);
+            var read = await destinationSession.GetAsync(cancellationToken: cancellationToken);
             await Assert.That(read.Status).IsEqualTo(200);
             await Assert.That(read.Session.Id).IsEqualTo(sessionId);
             await Assert.That(read.Session.Location.Directory).IsEqualTo(destination.Path);
@@ -89,8 +89,8 @@ public sealed class SessionClientLiveTests(SimulatedDriveServerFixture server)
         using var destination = server.CreateWorkspace();
         using var client = server.CreateClient(new LocationSelector { Directory = destination.Path });
         var sessionId = "ses_sdk_missing_" + Guid.NewGuid().ToString("N");
-        var response = await client.Sessions.GetSessionClient(sessionId).PostMoveAsync(
-            new SessionMovePostRequest { Directory = destination.Path },
+        var response = await client.Sessions.GetSessionClient(sessionId).MoveAsync(
+            new SessionMoveRequest { Directory = destination.Path },
             OpenCodeRequestOptions.NoThrow,
             cancellationToken);
 
@@ -119,7 +119,7 @@ public sealed class SessionClientLiveTests(SimulatedDriveServerFixture server)
         string sessionId,
         CancellationToken cancellationToken)
     {
-        var response = await session.RemoveSessionAsync(OpenCodeRequestOptions.NoThrow, cancellationToken);
+        var response = await session.RemoveAsync(OpenCodeRequestOptions.NoThrow, cancellationToken);
         if (response.Status == 204
             || (response is { Status: 404, Error: SessionNotFoundError missing }
                 && missing.SessionId == sessionId))

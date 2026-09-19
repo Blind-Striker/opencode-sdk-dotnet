@@ -95,6 +95,18 @@ internal sealed record GenerationCuration
         }
     } = Array.AsReadOnly(Array.Empty<HoistedMemberNameCuration>());
 
+    /// <summary>Names for enum members whose mechanical Pascal casing the reviewed surface does not want.</summary>
+    [JsonPropertyName("enumMemberNames")]
+    public required IReadOnlyList<EnumMemberNameCuration> EnumMemberNames
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = Array.AsReadOnly([.. value]);
+        }
+    } = Array.AsReadOnly(Array.Empty<EnumMemberNameCuration>());
+
     /// <summary>Operations a standing wall refuses and the maintainer has decided to leave out of the generated surface.</summary>
     [JsonPropertyName("declined")]
     public required IReadOnlyList<DeclinedCuration> Declined

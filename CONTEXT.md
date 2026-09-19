@@ -261,6 +261,20 @@ door.
 A reason-bearing curation row admitting and naming an operation whose upstream identity violates
 upstream's own conventions; carries the upstream report and retires when the fix lands.
 
+**Naming grammar**:
+The closed set of identifier segments (`create`, `get`, `list`, `remove`, `rename`, `timeout`,
+`update`) that name an operation's verb when they close its identity. A `GET` without one reads
+as `Get<Subject>Async`; any other operation without one has no mechanical name and needs an
+operation-name row. The HTTP method is never a name source.
+
+**Operation-name row**:
+A reason-bearing curation row naming an operation the naming grammar cannot name, or names
+gracelessly; the binder validates the identifier and every collision.
+
+**Enum member-name row**:
+A reason-bearing curation row naming the C# member one enum value becomes where the mechanical
+casing is graceless (`2026-07-28` → `Revision20260728`, not `Value20260728`).
+
 **Model layer**:
 The generated types and serializer registry shipped inside `OpenCode.Sdk`.
 

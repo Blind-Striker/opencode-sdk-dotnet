@@ -11,7 +11,7 @@ namespace OpenCode.Sdk;
 /// </summary>
 public class PluginsClient
 {
-    private static readonly PluginCheckPostRequest EmptyPluginCheckPostRequest = new();
+    private static readonly PluginCheckRequest EmptyPluginCheckRequest = new();
     private readonly Pipeline? _pipeline;
     internal PluginsClient(Pipeline pipeline)
     {
@@ -34,12 +34,12 @@ public class PluginsClient
     /// <param name = "request">The request body; an empty body is sent when omitted.</param>
     /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;PluginCheckPostResponse&apos; envelope.</returns>
+    /// <returns>The &apos;PluginCheckResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<PluginCheckPostResponse> CheckPluginUpdatesAsync(PluginCheckPostRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    public virtual Task<PluginCheckResponse> CheckPluginUpdatesAsync(PluginCheckRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
-        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Plugins.CheckPluginUpdates(request), request ?? EmptyPluginCheckPostRequest, OpenCodeJsonContext.Default.PluginCheckPostRequest, PluginCheckPostResponseAdapter.Instance, requestOptions, cancellationToken);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Plugins.CheckPluginUpdates(request), request ?? EmptyPluginCheckRequest, OpenCodeJsonContext.Default.PluginCheckRequest, PluginCheckResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 
     /// <summary>
@@ -62,12 +62,12 @@ public class PluginsClient
     /// <param name = "request">The request body.</param>
     /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;PluginUpdatePostResponse&apos; envelope.</returns>
+    /// <returns>The &apos;PluginUpdateResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 503) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<PluginUpdatePostResponse> UpdatePluginsAsync(PluginUpdatePostRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    public virtual Task<PluginUpdateResponse> UpdatePluginsAsync(PluginUpdateRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Plugins.UpdatePlugins(request), request, OpenCodeJsonContext.Default.PluginUpdatePostRequest, PluginUpdatePostResponseAdapter.Instance, requestOptions, cancellationToken);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Plugins.UpdatePlugins(request), request, OpenCodeJsonContext.Default.PluginUpdateRequest, PluginUpdateResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }

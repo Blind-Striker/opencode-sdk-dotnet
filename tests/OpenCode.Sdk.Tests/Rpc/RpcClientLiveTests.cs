@@ -277,10 +277,10 @@ public sealed class RpcClientLiveTests(PinnedOpenCodeServerFixture server)
     /// rpc id lookup fails first. It is still a real body so the request the server refuses is
     /// the same shape a registered rpc would receive.
     /// </summary>
-    private RpcCallPostRequest CallRequest()
+    private RpcCallRequest CallRequest()
     {
         using var document = JsonDocument.Parse(_fixtures.LoadJson("Rpc.rpc-call-input.json"));
-        return new RpcCallPostRequest { Input = document.RootElement.Clone() };
+        return new RpcCallRequest { Input = document.RootElement.Clone() };
     }
 
     private async Task<bool> AssertExternalUnavailableAsync(
@@ -329,7 +329,7 @@ public sealed class RpcClientLiveTests(PinnedOpenCodeServerFixture server)
         return true;
     }
 
-    private static async Task<RpcError> RequireRpcErrorAsync(RpcCallPostResponse response, int status)
+    private static async Task<RpcError> RequireRpcErrorAsync(RpcCallResponse response, int status)
     {
         await Assert.That(response.Status).IsEqualTo(status);
         await Assert.That(response.IsError).IsTrue();
@@ -342,7 +342,7 @@ public sealed class RpcClientLiveTests(PinnedOpenCodeServerFixture server)
     }
 
     private static async Task<RpcInternalError> RequireRpcInternalErrorAsync(
-        RpcCallPostResponse response,
+        RpcCallResponse response,
         string wireType)
     {
         await Assert.That(response.Status).IsEqualTo(500);
@@ -356,7 +356,7 @@ public sealed class RpcClientLiveTests(PinnedOpenCodeServerFixture server)
         return error;
     }
 
-    private static void WriteError(string arm, RpcCallPostResponse response, string type) =>
+    private static void WriteError(string arm, RpcCallResponse response, string type) =>
         Console.WriteLine(
             "rpc-live: mode=owned arm=" + arm +
             " status=" + Number(response.Status) +

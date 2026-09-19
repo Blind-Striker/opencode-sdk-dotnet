@@ -31,12 +31,12 @@ public class DebugClient
     /// <param name = "request">The request shaping the query.</param>
     /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;DebugLocationEvictDeleteResponse&apos; envelope.</returns>
+    /// <returns>The &apos;DebugLocationEvictResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<DebugLocationEvictDeleteResponse> EvictLocationAsync(DebugLocationEvictDeleteRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    public virtual Task<DebugLocationEvictResponse> EvictLocationAsync(DebugLocationEvictRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
-        return Pipeline.ExecuteAsync(HttpMethod.Delete, OpenCodeRoutes.Debug.EvictLocation(request), DebugLocationEvictDeleteResponseAdapter.Instance, requestOptions, cancellationToken);
+        return Pipeline.ExecuteAsync(HttpMethod.Delete, OpenCodeRoutes.Debug.EvictLocation(request), DebugLocationEvictResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 
     /// <summary>

@@ -13,7 +13,7 @@ public sealed class ShellClientContractTests
         var payload = new FixtureLoader().LoadJson("Serialization.known-shell.json");
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.LocationEnvelope(payload));
 
-        var response = await scenario.Client.Shells.GetShellClient("sh_100").GetShellAsync();
+        var response = await scenario.Client.Shells.GetShellClient("sh_100").GetAsync();
 
         await Assert.That(response.Shell.Id).IsEqualTo("sh_100");
         await Assert.That(response.Shell.Time.Started).IsEqualTo(1755200000);
@@ -27,7 +27,7 @@ public sealed class ShellClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
 
-        var response = await scenario.Client.Shells.GetShellClient("sh_100").RemoveShellAsync();
+        var response = await scenario.Client.Shells.GetShellClient("sh_100").RemoveAsync();
 
         await Assert.That(response.Status).IsEqualTo(204);
         await Assert.That(response.IsError).IsFalse();
@@ -42,7 +42,7 @@ public sealed class ShellClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, "{}");
 
-        var response = await scenario.Client.Shells.GetShellClient("sh_100").RemoveShellAsync();
+        var response = await scenario.Client.Shells.GetShellClient("sh_100").RemoveAsync();
 
         await Assert.That(response.Status).IsEqualTo(204);
         await Assert.That(response.IsError).IsFalse();
@@ -54,7 +54,7 @@ public sealed class ShellClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, "{}");
 
         _ = await Assert
-            .That(async () => _ = await scenario.Client.Shells.GetShellClient("sh_100").RemoveShellAsync())
+            .That(async () => _ = await scenario.Client.Shells.GetShellClient("sh_100").RemoveAsync())
             .Throws<OpenCodeTransportException>();
     }
 
@@ -124,7 +124,7 @@ public sealed class ShellClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.ShellNotFoundError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Shells.GetShellClient("sh_9").GetShellAsync())
+            .That(async () => _ = await scenario.Client.Shells.GetShellClient("sh_9").GetAsync())
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(404);

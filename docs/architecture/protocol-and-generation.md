@@ -72,7 +72,12 @@ Curation may:
 - choose .NET names and placement for represented OpenAPI constructs — handle placement
   follows ADR-0019, and every curation row, group rows included, carries its reason — including
   the name of the carrier interface a hoisted union member is declared with, where the mechanical
-  name is correct but graceless;
+  name is correct but graceless, and the member name of one enum value where the mechanical
+  casing is (an `enumMemberNames` row);
+- name an operation the closed verb grammar cannot name: the closing identifier segment is the
+  verb only when the grammar lists it, a `GET` without one reads as `Get<Subject>Async`, and any
+  other operation without one refuses until a reason-bearing `operationNames` row names it — the
+  HTTP method is never a name source, in method, request, response, or payload names (ADR-0008);
 - declare that a family emits an internal raw layer rather than a public surface, where
   hand-written code owns that family's public doors (ADR-0021);
 - collapse OpenAPI shapes proven structurally equivalent;

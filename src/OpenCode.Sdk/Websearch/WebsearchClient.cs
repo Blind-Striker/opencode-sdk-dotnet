@@ -47,12 +47,12 @@ public class WebsearchClient
     /// <param name = "request">The request body.</param>
     /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;WebsearchQueryPostResponse&apos; envelope.</returns>
+    /// <returns>The &apos;WebsearchQueryResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 503) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<WebsearchQueryPostResponse> QueryAsync(WebsearchQueryPostRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    public virtual Task<WebsearchQueryResponse> QueryAsync(WebsearchQueryRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Websearch.Query(request), request, OpenCodeJsonContext.Default.WebsearchQueryPostRequest, WebsearchQueryPostResponseAdapter.Instance, requestOptions, cancellationToken);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Websearch.Query(request), request, OpenCodeJsonContext.Default.WebsearchQueryRequest, WebsearchQueryResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }

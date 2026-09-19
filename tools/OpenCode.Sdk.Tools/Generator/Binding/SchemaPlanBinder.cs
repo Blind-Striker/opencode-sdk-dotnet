@@ -71,7 +71,7 @@ internal sealed class SchemaPlanBinder(
 
                     break;
                 case EnumNode enumNode:
-                    models.Add(BindEnum(name, enumNode, errors));
+                    models.Add(BindEnum(key, name, enumNode, curation.EnumMemberNames, errors));
                     break;
                 case UnionNode { Classification: UnionClassification.Structural } structural
                     when UnstructuredUnionPolicy.Collapse(structural, document.Schemas) is null:
@@ -703,12 +703,17 @@ internal sealed class SchemaPlanBinder(
         };
     }
 
-    private static EnumModelPlan BindEnum(string name, EnumNode node, BindingErrorCollector errors)
+    /// <summary>Each value's member name is its reason-bearing row when one exists, else its mechanical Pascal casing.</summary>
+    private static EnumModelPlan BindEnum(string key, string name, EnumNode node,
+        IReadOnlyList<EnumMemberNameCuration> memberNames, BindingErrorCollector errors)
     {
         var values = node
             .Values.Select(value => new EnumValuePlan
             {
-                Name = CSharpNamePolicy.ToPascalCase(value),
+                Name = memberNames
+                           .FirstOrDefault(row => string.Equals(row.Schema, key, StringComparison.Ordinal)
+                               && string.Equals(row.Value, value, StringComparison.Ordinal))?.DotNetName
+                       ?? CSharpNamePolicy.ToPascalCase(value),
                 WireValue = value,
             })
             .ToArray();

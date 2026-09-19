@@ -11,7 +11,7 @@ namespace OpenCode.Sdk;
 /// </summary>
 public class RpcClient
 {
-    private static readonly RpcCallPostRequest EmptyRpcCallPostRequest = new();
+    private static readonly RpcCallRequest EmptyRpcCallRequest = new();
     private readonly Pipeline? _pipeline;
     internal RpcClient(Pipeline pipeline)
     {
@@ -36,13 +36,13 @@ public class RpcClient
     /// <param name = "request">The request body; an empty body is sent when omitted.</param>
     /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;RpcCallPostResponse&apos; envelope.</returns>
+    /// <returns>The &apos;RpcCallResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 500) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<RpcCallPostResponse> CallAsync(string rpcId, string method, RpcCallPostRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    public virtual Task<RpcCallResponse> CallAsync(string rpcId, string method, RpcCallRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(rpcId);
         ArgumentException.ThrowIfNullOrEmpty(method);
-        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Rpc.Call(rpcId, method, request), request ?? EmptyRpcCallPostRequest, OpenCodeJsonContext.Default.RpcCallPostRequest, RpcCallPostResponseAdapter.Instance, requestOptions, cancellationToken);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Rpc.Call(rpcId, method, request), request ?? EmptyRpcCallRequest, OpenCodeJsonContext.Default.RpcCallRequest, RpcCallResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }

@@ -13,9 +13,11 @@ namespace OpenCode.Sdk.Tools.Generator.Binding;
 /// stands.
 ///
 /// Each probe binds one operation in isolation through the same <see cref="ISpecBinder"/>
-/// selection uses, under a synthetic single-group, root-placed curation row that answers "would
-/// this operation bind if it only needed a curation row?" without asserting what that row should
-/// actually look like. Binding collects every wall before throwing (no first-error stop), so a
+/// selection uses, under a synthetic single-group, root-placed curation row and a placeholder
+/// operation-name row, which together answer "would this operation bind if it only needed its
+/// curation rows?" without asserting what those rows should actually look like — a name is
+/// curation, never a shape wall, so an operation the naming policy refuses to name mechanically
+/// (ADR-0008) still probes by its shape. Binding collects every wall before throwing (no first-error stop), so a
 /// refused mark carries every independent <see cref="BindingError.Problem"/> the bind produced,
 /// in binder order and deduplicated by problem text — never only the first. A probe that fails
 /// for any reason other than the deliberate <see cref="BindingException"/> wall still yields a
@@ -26,6 +28,8 @@ internal sealed class PendingOperationBindabilityProbe(ISpecBinder binder)
 {
     private const string SyntheticGroupReason =
         "Synthetic single-operation probe curation for the pending-operation bindability telltale; never a real curation row.";
+
+    private const string SyntheticMethodName = "ProbeAsync";
 
     private readonly ISpecBinder _binder = binder ?? throw new ArgumentNullException(nameof(binder));
 
@@ -46,7 +50,7 @@ internal sealed class PendingOperationBindabilityProbe(ISpecBinder binder)
 
     private PendingOperationMark ProbeOne(SpecDocument document, SpecOperation operation)
     {
-        var curation = SyntheticCuration(operation.Segments[0]);
+        var curation = SyntheticCuration(operation);
         var selection = new OperationSelection { OperationIds = [operation.OperationId] };
 
         try
@@ -93,20 +97,29 @@ internal sealed class PendingOperationBindabilityProbe(ISpecBinder binder)
     private static PendingOperationMark Refused(string operationId, string refusalMessage) =>
         new() { OperationId = operationId, IsBindable = false, RefusalMessage = refusalMessage };
 
-    private static GenerationCuration SyntheticCuration(string group) =>
+    private static GenerationCuration SyntheticCuration(SpecOperation operation) =>
         new()
         {
             Groups = new Dictionary<string, GroupCuration>(StringComparer.Ordinal)
             {
-                [group] = new GroupCuration { Placement = GroupPlacement.Root, Reason = SyntheticGroupReason },
+                [operation.Segments[0]] = new GroupCuration { Placement = GroupPlacement.Root, Reason = SyntheticGroupReason },
             },
             OperationIdentities = [],
-            OperationNames = [],
+            OperationNames =
+            [
+                new OperationNameCuration
+                {
+                    OperationId = operation.OperationId,
+                    MethodName = SyntheticMethodName,
+                    Reason = SyntheticGroupReason,
+                },
+            ],
             SchemaNames = [],
             EnvelopePayloadNames = new Dictionary<string, string>(StringComparer.Ordinal),
             SchemaAliases = [],
             TransportOwned = [],
             Declined = [],
             HoistedMemberNames = [],
+            EnumMemberNames = [],
         };
 }

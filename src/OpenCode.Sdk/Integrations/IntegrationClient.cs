@@ -11,7 +11,7 @@ namespace OpenCode.Sdk;
 /// </summary>
 public class IntegrationClient
 {
-    private static readonly IntegrationOauthCompletePostRequest EmptyIntegrationOauthCompletePostRequest = new();
+    private static readonly IntegrationOauthCompleteRequest EmptyIntegrationOauthCompleteRequest = new();
     private readonly Pipeline? _pipeline;
     private readonly string? _integrationId;
     internal IntegrationClient(Pipeline pipeline, string integrationId)
@@ -38,19 +38,49 @@ public class IntegrationClient
     private string IntegrationId => _integrationId ?? throw MockSeam.CreateError("IntegrationClient", "IntegrationId");
 
     /// <summary>
+    /// Begin command connection. Start a command authentication attempt.
+    /// </summary>
+    /// <param name = "request">The request body.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;IntegrationCommandConnectResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<IntegrationCommandConnectResponse> BeginCommandConnectionAsync(IntegrationCommandConnectRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Integrations.BeginCommandConnection(IntegrationId, request), request, OpenCodeJsonContext.Default.IntegrationCommandConnectRequest, IntegrationCommandConnectResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Begin OAuth connection. Start an OAuth attempt and return the authorization details.
+    /// </summary>
+    /// <param name = "request">The request body.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;IntegrationOauthConnectResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<IntegrationOauthConnectResponse> BeginOauthConnectionAsync(IntegrationOauthConnectRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Integrations.BeginOauthConnection(IntegrationId, request), request, OpenCodeJsonContext.Default.IntegrationOauthConnectRequest, IntegrationOauthConnectResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
     /// Cancel command connection. Cancel a command authentication attempt and terminate its process.
     /// </summary>
     /// <param name = "attemptId">The &apos;attemptID&apos; route value.</param>
     /// <param name = "request">The request shaping the query.</param>
     /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;IntegrationCommandCancelDeleteResponse&apos; envelope.</returns>
+    /// <returns>The &apos;IntegrationCommandCancelResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<IntegrationCommandCancelDeleteResponse> DeleteCommandCancelAsync(string attemptId, IntegrationCommandCancelDeleteRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    public virtual Task<IntegrationCommandCancelResponse> CancelCommandConnectionAsync(string attemptId, IntegrationCommandCancelRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(attemptId);
-        return Pipeline.ExecuteAsync(HttpMethod.Delete, OpenCodeRoutes.Integrations.DeleteCommandCancel(IntegrationId, attemptId, request), IntegrationCommandCancelDeleteResponseAdapter.Instance, requestOptions, cancellationToken);
+        return Pipeline.ExecuteAsync(HttpMethod.Delete, OpenCodeRoutes.Integrations.CancelCommandConnection(IntegrationId, attemptId, request), IntegrationCommandCancelResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 
     /// <summary>
@@ -60,13 +90,58 @@ public class IntegrationClient
     /// <param name = "request">The request shaping the query.</param>
     /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;IntegrationOauthCancelDeleteResponse&apos; envelope.</returns>
+    /// <returns>The &apos;IntegrationOauthCancelResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<IntegrationOauthCancelDeleteResponse> DeleteOauthCancelAsync(string attemptId, IntegrationOauthCancelDeleteRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    public virtual Task<IntegrationOauthCancelResponse> CancelOauthConnectionAsync(string attemptId, IntegrationOauthCancelRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(attemptId);
-        return Pipeline.ExecuteAsync(HttpMethod.Delete, OpenCodeRoutes.Integrations.DeleteOauthCancel(IntegrationId, attemptId, request), IntegrationOauthCancelDeleteResponseAdapter.Instance, requestOptions, cancellationToken);
+        return Pipeline.ExecuteAsync(HttpMethod.Delete, OpenCodeRoutes.Integrations.CancelOauthConnection(IntegrationId, attemptId, request), IntegrationOauthCancelResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Complete OAuth connection. Complete a code-based OAuth attempt and store the resulting credential.
+    /// </summary>
+    /// <param name = "attemptId">The &apos;attemptID&apos; route value.</param>
+    /// <param name = "request">The request body; an empty body is sent when omitted.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;IntegrationOauthCompleteResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<IntegrationOauthCompleteResponse> CompleteOauthConnectionAsync(string attemptId, IntegrationOauthCompleteRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(attemptId);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Integrations.CompleteOauthConnection(IntegrationId, attemptId, request), request ?? EmptyIntegrationOauthCompleteRequest, OpenCodeJsonContext.Default.IntegrationOauthCompleteRequest, IntegrationOauthCompleteResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Connect with key. Run a key authentication method and store the resulting credential.
+    /// </summary>
+    /// <param name = "request">The request body.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;IntegrationConnectKeyResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<IntegrationConnectKeyResponse> ConnectWithKeyAsync(IntegrationConnectKeyRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Integrations.ConnectWithKey(IntegrationId, request), request, OpenCodeJsonContext.Default.IntegrationConnectKeyRequest, IntegrationConnectKeyResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Get integration. Retrieve one integration and its authentication methods.
+    /// </summary>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;IntegrationResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    public virtual Task<IntegrationResponse> GetAsync(IntegrationRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Integrations.Get(IntegrationId, request), IntegrationResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 
     /// <summary>
@@ -86,20 +161,6 @@ public class IntegrationClient
     }
 
     /// <summary>
-    /// Get integration. Retrieve one integration and its authentication methods.
-    /// </summary>
-    /// <param name = "request">The request shaping the query.</param>
-    /// <param name = "requestOptions">The per-call options.</param>
-    /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;IntegrationResponse&apos; envelope.</returns>
-    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
-    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<IntegrationResponse> GetIntegrationAsync(IntegrationRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
-    {
-        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Integrations.GetIntegration(IntegrationId, request), IntegrationResponseAdapter.Instance, requestOptions, cancellationToken);
-    }
-
-    /// <summary>
     /// Get OAuth attempt status. Poll the current status of an OAuth attempt.
     /// </summary>
     /// <param name = "attemptId">The &apos;attemptID&apos; route value.</param>
@@ -113,66 +174,5 @@ public class IntegrationClient
     {
         ArgumentException.ThrowIfNullOrEmpty(attemptId);
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Integrations.GetOauthStatus(IntegrationId, attemptId, request), IntegrationOauthStatusResponseAdapter.Instance, requestOptions, cancellationToken);
-    }
-
-    /// <summary>
-    /// Begin command connection. Start a command authentication attempt.
-    /// </summary>
-    /// <param name = "request">The request body.</param>
-    /// <param name = "requestOptions">The per-call options.</param>
-    /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;IntegrationCommandConnectPostResponse&apos; envelope.</returns>
-    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
-    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<IntegrationCommandConnectPostResponse> PostCommandConnectAsync(IntegrationCommandConnectPostRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Integrations.PostCommandConnect(IntegrationId, request), request, OpenCodeJsonContext.Default.IntegrationCommandConnectPostRequest, IntegrationCommandConnectPostResponseAdapter.Instance, requestOptions, cancellationToken);
-    }
-
-    /// <summary>
-    /// Connect with key. Run a key authentication method and store the resulting credential.
-    /// </summary>
-    /// <param name = "request">The request body.</param>
-    /// <param name = "requestOptions">The per-call options.</param>
-    /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;IntegrationConnectKeyPostResponse&apos; envelope.</returns>
-    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
-    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<IntegrationConnectKeyPostResponse> PostConnectKeyAsync(IntegrationConnectKeyPostRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Integrations.PostConnectKey(IntegrationId, request), request, OpenCodeJsonContext.Default.IntegrationConnectKeyPostRequest, IntegrationConnectKeyPostResponseAdapter.Instance, requestOptions, cancellationToken);
-    }
-
-    /// <summary>
-    /// Complete OAuth connection. Complete a code-based OAuth attempt and store the resulting credential.
-    /// </summary>
-    /// <param name = "attemptId">The &apos;attemptID&apos; route value.</param>
-    /// <param name = "request">The request body; an empty body is sent when omitted.</param>
-    /// <param name = "requestOptions">The per-call options.</param>
-    /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;IntegrationOauthCompletePostResponse&apos; envelope.</returns>
-    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
-    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<IntegrationOauthCompletePostResponse> PostOauthCompleteAsync(string attemptId, IntegrationOauthCompletePostRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
-    {
-        ArgumentException.ThrowIfNullOrEmpty(attemptId);
-        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Integrations.PostOauthComplete(IntegrationId, attemptId, request), request ?? EmptyIntegrationOauthCompletePostRequest, OpenCodeJsonContext.Default.IntegrationOauthCompletePostRequest, IntegrationOauthCompletePostResponseAdapter.Instance, requestOptions, cancellationToken);
-    }
-
-    /// <summary>
-    /// Begin OAuth connection. Start an OAuth attempt and return the authorization details.
-    /// </summary>
-    /// <param name = "request">The request body.</param>
-    /// <param name = "requestOptions">The per-call options.</param>
-    /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;IntegrationOauthConnectPostResponse&apos; envelope.</returns>
-    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
-    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<IntegrationOauthConnectPostResponse> PostOauthConnectAsync(IntegrationOauthConnectPostRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Integrations.PostOauthConnect(IntegrationId, request), request, OpenCodeJsonContext.Default.IntegrationOauthConnectPostRequest, IntegrationOauthConnectPostResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }

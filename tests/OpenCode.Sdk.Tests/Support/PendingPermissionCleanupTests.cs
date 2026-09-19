@@ -9,7 +9,7 @@ public sealed class PendingPermissionCleanupTests
     public async Task RejectAsync_Should_Fail_Cleanup_When_The_Test_Body_Succeeded()
     {
         var pending = new PendingPermissionCleanup(
-            new ReplySessionClient(new SessionPermissionReplyPostResponse(500, null, "rejection failed")));
+            new ReplySessionClient(new SessionPermissionReplyResponse(500, null, "rejection failed")));
         var removed = false;
         var cleanup = new OwnedSessionCleanup(_ => Task.CompletedTask, _ =>
         {
@@ -30,7 +30,7 @@ public sealed class PendingPermissionCleanupTests
     [Arguments(500)]
     public async Task RejectAsync_Should_Report_Unexpected_Response_And_Continue_All_Cleanup(int status)
     {
-        var response = new SessionPermissionReplyPostResponse(status, null, "rejection failed");
+        var response = new SessionPermissionReplyResponse(status, null, "rejection failed");
         var session = new ReplySessionClient(response);
         var pending = new PendingPermissionCleanup(session);
         var primary = new InvalidOperationException("primary failed");
@@ -74,9 +74,9 @@ public sealed class PendingPermissionCleanupTests
     public async Task RejectAsync_Should_Accept_Success_Or_The_Owned_Already_Absent_Request(bool absent)
     {
         var response = absent
-            ? new SessionPermissionReplyPostResponse(404,
+            ? new SessionPermissionReplyResponse(404,
                 new PermissionNotFoundError { RequestId = "per_owned", Message = "not found" }, null)
-            : new SessionPermissionReplyPostResponse { Status = 204 };
+            : new SessionPermissionReplyResponse { Status = 204 };
         var pending = new PendingPermissionCleanup(new ReplySessionClient(response));
 
         await pending.RejectAsync("per_owned", CancellationToken.None);
@@ -87,7 +87,7 @@ public sealed class PendingPermissionCleanupTests
     {
         var error = new PermissionNotFoundError { RequestId = "per_other", Message = "not found" };
         var pending = new PendingPermissionCleanup(
-            new ReplySessionClient(new SessionPermissionReplyPostResponse(404, error, null)));
+            new ReplySessionClient(new SessionPermissionReplyResponse(404, error, null)));
 
         var thrown = await Assert.That(() => pending.RejectAsync("per_owned", CancellationToken.None))
             .Throws<OpenCodeApiException>();
@@ -97,14 +97,14 @@ public sealed class PendingPermissionCleanupTests
         await Assert.That(thrown.Message).Contains("PermissionNotFoundError");
     }
 
-    private sealed class ReplySessionClient(SessionPermissionReplyPostResponse response) : SessionClient
+    private sealed class ReplySessionClient(SessionPermissionReplyResponse response) : SessionClient
     {
         public PermissionReply? Reply { get; private set; }
 
         public OpenCodeRequestOptions? Options { get; private set; }
 
-        public override Task<SessionPermissionReplyPostResponse> PostPermissionReplyAsync(
-            string requestId, SessionPermissionReplyPostRequest request,
+        public override Task<SessionPermissionReplyResponse> ReplyToPermissionAsync(
+            string requestId, SessionPermissionReplyRequest request,
             OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
         {
             Reply = request.Decision;

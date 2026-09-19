@@ -93,17 +93,17 @@ A **session** is a durable conversation. Create one, take a handle bound to its 
 var created = await client.Sessions.CreateSessionAsync(new SessionCreateRequest { Title = "hello from .NET" });
 var session = client.Sessions.GetSessionClient(created.Session.Id);
 
-var prompt = await session.PostPromptAsync(new SessionPromptPostRequest { Text = "Summarize this repository." });
+var prompt = await session.PromptAsync(new SessionPromptRequest { Text = "Summarize this repository." });
 
 Console.WriteLine($"queued {prompt.Prompt.Id} in session {created.Session.Id}");
 ```
 
-`PostPromptAsync` **queues** the turn and returns the inbox entry it created — the assistant's
+`PromptAsync` **queues** the turn and returns the inbox entry it created — the assistant's
 answer arrives asynchronously, which is what [streaming](streaming.md) is for. If you just want
 text back from a model with no conversation state, use generate instead:
 
 ```csharp
-var generated = await session.PostGenerateAsync(new SessionGeneratePostRequest { Prompt = "Name three C# testing libraries." });
+var generated = await session.GenerateTextAsync(new SessionGenerateRequest { Prompt = "Name three C# testing libraries." });
 
 Console.WriteLine(generated.Generate.Text);
 ```
@@ -152,7 +152,7 @@ location's default model, whose `Default` payload is legitimately `null` on such
 ### Export a session transcript
 
 `Experimental.GetSessionExportAsync` hands back the session plus every settled message in one `SessionTransferData`,
-and `Experimental.PostSessionImportAsync` takes that same shape back at a location (answering 409 for an id that
+and `Experimental.ImportSessionAsync` takes that same shape back at a location (answering 409 for an id that
 already exists):
 
 ```csharp
@@ -170,7 +170,7 @@ Console.WriteLine($"{export.SessionExport.Messages.Count} messages from {export.
 > conversation itself. Verified on `@opencode/cli@2.0.2`.
 
 `Experimental` methods take route identifiers explicitly, including session IDs. Import uses
-`ExperimentalSessionImportPostRequest`.
+`ExperimentalSessionImportRequest`.
 
 ## 🧭 How the client is organised
 
