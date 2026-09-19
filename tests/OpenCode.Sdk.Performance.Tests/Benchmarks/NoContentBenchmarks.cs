@@ -41,7 +41,7 @@ public class NoContentBenchmarks : IDisposable
         _client = new OpenCodeClient(_httpClient, Options);
         _session = _client.Sessions.GetSessionClient("ses_bench0000000000000000001");
 
-        var response = await RemoveSessionAsync().ConfigureAwait(false);
+        var response = await RemoveAsync().ConfigureAwait(false);
         if (response.Status is not 204)
         {
             throw new InvalidOperationException("The no-content fixture did not answer with the declared 204.");
@@ -50,7 +50,7 @@ public class NoContentBenchmarks : IDisposable
 
     /// <summary>The complete generated no-content operation.</summary>
     [Benchmark]
-    public Task<SessionRemoveResponse> RemoveSessionAsync() => _session!.RemoveSessionAsync();
+    public Task<SessionRemoveResponse> RemoveAsync() => _session!.RemoveAsync();
 
     /// <summary>The harness floor: the same canned handler through a bare <see cref="HttpClient"/> send, no SDK.</summary>
     [Benchmark]

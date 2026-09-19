@@ -221,11 +221,6 @@
       "reason": "The upstream domain calls these entries MCP servers; the mechanical group singular 'Mcp' is not part of the reviewed .NET domain name."
     },
     {
-      "operationId": "credential.update",
-      "methodName": "UpdateCredentialAsync",
-      "reason": "The operation's own verb is update; the mechanical PATCH prefix is transport detail, not part of the reviewed surface."
-    },
-    {
       "operationId": "permission.request.list",
       "methodName": "ListRequestsAsync",
       "reason": "List methods name their subject in the plural across the reviewed surface; the mechanical singular reads as a different operation."
@@ -238,22 +233,22 @@
     {
       "operationId": "websearch.query",
       "methodName": "QueryAsync",
-      "reason": "The websearch container already names the domain; the mechanical POST prefix is transport detail, not part of the reviewed surface."
+      "reason": "The operation's own verb is query, and the websearch container already names the subject."
     },
     {
       "operationId": "experimental.generate.text",
       "methodName": "GenerateTextAsync",
-      "reason": "The group name is itself the verb; the mechanical POST prefix is transport detail, not part of the reviewed surface."
+      "reason": "The group name is itself the verb: the operation generates text, and the reviewed name keeps the verb with its object."
     },
     {
       "operationId": "debug.location.evict",
       "methodName": "EvictLocationAsync",
-      "reason": "The operation's own verb is evict; the mechanical DELETE prefix is transport detail, not part of the reviewed surface."
+      "reason": "The operation's own verb is evict; the reviewed name keeps it with its location subject."
     },
     {
       "operationId": "experimental.integration.wellknown.add",
       "methodName": "AddIntegrationWellknownAsync",
-      "reason": "The operation's own verb is add; the mechanical POST prefix is transport detail, not part of the reviewed surface."
+      "reason": "The operation's own verb is add; the reviewed name keeps it with its subject."
     },
     {
       "operationId": "session.form.list",
@@ -273,17 +268,12 @@
     {
       "operationId": "credential.activate",
       "methodName": "ActivateCredentialAsync",
-      "reason": "The operation's own verb is activate; the mechanical POST prefix is transport detail, not part of the reviewed surface, exactly like credential.update's own 'update' verb."
+      "reason": "The operation's own verb is activate; the reviewed name keeps it with its credential subject."
     },
     {
       "operationId": "form.list",
       "methodName": "ListFormsAsync",
       "reason": "List methods name their subject in the plural across the reviewed surface, exactly like session.form.list over the same Form.Info items; the mechanical singular 'Form' would misleadingly read as returning one form instead of the location's pending forms."
-    },
-    {
-      "operationId": "project.update",
-      "methodName": "UpdateProjectAsync",
-      "reason": "The operation's own verb is update; the mechanical PATCH prefix is transport detail, not part of the reviewed surface, exactly like credential.update's own 'update' verb."
     },
     {
       "operationId": "persistentPty.list",
@@ -298,27 +288,27 @@
     {
       "operationId": "fs.find",
       "methodName": "FindEntriesAsync",
-      "reason": "The operation's own verb is find; the mechanical GET prefix is transport detail, not part of the reviewed surface, exactly like credential.update's own 'update' verb. The subject is the directory's entries, matching fs.list's reviewed subject in the same client family."
+      "reason": "The operation's own verb is find (upstream summary 'Find files'); the mechanical read name 'GetFindAsync' would stack the read verb on it. The subject is the directory's entries, matching fs.list's reviewed subject in the same client family."
     },
     {
       "operationId": "worktree.refresh",
       "methodName": "RefreshWorktreesAsync",
-      "reason": "The operation's own verb is refresh; the mechanical POST prefix is transport detail, not part of the reviewed surface. The plural subject matches ListWorktreesAsync in the same location-scoped client family."
+      "reason": "The operation's own verb is refresh; the plural subject matches ListWorktreesAsync in the same location-scoped client family."
     },
     {
       "operationId": "rpc.call",
       "methodName": "CallAsync",
-      "reason": "The RPC container already names the domain; the operation's own verb is call, and the mechanical POST prefix is transport detail."
+      "reason": "The RPC container already names the domain, and the operation's own verb is call."
     },
     {
       "operationId": "plugin.check",
       "methodName": "CheckPluginUpdatesAsync",
-      "reason": "The operation checks plugins for updates; the reviewed name keeps the plugin subject and names the update check rather than the transport verb."
+      "reason": "The operation checks plugins for available updates; the reviewed name keeps the plugin subject and names the update check."
     },
     {
       "operationId": "plugin.update",
       "methodName": "UpdatePluginsAsync",
-      "reason": "The operation updates plugins; the reviewed name keeps the plural plugin subject instead of the mechanical POST prefix."
+      "reason": "The operation updates plugins; the reviewed name keeps the plural plugin subject where the mechanical 'UpdatePluginAsync' would name one plugin."
     },
     {
       "operationId": "server.info",
@@ -328,17 +318,7 @@
     {
       "operationId": "location.reload",
       "methodName": "ReloadLocationsAsync",
-      "reason": "The operation's own verb is reload and it rebuilds every loaded location, so the plural subject names it beside GetLocationAsync on the root client; the mechanical POST prefix is transport detail, not part of the reviewed surface."
-    },
-    {
-      "operationId": "session.update",
-      "methodName": "UpdateSessionAsync",
-      "reason": "Name the operation action and domain subject directly, without the HTTP verb; list subjects are plural."
-    },
-    {
-      "operationId": "session.inbox.update",
-      "methodName": "UpdateInboxAsync",
-      "reason": "Name the operation action and domain subject directly, without the HTTP verb; list subjects are plural."
+      "reason": "The operation's own verb is reload and it rebuilds every loaded location, so the plural subject names it beside GetLocationAsync on the root client."
     },
     {
       "operationId": "vcs.branch.list",
@@ -348,27 +328,197 @@
     {
       "operationId": "session.message.list",
       "methodName": "ListMessagesAsync",
-      "reason": "Name the operation action and domain subject directly, without the HTTP verb; list subjects are plural."
-    },
-    {
-      "operationId": "experimental.config.update",
-      "methodName": "UpdateConfigAsync",
-      "reason": "Name the operation action and domain subject directly, without the HTTP verb; list subjects are plural."
+      "reason": "List methods name their subject in the plural across the reviewed surface; the mechanical singular 'Message' would read as returning one message."
     },
     {
       "operationId": "experimental.mcp.add",
       "methodName": "AddMcpServerAsync",
-      "reason": "Name the operation action and domain subject directly, without the HTTP verb; list subjects are plural."
+      "reason": "The operation's own verb is add; the upstream domain calls these entries MCP servers, exactly like mcp.list."
     },
     {
       "operationId": "experimental.mcp.connect",
       "methodName": "ConnectMcpServerAsync",
-      "reason": "Name the operation action and domain subject directly, without the HTTP verb; list subjects are plural."
+      "reason": "The operation's own verb is connect; the upstream domain calls these entries MCP servers, exactly like mcp.list."
     },
     {
       "operationId": "experimental.mcp.disconnect",
       "methodName": "DisconnectMcpServerAsync",
-      "reason": "Name the operation action and domain subject directly, without the HTTP verb; list subjects are plural."
+      "reason": "The operation's own verb is disconnect; the upstream domain calls these entries MCP servers, exactly like mcp.list."
+    },
+    {
+      "operationId": "session.prompt",
+      "methodName": "PromptAsync",
+      "reason": "Upstream summary 'Send message': the operation admits one session input and schedules the agent loop. The handle already names the session, and 'prompt' is the domain word for that input, so the verb stands alone."
+    },
+    {
+      "operationId": "session.background",
+      "methodName": "MoveToolsToBackgroundAsync",
+      "reason": "Upstream summary 'Background blocking session tools': the operation moves the session's active foreground backgroundable tools into background observation; the reviewed name says that verb-first."
+    },
+    {
+      "operationId": "session.command",
+      "methodName": "RunCommandAsync",
+      "reason": "Upstream summary 'Run command': the operation executes a slash command callback immediately."
+    },
+    {
+      "operationId": "session.compact",
+      "methodName": "CompactAsync",
+      "reason": "Upstream summary 'Compact session': the handle already names the session, so the verb stands alone."
+    },
+    {
+      "operationId": "session.environment",
+      "methodName": "SetEnvironmentAsync",
+      "reason": "Upstream summary 'Set session environment': the operation replaces the process environment the session's local shell commands use."
+    },
+    {
+      "operationId": "session.fork",
+      "methodName": "ForkAsync",
+      "reason": "Upstream summary 'Fork session': the handle already names the session, so the verb stands alone."
+    },
+    {
+      "operationId": "session.form.cancel",
+      "methodName": "CancelFormAsync",
+      "reason": "Upstream summary 'Cancel form': the reviewed name keeps the verb with its form subject beside GetFormAsync and ReplyToFormAsync in the same client family."
+    },
+    {
+      "operationId": "session.form.reply",
+      "methodName": "ReplyToFormAsync",
+      "reason": "Upstream summary 'Reply to form': the operation submits an answer to a pending form."
+    },
+    {
+      "operationId": "session.generate",
+      "methodName": "GenerateTextAsync",
+      "reason": "Upstream summary 'Generate text from session context': the operation returns transient text without touching session history, exactly as Experimental.GenerateTextAsync names the location-scoped counterpart."
+    },
+    {
+      "operationId": "session.inbox.cancel",
+      "methodName": "CancelInboxAsync",
+      "reason": "Upstream summary 'Cancel inbox input': the operation cancels one undelivered inbox item; the subject spelling follows UpdateInboxAsync, which addresses an item through the same route."
+    },
+    {
+      "operationId": "session.interrupt",
+      "methodName": "InterruptAsync",
+      "reason": "Upstream summary 'Interrupt session execution': the handle already names the session, so the verb stands alone."
+    },
+    {
+      "operationId": "session.move",
+      "methodName": "MoveAsync",
+      "reason": "Upstream summary 'Move session': the handle already names the session, so the verb stands alone."
+    },
+    {
+      "operationId": "session.permission.reply",
+      "methodName": "ReplyToPermissionAsync",
+      "reason": "Upstream summary 'Reply to pending permission request': the reviewed name keeps the verb with its permission subject beside GetPermissionAsync in the same client family."
+    },
+    {
+      "operationId": "session.revert.clear",
+      "methodName": "ClearRevertAsync",
+      "reason": "Upstream summary 'Clear staged revert': the reviewed name keeps the verb with the revert subject beside StageRevertAsync and CommitRevertAsync."
+    },
+    {
+      "operationId": "session.revert.commit",
+      "methodName": "CommitRevertAsync",
+      "reason": "Upstream summary 'Commit staged revert': the reviewed name keeps the verb with the revert subject beside StageRevertAsync and ClearRevertAsync."
+    },
+    {
+      "operationId": "session.revert.stage",
+      "methodName": "StageRevertAsync",
+      "reason": "Upstream summary 'Stage session revert': the operation stages or moves a reversible session boundary; the reviewed name keeps the verb with the revert subject."
+    },
+    {
+      "operationId": "session.shell",
+      "methodName": "RunShellCommandAsync",
+      "reason": "Upstream summary 'Run shell command': the operation executes one shell command in the session's working directory; the full subject keeps it apart from RunCommandAsync, which runs a slash command."
+    },
+    {
+      "operationId": "session.switchAgent",
+      "methodName": "SwitchAgentAsync",
+      "reason": "Upstream summary 'Switch session agent': the closing segment is the verb with its object, and the handle already names the session."
+    },
+    {
+      "operationId": "session.switchModel",
+      "methodName": "SwitchModelAsync",
+      "reason": "Upstream summary 'Switch session model': the closing segment is the verb with its object, and the handle already names the session."
+    },
+    {
+      "operationId": "session.synthetic",
+      "methodName": "AddSyntheticMessageAsync",
+      "reason": "Upstream summary 'Add synthetic message': the operation admits synthetic session input; the closing segment names the input, not the action."
+    },
+    {
+      "operationId": "session.view",
+      "methodName": "MarkViewedAsync",
+      "reason": "Upstream summary 'View session': the operation marks the idle transition the viewer observed as viewed; 'view' alone would read as a read."
+    },
+    {
+      "operationId": "integration.command.cancel",
+      "methodName": "CancelCommandConnectionAsync",
+      "reason": "Upstream summary 'Cancel command connection': the operation cancels a command authentication attempt and terminates its process; its status is GetCommandStatusAsync in the same client family."
+    },
+    {
+      "operationId": "integration.command.connect",
+      "methodName": "BeginCommandConnectionAsync",
+      "reason": "Upstream summary 'Begin command connection': the operation starts a command authentication attempt; its status is GetCommandStatusAsync in the same client family."
+    },
+    {
+      "operationId": "integration.connect.key",
+      "methodName": "ConnectWithKeyAsync",
+      "reason": "Upstream summary 'Connect with key': the operation runs a key authentication method and stores the resulting credential."
+    },
+    {
+      "operationId": "integration.oauth.cancel",
+      "methodName": "CancelOauthConnectionAsync",
+      "reason": "Upstream summary 'Cancel OAuth connection': the operation cancels an OAuth attempt and releases its resources; its status is GetOauthStatusAsync in the same client family."
+    },
+    {
+      "operationId": "integration.oauth.complete",
+      "methodName": "CompleteOauthConnectionAsync",
+      "reason": "Upstream summary 'Complete OAuth connection': the operation completes a code-based OAuth attempt and stores the resulting credential."
+    },
+    {
+      "operationId": "integration.oauth.connect",
+      "methodName": "BeginOauthConnectionAsync",
+      "reason": "Upstream summary 'Begin OAuth connection': the operation starts an OAuth attempt and returns the authorization details; its status is GetOauthStatusAsync in the same client family."
+    },
+    {
+      "operationId": "experimental.session.import",
+      "methodName": "ImportSessionAsync",
+      "reason": "Upstream summary 'Import session': the operation imports a projected session transcript; the subject matches GetSessionExportAsync in the same client."
+    },
+    {
+      "operationId": "experimental.session.instructions.entry.put",
+      "methodName": "SetSessionInstructionsEntryAsync",
+      "reason": "Upstream summary 'Put instruction entry': the operation attaches or replaces one durable instruction entry; the subject matches ListSessionInstructionsEntryAsync and RemoveSessionInstructionsEntryAsync in the same client."
+    },
+    {
+      "operationId": "experimental.session.skill",
+      "methodName": "ActivateSessionSkillAsync",
+      "reason": "Upstream summary 'Activate skill': the operation activates a skill for a session; the client takes the session id explicitly, so the subject keeps the session like its siblings."
+    },
+    {
+      "operationId": "experimental.session.wait",
+      "methodName": "WaitForSessionAsync",
+      "reason": "Upstream summary 'Wait for session': the operation waits for the session's agent loop to become idle."
+    },
+    {
+      "operationId": "persistentPty.connectToken",
+      "methodName": "CreateConnectTokenAsync",
+      "reason": "The operation creates a short-lived single-use ticket for the persistent PTY WebSocket, exactly like pty.connect.token; the hand-written public door carries the same name (ADR-0021)."
+    },
+    {
+      "operationId": "persistentPty.handoff",
+      "methodName": "HandoffAsync",
+      "reason": "The upstream handler prepares a daemon handoff so the terminals outlive this server until a replacement claims them; the family container already names the domain, and the hand-written public door carries the same name (ADR-0021)."
+    },
+    {
+      "operationId": "persistentPty.shutdown",
+      "methodName": "ShutdownAsync",
+      "reason": "The upstream handler stops the daemon and every terminal it owns; the family container already names the domain, and the hand-written public door carries the same name (ADR-0021)."
+    },
+    {
+      "operationId": "pty.connect.token",
+      "methodName": "CreateConnectTokenAsync",
+      "reason": "Upstream summary 'Create PTY WebSocket token': the operation creates a short-lived single-use ticket; the hand-written public door carries the same name (ADR-0021)."
     }
   ],
   "schemaNames": [
@@ -401,6 +551,19 @@
       "schema": "Provider.Request",
       "dotnetName": "ProviderRequestOptions",
       "reason": "The generated operation request records own the '<Subject>Request' names; this model shapes the outbound provider request (settings, headers, body), so it takes the options suffix instead of colliding with provider.get's request record."
+    },
+    {
+      "schema": "SessionInterruptResponse",
+      "dotnetName": "SessionInterruptOutcome",
+      "reason": "The generated operation response records own the '<Subject>Response' names; this model is the body session.interrupt answers with (whether an active execution was interrupted), so it takes the outcome suffix instead of colliding with session.interrupt's response record."
+    }
+  ],
+  "enumMemberNames": [
+    {
+      "schema": "Mcp.Protocol",
+      "value": "2026-07-28",
+      "dotnetName": "Revision20260728",
+      "reason": "The wire value is the MCP protocol revision date the member requires; the mechanical casing would lead with a digit and read 'Value20260728'."
     }
   ],
   "hoistedMemberNames": [

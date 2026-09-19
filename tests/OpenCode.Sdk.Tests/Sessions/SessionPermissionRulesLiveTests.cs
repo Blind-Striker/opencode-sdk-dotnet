@@ -35,8 +35,8 @@ public sealed class SessionPermissionRulesLiveTests(SimulatedDriveServerFixture 
 
         try
         {
-            var response = await session.UpdateSessionAsync(
-                new SessionUpdatePatchRequest
+            var response = await session.UpdateAsync(
+                new SessionUpdateRequest
                 {
                     Permissions = new Optional<IReadOnlyList<PermissionRule>?>([
                         new PermissionRule
@@ -52,7 +52,7 @@ public sealed class SessionPermissionRulesLiveTests(SimulatedDriveServerFixture 
             await Assert.That(response.Status).IsEqualTo(204);
             await Assert.That(response.IsError).IsFalse();
 
-            var reread = await session.GetSessionAsync(cancellationToken: cancellationToken);
+            var reread = await session.GetAsync(cancellationToken: cancellationToken);
 
             await Assert.That(reread.Status).IsEqualTo(200);
             await Assert.That(reread.Session.Permissions).IsNotNull();
@@ -81,7 +81,7 @@ public sealed class SessionPermissionRulesLiveTests(SimulatedDriveServerFixture 
         using var cleanup = new CancellationTokenSource(CleanupTimeout);
         try
         {
-            _ = await session.RemoveSessionAsync(cancellationToken: cleanup.Token);
+            _ = await session.RemoveAsync(cancellationToken: cleanup.Token);
         }
         catch (Exception exception) when (primaryFailure is not null)
         {

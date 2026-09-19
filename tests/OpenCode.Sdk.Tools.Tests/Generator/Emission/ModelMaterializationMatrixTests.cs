@@ -411,7 +411,9 @@ public sealed class ModelMaterializationMatrixTests
                 MaterializationMatrixScenario.GetOperationId,
                 MaterializationMatrixScenario.ChoiceOperationId,
                 MaterializationMatrixScenario.PatchOperationId),
-            Curation(Groups("matrix", RootGroup())));
+            Curation(
+                Groups("matrix", RootGroup()),
+                operationNames: [OperationName(MaterializationMatrixScenario.PatchOperationId, "PatchMatrixAsync")]));
     }
 
     private static JsonObject CreatePayload() => new()

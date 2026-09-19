@@ -75,14 +75,13 @@ is revisited at each boundary.
    with a non-owning handle (`OwnsProcess`), the CLI's channel, migration, and status rules, and
    live proof against the pin's own `serve --service` daemon on every runtime leg. `StopAsync`
    and then `EnsureAsync` follow as their own slices.
-   **Two generator slices ride inside M4 as well.** Fail-closed operation naming
-   ([#86](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/86)): the HTTP method stops
-   being a name source, so every non-`GET` operation whose closing segment is not a naming verb
-   refuses generation until a reason-bearing `operationNames` row names it, and handle clients
-   drop the family from their empty-subject names; it goes first, before the Stop slice reaches
-   for the generated persistent-PTY doors it renames, and it carries the enum member naming
-   channel with it ([#84](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/84),
-   `McpProtocol.Value20260728`). **Surface completeness** then admits the
+   **Two generator slices rode inside M4 and have landed.** Fail-closed operation naming
+   ([#86](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/86)): the HTTP method is
+   never a name source — the closed grammar names an operation or a reason-bearing
+   `operationNames` row does, handle clients name themselves rather than their family, and
+   request, response, and payload types follow the same rule (ADR-0008) — together with the
+   enum member naming channel ([#84](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/84),
+   `McpProtocol.Revision20260728`). **Surface completeness** then admits the
    operations that sit outside generation: `config.get` and `experimental.migration.v1.status`
    through an ADR-0016 first-match arm that mirrors upstream's own union decode — token kind,
    literal sentinel, declaration order, required-key presence — proven against upstream's real

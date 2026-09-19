@@ -33,8 +33,8 @@ internal sealed class SimulatedSessionTurn(
             probe.Start(client.Events.SubscribeAsync(reader.Token));
             await probe.WaitForConnectedAsync(cancellationToken);
 
-            _ = await session.PostPromptAsync(
-                new SessionPromptPostRequest { Text = prompt },
+            _ = await session.PromptAsync(
+                new SessionPromptRequest { Text = prompt },
                 cancellationToken: cancellationToken);
 
             var invocation = await DriveAsync(

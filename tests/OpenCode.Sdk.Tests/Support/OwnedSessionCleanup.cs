@@ -20,11 +20,11 @@ internal sealed class OwnedSessionCleanup
         : this(
             async token =>
             {
-                _ = await session.PostInterruptAsync(cancellationToken: token);
+                _ = await session.InterruptAsync(cancellationToken: token);
             },
             async token =>
             {
-                _ = await session.RemoveSessionAsync(cancellationToken: token);
+                _ = await session.RemoveAsync(cancellationToken: token);
             },
             timeout)
     {

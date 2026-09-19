@@ -50,13 +50,13 @@ public sealed class ConfigClientLiveTests(SimulatedDriveServerFixture server)
             if (!cleared)
             {
                 _ = await client.Experimental.UpdateConfigAsync(
-                    new ExperimentalConfigUpdatePatchRequest { Shell = null, }, cancellationToken: token);
+                    new ExperimentalConfigUpdateRequest { Shell = null, }, cancellationToken: token);
             }
         });
         try
         {
             var set = await client.Experimental.UpdateConfigAsync(
-                new ExperimentalConfigUpdatePatchRequest { Shell = shell, }, cancellationToken: cancellationToken);
+                new ExperimentalConfigUpdateRequest { Shell = shell, }, cancellationToken: cancellationToken);
             await Assert.That(set.Status).IsEqualTo(204);
             var jsonOptions = new JsonDocumentOptions
             {
@@ -67,7 +67,7 @@ public sealed class ConfigClientLiveTests(SimulatedDriveServerFixture server)
             await Assert.That(afterSet.RootElement.GetProperty("shell").GetString()).IsEqualTo(shell);
 
             var clear = await client.Experimental.UpdateConfigAsync(
-                new ExperimentalConfigUpdatePatchRequest { Shell = null, }, cancellationToken: cancellationToken);
+                new ExperimentalConfigUpdateRequest { Shell = null, }, cancellationToken: cancellationToken);
             await Assert.That(clear.Status).IsEqualTo(204);
             using var afterClear = JsonDocument.Parse(await server.ReadGlobalConfigAsync(cancellationToken), jsonOptions);
             await Assert.That(afterClear.RootElement.TryGetProperty("shell", out _)).IsFalse();

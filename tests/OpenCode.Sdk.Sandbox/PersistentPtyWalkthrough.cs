@@ -128,7 +128,7 @@ internal static class PersistentPtyWalkthrough
 
         await DriveAsync(client, handle, sessionId).ConfigureAwait(false);
 
-        var removed = await handle.RemovePersistentPtyAsync(OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
+        var removed = await handle.RemoveAsync(OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
 
         Console.WriteLine($"ppty-remove: status={removed.Status} isError={removed.IsError}");
 

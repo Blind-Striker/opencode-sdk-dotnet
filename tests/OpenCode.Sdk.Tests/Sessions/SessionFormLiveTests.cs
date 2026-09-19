@@ -61,14 +61,14 @@ public sealed class SessionFormLiveTests(SimulatedDriveServerFixture server)
             var pending = await session.GetFormAsync(formId, cancellationToken: cancellationToken);
             await Assert.That(pending.Form.State).IsTypeOf<FormStatePending>();
 
-            var replyRequest = new SessionFormReplyPostRequest
+            var replyRequest = new SessionFormReplyRequest
             {
                 Answer = new Dictionary<string, FormValue>(StringComparer.Ordinal)
                 {
                     [FieldKey] = FormValue.FromText(AnswerText),
                 },
             };
-            var replied = await session.PostFormReplyAsync(formId, replyRequest, cancellationToken: cancellationToken);
+            var replied = await session.ReplyToFormAsync(formId, replyRequest, cancellationToken: cancellationToken);
             await Assert.That(replied.Status).IsEqualTo(204);
             var terminal = await session.GetFormAsync(formId, cancellationToken: cancellationToken);
             await Assert.That(terminal.Form.State).IsTypeOf<FormStateAnswered>();
@@ -80,7 +80,7 @@ public sealed class SessionFormLiveTests(SimulatedDriveServerFixture server)
             locationPending = await client.Forms.ListFormsAsync(cancellationToken: cancellationToken);
             await Assert.That(sessionPending.Forms.Any(form => form.Id == formId)).IsFalse();
             await Assert.That(locationPending.Forms.Any(form => form.Id == formId)).IsFalse();
-            var repeated = await session.PostFormReplyAsync(
+            var repeated = await session.ReplyToFormAsync(
                 formId, replyRequest, OpenCodeRequestOptions.NoThrow, cancellationToken);
             await Assert.That(repeated.Status).IsEqualTo(409);
             await Assert.That(repeated.Error).IsTypeOf<FormAlreadySettledError>();
@@ -143,12 +143,12 @@ public sealed class SessionFormLiveTests(SimulatedDriveServerFixture server)
             await Assert.That(created.Form.Fields).Count().IsEqualTo(1);
             await Assert.That(created.Form.Fields[0]).IsTypeOf<FormStringField>();
 
-            var cancelled = await session.DeleteFormCancelAsync(formId, cancellationToken: cancellationToken);
+            var cancelled = await session.CancelFormAsync(formId, cancellationToken: cancellationToken);
             await Assert.That(cancelled.Status).IsEqualTo(204);
             var terminal = await session.GetFormAsync(formId, cancellationToken: cancellationToken);
             await Assert.That(terminal.Form.State).IsTypeOf<FormStateCancelled>();
 
-            var repeated = await session.DeleteFormCancelAsync(
+            var repeated = await session.CancelFormAsync(
                 formId, OpenCodeRequestOptions.NoThrow, cancellationToken);
             await Assert.That(repeated.Status).IsEqualTo(409);
             await Assert.That(repeated.Error).IsTypeOf<FormAlreadySettledError>();
@@ -186,7 +186,7 @@ public sealed class SessionFormLiveTests(SimulatedDriveServerFixture server)
         string formId,
         CancellationToken cancellationToken)
     {
-        var response = await session.DeleteFormCancelAsync(
+        var response = await session.CancelFormAsync(
             formId, OpenCodeRequestOptions.NoThrow, cancellationToken);
         if (response.Status is not (204 or 404 or 409))
         {

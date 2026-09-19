@@ -18,7 +18,8 @@ internal static class BindingScenarioData
         IReadOnlyList<OperationIdentityCuration>? operationIdentities = null,
         IReadOnlyList<TransportOwnedCuration>? transportOwned = null,
         IReadOnlyList<DeclinedCuration>? declined = null,
-        IReadOnlyList<HoistedMemberNameCuration>? hoistedMemberNames = null) =>
+        IReadOnlyList<HoistedMemberNameCuration>? hoistedMemberNames = null,
+        IReadOnlyList<EnumMemberNameCuration>? enumMemberNames = null) =>
         new()
         {
             Groups = groups,
@@ -30,6 +31,7 @@ internal static class BindingScenarioData
             TransportOwned = transportOwned ?? [],
             Declined = declined ?? [],
             HoistedMemberNames = hoistedMemberNames ?? [],
+            EnumMemberNames = enumMemberNames ?? [],
         };
 
     public static DeclinedCuration Declined(string operationId,
@@ -90,6 +92,16 @@ internal static class BindingScenarioData
         {
             Owner = owner,
             Property = property,
+            DotNetName = dotnetName,
+            Reason = reason,
+        };
+
+    public static EnumMemberNameCuration EnumMemberName(string schema, string value, string dotnetName,
+        string reason = "The reviewed .NET surface names the enum member explicitly.") =>
+        new()
+        {
+            Schema = schema,
+            Value = value,
             DotNetName = dotnetName,
             Reason = reason,
         };

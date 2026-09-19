@@ -8,7 +8,7 @@ namespace OpenCode.Sdk;
 /// A live pseudo-terminal connection: read the frames the server sends, write the input the
 /// terminal receives, and dispose to close. The session owns its socket, so disposing it is the
 /// only way to end the connection; the process exit code is never on this wire — a reader that
-/// needs it asks <see cref="PtyClient.GetPtyAsync"/>.
+/// needs it asks <see cref="PtyClient.GetAsync"/>.
 /// </summary>
 public class PtySession : IAsyncDisposable
 {

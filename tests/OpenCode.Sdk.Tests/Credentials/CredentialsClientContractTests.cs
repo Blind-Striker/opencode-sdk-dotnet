@@ -11,7 +11,7 @@ public sealed class CredentialsClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
 
-        var response = await scenario.Client.Credentials.UpdateCredentialAsync("cred_1", new CredentialUpdatePatchRequest
+        var response = await scenario.Client.Credentials.UpdateCredentialAsync("cred_1", new CredentialUpdateRequest
         {
             Label = "work laptop",
         });

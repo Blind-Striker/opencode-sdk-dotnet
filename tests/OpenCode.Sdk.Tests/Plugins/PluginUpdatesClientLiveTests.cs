@@ -65,7 +65,7 @@ public sealed class PluginUpdatesClientLiveTests(OwnedPinnedOpenCodeServerFixtur
             static plugin => string.Equals(plugin.Id, AbsentTarget, StringComparison.Ordinal))).IsEmpty();
 
         var refused = await client.Plugins.CheckPluginUpdatesAsync(
-            new PluginCheckPostRequest { Target = AbsentTarget }, OpenCodeRequestOptions.NoThrow, cancellationToken);
+            new PluginCheckRequest { Target = AbsentTarget }, OpenCodeRequestOptions.NoThrow, cancellationToken);
 
         await Assert.That(refused.Status).IsEqualTo(400);
         await Assert.That(refused.IsError).IsTrue();
@@ -90,7 +90,7 @@ public sealed class PluginUpdatesClientLiveTests(OwnedPinnedOpenCodeServerFixtur
         await Assert.That(IdsWhere(listed, static plugin => plugin.Source is PluginSourcePackage)).IsEmpty();
 
         var updated = await client.Plugins.UpdatePluginsAsync(
-            new PluginUpdatePostRequest { Targets = [] }, cancellationToken: cancellationToken);
+            new PluginUpdateRequest { Targets = [] }, cancellationToken: cancellationToken);
 
         await Assert.That(updated.Status).IsEqualTo(204);
         await Assert.That(updated.IsError).IsFalse();
@@ -112,7 +112,7 @@ public sealed class PluginUpdatesClientLiveTests(OwnedPinnedOpenCodeServerFixtur
             static plugin => string.Equals(plugin.Id, AbsentTarget, StringComparison.Ordinal))).IsEmpty();
 
         var refused = await client.Plugins.UpdatePluginsAsync(
-            new PluginUpdatePostRequest { Targets = [AbsentTarget] }, OpenCodeRequestOptions.NoThrow, cancellationToken);
+            new PluginUpdateRequest { Targets = [AbsentTarget] }, OpenCodeRequestOptions.NoThrow, cancellationToken);
 
         await Assert.That(refused.Status).IsEqualTo(400);
         await Assert.That(refused.IsError).IsTrue();

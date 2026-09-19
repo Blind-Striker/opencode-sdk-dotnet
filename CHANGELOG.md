@@ -9,6 +9,60 @@ Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
 `0.9.0-nightly.{yyyyMMdd}.{shortSha}`.
 
+### 💥 Breaking changes
+
+- **The HTTP method is no longer part of any name.** An operation's verb is its closing identifier
+  segment when that segment is one of `create`, `get`, `list`, `remove`, `rename`, `timeout`, or
+  `update`; a `GET` without one is a read and names `Get<Subject>Async`; every other operation is
+  named by a reviewed, reason-bearing curation row, and the generator refuses to fall back to
+  `Post…`, `Put…`, `Patch…`, or `Delete…`. Three consequences reach your code:
+  - **Every `Post…`/`Put…`/`Patch…`/`Delete…` method is renamed.** On `SessionClient`:
+    `PostPromptAsync` → `PromptAsync`, `PostGenerateAsync` → `GenerateTextAsync`,
+    `PostCommandAsync` → `RunCommandAsync`, `PostShellAsync` → `RunShellCommandAsync`,
+    `PostCompactAsync` → `CompactAsync`, `PostForkAsync` → `ForkAsync`, `PostMoveAsync` →
+    `MoveAsync`, `PostInterruptAsync` → `InterruptAsync`, `PostBackgroundAsync` →
+    `MoveToolsToBackgroundAsync`, `PostViewAsync` → `MarkViewedAsync`, `PostSyntheticAsync` →
+    `AddSyntheticMessageAsync`, `PostSwitchAgentAsync` → `SwitchAgentAsync`,
+    `PostSwitchModelAsync` → `SwitchModelAsync`, `PutEnvironmentAsync` → `SetEnvironmentAsync`,
+    `PostFormReplyAsync` → `ReplyToFormAsync`, `DeleteFormCancelAsync` → `CancelFormAsync`,
+    `PostPermissionReplyAsync` → `ReplyToPermissionAsync`, `DeleteInboxCancelAsync` →
+    `CancelInboxAsync`, `PostRevertStageAsync` → `StageRevertAsync`, `PostRevertCommitAsync` →
+    `CommitRevertAsync`, `DeleteRevertClearAsync` → `ClearRevertAsync`. On `IntegrationClient`:
+    `PostConnectKeyAsync` → `ConnectWithKeyAsync`, `PostOauthConnectAsync` →
+    `BeginOauthConnectionAsync`, `PostOauthCompleteAsync` → `CompleteOauthConnectionAsync`,
+    `DeleteOauthCancelAsync` → `CancelOauthConnectionAsync`, `PostCommandConnectAsync` →
+    `BeginCommandConnectionAsync`, `DeleteCommandCancelAsync` → `CancelCommandConnectionAsync`.
+    On `ExperimentalClient`: `PostSessionImportAsync` → `ImportSessionAsync`,
+    `PostSessionSkillAsync` → `ActivateSessionSkillAsync`, `PostSessionWaitAsync` →
+    `WaitForSessionAsync`, `PutSessionInstructionsEntryAsync` →
+    `SetSessionInstructionsEntryAsync`. On `PtyClient`: `PutUpdateAsync` → `UpdateAsync`.
+  - **A handle names itself, not its family.** A handle client's own read, update, and remove
+    drop the family word: `SessionClient.GetSessionAsync` / `UpdateSessionAsync` /
+    `RemoveSessionAsync` → `GetAsync` / `UpdateAsync` / `RemoveAsync`; likewise
+    `ShellClient.GetShellAsync` / `RemoveShellAsync`, `IntegrationClient.GetIntegrationAsync`,
+    `PtyClient.GetPtyAsync` / `RemovePtyAsync`, and `PersistentPtyClient.GetPersistentPtyAsync` /
+    `UpdatePersistentPtyAsync` / `RemovePersistentPtyAsync`. Collection clients are unchanged
+    (`Sessions.ListSessionsAsync`, `Sessions.CreateSessionAsync`).
+  - **Request, response, and payload types drop the verb the same way.** Every
+    `…PostRequest`, `…PutRequest`, `…PatchRequest`, `…DeleteRequest` and the matching
+    `…Response` / `…Data` type loses the method word: `SessionPromptPostRequest` →
+    `SessionPromptRequest`, `SessionPromptPostResponse` → `SessionPromptResponse`,
+    `SessionUpdatePatchRequest` → `SessionUpdateRequest`, `PtyUpdatePutResponse` →
+    `PtyUpdateResponse`, `LocationReloadPostResponse` → `LocationReloadResponse`,
+    `PluginCheckPostRequest` → `PluginCheckRequest`, `SessionGeneratePostData` →
+    `SessionGenerateData`, and so on for all 104 such types; grammar verbs keep their word
+    (`SessionListResponse`, `SessionRemoveResponse`). Two names needed more than the rule: the
+    body `session.interrupt` answers with was upstream's `SessionInterruptResponse` and is now
+    `SessionInterruptOutcome`, so that the operation's own response record can carry
+    `SessionInterruptResponse` (`response.Interrupt.Interrupted` reads as before); and the three
+    update responses whose payload was mislabelled `Update` now name their subject —
+    `PtyUpdateResponse.Pty`, `PersistentPtyUpdateResponse.PersistentPty`,
+    `ProjectUpdateResponse.Project`. The route builders in `OpenCodeRoutes` follow their methods
+    (`Sessions.PostPrompt(id)` → `Sessions.Prompt(id)`, `Sessions.GetSession(id)` →
+    `Sessions.Get(id)`, `…Template` constants alike).
+- **`McpProtocol.Value20260728` is `McpProtocol.Revision20260728`.** The wire value `2026-07-28`
+  is unchanged; a reviewed enum member-name row names the member.
+
 ### 🔧 Changes
 
 - **Discovery answers a stale registration at once on Windows.** `OpenCodeServer.DiscoverAsync`

@@ -30,8 +30,8 @@ public sealed class SessionToolPermissionLiveTests(SimulatedDriveServerFixture s
         await scenario.RunAsync(async () =>
         {
             var sessionId = scenario.SessionId;
-            _ = await scenario.Session.PostPromptAsync(
-                new SessionPromptPostRequest { Text = "use the tools" }, cancellationToken: cancellationToken);
+            _ = await scenario.Session.PromptAsync(
+                new SessionPromptRequest { Text = "use the tools" }, cancellationToken: cancellationToken);
 
             await CompleteDriveToolTurnAsync(scenario, sessionId, nonce);
 
@@ -52,9 +52,9 @@ public sealed class SessionToolPermissionLiveTests(SimulatedDriveServerFixture s
             await Assert.That(asked.Data.Source!.Type).IsEqualTo("tool");
             await Assert.That(asked.Data.Source.MessageId).IsEqualTo(readCalled.Data.AssistantMessageId);
 
-            var reply = await scenario.Session.PostPermissionReplyAsync(
+            var reply = await scenario.Session.ReplyToPermissionAsync(
                 asked.Data.Id,
-                new SessionPermissionReplyPostRequest { Decision = PermissionReply.Once },
+                new SessionPermissionReplyRequest { Decision = PermissionReply.Once },
                 cancellationToken: cancellationToken);
             await Assert.That(reply.Status).IsEqualTo(204);
             await Assert.That(reply.IsError).IsFalse();

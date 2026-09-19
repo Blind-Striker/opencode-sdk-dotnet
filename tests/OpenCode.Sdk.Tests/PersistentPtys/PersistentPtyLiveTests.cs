@@ -148,7 +148,7 @@ public sealed class PersistentPtyLiveTests(PinnedOpenCodeServerFixture server)
         var output = await SubmitOneLineAsync(terminal, cancellationToken);
         await Assert.That(output).Contains(SubmitMarker);
 
-        var removed = await terminal.RemovePersistentPtyAsync(cancellationToken: cancellationToken);
+        var removed = await terminal.RemoveAsync(cancellationToken: cancellationToken);
         await Assert.That(removed.Status).IsEqualTo(204);
 
         Console.WriteLine(
@@ -253,7 +253,7 @@ public sealed class PersistentPtyLiveTests(PinnedOpenCodeServerFixture server)
 
         var drive = await DriveTerminalAsync(client, terminal, sessionId, cancellationToken);
 
-        var removed = await terminal.RemovePersistentPtyAsync(cancellationToken: cancellationToken);
+        var removed = await terminal.RemoveAsync(cancellationToken: cancellationToken);
         await Assert.That(removed.Status).IsEqualTo(204);
 
         var remaining = await client.PersistentPtys.ListPersistentPtysAsync(

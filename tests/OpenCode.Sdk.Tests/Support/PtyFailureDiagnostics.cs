@@ -43,7 +43,7 @@ internal sealed class PtyFailureDiagnostics(IOwnedOperationDeadline? deadline = 
         {
             // The independent client stays with this operation if its observation deadline wins.
             using var client = server.CreateClient(location);
-            var response = await client.Ptys.GetPtyClient(_id).GetPtyAsync(
+            var response = await client.Ptys.GetPtyClient(_id).GetAsync(
                 new PtyRequest { Location = location }, OpenCodeRequestOptions.NoThrow, token);
             _status = "http=" + response.Status.ToString(CultureInfo.InvariantCulture) +
                       " status=" + (response.IsError ? "unavailable" : response.Pty.Status.ToString()) +

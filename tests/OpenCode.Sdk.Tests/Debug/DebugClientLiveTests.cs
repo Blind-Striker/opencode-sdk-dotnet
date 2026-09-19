@@ -34,7 +34,7 @@ public sealed class DebugClientLiveTests(SimulatedDriveServerFixture server)
         await Assert.That(Contains(beforeEviction.Locations, ownedLocation)).IsTrue();
 
         var eviction = await rootClient.Debug.EvictLocationAsync(
-            new DebugLocationEvictDeleteRequest
+            new DebugLocationEvictRequest
             {
                 Location = new LocationSelector
                 {

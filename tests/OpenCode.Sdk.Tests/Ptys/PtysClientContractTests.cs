@@ -38,7 +38,7 @@ public sealed class PtysClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.PtyNotFoundError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Ptys.GetPtyClient("pty_9").GetPtyAsync())
+            .That(async () => _ = await scenario.Client.Ptys.GetPtyClient("pty_9").GetAsync())
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(404);
@@ -53,9 +53,9 @@ public sealed class PtysClientContractTests
         var payload = new FixtureLoader().LoadJson("Serialization.known-pty.json");
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.LocationEnvelope(payload));
 
-        var response = await scenario.Client.Ptys.GetPtyClient("pty_100").PutUpdateAsync();
+        var response = await scenario.Client.Ptys.GetPtyClient("pty_100").UpdateAsync();
 
-        await Assert.That(response.Update.Id).IsEqualTo("pty_100");
+        await Assert.That(response.Pty.Id).IsEqualTo("pty_100");
         var request = scenario.Requests.Single();
         await Assert.That(request.Method).IsEqualTo(HttpMethod.Put);
         await Assert.That(request.RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/pty/pty_100"));
@@ -123,7 +123,7 @@ public sealed class PtysClientContractTests
             HttpStatusCode.OK,
             WireBodyData.LocationEnvelope(ConnectTokenBody));
 
-        _ = await scenario.Client.Ptys.GetPtyClient("pty_100").CreateConnectTokenAsync(new PtyConnectTokenPostRequest
+        _ = await scenario.Client.Ptys.GetPtyClient("pty_100").CreateConnectTokenAsync(new PtyConnectTokenRequest
         {
             Location = new LocationSelector { Directory = "/repo" },
         });
@@ -175,9 +175,9 @@ public sealed class PtysClientContractTests
         var pty = ptys.GetPtyClient("pty_100");
 
         _ = await ptys.CreatePtyAsync();
-        _ = await pty.GetPtyAsync();
-        _ = await pty.PutUpdateAsync();
-        _ = await pty.RemovePtyAsync();
+        _ = await pty.GetAsync();
+        _ = await pty.UpdateAsync();
+        _ = await pty.RemoveAsync();
 
         await Assert.That(scenario.Requests.Count).IsEqualTo(4);
         foreach (var request in scenario.Requests)
@@ -279,9 +279,9 @@ public sealed class PtysClientContractTests
 
     private sealed class MockPtyClient : PtyClient
     {
-        public override Task<PtyConnectTokenPostResponse> CreateConnectTokenAsync(PtyConnectTokenPostRequest? request = null,
+        public override Task<PtyConnectTokenResponse> CreateConnectTokenAsync(PtyConnectTokenRequest? request = null,
             OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
-            Task.FromResult(new PtyConnectTokenPostResponse
+            Task.FromResult(new PtyConnectTokenResponse
             {
                 Status = 200,
                 Location = MockedLocation,

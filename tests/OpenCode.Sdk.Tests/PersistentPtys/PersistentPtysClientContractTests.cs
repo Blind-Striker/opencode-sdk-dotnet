@@ -22,9 +22,9 @@ public sealed class PersistentPtysClientContractTests
         static () => ("read", client => client.PersistentPtys.ReadAsync("ses_1")),
         static () => ("handoff", client => client.PersistentPtys.HandoffAsync()),
         static () => ("shutdown", client => client.PersistentPtys.ShutdownAsync()),
-        static () => ("get", client => client.PersistentPtys.GetPersistentPtyClient(PtyId).GetPersistentPtyAsync()),
-        static () => ("update", client => client.PersistentPtys.GetPersistentPtyClient(PtyId).UpdatePersistentPtyAsync(UpdateRequest())),
-        static () => ("remove", client => client.PersistentPtys.GetPersistentPtyClient(PtyId).RemovePersistentPtyAsync()),
+        static () => ("get", client => client.PersistentPtys.GetPersistentPtyClient(PtyId).GetAsync()),
+        static () => ("update", client => client.PersistentPtys.GetPersistentPtyClient(PtyId).UpdateAsync(UpdateRequest())),
+        static () => ("remove", client => client.PersistentPtys.GetPersistentPtyClient(PtyId).RemoveAsync()),
         static () => ("snapshot", client => client.PersistentPtys.GetPersistentPtyClient(PtyId).GetSnapshotAsync()),
         static () => ("connectToken", client => client.PersistentPtys.GetPersistentPtyClient(PtyId).CreateConnectTokenAsync()),
     ];
@@ -245,7 +245,7 @@ public sealed class PersistentPtysClientContractTests
         var payload = new FixtureLoader().LoadJson("Serialization.known-persistent-pty.json");
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(payload));
 
-        var response = await scenario.Client.PersistentPtys.GetPersistentPtyClient(PtyId).GetPersistentPtyAsync();
+        var response = await scenario.Client.PersistentPtys.GetPersistentPtyClient(PtyId).GetAsync();
 
         await Assert.That(response.PersistentPty.Id).IsEqualTo(PtyId);
         var request = scenario.Requests.Single();
@@ -259,7 +259,7 @@ public sealed class PersistentPtysClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.PtyNotFoundError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.PersistentPtys.GetPersistentPtyClient(PtyId).GetPersistentPtyAsync())
+            .That(async () => _ = await scenario.Client.PersistentPtys.GetPersistentPtyClient(PtyId).GetAsync())
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(404);
@@ -273,9 +273,9 @@ public sealed class PersistentPtysClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(payload));
 
         var response = await scenario.Client.PersistentPtys.GetPersistentPtyClient(PtyId)
-            .UpdatePersistentPtyAsync(UpdateRequest());
+            .UpdateAsync(UpdateRequest());
 
-        await Assert.That(response.Update.Id).IsEqualTo(PtyId);
+        await Assert.That(response.PersistentPty.Id).IsEqualTo(PtyId);
         var request = scenario.Requests.Single();
         await Assert.That(request.Method).IsEqualTo(HttpMethod.Put);
         await Assert.That(request.RequestUri).IsEqualTo(Terminal);
@@ -289,7 +289,7 @@ public sealed class PersistentPtysClientContractTests
 
         var exception = await Assert
             .That(async () => _ = await scenario.Client.PersistentPtys.GetPersistentPtyClient(PtyId)
-                .UpdatePersistentPtyAsync(UpdateRequest()))
+                .UpdateAsync(UpdateRequest()))
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(404);
@@ -301,7 +301,7 @@ public sealed class PersistentPtysClientContractTests
     {
         using var scenario = ContractScenario.Responding(static _ => new HttpResponseMessage(HttpStatusCode.NoContent));
 
-        var response = await scenario.Client.PersistentPtys.GetPersistentPtyClient(PtyId).RemovePersistentPtyAsync();
+        var response = await scenario.Client.PersistentPtys.GetPersistentPtyClient(PtyId).RemoveAsync();
 
         await Assert.That(response.IsError).IsFalse();
         await Assert.That(response.Status).IsEqualTo(204);
@@ -316,7 +316,7 @@ public sealed class PersistentPtysClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.PtyNotFoundError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.PersistentPtys.GetPersistentPtyClient(PtyId).RemovePersistentPtyAsync())
+            .That(async () => _ = await scenario.Client.PersistentPtys.GetPersistentPtyClient(PtyId).RemoveAsync())
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(404);
@@ -493,7 +493,7 @@ public sealed class PersistentPtysClientContractTests
         Env = new Dictionary<string, string>(StringComparer.Ordinal),
     };
 
-    private static PersistentPtyUpdatePutRequest UpdateRequest() => new()
+    private static PersistentPtyUpdateRequest UpdateRequest() => new()
     {
         Size = new PersistentPtyUpdateInputSize { Cols = 120, Rows = 40 },
     };
@@ -515,9 +515,9 @@ public sealed class PersistentPtysClientContractTests
 
     private sealed class MockPersistentPtyClient : PersistentPtyClient
     {
-        public override Task<PersistentPtyConnectTokenPostResponse> CreateConnectTokenAsync(
+        public override Task<PersistentPtyConnectTokenResponse> CreateConnectTokenAsync(
             OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
-            Task.FromResult(new PersistentPtyConnectTokenPostResponse
+            Task.FromResult(new PersistentPtyConnectTokenResponse
             {
                 Status = 200,
                 ConnectToken = new PtyTicketConnectToken { Ticket = "mocked", ExpiresIn = 60 },

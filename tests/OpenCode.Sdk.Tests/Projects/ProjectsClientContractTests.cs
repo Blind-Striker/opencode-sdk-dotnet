@@ -80,13 +80,13 @@ public sealed class ProjectsClientContractTests
             + "\"time\":{\"created\":1,\"updated\":2},\"sandboxes\":[]}";
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, project);
 
-        var response = await scenario.Client.Projects.UpdateProjectAsync("prj_1", new ProjectUpdatePatchRequest
+        var response = await scenario.Client.Projects.UpdateProjectAsync("prj_1", new ProjectUpdateRequest
         {
             Name = "renamed",
         });
 
-        await Assert.That(response.Update.Id).IsEqualTo("prj_1");
-        await Assert.That(response.Update.Name).IsEqualTo("renamed");
+        await Assert.That(response.Project.Id).IsEqualTo("prj_1");
+        await Assert.That(response.Project.Name).IsEqualTo("renamed");
         var request = scenario.Requests.Single();
         await Assert.That(request.Method.Method).IsEqualTo("PATCH");
         await Assert.That(request.RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/project/prj_1"));

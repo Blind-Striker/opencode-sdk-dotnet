@@ -43,9 +43,9 @@ public class PersistentPtyClient
     /// <returns>The 'PersistentPtyResponse' envelope.</returns>
     /// <exception cref="OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 503) and NoThrow was not selected.</exception>
     /// <exception cref="OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<PersistentPtyResponse> GetPersistentPtyAsync(
+    public virtual Task<PersistentPtyResponse> GetAsync(
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
-        Raw.GetPersistentPtyAsync(requestOptions, cancellationToken);
+        Raw.GetAsync(requestOptions, cancellationToken);
 
     /// <summary>
     /// Resize one persistent terminal; the resize also selects it as the session's current terminal.
@@ -53,12 +53,12 @@ public class PersistentPtyClient
     /// <param name="request">The request body.</param>
     /// <param name="requestOptions">The per-call options.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The 'PersistentPtyUpdatePutResponse' envelope.</returns>
+    /// <returns>The 'PersistentPtyUpdateResponse' envelope.</returns>
     /// <exception cref="OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 503) and NoThrow was not selected.</exception>
     /// <exception cref="OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<PersistentPtyUpdatePutResponse> UpdatePersistentPtyAsync(PersistentPtyUpdatePutRequest request,
+    public virtual Task<PersistentPtyUpdateResponse> UpdateAsync(PersistentPtyUpdateRequest request,
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
-        Raw.PutUpdateAsync(request, requestOptions, cancellationToken);
+        Raw.UpdateAsync(request, requestOptions, cancellationToken);
 
     /// <summary>
     /// Terminate and remove one persistent terminal.
@@ -68,9 +68,9 @@ public class PersistentPtyClient
     /// <returns>The 'PersistentPtyRemoveResponse' envelope.</returns>
     /// <exception cref="OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 503) and NoThrow was not selected.</exception>
     /// <exception cref="OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<PersistentPtyRemoveResponse> RemovePersistentPtyAsync(
+    public virtual Task<PersistentPtyRemoveResponse> RemoveAsync(
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
-        Raw.RemovePersistentPtyAsync(requestOptions, cancellationToken);
+        Raw.RemoveAsync(requestOptions, cancellationToken);
 
     /// <summary>
     /// Snapshot one persistent terminal: its info, the retained text, the screen checkpoint as
@@ -92,12 +92,12 @@ public class PersistentPtyClient
     /// </summary>
     /// <param name="requestOptions">The per-call options.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The 'PersistentPtyConnectTokenPostResponse' envelope.</returns>
+    /// <returns>The 'PersistentPtyConnectTokenResponse' envelope.</returns>
     /// <exception cref="OpenCodeApiException">The API returned an error status (declared: 400, 401, 403, 404, 503) and NoThrow was not selected.</exception>
     /// <exception cref="OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<PersistentPtyConnectTokenPostResponse> CreateConnectTokenAsync(
+    public virtual Task<PersistentPtyConnectTokenResponse> CreateConnectTokenAsync(
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
-        Raw.PostConnectTokenAsync(xOpencodeTicket: PtyTicketHeader.Sentinel, requestOptions, cancellationToken);
+        Raw.CreateConnectTokenAsync(xOpencodeTicket: PtyTicketHeader.Sentinel, requestOptions, cancellationToken);
 
     /// <summary>
     /// Opens the terminal's live WebSocket session and returns once the server has attached this

@@ -63,13 +63,13 @@ public class WorktreesClient
     /// <param name = "request">The request body.</param>
     /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;WorktreeRefreshPostResponse&apos; envelope.</returns>
+    /// <returns>The &apos;WorktreeRefreshResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<WorktreeRefreshPostResponse> RefreshWorktreesAsync(WorktreeRefreshPostRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    public virtual Task<WorktreeRefreshResponse> RefreshWorktreesAsync(WorktreeRefreshRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Worktrees.RefreshWorktrees, request, OpenCodeJsonContext.Default.WorktreeRefreshPostRequest, WorktreeRefreshPostResponseAdapter.Instance, requestOptions, cancellationToken);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Worktrees.RefreshWorktrees, request, OpenCodeJsonContext.Default.WorktreeRefreshRequest, WorktreeRefreshResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 
     /// <summary>

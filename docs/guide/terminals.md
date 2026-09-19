@@ -80,13 +80,13 @@ Three rules worth knowing before your first surprise:
    does not end the connection — see
    [cancellation, deadlines, and disposal](#-cancellation-deadlines-and-disposal).
 3. **There is no end-of-command marker on this wire.** A terminal just goes quiet. If you need to
-   know a command finished, either wait for the stream to settle or ask `GetPtyAsync` for the
+   know a command finished, either wait for the stream to settle or ask `GetAsync` for the
    PTY's status and exit code — the exit code is *not* on the socket.
 
 Closing:
 
 ```csharp
-var removed = await pty.RemovePtyAsync(null, OpenCodeRequestOptions.NoThrow);
+var removed = await pty.RemoveAsync(null, OpenCodeRequestOptions.NoThrow);
 
 Console.WriteLine($"removed: status={removed.Status} isError={removed.IsError}");
 ```

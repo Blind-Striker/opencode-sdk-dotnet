@@ -199,7 +199,7 @@ public sealed class OperationPlanBinderTests
         await Assert.That(reload.RouteContainerName).IsEqualTo("Location");
         await Assert.That(reload.RouteMemberName).IsEqualTo("ReloadLocations");
         await Assert.That(reload.Parameters).IsEmpty();
-        await Assert.That(reload.Envelope!.ResponseTypeName).IsEqualTo("LocationReloadPostResponse");
+        await Assert.That(reload.Envelope!.ResponseTypeName).IsEqualTo("LocationReloadResponse");
         await Assert
             .That(reload
                 .ErrorMap.Statuses.Select(static status => status.StatusCode)
@@ -335,45 +335,50 @@ public sealed class OperationPlanBinderTests
         await Assert.That(listShells.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocationList);
     }
 
+    /// <summary>
+    /// The pinned session handle's names in binder order: grammar verbs mechanically, the
+    /// handle's own read/update/remove without a restated family, and every non-grammar
+    /// operation through its reason-bearing row — no HTTP verb anywhere (ADR-0008).
+    /// </summary>
     private static readonly string[] ExpectedSessionClientMethodNames =
     [
+        "AddSyntheticMessageAsync",
+        "CancelFormAsync",
+        "CancelInboxAsync",
+        "ClearRevertAsync",
+        "CommitRevertAsync",
+        "CompactAsync",
         "CreateFormAsync",
         "CreatePermissionAsync",
-        "DeleteFormCancelAsync",
-        "DeleteInboxCancelAsync",
-        "DeleteRevertClearAsync",
+        "ForkAsync",
+        "GenerateTextAsync",
+        "GetAsync",
         "GetContextAsync",
         "GetDiffAsync",
         "GetFormAsync",
         "GetLogAsync",
         "GetMessageAsync",
         "GetPermissionAsync",
-        "GetSessionAsync",
+        "InterruptAsync",
         "ListFormsAsync",
         "ListInboxAsync",
         "ListMessagesAsync",
         "ListRequestsAsync",
-        "PostBackgroundAsync",
-        "PostCommandAsync",
-        "PostCompactAsync",
-        "PostForkAsync",
-        "PostFormReplyAsync",
-        "PostGenerateAsync",
-        "PostInterruptAsync",
-        "PostMoveAsync",
-        "PostPermissionReplyAsync",
-        "PostPromptAsync",
-        "PostRevertCommitAsync",
-        "PostRevertStageAsync",
-        "PostShellAsync",
-        "PostSwitchAgentAsync",
-        "PostSwitchModelAsync",
-        "PostSyntheticAsync",
-        "PostViewAsync",
-        "PutEnvironmentAsync",
-        "RemoveSessionAsync",
+        "MarkViewedAsync",
+        "MoveAsync",
+        "MoveToolsToBackgroundAsync",
+        "PromptAsync",
+        "RemoveAsync",
+        "ReplyToFormAsync",
+        "ReplyToPermissionAsync",
+        "RunCommandAsync",
+        "RunShellCommandAsync",
+        "SetEnvironmentAsync",
+        "StageRevertAsync",
+        "SwitchAgentAsync",
+        "SwitchModelAsync",
+        "UpdateAsync",
         "UpdateInboxAsync",
-        "UpdateSessionAsync",
     ];
 
     [Test]
@@ -391,7 +396,7 @@ public sealed class OperationPlanBinderTests
                 .SequenceEqual(ExpectedSessionClientMethodNames, StringComparer.Ordinal))
             .IsTrue();
 
-        var remove = session.Operations.Single(static operation => operation.MethodName == "RemoveSessionAsync");
+        var remove = session.Operations.Single(static operation => operation.MethodName == "RemoveAsync");
         await Assert.That(remove.HttpMethod).IsEqualTo("delete");
         await Assert.That(remove.Envelope!.Kind).IsEqualTo(EnvelopeKind.NoContent);
         await Assert.That(remove.Envelope.SuccessStatusCode).IsEqualTo(204);
@@ -402,10 +407,10 @@ public sealed class OperationPlanBinderTests
         await Assert
             .That(shell
                 .Operations.Select(static operation => operation.MethodName)
-                .SequenceEqual(["GetOutputAsync", "GetShellAsync", "RemoveShellAsync"], StringComparer.Ordinal))
+                .SequenceEqual(["GetAsync", "GetOutputAsync", "RemoveAsync"], StringComparer.Ordinal))
             .IsTrue();
 
-        var getShell = shell.Operations.Single(static operation => operation.MethodName == "GetShellAsync");
+        var getShell = shell.Operations.Single(static operation => operation.MethodName == "GetAsync");
         await Assert.That(getShell.QueryRequest!.TypeName).IsEqualTo("ShellRequest");
         await Assert.That(getShell.Envelope!.Kind).IsEqualTo(EnvelopeKind.DataLocation);
 
@@ -490,14 +495,14 @@ public sealed class OperationPlanBinderTests
 
         var handoff = plan
             .Clients.Single(static client => client.Name == "PersistentPtysRawClient")
-            .Operations.Single(static operation => operation.MethodName == "PostHandoffAsync");
+            .Operations.Single(static operation => operation.MethodName == "HandoffAsync");
         await Assert.That(handoff.Envelope!.Kind).IsEqualTo(EnvelopeKind.Data);
         await Assert.That(handoff.Envelope.WireMemberName).IsEqualTo("handoff");
         await Assert.That(handoff.Envelope.PayloadName).IsEqualTo("Handoff");
         await Assert.That(((NamedTypeReferencePlan)handoff.Envelope.PayloadType!).Name).IsEqualTo("PersistentPtyHandoff");
         await Assert.That(handoff.Envelope.PayloadType.IsNullable).IsTrue();
         await Assert
-            .That(plan.Models.Any(static model => string.Equals(model.Name, "PersistentPtyHandoffPostData", StringComparison.Ordinal)))
+            .That(plan.Models.Any(static model => string.Equals(model.Name, "PersistentPtyHandoffData", StringComparison.Ordinal)))
             .IsFalse();
     }
 
@@ -726,7 +731,7 @@ public sealed class OperationPlanBinderTests
         var update = plan.Clients.Single(static client => client.Role == ClientRole.Collection).Operations.Single();
         await Assert.That(update.HttpMethod).IsEqualTo("put");
         await Assert.That(update.RequestBody).IsNotNull();
-        await Assert.That(update.RequestBody!.TypeName).IsEqualTo("WidgetUpdatePutRequest");
+        await Assert.That(update.RequestBody!.TypeName).IsEqualTo("WidgetUpdateRequest");
     }
 
     [Test]
@@ -1916,12 +1921,13 @@ public sealed class OperationPlanBinderTests
         await Assert.That(root.SubClients.Single().TypeName).IsEqualTo("GadgetsClient");
         var collection = plan.Clients.Single(static client => client.Role == ClientRole.Collection);
         await Assert.That(collection.Operations).IsEmpty();
+        // On a handle the family is the subject, so the verb-only gizmo.list keeps no group.
         var handle = plan.Clients.Single(static client => client.Role == ClientRole.Handle);
         await Assert
             .That(handle
                 .Operations.Select(static operation => operation.MethodName)
                 .Order(StringComparer.Ordinal)
-                .SequenceEqual(["GetPartAsync", "ListGizmosAsync"], StringComparer.Ordinal))
+                .SequenceEqual(["GetPartAsync", "ListAsync"], StringComparer.Ordinal))
             .IsTrue();
         await Assert.That(handle.Operations.All(static operation => operation.RouteContainerName == "Gadgets")).IsTrue();
     }
@@ -2010,11 +2016,11 @@ public sealed class OperationPlanBinderTests
             .That(handle
                 .Operations.Select(static operation => operation.MethodName)
                 .Order(StringComparer.Ordinal)
-                .SequenceEqual(["GetPartAsync", "ListGizmosAsync"], StringComparer.Ordinal))
+                .SequenceEqual(["GetPartAsync", "ListAsync"], StringComparer.Ordinal))
             .IsTrue();
         await Assert
             .That(handle
-                .Operations.Single(static operation => operation.MethodName == "ListGizmosAsync")
+                .Operations.Single(static operation => operation.MethodName == "ListAsync")
                 .DeclaredHeaders.Single()
                 .Name)
             .IsEqualTo("xOpencodeTicket");
@@ -2054,12 +2060,12 @@ public sealed class OperationPlanBinderTests
         var plan = BindPtys(document, EmissionMode.InternalRaw);
 
         var handle = plan.Clients.Single(static client => client.Role == ClientRole.Handle);
-        var token = handle.Operations.Single(static operation => operation.MethodName == "PostConnectTokenAsync");
+        var token = handle.Operations.Single(static operation => operation.MethodName == "CreateConnectTokenAsync");
         var header = token.DeclaredHeaders.Single();
         await Assert.That(header.WireName).IsEqualTo("x-opencode-ticket");
         await Assert.That(header.Name).IsEqualTo("xOpencodeTicket");
         await Assert
-            .That(handle.Operations.Single(static operation => operation.MethodName == "GetPtyAsync").DeclaredHeaders)
+            .That(handle.Operations.Single(static operation => operation.MethodName == "GetAsync").DeclaredHeaders)
             .IsEmpty();
     }
 
@@ -3196,13 +3202,14 @@ public sealed class OperationPlanBinderTests
                         required: headerRequired)
                     .Response(200, "application/json", schema => schema.Ref("PtyTicket"))));
 
+    /// <summary>The connect-token call closes with no grammar verb, so the family's row names it, as the pin's does.</summary>
     private static EmitPlan BindPtys(SpecDocument document, EmissionMode emission) =>
         new BindingTestHost().Bind(
             document,
             Selection("pty.get", "pty.connect.token"),
-            Curation(Groups(
-                "pty",
-                ClientGroup(clientName: "Ptys", handleName: "PtyClient", handleParameter: "ptyID", emission: emission))));
+            Curation(
+                Groups("pty", ClientGroup(clientName: "Ptys", handleName: "PtyClient", handleParameter: "ptyID", emission: emission)),
+                operationNames: [OperationName("pty.connect.token", "CreateConnectTokenAsync")]));
 
     private static EmitPlan BindWidgets(SpecDocument document, string operationId = "widget.list") =>
         new BindingTestHost().Bind(

@@ -25,7 +25,7 @@ var created = await client.Sessions.CreateSessionAsync(new SessionCreateRequest
 });
 ```
 
-When every member is optional, the request itself is optional — `await session.UpdateSessionAsync()` sends `{}`. Records are values, so `with` gives you a variation
+When every member is optional, the request itself is optional — `await session.UpdateAsync()` sends `{}`. Records are values, so `with` gives you a variation
 without touching the original.
 
 ## 🔀 Absent, null, and set
@@ -47,16 +47,16 @@ The session update request illustrates the three wire states:
 
 ```csharp
 var session = client.Sessions.GetSessionClient("ses_1");
-await session.UpdateSessionAsync(new SessionUpdatePatchRequest { Title = "Revised title" });
-await session.UpdateSessionAsync(new SessionUpdatePatchRequest()); // {}
-await session.UpdateSessionAsync(new SessionUpdatePatchRequest { Title = Optional<string?>.Null }); // {"title":null}
+await session.UpdateAsync(new SessionUpdateRequest { Title = "Revised title" });
+await session.UpdateAsync(new SessionUpdateRequest()); // {}
+await session.UpdateAsync(new SessionUpdateRequest { Title = Optional<string?>.Null }); // {"title":null}
 ```
 
-The operation returns 204; use `GetSessionAsync` to observe the resulting session. What an explicit
+The operation returns 204; use `GetAsync` to observe the resulting session. What an explicit
 null does is the server's decision. The SDK preserves the wire distinction and does not promise
 that null always clears a value.
 
-The experimental config update differs: `ExperimentalConfigUpdatePatchRequest.Shell` is a
+The experimental config update differs: `ExperimentalConfigUpdateRequest.Shell` is a
 **required nullable string**, so callers must supply a shell value or null. There is no omitted
 shell state. A null removes the persisted shell preference; its 204 response has no read-back body.
 
@@ -76,7 +76,7 @@ var name = content is ToolFileContent file ? file.Name.Value : null;
 carried value — `null` both when the member is absent and when it carries an explicit null:
 
 ```csharp
-var request = new SessionUpdatePatchRequest { Title = Optional<string?>.Null };
+var request = new SessionUpdateRequest { Title = Optional<string?>.Null };
 
 Console.WriteLine(request.Title switch
 {
@@ -107,11 +107,11 @@ as JSON booleans. `QueryBoolean.True` writes `true`, `QueryBoolean.False` writes
 writes nothing.
 
 A request record can carry both at once — the body members serialize, the query members go into the
-URL, and the initializer does not distinguish them. `PluginCheckPostRequest.Target` is a body
+URL, and the initializer does not distinguish them. `PluginCheckRequest.Target` is a body
 member and its `Location` is a query member:
 
 ```csharp
-var check = await client.Plugins.CheckPluginUpdatesAsync(new PluginCheckPostRequest
+var check = await client.Plugins.CheckPluginUpdatesAsync(new PluginCheckRequest
 {
     Target = "eslint",
     Location = new LocationSelector { Directory = "/repo/service" },

@@ -299,7 +299,14 @@ internal sealed class OperationPlanBinder
             var optionalPlanErrorsBefore = _context.Errors.Count;
             var (queryRequest, requestBody) = BindRequests();
 
-            var (methodName, routeMemberName) = ResolveNames(row);
+            var handle = parameters?.Any(static parameter => parameter.IsHandleParameter) ?? false;
+            var (methodName, routeMemberName, rowRequired) = ResolveNames(row, handle);
+            if (rowRequired is not null)
+            {
+                _context.Refuse(rowRequired);
+                return null;
+            }
+
             if (methodName is null || routeMemberName is null)
             {
                 _context.Refuse("the operation's names cannot be derived mechanically: the group does not pluralize naively");
@@ -342,12 +349,22 @@ internal sealed class OperationPlanBinder
             };
         }
 
-        private (string? MethodName, string? RouteMemberName) ResolveNames(GroupCuration row)
+        /// <summary>
+        /// The names a row or the mechanical policy give the operation; the third member is the
+        /// refusal when neither may name it — the HTTP method is never a name source (ADR-0008).
+        /// </summary>
+        private (string? MethodName, string? RouteMemberName, string? RowRequired) ResolveNames(GroupCuration row, bool handle)
         {
             var curatedName = _context.Curation.OperationNames.FirstOrDefault(operationName =>
                 string.Equals(operationName.OperationId, _context.Operation.OperationId, StringComparison.Ordinal));
-            return (OperationNamePolicy.MethodName(_context.Operation, curatedName),
-                OperationNamePolicy.RouteMemberName(_context.Operation, row.Placement, curatedName));
+            if (curatedName is null && OperationNamePolicy.RowRequiredProblem(_context.Operation) is { } rowRequired)
+            {
+                return (null, null, rowRequired);
+            }
+
+            return (OperationNamePolicy.MethodName(_context.Operation, curatedName, handle),
+                OperationNamePolicy.RouteMemberName(_context.Operation, row.Placement, curatedName, handle),
+                null);
         }
 
         private (QueryRequestPlan? Query, RequestBodyPlan? Body) BindRequests()

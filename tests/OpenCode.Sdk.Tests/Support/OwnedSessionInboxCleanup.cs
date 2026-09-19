@@ -66,7 +66,7 @@ internal sealed class OwnedSessionInboxCleanup
         return owned;
     }
 
-    public void RetainWait(Task<ExperimentalSessionWaitPostResponse> pending)
+    public void RetainWait(Task<ExperimentalSessionWaitResponse> pending)
     {
         ArgumentNullException.ThrowIfNull(pending);
         if (_retainedWaitCleanup is not null)
@@ -130,7 +130,7 @@ internal sealed class OwnedSessionInboxCleanup
         string sessionId,
         CancellationToken cancellationToken)
     {
-        var response = await session.PostInterruptAsync(
+        var response = await session.InterruptAsync(
             requestOptions: OpenCodeRequestOptions.NoThrow,
             cancellationToken: cancellationToken);
         RequireResponse(response, sessionId, "interrupt", 200);
@@ -141,7 +141,7 @@ internal sealed class OwnedSessionInboxCleanup
         string sessionId,
         CancellationToken cancellationToken)
     {
-        var response = await experimental.PostSessionWaitAsync(sessionId, OpenCodeRequestOptions.NoThrow, cancellationToken);
+        var response = await experimental.WaitForSessionAsync(sessionId, OpenCodeRequestOptions.NoThrow, cancellationToken);
         RequireResponse(response, sessionId, "wait", 204);
     }
 
@@ -150,7 +150,7 @@ internal sealed class OwnedSessionInboxCleanup
         string sessionId,
         CancellationToken cancellationToken)
     {
-        var response = await session.RemoveSessionAsync(OpenCodeRequestOptions.NoThrow, cancellationToken);
+        var response = await session.RemoveAsync(OpenCodeRequestOptions.NoThrow, cancellationToken);
         RequireResponse(response, sessionId, "removal", 204);
     }
 

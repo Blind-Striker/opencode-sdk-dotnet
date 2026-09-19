@@ -187,11 +187,11 @@ internal static class EmitterPlanFixture
     private static OperationPlan CreatePtyConnectTokenOperation() =>
         new()
         {
-            MethodName = "PostConnectTokenAsync",
+            MethodName = "CreateConnectTokenAsync",
             HttpMethod = "post",
             RouteTemplate = "/api/pty/{ptyID}/connect-token",
             RouteContainerName = "Ptys",
-            RouteMemberName = "PostConnectToken",
+            RouteMemberName = "CreateConnectToken",
             Parameters = [CreatePtyParameter()],
             DeclaredHeaders =
             [
@@ -203,8 +203,8 @@ internal static class EmitterPlanFixture
             ],
             Envelope = new EnvelopePlan
             {
-                ResponseTypeName = "PtyConnectTokenPostResponse",
-                AdapterTypeName = "PtyConnectTokenPostResponseAdapter",
+                ResponseTypeName = "PtyConnectTokenResponse",
+                AdapterTypeName = "PtyConnectTokenResponseAdapter",
                 PayloadName = "ConnectToken",
                 PayloadType = Named("ExampleItem"),
                 Kind = EnvelopeKind.Bare,

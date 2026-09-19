@@ -5,29 +5,47 @@ namespace OpenCode.Sdk.Tools.Generator.Binding;
 
 /// <summary>
 /// Derives C# member and type names for one bound operation from its identifier segments.
-/// Verb detection is structural — only the final segment can be a verb — so mid-position
-/// segments that spell a verb stay in the subject. Derivations that need the pluralized
-/// group return <see langword="null"/> when the naive rule is unsafe; the binder refuses
-/// such operations.
+/// Verb detection is structural — only the final segment can be a verb, and only a segment of the
+/// closed grammar is one — so mid-position segments that spell a verb stay in the subject. A
+/// <c>GET</c> without a grammar verb is a read and names <c>Get…</c>; every other operation
+/// without one has no mechanical name, because the HTTP method is never a name source
+/// (ADR-0008): the binder refuses it until a reason-bearing <c>operationNames</c> row names it.
+/// Derivations that need the pluralized group return <see langword="null"/> when the naive rule
+/// is unsafe; the binder refuses such operations too.
 /// </summary>
 internal static class OperationNamePolicy
 {
     private const string ResponseSuffix = "Response";
+    private const string ReadVerb = "Get";
 
-    /// <summary>Identifier segments recognized as operation verbs when they close the identifier.</summary>
-    private static readonly string[] KnownVerbSegments = ["create", "get", "list", "remove", "rename", "timeout"];
+    /// <summary>
+    /// The closed grammar: identifier segments recognized as operation verbs when they close the
+    /// identifier. A change here is an ADR-0008 revision, not curation.
+    /// </summary>
+    private static readonly string[] KnownVerbSegments = ["create", "get", "list", "remove", "rename", "timeout", "update"];
 
-    /// <summary>Gets the operation verb: a recognized final identifier segment, or the HTTP method.</summary>
-    public static string Verb(SpecOperation operation)
+    /// <summary>
+    /// Gets the operation verb: the closing grammar segment, <c>Get</c> for a read without one,
+    /// or <see langword="null"/> when no mechanical rule may name the operation.
+    /// </summary>
+    public static string? Verb(SpecOperation operation)
     {
         ArgumentNullException.ThrowIfNull(operation);
 
-        return HasVerbSegment(operation)
-            ? CSharpNamePolicy.ToPascalCase(operation.Segments[^1])
-            : CSharpNamePolicy.ToPascalCase(operation.Method);
+        if (HasVerbSegment(operation))
+        {
+            return CSharpNamePolicy.ToPascalCase(operation.Segments[^1]);
+        }
+
+        return IsRead(operation) ? ReadVerb : null;
     }
 
-    public static string? MethodName(SpecOperation operation, OperationNameCuration? curation = null)
+    /// <summary>
+    /// The method name: the curated one when a row exists, else verb plus subject. On a handle
+    /// client the handle is the subject, so an empty subject stays empty (<c>session.GetAsync()</c>);
+    /// on a collection client it falls back to the family (<c>sessions.ListSessionsAsync()</c>).
+    /// </summary>
+    public static string? MethodName(SpecOperation operation, OperationNameCuration? curation = null, bool handle = false)
     {
         ArgumentNullException.ThrowIfNull(operation);
 
@@ -36,8 +54,35 @@ internal static class OperationNamePolicy
             return curation.MethodName;
         }
 
-        var subject = SubjectOrGroupFallback(operation);
-        return subject is null ? null : $"{Verb(operation)}{subject}Async";
+        var verb = Verb(operation);
+        if (verb is null)
+        {
+            return null;
+        }
+
+        var subject = handle ? Subject(operation) : SubjectOrGroupFallback(operation, verb);
+        return subject is null ? null : $"{verb}{subject}Async";
+    }
+
+    /// <summary>
+    /// The refusal for an operation no mechanical rule may name: the closing segment, the
+    /// missing row, and the fallback the HTTP method would have produced. Null when a mechanical
+    /// name exists.
+    /// </summary>
+    public static string? RowRequiredProblem(SpecOperation operation)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+
+        if (Verb(operation) is not null)
+        {
+            return null;
+        }
+
+        var methodVerb = CSharpNamePolicy.ToPascalCase(operation.Method);
+        var fallback = $"{methodVerb}{SubjectOrGroupFallback(operation, methodVerb) ?? CSharpNamePolicy.ToPascalCase(operation.Segments[0])}Async";
+        return $"operation '{operation.OperationId}' closes with '{operation.Segments[^1]}', which is not a naming verb, "
+               + "and no operationNames row names it; the HTTP method is never a name source "
+               + $"(mechanical fallback would have been '{fallback}')";
     }
 
     /// <summary>Replaces a list operation's verb with the reviewed automatic-traversal verb.</summary>
@@ -52,13 +97,12 @@ internal static class OperationNamePolicy
             : null;
     }
 
+    /// <summary>Group, subject, and the grammar verb (a read's <c>Get</c> and an absent verb fold to nothing).</summary>
     public static string ResponseTypeName(SpecOperation operation)
     {
         ArgumentNullException.ThrowIfNull(operation);
 
-        var verb = Verb(operation);
-        var verbSuffix = string.Equals(verb, "Get", StringComparison.Ordinal) ? string.Empty : verb;
-        return $"{CSharpNamePolicy.ToPascalCase(operation.Segments[0])}{Subject(operation)}{verbSuffix}{ResponseSuffix}";
+        return $"{CSharpNamePolicy.ToPascalCase(operation.Segments[0])}{Subject(operation)}{TypeVerbSuffix(operation)}{ResponseSuffix}";
     }
 
     /// <summary>
@@ -80,7 +124,7 @@ internal static class OperationNamePolicy
     /// method names so merged client families stay collision-free.
     /// </summary>
     public static string? RouteMemberName(SpecOperation operation, GroupPlacement placement,
-        OperationNameCuration? curation = null)
+        OperationNameCuration? curation = null, bool handle = false)
     {
         ArgumentNullException.ThrowIfNull(operation);
 
@@ -92,13 +136,19 @@ internal static class OperationNamePolicy
                 : null;
         }
 
-        if (placement is GroupPlacement.Root)
+        var verb = Verb(operation);
+        if (verb is null)
         {
-            return $"{Verb(operation)}{Subject(operation)}";
+            return null;
         }
 
-        var subject = SubjectOrGroupFallback(operation);
-        return subject is null ? null : $"{Verb(operation)}{subject}";
+        if (placement is GroupPlacement.Root || handle)
+        {
+            return $"{verb}{Subject(operation)}";
+        }
+
+        var subject = SubjectOrGroupFallback(operation, verb);
+        return subject is null ? null : $"{verb}{subject}";
     }
 
     public static string? PayloadName(SpecOperation operation)
@@ -106,17 +156,21 @@ internal static class OperationNamePolicy
         ArgumentNullException.ThrowIfNull(operation);
 
         var subject = Subject(operation);
-        return subject.Length is 0 ? GroupFallback(operation) : subject;
+        return subject.Length is 0 ? GroupFallback(operation, Verb(operation)) : subject;
     }
 
-    /// <summary>Folds the Get verb exactly like the response name, so the pair stays uniform.</summary>
+    /// <summary>Folds the verb exactly like the response name, so the pair stays uniform.</summary>
     public static string RequestTypeName(SpecOperation operation)
     {
         ArgumentNullException.ThrowIfNull(operation);
 
+        return $"{CSharpNamePolicy.ToPascalCase(operation.Segments[0])}{Subject(operation)}{TypeVerbSuffix(operation)}Request";
+    }
+
+    private static string TypeVerbSuffix(SpecOperation operation)
+    {
         var verb = Verb(operation);
-        var verbSuffix = string.Equals(verb, "Get", StringComparison.Ordinal) ? string.Empty : verb;
-        return $"{CSharpNamePolicy.ToPascalCase(operation.Segments[0])}{Subject(operation)}{verbSuffix}Request";
+        return verb is null || string.Equals(verb, ReadVerb, StringComparison.Ordinal) ? string.Empty : verb;
     }
 
     /// <summary>
@@ -136,17 +190,17 @@ internal static class OperationNamePolicy
         return string.Concat(operation.Segments.Skip(1).Take(end - 1).Select(CSharpNamePolicy.ToPascalCase));
     }
 
-    private static string? SubjectOrGroupFallback(SpecOperation operation)
+    private static string? SubjectOrGroupFallback(SpecOperation operation, string verb)
     {
         var subject = Subject(operation);
-        return subject.Length is 0 ? GroupFallback(operation) : subject;
+        return subject.Length is 0 ? GroupFallback(operation, verb) : subject;
     }
 
     /// <summary>An empty subject falls back to the group — pluralized for list operations.</summary>
-    private static string? GroupFallback(SpecOperation operation)
+    private static string? GroupFallback(SpecOperation operation, string? verb)
     {
         var group = CSharpNamePolicy.ToPascalCase(operation.Segments[0]);
-        return string.Equals(Verb(operation), "List", StringComparison.Ordinal) ? Pluralize(group) : group;
+        return string.Equals(verb, "List", StringComparison.Ordinal) ? Pluralize(group) : group;
     }
 
     /// <summary>
@@ -170,6 +224,9 @@ internal static class OperationNamePolicy
     }
 
     private static bool IsVowel(char letter) => letter is 'a' or 'e' or 'i' or 'o' or 'u' or 'A' or 'E' or 'I' or 'O' or 'U';
+
+    private static bool IsRead(SpecOperation operation) =>
+        string.Equals(operation.Method, "get", StringComparison.OrdinalIgnoreCase);
 
     private static bool HasVerbSegment(SpecOperation operation) =>
         operation.Segments.Count > 1 && KnownVerbSegments.Contains(operation.Segments[^1], StringComparer.Ordinal);
