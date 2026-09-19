@@ -31,9 +31,9 @@ internal sealed class RpcCallRequestBuilder
         return this;
     }
 
-    public RpcCallPostRequest Build()
+    public RpcCallRequest Build()
     {
         using var document = JsonDocument.Parse(_input.ToJsonString());
-        return new RpcCallPostRequest { Input = document.RootElement.Clone() };
+        return new RpcCallRequest { Input = document.RootElement.Clone() };
     }
 }

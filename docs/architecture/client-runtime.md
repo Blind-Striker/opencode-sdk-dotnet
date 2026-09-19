@@ -128,7 +128,7 @@ local server launcher. Protocol and generated-model rules live in
   would submit a command the caller did not write. An empty line is a bare Enter, and nothing else
   about the line is transformed.
 - **Close.** 1000 ends the enumeration normally — the process exit code is not on this wire, so a
-  reader that needs it calls `GetPtyAsync`. 4404 means the session was not found or had already
+  reader that needs it calls `GetAsync`. 4404 means the session was not found or had already
   exited and throws with the reason; because an exited PTY still upgrades cleanly, that failure
   surfaces on the first read rather than on connect. Any other close is an abnormal close, and a
   socket fault maps through `FailureClassification`'s PTY WebSocket phases.
@@ -172,8 +172,8 @@ local server launcher. Protocol and generated-model rules live in
   collection client with their route values as arguments, exactly as upstream flattens the group.
 - **The doors.** `PersistentPtysClient` carries `ListPersistentPtysAsync(sessionId)`,
   `CreatePersistentPtyAsync(sessionId, request)`, `ReadAsync(sessionId, …)`, `HandoffAsync`,
-  `ShutdownAsync`, and `GetPersistentPtyClient(ptyId)`; the handle carries `GetPersistentPtyAsync`,
-  `UpdatePersistentPtyAsync`, `RemovePersistentPtyAsync`, `GetSnapshotAsync`,
+  `ShutdownAsync`, and `GetPersistentPtyClient(ptyId)`; the handle carries `GetAsync`,
+  `UpdateAsync`, `RemoveAsync`, `GetSnapshotAsync`,
   `CreateConnectTokenAsync`, and `ConnectAsync`. `HandoffAsync` and `ShutdownAsync` are
   server-lifecycle doors rather than terminal doors: the first prepares the daemon to outlive this
   server until a replacement claims it, the second stops the daemon and every terminal it owns.

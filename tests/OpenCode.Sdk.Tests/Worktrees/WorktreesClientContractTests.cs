@@ -180,7 +180,7 @@ public sealed class WorktreesClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
 
-        var response = await scenario.Client.Worktrees.RefreshWorktreesAsync(new WorktreeRefreshPostRequest { ProjectId = "prj_1" });
+        var response = await scenario.Client.Worktrees.RefreshWorktreesAsync(new WorktreeRefreshRequest { ProjectId = "prj_1" });
 
         await Assert.That(response.Status).IsEqualTo(204);
         await Assert.That(response.IsError).IsFalse();
@@ -195,7 +195,7 @@ public sealed class WorktreesClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.WorktreeError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Worktrees.RefreshWorktreesAsync(new WorktreeRefreshPostRequest { ProjectId = "prj_1" }))
+            .That(async () => _ = await scenario.Client.Worktrees.RefreshWorktreesAsync(new WorktreeRefreshRequest { ProjectId = "prj_1" }))
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(400);
@@ -207,7 +207,7 @@ public sealed class WorktreesClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
 
-        _ = await scenario.Client.Worktrees.RefreshWorktreesAsync(new WorktreeRefreshPostRequest
+        _ = await scenario.Client.Worktrees.RefreshWorktreesAsync(new WorktreeRefreshRequest
         {
             ProjectId = "prj_1",
         });
@@ -224,7 +224,7 @@ public sealed class WorktreesClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
 
         var response = await scenario.Client.Worktrees
-            .RefreshWorktreesAsync(new WorktreeRefreshPostRequest { ProjectId = "prj_1" }, requestOptions: OpenCodeRequestOptions.NoThrow);
+            .RefreshWorktreesAsync(new WorktreeRefreshRequest { ProjectId = "prj_1" }, requestOptions: OpenCodeRequestOptions.NoThrow);
 
         await Assert.That(response.IsError).IsTrue();
         await Assert.That(response.Status).IsEqualTo(401);

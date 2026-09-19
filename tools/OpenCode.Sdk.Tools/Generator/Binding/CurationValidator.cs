@@ -23,6 +23,7 @@ internal sealed class CurationValidator
         ValidateGroups(selected, selectedGroups, documentGroups, curation, errors);
         ValidateOperationNames(selectedIds, documentIds, curation, errors);
         ValidateSchemaNames(document, reachable, curation, errors);
+        ValidateEnumMemberNames(document, reachable, curation, errors);
         ValidateEnvelopeNames(selectedIds, documentIds, curation, errors);
         ValidateTransportOwned(document, selectedIds, curation, errors);
         ValidateDeclined(documentIds, selectedIds, curation, errors);
@@ -62,6 +63,76 @@ internal sealed class CurationValidator
             {
                 errors.Add(BindingErrorCategory.Naming, schemaName.Schema,
                     $"schema name '{schemaName.DotNetName}' is not a valid C# identifier");
+            }
+        }
+    }
+
+    /// <summary>
+    /// A member-name row must name a value the document's enum carries, with a valid identifier
+    /// that no other value of the enum — mechanically or by another row — already takes.
+    /// </summary>
+    private static void ValidateEnumMemberNames(SpecDocument document, ReachableSchemaSet reachable,
+        GenerationCuration curation, BindingErrorCollector errors)
+    {
+        var reachableKeys = reachable.GraphKeys.ToHashSet(StringComparer.Ordinal);
+        var curated = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var row in curation.EnumMemberNames)
+        {
+            var subject = row.Schema + "/" + row.Value;
+            if (!curated.Add(subject))
+            {
+                errors.Add(BindingErrorCategory.Curation, subject, "enum member name curation is duplicated");
+            }
+
+            if (string.IsNullOrWhiteSpace(row.Reason))
+            {
+                errors.Add(BindingErrorCategory.Curation, subject, "enum member name curation must declare a reason");
+            }
+
+            if (!CSharpNamePolicy.IsValidIdentifier(row.DotNetName))
+            {
+                errors.Add(BindingErrorCategory.Naming, subject, $"enum member name '{row.DotNetName}' is not a valid C# identifier");
+            }
+
+            if (!document.Schemas.TryGetValue(row.Schema, out var schema))
+            {
+                errors.Add(BindingErrorCategory.Curation, subject, "curated schema does not exist in the spec");
+                continue;
+            }
+
+            if (!reachableKeys.Contains(row.Schema))
+            {
+                errors.Add(BindingErrorCategory.Curation, subject, "curated schema is not referenced by the selected profile");
+            }
+
+            if (schema is not EnumNode enumNode)
+            {
+                errors.Add(BindingErrorCategory.Curation, subject, "curated schema is not an enum");
+                continue;
+            }
+
+            if (!enumNode.Values.Contains(row.Value, StringComparer.Ordinal))
+            {
+                errors.Add(BindingErrorCategory.Curation, subject, $"curated enum does not carry the value '{row.Value}'");
+                continue;
+            }
+
+            foreach (var other in enumNode.Values)
+            {
+                if (string.Equals(other, row.Value, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var otherName = curation.EnumMemberNames
+                    .FirstOrDefault(candidate => string.Equals(candidate.Schema, row.Schema, StringComparison.Ordinal)
+                        && string.Equals(candidate.Value, other, StringComparison.Ordinal))?.DotNetName
+                    ?? CSharpNamePolicy.ToPascalCase(other);
+                if (string.Equals(otherName, row.DotNetName, StringComparison.Ordinal))
+                {
+                    errors.Add(BindingErrorCategory.Naming, subject,
+                        $"enum member name '{row.DotNetName}' collides with the name of value '{other}'");
+                }
             }
         }
     }

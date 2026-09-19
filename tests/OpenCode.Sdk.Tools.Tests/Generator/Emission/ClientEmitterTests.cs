@@ -28,7 +28,7 @@ public sealed class ClientEmitterTests
         var source = EmitInternalRawSource("Ptys/PtyRawClient.cs");
 
         await Assert.That(source).Contains("internal sealed class PtyRawClient");
-        await Assert.That(source).Contains("internal Task<PtyConnectTokenPostResponse> PostConnectTokenAsync(");
+        await Assert.That(source).Contains("internal Task<PtyConnectTokenResponse> CreateConnectTokenAsync(");
         await Assert.That(source).DoesNotContain("public ");
         await Assert.That(source).DoesNotContain("protected ");
         await Assert.That(source).DoesNotContain("virtual ");

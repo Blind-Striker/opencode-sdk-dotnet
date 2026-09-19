@@ -62,8 +62,8 @@ public sealed class SessionLogCliProfileLiveTests(PinnedOpenCodeServerFixture se
         {
             // Two durable definitions committed: the session creation itself and one rename. A
             // persisting server would replay both before the marker.
-            var renamed = await session.UpdateSessionAsync(
-                new SessionUpdatePatchRequest { Title = RenamedTitle }, cancellationToken: cancellationToken);
+            var renamed = await session.UpdateAsync(
+                new SessionUpdateRequest { Title = RenamedTitle }, cancellationToken: cancellationToken);
             await Assert.That(renamed.Status).IsEqualTo(204);
             await Assert.That(renamed.IsError).IsFalse();
 

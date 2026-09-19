@@ -104,12 +104,12 @@ public class PersistentPtysClient
     /// </summary>
     /// <param name="requestOptions">The per-call options.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The 'PersistentPtyHandoffPostResponse' envelope.</returns>
+    /// <returns>The 'PersistentPtyHandoffResponse' envelope.</returns>
     /// <exception cref="OpenCodeApiException">The API returned an error status (declared: 400, 401, 503) and NoThrow was not selected.</exception>
     /// <exception cref="OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<PersistentPtyHandoffPostResponse> HandoffAsync(
+    public virtual Task<PersistentPtyHandoffResponse> HandoffAsync(
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
-        Raw.PostHandoffAsync(requestOptions, cancellationToken);
+        Raw.HandoffAsync(requestOptions, cancellationToken);
 
     /// <summary>
     /// Server-lifecycle operation: stop the daemon and every terminal it owns. Answers 204 even
@@ -117,12 +117,12 @@ public class PersistentPtysClient
     /// </summary>
     /// <param name="requestOptions">The per-call options.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The 'PersistentPtyShutdownPostResponse' envelope.</returns>
+    /// <returns>The 'PersistentPtyShutdownResponse' envelope.</returns>
     /// <exception cref="OpenCodeApiException">The API returned an error status (declared: 400, 401, 503) and NoThrow was not selected.</exception>
     /// <exception cref="OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<PersistentPtyShutdownPostResponse> ShutdownAsync(
+    public virtual Task<PersistentPtyShutdownResponse> ShutdownAsync(
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
-        Raw.PostShutdownAsync(requestOptions, cancellationToken);
+        Raw.ShutdownAsync(requestOptions, cancellationToken);
 
     private ConnectionSnapshot Connection => _connection ?? throw MockSeam.CreateError("PersistentPtysClient", "Snapshot");
 

@@ -8,7 +8,7 @@ namespace OpenCode.Sdk.Tests;
 
 public sealed class SessionClientContractTests
 {
-    private static readonly SessionUpdatePatchRequest EmptyRuleset = new() { Permissions = new Optional<IReadOnlyList<PermissionRule>?>([]), };
+    private static readonly SessionUpdateRequest EmptyRuleset = new() { Permissions = new Optional<IReadOnlyList<PermissionRule>?>([]), };
 
     [Test]
     public async Task GetSessionAsync_Should_Return_The_Typed_Session()
@@ -16,7 +16,7 @@ public sealed class SessionClientContractTests
         var payload = new FixtureLoader().LoadJson("Serialization.known-session.json");
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(payload));
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetSessionAsync();
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetAsync();
 
         await Assert.That(response.Status).IsEqualTo(200);
         await Assert.That(response.Session.Id).IsEqualTo("ses_100");
@@ -32,7 +32,7 @@ public sealed class SessionClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope("null"));
 
         _ = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").GetSessionAsync())
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").GetAsync())
             .Throws<OpenCodeTransportException>();
     }
 
@@ -42,7 +42,7 @@ public sealed class SessionClientContractTests
         var payload = new FixtureLoader().LoadJson("Serialization.null-parent-session.json");
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(payload));
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetSessionAsync();
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").GetAsync();
 
         await Assert.That(response.Session.ParentId).IsNull();
     }
@@ -54,7 +54,7 @@ public sealed class SessionClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(payload));
 
         _ = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").GetSessionAsync())
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").GetAsync())
             .Throws<OpenCodeTransportException>();
     }
 
@@ -64,7 +64,7 @@ public sealed class SessionClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.SessionNotFoundError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").GetSessionAsync())
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").GetAsync())
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(404);
@@ -77,7 +77,7 @@ public sealed class SessionClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").GetSessionAsync())
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").GetAsync())
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Error).IsTypeOf<UnauthorizedError>();
@@ -304,7 +304,7 @@ public sealed class SessionClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").RemoveSessionAsync();
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").RemoveAsync();
 
         await Assert.That(response.Status).IsEqualTo(204);
         await Assert.That(response.IsError).IsFalse();
@@ -318,7 +318,7 @@ public sealed class SessionClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").UpdateSessionAsync(new SessionUpdatePatchRequest
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").UpdateAsync(new SessionUpdateRequest
         {
             Title = "Renamed session",
         });
@@ -337,7 +337,7 @@ public sealed class SessionClientContractTests
         var payload = new FixtureLoader().LoadJson("Serialization.known-session.json");
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(payload));
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PostForkAsync(new SessionForkPostRequest
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ForkAsync(new SessionForkRequest
         {
             Before = "msg_1",
         });
@@ -355,7 +355,7 @@ public sealed class SessionClientContractTests
         var payload = new FixtureLoader().LoadJson("Serialization.known-inbox-compaction.json");
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.Envelope(payload));
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PostCompactAsync();
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").CompactAsync();
 
         await Assert.That(response.Compact.Id).IsEqualTo("inb_1");
         await Assert.That(response.Compact.Delivery).IsEqualTo(SessionInboxDelivery.Queue);
@@ -389,7 +389,7 @@ public sealed class SessionClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").DeleteInboxCancelAsync("inb_1");
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").CancelInboxAsync("inb_1");
 
         await Assert.That(response.Status).IsEqualTo(204);
         await Assert.That(response.IsError).IsFalse();
@@ -405,7 +405,7 @@ public sealed class SessionClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.Conflict, WireBodyData.ConflictError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").DeleteInboxCancelAsync("inb_1"))
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").CancelInboxAsync("inb_1"))
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(409);
@@ -417,7 +417,7 @@ public sealed class SessionClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.SessionInterrupted);
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PostInterruptAsync();
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").InterruptAsync();
 
         await Assert.That(response.Status).IsEqualTo(200);
         await Assert.That(response.IsError).IsFalse();
@@ -438,7 +438,7 @@ public sealed class SessionClientContractTests
             "{\"_tag\":\"FormAlreadySettledError\",\"id\":\"frm_1\",\"message\":\"settled\"}");
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").DeleteFormCancelAsync("frm_1"))
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").CancelFormAsync("frm_1"))
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(409);
@@ -456,9 +456,9 @@ public sealed class SessionClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
         using var value = JsonDocument.Parse("\"be terse\"");
 
-        var response = await scenario.Client.Experimental.PutSessionInstructionsEntryAsync("ses_100",
+        var response = await scenario.Client.Experimental.SetSessionInstructionsEntryAsync("ses_100",
             "style",
-            new ExperimentalSessionInstructionsEntryPutRequest { Value = value.RootElement });
+            new ExperimentalSessionInstructionsEntryRequest { Value = value.RootElement });
 
         await Assert.That(response.Status).IsEqualTo(204);
         var request = scenario.Requests.Single();
@@ -477,9 +477,9 @@ public sealed class SessionClientContractTests
         using var value = JsonDocument.Parse("\"be terse\"");
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Experimental.PutSessionInstructionsEntryAsync("ses_100",
+            .That(async () => _ = await scenario.Client.Experimental.SetSessionInstructionsEntryAsync("ses_100",
                 "style",
-                new ExperimentalSessionInstructionsEntryPutRequest { Value = value.RootElement }))
+                new ExperimentalSessionInstructionsEntryRequest { Value = value.RootElement }))
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(413);
@@ -857,7 +857,7 @@ public sealed class SessionClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PutEnvironmentAsync(new SessionEnvironmentPutRequest
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").SetEnvironmentAsync(new SessionEnvironmentRequest
         {
             Variables = new Dictionary<string, string>(StringComparer.Ordinal) { ["PATH"] = "/usr/bin", },
         });
@@ -876,7 +876,7 @@ public sealed class SessionClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.SessionNotFoundError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").PutEnvironmentAsync(new SessionEnvironmentPutRequest
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").SetEnvironmentAsync(new SessionEnvironmentRequest
             {
                 Variables = new Dictionary<string, string>(StringComparer.Ordinal),
             }))
@@ -891,8 +891,8 @@ public sealed class SessionClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PutEnvironmentAsync(
-            new SessionEnvironmentPutRequest { Variables = new Dictionary<string, string>(StringComparer.Ordinal), },
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").SetEnvironmentAsync(
+            new SessionEnvironmentRequest { Variables = new Dictionary<string, string>(StringComparer.Ordinal), },
             OpenCodeRequestOptions.NoThrow);
 
         await Assert.That(response.IsError).IsTrue();
@@ -1021,7 +1021,7 @@ public sealed class SessionClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PostFormReplyAsync("frm_1", new SessionFormReplyPostRequest
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ReplyToFormAsync("frm_1", new SessionFormReplyRequest
         {
             Answer = new Dictionary<string, FormValue>(StringComparer.Ordinal) { ["q1"] = FormValue.FromText("blue"), },
         });
@@ -1042,7 +1042,7 @@ public sealed class SessionClientContractTests
             "{\"_tag\":\"FormInvalidAnswerError\",\"id\":\"frm_1\",\"message\":\"wrong shape\"}");
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").PostFormReplyAsync("frm_1", new SessionFormReplyPostRequest
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").ReplyToFormAsync("frm_1", new SessionFormReplyRequest
             {
                 Answer = new Dictionary<string, FormValue>(StringComparer.Ordinal) { ["q1"] = FormValue.FromText("blue"), },
             }))
@@ -1057,9 +1057,9 @@ public sealed class SessionClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PostFormReplyAsync(
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").ReplyToFormAsync(
             "frm_1",
-            new SessionFormReplyPostRequest { Answer = new Dictionary<string, FormValue>(StringComparer.Ordinal), },
+            new SessionFormReplyRequest { Answer = new Dictionary<string, FormValue>(StringComparer.Ordinal), },
             OpenCodeRequestOptions.NoThrow);
 
         await Assert.That(response.IsError).IsTrue();
@@ -1072,7 +1072,7 @@ public sealed class SessionClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PostViewAsync(new SessionViewPostRequest
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").MarkViewedAsync(new SessionViewRequest
         {
             Idle = 5,
         });
@@ -1091,7 +1091,7 @@ public sealed class SessionClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.SessionNotFoundError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").PostViewAsync(new SessionViewPostRequest { Idle = 1, }))
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").MarkViewedAsync(new SessionViewRequest { Idle = 1, }))
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(404);
@@ -1103,8 +1103,8 @@ public sealed class SessionClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").PostViewAsync(
-            new SessionViewPostRequest { Idle = 1, },
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").MarkViewedAsync(
+            new SessionViewRequest { Idle = 1, },
             OpenCodeRequestOptions.NoThrow);
 
         await Assert.That(response.IsError).IsTrue();
@@ -1117,8 +1117,8 @@ public sealed class SessionClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").UpdateSessionAsync(
-            new SessionUpdatePatchRequest
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").UpdateAsync(
+            new SessionUpdateRequest
             {
                 Permissions = new Optional<IReadOnlyList<PermissionRule>?>([
                     new PermissionRule { Action = "run", Resource = "bash", Effect = PermissionEffect.Ask },
@@ -1143,7 +1143,7 @@ public sealed class SessionClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.BadRequest, WireBodyData.InvalidRequestError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").UpdateSessionAsync(
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_100").UpdateAsync(
                 EmptyRuleset))
             .Throws<OpenCodeApiException>();
 
@@ -1157,7 +1157,7 @@ public sealed class SessionClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.NotFound, WireBodyData.SessionNotFoundError);
 
         var exception = await Assert
-            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").UpdateSessionAsync(
+            .That(async () => _ = await scenario.Client.Sessions.GetSessionClient("ses_9").UpdateAsync(
                 EmptyRuleset))
             .Throws<OpenCodeApiException>();
 
@@ -1170,7 +1170,7 @@ public sealed class SessionClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
 
-        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").UpdateSessionAsync(
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").UpdateAsync(
             EmptyRuleset,
             OpenCodeRequestOptions.NoThrow);
 

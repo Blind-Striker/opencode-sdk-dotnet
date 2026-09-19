@@ -12,9 +12,9 @@ internal sealed class PendingPermissionCleanup(SessionClient session)
             return;
         }
 
-        var response = await session.PostPermissionReplyAsync(
+        var response = await session.ReplyToPermissionAsync(
             permissionId,
-            new SessionPermissionReplyPostRequest { Decision = PermissionReply.Reject },
+            new SessionPermissionReplyRequest { Decision = PermissionReply.Reject },
             OpenCodeRequestOptions.NoThrow,
             cancellationToken);
         if (response is { Status: 204, IsError: false }

@@ -47,11 +47,11 @@ public sealed class SessionsClientLiveTests(SimulatedDriveServerFixture server)
             await AssertDuplicateImportConflictAsync(
                 destinationClient, importRequest, created.Id, cancellationToken);
 
-            var removed = await session.RemoveSessionAsync(cancellationToken: cancellationToken);
+            var removed = await session.RemoveAsync(cancellationToken: cancellationToken);
             await Assert.That(removed.Status).IsEqualTo(204);
             await Assert.That(removed.IsError).IsFalse();
 
-            var imported = await destinationClient.Experimental.PostSessionImportAsync(
+            var imported = await destinationClient.Experimental.ImportSessionAsync(
                 importRequest, cancellationToken: cancellationToken);
             await Assert.That(imported.Status).IsEqualTo(200);
             await Assert.That(imported.IsError).IsFalse();
@@ -224,7 +224,7 @@ public sealed class SessionsClientLiveTests(SimulatedDriveServerFixture server)
     private static OwnedSessionCleanup CreateCleanup(SessionClient session, string sessionId)
     {
         var cleanup = new OwnedSessionCleanup(
-            async token => _ = await session.PostInterruptAsync(cancellationToken: token),
+            async token => _ = await session.InterruptAsync(cancellationToken: token),
             token => RemoveOwnedSessionAsync(session, sessionId, token),
             CleanupTimeout);
         cleanup.MarkTurnStarted();
@@ -251,11 +251,11 @@ public sealed class SessionsClientLiveTests(SimulatedDriveServerFixture server)
 
     private static async Task AssertDuplicateImportConflictAsync(
         OpenCodeClient destinationClient,
-        ExperimentalSessionImportPostRequest request,
+        ExperimentalSessionImportRequest request,
         string sessionId,
         CancellationToken cancellationToken)
     {
-        var response = await destinationClient.Experimental.PostSessionImportAsync(
+        var response = await destinationClient.Experimental.ImportSessionAsync(
             request, OpenCodeRequestOptions.NoThrow, cancellationToken);
 
         await Assert.That(response.Status).IsEqualTo(409);
@@ -265,7 +265,7 @@ public sealed class SessionsClientLiveTests(SimulatedDriveServerFixture server)
         await Assert.That(conflict?.Resource).IsEqualTo(sessionId);
     }
 
-    private static ExperimentalSessionImportPostRequest CreateImportRequest(
+    private static ExperimentalSessionImportRequest CreateImportRequest(
         SessionTransferData exported,
         string destination) =>
         new()
@@ -280,7 +280,7 @@ public sealed class SessionsClientLiveTests(SimulatedDriveServerFixture server)
         string sessionId,
         CancellationToken cancellationToken)
     {
-        var response = await session.RemoveSessionAsync(OpenCodeRequestOptions.NoThrow, cancellationToken);
+        var response = await session.RemoveAsync(OpenCodeRequestOptions.NoThrow, cancellationToken);
         if (response.Status == 204
             || (response is { Status: 404, Error: SessionNotFoundError missing }
                 && missing.SessionId == sessionId))

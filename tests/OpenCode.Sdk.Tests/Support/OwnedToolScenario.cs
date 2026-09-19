@@ -63,7 +63,7 @@ internal sealed class OwnedToolScenario
         _cleanup.Own("owned tool cancellation", ObservePendingToolCancellationAsync);
         _cleanup.Own("owned session wait", WaitIdleAsync);
         _cleanup.Own("owned tool registration reset", ResetRegistrationAsync);
-        _cleanup.Own("owned session removal", RemoveSessionAsync);
+        _cleanup.Own("owned session removal", RemoveAsync);
         _cleanup.Own("event reader", _ => _reader.CompleteAsync(null));
         _cleanup.Own("owned client", _ =>
         {
@@ -77,8 +77,8 @@ internal sealed class OwnedToolScenario
         });
     }
 
-    public Task<ExperimentalSessionWaitPostResponse> WaitAsync(CancellationToken cancellationToken) =>
-        _client.Experimental.PostSessionWaitAsync(SessionId, cancellationToken: cancellationToken);
+    public Task<ExperimentalSessionWaitResponse> WaitAsync(CancellationToken cancellationToken) =>
+        _client.Experimental.WaitForSessionAsync(SessionId, cancellationToken: cancellationToken);
 
     public SessionEventProbe Probe { get; }
 
@@ -283,7 +283,7 @@ internal sealed class OwnedToolScenario
         }
 
         // Idle sessions answer Interrupted=false; cleanup accepts either, it only requires the call to succeed.
-        var response = await Session.PostInterruptAsync(requestOptions: OpenCodeRequestOptions.NoThrow, cancellationToken: cancellationToken);
+        var response = await Session.InterruptAsync(requestOptions: OpenCodeRequestOptions.NoThrow, cancellationToken: cancellationToken);
         if (response.IsError)
         {
             throw new InvalidOperationException(
@@ -318,7 +318,7 @@ internal sealed class OwnedToolScenario
             return;
         }
 
-        var response = await _client.Experimental.PostSessionWaitAsync(SessionId, OpenCodeRequestOptions.NoThrow, cancellationToken);
+        var response = await _client.Experimental.WaitForSessionAsync(SessionId, OpenCodeRequestOptions.NoThrow, cancellationToken);
         if (response.Status != 204 || response.IsError)
         {
             throw new InvalidOperationException(
@@ -337,14 +337,14 @@ internal sealed class OwnedToolScenario
         _registered = false;
     }
 
-    private async Task RemoveSessionAsync(CancellationToken cancellationToken)
+    private async Task RemoveAsync(CancellationToken cancellationToken)
     {
         if (_sessionId is null)
         {
             return;
         }
 
-        var response = await Session.RemoveSessionAsync(OpenCodeRequestOptions.NoThrow, cancellationToken);
+        var response = await Session.RemoveAsync(OpenCodeRequestOptions.NoThrow, cancellationToken);
         if (response.Status != 204 || response.IsError)
         {
             throw new InvalidOperationException(

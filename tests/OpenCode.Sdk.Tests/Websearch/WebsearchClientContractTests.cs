@@ -13,7 +13,7 @@ public sealed class WebsearchClientContractTests
         var payload = new FixtureLoader().LoadJson("Serialization.known-websearch-response.json");
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, WireBodyData.LocationEnvelope(payload));
 
-        var response = await scenario.Client.Websearch.QueryAsync(new WebsearchQueryPostRequest
+        var response = await scenario.Client.Websearch.QueryAsync(new WebsearchQueryRequest
         {
             Query = "opencode",
         });

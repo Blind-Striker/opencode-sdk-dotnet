@@ -15,12 +15,56 @@ public sealed class OperationNamePolicyTests
     [Arguments("message.list", "get", "ListMessagesAsync")]
     [Arguments("session.remove", "delete", "RemoveSessionAsync")]
     [Arguments("session.rename", "post", "RenameSessionAsync")]
+    [Arguments("session.update", "patch", "UpdateSessionAsync")]
+    [Arguments("pty.update", "put", "UpdatePtyAsync")]
     [Arguments("shell.list", "get", "ListShellsAsync")]
     [Arguments("shell.timeout", "patch", "TimeoutShellAsync")]
     [Arguments("shell.output", "get", "GetOutputAsync")]
-    public async Task MethodName_Should_Lead_With_The_Structural_Verb(string operationId, string method, string expected)
+    [Arguments("session.diff", "get", "GetDiffAsync")]
+    public async Task MethodName_Should_Lead_With_The_Grammar_Verb_Or_Read_A_Get(string operationId, string method, string expected)
     {
         await Assert.That(OperationNamePolicy.MethodName(Operation(operationId, method))).IsEqualTo(expected);
+    }
+
+    /// <summary>
+    /// The HTTP method is never a name source (ADR-0008): an operation whose closing segment is not
+    /// a grammar verb and whose method is not GET has no mechanical name and refuses until an
+    /// operationNames row names it; the refusal names the fallback it would have produced.
+    /// </summary>
+    [Test]
+    [Arguments("session.prompt", "post", "prompt", "PostPromptAsync")]
+    [Arguments("session.revert.clear", "delete", "clear", "DeleteRevertClearAsync")]
+    [Arguments("integration.connect.key", "post", "key", "PostConnectKeyAsync")]
+    [Arguments("experimental.session.instructions.entry.put", "put", "put", "PutSessionInstructionsEntryAsync")]
+    public async Task MethodName_Should_Refuse_A_Non_Get_Without_A_Grammar_Verb(string operationId, string method,
+        string closing, string fallback)
+    {
+        var operation = Operation(operationId, method);
+
+        await Assert.That(OperationNamePolicy.MethodName(operation)).IsNull();
+        await Assert.That(OperationNamePolicy.RowRequiredProblem(operation)).IsEqualTo(
+            $"operation '{operationId}' closes with '{closing}', which is not a naming verb, and no operationNames row names it; "
+            + $"the HTTP method is never a name source (mechanical fallback would have been '{fallback}')");
+    }
+
+    [Test]
+    [Arguments("session.get", "get")]
+    [Arguments("session.diff", "get")]
+    [Arguments("session.create", "post")]
+    public async Task RowRequiredProblem_Should_Be_Null_When_A_Mechanical_Name_Exists(string operationId, string method)
+    {
+        await Assert.That(OperationNamePolicy.RowRequiredProblem(Operation(operationId, method))).IsNull();
+    }
+
+    /// <summary>On a handle client the empty subject is the handle itself, not the family.</summary>
+    [Test]
+    [Arguments("session.get", "get", "GetAsync")]
+    [Arguments("session.remove", "delete", "RemoveAsync")]
+    [Arguments("session.update", "patch", "UpdateAsync")]
+    [Arguments("session.message.get", "get", "GetMessageAsync")]
+    public async Task MethodName_Should_Drop_The_Family_From_An_Empty_Subject_On_A_Handle(string operationId, string method, string expected)
+    {
+        await Assert.That(OperationNamePolicy.MethodName(Operation(operationId, method), handle: true)).IsEqualTo(expected);
     }
 
     [Test]
@@ -63,7 +107,13 @@ public sealed class OperationNamePolicyTests
     [Arguments("shell.timeout", "patch", "ShellTimeoutResponse")]
     [Arguments("shell.output", "get", "ShellOutputResponse")]
     [Arguments("shell.get", "get", "ShellResponse")]
-    public async Task ResponseTypeName_Should_Fold_Non_Get_Verbs(string operationId, string method, string expected)
+    [Arguments("session.update", "patch", "SessionUpdateResponse")]
+    [Arguments("session.prompt", "post", "SessionPromptResponse")]
+    [Arguments("pty.update", "put", "PtyUpdateResponse")]
+    [Arguments("integration.oauth.complete", "post", "IntegrationOauthCompleteResponse")]
+    [Arguments("experimental.session.instructions.entry.put", "put", "ExperimentalSessionInstructionsEntryResponse")]
+    [Arguments("location.reload", "post", "LocationReloadResponse")]
+    public async Task ResponseTypeName_Should_Carry_Only_A_Grammar_Verb(string operationId, string method, string expected)
     {
         await Assert.That(OperationNamePolicy.ResponseTypeName(Operation(operationId, method))).IsEqualTo(expected);
     }
@@ -121,10 +171,28 @@ public sealed class OperationNamePolicyTests
     [Arguments("shell.timeout", "patch", "ShellTimeoutRequest")]
     [Arguments("shell.output", "get", "ShellOutputRequest")]
     [Arguments("shell.get", "get", "ShellRequest")]
-    public async Task RequestTypeName_Should_Compose_Group_Subject_And_Verb(string operationId, string method,
+    [Arguments("session.prompt", "post", "SessionPromptRequest")]
+    [Arguments("session.environment", "put", "SessionEnvironmentRequest")]
+    public async Task RequestTypeName_Should_Compose_Group_Subject_And_Grammar_Verb(string operationId, string method,
         string expected)
     {
         await Assert.That(OperationNamePolicy.RequestTypeName(Operation(operationId, method))).IsEqualTo(expected);
+    }
+
+    [Test]
+    [Arguments("session.get", "get", "Get")]
+    [Arguments("session.update", "patch", "Update")]
+    [Arguments("session.message.get", "get", "GetMessage")]
+    public async Task RouteMemberName_Should_Mirror_The_Handle_Method_Name(string operationId, string method, string expected)
+    {
+        await Assert.That(OperationNamePolicy.RouteMemberName(Operation(operationId, method), GroupPlacement.Client, handle: true))
+            .IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task RouteMemberName_Should_Return_Null_For_A_Non_Get_Without_A_Grammar_Verb_Or_Row()
+    {
+        await Assert.That(OperationNamePolicy.RouteMemberName(Operation("session.prompt", "post"), GroupPlacement.Client)).IsNull();
     }
 
     private static SpecOperation Operation(string operationId, string method = "get")

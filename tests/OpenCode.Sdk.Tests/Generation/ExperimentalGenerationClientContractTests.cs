@@ -13,7 +13,7 @@ public sealed class ExperimentalGenerationClientContractTests
             HttpStatusCode.OK,
             WireBodyData.LocationEnvelope("{\"text\":\"hello\"}"));
 
-        var response = await scenario.Client.Experimental.GenerateTextAsync(new ExperimentalGenerateTextPostRequest
+        var response = await scenario.Client.Experimental.GenerateTextAsync(new ExperimentalGenerateTextRequest
         {
             Prompt = "say hello",
         });

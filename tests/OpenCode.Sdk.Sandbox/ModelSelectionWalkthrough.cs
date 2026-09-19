@@ -51,7 +51,7 @@ internal static class ModelSelectionWalkthrough
             $"session: status={created.Status} id={created.Session.Id}"));
 
         var removed = await client.Sessions.GetSessionClient(created.Session.Id)
-            .RemoveSessionAsync(OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
+            .RemoveAsync(OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"cleanup: status={removed.Status}"));
     }
 }

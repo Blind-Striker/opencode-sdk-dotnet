@@ -269,7 +269,9 @@ public sealed class SpecBinderTests
         var plan = new BindingTestHost().Bind(
             document,
             Selection("widget.item", "widget.patch"),
-            Curation(Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null))));
+            Curation(
+                Groups("widget", ClientGroup(clientName: "Widgets", handleName: null, handleParameter: null)),
+                operationNames: [OperationName("widget.patch", "PatchWidgetAsync")]));
 
         var shared = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "SharedPatch");
         await Assert.That(Member(shared, "note").EmitsOptionalWrapper).IsTrue();

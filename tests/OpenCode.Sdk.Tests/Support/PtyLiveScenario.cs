@@ -120,7 +120,7 @@ internal sealed class PtyLiveScenario
         {
             cleanup.Own("PTY removal", async token =>
             {
-                var response = await _terminal.RemovePtyAsync(
+                var response = await _terminal.RemoveAsync(
                     new PtyRemoveRequest { Location = Location }, OpenCodeRequestOptions.NoThrow, token);
                 if (response.Status is not 204 and not 404)
                 {

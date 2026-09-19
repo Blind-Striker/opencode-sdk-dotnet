@@ -43,9 +43,9 @@ public class PtyClient
     /// <returns>The 'PtyResponse' envelope.</returns>
     /// <exception cref="OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref="OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<PtyResponse> GetPtyAsync(PtyRequest? request = null,
+    public virtual Task<PtyResponse> GetAsync(PtyRequest? request = null,
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
-        Raw.GetPtyAsync(request, requestOptions, cancellationToken);
+        Raw.GetAsync(request, requestOptions, cancellationToken);
 
     /// <summary>
     /// Update PTY session. Update the title or viewport size of one PTY session.
@@ -53,12 +53,12 @@ public class PtyClient
     /// <param name="request">The request body; an empty body is sent when omitted.</param>
     /// <param name="requestOptions">The per-call options.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The 'PtyUpdatePutResponse' envelope.</returns>
+    /// <returns>The 'PtyUpdateResponse' envelope.</returns>
     /// <exception cref="OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref="OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<PtyUpdatePutResponse> PutUpdateAsync(PtyUpdatePutRequest? request = null,
+    public virtual Task<PtyUpdateResponse> UpdateAsync(PtyUpdateRequest? request = null,
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
-        Raw.PutUpdateAsync(request, requestOptions, cancellationToken);
+        Raw.UpdateAsync(request, requestOptions, cancellationToken);
 
     /// <summary>
     /// Remove PTY session. Terminate and remove one PTY session.
@@ -69,9 +69,9 @@ public class PtyClient
     /// <returns>The 'PtyRemoveResponse' envelope.</returns>
     /// <exception cref="OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref="OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<PtyRemoveResponse> RemovePtyAsync(PtyRemoveRequest? request = null,
+    public virtual Task<PtyRemoveResponse> RemoveAsync(PtyRemoveRequest? request = null,
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
-        Raw.RemovePtyAsync(request, requestOptions, cancellationToken);
+        Raw.RemoveAsync(request, requestOptions, cancellationToken);
 
     /// <summary>
     /// Create PTY WebSocket token. Create a short-lived single-use ticket for opening a PTY
@@ -82,12 +82,12 @@ public class PtyClient
     /// <param name="request">The request shaping the query.</param>
     /// <param name="requestOptions">The per-call options.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The 'PtyConnectTokenPostResponse' envelope.</returns>
+    /// <returns>The 'PtyConnectTokenResponse' envelope.</returns>
     /// <exception cref="OpenCodeApiException">The API returned an error status (declared: 400, 401, 403, 404) and NoThrow was not selected.</exception>
     /// <exception cref="OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<PtyConnectTokenPostResponse> CreateConnectTokenAsync(PtyConnectTokenPostRequest? request = null,
+    public virtual Task<PtyConnectTokenResponse> CreateConnectTokenAsync(PtyConnectTokenRequest? request = null,
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
-        Raw.PostConnectTokenAsync(request, xOpencodeTicket: PtyTicketHeader.Sentinel, requestOptions, cancellationToken);
+        Raw.CreateConnectTokenAsync(request, xOpencodeTicket: PtyTicketHeader.Sentinel, requestOptions, cancellationToken);
 
     /// <summary>
     /// Opens the PTY's live WebSocket session. The upgrade is the SDK's one transport

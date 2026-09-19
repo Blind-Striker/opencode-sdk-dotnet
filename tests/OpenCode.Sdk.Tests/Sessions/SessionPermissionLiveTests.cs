@@ -58,8 +58,8 @@ public sealed class SessionPermissionLiveTests(SimulatedDriveServerFixture serve
                 await Assert.That(observed.Save).IsEquivalentTo([PermissionResource]);
             }
 
-            var replied = await session.PostPermissionReplyAsync(
-                cleanupState.PermissionId, new SessionPermissionReplyPostRequest { Decision = PermissionReply.Always },
+            var replied = await session.ReplyToPermissionAsync(
+                cleanupState.PermissionId, new SessionPermissionReplyRequest { Decision = PermissionReply.Always },
                 cancellationToken: cancellationToken);
             await Assert.That(replied.Status).IsEqualTo(204);
             var consumed = await session.GetPermissionAsync(cleanupState.PermissionId, OpenCodeRequestOptions.NoThrow, cancellationToken);

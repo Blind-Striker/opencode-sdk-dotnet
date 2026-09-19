@@ -15,20 +15,20 @@ internal static class MechanismActionsWalkthrough
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(handle);
 
-        var interrupt = await handle.PostInterruptAsync().ConfigureAwait(false);
+        var interrupt = await handle.InterruptAsync().ConfigureAwait(false);
 
         Console.WriteLine($"interrupt: status={interrupt.Status} isError={interrupt.IsError}");
 
-        var revertClear = await handle.DeleteRevertClearAsync(OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
+        var revertClear = await handle.ClearRevertAsync(OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
 
         Console.WriteLine(revertClear.IsError
             ? $"revert-clear: status={revertClear.Status} error={ErrorName(revertClear)}"
             : $"revert-clear: status={revertClear.Status}");
 
         using var value = JsonDocument.Parse("\"answer tersely\"");
-        var entryPut = await client.Experimental.PutSessionInstructionsEntryAsync(sessionId,
+        var entryPut = await client.Experimental.SetSessionInstructionsEntryAsync(sessionId,
                 "style",
-                new ExperimentalSessionInstructionsEntryPutRequest { Value = value.RootElement })
+                new ExperimentalSessionInstructionsEntryRequest { Value = value.RootElement })
             .ConfigureAwait(false);
 
         Console.WriteLine($"instructions-put: status={entryPut.Status}");
@@ -37,14 +37,14 @@ internal static class MechanismActionsWalkthrough
 
         Console.WriteLine($"instructions-remove: status={entryRemove.Status} isError={entryRemove.IsError}");
 
-        var formCancel = await handle.DeleteFormCancelAsync("frm_missing", OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
+        var formCancel = await handle.CancelFormAsync("frm_missing", OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
 
         Console.WriteLine(formCancel.IsError
             ? $"form-cancel: status={formCancel.Status} error={ErrorName(formCancel)}"
             : $"form-cancel: status={formCancel.Status}");
 
         var mcpAdd = await client.Experimental.AddMcpServerAsync("sandbox-echo",
-                new ExperimentalMcpAddPutRequest
+                new ExperimentalMcpAddRequest
                 {
                     Config = new McpLocalConfig { Command = ["bun", "--version"], Disabled = true },
                 },
@@ -74,14 +74,14 @@ internal static class MechanismActionsWalkthrough
         Console.WriteLine($"pty-create: status={pty.Status} id={pty.Pty.Id} title={pty.Pty.Title}");
 
         var ptyHandle = client.Ptys.GetPtyClient(pty.Pty.Id);
-        var ptyUpdate = await ptyHandle.PutUpdateAsync(new PtyUpdatePutRequest
+        var ptyUpdate = await ptyHandle.UpdateAsync(new PtyUpdateRequest
         {
             Title = "renamed by PUT",
         }).ConfigureAwait(false);
 
-        Console.WriteLine($"pty-update: status={ptyUpdate.Status} title={ptyUpdate.Update.Title}");
+        Console.WriteLine($"pty-update: status={ptyUpdate.Status} title={ptyUpdate.Pty.Title}");
 
-        var ptyRemove = await ptyHandle.RemovePtyAsync(null, OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
+        var ptyRemove = await ptyHandle.RemoveAsync(null, OpenCodeRequestOptions.NoThrow).ConfigureAwait(false);
 
         Console.WriteLine($"pty-remove: status={ptyRemove.Status} isError={ptyRemove.IsError}");
     }

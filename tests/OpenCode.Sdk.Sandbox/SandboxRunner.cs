@@ -172,7 +172,7 @@ internal static class SandboxRunner
         }
 
         var handle = sessionsClient.GetSessionClient(created.Session.Id);
-        var fetched = await handle.GetSessionAsync().ConfigureAwait(false);
+        var fetched = await handle.GetAsync().ConfigureAwait(false);
 
         Console.WriteLine($"get:     status={fetched.Status} id={fetched.Session.Id} directory={fetched.Session.Location.Directory}");
 

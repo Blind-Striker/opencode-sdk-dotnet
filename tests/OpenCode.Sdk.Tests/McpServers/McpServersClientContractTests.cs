@@ -59,7 +59,7 @@ public sealed class McpServersClientContractTests
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
 
-        var response = await scenario.Client.Experimental.AddMcpServerAsync("docs", new ExperimentalMcpAddPutRequest
+        var response = await scenario.Client.Experimental.AddMcpServerAsync("docs", new ExperimentalMcpAddRequest
         {
             Config = new McpLocalConfig { Command = ["docs-server"] },
         });

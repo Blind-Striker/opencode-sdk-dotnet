@@ -11,7 +11,7 @@ namespace OpenCode.Sdk;
 /// </summary>
 public class ProjectsClient
 {
-    private static readonly ProjectUpdatePatchRequest EmptyProjectUpdatePatchRequest = new();
+    private static readonly ProjectUpdateRequest EmptyProjectUpdateRequest = new();
     private readonly Pipeline? _pipeline;
     internal ProjectsClient(Pipeline pipeline)
     {
@@ -48,12 +48,12 @@ public class ProjectsClient
     /// <param name = "request">The request body; an empty body is sent when omitted.</param>
     /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;ProjectUpdatePatchResponse&apos; envelope.</returns>
+    /// <returns>The &apos;ProjectUpdateResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<ProjectUpdatePatchResponse> UpdateProjectAsync(string projectId, ProjectUpdatePatchRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    public virtual Task<ProjectUpdateResponse> UpdateProjectAsync(string projectId, ProjectUpdateRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(projectId);
-        return Pipeline.ExecuteAsync(OpenCodeHttpMethod.Patch, OpenCodeRoutes.Projects.UpdateProject(projectId), request ?? EmptyProjectUpdatePatchRequest, OpenCodeJsonContext.Default.ProjectUpdatePatchRequest, ProjectUpdatePatchResponseAdapter.Instance, requestOptions, cancellationToken);
+        return Pipeline.ExecuteAsync(OpenCodeHttpMethod.Patch, OpenCodeRoutes.Projects.UpdateProject(projectId), request ?? EmptyProjectUpdateRequest, OpenCodeJsonContext.Default.ProjectUpdateRequest, ProjectUpdateResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }

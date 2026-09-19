@@ -58,7 +58,7 @@ public sealed class ConfigClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
 
         var response = await scenario.Client.Experimental.UpdateConfigAsync(
-            new ExperimentalConfigUpdatePatchRequest { Shell = shell, });
+            new ExperimentalConfigUpdateRequest { Shell = shell, });
 
         await Assert.That(response.Status).IsEqualTo(204);
         await Assert.That(response.IsError).IsFalse();
@@ -77,7 +77,7 @@ public sealed class ConfigClientContractTests
 
         var exception = await Assert
             .That(async () => _ = await scenario.Client.Experimental.UpdateConfigAsync(
-                new ExperimentalConfigUpdatePatchRequest { Shell = null, }))
+                new ExperimentalConfigUpdateRequest { Shell = null, }))
             .Throws<OpenCodeApiException>();
 
         await Assert.That(exception!.Status).IsEqualTo(400);
@@ -90,7 +90,7 @@ public sealed class ConfigClientContractTests
         using var scenario = ContractScenario.Responding(HttpStatusCode.Unauthorized, WireBodyData.UnauthorizedError);
 
         var response = await scenario.Client.Experimental.UpdateConfigAsync(
-            new ExperimentalConfigUpdatePatchRequest { Shell = null, }, OpenCodeRequestOptions.NoThrow);
+            new ExperimentalConfigUpdateRequest { Shell = null, }, OpenCodeRequestOptions.NoThrow);
 
         await Assert.That(response.IsError).IsTrue();
         await Assert.That(response.Status).IsEqualTo(401);

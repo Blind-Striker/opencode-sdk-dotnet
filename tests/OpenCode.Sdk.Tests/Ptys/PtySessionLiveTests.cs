@@ -177,26 +177,26 @@ public sealed class PtySessionLiveTests(PinnedOpenCodeServerFixture server)
         await Assert.That(listed.Status).IsEqualTo(200);
         await Assert.That(listed.Ptys.Select(static pty => pty.Id).ToArray()).Contains(ptyId);
 
-        var fetched = await terminal.GetPtyAsync(
+        var fetched = await terminal.GetAsync(
             new PtyRequest { Location = _scenario.Location },
             cancellationToken: cancellationToken);
         await Assert.That(fetched.Status).IsEqualTo(200);
         await Assert.That(fetched.Pty.Id).IsEqualTo(ptyId);
 
-        var updated = await terminal.PutUpdateAsync(
-            new PtyUpdatePutRequest { Title = UpdatedTitle, Location = _scenario.Location },
+        var updated = await terminal.UpdateAsync(
+            new PtyUpdateRequest { Title = UpdatedTitle, Location = _scenario.Location },
             cancellationToken: cancellationToken);
         await Assert.That(updated.Status).IsEqualTo(200);
-        await Assert.That(updated.Update.Title).IsEqualTo(UpdatedTitle);
+        await Assert.That(updated.Pty.Title).IsEqualTo(UpdatedTitle);
 
-        var fetchedAfterUpdate = await terminal.GetPtyAsync(
+        var fetchedAfterUpdate = await terminal.GetAsync(
             new PtyRequest { Location = _scenario.Location },
             cancellationToken: cancellationToken);
         await Assert.That(fetchedAfterUpdate.Pty.Id).IsEqualTo(ptyId);
         await Assert.That(fetchedAfterUpdate.Pty.Title).IsEqualTo(UpdatedTitle);
 
         var token = await terminal.CreateConnectTokenAsync(
-            new PtyConnectTokenPostRequest { Location = _scenario.Location },
+            new PtyConnectTokenRequest { Location = _scenario.Location },
             cancellationToken: cancellationToken);
         await Assert.That(token.Status).IsEqualTo(200);
         await Assert.That(token.IsError).IsFalse();
@@ -353,7 +353,7 @@ public sealed class PtySessionLiveTests(PinnedOpenCodeServerFixture server)
         _scenario.Diagnostics.Enter("removal and socket close", replay.Transcript);
         var completion = replay.Transcript.ReadToCompletionAsync(replay.Session, cancellationToken);
         _scenario.Observe(completion);
-        var removed = await terminal.RemovePtyAsync(
+        var removed = await terminal.RemoveAsync(
             new PtyRemoveRequest { Location = _scenario.Location },
             cancellationToken: cancellationToken);
         if (removed.Status is 204)
@@ -364,13 +364,13 @@ public sealed class PtySessionLiveTests(PinnedOpenCodeServerFixture server)
         await Assert.That(removed.Status).IsEqualTo(204);
         await completion;
 
-        var missingGet = await terminal.GetPtyAsync(
+        var missingGet = await terminal.GetAsync(
             new PtyRequest { Location = _scenario.Location },
             OpenCodeRequestOptions.NoThrow,
             cancellationToken);
         await AssertNotFoundAsync(missingGet, ptyId);
 
-        var missingRemove = await terminal.RemovePtyAsync(
+        var missingRemove = await terminal.RemoveAsync(
             new PtyRemoveRequest { Location = _scenario.Location },
             OpenCodeRequestOptions.NoThrow,
             cancellationToken);

@@ -60,7 +60,7 @@ public class ErrorChannelBenchmarks : IDisposable
 
     /// <summary>The error envelope on the response spine: typed error plus retained raw body, no exception.</summary>
     [Benchmark]
-    public Task<SessionResponse> GetSessionNoThrowAsync() => _session!.GetSessionAsync(NoThrow);
+    public Task<SessionResponse> GetSessionNoThrowAsync() => _session!.GetAsync(NoThrow);
 
     /// <summary>The default channel: the same error thrown as <see cref="OpenCodeApiException"/> and caught.</summary>
     [Benchmark]
@@ -69,7 +69,7 @@ public class ErrorChannelBenchmarks : IDisposable
         var session = _session!;
         try
         {
-            _ = await session.GetSessionAsync().ConfigureAwait(false);
+            _ = await session.GetAsync().ConfigureAwait(false);
             return 0;
         }
         catch (OpenCodeApiException exception)

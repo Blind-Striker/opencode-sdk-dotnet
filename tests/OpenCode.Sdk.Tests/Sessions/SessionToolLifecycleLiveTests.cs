@@ -27,8 +27,8 @@ public sealed class SessionToolLifecycleLiveTests(SimulatedDriveServerFixture se
         await scenario.RunAsync(async () =>
         {
             var sessionId = scenario.SessionId;
-            _ = await scenario.Session.PostPromptAsync(
-                new SessionPromptPostRequest { Text = "use the failing tool" }, cancellationToken: cancellationToken);
+            _ = await scenario.Session.PromptAsync(
+                new SessionPromptRequest { Text = "use the failing tool" }, cancellationToken: cancellationToken);
 
             var first = await scenario.WaitForModelRequestAsync();
             await scenario.ScriptToolCallAsync(
@@ -73,8 +73,8 @@ public sealed class SessionToolLifecycleLiveTests(SimulatedDriveServerFixture se
         await scenario.RunAsync(async () =>
         {
             var sessionId = scenario.SessionId;
-            _ = await scenario.Session.PostPromptAsync(
-                new SessionPromptPostRequest { Text = "use the tool and get interrupted" },
+            _ = await scenario.Session.PromptAsync(
+                new SessionPromptRequest { Text = "use the tool and get interrupted" },
                 cancellationToken: cancellationToken);
 
             var first = await scenario.WaitForModelRequestAsync();
@@ -85,7 +85,7 @@ public sealed class SessionToolLifecycleLiveTests(SimulatedDriveServerFixture se
             await Assert.That(tool.CallId).IsEqualTo(OwnedToolScenario.DriveCallId);
 
             // The invocation is positively held (never settled) when the session is interrupted.
-            var interrupt = await scenario.Session.PostInterruptAsync(cancellationToken: cancellationToken);
+            var interrupt = await scenario.Session.InterruptAsync(cancellationToken: cancellationToken);
             await Assert.That(interrupt.Status).IsEqualTo(200);
             await Assert.That(interrupt.IsError).IsFalse();
             await Assert.That(interrupt.Interrupt.Interrupted).IsTrue();

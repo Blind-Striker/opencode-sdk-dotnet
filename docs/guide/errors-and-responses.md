@@ -36,7 +36,7 @@ three facts as the spine:
 ```csharp
 try
 {
-    var session = await client.Sessions.GetSessionClient("ses_missing").GetSessionAsync();
+    var session = await client.Sessions.GetSessionClient("ses_missing").GetAsync();
 
     Console.WriteLine(session.Session.Title);
 }
@@ -68,7 +68,7 @@ branch on the envelope:
 ```csharp
 var response = await client.Sessions
     .GetSessionClient("ses_missing")
-    .GetSessionAsync(OpenCodeRequestOptions.NoThrow);
+    .GetAsync(OpenCodeRequestOptions.NoThrow);
 
 if (response.IsError)
 {

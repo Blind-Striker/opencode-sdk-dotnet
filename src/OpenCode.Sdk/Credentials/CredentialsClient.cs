@@ -33,13 +33,13 @@ public class CredentialsClient
     /// <param name = "credentialId">The &apos;credentialID&apos; route value.</param>
     /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;CredentialActivatePostResponse&apos; envelope.</returns>
+    /// <returns>The &apos;CredentialActivateResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<CredentialActivatePostResponse> ActivateCredentialAsync(string credentialId, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    public virtual Task<CredentialActivateResponse> ActivateCredentialAsync(string credentialId, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(credentialId);
-        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Credentials.ActivateCredential(credentialId), CredentialActivatePostResponseAdapter.Instance, requestOptions, cancellationToken);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Credentials.ActivateCredential(credentialId), CredentialActivateResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 
     /// <summary>
@@ -64,13 +64,13 @@ public class CredentialsClient
     /// <param name = "request">The request body.</param>
     /// <param name = "requestOptions">The per-call options.</param>
     /// <param name = "cancellationToken">The cancellation token.</param>
-    /// <returns>The &apos;CredentialUpdatePatchResponse&apos; envelope.</returns>
+    /// <returns>The &apos;CredentialUpdateResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
-    public virtual Task<CredentialUpdatePatchResponse> UpdateCredentialAsync(string credentialId, CredentialUpdatePatchRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    public virtual Task<CredentialUpdateResponse> UpdateCredentialAsync(string credentialId, CredentialUpdateRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(credentialId);
         ArgumentNullException.ThrowIfNull(request);
-        return Pipeline.ExecuteAsync(OpenCodeHttpMethod.Patch, OpenCodeRoutes.Credentials.UpdateCredential(credentialId), request, OpenCodeJsonContext.Default.CredentialUpdatePatchRequest, CredentialUpdatePatchResponseAdapter.Instance, requestOptions, cancellationToken);
+        return Pipeline.ExecuteAsync(OpenCodeHttpMethod.Patch, OpenCodeRoutes.Credentials.UpdateCredential(credentialId), request, OpenCodeJsonContext.Default.CredentialUpdateRequest, CredentialUpdateResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }

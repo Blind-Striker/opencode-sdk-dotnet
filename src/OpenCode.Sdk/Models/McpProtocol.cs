@@ -24,5 +24,5 @@ public enum McpProtocol
     /// Represents the &apos;2026-07-28&apos; wire value.
     /// </summary>
     [JsonStringEnumMemberName("2026-07-28")]
-    Value20260728
+    Revision20260728
 }
