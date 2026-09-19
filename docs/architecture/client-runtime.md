@@ -481,7 +481,15 @@ filename, sanitization, and legacy-migration rules; a direct registration path b
 The info probe is a raw authenticated `GET /api/info` through an owned non-redirecting handler with a
 two-second bound: it rides neither the pipeline's decoration policy nor its progress window, and
 `ServiceInfoProbe` owns its transport and path, while `ServiceProbeResponseClassifier` decodes
-only the required first-party pid/version evidence. This private discovery decoder is independent
+only the required first-party pid/version evidence. That transport (`LoopbackTransport`) carries
+two loopback rules the pipeline's transport does not: a loopback endpoint is never routed through
+a proxy, so an environment proxy without `NO_PROXY` cannot hide a live daemon, and on Windows a
+loopback connect disables SYN retransmission (`SIO_TCP_INITIAL_RTO`, the option libuv, Go, and the
+pinned client's own runtime set for loopback), so a refused port is reported at once instead of
+after the retransmissions that would outlast the bound. A dead daemon therefore classifies as no
+service, never as a timeout, on every host; on `net472` and `netstandard2.0`, where the platform
+handler has no connect seam, the probe learns the refusal over a raw pre-connect with the same
+option before it sends the request. This private discovery decoder is independent
 of the generated public `ServerInfo` model, whose required `Urls` does not constrain discovery. Discovery returns null for a missing, unusable, or not-ready
 registration and throws only for refused input (`ArgumentException`), caller cancellation, and an
 unresolvable user home (`OpenCodeServerException`). Ensure and Stop are tracked in

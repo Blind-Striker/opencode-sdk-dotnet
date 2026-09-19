@@ -9,6 +9,16 @@ Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
 `0.9.0-nightly.{yyyyMMdd}.{shortSha}`.
 
+### 🔧 Changes
+
+- **Discovery answers a stale registration at once on Windows.** `OpenCodeServer.DiscoverAsync`
+  probes the registered loopback address without SYN retransmission, so a registration whose
+  daemon is gone returns null in milliseconds instead of waiting out the two-second bound, and a
+  refused port is classified as "no service" rather than a timeout on every operating system and
+  target framework — the classification the Ensure door will rely on. The probe also never routes
+  a loopback request through a proxy: `HTTP_PROXY` without `NO_PROXY` no longer hides a running
+  service. Nothing changes for the SDK's other calls.
+
 ## [0.9.0-preview.1] - 2026-09-18
 
 Two things changed since `0.8.0-preview.2`. The SDK now follows upstream release tag `v2.0.8`

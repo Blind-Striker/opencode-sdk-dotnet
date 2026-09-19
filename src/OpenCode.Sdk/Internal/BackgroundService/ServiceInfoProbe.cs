@@ -6,9 +6,10 @@ using OpenCode.Sdk.Internal.BackgroundService.Abstractions;
 namespace OpenCode.Sdk.Internal.BackgroundService;
 
 /// <summary>
-/// Performs the pinned client's authenticated info exchange over an owned, non-redirecting
-/// handler. The probe decodes only pid/version; the public generated info model has a different
-/// contract. Discovery keeps its own request bound and never forwards credentials on redirects.
+/// Performs the pinned client's authenticated info exchange over the probe's own loopback-aware
+/// transport (<see cref="LoopbackTransport"/>). The probe decodes only pid/version; the public
+/// generated info model has a different contract. Discovery keeps its own request bound and never
+/// forwards credentials on redirects.
 /// </summary>
 internal sealed class ServiceInfoProbe(ServiceTiming timing) : IServiceInfoProbe
 {
@@ -23,7 +24,7 @@ internal sealed class ServiceInfoProbe(ServiceTiming timing) : IServiceInfoProbe
         ArgumentNullException.ThrowIfNull(registration);
         cancellationToken.ThrowIfCancellationRequested();
 
-        using var client = TransportPolicy.CreateOwnedHttpClient(registration.Endpoint);
+        using var client = LoopbackTransport.CreateProbeClient(registration.Endpoint);
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(registration.Endpoint, InfoPath));
         if (registration.Password is { } password)
         {
@@ -41,6 +42,17 @@ internal sealed class ServiceInfoProbe(ServiceTiming timing) : IServiceInfoProbe
         byte[] body;
         try
         {
+#if !NET
+            // HttpClientHandler has no connect seam, so on Windows a refused loopback port would
+            // surface only after the SYN retransmissions, past the bound: the refusal is learned
+            // first over the transport's raw pre-connect (LoopbackTransport), inside the same bound.
+            if (registration.Endpoint.IsLoopback
+                && OperatingSystem.IsWindows()
+                && !await LoopbackTransport.IsListeningAsync(registration.Endpoint, bound.Token).ConfigureAwait(false))
+            {
+                return NoService;
+            }
+#endif
             using var response = await client
                 .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, bound.Token)
                 .ConfigureAwait(false);

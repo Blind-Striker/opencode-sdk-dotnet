@@ -167,7 +167,17 @@ public sealed class ServiceInfoProbeTests
         await Assert.That(result.TimedOut).IsFalse();
     }
 
+    /// <summary>
+    /// A closed loopback port is "no service", never a timeout, on every host: the pinned client
+    /// counts only an aborted fetch as timed out, and Ensure terminates a registered pid after
+    /// three of those. Windows reports a refused loopback connect only after its SYN
+    /// retransmissions (about two seconds, past the pinned bound), so the probe's transport
+    /// disables them the way libuv, Go, and Bun do; the half-second bound here is far under that
+    /// delay and far over the refusal it leaves. Keyless NotInParallel: the assertion rides a
+    /// wall-clock bound (research log Q157).
+    /// </summary>
     [Test]
+    [NotInParallel]
     public async Task ProbeAsync_Should_Report_No_Service_When_Nothing_Listens()
     {
         Uri endpoint;
@@ -176,12 +186,10 @@ public sealed class ServiceInfoProbeTests
             endpoint = server.Endpoint;
         }
 
-        // Whether a closed loopback port refuses at once or stalls until the bound is the host's
-        // business (Windows was observed to stall); the contract is no service, no exception,
-        // inside the bound.
-        var result = await new ServiceInfoProbe(FastTiming).ProbeAsync(Registration(endpoint), CancellationToken.None);
+        var result = await new ServiceInfoProbe(RefusalTiming).ProbeAsync(Registration(endpoint), CancellationToken.None);
 
         await Assert.That(result.IsService).IsFalse();
+        await Assert.That(result.TimedOut).IsFalse();
     }
 
     [Test]
@@ -228,6 +236,9 @@ public sealed class ServiceInfoProbeTests
     /// proven once, with <see cref="FastTiming"/>, against a kept-open response.
     /// </summary>
     private static readonly ServiceTiming PatientTiming = ServiceTiming.Default with { RequestTimeout = TimeSpan.FromSeconds(30) };
+
+    /// <summary>Under the Windows SYN-retransmission delay, over the refusal the probe's transport leaves.</summary>
+    private static readonly ServiceTiming RefusalTiming = ServiceTiming.Default with { RequestTimeout = TimeSpan.FromMilliseconds(500) };
 
     private static ServiceInfoProbe Probe() => new(PatientTiming);
     private static ServiceRegistration Registration(Uri endpoint, string? version = ServiceInfoBodyData.Version, string? password = Password) =>
