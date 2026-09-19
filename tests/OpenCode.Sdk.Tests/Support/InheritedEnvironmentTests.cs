@@ -1,0 +1,134 @@
+using System.Diagnostics;
+using OpenCode.Sdk.TestSupport;
+
+namespace OpenCode.Sdk.Tests.Support;
+
+/// <summary>
+/// The session-start scrub of the test host's inherited environment: which names it removes,
+/// which it keeps, what it does to <c>NO_PROXY</c>, and — through a real child process — that a
+/// hazard seeded in this process is gone from what a fixture's child would inherit.
+/// </summary>
+public sealed class InheritedEnvironmentTests
+{
+    [Test]
+    public async Task Plan_Should_Remove_Every_Pinned_Server_Variable_But_Keep_The_Suite_Knobs()
+    {
+        var plan = InheritedEnvironment.Plan(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["OPENCODE_SIMULATE"] = "1",
+            ["OPENCODE_API_KEY"] = "secret",
+            ["opencode_pty_bin"] = "/elsewhere/opencode-pty",
+            ["OPENCODE_SDK_TESTS_KEEP_LOGS"] = "1",
+            ["OPENCODE_SDK_TESTS_SERVER_COMMAND"] = "opencode|serve",
+            ["PATH"] = "/usr/bin",
+            ["HOME"] = "/home/dev",
+        });
+
+        string[] expected = ["OPENCODE_API_KEY", "OPENCODE_SIMULATE", "opencode_pty_bin"];
+        await Assert.That(plan.Removed.OrderBy(static name => name, StringComparer.Ordinal)).IsEquivalentTo(expected);
+        await Assert.That(plan.NoProxy).IsNull();
+    }
+
+    [Test]
+    public async Task Plan_Should_Remove_The_Git_Variables_That_Redirect_A_Repository()
+    {
+        var plan = InheritedEnvironment.Plan(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["GIT_DIR"] = "/other/.git",
+            ["GIT_WORK_TREE"] = "/other",
+            ["GIT_INDEX_FILE"] = "/other/.git/index",
+            ["GIT_CEILING_DIRECTORIES"] = "/",
+            ["GIT_AUTHOR_NAME"] = "dev",
+        });
+
+        string[] expected = ["GIT_CEILING_DIRECTORIES", "GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE"];
+        await Assert.That(plan.Removed.OrderBy(static name => name, StringComparer.Ordinal)).IsEquivalentTo(expected);
+    }
+
+    [Test]
+    [Arguments("HTTP_PROXY")]
+    [Arguments("https_proxy")]
+    [Arguments("ALL_PROXY")]
+    public async Task Plan_Should_Name_Loopback_In_NoProxy_When_A_Proxy_Is_Set(string proxyVariable)
+    {
+        var plan = InheritedEnvironment.Plan(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [proxyVariable] = "http://proxy.example:3128",
+        });
+
+        await Assert.That(plan.NoProxy).IsEqualTo("127.0.0.1,localhost,::1");
+        await Assert.That(plan.Removed).IsEmpty();
+    }
+
+    [Test]
+    public async Task Plan_Should_Extend_An_Existing_NoProxy_Without_Duplicates()
+    {
+        var plan = InheritedEnvironment.Plan(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["HTTP_PROXY"] = "http://proxy.example:3128",
+            ["NO_PROXY"] = "localhost, .example.internal",
+        });
+
+        await Assert.That(plan.NoProxy).IsEqualTo("localhost, .example.internal,127.0.0.1,::1");
+    }
+
+    [Test]
+    public async Task Plan_Should_Leave_NoProxy_Alone_When_No_Proxy_Is_Set()
+    {
+        var plan = InheritedEnvironment.Plan(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["NO_PROXY"] = "corp.internal",
+        });
+
+        await Assert.That(plan.NoProxy).IsNull();
+    }
+
+    /// <summary>
+    /// The mechanism end to end: a hazard seeded in this process reaches a child (the control),
+    /// and after the scrub it does not, while a suite knob survives. Process-wide state, so alone.
+    /// </summary>
+    [Test]
+    [NotInParallel]
+    [Timeout(60_000)]
+    public async Task ScrubProcess_Should_Remove_A_Seeded_Hazard_From_What_A_Child_Inherits(CancellationToken cancellationToken)
+    {
+        const string hazard = "OPENCODE_SIMULATE";
+        const string knob = "OPENCODE_SDK_TESTS_SCRUB_PROBE";
+        var value = "scrub-probe-" + Guid.NewGuid().ToString("N");
+        Environment.SetEnvironmentVariable(hazard, value);
+        Environment.SetEnvironmentVariable(knob, value);
+        try
+        {
+            await Assert.That(await ChildSeesAsync(hazard, cancellationToken)).Contains(value);
+
+            var plan = InheritedEnvironment.ScrubProcess();
+
+            await Assert.That(plan.Removed).Contains(hazard);
+            await Assert.That(plan.Removed).DoesNotContain(knob);
+            await Assert.That(Environment.GetEnvironmentVariable(hazard)).IsNull();
+            await Assert.That(Environment.GetEnvironmentVariable(knob)).IsEqualTo(value);
+            await Assert.That(await ChildSeesAsync(hazard, cancellationToken)).DoesNotContain(value);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(hazard, null);
+            Environment.SetEnvironmentVariable(knob, null);
+        }
+    }
+
+    /// <summary>Echoes one variable from a child shell, the way a fixture's server would read it.</summary>
+    private static async Task<string> ChildSeesAsync(string name, CancellationToken cancellationToken)
+    {
+        var startInfo = OperatingSystem.IsWindows()
+            ? new ProcessStartInfo("cmd.exe") { Arguments = "/d /c echo %" + name + "%" }
+            : new ProcessStartInfo("/bin/sh") { Arguments = "-c \"printf %s \\\"$" + name + "\\\"\"" };
+        startInfo.UseShellExecute = false;
+        startInfo.RedirectStandardOutput = true;
+        startInfo.CreateNoWindow = true;
+
+        using var process = Process.Start(startInfo) ?? throw new InvalidOperationException("The child shell did not start.");
+        var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+        return output;
+    }
+}

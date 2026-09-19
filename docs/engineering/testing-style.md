@@ -148,6 +148,15 @@ true; the fixture hands the boundary to the child process it starts.
   isolated cache root made every source-run server start transpile the monorepo from cold.
   Which server an owned fixture starts (`OPENCODE_SDK_TESTS_SERVER_COMMAND`,
   `OPENCODE_SDK_TESTS_ENDPOINT`) is a separate choice and not part of the boundary.
+- **The host's own environment is scrubbed first.** A child inherits whatever the isolation map
+  does not set, so `tests/Shared/InheritedEnvironment.cs` runs once per test session, before any
+  fixture starts a child: it removes every `OPENCODE_*` variable except the suite's own
+  `OPENCODE_SDK_TESTS_*` knobs and the git variables that address another repository (`GIT_DIR`,
+  `GIT_WORK_TREE`, `GIT_INDEX_FILE`, `GIT_CEILING_DIRECTORIES`), and when a proxy variable is set
+  it names loopback in `NO_PROXY`, so neither the test clients nor the bun server route
+  `127.0.0.1` through the proxy. It prints the names it removed, never values. CI's environment
+  carries none of these; the hook exists for developer machines, where an exported variable
+  otherwise looks like an SDK defect.
 - **Run roots have a clean chain above them.** The pinned server loads project configuration from
   every directory between a location and the drive root, and resolves a workspace inside a
   repository to that repository's project, whatever the environment says - so where a run root
