@@ -15,7 +15,11 @@ The probe is the pinned client's: an authenticated `GET /api/info` decoded for `
 `version` alone, independently of the generated public info model and its required `urls`.
 An authenticated 404 is read before any body and identifies the registered daemon as present
 but incompatible — the pinned client routes such a daemon to replacement — so discovery reports
-no service for it. The request bound and the owned non-redirecting transport are the SDK's own.
+no service for it. The request bound and the owned non-redirecting transport are the SDK's own,
+and the transport keeps the pinned client's classification on every host: a refused loopback
+connect is no service, never a timeout, which on Windows takes the same no-SYN-retransmission
+socket option the pinned client's runtime sets for loopback. The one deliberate divergence is
+that the probe never sends a loopback request through a proxy, where the pinned client would.
 
 ## Considered options
 

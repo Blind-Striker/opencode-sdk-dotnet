@@ -9,9 +9,10 @@ namespace OpenCode.Sdk.Tests.BackgroundService;
 /// <summary>
 /// The environment reading of <c>DiscoverAsync</c>, proven from a process whose environment the
 /// test owns entirely (the isolated discovery executable): the default shared registration under
-/// <c>XDG_STATE_HOME</c>, and the home-directory fallback with no XDG root at all. The daemon each
-/// child probes is a loopback health server hosted in this test process, so no test reads the
-/// developer's profile or registration.
+/// <c>XDG_STATE_HOME</c>, the home-directory fallback with no XDG root at all, and a stale
+/// registration answered without waiting out the bound. The daemon each child probes is a loopback
+/// health server hosted in this test process, so no test reads the developer's profile or
+/// registration.
 /// </summary>
 /// <remarks>
 /// Keyless <c>[NotInParallel]</c>, the rule research log Q157 sets for a test whose assertion
@@ -78,6 +79,41 @@ public sealed class OpenCodeServerDiscoveryIsolatedProcessTests
             .IsEqualTo(ServiceFixtureOutput.FoundLine(ServiceInfoBodyData.Pid, health.Endpoint))
             .Because(result.StandardError);
         await Assert.That(health.RequestPaths).IsEquivalentTo(["/api/info"]);
+    }
+
+    /// <summary>
+    /// A registration whose daemon is gone (the port is closed) answers "missing" at once, not at
+    /// the two-second bound: a refused loopback connect must classify as no service on every
+    /// host, including Windows, where the default connect retransmits the SYN for about two
+    /// seconds. The child is the real SDK, so this proves the probe's transport end to end.
+    /// </summary>
+    [Test]
+    [Timeout(120_000)]
+    public async Task DiscoverAsync_Should_Report_A_Stale_Registration_Without_Waiting_For_The_Bound(CancellationToken cancellationToken)
+    {
+        using var root = new TestRunRoot(FileSystem);
+        Uri stale;
+        await using (var gone = LoopbackHttpServer.Start(static _ => ReadyHealth()))
+        {
+            stale = gone.Endpoint;
+        }
+
+        var state = FileSystem.Path.Combine(root.Path, "state");
+        Seed(FileSystem.Path.Combine(state, "opencode", "service.json"), stale);
+        var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["XDG_STATE_HOME"] = state,
+            ["XDG_CONFIG_HOME"] = FileSystem.Path.Combine(root.Path, "config"),
+            ["OPENCODE_CONFIG_DIR"] = null,
+        };
+
+        var result = await new ServiceFixtureCommand(FileSystem).RunAsync(["discover-default"], environment, cancellationToken);
+
+        await Assert.That(result.ExitCode).IsEqualTo(0).Because(result.StandardError);
+        await Assert.That(result.StandardOutput.Trim()).IsEqualTo("missing").Because(result.StandardError);
+        var elapsed = ServiceFixtureOutput.DiscoveryMilliseconds(result.StandardError);
+        await Assert.That(elapsed).IsNotNull().Because(result.StandardError);
+        await Assert.That(elapsed!.Value).IsLessThan(1_000).Because(result.StandardError);
     }
 
     private static LoopbackHttpResponse ReadyHealth() =>
