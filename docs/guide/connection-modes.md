@@ -10,6 +10,7 @@ register any of them with a container.
 - [🚀 The SDK starts the server](#-the-sdk-starts-the-server)
 - [🔗 A server you already run](#-a-server-you-already-run)
 - [🛰️ Discovering the background service](#️-discovering-the-background-service)
+  - [🛑 Stopping the background service](#-stopping-the-background-service)
 - [🧩 Registering with dependency injection](#-registering-with-dependency-injection)
 
 ## 🚀 The SDK starts the server
@@ -287,10 +288,6 @@ Three things throw; everything else is null.
 - `OperationCanceledException` — your own token was cancelled. The internal two-second probe bound
   never surfaces as cancellation; it is a null.
 
-Ensuring a daemon exists (starting one when discovery finds nothing) and stopping the registered
-daemon are the CLI's remaining two service operations; the SDK's parity for them is queued behind
-discovery and tracked in [the roadmap](../ROADMAP.md).
-
 > **🔑 `opencode serve` always has a password.** Setting neither variable does not start an open
 > server — it makes the CLI generate one and print it as `server password <pw>` on startup, and no
 > serve flag disables authentication. A client for a CLI-started server therefore always needs
@@ -299,6 +296,54 @@ discovery and tracked in [the roadmap](../ROADMAP.md).
 > its tests. Point a passwordless client at `opencode serve` and every call answers **401 with an
 > empty body** — the SDK says so in the exception message, see
 > [a 401 with no credential](errors-and-responses.md#a-401-with-no-credential).
+
+### 🛑 Stopping the background service
+
+`OpenCodeServer.StopAsync` is `opencode service stop` for your code: it ends the daemon the
+registration names and removes the registration. Nothing else in the SDK ever stops the shared
+service — disposing a discovered handle is a no-op by contract — so this is the one call to make
+deliberately, for the reasons the CLI has the command: replacing a version, shutting the service
+down before an uninstall, or ending a daemon that no longer answers.
+
+```csharp
+await OpenCodeServer.StopAsync();
+```
+
+What it does, in order:
+
+1. Resolves the registration exactly as discovery does — the shared release registration by
+   default, a named `Channel`, or a `RegistrationFilePath` — including the CLI's legacy migration.
+2. Asks a ready, compatible daemon to shut down its persistent terminals
+   (`PersistentPtys.ShutdownAsync`); a daemon that refuses or does not answer is not an error.
+3. Removes the handoff sidecar the CLI keeps beside the registration.
+4. Ends the registered process: a request to stop first (`SIGTERM`), a hard kill (`SIGKILL`) if it
+   is still there about five seconds later, then the same wait again. On Windows both rungs are a
+   hard kill, because another process cannot be signalled there.
+5. Removes the registration once the process is gone.
+
+Before every signal and before the removal it re-reads the registration and checks that it still
+names the same service (`id`, `version`, `url`, `pid`), and it identifies the process by pid *and*
+start time — before every signal and at every look while it waits — so a service that re-registered
+under the file, or a pid the operating system handed to an unrelated process, is never signalled.
+
+`OpenCodeServerStopOptions` has three optional members; leave the whole thing out to stop the
+shared release registration.
+
+| Member | Meaning |
+|---|---|
+| `Channel` | The CLI's service channel, as for discovery. |
+| `RegistrationFilePath` | An absolute path to stop directly, as for discovery. Cannot be combined with `Channel` or `InstalledVersion`. |
+| `InstalledVersion` | The migration comparand, as for discovery. A stop never filters by version. |
+
+The call completes successfully when there is nothing to stop: no registration, or one that does
+not decode. It throws `ArgumentException` for blank or contradictory options;
+`OpenCodeServerException` when the registration roots cannot be located, when the sidecar cannot be
+removed, or when the process is still running after the hard kill — the registration is then left
+in place; and `OperationCanceledException` for your own token, where cancelling before a signal
+prevents it and cancelling after one ends the wait without undoing the signal.
+
+Ensuring a daemon exists (starting one when discovery finds nothing) is the CLI's remaining service
+operation; its SDK parity follows as its own slice and is tracked in [the roadmap](../ROADMAP.md).
 
 ## 🧩 Registering with dependency injection
 

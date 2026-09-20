@@ -1,6 +1,6 @@
 # OpenAPI Snapshot
 
-Date: 2026-09-18
+Date: 2026-09-20
 
 `openapi.json` is the accepted snapshot of the upstream opencode OpenAPI 3.1 document
 (ADR-0005). The SDK is built against this snapshot, never against a live branch; the pin is

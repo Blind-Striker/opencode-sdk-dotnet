@@ -16,7 +16,14 @@ internal static class GeneratedSourceCompiler
         LanguageVersion.CSharp14,
         preprocessorSymbols: ["NET"]);
     private static readonly PortableExecutableReference[] References = CreateReferences();
-    private static readonly AnalyzerFileReference SourceGenerator = CreateSourceGeneratorReference();
+
+    /// <summary>
+    /// The built-in Roslyn generators an MSBuild compilation of the SDK gets from the targeting
+    /// pack and this hand-rolled compilation must register itself: System.Text.Json's, for the
+    /// generated serializer contexts, and the LibraryImport generator, for the one P/Invoke stub
+    /// the background-service door's process control declares (ADR-0026).
+    /// </summary>
+    private static readonly AnalyzerFileReference[] SourceGenerators = CreateSourceGeneratorReferences();
 
     /// <summary>
     /// Hand-written sources sitting <em>above</em> generated output instead of under it: both
@@ -30,12 +37,16 @@ internal static class GeneratedSourceCompiler
     /// so a renamed or dropped twin fails that assertion loudly instead of silently vanishing
     /// from this probe's coverage. A synthetic emitter fixture is free to omit a twin, in which
     /// case its consumers are skipped here rather than failing to compile. The background-service
-    /// info probe has its own decoder and no longer depends on generated models, so it and the
-    /// launcher participate in every compilation.
+    /// info probe has its own decoder and depends on no generated model; the stop door's
+    /// persistent-terminal shutdown rides the generated <c>persistentPty.shutdown</c> door, so its
+    /// shipped implementation and <c>OpenCodeServer</c>, which composes it, ride along with the
+    /// persistent family's raw twin.
     /// </summary>
     internal static readonly (string Consumer, string RequiredEmission)[] GeneratedSurfaceConsumers =
     [
+        ("Internal/BackgroundService/ServicePtyShutdown.cs", "PersistentPtys/PersistentPtysRawClient.cs"),
         ("Internal/PersistentPtyFrameDecoder.cs", "Models/PersistentPtyInfo.cs"),
+        ("OpenCodeServer.cs", "PersistentPtys/PersistentPtysRawClient.cs"),
         ("PersistentPtys/PersistentPtyAttachedFrame.cs", "Models/PersistentPtyInfo.cs"),
         ("PersistentPtys/PersistentPtyAttachment.cs", "Models/PersistentPtyInfo.cs"),
         ("PersistentPtys/PersistentPtyClient.cs", "Models/PersistentPtyInfo.cs"),
@@ -143,9 +154,11 @@ internal static class GeneratedSourceCompiler
             new CSharpCompilationOptions(
                 OutputKind.DynamicallyLinkedLibrary,
                 nullableContextOptions: NullableContextOptions.Enable,
-                deterministic: true));
+                deterministic: true,
+                // The SDK project's AllowUnsafeBlocks: the LibraryImport generator emits its stub as unsafe code.
+                allowUnsafe: true));
         GeneratorDriver driver = CSharpGeneratorDriver.Create(
-            SourceGenerator.GetGenerators(LanguageNames.CSharp),
+            SourceGenerators.SelectMany(static reference => reference.GetGenerators(LanguageNames.CSharp)),
             parseOptions: ParseOptions);
         _ = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var generatorDiagnostics);
 
@@ -170,28 +183,42 @@ internal static class GeneratedSourceCompiler
         ];
     }
 
-    private static AnalyzerFileReference CreateSourceGeneratorReference()
+    private static AnalyzerFileReference[] CreateSourceGeneratorReferences()
     {
         var fileSystem = new RealFileSystem();
         var frameworkDirectory = fileSystem.Path.GetDirectoryName(typeof(JsonSerializer).Assembly.Location)
                                  ?? throw new InvalidOperationException("The runtime framework directory could not be resolved.");
         var frameworkVersion = fileSystem.Path.GetFileName(frameworkDirectory);
         var dotnetRoot = fileSystem.Path.GetFullPath(fileSystem.Path.Combine(frameworkDirectory, "..", "..", ".."));
-        var generatorPath = fileSystem.Path.Combine(
-            dotnetRoot,
-            "packs",
-            "Microsoft.NETCore.App.Ref",
-            frameworkVersion,
-            "analyzers",
-            "dotnet",
-            "cs",
-            "System.Text.Json.SourceGeneration.dll");
-        if (!fileSystem.File.Exists(generatorPath))
+        var analyzerDirectory = fileSystem.Path.Combine(
+            dotnetRoot, "packs", "Microsoft.NETCore.App.Ref", frameworkVersion, "analyzers", "dotnet", "cs");
+
+        // The LibraryImport generator's own dependency sits beside it and is not an analyzer
+        // reference of its own; loading it into the default context first is what lets the
+        // generator's assembly resolve it, because the probe's loader resolves nothing itself.
+        _ = AssemblyLoadContext.Default.LoadFromAssemblyPath(
+            GeneratorPath(fileSystem, analyzerDirectory, "Microsoft.Interop.SourceGeneration.dll"));
+
+        return
+        [
+            new AnalyzerFileReference(
+                GeneratorPath(fileSystem, analyzerDirectory, "System.Text.Json.SourceGeneration.dll"),
+                new CompilerAnalyzerAssemblyLoader()),
+            new AnalyzerFileReference(
+                GeneratorPath(fileSystem, analyzerDirectory, "Microsoft.Interop.LibraryImportGenerator.dll"),
+                new CompilerAnalyzerAssemblyLoader()),
+        ];
+    }
+
+    private static string GeneratorPath(RealFileSystem fileSystem, string analyzerDirectory, string fileName)
+    {
+        var path = fileSystem.Path.Combine(analyzerDirectory, fileName);
+        if (!fileSystem.File.Exists(path))
         {
-            throw new InvalidOperationException($"The System.Text.Json source generator was not found at '{generatorPath}'.");
+            throw new InvalidOperationException($"The source generator '{fileName}' was not found at '{path}'.");
         }
 
-        return new AnalyzerFileReference(generatorPath, new CompilerAnalyzerAssemblyLoader());
+        return path;
     }
 
     private sealed record CompilationResult(Compilation Compilation, Diagnostic[] Diagnostics);

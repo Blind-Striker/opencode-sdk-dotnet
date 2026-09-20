@@ -23,14 +23,8 @@
   "normalizedDocumentPath": null,
   "operationSetDigest": "3b16acd7850f268d4c4941e603e5eeec68ec2f835d92cd274e87c93132032e6d",
   "operationCount": 136,
-  "addedOperations": [
-    "experimental.fs.write",
-    "location.reload",
-    "server.info"
-  ],
-  "removedOperations": [
-    "server.status"
-  ],
+  "addedOperations": [],
+  "removedOperations": [],
   "componentCount": 366,
   "contentSchemaCount": 2,
   "watchedSources": [
@@ -205,6 +199,11 @@
       "anchorMatched": true
     },
     {
+      "path": "packages/client/src/pty-handoff.ts",
+      "sha256": "af8d82ded856bbd8e9df5ebbe196f40870e7ef90629340efbdc0a97e875b27cd",
+      "anchorMatched": true
+    },
+    {
       "path": "packages/client/src/effect/service.ts",
       "sha256": "29ecd1d9aabc8a24462e8c5b9dba9ec74790e2fe12ac056e463c5f025dc9377c",
       "anchorMatched": true
@@ -282,6 +281,11 @@
     {
       "path": "packages/cli/src/services/server-connection.ts",
       "sha256": "cca1a3679d28168e1bec35af8d177cd4854a1e1d54dd9abb2e975cf336a944b5",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/cli/src/commands/handlers/service/stop.ts",
+      "sha256": "832723656ca2eb5d6e71acf32944888b0c739d9ba043f1a0fbe37ad0fe2607e9",
       "anchorMatched": true
     }
   ]

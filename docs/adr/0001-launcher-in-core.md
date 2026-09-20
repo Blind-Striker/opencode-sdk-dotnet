@@ -10,6 +10,11 @@ inside `ModelContextProtocol.Core`; kept as reference implementation). Evidence 
 anatomy: internal research, 2026-08-08, ".NET SDK design decisions: packaging, process management,
 TFMs"; research log Q12.
 
+The background-service door's process control (ADR-0026) binds one function of the platform C
+library, `kill(2)`, for the Unix signal rungs that `System.Diagnostics.Process` cannot send; that
+is a platform primitive every process already has loaded, not a process library, and this record's
+rule is unchanged by it.
+
 ## Considered options
 
 - **Separate launcher package** — rejected: upstream parity argues for core, and the launcher

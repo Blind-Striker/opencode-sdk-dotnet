@@ -1,69 +1,37 @@
-using System.Diagnostics;
-using System.Globalization;
-
 namespace OpenCode.Sdk.ServiceFixture;
 
 /// <summary>
-/// The isolated discovery entry point: runs <see cref="OpenCodeServer.DiscoverAsync"/> in a process
-/// whose environment the launching test owns entirely, and reports the outcome on one stdout line.
-/// Split out of <c>Program.cs</c>'s top-level statements to keep the dispatch under the repository's
-/// method-size gates, the way the sandbox does.
+/// The isolated background-service entry point: runs one SDK door in a process whose environment
+/// the launching test owns entirely, and reports the outcome on one stdout line. Split out of
+/// <c>Program.cs</c>'s top-level statements to keep the dispatch under the repository's method-size
+/// gates, the way the sandbox does; each mode's body lives in its own class.
 /// </summary>
 /// <remarks>
 /// Modes: <c>discover-default</c> reads the shared release registration through every default;
-/// <c>discover-channel &lt;channel&gt;</c> names a service channel. The line is
-/// <c>found owns=&lt;true|false&gt; pid=&lt;pid&gt; endpoint=&lt;url&gt;</c> or <c>missing</c>;
-/// the credential is never printed. Exit 0 carries either answer, 1 a discovery failure, 2 a usage
-/// error.
+/// <c>discover-channel &lt;channel&gt;</c> names a service channel; <c>stop-channel &lt;channel&gt;</c>
+/// stops the channel's registered service; <c>idle</c> prints <c>ready</c> and lingers until it is
+/// ended; <c>ignore-sigterm</c> lingers the same way but ignores <c>SIGTERM</c> where the platform
+/// can deliver one. The credential is never printed. Exit 0 carries an answer, 1 a failure, 2 a
+/// usage error.
 /// </remarks>
 internal static class ServiceFixtureRunner
 {
-    public static async Task<int> RunAsync(string[] args)
+    public static Task<int> RunAsync(string[] args) =>
+        args switch
+        {
+            ["discover-default"] => DiscoveryMode.RunAsync(options: null),
+            ["discover-channel", var channel] => DiscoveryMode.RunAsync(new OpenCodeServerDiscoverOptions { Channel = channel }),
+            ["stop-channel", var channel] => StopMode.RunAsync(channel),
+            ["idle"] => LingeringProcessMode.RunAsync(ignoreTerminate: false),
+            ["ignore-sigterm"] => LingeringProcessMode.RunAsync(ignoreTerminate: true),
+            _ => UsageAsync(),
+        };
+
+    private static async Task<int> UsageAsync()
     {
-        OpenCodeServerDiscoverOptions? options;
-        switch (args)
-        {
-            case ["discover-default"]:
-                options = null;
-                break;
-            case ["discover-channel", var channel]:
-                options = new OpenCodeServerDiscoverOptions { Channel = channel };
-                break;
-            default:
-                await Console.Error.WriteLineAsync("Usage: discover-default | discover-channel <channel>").ConfigureAwait(false);
-                return 2;
-        }
-
-        try
-        {
-            // The elapsed time goes to stderr, never to the stdout contract: a "missing" that took
-            // the whole request bound is a timed-out probe, one that took milliseconds is a
-            // registration the process never found, and a test reading both can tell them apart.
-            var stopwatch = Stopwatch.StartNew();
-            var server = await OpenCodeServer.DiscoverAsync(options).ConfigureAwait(false);
-            await Console.Error
-                .WriteLineAsync($"discovery took {stopwatch.ElapsedMilliseconds.ToString(CultureInfo.InvariantCulture)} ms")
-                .ConfigureAwait(false);
-            if (server is null)
-            {
-                await Console.Out.WriteLineAsync("missing").ConfigureAwait(false);
-                return 0;
-            }
-
-            await using (server.ConfigureAwait(false))
-            {
-                var line = string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"found owns={(server.OwnsProcess ? "true" : "false")} pid={server.ProcessId} endpoint={server.Endpoint}");
-                await Console.Out.WriteLineAsync(line).ConfigureAwait(false);
-            }
-
-            return 0;
-        }
-        catch (Exception exception) when (exception is ArgumentException or OpenCodeServerException)
-        {
-            await Console.Error.WriteLineAsync(exception.GetType().Name + ": " + exception.Message).ConfigureAwait(false);
-            return 1;
-        }
+        await Console.Error
+            .WriteLineAsync("Usage: discover-default | discover-channel <channel> | stop-channel <channel> | idle | ignore-sigterm")
+            .ConfigureAwait(false);
+        return 2;
     }
 }

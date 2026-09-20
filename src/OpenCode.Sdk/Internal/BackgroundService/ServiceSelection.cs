@@ -1,74 +1,94 @@
 namespace OpenCode.Sdk.Internal.BackgroundService;
 
 /// <summary>
-/// The validated, entry-time snapshot of a discovery request. <see cref="Channel"/> is null both
-/// for the shared release default and in direct-file mode, which has no channel to name; the two
-/// are told apart by <see cref="DirectRegistrationFile"/>.
+/// The validated, entry-time snapshot of a discovery or stop request. <see cref="Channel"/> is
+/// null both for the shared release default and in direct-file mode, which has no channel to name;
+/// the two are told apart by <see cref="DirectRegistrationFile"/>.
 /// </summary>
 /// <param name="Channel">The caller-named service channel, or null for the shared release registration.</param>
 /// <param name="DirectRegistrationFile">The absolute registration path that bypasses channel resolution, or null.</param>
 /// <param name="InstalledVersion">The migration comparand; in channel mode it defaults from <paramref name="ExpectedVersion"/>.</param>
-/// <param name="ExpectedVersion">The exact version a discovered service's status must report, or null for any.</param>
+/// <param name="ExpectedVersion">The exact version a discovered service's status must report, or null for any; a stop never filters.</param>
 internal sealed record ServiceSelection(
     string? Channel,
     string? DirectRegistrationFile,
     string? InstalledVersion,
     string? ExpectedVersion)
 {
-    private const string Prefix = "OpenCodeServerDiscoverOptions.";
-
-    /// <summary>Validates the caller's options and captures their values.</summary>
+    /// <summary>Validates the caller's discovery options and captures their values.</summary>
     /// <param name="options">The public options; null means every default.</param>
     /// <returns>The snapshot.</returns>
     /// <exception cref="ArgumentException">A value is blank, the direct file is relative, or the
     /// members contradict one another.</exception>
-    public static ServiceSelection Snapshot(OpenCodeServerDiscoverOptions? options)
+    public static ServiceSelection Snapshot(OpenCodeServerDiscoverOptions? options) =>
+        options is null
+            ? new ServiceSelection(null, null, null, null)
+            : Validate(
+                nameof(OpenCodeServerDiscoverOptions) + ".",
+                nameof(options),
+                options.Channel,
+                options.RegistrationFilePath,
+                options.InstalledVersion,
+                options.ExpectedVersion);
+
+    /// <summary>Validates the caller's stop options and captures their values.</summary>
+    /// <param name="options">The public options; null means every default.</param>
+    /// <returns>The snapshot; a stop carries no expected version.</returns>
+    /// <exception cref="ArgumentException">A value is blank, the direct file is relative, or the
+    /// members contradict one another.</exception>
+    public static ServiceSelection Snapshot(OpenCodeServerStopOptions? options) =>
+        options is null
+            ? new ServiceSelection(null, null, null, null)
+            : Validate(
+                nameof(OpenCodeServerStopOptions) + ".",
+                nameof(options),
+                options.Channel,
+                options.RegistrationFilePath,
+                options.InstalledVersion,
+                expectedVersion: null);
+
+    /// <summary>
+    /// The one rule set both option types share; <paramref name="prefix"/> names the type in every
+    /// message and <paramref name="paramName"/> is the public method's parameter the exception names.
+    /// </summary>
+    private static ServiceSelection Validate(
+        string prefix, string paramName, string? channel, string? registrationFilePath, string? installedVersion, string? expectedVersion)
     {
-        if (options is null)
-        {
-            return new ServiceSelection(null, null, null, null);
-        }
-
-        var channel = options.Channel;
-        var registrationFilePath = options.RegistrationFilePath;
-        var installedVersion = options.InstalledVersion;
-        var expectedVersion = options.ExpectedVersion;
-
         if (IsBlank(channel))
         {
-            throw new ArgumentException(Prefix + "Channel cannot be blank; leave it null to use the shared release registration.", nameof(options));
+            throw new ArgumentException(prefix + "Channel cannot be blank; leave it null to use the shared release registration.", paramName);
         }
 
         if (IsBlank(registrationFilePath))
         {
-            throw new ArgumentException(Prefix + "RegistrationFilePath cannot be blank; leave it null to resolve the registration by channel.", nameof(options));
+            throw new ArgumentException(prefix + "RegistrationFilePath cannot be blank; leave it null to resolve the registration by channel.", paramName);
         }
 
         if (IsBlank(installedVersion))
         {
-            throw new ArgumentException(Prefix + "InstalledVersion cannot be blank; leave it null to migrate by channel prefix only.", nameof(options));
+            throw new ArgumentException(prefix + "InstalledVersion cannot be blank; leave it null to migrate by channel prefix only.", paramName);
         }
 
         if (IsBlank(expectedVersion))
         {
-            throw new ArgumentException(Prefix + "ExpectedVersion cannot be blank; leave it null to accept any ready service.", nameof(options));
+            throw new ArgumentException(prefix + "ExpectedVersion cannot be blank; leave it null to accept any ready service.", paramName);
         }
 
         if (registrationFilePath is not null)
         {
             if (channel is not null)
             {
-                throw new ArgumentException(Prefix + "RegistrationFilePath and Channel cannot both be set; a direct registration file has no channel.", nameof(options));
+                throw new ArgumentException(prefix + "RegistrationFilePath and Channel cannot both be set; a direct registration file has no channel.", paramName);
             }
 
             if (!IsFullyQualified(registrationFilePath))
             {
-                throw new ArgumentException(Prefix + "RegistrationFilePath must be an absolute path.", nameof(options));
+                throw new ArgumentException(prefix + "RegistrationFilePath must be an absolute path.", paramName);
             }
 
             if (installedVersion is not null)
             {
-                throw new ArgumentException(Prefix + "InstalledVersion has no meaning with RegistrationFilePath; direct-file discovery performs no migration.", nameof(options));
+                throw new ArgumentException(prefix + "InstalledVersion has no meaning with RegistrationFilePath; a direct registration file is never migrated.", paramName);
             }
 
             return new ServiceSelection(null, registrationFilePath, null, expectedVersion);
@@ -77,7 +97,7 @@ internal sealed record ServiceSelection(
         if (installedVersion is not null && expectedVersion is not null &&
             !string.Equals(installedVersion, expectedVersion, StringComparison.Ordinal))
         {
-            throw new ArgumentException(Prefix + "InstalledVersion and ExpectedVersion must be equal when both are set; the first-party CLI carries one compiled identity.", nameof(options));
+            throw new ArgumentException(prefix + "InstalledVersion and ExpectedVersion must be equal when both are set; the first-party CLI carries one compiled identity.", paramName);
         }
 
         return new ServiceSelection(channel, null, installedVersion ?? expectedVersion, expectedVersion);

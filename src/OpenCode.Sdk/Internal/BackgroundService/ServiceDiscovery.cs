@@ -27,13 +27,9 @@ internal sealed class ServiceDiscovery(
         var paths = new ServicePathResolver(environment).Resolve(selection);
         await new ServiceMigration(fileSystem).ApplyAsync(selection, paths, cancellationToken).ConfigureAwait(false);
 
-        var bytes = await TryReadAsync(paths.RegistrationFile, cancellationToken).ConfigureAwait(false);
-        if (bytes is null)
-        {
-            return null;
-        }
-
-        var registration = ServiceRegistrationReader.TryRead(bytes);
+        var registration = await new ServiceRegistrationFile(fileSystem)
+            .TryReadAsync(paths.RegistrationFile, cancellationToken)
+            .ConfigureAwait(false);
         if (registration is null || registration.Password is null)
         {
             // A registration without a password cannot materialize the handle's non-null
@@ -54,26 +50,5 @@ internal sealed class ServiceDiscovery(
         }
 
         return registration;
-    }
-
-    private async Task<byte[]?> TryReadAsync(string path, CancellationToken cancellationToken)
-    {
-        if (!fileSystem.FileExists(path))
-        {
-            return null;
-        }
-
-        try
-        {
-            return await fileSystem.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
-        }
-        catch (IOException)
-        {
-            return null;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return null;
-        }
     }
 }

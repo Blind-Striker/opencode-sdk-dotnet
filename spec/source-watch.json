@@ -308,9 +308,18 @@
       }
     },
     {
+      "path": "packages/client/src/pty-handoff.ts",
+      "sha256": "af8d82ded856bbd8e9df5ebbe196f40870e7ef90629340efbdc0a97e875b27cd",
+      "behavior": "The persistent-terminal handoff sidecar lives beside the registration file under the .pty-handoff suffix, written exclusively at mode 0600 through a temporary file and a rename; clear removes it and treats a missing file as already cleared, which is what a stop without a handoff does before it signals.",
+      "anchor": {
+        "type": "contains",
+        "text": "export async function clear(file: string)"
+      }
+    },
+    {
       "path": "packages/client/src/effect/service.ts",
       "sha256": "29ecd1d9aabc8a24462e8c5b9dba9ec74790e2fe12ac056e463c5f025dc9377c",
-      "behavior": "discover reads the registration file and probes /api/info with its Basic credential under the request timeout. The probe compares pid and the recorded version; an authenticated 404 (an older daemon still serving /api/status) marks the registered service incompatible without decoding a body. Discovery returns only a ready, compatible service whose version matches when requested.",
+      "behavior": "discover reads the registration file and probes /api/info with its Basic credential under the request timeout. The probe compares pid and the recorded version; an authenticated 404 (an older daemon still serving /api/status) marks the registered service incompatible without decoding a body. Discovery returns only a ready, compatible service whose version matches when requested. stop reads the registration, prepares a persistent-terminal handoff only when asked for one and clears the sidecar otherwise, then terminate re-reads the registration and compares id, version, url, and pid before every signal: SIGTERM, a poll of stopPollAttempts spaced stopPollInterval, SIGKILL when the process is still there, the same poll again, and the registration removed only when it is still the same record; a process still running after SIGKILL fails the stop and leaves the record in place.",
       "anchor": {
         "type": "contains",
         "text": "export const discover = Effect.fn(\u0022service.discover\u0022)"
@@ -445,10 +454,19 @@
     {
       "path": "packages/cli/src/services/server-connection.ts",
       "sha256": "cca1a3679d28168e1bec35af8d177cd4854a1e1d54dd9abb2e975cf336a944b5",
-      "behavior": "resolve routes the default CLI connection through ServiceConfig.options, which performs legacy registration migration before discovery or ensure and enables the version gate only when mismatch is not ignore. An explicit --server connection uses server.info with a five-second bound and warns on a version mismatch.",
+      "behavior": "resolve routes the default CLI connection through ServiceConfig.options, which performs legacy registration migration before discovery or ensure and enables the version gate only when mismatch is not ignore. An explicit --server connection uses server.info with a five-second bound and warns on a version mismatch. shutdownPersistentPty discovers with no version filter and, when a service answers, calls persistentPty.shutdown with no request bound; the managed restart stops with a handoff and ensures again.",
       "anchor": {
         "type": "contains",
         "text": "ServiceConfig.options({ checkVersion: mismatch !== \u0022ignore\u0022 })"
+      }
+    },
+    {
+      "path": "packages/cli/src/commands/handlers/service/stop.ts",
+      "sha256": "832723656ca2eb5d6e71acf32944888b0c739d9ba043f1a0fbe37ad0fe2607e9",
+      "behavior": "The CLI stop command resolves the channel options, asks the registered service to shut its persistent terminals down and ignores every failure of that request, then runs Service.stop, which clears the sidecar and terminates the registered process.",
+      "anchor": {
+        "type": "contains",
+        "text": "yield* Service.stop(options)"
       }
     }
   ]

@@ -11,7 +11,7 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 /// <param name="SpawnDelay">The delay before a contender is started while a registration is unresolved.</param>
 /// <param name="MaxSpawnDelay">The cap on the exit-0 backoff.</param>
 /// <param name="StopPollInterval">The spacing between liveness polls after a stop signal.</param>
-/// <param name="StopPollAttempts">The liveness polls per termination rung.</param>
+/// <param name="StopPollAttempts">The liveness polls per termination rung after the first look, so a rung waits about five seconds at the pin.</param>
 internal sealed record ServiceTiming(
     TimeSpan RequestTimeout,
     TimeSpan PollInterval,

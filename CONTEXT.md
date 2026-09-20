@@ -203,12 +203,20 @@ Upstream's `Standalone.start` connection mode.
 
 **Background service**:
 Upstream's registered daemon connection mode (`Service.discover/ensure/stop` over a
-registration file); in the SDK, `OpenCodeServer.DiscoverAsync` and the Ensure and Stop doors that
-follow it.
+registration file); in the SDK, `OpenCodeServer.DiscoverAsync` and `OpenCodeServer.StopAsync`,
+and the Ensure door that follows them.
 
 **Registration file**:
 The on-disk record a background service publishes (address, credential, instance identity) so
-clients can discover it; an upstream-observed contract outside the OpenAPI pin.
+clients can discover it; an upstream-observed contract outside the OpenAPI pin. Its identity is
+the four fields upstream's `same()` compares — `id`, `version`, `url`, `pid` — never the password.
+
+**Process identity**:
+The pid together with the start time the operating system recorded for the process. The token
+`StopAsync` compares immediately before every signal and at every look of its poll, so a pid the
+operating system reused for an unrelated process is never signalled and reads as the registered
+process being gone. Distinct from the registration file's identity, which names a service, not a
+process.
 
 **Registered server handle**:
 A non-owning `OpenCodeServer` produced by discovery (and later by Ensure): `OwnsProcess` is false

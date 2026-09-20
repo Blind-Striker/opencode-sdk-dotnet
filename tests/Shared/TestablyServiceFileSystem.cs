@@ -31,4 +31,15 @@ internal sealed class TestablyServiceFileSystem(IFileSystem fileSystem) : IServi
         await stream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
         return true;
     }
+
+    public bool TryDelete(string path)
+    {
+        if (!fileSystem.File.Exists(path))
+        {
+            return false;
+        }
+
+        fileSystem.File.Delete(path);
+        return true;
+    }
 }

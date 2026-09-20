@@ -13,6 +13,12 @@ internal static class ServiceRegistrationData
 
     public const string Passwordless = "{\"id\":\"srv_1\",\"version\":\"2.0.3\",\"url\":\"http://127.0.0.1:49374\",\"pid\":48213}";
 
+    /// <summary>The same service as <see cref="Passwordless"/> with its password: one identity, two documents.</summary>
+    public const string PasswordedTwin = "{\"id\":\"srv_1\",\"version\":\"2.0.3\",\"url\":\"http://127.0.0.1:49374\",\"pid\":48213,\"password\":\"s3cr3t-p455w0rd\"}";
+
+    /// <summary>The same service as <see cref="Passwordless"/> under another pid: a different identity.</summary>
+    public const string DuplicatePidResolved = "{\"id\":\"srv_1\",\"version\":\"2.0.3\",\"url\":\"http://127.0.0.1:49374\",\"pid\":48214}";
+
     public const string BlankPassword = "{\"url\":\"http://127.0.0.1:49374\",\"pid\":48213,\"password\":\"  \"}";
 
     public const string UnknownMembersSkipped = "{\"url\":\"http://127.0.0.1:49374\",\"pid\":48213,\"future\":{\"nested\":[1,2]},\"flag\":true}";

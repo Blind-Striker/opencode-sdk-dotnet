@@ -16,7 +16,8 @@ namespace OpenCode.Sdk;
 /// a forced tree kill; disposal ends exactly its own child, and the operating system closes the
 /// lease even when the owner crashes before disposal runs. <see cref="DiscoverAsync"/> returns a
 /// shared registered background service the first-party CLI runs for every client on the machine:
-/// nothing here owns it, and disposing the handle is a no-op. Either way the handle carries the
+/// nothing here owns it, and disposing the handle is a no-op; the static <see cref="StopAsync"/>
+/// is the one deliberate way to end that shared service. Either way the handle carries the
 /// endpoint and credential a client needs, and <see cref="CreateClient"/> is the door to them.
 /// </summary>
 public class OpenCodeServer : IAsyncDisposable
@@ -143,6 +144,38 @@ public class OpenCodeServer : IAsyncDisposable
         return registration is null
             ? null
             : new OpenCodeServer(registration.Endpoint, registration.Password!, registration.ProcessId, ownsProcess: false);
+    }
+
+    /// <summary>
+    /// Stops the registered background service the way <c>opencode service stop</c> does: resolves
+    /// the registration the options name (channel rules and legacy migration included), asks a
+    /// ready and compatible daemon to shut its persistent terminals down, clears the handoff
+    /// sidecar, then ends the registered process — a request to stop first, a hard kill when it
+    /// survives — and removes the registration once the process is gone. Every step re-reads the
+    /// registration and compares the process's identity (pid and start time), so a service that
+    /// re-registered or a pid the operating system reused is never signalled. A missing or corrupt
+    /// registration completes successfully; the shared service is shared, and this call is the one
+    /// deliberate way to end it — disposing a discovered handle never does.
+    /// </summary>
+    /// <param name="options">The stop options; null stops the shared release registration.</param>
+    /// <param name="cancellationToken">The caller's token. Cancellation before the first signal prevents it; after a signal it ends the bounded wait and leaves the registration in place.</param>
+    /// <returns>A task that completes when the registered process is gone or there was none to stop.</returns>
+    /// <exception cref="ArgumentException">An option is blank, the registration path is relative, or the options contradict one another.</exception>
+    /// <exception cref="OpenCodeServerException">No user home directory resolves for an XDG fallback, the handoff sidecar could not be removed, or the registered process is still running after the hard kill.</exception>
+    public static Task StopAsync(
+        OpenCodeServerStopOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        var timing = ServiceTiming.Default;
+        var fileSystem = new ServiceFileSystem();
+        var stopper = new ServiceStopper(
+            new ServiceEnvironment(),
+            fileSystem,
+            new ServiceInfoProbe(timing),
+            new ServicePtyShutdown(),
+            new ServiceProcessControl(),
+            timing);
+        return stopper.StopAsync(options, cancellationToken);
     }
 
     /// <summary>

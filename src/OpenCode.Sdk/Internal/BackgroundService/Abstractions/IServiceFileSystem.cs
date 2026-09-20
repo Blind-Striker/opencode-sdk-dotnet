@@ -1,9 +1,9 @@
 namespace OpenCode.Sdk.Internal.BackgroundService.Abstractions;
 
 /// <summary>
-/// The file access the background-service door performs, and nothing more: probe, read, and one
-/// exclusive create. The shipped implementation sits on <c>System.IO</c>; tests supply an adapter
-/// over the repository's filesystem double.
+/// The file access the background-service door performs, and nothing more: probe, read, one
+/// exclusive create, and one delete. The shipped implementation sits on <c>System.IO</c>; tests
+/// supply an adapter over the repository's filesystem double.
 /// </summary>
 internal interface IServiceFileSystem
 {
@@ -28,4 +28,12 @@ internal interface IServiceFileSystem
     /// <param name="cancellationToken">The caller's token.</param>
     /// <returns>True when the file was created; false when the target already existed.</returns>
     public Task<bool> TryCreateExclusiveAsync(string path, ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Deletes a file the way <c>rm -f</c> does: a missing file, or a missing directory above it,
+    /// is the false outcome rather than an error; a file that exists but cannot be removed throws.
+    /// </summary>
+    /// <param name="path">The absolute path.</param>
+    /// <returns>True when a file was removed; false when there was nothing to remove.</returns>
+    public bool TryDelete(string path);
 }

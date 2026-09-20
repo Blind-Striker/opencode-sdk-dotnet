@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-09-17
+Date: 2026-09-20
 
 Operational state: what ships today, what is queued next, what is still open, and what is known to
 be incomplete. This file is a summary and shrinks as work lands. `../AGENTS.md` routes to the
@@ -15,7 +15,7 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
 - **Protocol pin** — generation reads an accepted snapshot of upstream's OpenAPI document taken at
   a release tag, never a live branch, and refreshes are receipt-governed (ADR-0020).
   `../spec/SNAPSHOT.md` owns the exact commit and the refresh procedure.
-- **Coverage** — **129 of 134 operations selected** across 27 client families, with 3 declined by
+- **Coverage** — **130 of 136 operations selected** across 27 client families, with 4 declined by
   decision and 2 transport-owned (Known Gaps below); `src/OpenCode.Sdk/.generation-incomplete` is
   the committed marker and names every one. One-shot calls, server-sent event streams (the global
   bus and the per-session log), PTY and persistent-PTY WebSocket sessions, cursor pagination, typed
@@ -70,11 +70,16 @@ is revisited at each boundary.
    (`OpenCodeServer.StartAsync`, ADR-0001) and the explicit-endpoint validation option are landed
    with three-OS acceptance, an exact-pin server fixture, and a deterministic simulated-model
    session workflow (ADR-0022). **The background-service parity arc is in flight, and its first
-   slice has landed**: `OpenCodeServer.DiscoverAsync` over the registration file — an
+   two slices have landed**: `OpenCodeServer.DiscoverAsync` over the registration file — an
    upstream-observed contract outside the OpenAPI pin, so source-watched (ADR-0024, ADR-0025) —
    with a non-owning handle (`OwnsProcess`), the CLI's channel, migration, and status rules, and
-   live proof against the pin's own `serve --service` daemon on every runtime leg. `StopAsync`
-   and then `EnsureAsync` follow as their own slices.
+   live proof against the pin's own `serve --service` daemon on every runtime leg; and
+   `OpenCodeServer.StopAsync`, the CLI's `service stop` — persistent terminals shut down through
+   the generated door, the handoff sidecar cleared, the registered process ended by the pinned
+   `SIGTERM`/`SIGKILL` ladder (hard kills on Windows) with the registration re-read before every
+   signal and the process identified by pid and start time (ADR-0026), and the registration
+   removed once the process is gone — proven against the pin's own daemon and against a process
+   that ignores the first rung. `EnsureAsync` follows as its own slice.
    **Two generator slices rode inside M4 and have landed.** Fail-closed operation naming
    ([#86](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/86)): the HTTP method is
    never a name source — the closed grammar names an operation or a reason-bearing
@@ -161,15 +166,24 @@ is revisited at each boundary.
   not. The defect is
   [parcel-bundler/watcher#262](https://github.com/parcel-bundler/watcher/issues/262), where the
   standalone reproducer from this repository's investigation is on record.
-- **The downlevel Unix arm of the legacy-registration copy shells out for its file mode.**
-  Discovery's one-time copy of an older hashed registration is created exclusively at mode `0600`:
-  `net8.0` and later set the mode at creation through `FileStreamOptions.UnixCreateMode`, while
-  `net472` and `netstandard2.0` have no such API and apply it through Polyfill's
-  `File.SetUnixFileMode`, which spawns `chmod` with an unquoted path and no exit-code check. The
-  copy is a convenience the daemon's own registration supersedes, the population is .NET Framework
-  or Mono on Unix, and no CI leg runs that combination, so this is recorded rather than tested; the
-  README's Known Issues carries the consumer-facing sentence. Reopens if a supported target ever
-  needs that arm or if Polyfill quotes the path.
+- **The downlevel Unix arm of the background-service door is compiled, not run.** Discovery's
+  one-time copy of an older hashed registration is created exclusively at mode `0600`: `net8.0`
+  and later set the mode at creation through `FileStreamOptions.UnixCreateMode`, while `net472`
+  and `netstandard2.0` have no such API and apply it through Polyfill's `File.SetUnixFileMode`,
+  which spawns `chmod` with an unquoted path and no exit-code check. The stop door's Unix signal
+  rungs are a `DllImport` of `kill(2)` on that asset, where the `LibraryImport` generator the
+  modern targets use is unavailable (ADR-0026). The copy is a
+  convenience the daemon's own registration supersedes, the population of that arm is Mono on Unix
+  (`net472` is Windows-only), and no CI leg runs the combination, so both are recorded rather than
+  tested; the README's Known Issues carries the consumer-facing sentence. Reopens if a supported
+  target ever needs that arm or if Polyfill quotes the path.
+- **A pid reused before `StopAsync` runs is indistinguishable from a wedged daemon.** The
+  registration names a pid and no process start time, so a daemon that died and whose pid the
+  operating system handed to an unrelated process before a stop ran looks, to the file, like the
+  registered service still there. The identity token (ADR-0026) closes the window from the stop's
+  first look to its last signal — the upstream client compares registration fields only — and the
+  residual before it is upstream's too. Recorded, not solved; the registration file's write time
+  could bound it if it ever matters.
 - **Two allocation follow-ups are queued behind a benchmark gate** — on `net472` and
   `netstandard2.0` a response body over 1 MB costs one wire-sized copy, and each terminal connection
   allocates one 16 KiB receive buffer, reused across consumer reads. Both are described for consumers

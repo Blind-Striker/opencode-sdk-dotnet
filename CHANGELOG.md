@@ -63,6 +63,20 @@ Nightly builds of `master` are on
 - **`McpProtocol.Value20260728` is `McpProtocol.Revision20260728`.** The wire value `2026-07-28`
   is unchanged; a reviewed enum member-name row names the member.
 
+### ✨ Added
+
+- **`OpenCodeServer.StopAsync` stops the registered background service** — opencode's
+  `service stop` for your code, shaped by `OpenCodeServerStopOptions` (`Channel`,
+  `RegistrationFilePath`, `InstalledVersion`). It resolves the registration the way discovery does,
+  asks a ready daemon to shut its persistent terminals down, clears the handoff sidecar, ends the
+  registered process with the CLI's own ladder (`SIGTERM`, about five seconds, then `SIGKILL`;
+  hard kills on Windows), and removes the registration once the process is gone. The registration
+  is re-read before every signal and the process is identified by pid and start time, so a service
+  that re-registered under the file or a pid the operating system reused is never signalled. A
+  missing registration completes successfully; a process still running after the hard kill throws
+  `OpenCodeServerException` and leaves the registration in place. Disposing a discovered handle
+  still stops nothing.
+
 ### 🔧 Changes
 
 - **Discovery answers a stale registration at once on Windows.** `OpenCodeServer.DiscoverAsync`
