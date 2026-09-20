@@ -122,8 +122,13 @@ jobs:
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env['ACTIONS_RUNTIME_TOKEN']);
             core.exportVariable('ACTIONS_RESULTS_URL', process.env['ACTIONS_RESULTS_URL']);
 
+      # At most two test modules at once. MTP's default overlaps every module (processor count),
+      # so the four OpenCode.Sdk.Tests hosts and their pinned servers shared four vCPUs and each
+      # host ran ~2.3x slower than alone, which is where the two-second discovery probe and the
+      # .NET Framework thread pool started missing their bounds (2026-09-20 measurement: two at a
+      # time keeps the wall time and returns each host to within a third of its solo speed).
       - name: Test
-        run: dotnet test --configuration Release --no-build -- --report-trx --results-directory "${{ github.workspace }}/test-results"
+        run: dotnet test --configuration Release --no-build --max-parallel-test-modules 2 -- --report-trx --results-directory "${{ github.workspace }}/test-results"
         env:
           TUNIT_ARTIFACT_RETENTION_DAYS: 7
 

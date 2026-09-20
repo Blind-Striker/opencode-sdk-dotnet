@@ -96,6 +96,15 @@ Repository generation is a separate mutating path: after writing generated sourc
 runs project-scoped full format over only generator-owned paths. That canonicalization step is not
 the solution-wide CI lint gate this split optimizes.
 
+CI runs the test step with `--max-parallel-test-modules 2`. Microsoft.Testing.Platform overlaps
+every test module by default (up to the processor count), and on the four-vCPU hosted runners the
+four `OpenCode.Sdk.Tests` hosts with their pinned servers ran each other about 2.3× slower than
+alone, which is where the discovery probe's two-second bound and the .NET Framework thread pool
+missed under load; two modules at a time keeps the wall time and returns each host to within a
+third of its solo speed (measured 2026-09-20). The local gate on a workstation needs no cap, and a
+live test whose proof rides a wall-clock bound the host can miss carries the keyless
+`[NotInParallel]` (`tests/Shared/ParallelConstraintKeys.cs`).
+
 ## Distributed-build consumer leg
 
 Every gate above exercises the server built from the pinned commit: the `external/opencode`
