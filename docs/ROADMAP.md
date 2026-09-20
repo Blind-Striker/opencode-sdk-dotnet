@@ -110,7 +110,10 @@ is revisited at each boundary.
 6. **M6 — Operational closure.** Automation for the upstream observation lanes (tip detector,
    candidate refresh), retry/telemetry/hooks with the public network-timeout knob and the
    per-operation event-stream idle bound it gates, a quarantine lane, the nightly source-run
-   canary with the performance suite (ADR-0022), and Restore-patch retirement.
+   canary with the performance suite (ADR-0022), Restore-patch retirement, and an evaluation of
+   moving the repository to an organization for larger CI runners (GitHub larger runners and
+   third-party providers are organization-only; the three legs run on the free 4-vCPU public
+   runners today, macOS on 3).
 
 ## Open Questions
 
