@@ -490,6 +490,64 @@ public sealed class ModelMaterializationMatrixTests
     }
 
     /// <summary>
+    /// The open-object shape end to end: the named member materializes typed, every member the
+    /// document leaves open lands in the extension-data bag under its wire name, and both sides
+    /// serialize back, so nothing the server sent is lost.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Compile_And_Roundtrip_An_Open_Models_Extension_Data()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("OpenSettings", schema => schema
+                .Type("object")
+                .Property("timeout", property => property.Type("number"))
+                .AllOf(rest => rest.Type("object").AdditionalProperties(value => value.Unrestricted())))
+            .WithSchema("WidgetError", schema => schema
+                .Type("object")
+                .AdditionalPropertiesFalse()
+                .Property("_tag", property => property.Type("string").Enum("WidgetError"), required: true)
+                .Property("message", property => property.Type("string"), required: true))
+            .WithOperation("settings.get", path: "/api/settings", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("OpenSettings"))
+                .Response(400, "application/json", schema => schema.Ref("WidgetError")))));
+        var plan = new BindingTestHost().Bind(document, Selection("settings.get"), Curation(Groups("settings", RootGroup())));
+
+        var assembly = await GeneratedSourceCompiler.CompileAndLoadWithSdkCoreAsync(SourceEmitter.Emit(plan));
+        var typeInfo = ResolveTypeInfo(assembly, "OpenCode.Sdk.Models.OpenSettings");
+
+        var value = Deserialize(
+            new JsonObject
+            {
+                ["timeout"] = 2.5,
+                ["baseURL"] = "https://example.test",
+                ["nested"] = new JsonObject { ["enabled"] = true, },
+            },
+            typeInfo);
+        await Assert.That(GetProperty(value, "Timeout")).IsEqualTo(2.5);
+        var bag = (IReadOnlyDictionary<string, JsonElement>)(GetProperty(value, "AdditionalProperties")
+                                                            ?? throw new InvalidOperationException("The open members materialized to null."));
+        await Assert.That(bag.Keys).IsEquivalentTo(["baseURL", "nested"]);
+        await Assert.That(bag["baseURL"].GetString()).IsEqualTo("https://example.test");
+        await Assert.That(bag["nested"].GetProperty("enabled").GetBoolean()).IsTrue();
+        // The serializer's writable bag is not part of the public surface.
+        await Assert.That(value.GetType().GetProperty("OpenMembers", BindingFlags.Instance | BindingFlags.Public)).IsNull();
+
+        using var document2 = JsonDocument.Parse(await SerializeAsync(value, typeInfo));
+        await Assert.That(document2.RootElement.GetProperty("timeout").GetDouble()).IsEqualTo(2.5);
+        await Assert.That(document2.RootElement.GetProperty("baseURL").GetString()).IsEqualTo("https://example.test");
+        await Assert.That(document2.RootElement.GetProperty("nested").GetProperty("enabled").GetBoolean()).IsTrue();
+        await Assert.That(document2.RootElement.TryGetProperty("openMembers", out _)).IsFalse();
+        await Assert.That(document2.RootElement.TryGetProperty("additionalProperties", out _)).IsFalse();
+
+        // A body without open members answers the shared empty view; the serializer creates the
+        // internal bag only on the first open member, which the emitter test pins by shape (no
+        // initializer on the bag).
+        var closed = Deserialize(new JsonObject { ["timeout"] = 1.0, }, typeInfo);
+        await Assert.That((IReadOnlyDictionary<string, JsonElement>)GetProperty(closed, "AdditionalProperties")!).IsEmpty();
+        await Assert.That(await SerializeAsync(closed, typeInfo)).IsEqualTo("""{"timeout":1}""");
+    }
+
+    /// <summary>
     /// The four container envelope shapes Task 4 wires through <c>TypePlanBinder</c>: a
     /// Data-wrapped list, a Data-wrapped dictionary, a bare list, and a bare dictionary. One
     /// compile carries all four so the round trip pays the Roslyn cost once; each leg asserts

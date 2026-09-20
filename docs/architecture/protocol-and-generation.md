@@ -117,6 +117,17 @@ implementation knowledge (ADR-0013).
   wrapper is generic, so no type-level converter can name it. A member-level converter costs the
   containing type its serialization fast path, which makes `JsonSourceGenerationMode.Metadata` on
   the emitted registry load-bearing rather than a performance preference (ADR-0004, ADR-0014).
+- An object schema that declares named properties beside an unrestricted additional-properties
+  schema — Effect's `StructWithRest` over `Record(String, Any)`, which the document encodes as a
+  single-element `allOf` carrying only the rest's `additionalProperties` — emits its named members
+  plus a public `AdditionalProperties` view, an init-only `IReadOnlyDictionary<string, JsonElement>`
+  holding every other wire member by name (empty, never null, when the body carried none), so no
+  member the server sent is lost. The serializer fills that view through an internal
+  `[JsonExtensionData]` bag the model also carries: System.Text.Json deserializes extension data
+  only through a settable member and refuses an init-only one, so the settable member is internal
+  and the public surface keeps the init-only rule above; the bag is created on the first open
+  member, so a body without one allocates nothing. A typed additional-properties schema beside
+  named properties still refuses: no member could carry it without loss.
 - A required or present value uses nullable C# only when the selected representation needs CLR null
   to materialize JSON null. A source-generation-proven in-band null carrier remains non-nullable;
   `JsonElement` currently carries JSON null through `JsonValueKind.Null` (ADR-0004, ADR-0014).

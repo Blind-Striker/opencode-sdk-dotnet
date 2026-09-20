@@ -2941,8 +2941,8 @@ namespace OpenCode.Sdk.Models
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ProviderCompactionJsonConverter))]
     public interface IProviderCompaction
     {
-        [System.Text.Json.Serialization.JsonPropertyName("mode")]
-        string Mode { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        string Type { get; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ReferenceSourceJsonConverter))]
     public interface IReferenceSource
@@ -3943,9 +3943,6 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("capabilities")]
         public required OpenCode.Sdk.Models.ModelCapabilities Capabilities { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-        [System.Text.Json.Serialization.JsonPropertyName("compaction")]
-        public OpenCode.Sdk.Models.IProviderCompaction? Compaction { get; init; }
-        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("compatibility")]
         public OpenCode.Sdk.Models.ModelCompatibility? Compatibility { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("cost")]
@@ -3973,14 +3970,11 @@ namespace OpenCode.Sdk.Models
         public required string ProviderId { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("settings")]
-        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Settings { get; init; }
+        public OpenCode.Sdk.Models.ModelSettings? Settings { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("status")]
         public required OpenCode.Sdk.Models.ModelInfoStatus Status { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("time")]
         public required OpenCode.Sdk.Models.ModelInfoTime Time { get; init; }
-        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-        [System.Text.Json.Serialization.JsonPropertyName("transport")]
-        public OpenCode.Sdk.Models.ProviderTransport? Transport { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("variants")]
         public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.ModelVariant> Variants { get; init; }
     }
@@ -4032,6 +4026,15 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("variant")]
         public string? Variant { get; init; }
     }
+    public sealed class ModelSettings : System.IEquatable<OpenCode.Sdk.Models.ModelSettings>
+    {
+        public ModelSettings() { }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> AdditionalProperties { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("compaction")]
+        public OpenCode.Sdk.Models.IProviderCompaction? Compaction { get; init; }
+    }
     public sealed class ModelUpdated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.ModelUpdated>
     {
         public ModelUpdated() { }
@@ -4063,7 +4066,7 @@ namespace OpenCode.Sdk.Models
         public required string Id { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("settings")]
-        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Settings { get; init; }
+        public OpenCode.Sdk.Models.ModelSettings? Settings { get; init; }
     }
     public sealed class ModelsDevRefreshed : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.ModelsDevRefreshed>
     {
@@ -4791,20 +4794,17 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("text")]
         public string? Text { get; init; }
     }
-    public sealed class ProviderCompactionLocal : OpenCode.Sdk.Models.IProviderCompaction, System.IEquatable<OpenCode.Sdk.Models.ProviderCompactionLocal>
+    public sealed class ProviderCompactionNative : OpenCode.Sdk.Models.IProviderCompaction, System.IEquatable<OpenCode.Sdk.Models.ProviderCompactionNative>
     {
-        public ProviderCompactionLocal() { }
-        [System.Text.Json.Serialization.JsonPropertyName("mode")]
-        public string Mode { get; }
+        public ProviderCompactionNative() { }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
     }
-    public sealed class ProviderCompactionProvider : OpenCode.Sdk.Models.IProviderCompaction, System.IEquatable<OpenCode.Sdk.Models.ProviderCompactionProvider>
+    public sealed class ProviderCompactionSummary : OpenCode.Sdk.Models.IProviderCompaction, System.IEquatable<OpenCode.Sdk.Models.ProviderCompactionSummary>
     {
-        public ProviderCompactionProvider() { }
-        [System.Text.Json.Serialization.JsonPropertyName("mode")]
-        public string Mode { get; }
-        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-        [System.Text.Json.Serialization.JsonPropertyName("threshold")]
-        public long? Threshold { get; init; }
+        public ProviderCompactionSummary() { }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
     }
     public sealed class ProviderInfo : System.IEquatable<OpenCode.Sdk.Models.ProviderInfo>
     {
@@ -4817,9 +4817,6 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("canonical")]
         public string? Canonical { get; init; }
-        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-        [System.Text.Json.Serialization.JsonPropertyName("compaction")]
-        public OpenCode.Sdk.Models.IProviderCompaction? Compaction { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("headers")]
         public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
@@ -4834,10 +4831,7 @@ namespace OpenCode.Sdk.Models
         public required string Package { get; init; }
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("settings")]
-        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Settings { get; init; }
-        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-        [System.Text.Json.Serialization.JsonPropertyName("transport")]
-        public OpenCode.Sdk.Models.ProviderTransport? Transport { get; init; }
+        public OpenCode.Sdk.Models.ProviderSettings? Settings { get; init; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.ProviderInfoActivation>))]
     public enum ProviderInfoActivation
@@ -4867,7 +4861,42 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("headers")]
         public required System.Collections.Generic.IReadOnlyDictionary<string, string> Headers { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("settings")]
-        public required System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> Settings { get; init; }
+        public required OpenCode.Sdk.Models.ProviderSettings Settings { get; init; }
+    }
+    public sealed class ProviderSettings : System.IEquatable<OpenCode.Sdk.Models.ProviderSettings>
+    {
+        public ProviderSettings() { }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> AdditionalProperties { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("chunkTimeout")]
+        public double? ChunkTimeout { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("compaction")]
+        public OpenCode.Sdk.Models.IProviderCompaction? Compaction { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("timeout")]
+        public OpenCode.Sdk.Models.ProviderSettingsTimeout? Timeout { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("transport")]
+        public OpenCode.Sdk.Models.ProviderTransport? Transport { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ProviderSettingsTimeoutJsonConverter))]
+    public sealed class ProviderSettingsTimeout : System.IEquatable<OpenCode.Sdk.Models.ProviderSettingsTimeout>
+    {
+        public bool Boolean { get; }
+        public OpenCode.Sdk.Models.ProviderSettingsTimeoutKind Kind { get; }
+        public double Number { get; }
+        public System.Text.Json.JsonElement Unknown { get; }
+        public static OpenCode.Sdk.Models.ProviderSettingsTimeout FromBoolean(bool value) { }
+        public static OpenCode.Sdk.Models.ProviderSettingsTimeout FromNumber(double value) { }
+        public static OpenCode.Sdk.Models.ProviderSettingsTimeout FromUnknown(System.Text.Json.JsonElement value) { }
+    }
+    public enum ProviderSettingsTimeoutKind
+    {
+        Number = 0,
+        Boolean = 1,
+        Unknown = 2,
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.ProviderTransport>))]
     public enum ProviderTransport
@@ -9383,10 +9412,10 @@ namespace OpenCode.Sdk.Models
     public sealed class UnknownProviderCompaction : OpenCode.Sdk.Models.IProviderCompaction, System.IEquatable<OpenCode.Sdk.Models.UnknownProviderCompaction>
     {
         [System.Text.Json.Serialization.JsonConstructor]
-        public UnknownProviderCompaction(string mode, System.Text.Json.JsonElement payload) { }
-        [System.Text.Json.Serialization.JsonPropertyName("mode")]
-        public string Mode { get; }
+        public UnknownProviderCompaction(string type, System.Text.Json.JsonElement payload) { }
         public System.Text.Json.JsonElement Payload { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownReferenceSourceJsonConverter))]
     public sealed class UnknownReferenceSource : OpenCode.Sdk.Models.IReferenceSource, System.IEquatable<OpenCode.Sdk.Models.UnknownReferenceSource>

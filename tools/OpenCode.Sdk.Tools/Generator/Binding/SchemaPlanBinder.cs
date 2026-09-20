@@ -632,12 +632,8 @@ internal sealed class SchemaPlanBinder(
     private static ObjectModelPlan? BindObject(string key, string name, ObjectNode node, Dictionary<string, List<string>> inheritance,
         bool isRequestReachable, TypePlanBinder typeBinder, BindingErrorCollector errors)
     {
-        if (node.AdditionalProperties is AdditionalPropertiesKind.Schema)
+        if (!TryAdmitAdditionalProperties(key, node, errors, out var emitsExtensionData))
         {
-            errors.Add(
-                BindingErrorCategory.Schema,
-                string.Concat(key, "/additionalProperties"),
-                "named properties and schema-valued additional properties cannot be represented without data loss");
             return null;
         }
 
@@ -693,6 +689,11 @@ internal sealed class SchemaPlanBinder(
             return null;
         }
 
+        if (emitsExtensionData && TakesExtensionDataMemberName(key, properties, errors))
+        {
+            return null;
+        }
+
         return new ObjectModelPlan
         {
             Name = name,
@@ -700,7 +701,53 @@ internal sealed class SchemaPlanBinder(
             Description = node.Description,
             Properties = properties,
             ImplementedUnionNames = inheritance.TryGetValue(key, out var implemented) ? implemented : [],
+            EmitsExtensionData = emitsExtensionData,
         };
+    }
+
+    /// <summary>
+    /// Only a bag that admits any value rides beside named properties without loss: JsonElement
+    /// carries every token exactly as sent, so the record gains the extension-data member. A
+    /// typed bag would need a member no record has, so it keeps refusing. Returns whether the
+    /// object binds at all; the out value says whether it carries the bag.
+    /// </summary>
+    private static bool TryAdmitAdditionalProperties(string key, ObjectNode node, BindingErrorCollector errors, out bool emitsExtensionData)
+    {
+        emitsExtensionData = false;
+        if (node.AdditionalProperties is not AdditionalPropertiesKind.Schema)
+        {
+            return true;
+        }
+
+        if (node.AdditionalPropertiesSchema is not (UnrestrictedNode or NullableNode { Inner: UnrestrictedNode }))
+        {
+            errors.Add(
+                BindingErrorCategory.Schema,
+                string.Concat(key, "/additionalProperties"),
+                "named properties and typed additional properties cannot be represented without data loss; only an unrestricted bag rides as extension data");
+            return false;
+        }
+
+        emitsExtensionData = true;
+        return true;
+    }
+
+    /// <summary>A named property whose C# name is one of the two extension-data members' refuses the object rather than shadowing them.</summary>
+    private static bool TakesExtensionDataMemberName(string key, IEnumerable<ModelPropertyPlan> properties, BindingErrorCollector errors)
+    {
+        var taken = properties.FirstOrDefault(static property =>
+            string.Equals(property.Name, ObjectModelPlan.ExtensionDataMemberName, StringComparison.Ordinal)
+            || string.Equals(property.Name, ObjectModelPlan.ExtensionDataBagName, StringComparison.Ordinal));
+        if (taken is null)
+        {
+            return false;
+        }
+
+        errors.Add(
+            BindingErrorCategory.Naming,
+            key,
+            $"a property maps to C# name '{taken.Name}', which the extension-data member takes");
+        return true;
     }
 
     /// <summary>Each value's member name is its reason-bearing row when one exists, else its mechanical Pascal casing.</summary>

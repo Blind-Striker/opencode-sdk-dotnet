@@ -138,7 +138,7 @@
     },
     {
       "path": "packages/cli/package.json",
-      "sha256": "a19824f22a9375d9a57e9dfab68dd4aaa274bead2f29098fcc36998b526a40ed",
+      "sha256": "a255187e4bc46ea7f0a55bc1d1a5dd40ec10670b995fcc467b21e225e694ebf4",
       "behavior": "The CLI package bin map names \u0022opencode\u0022 as the installed command and keeps \u0022opencode2\u0022 as a transitional alias of the same launcher, so the shipped launcher default resolves \u0022opencode\u0022 from PATH.",
       "anchor": {
         "type": "contains",
@@ -147,7 +147,7 @@
     },
     {
       "path": "packages/core/package.json",
-      "sha256": "798196e833362ef970ab7c6516c27c43f9b5d625e9baba1da9e1f9ceec70c006",
+      "sha256": "791c322eb8be665d99933ed6f4245c1769d5ed5892c8a8ecc1f122b8f20057d2",
       "behavior": "The opencode-pty daemon dependency is pinned at 0.1.13, which fixes the daemon protocol the persistent-PTY door speaks.",
       "anchor": {
         "type": "contains",
@@ -192,7 +192,7 @@
     },
     {
       "path": "packages/tui/src/component/terminal-pane.tsx",
-      "sha256": "093707d4950af377f9a49d0c4f43d4ec1a289b7d04d47d894ea9f713ce026371",
+      "sha256": "d712ebc9f77e02d8f4350ddf96c62efb702b3813f679b0e3e7af60ec6f1cb6f1",
       "behavior": "Behavioral oracle: the TUI resumes a terminal from the snapshot tail cursor.",
       "anchor": {
         "type": "contains",
@@ -282,7 +282,7 @@
     },
     {
       "path": "packages/cli/script/publish.ts",
-      "sha256": "8df8035798e3efbcac121535368a9add29896ef81255aba6ff268757939b4c7a",
+      "sha256": "ef9fb340b3db84ef9337d07244731da6df77ef1b62173981a168ff8bbeba9e6c",
       "behavior": "The published package\u0027s bin map names opencode as the command and opencode2 as the legacy alias of the same binary, which is the contract behind the launcher\u0027s default command.",
       "anchor": {
         "type": "contains",
@@ -318,8 +318,8 @@
     },
     {
       "path": "packages/client/src/effect/service.ts",
-      "sha256": "29ecd1d9aabc8a24462e8c5b9dba9ec74790e2fe12ac056e463c5f025dc9377c",
-      "behavior": "discover reads the registration file and probes /api/info with its Basic credential under the request timeout. The probe compares pid and the recorded version; an authenticated 404 (an older daemon still serving /api/status) marks the registered service incompatible without decoding a body. Discovery returns only a ready, compatible service whose version matches when requested. stop reads the registration, prepares a persistent-terminal handoff only when asked for one and clears the sidecar otherwise, then terminate re-reads the registration and compares id, version, url, and pid before every signal: SIGTERM, a poll of stopPollAttempts spaced stopPollInterval, SIGKILL when the process is still there, the same poll again, and the registration removed only when it is still the same record; a process still running after SIGKILL fails the stop and leaves the record in place.",
+      "sha256": "611942c3fb24928f497378388acb472f1c72799614be9a3bc248c8a4fa153b3e",
+      "behavior": "discover reads the registration file and probes /api/info with its Basic credential under the request timeout. The probe compares pid and the recorded version; an authenticated 404 (an older daemon still serving /api/status) marks the registered service incompatible without decoding a body. Discovery returns only a ready, compatible service whose version matches when requested. ensure repeats that probe every pollInterval until a compatible ready service answers, keeping one contender plus one lock probe alive while the registration is unresolved and replacing an incompatible service, and gives up after promiseTimeout of wall-clock time rather than after a fixed attempt count. stop reads the registration, prepares a persistent-terminal handoff only when asked for one and clears the sidecar otherwise, then terminate re-reads the registration and compares id, version, url, and pid before every signal: SIGTERM, a poll of stopPollAttempts spaced stopPollInterval, SIGKILL when the process is still there, the same poll again, and the registration removed only when it is still the same record; a process still running after SIGKILL fails the stop and leaves the record in place.",
       "anchor": {
         "type": "contains",
         "text": "export const discover = Effect.fn(\u0022service.discover\u0022)"
@@ -327,8 +327,8 @@
     },
     {
       "path": "packages/client/src/service-timing.ts",
-      "sha256": "41fb1170b3231cad4cea9c9760ba37f12a34d936070d987cc3c4df9189539249",
-      "behavior": "The client\u0027s timing constants: a 2-second health request timeout and the poll and startup bounds ServiceTiming.Default mirrors value for value.",
+      "sha256": "138404ab009baece27551fdbf5586266d43f7979bff4959adb094dc890a329b3",
+      "behavior": "The client\u0027s timing constants: a 2-second info request timeout, the 25 ms poll spacing, the spawn delays, and the stop poll ServiceTiming.Default mirrors value for value, plus the 120-second promiseTimeout that bounds the ensure loop by wall clock, which Ensure reads at its own pin.",
       "anchor": {
         "type": "contains",
         "text": "requestTimeout: 2_000,"
@@ -467,6 +467,15 @@
       "anchor": {
         "type": "contains",
         "text": "yield* Service.stop(options)"
+      }
+    },
+    {
+      "path": "package.json",
+      "sha256": "bc6c4a372af3ca9b4eb47bf41ce7adb6d9c10bcb061faa60fc65c3bf7b083356",
+      "behavior": "The workspace catalog pins the Effect release the protocol document is generated with, whose JSON Schema encoding of StructWithRest (a struct\u0027s properties beside a single-element allOf carrying only the rest\u0027s additionalProperties) the projector admits as an open object; an Effect bump is reviewed against that encoding before the snapshot moves.",
+      "anchor": {
+        "type": "contains",
+        "text": "\u0022effect\u0022: \u00224.0.0-rc.112\u0022"
       }
     }
   ]

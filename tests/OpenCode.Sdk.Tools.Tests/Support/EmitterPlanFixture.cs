@@ -32,7 +32,7 @@ internal static class EmitterPlanFixture
             CreateExampleItem(), CreateExamplePlace(), CreateExampleMode(),
             CreateVariant("CreatedEvent", "created", "item", "Item", Named("ExampleItem")),
             CreateVariant("DeletedEvent", "deleted", "id", "ID", Named("string")),
-            CreateRpcEvent(), CreateError(), CreateWidgetCreateRequest(),
+            CreateRpcEvent(), CreateError(), CreateWidgetCreateRequest(), CreateOpenSettings(),
         };
         var unions = new[] { CreateExampleEvent(), CreateOpenCodeError(), };
 
@@ -732,10 +732,25 @@ internal static class EmitterPlanFixture
                 plan.Models.Single(static model => model.Name == "ExampleItem"),
                 plan.Models.Single(static model => model.Name == "ExampleMode"),
                 plan.Models.Single(static model => model.Name == "WidgetCreateRequest"),
+                plan.Models.Single(static model => model.Name == "OpenSettings"),
             ],
             Unions = [plan.Unions.Single(static union => union.Name == "IOpenCodeError")],
         };
     }
+
+    /// <summary>A model whose remaining members the document leaves open: named members plus the extension-data bag.</summary>
+    private static ObjectModelPlan CreateOpenSettings() =>
+        new()
+        {
+            Name = "OpenSettings",
+            Namespace = "OpenCode.Sdk.Models",
+            Description = "Represents settings whose remaining members the document leaves open.",
+            Properties =
+            [
+                Property("timeout", "Timeout", Named("double", isNullable: true), isRequired: false, "Gets the timeout value."),
+            ],
+            EmitsExtensionData = true,
+        };
 
     public static IReadOnlyList<UnionPlan> CreateUnionSnapshot() => [CreateExampleEvent(), CreateExamplePhase()];
 

@@ -123,9 +123,10 @@ internal sealed class ObjectSchemaProjector
         }
 
         SchemaNode? additionalPropertiesSchema = null;
-        if (schema.AdditionalProperties is not null)
+        var (additionalPropertiesSource, additionalPropertiesPointer) = ResolveAdditionalProperties(schema, pointer);
+        if (additionalPropertiesSource is not null && additionalPropertiesPointer is not null)
         {
-            additionalPropertiesSchema = _schemaProjector.Project(schema.AdditionalProperties, root, _keys.Append(pointer, "additionalProperties"), state);
+            additionalPropertiesSchema = _schemaProjector.Project(additionalPropertiesSource, root, additionalPropertiesPointer, state);
             if (additionalPropertiesSchema is null)
             {
                 return null;
@@ -156,6 +157,26 @@ internal sealed class ObjectSchemaProjector
             PrefixMarkers = prefixMarkers,
             ErrorStyle = _errorStyleClassifier.Classify(projectedProperties),
         };
+    }
+
+    /// <summary>
+    /// The host's own additionalProperties, or the rest wrapper's when the host carries the
+    /// StructWithRest encoding (<see cref="RestWrapperPolicy"/>); the pointer names where the
+    /// document really says it, so a promoted value keeps an honest graph key.
+    /// </summary>
+    private (IOpenApiSchema? Schema, string? Pointer) ResolveAdditionalProperties(OpenApiSchema schema, string pointer)
+    {
+        if (schema.AdditionalProperties is { } own)
+        {
+            return (own, _keys.Append(pointer, "additionalProperties"));
+        }
+
+        if (RestWrapperPolicy.TryGetRest(schema) is { } rest)
+        {
+            return (rest, _keys.Append(_keys.Append(_keys.Append(pointer, "allOf"), "0"), "additionalProperties"));
+        }
+
+        return (null, null);
     }
 
     private static LiteralMarker[] CollectLiteralMarkers(IReadOnlyList<SpecProperty> projectedProperties) =>

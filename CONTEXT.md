@@ -123,7 +123,7 @@ selects a registered strategy for creation; removal uses the recorded strategy. 
 strategy list or choose server defaults.
 
 **Workspace**:
-An upstream core addressing concept retained in some event/log contracts. The 2.0.8 public HTTP
+An upstream core addressing concept retained in some event/log contracts. The 2.0.11 public HTTP
 API exposes neither workspace lifecycle operations nor workspace request targeting.
 
 **Instance**:
@@ -187,7 +187,7 @@ every input or control message carries the viewport it was typed at.
 
 **Protocol surface** (historically "modern surface" in dated research docs):
 The pinned protocol API document — the surface this SDK generates (ADR-0005). Operation IDs
-are prefixless in 2.0.8; public names carry no protocol-version prefix.
+are prefixless in 2.0.11; public names carry no protocol-version prefix.
 _Avoid_: v2, V2 (in public naming); legacy (the retired 1.x dual-surface vocabulary)
 
 **Launcher**:
@@ -346,7 +346,7 @@ union's prefix-tagged arm at runtime (tag string + raw payload).
 
 **Plugin activation**:
 The asynchronous per-Location settling of a server's plugins, during which Providers register and
-the model catalog fills. The 2.0.8 HTTP API has no activation barrier. An info answer proves
+the model catalog fills. The 2.0.11 HTTP API has no activation barrier. An info answer proves
 process liveness only; a catalog read can observe an empty or partial registry. Consumers that
 require a particular registration wait for that identity under a bounded cancellation token.
 _Avoid_: readiness (that is the launcher's stdout contract, a different thing).

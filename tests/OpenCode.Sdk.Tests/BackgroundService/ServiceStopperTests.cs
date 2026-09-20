@@ -27,7 +27,6 @@ public sealed class ServiceStopperTests
     private static readonly ServiceTiming Timing = new(
         RequestTimeout: TimeSpan.FromSeconds(2),
         PollInterval: TimeSpan.FromMilliseconds(1),
-        Attempts: 1,
         SpawnDelay: TimeSpan.Zero,
         MaxSpawnDelay: TimeSpan.Zero,
         StopPollInterval: TimeSpan.FromMilliseconds(2),
