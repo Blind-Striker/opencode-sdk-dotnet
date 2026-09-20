@@ -264,4 +264,128 @@ public sealed class SchemaProjectorObjectTests
         var node = (ObjectNode)result.Schemas["Plain"];
         await Assert.That(node.PrefixMarkers).IsEmpty();
     }
+
+    /// <summary>
+    /// Effect's <c>StructWithRest(Struct({…}), [Record(String, Any)])</c> lands as the struct's
+    /// <c>properties</c> beside a single-element <c>allOf</c> whose only content is the rest's
+    /// <c>additionalProperties</c>; the wrapper reads as the host's own additional properties.
+    /// </summary>
+    [Test]
+    public async Task Project_Should_Fold_A_Rest_Wrapper_Into_The_Additional_Properties()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema("ProviderSettings", schema => schema
+            .Type("object")
+            .Property("timeout", property => property.Type("number"))
+            .AllOf(rest => rest.Type("object").AdditionalProperties(value => value.Unrestricted()))));
+
+        var result = await host.ProjectAsync(scenario);
+
+        var node = (ObjectNode)result.Schemas["ProviderSettings"];
+        await Assert.That(node.AdditionalProperties).IsEqualTo(AdditionalPropertiesKind.Schema);
+        await Assert.That(node.AdditionalPropertiesSchema).IsTypeOf<UnrestrictedNode>();
+        await Assert.That(node.Properties.Single(static property => property.Name == "timeout").IsRequired).IsFalse();
+        await Assert.That(node.Children).Count().IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task Project_Should_Fold_A_Rest_Wrapper_Whose_Values_Admit_Null()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema("ConfigProviderSettings", schema => schema
+            .Type("object")
+            .Property("timeout", property => property.Type("number"))
+            .AllOf(rest => rest.Type("object").AdditionalProperties(value => value.AnyOf(
+                any => any.Unrestricted(),
+                nothing => nothing.Type("null"))))));
+
+        var result = await host.ProjectAsync(scenario);
+
+        var node = (ObjectNode)result.Schemas["ConfigProviderSettings"];
+        await Assert.That(node.AdditionalProperties).IsEqualTo(AdditionalPropertiesKind.Schema);
+        await Assert.That(node.AdditionalPropertiesSchema).IsTypeOf<NullableNode>();
+        await Assert.That(((NullableNode)node.AdditionalPropertiesSchema!).Inner).IsTypeOf<UnrestrictedNode>();
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_A_Rest_Wrapper_With_More_Than_One_Element()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema("Bad", schema => schema
+            .Type("object")
+            .Property("timeout", property => property.Type("number"))
+            .AllOf(
+                rest => rest.Type("object").AdditionalProperties(value => value.Unrestricted()),
+                more => more.Type("object").AdditionalProperties(value => value.Unrestricted()))));
+
+        var exception = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(exception.Message).Contains("allOf");
+        await Assert.That(exception.Message).Contains("supported core shape");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_A_Rest_Wrapper_That_Declares_Properties()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema("Bad", schema => schema
+            .Type("object")
+            .Property("timeout", property => property.Type("number"))
+            .AllOf(rest => rest
+                .Type("object")
+                .Property("extra", property => property.Type("string"))
+                .AdditionalProperties(value => value.Unrestricted()))));
+
+        var exception = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(exception.Message).Contains("allOf");
+        await Assert.That(exception.Message).Contains("supported core shape");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_A_Rest_Wrapper_That_Is_A_Reference()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec
+            .WithSchema("Rest", schema => schema.Type("object").AdditionalProperties(value => value.Unrestricted()))
+            .WithSchema("Bad", schema => schema
+                .Type("object")
+                .Property("timeout", property => property.Type("number"))
+                .AllOf(rest => rest.Ref("Rest"))));
+
+        var exception = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(exception.Message).Contains("allOf");
+        await Assert.That(exception.Message).Contains("supported core shape");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_A_Rest_Wrapper_Beside_The_Hosts_Own_Additional_Properties()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema("Bad", schema => schema
+            .Type("object")
+            .Property("timeout", property => property.Type("number"))
+            .AdditionalProperties(value => value.Type("string"))
+            .AllOf(rest => rest.Type("object").AdditionalProperties(value => value.Unrestricted()))));
+
+        var exception = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(exception.Message).Contains("allOf");
+        await Assert.That(exception.Message).Contains("supported core shape");
+    }
+
+    [Test]
+    public async Task Project_Should_Refuse_A_Rest_Wrapper_On_A_Host_Without_Properties()
+    {
+        var host = new SchemaProjectionTestHost();
+        var scenario = SpecScenario.Define(spec => spec.WithSchema("Bad", schema => schema
+            .Type("object")
+            .AllOf(rest => rest.Type("object").AdditionalProperties(value => value.Unrestricted()))));
+
+        var exception = await host.ProjectExpectingRefusalAsync(scenario);
+
+        await Assert.That(exception.Message).Contains("allOf");
+        await Assert.That(exception.Message).Contains("supported core shape");
+    }
 }

@@ -2,6 +2,12 @@ namespace OpenCode.Sdk.Tools.Generator.Binding.Models;
 
 internal sealed record ObjectModelPlan : ModelPlan
 {
+    /// <summary>The public read-only view of an open model's extension data; no named property may take the name.</summary>
+    public const string ExtensionDataMemberName = "AdditionalProperties";
+
+    /// <summary>The internal bag the serializer fills behind <see cref="ExtensionDataMemberName"/>; no named property may take the name either.</summary>
+    public const string ExtensionDataBagName = "OpenMembers";
+
     public required IReadOnlyList<ModelPropertyPlan> Properties
     {
         get;
@@ -62,4 +68,11 @@ internal sealed record ObjectModelPlan : ModelPlan
             field = Array.AsReadOnly([.. value]);
         }
     } = Array.AsReadOnly(Array.Empty<QueryPropertyPlan>());
+
+    /// <summary>
+    /// Gets whether the record carries the extension-data member beside its named properties:
+    /// the schema declares an unrestricted additional-properties bag, so every wire member the
+    /// document leaves open lands there by name instead of being dropped.
+    /// </summary>
+    public bool EmitsExtensionData { get; init; }
 }

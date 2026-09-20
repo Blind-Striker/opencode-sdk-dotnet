@@ -44,6 +44,15 @@ internal sealed class SchemaShapeClassifier
             constraints = Constraint.Type;
         }
 
+        // Effect's StructWithRest lands the struct's properties on the host beside a
+        // single-element allOf carrying only the rest's additionalProperties. The wrapper says
+        // nothing the host's own additionalProperties could not, so it reads as exactly that
+        // and the object shape below admits it; every other allOf keeps the refusal.
+        if (constraints.HasFlag(Constraint.AllOf) && RestWrapperPolicy.TryGetRest(schema) is not null)
+        {
+            constraints = (constraints & ~Constraint.AllOf) | Constraint.AdditionalProperties;
+        }
+
         var shape = (constraints, schema.Type) switch
         {
             (Constraint.None, _) => CoreSchemaShape.Unrestricted,

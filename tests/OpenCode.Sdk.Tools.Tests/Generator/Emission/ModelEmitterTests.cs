@@ -49,4 +49,37 @@ public sealed class ModelEmitterTests
         await Assert.That(arm).Contains("field = value;");
         await Assert.That(arm).DoesNotContain("public string Type => \"");
     }
+
+    /// <summary>
+    /// An open model keeps its named members and adds one extension-data member typed the way
+    /// System.Text.Json requires (<c>IDictionary</c>, not the read-only interface every other
+    /// dictionary member uses) and shaped the way its source generator can fill it (get-only
+    /// over a pre-built bag, never init-only), so the wire members the document leaves open
+    /// survive a round trip.
+    /// </summary>
+    [Test]
+    public async Task Emit_Should_Render_An_Extension_Data_Member_For_An_Open_Model()
+    {
+        var sources = ModelEmitter.Emit(EmitterPlanFixture.CreateModelSnapshot());
+        var model = EmitterSnapshot.Content(sources, "Models/OpenSettings.cs");
+
+        await Assert.That(model).Contains("using OpenCode.Sdk.Internal.Serialization;");
+        await Assert.That(model).Contains("using System;");
+        await Assert.That(model).Contains("using System.Collections.Generic;");
+        await Assert.That(model).Contains("using System.Linq;");
+        await Assert.That(model).Contains("using System.Text.Json;");
+        await Assert.That(model).Contains("public double? Timeout { get; init; }");
+        // The public view: read-only typed, init-only, invisible to the serializer, never null.
+        await Assert.That(model).Contains("[JsonIgnore]");
+        await Assert.That(model).Contains("public IReadOnlyDictionary<string, JsonElement> AdditionalProperties");
+        await Assert.That(model).Contains("get => OpenMembers ?? EmptyOpenMembers.Instance;");
+        await Assert.That(model).Contains("OpenMembers = value.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal);");
+        // The serializer's bag: settable, internal, admitted by JsonInclude, created lazily.
+        await Assert.That(model).Contains("[JsonExtensionData]");
+        await Assert.That(model).Contains("[JsonInclude]");
+        await Assert.That(model).Contains("internal Dictionary<string, JsonElement>? OpenMembers { get; set; }");
+        await Assert.That(model).DoesNotContain("new Dictionary");
+        await Assert.That(model).DoesNotContain("public IDictionary");
+        await Assert.That(model).DoesNotContain("[JsonPropertyName(\"additionalProperties\")]");
+    }
 }

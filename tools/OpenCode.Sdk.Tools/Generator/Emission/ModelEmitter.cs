@@ -53,11 +53,12 @@ internal static class ModelEmitter
                 SyntaxFactory.Token(SyntaxKind.SealedKeyword)))
             .WithOpenBraceToken(SyntaxFactory.Token(SyntaxKind.OpenBraceToken))
             .WithCloseBraceToken(SyntaxFactory.Token(SyntaxKind.CloseBraceToken))
-            .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>(
+            .WithMembers(SyntaxFactory.List(
             [
                 .. model.Properties.Select(property => EmitProperty(property, CarriedMarker(chainMarkers, property))),
                 .. model.RequestQueryProperties.Select(static property => EmitRequestQueryProperty(property)),
                 .. model.ExplicitHoistedImplementations.Select(static implementation => EmitHoistedImplementation(implementation)),
+                .. EmitExtensionDataMembers(model),
             ]))
             .WithLeadingTrivia(EmissionSyntax.Documentation(model.Description ?? $"Represents a {GeneratedDisplayName.Of(model.Name)} value."));
         // A hoisted carrier joins the base list beside the unions the schema is a branch of: the
@@ -218,6 +219,89 @@ internal static class ModelEmitter
         return declaration;
     }
 
+    /// <summary>
+    /// The two members every open model shares. The public one is the read-only, init-only
+    /// view every other dictionary member of the model layer has (ADR-0004); the serializer
+    /// ignores it. The internal one is what System.Text.Json fills: it routes each wire member
+    /// no named property claims into the bag by wire name and writes the bag back on
+    /// serialization, so nothing the server sent is lost. It is a plain settable property
+    /// because the serializer deserializes only members with a setter
+    /// (<c>JsonPropertyInfo.CanDeserialize = HasSetter</c>) and binds an init-only member
+    /// through the constructor path, which extension data may not take
+    /// (<c>ExtensionDataCannotBindToCtorParam</c>); <c>JsonInclude</c> admits the non-public
+    /// member and the internal accessibility keeps it off the public surface. The bag starts
+    /// null and the serializer creates it on the first open member, so a body without one
+    /// allocates nothing; until then the view answers the shared empty instance.
+    /// </summary>
+    private static IEnumerable<MemberDeclarationSyntax> EmitExtensionDataMembers(ObjectModelPlan model)
+    {
+        if (!model.EmitsExtensionData)
+        {
+            yield break;
+        }
+
+        var stringType = SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword));
+        var elementType = TypeSyntaxEmitter.EmitNamed("JsonElement");
+        var ordinal = EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("StringComparer"), "Ordinal");
+        var bagName = SyntaxFactory.IdentifierName(ObjectModelPlan.ExtensionDataBagName);
+
+        // init => OpenMembers = value.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal)
+        var copy = SyntaxFactory.InvocationExpression(
+            EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("value"), "ToDictionary"),
+            SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(
+            [
+                SyntaxFactory.Argument(PairSelector("Key")),
+                SyntaxFactory.Argument(PairSelector("Value")),
+                SyntaxFactory.Argument(ordinal),
+            ])));
+        var store = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, bagName, copy));
+        // get => OpenMembers ?? EmptyOpenMembers.Instance
+        var view = SyntaxFactory.BinaryExpression(
+            SyntaxKind.CoalesceExpression,
+            bagName,
+            EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("EmptyOpenMembers"), "Instance"));
+        yield return SyntaxFactory
+            .PropertyDeclaration(
+                TypeSyntaxEmitter.Generic("IReadOnlyDictionary", stringType, elementType),
+                ObjectModelPlan.ExtensionDataMemberName)
+            .AddAttributeLists(EmissionSyntax.Attribute("JsonIgnore"))
+            .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
+            .WithAccessorList(SyntaxFactory.AccessorList(SyntaxFactory.List(
+            [
+                SyntaxFactory
+                    .AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+                    .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(view))
+                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
+                SyntaxFactory
+                    .AccessorDeclaration(SyntaxKind.InitAccessorDeclaration)
+                    .WithBody(SyntaxFactory.Block(SyntaxFactory.List([.. EmissionSyntax.ArgumentNullGuard("value"), store]))),
+            ])))
+            .WithLeadingTrivia(EmissionSyntax.Documentation(
+                "Gets the members the pinned document leaves open, keyed by wire name; empty when the body carried none."));
+
+        yield return SyntaxFactory
+            .PropertyDeclaration(
+                SyntaxFactory.NullableType(TypeSyntaxEmitter.Generic("Dictionary", stringType, elementType)),
+                ObjectModelPlan.ExtensionDataBagName)
+            .AddAttributeLists(EmissionSyntax.Attribute("JsonExtensionData"))
+            .AddAttributeLists(EmissionSyntax.Attribute("JsonInclude"))
+            .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.InternalKeyword)))
+            .WithAccessorList(SyntaxFactory.AccessorList(SyntaxFactory.List(
+            [
+                SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration).WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
+                SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration).WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
+            ])))
+            .WithLeadingTrivia(EmissionSyntax.Documentation(
+                $"Gets or sets the serializer's writable bag behind {ObjectModelPlan.ExtensionDataMemberName}, created on the first open member; the public member is the read-only view."));
+    }
+
+    /// <summary><c>static pair => pair.&lt;member&gt;</c> for the copy the public init accessor takes.</summary>
+    private static SimpleLambdaExpressionSyntax PairSelector(string member) =>
+        SyntaxFactory
+            .SimpleLambdaExpression(SyntaxFactory.Parameter(SyntaxFactory.Identifier("pair")))
+            .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.StaticKeyword)))
+            .WithExpressionBody(EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("pair"), member));
+
     private static AccessorListSyntax EmitAutoAccessors() => SyntaxFactory.AccessorList(SyntaxFactory.List(
     [
         SyntaxFactory
@@ -299,6 +383,19 @@ internal static class ModelEmitter
         if (model.Properties.Any(static property => property.EmitsOptionalWrapper))
         {
             _ = result.Add("OpenCode.Sdk.Internal.Serialization");
+        }
+
+        // The extension-data members name the dictionary types, JsonElement, the ordinal
+        // comparer, the null guard, the LINQ copy the init accessor takes, and the shared
+        // empty view the runtime keeps for a bag the serializer has not created.
+        if (model.EmitsExtensionData)
+        {
+            _ = result.Add("OpenCode.Sdk.Internal.Serialization");
+            _ = result.Add("System");
+            _ = result.Add("System.Collections.Generic");
+            _ = result.Add("System.Linq");
+            _ = result.Add("System.Text.Json");
+            _ = result.Add("System.Text.Json.Serialization");
         }
 
         foreach (var property in model.Properties)

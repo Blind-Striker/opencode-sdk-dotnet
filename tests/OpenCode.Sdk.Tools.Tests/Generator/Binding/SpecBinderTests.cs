@@ -661,8 +661,64 @@ public sealed class SpecBinderTests
 
         var error = exception.Errors.Single(static candidate =>
             candidate is { Category: BindingErrorCategory.Schema, Subject: "HybridInfo/additionalProperties" });
-        await Assert.That(error.Problem).Contains("named properties and schema-valued additional properties");
+        await Assert.That(error.Problem).Contains("named properties and typed additional properties");
         await Assert.That(error.Problem).Contains("without data loss");
+    }
+
+    /// <summary>
+    /// The one open shape the binder admits beside named properties: a bag whose value schema
+    /// is unrestricted (or unrestricted-or-null) rides as the extension-data member, so no wire
+    /// member is lost and the declared members keep their types.
+    /// </summary>
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Bind_Should_Carry_An_Unrestricted_Bag_As_Extension_Data(bool valuesAdmitNull)
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("HybridInfo", schema => schema
+                .Type("object")
+                .Property("id", property => property.Type("string"), required: true)
+                .AllOf(rest => rest.Type("object").AdditionalProperties(value =>
+                {
+                    if (valuesAdmitNull)
+                    {
+                        _ = value.AnyOf(any => any.Unrestricted(), nothing => nothing.Type("null"));
+                    }
+                    else
+                    {
+                        _ = value.Unrestricted();
+                    }
+                })))
+            .WithOperation("health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("HybridInfo")))));
+
+        var plan = new BindingTestHost().Bind(document, Selection("health.get"), Curation(Groups("health", RootGroup())));
+
+        var hybrid = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "HybridInfo");
+        await Assert.That(hybrid.EmitsExtensionData).IsTrue();
+        await Assert.That(hybrid.Properties.Select(static property => property.Name)).IsEquivalentTo(["Id"]);
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_Named_Property_That_Takes_The_Extension_Data_Members_Name()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("HybridInfo", schema => schema
+                .Type("object")
+                .Property("additionalProperties", property => property.Type("string"))
+                .AllOf(rest => rest.Type("object").AdditionalProperties(value => value.Unrestricted())))
+            .WithOperation("health.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("HybridInfo")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("health.get"),
+            Curation(Groups("health", RootGroup()))));
+
+        var error = exception.Errors.Single(static candidate => candidate is { Category: BindingErrorCategory.Naming, Subject: "HybridInfo" });
+        await Assert.That(error.Problem).Contains("AdditionalProperties");
+        await Assert.That(error.Problem).Contains("extension-data");
     }
 
     [Test]
