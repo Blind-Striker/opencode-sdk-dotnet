@@ -11,6 +11,28 @@ Nightly builds of `master` are on
 
 ### 💥 Breaking changes
 
+- **The accepted snapshot moved to upstream release tag `v2.0.11`**
+  (`9eb6902aaf3c35ce985b67c605a775992249066b`), which published as `@opencode/cli@2.0.11`; install
+  it with `npm install -g @opencode/cli@2.0.11`. No operation was added, removed, or moved since
+  `v2.0.8`; the change is in the provider and model catalog entries. The Restore patch for
+  upstream's lost SSE payload schemas
+  ([anomalyco/opencode#44911](https://github.com/anomalyco/opencode/issues/44911)) is still
+  required at this tag and applies unchanged.
+- **Provider and model settings are typed open objects.** `ProviderInfo.Settings` is a
+  `ProviderSettings` (`Timeout`, `ChunkTimeout`, `Compaction`, `Transport`) and `ModelInfo.Settings`
+  and `ModelVariant.Settings` are a `ModelSettings` (`Compaction`) instead of
+  `IReadOnlyDictionary<string, JsonElement>`; `ProviderRequestOptions.Settings` is the same
+  `ProviderSettings`. Every other member the server puts in `settings` — `baseURL`, `apiKey`,
+  `region`, and whatever a provider adds — is in `AdditionalProperties`, an
+  `IReadOnlyDictionary<string, JsonElement>` keyed by wire name that is empty, never null, when
+  the body carried none; read it the way upstream does, by checking the `ValueKind` you expect.
+  `Compaction` and `Transport` are removed from `ModelInfo` and `ProviderInfo` themselves: upstream
+  moved them under `settings`. `Timeout` is a `ProviderSettingsTimeout` structural union
+  (`Number`, `Boolean` for the wire's `false`, `Unknown`).
+- **The compaction union changed its arms and marker.** `IProviderCompaction` now dispatches on
+  `type` with `ProviderCompactionSummary` (`summary`) and `ProviderCompactionNative` (`native`);
+  `ProviderCompactionLocal`, `ProviderCompactionProvider`, its `Threshold`, and the `mode` marker are
+  gone with upstream's schema.
 - **The HTTP method is no longer part of any name.** An operation's verb is its closing identifier
   segment when that segment is one of `create`, `get`, `list`, `remove`, `rename`, `timeout`, or
   `update`; a `GET` without one is a read and names `Get<Subject>Async`; every other operation is

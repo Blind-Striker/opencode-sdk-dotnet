@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "upstreamCommit": "7673ed6bd6547ee0dcb81aab55f1392fb751d652",
-  "rawDocumentSha256": "8d6d1afce82a19bba74b5959880ae92e29d1789bfec36c868ba6cf31c30f47fc",
-  "generatedBaselineSha256": "635e987946bf79dcbe952380b425a5dfd7aaf1d77ba50d5516f8bdce76b827c4",
+  "upstreamCommit": "9eb6902aaf3c35ce985b67c605a775992249066b",
+  "rawDocumentSha256": "1362671d8cfdcb925b3a9fd61eaa20152e4c587746445a0b03504674b25c88ec",
+  "generatedBaselineSha256": "1362671d8cfdcb925b3a9fd61eaa20152e4c587746445a0b03504674b25c88ec",
   "patches": [
     {
       "manifest": "001-restore-sse-payloads.json",
@@ -19,13 +19,13 @@
       ]
     }
   ],
-  "normalizedDocumentSha256": "943d21524ce8ead10b3ba708f70909a849ddfd6e406eb43c66dbeb5ddbdb0167",
+  "normalizedDocumentSha256": "ce50e138487fdc17e290c8ab396567d6d1ff1d09f4abb3d6530fc69bd6f29ef8",
   "normalizedDocumentPath": null,
   "operationSetDigest": "3b16acd7850f268d4c4941e603e5eeec68ec2f835d92cd274e87c93132032e6d",
   "operationCount": 136,
   "addedOperations": [],
   "removedOperations": [],
-  "componentCount": 366,
+  "componentCount": 369,
   "contentSchemaCount": 2,
   "watchedSources": [
     {
@@ -105,12 +105,12 @@
     },
     {
       "path": "packages/cli/package.json",
-      "sha256": "a19824f22a9375d9a57e9dfab68dd4aaa274bead2f29098fcc36998b526a40ed",
+      "sha256": "a255187e4bc46ea7f0a55bc1d1a5dd40ec10670b995fcc467b21e225e694ebf4",
       "anchorMatched": true
     },
     {
       "path": "packages/core/package.json",
-      "sha256": "798196e833362ef970ab7c6516c27c43f9b5d625e9baba1da9e1f9ceec70c006",
+      "sha256": "791c322eb8be665d99933ed6f4245c1769d5ed5892c8a8ecc1f122b8f20057d2",
       "anchorMatched": true
     },
     {
@@ -135,7 +135,7 @@
     },
     {
       "path": "packages/tui/src/component/terminal-pane.tsx",
-      "sha256": "093707d4950af377f9a49d0c4f43d4ec1a289b7d04d47d894ea9f713ce026371",
+      "sha256": "d712ebc9f77e02d8f4350ddf96c62efb702b3813f679b0e3e7af60ec6f1cb6f1",
       "anchorMatched": true
     },
     {
@@ -185,7 +185,7 @@
     },
     {
       "path": "packages/cli/script/publish.ts",
-      "sha256": "8df8035798e3efbcac121535368a9add29896ef81255aba6ff268757939b4c7a",
+      "sha256": "ef9fb340b3db84ef9337d07244731da6df77ef1b62173981a168ff8bbeba9e6c",
       "anchorMatched": true
     },
     {
@@ -205,12 +205,12 @@
     },
     {
       "path": "packages/client/src/effect/service.ts",
-      "sha256": "29ecd1d9aabc8a24462e8c5b9dba9ec74790e2fe12ac056e463c5f025dc9377c",
+      "sha256": "611942c3fb24928f497378388acb472f1c72799614be9a3bc248c8a4fa153b3e",
       "anchorMatched": true
     },
     {
       "path": "packages/client/src/service-timing.ts",
-      "sha256": "41fb1170b3231cad4cea9c9760ba37f12a34d936070d987cc3c4df9189539249",
+      "sha256": "138404ab009baece27551fdbf5586266d43f7979bff4959adb094dc890a329b3",
       "anchorMatched": true
     },
     {
@@ -286,6 +286,11 @@
     {
       "path": "packages/cli/src/commands/handlers/service/stop.ts",
       "sha256": "832723656ca2eb5d6e71acf32944888b0c739d9ba043f1a0fbe37ad0fe2607e9",
+      "anchorMatched": true
+    },
+    {
+      "path": "package.json",
+      "sha256": "bc6c4a372af3ca9b4eb47bf41ce7adb6d9c10bcb061faa60fc65c3bf7b083356",
       "anchorMatched": true
     }
   ]

@@ -26,7 +26,7 @@ on that third mode is ensuring the service, which follows discovery and stop as 
   transports — across 27 client families: sessions, PTYs, persistent PTYs, shells, events, MCP
   servers, integrations, providers, permissions, credentials, config, VCS, worktrees, websearch,
   RPC, and more
-- ✅ **6,279 tests** green on Windows — the fullest leg, the only one that adds the `net472`
+- ✅ **6,574 tests** green on Windows — the fullest leg, the only one that adds the `net472`
   assemblies. Linux and macOS run the same suite on `net8.0`, `net9.0`, and `net10.0`
 - ✅ **Server-sent event streams**, global and per-session, over the same transport as one-shot calls
 - ✅ **PTY and persistent-PTY terminal sessions** through hand-written WebSocket doors
@@ -125,7 +125,7 @@ not what this repository tests. The pinned release tag and its npm version are o
 [`spec/SNAPSHOT.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/spec/SNAPSHOT.md).
 
 ```sh
-npm install -g @opencode/cli@2.0.8
+npm install -g @opencode/cli@2.0.11
 ```
 
 Then either run it yourself:

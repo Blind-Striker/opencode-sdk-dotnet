@@ -62,25 +62,11 @@ public sealed record ModelInfo
     public string? Package { get; init; }
 
     /// <summary>
-    /// Gets the compaction value.
-    /// </summary>
-    [JsonPropertyName("compaction")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IProviderCompaction? Compaction { get; init; }
-
-    /// <summary>
-    /// Gets the transport value.
-    /// </summary>
-    [JsonPropertyName("transport")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public ProviderTransport? Transport { get; init; }
-
-    /// <summary>
     /// Gets the settings value.
     /// </summary>
     [JsonPropertyName("settings")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyDictionary<string, JsonElement>? Settings { get; init; }
+    public ModelSettings? Settings { get; init; }
 
     /// <summary>
     /// Gets the headers value.

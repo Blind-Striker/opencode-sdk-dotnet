@@ -4,13 +4,13 @@ using System.Text.Json.Serialization;
 
 namespace OpenCode.Sdk.Models;
 /// <summary>
-/// Represents a provider compaction local value.
+/// Represents a provider compaction native value.
 /// </summary>
-public sealed record ProviderCompactionLocal : IProviderCompaction
+public sealed record ProviderCompactionNative : IProviderCompaction
 {
     /// <summary>
-    /// Gets the mode value.
+    /// Gets the type value.
     /// </summary>
-    [JsonPropertyName("mode")]
-    public string Mode => "local";
+    [JsonPropertyName("type")]
+    public string Type => "native";
 }

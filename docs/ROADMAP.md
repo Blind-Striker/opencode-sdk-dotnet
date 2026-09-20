@@ -28,15 +28,17 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
   targets. Linux and macOS live verification also passed on net8/net9/net10, including the persistent daemon
   round trip and normal PTY reuse after read cancellation. `architecture/client-runtime.md` and
   ADR-0023 own the contract.
-- **2.0.8 refresh** — the accepted pin follows upstream's release tags inside M4: 2.0.5 brought
-  prefixless operation identities, `experimental.*` on the flat `ExperimentalClient`,
-  directory-only location targeting, and the status-based discovery probe (PR #85); 2.0.8 moves
-  the server identity door from `/api/status` to `/api/info` (`ServerClient.GetInfoAsync`,
-  `ServerInfo` with `Paths`), adds `ReloadLocationsAsync` and the `location.shutdown` event, and
-  declines `experimental.fs.write` beside `fs.read`, with no compatibility layer. Each refresh's
-  CI run qualifies every leg at its pin: Windows on `net472`, `net8.0`, `net9.0`, and `net10.0`,
-  Linux and macOS on `net8.0`, `net9.0`, and `net10.0`, with regeneration and receipt
-  verification passing. The remaining M4 slices follow the order in the milestone paragraph.
+- **2.0.11 refresh** — the accepted pin follows upstream's release tags inside M4 (2.0.5, 2.0.8,
+  2.0.11), with no compatibility layer between them. 2.0.11 adds no operation and moves none; it
+  reshapes the provider and model catalog entries — `ProviderSettings` and `ModelSettings` are
+  typed open objects whose remaining members ride in `AdditionalProperties`, the first shape the
+  generator represents with an extension-data bag (`architecture/protocol-and-generation.md`) —
+  renames the compaction union's arms, and moves the client's ensure poll to 25 ms bounded by wall
+  clock, which the Ensure door reads at its pin. Every hand-written door's upstream inputs were
+  byte-identical across the tags. Each refresh's CI run qualifies every leg at its pin: Windows on
+  `net472`, `net8.0`, `net9.0`, and `net10.0`, Linux and macOS on `net8.0`, `net9.0`, and
+  `net10.0`, with regeneration and receipt verification passing. The remaining M4 slices follow
+  the order in the milestone paragraph.
 - **Official launch watch** — upstream's own 1.x npm package (`opencode-ai`) and its GitHub Releases
   page were both still at `1.18.31` when last observed on 2026-09-16, so the 2.x line had not had
   its official launch then. The pin tracks upstream release tags and is refreshed under receipt at
@@ -153,7 +155,7 @@ is revisited at each boundary.
   same hand-written-door question as `fs.read`. The current marker also records config naming and
   inline-model walls. All four have a sketched admission path (Milestones, M4: surface
   completeness), so these are scheduled decisions to revisit, not standing ones.
-- **There is no configuration read at the 2.0.8 pin.** Upstream removed `/api/config/preferences`
+- **There is no configuration read at the 2.0.11 pin.** Upstream removed `/api/config/preferences`
   and folded reading into `config.get`, which stays declined above, so the SDK writes configuration
   through `Experimental.UpdateConfigAsync` and cannot read it back. Admitting `config.get` is what
   restores the read; it raises that decision's cost without changing its mechanism.

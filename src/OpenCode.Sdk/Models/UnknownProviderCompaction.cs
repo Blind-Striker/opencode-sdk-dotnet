@@ -16,24 +16,24 @@ public sealed record UnknownProviderCompaction : IProviderCompaction
     /// Initializes an unknown union value from its marker and raw payload.
     /// </summary>
     [JsonConstructor]
-    public UnknownProviderCompaction(string mode, JsonElement payload)
+    public UnknownProviderCompaction(string type, JsonElement payload)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(mode);
+        ArgumentException.ThrowIfNullOrWhiteSpace(type);
         if (payload.ValueKind is JsonValueKind.Undefined)
         {
             throw new ArgumentException("The payload must be a parsed JSON element.", nameof(payload));
         }
 
-        UnionPayloadGuard.Instance.RequireString(payload, "mode", mode);
-        _marker = mode;
+        UnionPayloadGuard.Instance.RequireString(payload, "type", type);
+        _marker = type;
         Payload = payload.Clone();
     }
 
     /// <summary>
-    /// Gets the unrecognized &apos;mode&apos; marker.
+    /// Gets the unrecognized &apos;type&apos; marker.
     /// </summary>
-    [JsonPropertyName("mode")]
-    public string Mode => _marker;
+    [JsonPropertyName("type")]
+    public string Type => _marker;
     /// <summary>
     /// Gets the preserved raw JSON payload.
     /// </summary>

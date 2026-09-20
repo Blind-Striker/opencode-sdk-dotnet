@@ -11,15 +11,15 @@ internal sealed class ProviderCompactionJsonConverter : JsonConverter<IProviderC
 {
     private static readonly FrozenDictionary<string, Type> TypesByTag = new Dictionary<string, Type>(StringComparer.Ordinal)
     {
-        ["local"] = typeof(ProviderCompactionLocal),
-        ["provider"] = typeof(ProviderCompactionProvider)
+        ["native"] = typeof(ProviderCompactionNative),
+        ["summary"] = typeof(ProviderCompactionSummary)
     }.ToFrozenDictionary(StringComparer.Ordinal);
     private static readonly UnionDiscriminatorReader DiscriminatorReader = new();
     public override IProviderCompaction Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
         ArgumentNullException.ThrowIfNull(options);
-        if (DiscriminatorReader.TryFindKnown(ref reader, "mode", "ProviderCompaction", TypesByTag, out var targetType, out var marker))
+        if (DiscriminatorReader.TryFindKnown(ref reader, "type", "ProviderCompaction", TypesByTag, out var targetType, out var marker))
         {
             var typeInfo = OpenCodeJsonContext.Default.GetTypeInfo(targetType) ?? throw new JsonException("The generated context has no metadata for ProviderCompaction.");
             return JsonSerializer.Deserialize(ref reader, typeInfo) as IProviderCompaction ?? throw new JsonException("The ProviderCompaction payload deserialized to null.");

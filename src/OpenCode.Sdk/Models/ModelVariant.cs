@@ -20,7 +20,7 @@ public sealed record ModelVariant
     /// </summary>
     [JsonPropertyName("settings")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyDictionary<string, JsonElement>? Settings { get; init; }
+    public ModelSettings? Settings { get; init; }
 
     /// <summary>
     /// Gets the headers value.

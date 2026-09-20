@@ -13,7 +13,7 @@ public sealed record ProviderRequestOptions
     /// Gets the settings value.
     /// </summary>
     [JsonPropertyName("settings")]
-    public required IReadOnlyDictionary<string, JsonElement> Settings { get; init; }
+    public required ProviderSettings Settings { get; init; }
 
     /// <summary>
     /// Gets the headers value.

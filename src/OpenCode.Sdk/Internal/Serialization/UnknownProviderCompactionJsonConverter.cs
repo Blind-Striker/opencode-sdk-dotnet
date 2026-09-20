@@ -19,20 +19,20 @@ internal sealed class UnknownProviderCompactionJsonConverter : JsonConverter<Unk
             throw new JsonException("The ProviderCompaction payload must be a JSON object.");
         }
 
-        if (!payload.TryGetProperty("mode", out var markerElement))
+        if (!payload.TryGetProperty("type", out var markerElement))
         {
-            throw new JsonException("The ProviderCompaction payload must contain 'mode'.");
+            throw new JsonException("The ProviderCompaction payload must contain 'type'.");
         }
 
         if (markerElement.ValueKind != JsonValueKind.String)
         {
-            throw new JsonException("The 'mode' marker must be a string.");
+            throw new JsonException("The 'type' marker must be a string.");
         }
 
         var marker = markerElement.GetString();
         if (marker is null || string.IsNullOrWhiteSpace(marker))
         {
-            throw new JsonException("The 'mode' marker must be a non-empty string.");
+            throw new JsonException("The 'type' marker must be a non-empty string.");
         }
 
         return new UnknownProviderCompaction(marker, payload);

@@ -6,8 +6,7 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 /// the tests accelerate all of them the way upstream's own fixture does.
 /// </summary>
 /// <param name="RequestTimeout">The bound on one info request.</param>
-/// <param name="PollInterval">The Ensure loop's spacing between iterations.</param>
-/// <param name="Attempts">The Ensure loop's recurrence count after the initial run.</param>
+/// <param name="PollInterval">The Ensure loop's spacing between probes; at the pin the loop is bounded by wall clock, not by an attempt count.</param>
 /// <param name="SpawnDelay">The delay before a contender is started while a registration is unresolved.</param>
 /// <param name="MaxSpawnDelay">The cap on the exit-0 backoff.</param>
 /// <param name="StopPollInterval">The spacing between liveness polls after a stop signal.</param>
@@ -15,17 +14,15 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 internal sealed record ServiceTiming(
     TimeSpan RequestTimeout,
     TimeSpan PollInterval,
-    int Attempts,
     TimeSpan SpawnDelay,
     TimeSpan MaxSpawnDelay,
     TimeSpan StopPollInterval,
     int StopPollAttempts)
 {
-    /// <summary>Gets upstream's values at the pin: 2 s, 100 ms, 1200, 5 s, 30 s, 50 ms, 100.</summary>
+    /// <summary>Gets upstream's values at the pin: 2 s, 25 ms, 5 s, 30 s, 50 ms, 100.</summary>
     public static ServiceTiming Default { get; } = new(
         RequestTimeout: TimeSpan.FromSeconds(2),
-        PollInterval: TimeSpan.FromMilliseconds(100),
-        Attempts: 1_200,
+        PollInterval: TimeSpan.FromMilliseconds(25),
         SpawnDelay: TimeSpan.FromSeconds(5),
         MaxSpawnDelay: TimeSpan.FromSeconds(30),
         StopPollInterval: TimeSpan.FromMilliseconds(50),
