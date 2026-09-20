@@ -12,6 +12,8 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 /// </summary>
 internal sealed class ServiceMigration(IServiceFileSystem fileSystem)
 {
+    private readonly ServiceRegistrationFile _registrationFile = new(fileSystem);
+
     /// <summary>Applies the registration and config migrations a selection calls for.</summary>
     /// <param name="selection">The validated selection; direct-file mode and the null channel migrate nothing.</param>
     /// <param name="paths">The resolved paths.</param>
@@ -30,7 +32,7 @@ internal sealed class ServiceMigration(IServiceFileSystem fileSystem)
         foreach (var donor in paths.LegacyRegistrationFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var bytes = await TryReadAsync(donor, cancellationToken).ConfigureAwait(false);
+            var bytes = await _registrationFile.TryReadBytesAsync(donor, cancellationToken).ConfigureAwait(false);
             if (bytes is null)
             {
                 continue;
@@ -49,7 +51,7 @@ internal sealed class ServiceMigration(IServiceFileSystem fileSystem)
         if (paths.LegacyConfigFile is { } legacyConfig && paths.ConfigFile is { } configFile)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var bytes = await TryReadAsync(legacyConfig, cancellationToken).ConfigureAwait(false);
+            var bytes = await _registrationFile.TryReadBytesAsync(legacyConfig, cancellationToken).ConfigureAwait(false);
             if (bytes is not null && ServiceConfigReader.TryReadEnvironment(bytes) is not null)
             {
                 _ = await TryCopyAsync(configFile, bytes, cancellationToken).ConfigureAwait(false);
@@ -117,27 +119,6 @@ internal sealed class ServiceMigration(IServiceFileSystem fileSystem)
         }
 
         return true;
-    }
-
-    private async Task<byte[]?> TryReadAsync(string path, CancellationToken cancellationToken)
-    {
-        if (!fileSystem.FileExists(path))
-        {
-            return null;
-        }
-
-        try
-        {
-            return await fileSystem.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
-        }
-        catch (IOException)
-        {
-            return null;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return null;
-        }
     }
 
     private async Task<bool> TryCopyAsync(string target, byte[] bytes, CancellationToken cancellationToken)

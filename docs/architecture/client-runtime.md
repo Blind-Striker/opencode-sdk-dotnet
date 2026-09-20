@@ -28,10 +28,10 @@ local server launcher. Protocol and generated-model rules live in
   (ADR-0010).
 - Client options are snapshotted at construction. Explicit-endpoint construction reads no process
   environment variable; consumers resolve their own configuration. `OpenCodeServer.DiscoverAsync`
-  is the one door that reads the environment, and it reads exactly `XDG_STATE_HOME`,
-  `XDG_CONFIG_HOME`, `OPENCODE_CONFIG_DIR`, and the user profile (`USERPROFILE` on Windows, `HOME`
-  elsewhere), because the registration file those roots locate is that mode's complete
-  endpoint-and-credential contract; it reads no `OPENCODE_*` credential variable.
+  and `OpenCodeServer.StopAsync` are the doors that read the environment, and they read exactly
+  `XDG_STATE_HOME`, `XDG_CONFIG_HOME`, `OPENCODE_CONFIG_DIR`, and the user profile (`USERPROFILE`
+  on Windows, `HOME` elsewhere), because the registration file those roots locate is that mode's
+  complete endpoint-and-credential contract; they read no `OPENCODE_*` credential variable.
 
 ### Location
 
@@ -492,5 +492,23 @@ handler has no connect seam, the probe learns the refusal over a raw pre-connect
 option before it sends the request. This private discovery decoder is independent
 of the generated public `ServerInfo` model, whose required `Urls` does not constrain discovery. Discovery returns null for a missing, unusable, or not-ready
 registration and throws only for refused input (`ArgumentException`), caller cancellation, and an
-unresolvable user home (`OpenCodeServerException`). Ensure and Stop are tracked in
-`docs/ROADMAP.md` §4.
+unresolvable user home (`OpenCodeServerException`).
+
+`OpenCodeServer.StopAsync` is the CLI's `service stop`. It resolves the registration the way
+discovery does (channel rules, legacy migration, or a direct file) and reads it once; asks a ready
+and compatible daemon to shut its persistent terminals down through the generated
+`PersistentPtys.ShutdownAsync` door, ignoring a refused or failed answer the way the CLI does;
+removes the handoff sidecar the CLI keeps beside the registration (`<file>.pty-handoff`); then
+ends the registered process the way the pinned client's `terminate` does — `SIGTERM`, the pin's
+own poll for the process to leave (every 50 ms, up to 100 times), `SIGKILL` when it is still
+there, the same poll again. On Windows both rungs are a hard kill, which is what the pinned
+client's runtime does with a `SIGTERM` there. The registration is re-read and its `id`, `version`,
+`url`, and `pid` compared before every signal and before the removal, so a record another service
+replaced is never acted on; and the process is identified as (pid, start time), compared
+immediately before every send and at every look of the poll, so a pid the operating system reused
+is never signalled and reads as the registered process being gone (ADR-0026). A missing or corrupt registration completes successfully; a sidecar
+that cannot be removed and a process still running after the kill rung throw
+`OpenCodeServerException`, the registration then left in place; cancellation before a signal
+prevents it and after one ends the wait. Stop targets exactly one pid, never a tree, is never
+implied by disposal or host shutdown, and may end a service other clients share. Ensure is tracked
+in `docs/ROADMAP.md` §4.

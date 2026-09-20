@@ -53,6 +53,7 @@ internal static class ReservedNamePolicy
             "OpenCodeServerOptions",
             "OpenCodeServerOutput",
             "OpenCodeServerOutputSnapshot",
+            "OpenCodeServerStopOptions",
             "OpenCodeStreamFailureException",
             "OpenCodeTransportException",
             "Optional",

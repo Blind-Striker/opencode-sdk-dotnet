@@ -11,7 +11,7 @@ public sealed class ServiceSelectionTests
     [Test]
     public async Task Snapshot_Should_Default_To_The_Shared_Registration()
     {
-        var selection = ServiceSelection.Snapshot(options: null);
+        var selection = ServiceSelection.Snapshot((OpenCodeServerDiscoverOptions?)null);
 
         await Assert.That(selection.Channel).IsNull();
         await Assert.That(selection.DirectRegistrationFile).IsNull();
@@ -134,6 +134,70 @@ public sealed class ServiceSelectionTests
 
         await Assert.That(exception!.ParamName).IsEqualTo("options");
     }
+
+    [Test]
+    public async Task Snapshot_Should_Default_Stop_Options_To_The_Shared_Registration()
+    {
+        var selection = ServiceSelection.Snapshot((OpenCodeServerStopOptions?)null);
+
+        await Assert.That(selection.Channel).IsNull();
+        await Assert.That(selection.DirectRegistrationFile).IsNull();
+        await Assert.That(selection.InstalledVersion).IsNull();
+        await Assert.That(selection.ExpectedVersion).IsNull();
+    }
+
+    [Test]
+    public async Task Snapshot_Should_Keep_Stop_Options_Without_An_Expected_Version()
+    {
+        var selection = ServiceSelection.Snapshot(new OpenCodeServerStopOptions { Channel = "dev", InstalledVersion = "0.0.0-dev-19646" });
+
+        await Assert.That(selection.Channel).IsEqualTo("dev");
+        await Assert.That(selection.InstalledVersion).IsEqualTo("0.0.0-dev-19646");
+        await Assert.That(selection.ExpectedVersion).IsNull();
+    }
+
+    [Test]
+    [Arguments(" ", null, null)]
+    [Arguments(null, " ", null)]
+    [Arguments(null, null, "")]
+    public async Task Snapshot_Should_Refuse_Blank_Stop_Values_Naming_The_Stop_Options(
+        string? channel, string? registrationFilePath, string? installedVersion)
+    {
+        var exception = await Assert
+            .That(() => SelectStop(channel, registrationFilePath, installedVersion))
+            .Throws<ArgumentException>();
+
+        await Assert.That(exception!.ParamName).IsEqualTo("options");
+        await Assert.That(exception.Message).StartsWith("OpenCodeServerStopOptions.");
+    }
+
+    [Test]
+    public async Task Snapshot_Should_Refuse_Stop_Options_That_Combine_A_Channel_With_A_Direct_File()
+    {
+        var exception = await Assert
+            .That(() => SelectStop("dev", DirectFile, null))
+            .Throws<ArgumentException>();
+
+        await Assert.That(exception!.ParamName).IsEqualTo("options");
+    }
+
+    [Test]
+    public async Task Snapshot_Should_Refuse_Stop_Options_That_Migrate_A_Direct_File()
+    {
+        var exception = await Assert
+            .That(() => SelectStop(null, DirectFile, "2.0.3"))
+            .Throws<ArgumentException>();
+
+        await Assert.That(exception!.ParamName).IsEqualTo("options");
+    }
+
+    private static ServiceSelection SelectStop(string? channel, string? registrationFilePath, string? installedVersion) =>
+        ServiceSelection.Snapshot(new OpenCodeServerStopOptions
+        {
+            Channel = channel,
+            RegistrationFilePath = registrationFilePath,
+            InstalledVersion = installedVersion,
+        });
 
     private static ServiceSelection Select(string? channel, string? registrationFilePath, string? installedVersion, string? expectedVersion) =>
         ServiceSelection.Snapshot(new OpenCodeServerDiscoverOptions

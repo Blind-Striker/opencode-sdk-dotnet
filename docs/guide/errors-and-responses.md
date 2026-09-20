@@ -57,7 +57,7 @@ OpenCodeException
 ├── OpenCodeApiException          declared API failure (has Status / Error / RawBody)
 ├── OpenCodeTransportException    the call never produced a usable response
 │   └── OpenCodeStreamFailureException   a stream ended with a declared failure frame
-└── OpenCodeServerException       a local-server door failed: a start, or discovery with no home to search
+└── OpenCodeServerException       a local-server door failed: a start, discovery with no home to search, or a stop that could not end the process
 ```
 
 ## 🤝 Ask for the failure as data instead
@@ -246,14 +246,18 @@ must not blow up, catch `OpenCodeTransportException` even when you are using `No
 
 ## 🚀 When a local-server door fails
 
-Both local-server doors — `OpenCodeServer.StartAsync` and `OpenCodeServer.DiscoverAsync` — share
-one failure type, `OpenCodeServerException`. Discovery uses it for exactly one cause: an XDG
-variable was unset and no user home directory resolved either (`USERPROFILE` on Windows, `HOME`
-elsewhere, and the profile folder all empty), so the registration roots cannot be located. Every
-ordinary way a background service can be absent or unusable — no registration, an undecodable or
-passwordless one, a daemon still starting or failed, a probe that timed out, a version other than
-the one you expected — is **not** an exception: `DiscoverAsync` answers null, and blank or
-contradictory options throw `ArgumentException` before anything is read. The
+The local-server doors — `OpenCodeServer.StartAsync`, `OpenCodeServer.DiscoverAsync`, and
+`OpenCodeServer.StopAsync` — share one failure type, `OpenCodeServerException`. Discovery uses it
+for exactly one cause: an XDG variable was unset and no user home directory resolved either
+(`USERPROFILE` on Windows, `HOME` elsewhere, and the profile folder all empty), so the registration
+roots cannot be located. Every ordinary way a background service can be absent or unusable — no
+registration, an undecodable or passwordless one, a daemon still starting or failed, a probe that
+timed out, a version other than the one you expected — is **not** an exception: `DiscoverAsync`
+answers null, and blank or contradictory options throw `ArgumentException` before anything is read.
+Stop shares the roots cause and adds two of its own: the persistent-terminal handoff sidecar beside
+the registration could not be removed, and the registered process is still running after the hard
+kill — the registration is then left in place, and the message names the pid and the file. A stop
+with nothing to stop is not an exception either. The
 [connection guide](connection-modes.md#️-discovering-the-background-service) lists the full table.
 
 The launcher has more to say, because a child process ran:

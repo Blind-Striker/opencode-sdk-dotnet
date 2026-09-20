@@ -20,7 +20,7 @@ call is exactly what the server declares.
 **Published and pre-1.0; the protocol surface is complete.** Everything below is landed and
 covered. All three of opencode's connection modes are open: a private server the SDK starts, an
 endpoint you already run, and the background service the CLI registers. What is still outstanding
-on that third mode is ensuring and stopping the service, which follow discovery as their own slices.
+on that third mode is ensuring the service, which follows discovery and stop as its own slice.
 
 - ✅ **132 of 136 operations** callable — 130 generated, two through hand-written WebSocket
   transports — across 27 client families: sessions, PTYs, persistent PTYs, shells, events, MCP
@@ -36,12 +36,16 @@ on that third mode is ensuring and stopping the service, which follow discovery 
   opencode CLI registers for every client on the machine, through the CLI's own registration
   rules, and hands you a non-owning handle; proven against the pinned service on every
   target-framework leg
+- ✅ **Background-service stop** — `OpenCodeServer.StopAsync()` is `opencode service stop` for
+  your code: persistent terminals shut down, the registration re-read before every signal, the
+  process identified by pid and start time, `SIGTERM` then `SIGKILL` (hard kills on Windows);
+  proven against the pinned service on every target-framework leg
 - ✅ **Source-generated `System.Text.Json`** with no reflection fallback; both packages declare
   `IsAotCompatible` on `net10.0`
 - 🚧 **Pre-1.0 and iterating** — released as `0.9.0-preview.N`; the public surface is
   locked by a reviewed baseline but may still move before `1.0.0`. See [CHANGELOG.md](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/CHANGELOG.md)
-- 🔜 **Ensuring and stopping the background service**, and an **MCP server** over this SDK —
-  planned, not started
+- 🔜 **Ensuring the background service**, and an **MCP server** over this SDK — planned, not
+  started
 
 **Versioning**: the SDK builds against an accepted OpenAPI snapshot taken at an upstream release
 tag, never a live branch. The exact commit and the refresh procedure live in
@@ -262,7 +266,11 @@ var info = await client.Server.GetInfoAsync();
 Console.WriteLine($"opencode {info.ServerInfo.Version}, pid {server.ProcessId}, owned: {server.OwnsProcess}");
 ```
 
-`OpenCodeServerDiscoverOptions` selects a service channel, names a registration file directly, or
+`OpenCodeServer.StopAsync()` is the one deliberate way to end that shared service — `opencode
+service stop` for your code: it shuts the daemon's persistent terminals down, ends the registered
+process (`SIGTERM`, then `SIGKILL`; hard kills on Windows), and removes the registration, checking
+before every signal that the file still names the same service and the pid still belongs to the
+same process. `OpenCodeServerDiscoverOptions` selects a service channel, names a registration file directly, or
 requires an exact version; the
 [connection guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/connection-modes.md#️-discovering-the-background-service)
 has the full table.
@@ -376,11 +384,11 @@ Architecture, decision records, and engineering policy live under [`docs/`](http
   receiver also queues undelivered frames, so slow or absent consumers can grow memory; see the
   [terminal lifetime contract](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/architecture/client-runtime.md).
 
-- **Discovery finds the background service; it does not start or stop one.** `DiscoverAsync`
-  answers null when no ready registered daemon exists, and the CLI's `ensure` (start one when
-  nothing is registered) and `stop` operations have no SDK parity yet; they follow as their own
-  slices. Start a private server with `OpenCodeServer.StartAsync()` or run `opencode` in the
-  meantime.
+- **Discovery finds the background service; it does not start one.** `DiscoverAsync` answers null
+  when no ready registered daemon exists, `StopAsync` ends the registered one only when you call
+  it, and the CLI's `ensure` (start one when nothing is registered) has no SDK parity yet; it
+  follows as its own slice. Start a private server with `OpenCodeServer.StartAsync()` or run
+  `opencode` in the meantime.
 
 - **On `net472` and `netstandard2.0` running on Unix, the legacy-registration copy applies its
   owner-only mode through a `chmod` child process.** Discovery reproduces the CLI's one-time copy

@@ -77,6 +77,39 @@ public sealed class ServiceFileSystemTests
         await Assert.That(fileSystem.FileExists(directory.File("absent.json"))).IsFalse();
     }
 
+    [Test]
+    public async Task TryDelete_Should_Remove_An_Existing_File()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        var path = directory.File("sidecar.json");
+        directory.FileSystem.File.WriteAllText(path, "x");
+
+        var removed = new ServiceFileSystem().TryDelete(path);
+
+        await Assert.That(removed).IsTrue();
+        await Assert.That(directory.FileSystem.File.Exists(path)).IsFalse();
+    }
+
+    [Test]
+    public async Task TryDelete_Should_Return_False_For_A_Missing_File()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+
+        var removed = new ServiceFileSystem().TryDelete(directory.File("absent.json"));
+
+        await Assert.That(removed).IsFalse();
+    }
+
+    [Test]
+    public async Task TryDelete_Should_Return_False_For_A_Missing_Directory()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+
+        var removed = new ServiceFileSystem().TryDelete(directory.File("missing", "nested.json"));
+
+        await Assert.That(removed).IsFalse();
+    }
+
 #if NET
     [Test]
     public async Task TryCreateExclusiveAsync_Should_Create_With_User_Only_Access_On_Unix()

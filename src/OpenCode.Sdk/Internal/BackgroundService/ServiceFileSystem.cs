@@ -28,6 +28,20 @@ internal sealed class ServiceFileSystem : IServiceFileSystem
         return Task.FromResult(CreateExclusive(path, bytes));
     }
 
+    public bool TryDelete(string path)
+    {
+        // File.Exists is false for a missing directory as well as a missing file, which keeps
+        // Delete's DirectoryNotFoundException off this path; the pinned client's rm({force:true})
+        // reads both as "nothing to remove".
+        if (!File.Exists(path))
+        {
+            return false;
+        }
+
+        File.Delete(path);
+        return true;
+    }
+
     /// <summary>
     /// A registration is a few hundred bytes, so the create, the mode, the write, and the close run
     /// synchronously inside one <c>using</c>: nothing interleaves with a half-written file, and the
@@ -55,7 +69,7 @@ internal sealed class ServiceFileSystem : IServiceFileSystem
         catch when (created)
         {
             // A partial file this call created must not survive as a registration candidate.
-            _ = TryDelete(path);
+            _ = TryRemovePartialFile(path);
             throw;
         }
     }
@@ -91,7 +105,7 @@ internal sealed class ServiceFileSystem : IServiceFileSystem
     }
 #endif
 
-    private static bool TryDelete(string path)
+    private static bool TryRemovePartialFile(string path)
     {
         try
         {
