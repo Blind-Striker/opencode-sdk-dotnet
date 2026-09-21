@@ -195,11 +195,28 @@ public class OpenCodeServer : IAsyncDisposable
     /// <returns>A non-owning handle over the ready service.</returns>
     /// <exception cref="ArgumentException">An option is blank, the registration path is relative, the command is empty, or the options contradict one another.</exception>
     /// <exception cref="OpenCodeServerException">No user home directory resolves, the election timed out, the service failed to start, a version mismatch was refused, or a spawned command could not be resolved.</exception>
-    public static async Task<OpenCodeServer> EnsureAsync(
+    public static Task<OpenCodeServer> EnsureAsync(
         OpenCodeServerEnsureOptions? options = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        EnsureWithTimingAsync(options, ServiceTiming.Default, cancellationToken);
+
+    /// <summary>
+    /// The timing-injected Ensure the tests use the way upstream's <c>withEnsureTiming</c> keeps test
+    /// timing out of the public option types: an internal seam, never on
+    /// <see cref="OpenCodeServerEnsureOptions"/>, so the shipped surface stays unchanged while a live
+    /// proof accelerates the election loop's spawn delay and probe bound.
+    /// </summary>
+    /// <param name="options">The ensure options; null uses every default.</param>
+    /// <param name="timing">The lifecycle timing; the public door passes <see cref="ServiceTiming.Default"/>.</param>
+    /// <param name="cancellationToken">The caller's token; its cancellation propagates.</param>
+    /// <returns>A non-owning handle over the ready service.</returns>
+    internal static async Task<OpenCodeServer> EnsureWithTimingAsync(
+        OpenCodeServerEnsureOptions? options,
+        ServiceTiming timing,
+        CancellationToken cancellationToken)
     {
-        var timing = ServiceTiming.Default;
+        ArgumentNullException.ThrowIfNull(timing);
+
         var fileSystem = new ServiceFileSystem();
         var clock = new ServiceClock();
         var ensurer = new ServiceEnsurer(

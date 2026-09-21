@@ -199,6 +199,11 @@
       "anchorMatched": true
     },
     {
+      "path": "packages/client/src/promise/service.ts",
+      "sha256": "87c6245b0db1961731cf11fbef19a5a2b44108534b2d9fa82d880ee201fdfea2",
+      "anchorMatched": true
+    },
+    {
       "path": "packages/client/src/pty-handoff.ts",
       "sha256": "af8d82ded856bbd8e9df5ebbe196f40870e7ef90629340efbdc0a97e875b27cd",
       "anchorMatched": true

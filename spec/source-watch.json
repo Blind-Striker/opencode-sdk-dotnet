@@ -308,6 +308,15 @@
       }
     },
     {
+      "path": "packages/client/src/promise/service.ts",
+      "sha256": "87c6245b0db1961731cf11fbef19a5a2b44108534b2d9fa82d880ee201fdfea2",
+      "behavior": "The Promise-client ensure implementation, the parity source the SDK\u0027s ServiceEnsurer ports: a wall-clock deadline loop that reuses a ready compatible service, reports a failed one without spawning, replaces a version-mismatched one, and after three consecutive info-probe timeouts on the same registration announces missing, clears the handoff sidecar, terminates the unresponsive daemon, and spawns a replacement while keeping one contender plus one lock probe alive.",
+      "anchor": {
+        "type": "contains",
+        "text": "export async function ensure(options: EnsureOptions = {})"
+      }
+    },
+    {
       "path": "packages/client/src/pty-handoff.ts",
       "sha256": "af8d82ded856bbd8e9df5ebbe196f40870e7ef90629340efbdc0a97e875b27cd",
       "behavior": "The persistent-terminal handoff sidecar lives beside the registration file under the .pty-handoff suffix, written exclusively at mode 0600 through a temporary file and a rename; clear removes it and treats a missing file as already cleared, which is what a stop without a handoff does before it signals.",
