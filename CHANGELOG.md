@@ -9,6 +9,14 @@ Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
 `0.9.0-nightly.{yyyyMMdd}.{shortSha}`.
 
+## [0.9.0-preview.2] - 2026-09-21
+
+Three things changed since `0.9.0-preview.1`. The SDK follows upstream release tag `v2.0.11`
+instead of `v2.0.8`, which reshapes the provider and model catalog entries. Public names no
+longer carry the HTTP method, so a wave of methods and types is renamed; the breaking changes
+come first, each with what to change. And `OpenCodeServer` gained `StopAsync`, the stop door
+beside discovery.
+
 ### 💥 Breaking changes
 
 - **The accepted snapshot moved to upstream release tag `v2.0.11`**
@@ -506,6 +514,7 @@ migration to perform, because no earlier version was ever published.
 - **Pre-1.0 API.** The public surface is locked by a reviewed baseline, but it may still move
   before `1.0.0`. Breaking changes will be called out here with impact and migration path.
 
+[0.9.0-preview.2]: https://github.com/Blind-Striker/opencode-sdk-dotnet/releases/tag/v0.9.0-preview.2
 [0.9.0-preview.1]: https://github.com/Blind-Striker/opencode-sdk-dotnet/releases/tag/v0.9.0-preview.1
 [0.8.0-preview.2]: https://github.com/Blind-Striker/opencode-sdk-dotnet/releases/tag/v0.8.0-preview.2
 [0.8.0-preview.1]: https://github.com/Blind-Striker/opencode-sdk-dotnet/releases/tag/v0.8.0-preview.1
