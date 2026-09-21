@@ -59,4 +59,43 @@ internal static class ProcessObservation
             return false;
         }
     }
+
+    /// <summary>
+    /// Waits at most <paramref name="bound"/> for the process table to drop a contender the
+    /// SDK spawned itself, pumping <paramref name="pumpReap"/> while waiting. A single
+    /// <c>WNOHANG</c> look can land between the pipe EOF and the zombie state and miss: the
+    /// election loop polls every round, so production reaps continuously, and this wait mirrors
+    /// the loop instead of asserting one look. The table stays the assertion; the pump only
+    /// reaps, which is why the delegate's own value is discarded.
+    /// </summary>
+    /// <returns>True when the table dropped the pid inside the bound.</returns>
+    [SlopwatchSuppress(
+        "SW004",
+        "Reap pump for a spawned contender: the single-shot WNOHANG look races the pipe EOF against the zombie state, so the wait polls the contender the way the election loop polls every round; the poll interval is the same hundred milliseconds the readiness proofs use and the wait stays bounded by the caller's bound.")]
+    public static async Task<bool> ObserveExitWithReapAsync(
+        Func<bool> pumpReap, int processId, TimeSpan bound, CancellationToken cancellationToken)
+    {
+        using var observation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        observation.CancelAfter(bound);
+        while (!observation.Token.IsCancellationRequested)
+        {
+            _ = pumpReap();
+            if (!IsRunning(processId))
+            {
+                return true;
+            }
+
+            try
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(100), observation.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+        }
+
+        _ = pumpReap();
+        return !IsRunning(processId);
+    }
 }

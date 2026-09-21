@@ -239,8 +239,10 @@ public sealed class ServiceContenderSpawnerTests
 
             // Not killed at release, not dead of a closed pipe: alive across a bound far under
             // the time the remaining write still needs, then finished when the drain carried it.
+            // The exit wait pumps the contender's poll the way the election loop polls every
+            // round: a single WNOHANG look can land between the pipe EOF and the zombie state.
             await Assert.That(await ProcessObservation.ObserveExitWithinAsync(contender.ProcessId, SurvivalBound, cancellationToken)).IsFalse();
-            await Assert.That(await ProcessObservation.ObserveExitWithinAsync(contender.ProcessId, DrainBound, cancellationToken)).IsTrue();
+            await Assert.That(await ProcessObservation.ObserveExitWithReapAsync(() => contender.IsFinished, contender.ProcessId, DrainBound, cancellationToken)).IsTrue();
         }
         finally
         {
@@ -266,8 +268,10 @@ public sealed class ServiceContenderSpawnerTests
             daemonPid = ReadyPid(stderr);
             await Assert.That(daemonPid).IsNotNull();
 
-            // The short-lived parent is gone...
-            await Assert.That(await ProcessObservation.ObserveExitWithinAsync(contender.ProcessId, ExitBound, cancellationToken)).IsTrue();
+            // The short-lived parent is gone. The wait pumps the contender's poll the way
+            // the election loop polls every round: the shell exits in milliseconds, but a
+            // single WNOHANG look can land between the pipe EOF and the zombie state and miss.
+            await Assert.That(await ProcessObservation.ObserveExitWithReapAsync(() => contender.IsFinished, contender.ProcessId, ExitBound, cancellationToken)).IsTrue();
 
             // ...and the contender it started outlives it: alive now, and still alive a bound
             // later, so a parent-death coupling has a window to fire and be caught.

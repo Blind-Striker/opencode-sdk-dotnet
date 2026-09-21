@@ -486,7 +486,9 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
         var descriptors = Marshal.AllocHGlobal(2 * sizeof(int));
         try
         {
-            if (!Pipe(descriptors))
+            // pipe(2) reports 0 for success, so the declaration stays an int: a BOOL
+            // marshal would read every successful call as a failure.
+            if (Pipe(descriptors) != 0)
             {
                 throw SpawnFailure(startInfo, new Win32Exception(Marshal.GetLastWin32Error()));
             }
@@ -759,8 +761,7 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
 
     [LibraryImport("libc", EntryPoint = "pipe", SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool Pipe(IntPtr descriptors);
+    private static partial int Pipe(IntPtr descriptors);
 
     [LibraryImport("libc", EntryPoint = "fcntl", SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
@@ -875,8 +876,7 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
 
     [DllImport("libc", EntryPoint = "pipe", SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool Pipe(IntPtr descriptors);
+    private static extern int Pipe(IntPtr descriptors);
 
     [DllImport("libc", EntryPoint = "fcntl", SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
