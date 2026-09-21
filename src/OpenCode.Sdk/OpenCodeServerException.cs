@@ -2,8 +2,9 @@ namespace OpenCode.Sdk;
 
 /// <summary>
 /// A local server door failed: a standalone server could not start, report readiness, or stop,
-/// or background-service discovery could not resolve the user home its registration roots hang
-/// off. An absent or unusable registration is not a failure; discovery reports it as null.
+/// or background-service discovery or ensure could not resolve the user home its registration
+/// roots hang off, timed out, or refused a version mismatch. An absent or unusable registration
+/// is not a failure for discovery, which reports it as null; ensure starts a service instead.
 /// </summary>
 public class OpenCodeServerException : OpenCodeException
 {

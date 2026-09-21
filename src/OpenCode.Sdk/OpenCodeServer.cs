@@ -16,8 +16,9 @@ namespace OpenCode.Sdk;
 /// a forced tree kill; disposal ends exactly its own child, and the operating system closes the
 /// lease even when the owner crashes before disposal runs. <see cref="DiscoverAsync"/> returns a
 /// shared registered background service the first-party CLI runs for every client on the machine:
-/// nothing here owns it, and disposing the handle is a no-op; the static <see cref="StopAsync"/>
-/// is the one deliberate way to end that shared service. Either way the handle carries the
+/// nothing here owns it, and disposing the handle is a no-op; <see cref="EnsureAsync"/> reuses or
+/// starts that shared service and returns the same non-owning handle; the static
+/// <see cref="StopAsync"/> is the one deliberate way to end it. Either way the handle carries the
 /// endpoint and credential a client needs, and <see cref="CreateClient"/> is the door to them.
 /// </summary>
 public class OpenCodeServer : IAsyncDisposable
@@ -97,8 +98,9 @@ public class OpenCodeServer : IAsyncDisposable
     /// <summary>
     /// Gets a value indicating whether this handle owns the server process: true for a server
     /// <see cref="StartAsync"/> started, whose disposal ends it; false for a registered background
-    /// service <see cref="DiscoverAsync"/> found, whose disposal is a no-op because other clients
-    /// share it. A bare mock reports false unless it overrides this member.
+    /// service <see cref="DiscoverAsync"/> or <see cref="EnsureAsync"/> found, whose disposal is a
+    /// no-op because other clients share it. A bare mock reports false unless it overrides this
+    /// member.
     /// </summary>
     public virtual bool OwnsProcess => _ownsProcess;
 
@@ -176,6 +178,40 @@ public class OpenCodeServer : IAsyncDisposable
             new ServiceProcessControl(),
             timing);
         return stopper.StopAsync(options, cancellationToken);
+    }
+
+    /// <summary>
+    /// Ensures a healthy compatible background service is running: reuses a ready daemon,
+    /// replaces a version-mismatched one according to
+    /// <see cref="OpenCodeServerEnsureOptions.VersionPolicy"/>, and otherwise spawns detached
+    /// contenders until one registers or the wall-clock bound expires. The returned handle does
+    /// not own the process; disposal is a no-op, and <see cref="StopAsync"/> is the one
+    /// deliberate way to end the shared service.
+    /// </summary>
+    /// <param name="options">The ensure options; null uses every default, including
+    /// <c>opencode serve --service</c> and <see cref="OpenCodeServerVersionPolicy.Ignore"/>.</param>
+    /// <param name="cancellationToken">The caller's token; its cancellation propagates.</param>
+    /// <returns>A non-owning handle over the ready service.</returns>
+    /// <exception cref="ArgumentException">An option is blank, the registration path is relative, the command is empty, or the options contradict one another.</exception>
+    /// <exception cref="OpenCodeServerException">No user home directory resolves, the election timed out, the service failed to start, a version mismatch was refused, or a spawned command could not be resolved.</exception>
+    public static async Task<OpenCodeServer> EnsureAsync(
+        OpenCodeServerEnsureOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        var timing = ServiceTiming.Default;
+        var fileSystem = new ServiceFileSystem();
+        var ensurer = new ServiceEnsurer(
+            new ServiceEnvironment(),
+            fileSystem,
+            new ServiceInfoProbe(timing),
+            new ServiceContenderSpawner(),
+            new ServicePtyHandoff(),
+            new ServiceProcessControl(),
+            new ServiceClock(),
+            new ExecutableResolver(ExecutableSearchEnvironment.ForCurrentProcess()),
+            timing);
+        var registration = await ensurer.EnsureAsync(options, cancellationToken).ConfigureAwait(false);
+        return new OpenCodeServer(registration.Endpoint, registration.Password!, registration.ProcessId, ownsProcess: false);
     }
 
     /// <summary>
