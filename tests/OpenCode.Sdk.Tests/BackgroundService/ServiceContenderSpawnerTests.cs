@@ -22,9 +22,12 @@ namespace OpenCode.Sdk.Tests.BackgroundService;
 /// contender leads its own session on Unix; stdin and stdout are NUL; the retained tail is the
 /// final 8 KiB of stderr; <see cref="ServiceContender.Release"/> drops the retention without
 /// killing and keeps the pipe draining; and a contender survives its parent's exit. Every test
-/// starts a real process, hence the server-process key.
+/// starts a real process. Keyless <c>[NotInParallel]</c> rather than the server-process key:
+/// the release-drain proof paces 1024 timer waits that lag under module overlap, and the
+/// three-vCPU macOS leg is where that lag bites, the same starvation profile research log
+/// Q157/Q172 records for the stop liveness proof.
 /// </summary>
-[NotInParallel(ParallelConstraintKeys.ServerProcess)]
+[NotInParallel]
 public sealed class ServiceContenderSpawnerTests
 {
     /// <summary>The contender-probe block filler after its ten-digit number; the same 54 characters the fixture writes, so the tail boundary is checkable byte for byte.</summary>
@@ -40,7 +43,10 @@ public sealed class ServiceContenderSpawnerTests
     private const int StdoutFloodBytes = 80 * 1024;
 
     private static readonly TimeSpan ExitBound = TimeSpan.FromSeconds(15);
-    private static readonly TimeSpan DrainBound = TimeSpan.FromSeconds(30);
+    /// <summary>The release-drain proof's finish bound: the paced writer needs about eight
+    /// seconds unloaded, and sixty covers the timer lag the three-vCPU macOS leg adds under
+    /// module overlap while staying far under the test's own two-minute timeout.</summary>
+    private static readonly TimeSpan DrainBound = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan SurvivalBound = TimeSpan.FromSeconds(1);
     private static readonly RealFileSystem FileSystem = new();
 
