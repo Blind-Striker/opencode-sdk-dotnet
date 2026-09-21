@@ -29,6 +29,7 @@ public sealed class ServiceStopperTests
         PollInterval: TimeSpan.FromMilliseconds(1),
         SpawnDelay: TimeSpan.Zero,
         MaxSpawnDelay: TimeSpan.Zero,
+        PromiseTimeout: TimeSpan.FromSeconds(120),
         StopPollInterval: TimeSpan.FromMilliseconds(2),
         StopPollAttempts: 3);
 

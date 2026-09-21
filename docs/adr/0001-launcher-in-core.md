@@ -15,6 +15,11 @@ library, `kill(2)`, for the Unix signal rungs that `System.Diagnostics.Process` 
 is a platform primitive every process already has loaded, not a process library, and this record's
 rule is unchanged by it.
 
+The background-service door's contender spawn (ADR-0027) binds the platform's own process-creation
+primitives, `CreateProcessW` and `posix_spawnp`, for the detached session that
+`System.Diagnostics.Process` cannot open; that is the same class of platform primitive every
+process already has loaded, not a process library, and this record's rule is unchanged by it.
+
 ## Considered options
 
 - **Separate launcher package** — rejected: upstream parity argues for core, and the launcher
