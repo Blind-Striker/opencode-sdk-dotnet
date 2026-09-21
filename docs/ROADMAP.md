@@ -113,7 +113,11 @@ is revisited at each boundary.
    canary with the performance suite (ADR-0022), Restore-patch retirement, and an evaluation of
    moving the repository to an organization for larger CI runners (GitHub larger runners and
    third-party providers are organization-only; the three legs run on the free 4-vCPU public
-   runners today, macOS on 3).
+   runners today, macOS on 3). Also a publish-lane diet: the nightly job's `generate --verify`
+   repeats what the same run's Linux leg already proved on the same commit, and the manual publish
+   lane's copy is slow because the generator's format pass runs in six batches; and test
+   categorization (no test carries a category today; the only split is by project and by the
+   `*LiveTests` / `*ContractTests` names), so a lane can run a named subset.
 
 ## Open Questions
 
