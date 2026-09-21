@@ -9,6 +9,15 @@ Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
 `0.9.0-nightly.{yyyyMMdd}.{shortSha}`.
 
+### ✨ Added
+
+- **`OpenCodeServer.EnsureAsync`**, the managed-service election beside discovery and stop.
+  It reuses a ready compatible daemon, replaces a version-mismatched one according to
+  `OpenCodeServerEnsureOptions.VersionPolicy` (`Ignore`, `Replace`, `Error`), and otherwise
+  spawns detached contenders until one registers or the 120-second wall-clock bound expires.
+  The persistent-terminal handoff sidecar travels with replacement, and `OnStart` fires at
+  most once before a new service process is spawned.
+
 ### 🐛 Fixes
 
 - **Structural union values print themselves.** `ToString()` on `FormValue`, `FormWhenValue`,
