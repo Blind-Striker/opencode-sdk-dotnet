@@ -11,8 +11,9 @@ namespace OpenCode.Sdk.ServiceFixture;
 /// <c>discover-channel &lt;channel&gt;</c> names a service channel; <c>stop-channel &lt;channel&gt;</c>
 /// stops the channel's registered service; <c>idle</c> prints <c>ready</c> and lingers until it is
 /// ended; <c>ignore-sigterm</c> lingers the same way but ignores <c>SIGTERM</c> where the platform
-/// can deliver one. The credential is never printed. Exit 0 carries an answer, 1 a failure, 2 a
-/// usage error.
+/// can deliver one; <c>contender-probe</c> plays the contender the Ensure loop spawns, observed
+/// through the spawner's stderr pipe. The credential is never printed. Exit 0 carries an answer,
+/// 1 a failure, 2 a usage error.
 /// </remarks>
 internal static class ServiceFixtureRunner
 {
@@ -24,13 +25,14 @@ internal static class ServiceFixtureRunner
             ["stop-channel", var channel] => StopMode.RunAsync(channel),
             ["idle"] => LingeringProcessMode.RunAsync(ignoreTerminate: false),
             ["ignore-sigterm"] => LingeringProcessMode.RunAsync(ignoreTerminate: true),
+            ["contender-probe", var probe, .. var arguments] => ContenderProbe.RunAsync(probe, arguments),
             _ => UsageAsync(),
         };
 
     private static async Task<int> UsageAsync()
     {
         await Console.Error
-            .WriteLineAsync("Usage: discover-default | discover-channel <channel> | stop-channel <channel> | idle | ignore-sigterm")
+            .WriteLineAsync("Usage: discover-default | discover-channel <channel> | stop-channel <channel> | idle | ignore-sigterm | contender-probe echo-argv-env [name …] | stderr-fill [bytes] | daemon-sleep")
             .ConfigureAwait(false);
         return 2;
     }

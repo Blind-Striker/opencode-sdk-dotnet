@@ -477,6 +477,15 @@
         "type": "contains",
         "text": "\u0022effect\u0022: \u00224.0.0-rc.112\u0022"
       }
+    },
+    {
+      "path": "packages/client/src/service-contender.ts",
+      "sha256": "412b201461bee60ef41ab18570e71f5b31f377d612d0e41ebc69d55a5ef77c4f",
+      "behavior": "A contender is spawned detached with stdin and stdout ignored, stderr piped, and the parent environment overlaid; stderr is retained as an 8 KiB tail, error and close are observed, the child is unref\u0027d, and release drops the listener without signalling, which is the contract the Ensure door\u0027s spawn seam ports.",
+      "anchor": {
+        "type": "contains",
+        "text": "detached: true,"
+      }
     }
   ]
 }

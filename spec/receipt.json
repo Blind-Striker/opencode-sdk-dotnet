@@ -292,6 +292,11 @@
       "path": "package.json",
       "sha256": "bc6c4a372af3ca9b4eb47bf41ce7adb6d9c10bcb061faa60fc65c3bf7b083356",
       "anchorMatched": true
+    },
+    {
+      "path": "packages/client/src/service-contender.ts",
+      "sha256": "412b201461bee60ef41ab18570e71f5b31f377d612d0e41ebc69d55a5ef77c4f",
+      "anchorMatched": true
     }
   ]
 }

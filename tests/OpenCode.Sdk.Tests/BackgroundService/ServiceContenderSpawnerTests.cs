@@ -1,0 +1,454 @@
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Globalization;
+using System.Runtime.InteropServices;
+using System.Text.Json;
+using OpenCode.Sdk.Internal;
+using OpenCode.Sdk.Internal.BackgroundService;
+using OpenCode.Sdk.Internal.BackgroundService.Abstractions;
+using OpenCode.Sdk.Tests.Support;
+using OpenCode.Sdk.TestSupport;
+using Testably.Abstractions;
+
+namespace OpenCode.Sdk.Tests.BackgroundService;
+
+/// <summary>
+/// The shipped <see cref="ServiceContenderSpawner"/> against real processes of this machine: the
+/// isolated fixture's <c>contender-probe</c> modes, spawned through the seam exactly the way the
+/// pinned client's Ensure loop spawns contenders (<c>spawnServiceContender</c>,
+/// <c>packages/client/src/service-contender.ts</c>). One test per parity claim: the returned pid
+/// is a live process whose ready line names the same pid; a missing executable throws
+/// synchronously; argv and the environment overlay cross byte for byte, Unicode included; the
+/// contender leads its own session on Unix; stdin and stdout are NUL; the retained tail is the
+/// final 8 KiB of stderr; <see cref="ServiceContender.Release"/> drops the retention without
+/// killing and keeps the pipe draining; and a contender survives its parent's exit. Every test
+/// starts a real process. Keyless <c>[NotInParallel]</c> rather than the server-process key:
+/// the release-drain proof paces 1024 timer waits that lag under module overlap, and the
+/// three-vCPU macOS leg is where that lag bites, the same starvation profile research log
+/// Q157/Q172 records for the stop liveness proof.
+/// </summary>
+[NotInParallel]
+public sealed class ServiceContenderSpawnerTests
+{
+    /// <summary>The contender-probe block filler after its ten-digit number; the same 54 characters the fixture writes, so the tail boundary is checkable byte for byte.</summary>
+    private const string BlockFiller = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-";
+
+    /// <summary>The fixture's default fill: 256 blocks, so the final 8 KiB cuts across numbered block boundaries.</summary>
+    private const int DefaultFillBytes = 16 * 1024;
+
+    /// <summary>The release-drain fill: far over the pipe buffer, paced by the fixture, so a drain that stopped would wedge the contender.</summary>
+    private const int DrainFillBytes = 4 * 1024 * 1024;
+
+    /// <summary>The fixture's stdout flood; the seam must give the contender NUL stdout for the flood to complete.</summary>
+    private const int StdoutFloodBytes = 80 * 1024;
+
+    private static readonly TimeSpan ExitBound = TimeSpan.FromSeconds(15);
+    /// <summary>The release-drain proof's finish bound: the paced writer needs about eight
+    /// seconds unloaded, and sixty covers the timer lag the three-vCPU macOS leg adds under
+    /// module overlap while staying far under the test's own two-minute timeout.</summary>
+    private static readonly TimeSpan DrainBound = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan SurvivalBound = TimeSpan.FromSeconds(1);
+    private static readonly RealFileSystem FileSystem = new();
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task Spawn_Should_Return_A_Live_Process_Whose_Ready_Line_Names_The_Same_Pid(CancellationToken cancellationToken)
+    {
+        using var contender = new ServiceContenderSpawner().Spawn(FixtureProbe("contender-probe", "daemon-sleep"));
+        try
+        {
+            await Assert.That(contender.ProcessId).IsGreaterThan(0);
+            await Assert.That(ProcessObservation.IsRunning(contender.ProcessId)).IsTrue();
+            var stderr = await LiveReadiness.WaitAsync(
+                _ => Task.FromResult(contender.Stderr),
+                tail => ReadyPid(tail) == contender.ProcessId,
+                "the contender's ready line naming the pid the spawner returned",
+                cancellationToken);
+            var readyPid = ReadyPid(stderr);
+            await Assert.That(readyPid).IsNotNull();
+            await Assert.That(readyPid!.Value).IsEqualTo(contender.ProcessId);
+            await Assert.That(contender.Error).IsNull();
+            await Assert.That(contender.TryGetFailure()).IsNull();
+
+            // Upstream's release never kills: the contender stays alive for the election it was
+            // started for, and the retained tail goes with the retention.
+            contender.Release();
+            await Assert.That(contender.Stderr).IsEqualTo(string.Empty);
+            await Assert.That(ProcessObservation.IsRunning(contender.ProcessId)).IsTrue();
+            await Assert.That(await ProcessObservation.ObserveExitWithinAsync(contender.ProcessId, SurvivalBound, cancellationToken)).IsFalse();
+        }
+        finally
+        {
+            KillIfRunning(contender.ProcessId);
+        }
+    }
+
+    [Test]
+    public async Task Spawn_Should_Throw_Synchronously_For_A_Missing_Executable()
+    {
+        var missing = FileSystem.Path.Combine(
+            FileSystem.Path.GetTempPath(), "no-such-contender-" + Guid.NewGuid().ToString("N") + ".exe");
+
+        // The action is synchronous on purpose: the failure must throw from Spawn itself, the way
+        // the launcher's start does, not surface later on the returned contender.
+        var exception = await Assert
+            .That(() => new ServiceContenderSpawner().Spawn(new IServiceContenderSpawner.ContenderStartInfo(
+                new ResolvedExecutable(missing, missing, IsBatchScript: false),
+                ViaCmdExe: false,
+                [missing],
+                new Dictionary<string, string?>(StringComparer.Ordinal))))
+            .Throws<OpenCodeServerException>();
+
+        await Assert.That(exception!.Message).Contains(missing);
+        await Assert.That(exception.InnerException).IsTypeOf<Win32Exception>();
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task Spawn_Should_Pass_Arguments_And_Environment_Byte_For_Byte(CancellationToken cancellationToken)
+    {
+        const string sentinelName = "SDK_CONTENDER_SENTINEL";
+        const string emptyName = "SDK_CONTENDER_EMPTY";
+        var removedName = OperatingSystem.IsWindows() ? "TEMP" : "PATH";
+        var probeArguments = new[]
+        {
+            "",
+            "sp ace",
+            "tab\there",
+            "quo\"te",
+            "back\\slash\\path",
+            "αβγδ-日本語",
+            "🚀-astral-plane",
+            "e\u0301-combining",
+            "trailing-space ",
+            sentinelName,
+            emptyName,
+            removedName,
+        };
+        var unicodeValue = "Ω-🚀-日本語-é-e\u0301-sp ace";
+        var overlay = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            [sentinelName] = unicodeValue,
+            [emptyName] = "",
+            [removedName] = null,
+        };
+        var command = FixtureCommand();
+        using var contender = new ServiceContenderSpawner().Spawn(new IServiceContenderSpawner.ContenderStartInfo(
+            new ResolvedExecutable("dotnet", command[0], IsBatchScript: false),
+            ViaCmdExe: false,
+            [command[0], command[1], "contender-probe", "echo-argv-env", .. probeArguments],
+            overlay));
+        try
+        {
+            await Assert.That(await WaitForTheProbeAsync(contender, "the echo probe to finish", cancellationToken)).IsTrue()
+                .Because(contender.Stderr);
+            var report = ParseEchoReport(contender.Stderr);
+
+            await Assert.That(report.Argv.SequenceEqual(probeArguments, StringComparer.Ordinal)).IsTrue();
+            await Assert.That(report.Environment[sentinelName]).IsEqualTo(unicodeValue);
+            await Assert.That(report.Environment[emptyName]).IsEqualTo(string.Empty);
+            await Assert.That(report.Environment[removedName]).IsNull();
+        }
+        finally
+        {
+            KillIfRunning(contender.ProcessId);
+        }
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task Spawned_Contender_Should_Lead_Its_Own_Session_On_Unix(CancellationToken cancellationToken)
+    {
+        using var contender = new ServiceContenderSpawner().Spawn(FixtureProbe("contender-probe", "daemon-sleep"));
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                // Windows detaches without sessions (DETACHED_PROCESS, no console control events
+                // reach the contender); the arm asserts the spawn left a healthy contender for
+                // the Unix arm's structure to describe.
+                Console.WriteLine("branch: Windows — no session id to read; contender pid " + contender.ProcessId.ToString(CultureInfo.InvariantCulture) + " runs");
+                await Assert.That(await ProcessObservation.ObserveExitWithinAsync(contender.ProcessId, SurvivalBound, cancellationToken)).IsFalse();
+                return;
+            }
+
+            var sessionId = GetSessionId(contender.ProcessId);
+            await Assert.That(sessionId).IsGreaterThan(0);
+            await Assert.That(sessionId).IsEqualTo(contender.ProcessId);
+            Console.WriteLine("branch: Unix — contender pid " + contender.ProcessId.ToString(CultureInfo.InvariantCulture) + " leads its own session (getsid == pid)");
+        }
+        finally
+        {
+            KillIfRunning(contender.ProcessId);
+        }
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task Spawn_Should_Give_The_Child_Nul_Standard_Streams(CancellationToken cancellationToken)
+    {
+        using var contender = new ServiceContenderSpawner().Spawn(FixtureProbe("contender-probe", "echo-argv-env"));
+        try
+        {
+            // The probe floods stdout before its report: a child whose stdout is a pipe nobody
+            // reads blocks inside the flood and never finishes, which this wait turns into a
+            // timeout instead of a hang.
+            await Assert.That(await WaitForTheProbeAsync(contender, "the echo probe to finish", cancellationToken)).IsTrue()
+                .Because(contender.Stderr);
+            var report = ParseEchoReport(contender.Stderr);
+
+            await Assert.That(report.Stdin).IsEqualTo("eof");
+            await Assert.That(report.StdinIsRedirected).IsTrue();
+            await Assert.That(report.StdoutIsRedirected).IsTrue();
+            await Assert.That(report.StdoutFlushed).IsEqualTo(StdoutFloodBytes);
+        }
+        finally
+        {
+            KillIfRunning(contender.ProcessId);
+        }
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task Spawn_Should_Keep_Only_The_Final_Eight_Kib_Of_Standard_Error(CancellationToken cancellationToken)
+    {
+        using var contender = new ServiceContenderSpawner().Spawn(FixtureProbe("contender-probe", "stderr-fill", DefaultFillBytes.ToString(CultureInfo.InvariantCulture)));
+        try
+        {
+            await Assert.That(await WaitForTheProbeAsync(contender, "the stderr-fill probe to finish", cancellationToken)).IsTrue()
+                .Because(contender.Stderr);
+            await Assert.That(contender.TryGetFailure()).IsNull();
+
+            await Assert.That(contender.Stderr).IsEqualTo(ExpectedTail());
+        }
+        finally
+        {
+            KillIfRunning(contender.ProcessId);
+        }
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task Release_Should_Keep_Draining_Standard_Error_So_The_Contender_Finishes(CancellationToken cancellationToken)
+    {
+        using var contender = new ServiceContenderSpawner().Spawn(FixtureProbe("contender-probe", "stderr-fill", DrainFillBytes.ToString(CultureInfo.InvariantCulture)));
+        try
+        {
+            _ = await LiveReadiness.WaitAsync(
+                _ => Task.FromResult(contender.Stderr),
+                static tail => tail.Length > 0,
+                "the contender's first stderr chunk",
+                cancellationToken);
+
+            contender.Release();
+            await Assert.That(contender.Stderr).IsEqualTo(string.Empty);
+
+            // Not killed at release, not dead of a closed pipe: alive across a bound far under
+            // the time the remaining write still needs, then finished when the drain carried it.
+            // The exit wait pumps the contender's poll the way the election loop polls every
+            // round: a single WNOHANG look can land between the pipe EOF and the zombie state.
+            await Assert.That(await ProcessObservation.ObserveExitWithinAsync(contender.ProcessId, SurvivalBound, cancellationToken)).IsFalse();
+            await Assert.That(await ProcessObservation.ObserveExitWithReapAsync(() => contender.IsFinished, contender.ProcessId, DrainBound, cancellationToken)).IsTrue();
+        }
+        finally
+        {
+            KillIfRunning(contender.ProcessId);
+        }
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task Spawned_Contender_Should_Survive_Its_Parents_Exit(CancellationToken cancellationToken)
+    {
+        int? daemonPid = null;
+        using var contender = new ServiceContenderSpawner().Spawn(ShortLivedParent());
+        try
+        {
+            // The parent is the shell the spawner detached; the daemon-sleep it launches
+            // inherits the shell's stderr pipe, so its ready line names the pid to observe.
+            var stderr = await LiveReadiness.WaitAsync(
+                _ => Task.FromResult(contender.Stderr),
+                static tail => ReadyPid(tail) is not null,
+                "the daemon-sleep ready line through the parent's stderr pipe",
+                cancellationToken);
+            daemonPid = ReadyPid(stderr);
+            await Assert.That(daemonPid).IsNotNull();
+
+            // The short-lived parent is gone. The wait pumps the contender's poll the way
+            // the election loop polls every round: the shell exits in milliseconds, but a
+            // single WNOHANG look can land between the pipe EOF and the zombie state and miss.
+            await Assert.That(await ProcessObservation.ObserveExitWithReapAsync(() => contender.IsFinished, contender.ProcessId, ExitBound, cancellationToken)).IsTrue();
+
+            // ...and the contender it started outlives it: alive now, and still alive a bound
+            // later, so a parent-death coupling has a window to fire and be caught.
+            await Assert.That(ProcessObservation.IsRunning(daemonPid!.Value)).IsTrue();
+            await Assert.That(await ProcessObservation.ObserveExitWithinAsync(daemonPid.Value, SurvivalBound, cancellationToken)).IsFalse();
+
+            // End it the way the stop door does — the terminate rung, which Windows makes a hard
+            // kill of — proving the probe's own signal-exit contract.
+            var control = new ServiceProcessControl();
+            var identity = control.TrySnapshot(daemonPid.Value);
+            await Assert.That(identity).IsNotNull();
+            await Assert.That(control.TrySignal(identity!.Value, ProcessSignal.Terminate)).IsTrue();
+            await Assert.That(await ProcessObservation.ObserveExitWithinAsync(daemonPid.Value, ExitBound, cancellationToken)).IsTrue();
+        }
+        finally
+        {
+            KillIfRunning(contender.ProcessId);
+            if (daemonPid is { } orphan)
+            {
+                KillIfRunning(orphan);
+            }
+        }
+    }
+
+    /// <summary>The fixture process behind one probe, as the spawner's complete argv.</summary>
+    private static IServiceContenderSpawner.ContenderStartInfo FixtureProbe(params string[] modeAndArguments)
+    {
+        var command = FixtureCommand();
+        return new IServiceContenderSpawner.ContenderStartInfo(
+            new ResolvedExecutable("dotnet", command[0], IsBatchScript: false),
+            ViaCmdExe: false,
+            [command[0], command[1], .. modeAndArguments],
+            new Dictionary<string, string?>(StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    /// The short-lived parent: a shell that starts the fixture's daemon-sleep and exits at once.
+    /// Windows runs cmd with <c>start /b</c> — the empty title lets the quoted command paths
+    /// through, and the child inherits cmd's stderr pipe. Unix runs sh with a backgrounded
+    /// command, whose child keeps the pipe and is reparented to init.
+    /// </summary>
+    private static IServiceContenderSpawner.ContenderStartInfo ShortLivedParent()
+    {
+        var command = FixtureCommand();
+        if (OperatingSystem.IsWindows())
+        {
+            return new IServiceContenderSpawner.ContenderStartInfo(
+                new ResolvedExecutable("cmd", SystemCommand(), IsBatchScript: false),
+                ViaCmdExe: false,
+                [SystemCommand(), "/c", "start", "/b", "", command[0], command[1], "contender-probe", "daemon-sleep"],
+                new Dictionary<string, string?>(StringComparer.Ordinal));
+        }
+
+        return new IServiceContenderSpawner.ContenderStartInfo(
+            new ResolvedExecutable("sh", "/bin/sh", IsBatchScript: false),
+            ViaCmdExe: false,
+            ["/bin/sh", "-c", ShQuote(command[0]) + " " + ShQuote(command[1]) + " contender-probe daemon-sleep &"],
+            new Dictionary<string, string?>(StringComparer.Ordinal));
+    }
+
+    private static string SystemCommand() =>
+        FileSystem.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe");
+
+    private static string ShQuote(string value) => "'" + string.Join("'\\''", value.Split('\'')) + "'";
+
+    private static IReadOnlyList<string> FixtureCommand() => new ServiceFixtureCommand(FileSystem).Resolve();
+
+    /// <summary>Waits for the contender's stderr pipe to reach end-of-stream: the probe finished and nothing holds the write end.</summary>
+    private static Task<bool> WaitForTheProbeAsync(ServiceContender contender, string description, CancellationToken cancellationToken) =>
+        LiveReadiness.WaitAsync(
+            _ => Task.FromResult(contender.IsFinished),
+            static finished => finished,
+            description,
+            cancellationToken);
+
+    /// <summary>Reads the <c>ready pid=&lt;pid&gt;</c> line the daemon-sleep probe prints; null until the line arrives.</summary>
+    private static int? ReadyPid(string standardError)
+    {
+        const string prefix = "ready pid=";
+        var start = standardError.IndexOf(prefix, StringComparison.Ordinal);
+        if (start < 0)
+        {
+            return null;
+        }
+
+        start += prefix.Length;
+        var end = start;
+        while (end < standardError.Length && char.IsAsciiDigit(standardError[end]))
+        {
+            end++;
+        }
+
+        if (end == start)
+        {
+            return null;
+        }
+
+        // Digit by digit, the way ServiceFixtureOutput reads its elapsed line: the span-based
+        // parse the modern targets prefer does not exist on net472, and Substring draws the
+        // reverse complaint there.
+        var pid = 0;
+        for (var index = start; index < end; index++)
+        {
+            var digit = standardError[index] - '0';
+            if (digit is < 0 or > 9)
+            {
+                return null;
+            }
+
+            pid = checked((pid * 10) + digit);
+        }
+
+        return pid;
+    }
+
+    private static EchoReport ParseEchoReport(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        var argv = root.GetProperty("argv")
+            .EnumerateArray()
+            .Select(static element => element.GetString() ?? string.Empty)
+            .ToArray();
+        var environment = new Dictionary<string, string?>(StringComparer.Ordinal);
+        foreach (var property in root.GetProperty("env").EnumerateObject())
+        {
+            environment[property.Name] = property.Value.ValueKind == JsonValueKind.Null ? null : property.Value.GetString();
+        }
+
+        return new EchoReport(
+            argv,
+            environment,
+            root.GetProperty("stdin").GetString() ?? string.Empty,
+            root.GetProperty("stdinIsRedirected").GetBoolean(),
+            root.GetProperty("stdoutIsRedirected").GetBoolean(),
+            root.GetProperty("stdoutFlushed").GetInt32());
+    }
+
+    /// <summary>The final 8 KiB of the fixture's default fill: blocks 128 through 255 of 256.</summary>
+    private static string ExpectedTail() => string.Concat(
+        Enumerable.Range(128, 128).Select(static block => block.ToString("D10", CultureInfo.InvariantCulture) + BlockFiller));
+
+    [SlopwatchSuppress(
+        "SW003",
+        "Best-effort teardown: the pid being gone is the state the test is after, so a GetProcessById ArgumentException is the success path, not a swallowed failure; the kill stays idempotent.")]
+    private static void KillIfRunning(int processId)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(processId);
+            if (!process.HasExited)
+            {
+                process.Kill();
+            }
+        }
+        catch (ArgumentException)
+        {
+            // Already gone: nothing to end, which is the state every test is after.
+        }
+    }
+
+    /// <summary><c>getsid(2)</c> through the portable <c>libc</c> spelling the SDK's own interop uses.</summary>
+    [DllImport("libc", EntryPoint = "getsid", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+    private static extern int GetSessionId(int processId);
+
+    private sealed record EchoReport(
+        string[] Argv,
+        Dictionary<string, string?> Environment,
+        string Stdin,
+        bool StdinIsRedirected,
+        bool StdoutIsRedirected,
+        int StdoutFlushed);
+}
