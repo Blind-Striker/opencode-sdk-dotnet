@@ -2,9 +2,8 @@ namespace OpenCode.Sdk.Internal.BackgroundService.Abstractions;
 
 /// <summary>
 /// The persistent-terminal handoff sidecar the pinned client's <c>PtyHandoff</c> keeps beside the
-/// registration. Dilim-1 is the seam and a no-op production adapter; the real sidecar I/O lands in
-/// Dilim-2. Methods match upstream: <c>prepare</c>, <c>environment</c>, <c>complete</c>,
-/// <c>clear</c>.
+/// registration. Methods match upstream: <c>prepare</c>, <c>environment</c>, <c>complete</c>,
+/// <c>clear</c>. The shipped implementation is <see cref="ServicePtyHandoff"/>.
 /// </summary>
 internal interface IServicePtyHandoff
 {

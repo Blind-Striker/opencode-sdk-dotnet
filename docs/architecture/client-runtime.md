@@ -519,4 +519,11 @@ in the loop, Error discovers twice and throws on mismatch without entering the l
 spawns at most two detached contenders (`opencode serve --service` by default) until a service
 registers or the 120-second wall-clock bound expires. `OnStart` fires at most once. The returned
 handle is the same non-owning shape discovery returns. Persistent-terminal sidecar I/O is behind
-`IServicePtyHandoff`; the production adapter is a no-op until the sidecar slice lands.
+`IServicePtyHandoff`: `prepare` calls the generated handoff door under the request bound and
+publishes the ticket beside the registration through an owner-only temporary file and a
+replace-on-success rename, reusing a fresh matching sidecar and, when the daemon answers 404,
+shutting its terminals down best-effort and publishing a null sidecar with a 30-second expiry;
+`environment` adopts an unexpired sidecar whose source still matches the current registration (or
+whose registration is gone) as `OPENCODE_PTY_HANDOFF` and removes the variable otherwise;
+`complete` clears only a sidecar a different source wrote, with no expiry check; and `clear`
+removes it idempotently, the same seam Stop's sidecar clear routes through.

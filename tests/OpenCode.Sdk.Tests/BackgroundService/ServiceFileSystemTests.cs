@@ -110,6 +110,43 @@ public sealed class ServiceFileSystemTests
         await Assert.That(removed).IsFalse();
     }
 
+    [Test]
+    public async Task Rename_Should_Move_A_File_To_The_Destination()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        var source = directory.File("temporary.json");
+        var destination = directory.File("sidecar.json");
+        directory.FileSystem.File.WriteAllText(source, "published");
+
+        new ServiceFileSystem().Rename(source, destination);
+
+        await Assert.That(directory.FileSystem.File.Exists(source)).IsFalse();
+        await Assert.That(directory.FileSystem.File.ReadAllText(destination)).IsEqualTo("published");
+    }
+
+    [Test]
+    public async Task Rename_Should_Replace_An_Existing_Destination()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        var source = directory.File("temporary.json");
+        var destination = directory.File("sidecar.json");
+        directory.FileSystem.File.WriteAllText(source, "published");
+        directory.FileSystem.File.WriteAllText(destination, "previous");
+
+        new ServiceFileSystem().Rename(source, destination);
+
+        await Assert.That(directory.FileSystem.File.ReadAllText(destination)).IsEqualTo("published");
+    }
+
+    [Test]
+    public void Rename_Should_Throw_For_A_Missing_Source()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+
+        _ = Assert.Throws<FileNotFoundException>(() =>
+            new ServiceFileSystem().Rename(directory.File("absent.json"), directory.File("sidecar.json")));
+    }
+
 #if NET
     [Test]
     public async Task TryCreateExclusiveAsync_Should_Create_With_User_Only_Access_On_Unix()

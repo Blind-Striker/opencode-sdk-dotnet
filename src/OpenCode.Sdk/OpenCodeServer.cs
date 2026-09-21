@@ -175,6 +175,7 @@ public class OpenCodeServer : IAsyncDisposable
             fileSystem,
             new ServiceInfoProbe(timing),
             new ServicePtyShutdown(),
+            new ServicePtyHandoff(fileSystem, new ServiceClock()),
             new ServiceProcessControl(),
             timing);
         return stopper.StopAsync(options, cancellationToken);
@@ -200,14 +201,15 @@ public class OpenCodeServer : IAsyncDisposable
     {
         var timing = ServiceTiming.Default;
         var fileSystem = new ServiceFileSystem();
+        var clock = new ServiceClock();
         var ensurer = new ServiceEnsurer(
             new ServiceEnvironment(),
             fileSystem,
             new ServiceInfoProbe(timing),
             new ServiceContenderSpawner(),
-            new ServicePtyHandoff(),
+            new ServicePtyHandoff(fileSystem, clock),
             new ServiceProcessControl(),
-            new ServiceClock(),
+            clock,
             new ExecutableResolver(ExecutableSearchEnvironment.ForCurrentProcess()),
             timing);
         var registration = await ensurer.EnsureAsync(options, cancellationToken).ConfigureAwait(false);

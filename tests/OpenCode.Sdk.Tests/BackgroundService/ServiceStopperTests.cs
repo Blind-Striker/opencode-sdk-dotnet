@@ -19,7 +19,7 @@ public sealed class ServiceStopperTests
     private const int RegisteredPid = 48213;
     private const string Version = "2.0.3";
     private const string SidecarSuffix = ".pty-handoff";
-    private const string SidecarContent = "{\"source\":{},\"handoff\":null,\"expiresAt\":0}";
+    private static readonly string SidecarContent = new FixtureLoader().LoadJson("BackgroundService.pty-handoff-valid.json");
     private static readonly ProcessIdentity Live = new(RegisteredPid, new DateTime(2026, 9, 20, 9, 0, 0, DateTimeKind.Utc));
     private static readonly ServiceProbeResult NoService = new(State: null, Version: null, TimedOut: false);
 
@@ -38,6 +38,7 @@ public sealed class ServiceStopperTests
     private readonly IServiceInfoProbe _probe = Substitute.For<IServiceInfoProbe>();
     private readonly IServicePtyShutdown _ptyShutdown = Substitute.For<IServicePtyShutdown>();
     private readonly IServiceProcessControl _processControl = Substitute.For<IServiceProcessControl>();
+    private readonly IServiceClock _clock = Substitute.For<IServiceClock>();
 
     public ServiceStopperTests()
     {
@@ -320,7 +321,14 @@ public sealed class ServiceStopperTests
         fileSystem.ReadAllBytesAsync(SharedRegistrationPath(), Arg.Any<CancellationToken>())
             .Returns(Encoding.UTF8.GetBytes(ServiceRegistrationData.Passwordless));
         fileSystem.TryDelete(Sidecar()).Throws(new UnauthorizedAccessException("The sidecar is locked."));
-        var stopper = new ServiceStopper(_environment, fileSystem, _probe, _ptyShutdown, _processControl, Timing);
+        var stopper = new ServiceStopper(
+            _environment,
+            fileSystem,
+            _probe,
+            _ptyShutdown,
+            new ServicePtyHandoff(fileSystem, _clock),
+            _processControl,
+            Timing);
 
         var exception = await Assert
             .That(async () => await stopper.StopAsync(options: null, CancellationToken.None))
@@ -328,6 +336,25 @@ public sealed class ServiceStopperTests
 
         await Assert.That(exception!.InnerException).IsTypeOf<UnauthorizedAccessException>();
         _ = _processControl.DidNotReceiveWithAnyArgs().TrySignal(default, default);
+    }
+
+    [Test]
+    public async Task StopAsync_Should_Route_The_Sidecar_Clear_Through_The_Handoff_Seam()
+    {
+        SeedModern();
+        var handoff = Substitute.For<IServicePtyHandoff>();
+        var stopper = new ServiceStopper(
+            _environment,
+            new TestablyServiceFileSystem(_fileSystem),
+            _probe,
+            _ptyShutdown,
+            handoff,
+            _processControl,
+            Timing);
+
+        await stopper.StopAsync(options: null, CancellationToken.None);
+
+        _ = handoff.Received(1).ClearAsync(SharedRegistrationPath(), Arg.Any<CancellationToken>());
     }
 
     [Test]
@@ -429,7 +456,14 @@ public sealed class ServiceStopperTests
     }
 
     private ServiceStopper Stopper() =>
-        new(_environment, new TestablyServiceFileSystem(_fileSystem), _probe, _ptyShutdown, _processControl, Timing);
+        new(
+            _environment,
+            new TestablyServiceFileSystem(_fileSystem),
+            _probe,
+            _ptyShutdown,
+            new ServicePtyHandoff(new TestablyServiceFileSystem(_fileSystem), _clock),
+            _processControl,
+            Timing);
 
     private void Answer(ServiceProbeResult result) =>
         _probe.ProbeAsync(Arg.Any<ServiceRegistration>(), Arg.Any<CancellationToken>()).Returns(result);

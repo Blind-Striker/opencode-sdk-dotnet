@@ -40,10 +40,13 @@ internal static class GeneratedSourceCompiler
     /// info probe has its own decoder and depends on no generated model; the stop door's
     /// persistent-terminal shutdown rides the generated <c>persistentPty.shutdown</c> door, so its
     /// shipped implementation and <c>OpenCodeServer</c>, which composes it, ride along with the
-    /// persistent family's raw twin.
+    /// persistent family's raw twin. The handoff sidecar rides the same raw twin plus the
+    /// serializer context member its ticket round-trips through.
     /// </summary>
     internal static readonly (string Consumer, string RequiredEmission)[] GeneratedSurfaceConsumers =
     [
+        ("Internal/BackgroundService/ServicePtyHandoff.cs", "Internal/Serialization/OpenCodeJsonContext.cs"),
+        ("Internal/BackgroundService/ServicePtyHandoff.cs", "PersistentPtys/PersistentPtysRawClient.cs"),
         ("Internal/BackgroundService/ServicePtyShutdown.cs", "PersistentPtys/PersistentPtysRawClient.cs"),
         ("Internal/PersistentPtyFrameDecoder.cs", "Models/PersistentPtyInfo.cs"),
         ("OpenCodeServer.cs", "PersistentPtys/PersistentPtysRawClient.cs"),
