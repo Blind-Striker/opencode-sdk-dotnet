@@ -75,4 +75,9 @@ public sealed record ProviderSettingsTimeout
 
         return (T)_value;
     }
+
+    /// <summary>
+    /// Prints the kind and the active arm; the inactive arms throw by design.
+    /// </summary>
+    public override string ToString() => StructuralUnionPrinter.Format(nameof(ProviderSettingsTimeout), Kind.ToString(), _value);
 }
