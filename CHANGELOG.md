@@ -9,6 +9,17 @@ Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
 `0.9.0-nightly.{yyyyMMdd}.{shortSha}`.
 
+### 🐛 Fixes
+
+- **Structural union values print themselves.** `ToString()` on `FormValue`, `FormWhenValue`,
+  `McpRemoteConfigOauth`, and `ProviderSettingsTimeout` threw `InvalidOperationException`
+  ("The structural value does not contain the requested arm."): a record's compiler-synthesized
+  `PrintMembers` read every arm, and an inactive arm throws by design. Each union now prints its
+  kind and its active arm only — `ProviderSettingsTimeout { Kind = Number, Number = 30000 }`,
+  `FormValue { Kind = TextList, TextList = [a, b] }` — with numbers in the invariant culture and an
+  `Unknown` arm as its raw JSON. String interpolation, logging templates, and the debugger were
+  the paths that hit this; equality and JSON were never affected.
+
 ## [0.9.0-preview.2] - 2026-09-21
 
 Three things changed since `0.9.0-preview.1`. The SDK follows upstream release tag `v2.0.11`

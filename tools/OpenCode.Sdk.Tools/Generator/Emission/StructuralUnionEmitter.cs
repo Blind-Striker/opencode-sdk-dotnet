@@ -58,6 +58,7 @@ internal static class StructuralUnionEmitter
         members.Add(EmitUnknownProperty(union));
         members.Add(EmitUnknownFactory(union));
         members.Add(EmitValueGetter(union));
+        members.Add(EmitToString(union));
 
         var declaration = SyntaxFactory
             .RecordDeclaration(SyntaxFactory.Token(SyntaxKind.RecordKeyword), union.Name)
@@ -85,6 +86,32 @@ internal static class StructuralUnionEmitter
             [declaration]);
         return EmissionSyntax.CreateSource($"Models/{union.Name}.cs", unit);
     }
+
+    /// <summary>
+    /// A record's compiler-synthesized ToString prints every public property through PrintMembers,
+    /// and an inactive arm throws by design. The union overrides ToString itself instead of
+    /// declaring PrintMembers: a sealed record with no record base may only declare that hook
+    /// private (CS8879), where IDE0051 cannot see the synthesized caller and the writer's format
+    /// pass would strip it. The kind enum's member names are the arm names, so Kind.ToString()
+    /// names the active arm for the printer.
+    /// </summary>
+    private static MethodDeclarationSyntax EmitToString(StructuralUnionModelPlan union) =>
+        SyntaxFactory
+            .MethodDeclaration(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword)), "ToString")
+            .WithModifiers(SyntaxFactory.TokenList(
+                SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                SyntaxFactory.Token(SyntaxKind.OverrideKeyword)))
+            .WithParameterList(SyntaxFactory.ParameterList())
+            .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(EmissionSyntax.Invocation(
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("StructuralUnionPrinter"), "Format"),
+                SyntaxFactory.Argument(EmissionSyntax.Invocation(
+                    SyntaxFactory.IdentifierName("nameof"),
+                    SyntaxFactory.Argument(SyntaxFactory.IdentifierName(union.Name)))),
+                SyntaxFactory.Argument(EmissionSyntax.Invocation(
+                    EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("Kind"), "ToString"))),
+                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("_value")))))
+            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
+            .WithLeadingTrivia(EmissionSyntax.Documentation("Prints the kind and the active arm; the inactive arms throw by design."));
 
     private static FieldDeclarationSyntax EmitValueField() => SyntaxFactory
         .FieldDeclaration(

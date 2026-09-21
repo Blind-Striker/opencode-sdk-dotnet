@@ -103,4 +103,9 @@ public sealed record FormValue
 
         return (T)_value;
     }
+
+    /// <summary>
+    /// Prints the kind and the active arm; the inactive arms throw by design.
+    /// </summary>
+    public override string ToString() => StructuralUnionPrinter.Format(nameof(FormValue), Kind.ToString(), _value);
 }

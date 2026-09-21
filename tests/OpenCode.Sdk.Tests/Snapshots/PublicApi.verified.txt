@@ -2745,6 +2745,7 @@ namespace OpenCode.Sdk.Models
         public string Text { get; }
         public System.Collections.Generic.IReadOnlyList<string> TextList { get; }
         public System.Text.Json.JsonElement Unknown { get; }
+        public override string ToString() { }
         public static OpenCode.Sdk.Models.FormValue FromBoolean(bool value) { }
         public static OpenCode.Sdk.Models.FormValue FromNumber(double value) { }
         public static OpenCode.Sdk.Models.FormValue FromText(string value) { }
@@ -2785,6 +2786,7 @@ namespace OpenCode.Sdk.Models
         public double Number { get; }
         public string Text { get; }
         public System.Text.Json.JsonElement Unknown { get; }
+        public override string ToString() { }
         public static OpenCode.Sdk.Models.FormWhenValue FromBoolean(bool value) { }
         public static OpenCode.Sdk.Models.FormWhenValue FromNumber(double value) { }
         public static OpenCode.Sdk.Models.FormWhenValue FromText(string value) { }
@@ -3692,6 +3694,7 @@ namespace OpenCode.Sdk.Models
         public OpenCode.Sdk.Models.McpRemoteConfigOauthKind Kind { get; }
         public OpenCode.Sdk.Models.McpOAuthConfig McpOAuthConfig { get; }
         public System.Text.Json.JsonElement Unknown { get; }
+        public override string ToString() { }
         public static OpenCode.Sdk.Models.McpRemoteConfigOauth FromBoolean(bool value) { }
         public static OpenCode.Sdk.Models.McpRemoteConfigOauth FromMcpOAuthConfig(OpenCode.Sdk.Models.McpOAuthConfig value) { }
         public static OpenCode.Sdk.Models.McpRemoteConfigOauth FromUnknown(System.Text.Json.JsonElement value) { }
@@ -4888,6 +4891,7 @@ namespace OpenCode.Sdk.Models
         public OpenCode.Sdk.Models.ProviderSettingsTimeoutKind Kind { get; }
         public double Number { get; }
         public System.Text.Json.JsonElement Unknown { get; }
+        public override string ToString() { }
         public static OpenCode.Sdk.Models.ProviderSettingsTimeout FromBoolean(bool value) { }
         public static OpenCode.Sdk.Models.ProviderSettingsTimeout FromNumber(double value) { }
         public static OpenCode.Sdk.Models.ProviderSettingsTimeout FromUnknown(System.Text.Json.JsonElement value) { }
