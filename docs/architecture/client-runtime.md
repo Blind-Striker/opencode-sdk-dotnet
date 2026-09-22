@@ -506,19 +506,28 @@ client's runtime does with a `SIGTERM` there. The registration is re-read and it
 `url`, and `pid` compared before every signal and before the removal, so a record another service
 replaced is never acted on; and the process is identified as (pid, start time), compared
 immediately before every send and at every look of the poll, so a pid the operating system reused
-is never signalled and reads as the registered process being gone (ADR-0026). A missing or corrupt registration completes successfully; a sidecar
+is never signalled and reads as the registered process being gone (ADR-0026). A zombie — exited,
+not yet reaped by its parent — reads as gone too. A missing or corrupt registration completes successfully; a sidecar
 that cannot be removed and a process still running after the kill rung throw
 `OpenCodeServerException`, the registration then left in place; cancellation before a signal
 prevents it and after one ends the wait. Stop targets exactly one pid, never a tree, is never
 implied by disposal or host shutdown, and may end a service other clients share.
 
-`OpenCodeServer.EnsureAsync` is the CLI's managed-service election (`Service.ensure`). It reuses a
+`OpenCodeServer.EnsureAsync` is the CLI's managed-service election (`Service.ensure`). Its options
+are validated and copied before any I/O; `Replace` and `Error` need `ExpectedVersion`. It reuses a
 ready compatible daemon, replaces a version-mismatched one according to
 `OpenCodeServerEnsureOptions.VersionPolicy` (Ignore strips the expected version, Replace keeps it
-in the loop, Error discovers twice and throws on mismatch without entering the loop), and otherwise
-spawns at most two detached contenders (`opencode serve --service` by default) until a service
-registers or the 120-second wall-clock bound expires. `OnStart` fires at most once. The returned
-handle is the same non-owning shape discovery returns. Persistent-terminal sidecar I/O is behind
+in the loop, Error discovers twice and throws on a ready mismatch without entering the loop), and
+otherwise spawns at most two detached contenders (`opencode serve --service` by default) until a
+service registers or the 120-second wall-clock bound expires. A registration without a password
+never wins. Three consecutive probe timeouts on one registered daemon end it through the stop
+ladder — like Stop, Ensure may end a service other clients share — after which a contender starts
+at once. The replacement stop acts on the registration it probed, so a record that changed since is
+never touched; its failures do not end the election, and the last one becomes the timeout's inner
+exception. The spawned command registers where its own compiled channel and environment say, so
+`Channel`, `Command`, and `Environment` must agree with the registration the call reads, or the call
+waits out the bound. Contenders are reaped by the SDK as they exit. `OnStart` fires at most once.
+The returned handle is the same non-owning shape discovery returns. Persistent-terminal sidecar I/O is behind
 `IServicePtyHandoff`: `prepare` calls the generated handoff door under the request bound and
 publishes the ticket beside the registration through an owner-only temporary file and a
 replace-on-success rename, reusing a fresh matching sidecar and, when the daemon answers 404,
