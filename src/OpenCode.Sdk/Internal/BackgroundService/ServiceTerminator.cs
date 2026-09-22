@@ -1,5 +1,6 @@
 using System.Globalization;
 using OpenCode.Sdk.Internal.BackgroundService.Abstractions;
+using OpenCode.Sdk.Internal.Diagnostics;
 
 namespace OpenCode.Sdk.Internal.BackgroundService;
 
@@ -45,7 +46,7 @@ internal sealed class ServiceTerminator(IServiceFileSystem fileSystem, IServiceP
 
         if (await StillRegisteredAsync(registrationFile, expected, cancellationToken).ConfigureAwait(false))
         {
-            _ = TryRemove(registrationFile);
+            Remove(registrationFile);
         }
     }
 
@@ -111,20 +112,18 @@ internal sealed class ServiceTerminator(IServiceFileSystem fileSystem, IServiceP
         return current is not null && ServiceRegistrationIdentity.Of(current) == expected;
     }
 
-    private bool TryRemove(string registrationFile)
+    [SlopwatchSuppress(
+        "SW003",
+        "The pinned client removes the registration under Effect.ignore (effect/service.ts): the process is gone, which is the outcome, and a record left behind is read as absent next time.")]
+    private void Remove(string registrationFile)
     {
         try
         {
-            return fileSystem.TryDelete(registrationFile);
+            _ = fileSystem.TryDelete(registrationFile);
         }
-        catch (IOException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            // The pinned client's Effect.ignore on fs.remove: the process is gone, which is the outcome.
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
+            // Effect.ignore on fs.remove.
         }
     }
 }

@@ -1,27 +1,24 @@
 using System.Text.Json;
 using OpenCode.Sdk.Internal.BackgroundService.Abstractions;
-using OpenCode.Sdk.Internal.Serialization;
+using OpenCode.Sdk.Internal.Diagnostics;
 
 namespace OpenCode.Sdk.Internal.BackgroundService;
 
 /// <summary>
 /// The pinned client's persistent-terminal handoff sidecar (<c>pty-handoff.ts:13-97</c>) over the
-/// background-service filesystem seam and the generated persistent-PTY lifecycle doors. The
-/// sidecar sits beside the registration at <c>&lt;registration&gt;.pty-handoff</c>; publication
-/// goes through an exclusive owner-only temporary file and a replace-on-success rename in the same
-/// directory, and a JSON-null handoff carries a 30-second fallback expiry. Time comes from the
-/// injected clock so every expiry rule is testable without waiting.
+/// background-service filesystem seam. The sidecar sits beside the registration at
+/// <c>&lt;registration&gt;.pty-handoff</c>; publication goes through an exclusive owner-only
+/// temporary file and a replace-on-success rename in the same directory, and a JSON-null handoff
+/// carries a 30-second fallback expiry. The ticket is requested through the SDK's own request
+/// pipeline and kept raw, so it crosses to the replacement daemon exactly as the route answered it;
+/// the shutdown fallback goes through the Stop lifecycle's <see cref="IServicePtyShutdown"/> seam.
+/// Time comes from the injected clock so every expiry rule is testable without waiting.
 /// </summary>
-internal sealed class ServicePtyHandoff(IServiceFileSystem fileSystem, IServiceClock clock) : IServicePtyHandoff
+internal sealed class ServicePtyHandoff(IServiceFileSystem fileSystem, IServiceClock clock, IServicePtyShutdown ptyShutdown)
+    : IServicePtyHandoff
 {
     /// <summary>The sidecar suffix the pinned client keeps beside the registration.</summary>
     internal const string SidecarSuffix = ".pty-handoff";
-
-    /// <summary>The environment variable a replacement contender reads its ticket from.</summary>
-    private const string HandoffVariable = "OPENCODE_PTY_HANDOFF";
-
-    /// <summary>Upstream's fallback expiry for a sidecar that carries no ticket (<c>pty-handoff.ts:71</c>).</summary>
-    private static readonly TimeSpan NullSidecarLifetime = TimeSpan.FromSeconds(30);
 
     /// <summary>The pinned client's <c>Failed to prepare persistent terminals for service replacement</c>.</summary>
     internal const string PrepareFailedMessage = "Failed to prepare persistent terminals for service replacement.";
@@ -29,8 +26,17 @@ internal sealed class ServicePtyHandoff(IServiceFileSystem fileSystem, IServiceC
     /// <summary>The pinned client's <c>Failed to shut down persistent terminals before service replacement</c>.</summary>
     internal const string ShutdownFailedMessage = "Failed to shut down persistent terminals before service replacement.";
 
+    /// <summary>The pinned client's <c>Invalid persistent terminal handoff response</c>: the body has no handoff member.</summary>
+    internal const string InvalidResponseMessage = "Invalid persistent terminal handoff response.";
+
     /// <summary>The pinned client's <c>Invalid or expired persistent terminal handoff</c>.</summary>
     internal const string InvalidHandoffMessage = "Invalid or expired persistent terminal handoff.";
+
+    /// <summary>The environment variable a replacement contender reads its ticket from.</summary>
+    private const string HandoffVariable = "OPENCODE_PTY_HANDOFF";
+
+    /// <summary>Upstream's fallback expiry for a sidecar that carries no ticket (<c>pty-handoff.ts:71</c>).</summary>
+    private static readonly TimeSpan NullSidecarLifetime = TimeSpan.FromSeconds(30);
 
     /// <inheritdoc />
     public async Task PrepareAsync(
@@ -49,52 +55,55 @@ internal sealed class ServicePtyHandoff(IServiceFileSystem fileSystem, IServiceC
             return;
         }
 
+        ServiceHandoffTicketResponse answer;
         try
         {
-            using var client = CreateClient(registration);
-            using var bound = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            bound.CancelAfter(timeout);
-            var response = await client.PersistentPtys.HandoffAsync(cancellationToken: bound.Token).ConfigureAwait(false);
-            if (response.Handoff is not { } ticket)
-            {
-                await PublishNullAsync(sidecarPath, registration, cancellationToken).ConfigureAwait(false);
-                return;
-            }
-
-            if (!IsFinite(ticket.ExpiresAt) || ticket.ExpiresAt <= NowMilliseconds())
-            {
-                throw new OpenCodeServerException(InvalidHandoffMessage);
-            }
-
-            var payload = JsonSerializer.SerializeToElement(ticket, OpenCodeJsonContext.Default.PersistentPtyHandoff);
-            await PublishAsync(sidecarPath, NewSidecar(registration, payload, ticket.ExpiresAt), cancellationToken)
-                .ConfigureAwait(false);
+            answer = await RequestTicketAsync(registration, timeout, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            cancellationToken.ThrowIfCancellationRequested();
             throw;
         }
-        catch (OpenCodeApiException exception) when (exception.Status == 404)
+        catch (Exception failure) when (failure is OpenCodeException or OperationCanceledException)
         {
-            // The route is absent (an older daemon): shut its terminals down and publish a null
-            // sidecar so the replacement still transfers cleanly.
-            await ShutdownThenPublishNullAsync(registration, timeout, sidecarPath, cancellationToken)
-                .ConfigureAwait(false);
+            // :36-49: another caller may already have prepared and stopped this server; otherwise a
+            // 404 is an older daemon whose terminals are shut down, and anything else fails.
+            if (await IsFreshMatchAsync(sidecarPath, registration, cancellationToken).ConfigureAwait(false))
+            {
+                return;
+            }
+
+            if (failure is not OpenCodeApiException { Status: 404 })
+            {
+                throw new OpenCodeServerException(PrepareFailedMessage, failure);
+            }
+
+            await ShutdownAsync(registration, timeout, cancellationToken).ConfigureAwait(false);
+            await PublishNullAsync(sidecarPath, registration, cancellationToken).ConfigureAwait(false);
+            return;
         }
-        catch (OpenCodeApiException)
+
+        // :52-61: no handoff member refuses the answer; a null ticket publishes a null sidecar; a
+        // ticket must carry the members the pin knows and not be expired, and is published whole.
+        if (!answer.HasHandoffMember)
         {
-            await RecheckThenThrowAsync(sidecarPath, registration, cancellationToken).ConfigureAwait(false);
+            throw new OpenCodeServerException(InvalidResponseMessage);
         }
-        catch (OpenCodeTransportException)
+
+        if (answer.Handoff is not { } ticket)
         {
-            await RecheckThenThrowAsync(sidecarPath, registration, cancellationToken).ConfigureAwait(false);
+            await PublishNullAsync(sidecarPath, registration, cancellationToken).ConfigureAwait(false);
+            return;
         }
-        catch (OperationCanceledException)
+
+        if (!PtyHandoffSidecar.IsHandoff(ticket) ||
+            !PtyHandoffSidecar.TryGetFinite(ticket, "expiresAt", out var expiresAt) ||
+            expiresAt <= NowMilliseconds())
         {
-            // The internal request bound fired, not the caller's token.
-            await RecheckThenThrowAsync(sidecarPath, registration, cancellationToken).ConfigureAwait(false);
+            throw new OpenCodeServerException(InvalidHandoffMessage);
         }
+
+        await PublishAsync(sidecarPath, NewSidecar(registration, ticket, expiresAt), cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -106,12 +115,16 @@ internal sealed class ServicePtyHandoff(IServiceFileSystem fileSystem, IServiceC
         ArgumentException.ThrowIfNullOrWhiteSpace(registrationFile);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var overlay = CopyOverlay(callerEnvironment);
-        overlay[HandoffVariable] = await AdoptAsync(
-                registrationFile + SidecarSuffix,
-                registrationFile,
-                cancellationToken)
-            .ConfigureAwait(false);
+        var overlay = new Dictionary<string, string?>(callerEnvironment?.Count ?? 0, StringComparer.Ordinal);
+        if (callerEnvironment is not null)
+        {
+            foreach (var entry in callerEnvironment)
+            {
+                overlay[entry.Key] = entry.Value;
+            }
+        }
+
+        overlay[HandoffVariable] = await AdoptAsync(registrationFile, cancellationToken).ConfigureAwait(false);
         return overlay;
     }
 
@@ -125,7 +138,7 @@ internal sealed class ServicePtyHandoff(IServiceFileSystem fileSystem, IServiceC
         ArgumentNullException.ThrowIfNull(registration);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var sidecar = await TryReadSidecarAsync(registrationFile + SidecarSuffix, cancellationToken).ConfigureAwait(false);
+        var sidecar = await ReadSidecarAsync(registrationFile + SidecarSuffix, cancellationToken).ConfigureAwait(false);
         if (sidecar is not null && !Matches(sidecar, registration))
         {
             await ClearAsync(registrationFile, cancellationToken).ConfigureAwait(false);
@@ -143,147 +156,92 @@ internal sealed class ServicePtyHandoff(IServiceFileSystem fileSystem, IServiceC
         {
             _ = fileSystem.TryDelete(sidecarPath);
         }
-        catch (IOException exception)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            throw ClearFailure(sidecarPath, exception);
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            throw ClearFailure(sidecarPath, exception);
+            throw new OpenCodeServerException($"The persistent-terminal handoff sidecar '{sidecarPath}' could not be removed.", exception);
         }
 
         return Task.CompletedTask;
     }
 
-    private async Task ShutdownThenPublishNullAsync(
+    /// <summary>
+    /// The handoff route through the SDK's own request pipeline — the transport, credential, and
+    /// status mapping every generated door uses — with the answer kept raw, under the request bound.
+    /// </summary>
+    private static async Task<ServiceHandoffTicketResponse> RequestTicketAsync(
         ServiceRegistration registration,
         TimeSpan timeout,
-        string sidecarPath,
         CancellationToken cancellationToken)
     {
-        _ = await TryShutdownAsync(registration, timeout, cancellationToken).ConfigureAwait(false);
-        await PublishNullAsync(sidecarPath, registration, cancellationToken).ConfigureAwait(false);
+        using var pipeline = Pipeline.Create(new OpenCodeClientOptions
+        {
+            Endpoint = registration.Endpoint,
+            Password = registration.Password,
+        });
+        using var bound = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        bound.CancelAfter(timeout);
+        return await pipeline
+            .ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.PersistentPtys.Handoff, ServiceHandoffTicketAdapter.Instance, options: null, bound.Token)
+            .ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Best effort: a refused shutdown still publishes the null sidecar, the way the pinned
-    /// client shuts down before replacement and only throws when that shutdown itself fails.
+    /// <c>:43-48</c>: shut an older daemon's terminals down under the request bound before it is
+    /// replaced. A 404 means there is nothing to shut down; any other failure fails the preparation.
     /// </summary>
-    /// <returns>False when no daemon answered the shutdown; the caller publishes either way.</returns>
-    private static async Task<bool> TryShutdownAsync(
-        ServiceRegistration registration,
-        TimeSpan timeout,
-        CancellationToken cancellationToken)
+    [SlopwatchSuppress(
+        "SW003",
+        "The pinned client's shutdown .catch returns on a 404 (pty-handoff.ts:44-46): a daemon without the route has no persistent terminals to shut down, which is the outcome this call is after.")]
+    private async Task ShutdownAsync(ServiceRegistration registration, TimeSpan timeout, CancellationToken cancellationToken)
     {
+        using var bound = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        bound.CancelAfter(timeout);
         try
         {
-            using var client = CreateClient(registration);
-            using var bound = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            bound.CancelAfter(timeout);
-            _ = await client.PersistentPtys.ShutdownAsync(cancellationToken: bound.Token).ConfigureAwait(false);
-            return true;
+            await ptyShutdown.ShutdownAsync(registration, bound.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            cancellationToken.ThrowIfCancellationRequested();
             throw;
-        }
-        catch (OperationCanceledException)
-        {
-            throw new OpenCodeServerException(ShutdownFailedMessage);
         }
         catch (OpenCodeApiException exception) when (exception.Status == 404)
         {
-            // No daemon to shut down; the pinned client treats that as done.
-            return false;
+            // Nothing to shut down.
         }
-        catch (OpenCodeException exception)
+        catch (Exception failure) when (failure is OpenCodeException or OperationCanceledException)
         {
-            throw new OpenCodeServerException(ShutdownFailedMessage, exception);
+            throw new OpenCodeServerException(ShutdownFailedMessage, failure);
         }
     }
 
-    private async Task RecheckThenThrowAsync(
-        string sidecarPath,
-        ServiceRegistration registration,
-        CancellationToken cancellationToken)
+    private async Task<bool> IsFreshMatchAsync(string sidecarPath, ServiceRegistration registration, CancellationToken cancellationToken)
     {
-        // Another caller may already have prepared and stopped this server.
-        if (await IsFreshMatchAsync(sidecarPath, registration, cancellationToken).ConfigureAwait(false))
-        {
-            return;
-        }
-
-        throw new OpenCodeServerException(PrepareFailedMessage);
-    }
-
-    private async Task<bool> IsFreshMatchAsync(
-        string sidecarPath,
-        ServiceRegistration registration,
-        CancellationToken cancellationToken)
-    {
-        var sidecar = await TryReadSidecarAsync(sidecarPath, cancellationToken).ConfigureAwait(false);
+        var sidecar = await ReadSidecarAsync(sidecarPath, cancellationToken).ConfigureAwait(false);
         return sidecar is not null && sidecar.ExpiresAt > NowMilliseconds() && Matches(sidecar, registration);
     }
 
-    private async Task<string?> AdoptAsync(
-        string sidecarPath,
-        string registrationFile,
-        CancellationToken cancellationToken)
+    /// <summary>
+    /// <c>:78-88</c>: an unexpired sidecar is adopted when the registration is gone or still names the
+    /// sidecar's source. The SDK reads an undecodable registration as absent, which adopts, where the
+    /// pinned client compares whatever <c>JSON.parse</c> returned; its own discovery reads such a
+    /// file as absent too, and the ticket is validated by the daemon that receives it.
+    /// </summary>
+    private async Task<string?> AdoptAsync(string registrationFile, CancellationToken cancellationToken)
     {
-        var sidecar = await TryReadSidecarAsync(sidecarPath, cancellationToken).ConfigureAwait(false);
+        var sidecar = await ReadSidecarAsync(registrationFile + SidecarSuffix, cancellationToken).ConfigureAwait(false);
         if (sidecar is null || sidecar.ExpiresAt <= NowMilliseconds())
         {
             return null;
         }
 
-        if (!await RegistrationAbsentOrMatchesAsync(registrationFile, sidecar, cancellationToken).ConfigureAwait(false))
-        {
-            return null;
-        }
-
-        return sidecar.Handoff?.GetRawText();
+        var current = await new ServiceRegistrationFile(fileSystem).TryReadAsync(registrationFile, cancellationToken).ConfigureAwait(false);
+        return current is null || Matches(sidecar, current) ? sidecar.Handoff?.GetRawText() : null;
     }
 
-    private async Task<bool> RegistrationAbsentOrMatchesAsync(
-        string registrationFile,
-        PtyHandoffSidecar sidecar,
-        CancellationToken cancellationToken)
+    private async Task<PtyHandoffSidecar?> ReadSidecarAsync(string sidecarPath, CancellationToken cancellationToken)
     {
-        // The pinned client parses the registration with no schema; a missing or undecodable file
-        // reads as absent state, which the adoption rule accepts.
-        var bytes = await new ServiceRegistrationFile(fileSystem)
-            .TryReadBytesAsync(registrationFile, cancellationToken)
-            .ConfigureAwait(false);
-        if (bytes is null)
-        {
-            return true;
-        }
-
-        var current = ServiceRegistrationReader.TryRead(bytes);
-        return current is null || Matches(sidecar, current);
-    }
-
-    private async Task<PtyHandoffSidecar?> TryReadSidecarAsync(string sidecarPath, CancellationToken cancellationToken)
-    {
-        if (!fileSystem.FileExists(sidecarPath))
-        {
-            return null;
-        }
-
-        try
-        {
-            var bytes = await fileSystem.ReadAllBytesAsync(sidecarPath, cancellationToken).ConfigureAwait(false);
-            return PtyHandoffSidecar.TryRead(bytes);
-        }
-        catch (IOException)
-        {
-            return null;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return null;
-        }
+        var bytes = await new ServiceRegistrationFile(fileSystem).TryReadBytesAsync(sidecarPath, cancellationToken).ConfigureAwait(false);
+        return bytes is null ? null : PtyHandoffSidecar.TryRead(bytes);
     }
 
     private Task PublishNullAsync(string sidecarPath, ServiceRegistration registration, CancellationToken cancellationToken) =>
@@ -292,21 +250,18 @@ internal sealed class ServicePtyHandoff(IServiceFileSystem fileSystem, IServiceC
             NewSidecar(registration, handoff: null, NowMilliseconds() + NullSidecarLifetime.TotalMilliseconds),
             cancellationToken);
 
-    private async Task PublishAsync(
-        string sidecarPath,
-        PtyHandoffSidecar sidecar,
-        CancellationToken cancellationToken)
+    /// <summary>
+    /// <c>:64-76</c>: an exclusive owner-only temporary, renamed over the sidecar. A filesystem
+    /// failure is a preparation failure, so the replacement's swallow sees it like any other.
+    /// </summary>
+    private async Task PublishAsync(string sidecarPath, PtyHandoffSidecar sidecar, CancellationToken cancellationToken)
     {
+        var temporary = sidecarPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
-            var temporary = sidecarPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            var created = await fileSystem
-                .TryCreateExclusiveAsync(temporary, sidecar.ToUtf8Json(), cancellationToken)
-                .ConfigureAwait(false);
-            if (!created)
+            if (!await fileSystem.TryCreateExclusiveAsync(temporary, sidecar.ToUtf8Json(), cancellationToken).ConfigureAwait(false))
             {
-                throw new OpenCodeServerException(
-                    $"The temporary persistent-terminal handoff sidecar '{temporary}' already exists.");
+                throw new OpenCodeServerException($"The temporary persistent-terminal handoff sidecar '{temporary}' already exists.");
             }
 
             try
@@ -315,39 +270,28 @@ internal sealed class ServicePtyHandoff(IServiceFileSystem fileSystem, IServiceC
             }
             finally
             {
-                // Best effort: the temporary is a stray only when the publish failed, and it must
-                // not mask that failure.
-                _ = RemoveTemporary(temporary);
+                RemoveTemporary(temporary);
             }
         }
-        catch (IOException exception)
-        {
-            throw new OpenCodeServerException(PrepareFailedMessage, exception);
-        }
-        catch (UnauthorizedAccessException exception)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             throw new OpenCodeServerException(PrepareFailedMessage, exception);
         }
     }
 
-    /// <summary>
-    /// Best-effort stray removal: the publish outcome is the one worth reporting, so a removal
-    /// failure reads as false rather than masking it.
-    /// </summary>
-    /// <returns>True when the temporary is gone.</returns>
-    private bool RemoveTemporary(string temporary)
+    /// <summary>The pinned client's <c>finally(() =&gt; rm(temporary, { force: true }))</c>.</summary>
+    [SlopwatchSuppress(
+        "SW003",
+        "The pinned client removes the temporary with rm({ force: true }) in a finally (pty-handoff.ts:75): a stray exists only when the publish already failed, and that failure is the one worth reporting.")]
+    private void RemoveTemporary(string temporary)
     {
         try
         {
-            return fileSystem.TryDelete(temporary);
+            _ = fileSystem.TryDelete(temporary);
         }
-        catch (IOException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
+            // The publish outcome is the one reported.
         }
     }
 
@@ -361,37 +305,11 @@ internal sealed class ServicePtyHandoff(IServiceFileSystem fileSystem, IServiceC
             ExpiresAt = expiresAt,
         };
 
+    /// <summary><c>:121-123</c>: the source identity is id, pid, and url; the version is not part of it.</summary>
     private static bool Matches(PtyHandoffSidecar sidecar, ServiceRegistration registration) =>
         string.Equals(sidecar.SourceId, registration.Id, StringComparison.Ordinal) &&
         sidecar.SourcePid == registration.ProcessId &&
         string.Equals(sidecar.SourceUrl, registration.Url, StringComparison.Ordinal);
-
-    private static Dictionary<string, string?> CopyOverlay(IReadOnlyDictionary<string, string>? callerEnvironment)
-    {
-        var overlay = new Dictionary<string, string?>(callerEnvironment?.Count ?? 0, StringComparer.Ordinal);
-        if (callerEnvironment is not null)
-        {
-            foreach (var entry in callerEnvironment)
-            {
-                overlay[entry.Key] = entry.Value;
-            }
-        }
-
-        return overlay;
-    }
-
-    private static OpenCodeClient CreateClient(ServiceRegistration registration) =>
-        new(new OpenCodeClientOptions
-        {
-            Endpoint = registration.Endpoint,
-            Password = registration.Password,
-        });
-
-    private static OpenCodeServerException ClearFailure(string sidecarPath, Exception cause) =>
-        new($"The persistent-terminal handoff sidecar '{sidecarPath}' could not be removed.", cause);
-
-    /// <summary><c>Number.isFinite</c>: finite on every target framework, unlike <c>double.IsFinite</c>.</summary>
-    private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
 
     private double NowMilliseconds() => clock.UtcNow.ToUnixTimeMilliseconds();
 }

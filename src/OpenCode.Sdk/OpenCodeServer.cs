@@ -143,10 +143,20 @@ public class OpenCodeServer : IAsyncDisposable
     {
         var discovery = new ServiceDiscovery(new ServiceEnvironment(), new ServiceFileSystem(), new ServiceInfoProbe(ServiceTiming.Default));
         var registration = await discovery.DiscoverAsync(options, cancellationToken).ConfigureAwait(false);
-        return registration is null
-            ? null
-            : new OpenCodeServer(registration.Endpoint, registration.Password!, registration.ProcessId, ownsProcess: false);
+        return registration is null ? null : SharedService(registration);
     }
+
+    /// <summary>
+    /// The non-owning handle over a registered service. Discover and the Ensure election return only
+    /// registrations that carry a password, the handle's non-null credential.
+    /// </summary>
+    private static OpenCodeServer SharedService(ServiceRegistration registration) =>
+        new(
+            registration.Endpoint,
+            registration.Password ?? throw new InvalidOperationException(
+                "A registered service reached the handle without a password; Discover and Ensure never return one."),
+            registration.ProcessId,
+            ownsProcess: false);
 
     /// <summary>
     /// Stops the registered background service the way <c>opencode service stop</c> does: resolves
@@ -170,12 +180,13 @@ public class OpenCodeServer : IAsyncDisposable
     {
         var timing = ServiceTiming.Default;
         var fileSystem = new ServiceFileSystem();
+        var ptyShutdown = new ServicePtyShutdown();
         var stopper = new ServiceStopper(
             new ServiceEnvironment(),
             fileSystem,
             new ServiceInfoProbe(timing),
-            new ServicePtyShutdown(),
-            new ServicePtyHandoff(fileSystem, new ServiceClock()),
+            ptyShutdown,
+            new ServicePtyHandoff(fileSystem, new ServiceClock(), ptyShutdown),
             new ServiceProcessControl(),
             timing);
         return stopper.StopAsync(options, cancellationToken);
@@ -224,13 +235,13 @@ public class OpenCodeServer : IAsyncDisposable
             fileSystem,
             new ServiceInfoProbe(timing),
             new ServiceContenderSpawner(),
-            new ServicePtyHandoff(fileSystem, clock),
+            new ServicePtyHandoff(fileSystem, clock, new ServicePtyShutdown()),
             new ServiceProcessControl(),
             clock,
             new ExecutableResolver(ExecutableSearchEnvironment.ForCurrentProcess()),
             timing);
         var registration = await ensurer.EnsureAsync(options, cancellationToken).ConfigureAwait(false);
-        return new OpenCodeServer(registration.Endpoint, registration.Password!, registration.ProcessId, ownsProcess: false);
+        return SharedService(registration);
     }
 
     /// <summary>

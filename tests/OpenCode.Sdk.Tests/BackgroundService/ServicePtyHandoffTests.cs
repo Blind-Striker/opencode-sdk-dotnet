@@ -110,10 +110,12 @@ public sealed class ServicePtyHandoffTests
     }
 
     [Test]
-    [Arguments("BackgroundService.pty-handoff-response-invalid.json")]
-    [Arguments("BackgroundService.pty-handoff-response-missing.json")]
-    public async Task PrepareAsync_Should_Throw_When_The_Handoff_Body_Is_Invalid(string fixture)
+    [Arguments("BackgroundService.pty-handoff-response-invalid.json", ServicePtyHandoff.InvalidHandoffMessage)]
+    [Arguments("BackgroundService.pty-handoff-response-missing.json", ServicePtyHandoff.InvalidResponseMessage)]
+    public async Task PrepareAsync_Should_Refuse_An_Answer_Without_A_Usable_Ticket(string fixture, string message)
     {
+        // pty-handoff.ts:52-60: no handoff member and a ticket missing a member the pin knows are two
+        // refusals with their own messages, neither re-checked against a concurrent sidecar.
         await using var server = LoopbackHttpServer.Start(_ =>
             Json(HttpStatusCode.OK, Fixtures.LoadJson(fixture)));
 
@@ -121,7 +123,7 @@ public sealed class ServicePtyHandoffTests
             .That(async () => await PrepareAsync(server.Endpoint))
             .Throws<OpenCodeServerException>();
 
-        await Assert.That(exception!.Message).IsEqualTo(ServicePtyHandoff.PrepareFailedMessage);
+        await Assert.That(exception!.Message).IsEqualTo(message);
         await Assert.That(ReadSidecar()).IsNull();
     }
 
@@ -150,7 +152,7 @@ public sealed class ServicePtyHandoffTests
             .ThrowsAsync(new IOException("The sidecar directory vanished."));
 
         var exception = await Assert
-            .That(async () => await new ServicePtyHandoff(fileSystem, _clock).PrepareAsync(
+            .That(async () => await new ServicePtyHandoff(fileSystem, _clock, new ServicePtyShutdown()).PrepareAsync(
                 RegistrationPath(), Registration(server.Endpoint), RequestTimeout, CancellationToken.None))
             .Throws<OpenCodeServerException>();
 
@@ -290,7 +292,7 @@ public sealed class ServicePtyHandoffTests
         fileSystem.TryDelete(SidecarPath()).Throws(new UnauthorizedAccessException("The sidecar is locked."));
 
         var exception = await Assert
-            .That(async () => await new ServicePtyHandoff(fileSystem, _clock).ClearAsync(RegistrationPath(), CancellationToken.None))
+            .That(async () => await new ServicePtyHandoff(fileSystem, _clock, new ServicePtyShutdown()).ClearAsync(RegistrationPath(), CancellationToken.None))
             .Throws<OpenCodeServerException>();
 
         await Assert.That(exception!.InnerException).IsTypeOf<UnauthorizedAccessException>();
@@ -306,6 +308,154 @@ public sealed class ServicePtyHandoffTests
             .Throws<OperationCanceledException>();
     }
 
+    [Test]
+    public async Task PrepareAsync_Should_Keep_The_Daemon_Failure_As_The_Cause()
+    {
+        await using var server = LoopbackHttpServer.Start(static _ => Json(HttpStatusCode.InternalServerError, "{}"));
+
+        var exception = await Assert
+            .That(async () => await PrepareAsync(server.Endpoint))
+            .Throws<OpenCodeServerException>();
+
+        await Assert.That(exception!.Message).IsEqualTo(ServicePtyHandoff.PrepareFailedMessage);
+        await Assert.That(exception.InnerException).IsTypeOf<OpenCodeApiException>();
+    }
+
+    [Test]
+    public async Task PrepareAsync_Should_Keep_The_Request_Bound_As_The_Cause()
+    {
+        await using var server = LoopbackHttpServer.Start(static _ => Hold(HttpStatusCode.OK, "{}"));
+
+        var exception = await Assert
+            .That(async () => await Handoff().PrepareAsync(
+                RegistrationPath(), Registration(server.Endpoint), TimeSpan.FromMilliseconds(200), CancellationToken.None))
+            .Throws<OpenCodeServerException>();
+
+        await Assert.That(exception!.Message).IsEqualTo(ServicePtyHandoff.PrepareFailedMessage);
+        await Assert.That(exception.InnerException).IsAssignableTo<OperationCanceledException>();
+        server.ReleaseResponses();
+    }
+
+    [Test]
+    public async Task PrepareAsync_Should_Publish_The_Ticket_Exactly_As_The_Route_Answered_It()
+    {
+        // pty-handoff.ts writes body.handoff as it came: a member this pin does not know yet must
+        // still reach the replacement daemon, whose own schema may require it.
+        const string ticket = "{\"directory\":\"/work\",\"instanceID\":\"pty_1\",\"ticket\":\"t-1\",\"expiresAt\":1700000060000,\"signature\":\"sig-1\"}";
+        EnsureSidecarDirectory();
+        await using var server = LoopbackHttpServer.Start(static _ => Json(HttpStatusCode.OK, "{\"handoff\":" + ticket + "}"));
+
+        await PrepareAsync(server.Endpoint);
+
+        await Assert.That(ReadSidecar()!.Handoff!.Value.GetRawText()).IsEqualTo(ticket);
+    }
+
+    [Test]
+    public async Task PrepareAsync_Should_Publish_A_Null_Sidecar_When_The_Route_Answers_No_Ticket()
+    {
+        EnsureSidecarDirectory();
+        await using var server = LoopbackHttpServer.Start(static _ =>
+            Json(HttpStatusCode.OK, Fixtures.LoadJson("BackgroundService.pty-handoff-response-null.json")));
+
+        await PrepareAsync(server.Endpoint);
+
+        var sidecar = ReadSidecar();
+        await Assert.That(sidecar).IsNotNull();
+        await Assert.That(sidecar!.Handoff).IsNull();
+        await Assert.That(sidecar.ExpiresAt).IsEqualTo(NowMilliseconds + 30_000d);
+    }
+
+    [Test]
+    public async Task PrepareAsync_Should_Send_The_Registration_Credential()
+    {
+        EnsureSidecarDirectory();
+        await using var server = LoopbackHttpServer.Start(static _ =>
+            Json(HttpStatusCode.OK, Fixtures.LoadJson("BackgroundService.pty-handoff-response-ticket.json")));
+
+        await PrepareAsync(server.Endpoint);
+
+        await Assert.That(server.Requests.Single().Headers["Authorization"])
+            .IsEqualTo("Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes("opencode:" + Password)));
+    }
+
+    [Test]
+    public async Task PrepareAsync_Should_Report_A_Shutdown_That_Fails_After_The_Route_Is_Absent()
+    {
+        await using var server = LoopbackHttpServer.Start(static path => path == ShutdownPath
+            ? Json(HttpStatusCode.InternalServerError, "{}")
+            : Json(HttpStatusCode.NotFound, "{}"));
+
+        var exception = await Assert
+            .That(async () => await PrepareAsync(server.Endpoint))
+            .Throws<OpenCodeServerException>();
+
+        await Assert.That(exception!.Message).IsEqualTo(ServicePtyHandoff.ShutdownFailedMessage);
+        await Assert.That(exception.InnerException).IsTypeOf<OpenCodeApiException>();
+        await Assert.That(ReadSidecar()).IsNull();
+    }
+
+    [Test]
+    public async Task PrepareAsync_Should_Publish_A_Null_Sidecar_When_The_Shutdown_Route_Is_Absent_Too()
+    {
+        EnsureSidecarDirectory();
+        await using var server = LoopbackHttpServer.Start(static _ => Json(HttpStatusCode.NotFound, "{}"));
+
+        await PrepareAsync(server.Endpoint);
+
+        await Assert.That(ReadSidecar()!.Handoff).IsNull();
+    }
+
+    [Test]
+    public async Task PrepareAsync_Should_Recheck_For_A_Concurrent_Sidecar_Before_Treating_A_404_As_An_Older_Daemon()
+    {
+        // pty-handoff.ts:36-39: any failure re-checks first; a caller that already prepared and
+        // stopped this daemon leaves a fresh sidecar, and a 404 then means "gone", not "old". The
+        // concurrent caller's sidecar lands while the handoff request is in flight.
+        ServiceRegistration? registration = null;
+        await using var server = LoopbackHttpServer.Start(path =>
+        {
+            if (path == ShutdownPath)
+            {
+                return NoContent();
+            }
+
+            Seed(SidecarPath(), Sidecar(registration!, Ticket, NowMilliseconds + 60_000).ToUtf8Json());
+            return Json(HttpStatusCode.NotFound, "{}");
+        });
+        registration = Registration(server.Endpoint);
+
+        await Handoff().PrepareAsync(RegistrationPath(), registration, RequestTimeout, CancellationToken.None);
+
+        await Assert.That(server.RequestPaths).DoesNotContain(ShutdownPath);
+        await Assert.That(ReadSidecar()!.Handoff).IsNotNull();
+    }
+
+    [Test]
+    [Arguments("srv_other", FixedUrl)]
+    [Arguments(SourceId, "http://127.0.0.1:49999")]
+    public async Task CompleteAsync_Should_Clear_A_Sidecar_Whose_Source_Differs_In_One_Member(string id, string address)
+    {
+        Seed(SidecarPath(), Sidecar(FixedRegistration(), Ticket, NowMilliseconds + 60_000).ToUtf8Json());
+        var winner = new ServiceRegistration(id, Version, address, new Uri(address), RegisteredPid, Password);
+
+        await Handoff().CompleteAsync(RegistrationPath(), winner, CancellationToken.None);
+
+        await Assert.That(ReadSidecar()).IsNull();
+    }
+
+    [Test]
+    public async Task EnvironmentAsync_Should_Adopt_When_The_Registration_Cannot_Be_Decoded()
+    {
+        // The SDK reads an undecodable registration as absent, which the adoption rule accepts;
+        // upstream compares whatever JSON.parse returned instead (recorded, harmless).
+        Seed(RegistrationPath(), "{\"id\":123}");
+        Seed(SidecarPath(), Sidecar(FixedRegistration(), Ticket, NowMilliseconds + 60_000).ToUtf8Json());
+
+        var overlay = await Handoff().EnvironmentAsync(RegistrationPath(), callerEnvironment: null, CancellationToken.None);
+
+        await Assert.That(overlay["OPENCODE_PTY_HANDOFF"]).IsEqualTo(Ticket.GetRawText());
+    }
+
     private static JsonElement LoadTicket()
     {
         using var document = JsonDocument.Parse(Fixtures.LoadJson("BackgroundService.pty-handoff-valid.json"));
@@ -315,7 +465,7 @@ public sealed class ServicePtyHandoffTests
     private async Task PrepareAsync(Uri endpoint) =>
         await Handoff().PrepareAsync(RegistrationPath(), Registration(endpoint), RequestTimeout, CancellationToken.None);
 
-    private ServicePtyHandoff Handoff() => new(new TestablyServiceFileSystem(_fileSystem), _clock);
+    private ServicePtyHandoff Handoff() => new(new TestablyServiceFileSystem(_fileSystem), _clock, new ServicePtyShutdown());
 
     private static ServiceRegistration Registration(Uri endpoint) =>
         new(SourceId, Version, endpoint.ToString(), endpoint, RegisteredPid, Password);
@@ -347,6 +497,10 @@ public sealed class ServicePtyHandoffTests
             KeepOpen = true,
         };
     }
+
+    /// <summary>An answer the server sends only after <see cref="LoopbackHttpServer.ReleaseResponses"/>.</summary>
+    private static LoopbackHttpResponse Hold(HttpStatusCode status, string body) =>
+        new() { StatusCode = status, ContentType = "application/json", Body = body, KeepOpen = true };
 
     private static LoopbackHttpResponse Json(HttpStatusCode status, string body) =>
         new() { StatusCode = status, ContentType = "application/json", Body = body };

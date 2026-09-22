@@ -22,25 +22,74 @@ namespace OpenCode.Sdk.Tests.BackgroundService;
 /// every other test keeps the host quiet while those bounds hold.
 /// </remarks>
 [NotInParallel]
-public sealed class OpenCodeServerEnsureLiveTests
+[ClassDataSource<PinnedManagedServiceFixture>(Shared = SharedType.PerTestSession)]
+public sealed class OpenCodeServerEnsureLiveTests(PinnedManagedServiceFixture service)
 {
     private static readonly RealFileSystem FileSystem = new();
     private static readonly TimeSpan ExitBound = TimeSpan.FromSeconds(30);
 
-    /// <summary>The election timing test (c) injects: fast probes, and a spawn delay long enough that
-    /// the three-timeout recovery fires before the spawn-delay gate could start a contender early.</summary>
+    /// <summary>
+    /// The election timing test (c) injects: a fast poll, the pinned request bound kept — it applies
+    /// to the real source-run contender too, and a shorter one let three slow first answers terminate
+    /// the SDK's own fresh contender under a loaded runner — and a spawn delay past three of those
+    /// bounds, so the recovery ends the stalled daemon before the delay could start a contender that
+    /// takes the registration over (the pinned loop spawns once the delay passes, recovery or not).
+    /// </summary>
     private static readonly ServiceTiming Accelerated = ServiceTiming.Default with
     {
-        RequestTimeout = TimeSpan.FromMilliseconds(200),
         PollInterval = TimeSpan.FromMilliseconds(10),
-        SpawnDelay = TimeSpan.FromMilliseconds(500),
+        SpawnDelay = TimeSpan.FromSeconds(10),
     };
+
+    private EnsureServiceContext? _context;
+
+    private EnsureServiceContext Context => _context ?? throw new InvalidOperationException("The Ensure context is created before each test.");
+
+    [Before(Test)]
+    public async Task CreateContextAsync(CancellationToken cancellationToken) =>
+        _context = await EnsureServiceContext.CreateAsync(cancellationToken);
+
+    [After(Test)]
+    public async Task DisposeContextAsync()
+    {
+        if (_context is not { } context)
+        {
+            return;
+        }
+
+        if (TestContext.Current?.Execution.Result?.State == TestState.Failed)
+        {
+            context.KeepForDiagnosis();
+        }
+
+        await context.DisposeAsync();
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task EnsureAsync_Should_Reuse_A_Running_Service_Without_Starting_Another(CancellationToken cancellationToken)
+    {
+        // A command no PATH resolves: any spawn attempt would fail the call, so success proves reuse.
+        var announced = new List<OpenCodeServerEnsureReason>();
+        await using var server = await OpenCodeServer.EnsureAsync(
+            new OpenCodeServerEnsureOptions
+            {
+                RegistrationFilePath = service.RegistrationFile,
+                Command = ["no-such-opencode-" + Guid.NewGuid().ToString("N")],
+                OnStart = (reason, _) => announced.Add(reason),
+            },
+            cancellationToken);
+
+        await Assert.That(server.ProcessId).IsEqualTo(service.ProcessId);
+        await Assert.That(server.Endpoint).IsEqualTo(service.Endpoint);
+        await Assert.That(announced).IsEmpty();
+    }
 
     [Test]
     [Timeout(180_000)]
     public async Task EnsureAsync_Should_Start_The_Source_Run_Daemon_By_Default_Command_And_Channel(CancellationToken cancellationToken)
     {
-        await using var context = await EnsureServiceContext.CreateAsync(cancellationToken);
+        var context = Context;
 
         // The default command resolves through the isolated process's PATH, whose first entry is
         // the forwarding shim: the shipped PATH/PATHEXT resolution, not an explicit path.
@@ -65,7 +114,7 @@ public sealed class OpenCodeServerEnsureLiveTests
     [Timeout(180_000)]
     public async Task EnsureAsync_Should_Elect_One_Service_Across_Ten_Concurrent_Callers(CancellationToken cancellationToken)
     {
-        await using var context = await EnsureServiceContext.CreateAsync(cancellationToken);
+        var context = Context;
 
         var options = EnsureOptions(context);
         var servers = await Task.WhenAll(
@@ -98,7 +147,7 @@ public sealed class OpenCodeServerEnsureLiveTests
     [Timeout(180_000)]
     public async Task EnsureAsync_Should_Recover_From_An_Unresponsive_Daemon_After_Three_Timeouts(CancellationToken cancellationToken)
     {
-        await using var context = await EnsureServiceContext.CreateAsync(cancellationToken);
+        var context = Context;
         await using var stall = await ServiceDaemonStandIn.StartAsync(FileSystem, "stall", cancellationToken);
 
         await SeedAsync(context.RegistrationFile, ServiceRegistrationDocument.Compose(
@@ -124,7 +173,7 @@ public sealed class OpenCodeServerEnsureLiveTests
     [Timeout(180_000)]
     public async Task EnsureAsync_Should_Replace_A_Version_Mismatched_Service(CancellationToken cancellationToken)
     {
-        await using var context = await EnsureServiceContext.CreateAsync(cancellationToken);
+        var context = Context;
         await using var stale = await ServiceDaemonStandIn.StartAsync(FileSystem, "stale", cancellationToken);
 
         // A registration naming the stale daemon's own identity: the probe reads it ready at the
@@ -155,6 +204,29 @@ public sealed class OpenCodeServerEnsureLiveTests
         {
             await server.DisposeAsync();
         }
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task EnsureAsync_Then_StopAsync_In_One_Host_Should_End_The_Daemon_And_Remove_Its_Registration(CancellationToken cancellationToken)
+    {
+        // The Unix shim execs bun, so the registered daemon is this host's own direct child: the
+        // host that started the shared service is the one stopping it, and nothing but this host
+        // can reap it. On Windows the shim's cmd.exe host sits in between; the flow is the same.
+        var context = Context;
+
+        var server = await OpenCodeServer.EnsureAsync(EnsureOptions(context), cancellationToken);
+        var processId = server.ProcessId;
+        context.TrackProcess(processId);
+        await server.DisposeAsync();
+
+        await OpenCodeServer.StopAsync(
+            new OpenCodeServerStopOptions { RegistrationFilePath = context.RegistrationFile },
+            cancellationToken);
+
+        await Assert.That(FileSystem.File.Exists(context.RegistrationFile)).IsFalse();
+        await Assert.That(await ProcessObservation.ObserveExitWithinAsync(processId, ExitBound, cancellationToken)).IsTrue()
+            .Because("the stopped daemon must leave the process table, reaped by the host that spawned it");
     }
 
     /// <summary>The Ensure options every direct caller uses: the isolated registration file by path

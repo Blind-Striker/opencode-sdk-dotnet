@@ -20,6 +20,11 @@ Nightly builds of `master` are on
 
 ### 🐛 Fixes
 
+- **`OpenCodeServer.StopAsync` treats a zombie as stopped on Linux.** A service process that had
+  exited but was not yet reaped by its parent kept its start time readable, so the stop read it
+  as still running, sent the kill rung, and failed with "still running after the kill rung",
+  leaving the registration behind. The identity read now checks the process state and treats a
+  zombie as gone, the way macOS already did.
 - **Structural union values print themselves.** `ToString()` on `FormValue`, `FormWhenValue`,
   `McpRemoteConfigOauth`, and `ProviderSettingsTimeout` threw `InvalidOperationException`
   ("The structural value does not contain the requested arm."): a record's compiler-synthesized

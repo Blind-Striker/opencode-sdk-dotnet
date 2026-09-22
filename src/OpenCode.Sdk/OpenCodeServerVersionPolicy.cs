@@ -20,8 +20,9 @@ public enum OpenCodeServerVersionPolicy
     Replace = 1,
 
     /// <summary>
-    /// Discover twice outside the loop and throw when a service is running at the wrong version,
-    /// without entering the election.
+    /// Discover twice outside the loop and throw when a ready service answers at the wrong version,
+    /// without entering the election. A service that is not ready yet, or nothing registered, enters
+    /// the election with the expected version kept, as <see cref="Replace"/> does.
     /// </summary>
     Error = 2,
 }

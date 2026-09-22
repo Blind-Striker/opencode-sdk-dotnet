@@ -1,15 +1,15 @@
 using OpenCode.Sdk.Internal.BackgroundService.Abstractions;
+using OpenCode.Sdk.Internal.Diagnostics;
 
 namespace OpenCode.Sdk.Internal.BackgroundService;
 
 /// <summary>
-/// The pinned CLI's <c>service stop</c> (<c>handlers/service/stop.ts</c> over <c>Service.stop</c>,
-/// <c>effect/service.ts:144-152</c>): resolve the registration the options name and run the
-/// channel's migration, read it once, ask a ready and compatible daemon to shut its persistent
-/// terminals down, clear the handoff sidecar through the shared <see cref="IServicePtyHandoff"/>
-/// seam, then hand the registration to the terminator. A missing or corrupt registration is
-/// nothing to stop; a shutdown the daemon refuses is ignored the way the CLI ignores it; the
-/// caller's cancellation is the one thing that is not.
+/// The pinned CLI's <c>service stop</c> (<c>handlers/service/stop.ts</c> over <c>Service.stop</c>):
+/// locate the registration the options name, read it once, ask a ready and compatible daemon to
+/// shut its persistent terminals down, clear the handoff sidecar through the shared
+/// <see cref="IServicePtyHandoff"/> seam, then hand the registration to the terminator. A missing
+/// or corrupt registration is nothing to stop; a shutdown the daemon refuses is ignored the way the
+/// CLI ignores it; the caller's cancellation is the one thing that is not.
 /// </summary>
 internal sealed class ServiceStopper(
     IServiceEnvironment environment,
@@ -31,15 +31,15 @@ internal sealed class ServiceStopper(
         var selection = ServiceSelection.Snapshot(options);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var paths = new ServicePathResolver(environment).Resolve(selection);
-        await new ServiceMigration(fileSystem).ApplyAsync(selection, paths, cancellationToken).ConfigureAwait(false);
-
+        var paths = await new ServiceRegistrationLocator(environment, fileSystem)
+            .LocateAsync(selection, cancellationToken)
+            .ConfigureAwait(false);
         var registration = await new ServiceRegistrationFile(fileSystem)
             .TryReadAsync(paths.RegistrationFile, cancellationToken)
             .ConfigureAwait(false);
         if (registration is not null)
         {
-            _ = await TryShutdownPersistentTerminalsAsync(registration, cancellationToken).ConfigureAwait(false);
+            await ShutdownPersistentTerminalsAsync(registration, cancellationToken).ConfigureAwait(false);
         }
 
         await ptyHandoff.ClearAsync(paths.RegistrationFile, cancellationToken).ConfigureAwait(false);
@@ -52,29 +52,29 @@ internal sealed class ServiceStopper(
     }
 
     /// <summary>
-    /// <c>ServerConnection.shutdownPersistentPty</c> (<c>server-connection.ts:65-72</c>): discover
-    /// with no version filter and, when a ready and compatible daemon answers, ask it to shut the
-    /// terminals down. Every failure of the exchange is the false outcome, the way the CLI's
-    /// <c>Effect.ignore</c> drops it; the caller's cancellation propagates.
+    /// <c>ServerConnection.shutdownPersistentPty</c> (<c>server-connection.ts:65-72</c>): when a ready
+    /// and compatible daemon answers, ask it to shut the terminals down. The caller's cancellation
+    /// propagates; every other failure of the exchange is dropped, the CLI's <c>Effect.ignore</c>.
     /// </summary>
-    private async Task<bool> TryShutdownPersistentTerminalsAsync(ServiceRegistration registration, CancellationToken cancellationToken)
+    [SlopwatchSuppress(
+        "SW003",
+        "The pinned CLI wraps this exchange in Effect.ignore (stop.ts): a refused, failed, or unreachable shutdown changes nothing, because the daemon is ended next either way.")]
+    private async Task ShutdownPersistentTerminalsAsync(ServiceRegistration registration, CancellationToken cancellationToken)
     {
         var answer = await probe.ProbeAsync(registration, cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
         if (answer.State != ServiceState.Ready || !answer.Compatible)
         {
-            return false;
+            return;
         }
 
         try
         {
             await ptyShutdown.ShutdownAsync(registration, cancellationToken).ConfigureAwait(false);
-            return true;
         }
         catch (OpenCodeException)
         {
-            // Refused, failed, or unreachable: the daemon is about to be ended either way.
-            return false;
+            // Effect.ignore: the daemon is about to be ended either way.
         }
     }
 }

@@ -12,13 +12,17 @@ namespace OpenCode.Sdk.TestSupport;
 /// isolated XDG roots, a reserved free loopback port (never the maintainer's real daemon's), an
 /// empty config seed naming that port, the <c>local</c>-channel registration path, and the
 /// forwarding <c>opencode</c> shim the Ensure loop's default command resolves. The spawned service
-/// is the launcher's to make ready and to end; this type only owns the boundary and, on disposal,
-/// ends any process a test tracked and removes the run root.
+/// is the launcher's to make ready and to end; this type only owns the boundary. On disposal it
+/// ends every contender the shim started (Unix records each pid), any process a test tracked, and
+/// whatever is registered, waits for each to leave, and removes the run root — or keeps it, with
+/// the daemon log's tail printed, when the test failed.
 /// </summary>
 internal sealed class EnsureServiceContext : IAsyncDisposable
 {
     private const string Channel = "local";
     private const int RealDaemonPort = 49374;
+    private const int LogTailLines = 40;
+    private static readonly TimeSpan ExitBound = TimeSpan.FromSeconds(15);
 
     private readonly RealFileSystem _fileSystem = new();
     private readonly List<int> _processes = [];
@@ -27,8 +31,10 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
     private string? _registrationFile;
     private string? _shimDirectory;
     private string? _shimPath;
+    private string? _contenderPidFile;
     private int _port;
     private int _disposed;
+    private bool _keep;
 
     private EnsureServiceContext()
     {
@@ -66,6 +72,9 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
     /// <param name="processId">The pid the registration published.</param>
     public void TrackProcess(int processId) => _processes.Add(processId);
 
+    /// <summary>Keeps the run root, and prints the daemon log's tail, instead of removing it: the evidence a failed test needs.</summary>
+    public void KeepForDiagnosis() => _keep = true;
+
     /// <summary>
     /// The environment an isolated fixture process needs: the isolated roots plus a PATH that puts
     /// the shim first, so the default <c>opencode serve --service</c> command resolves
@@ -91,32 +100,35 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
             return;
         }
 
-        foreach (var processId in _processes)
+        // Every contender the shim started (the losers Ensure released included), every tracked
+        // pid, and — for a test that failed before it tracked its winner — whatever is registered.
+        var processIds = new HashSet<int>(_processes);
+        processIds.UnionWith(await ReadContenderPidsAsync().ConfigureAwait(false));
+        if (await ReadRegisteredPidAsync().ConfigureAwait(false) is { } registered)
+        {
+            _ = processIds.Add(registered);
+        }
+
+        foreach (var processId in processIds)
         {
             KillIfRunning(processId);
         }
 
-        // Backstop for a test that failed before it tracked its winner: whatever is registered
-        // right now is this context's spawned service, ended here so no daemon leaks past a test.
-        if (_registrationFile is { } registrationFile && _fileSystem.File.Exists(registrationFile))
+        // A late contender that booted after its run root was deleted recreates the XDG folders
+        // without home/ and fails its chdir: wait for every one to leave before removing anything.
+        foreach (var processId in processIds)
         {
-            using var stream = _fileSystem.FileStream.New(registrationFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            using var buffer = new MemoryStream();
-            await stream.CopyToAsync(buffer, CancellationToken.None).ConfigureAwait(false);
-            var bytes = buffer.ToArray();
-            if (ServiceRegistrationReader.TryRead(bytes) is { } registration)
-            {
-                KillIfRunning(registration.ProcessId);
-            }
+            _ = await ProcessObservation.ObserveExitWithinAsync(processId, ExitBound, CancellationToken.None).ConfigureAwait(false);
         }
 
-        var keep = string.Equals(
+        var keep = _keep || string.Equals(
             System.Environment.GetEnvironmentVariable("OPENCODE_SDK_TESTS_KEEP_LOGS"),
             "1",
             StringComparison.Ordinal);
         if (keep)
         {
             Console.WriteLine("Ensure service context retained; run root: " + RunRoot);
+            Console.WriteLine(await DaemonLogTailAsync().ConfigureAwait(false));
         }
         else
         {
@@ -124,6 +136,58 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
         }
 
         _runRoot = null;
+    }
+
+    private async Task<IEnumerable<int>> ReadContenderPidsAsync()
+    {
+        if (_contenderPidFile is not { } file || !_fileSystem.File.Exists(file))
+        {
+            return [];
+        }
+
+        var text = await ReadSharedAsync(file).ConfigureAwait(false);
+        return
+        [
+            .. text
+                .Split('\n')
+                .Select(static line => int.TryParse(line.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var pid) ? pid : 0)
+                .Where(static pid => pid > 0),
+        ];
+    }
+
+    private async Task<int?> ReadRegisteredPidAsync()
+    {
+        if (_registrationFile is not { } file || !_fileSystem.File.Exists(file))
+        {
+            return null;
+        }
+
+        var bytes = Encoding.UTF8.GetBytes(await ReadSharedAsync(file).ConfigureAwait(false));
+        return ServiceRegistrationReader.TryRead(bytes)?.ProcessId;
+    }
+
+    /// <summary>The newest daemon log's final lines, the evidence a failed election leaves.</summary>
+    private async Task<string> DaemonLogTailAsync()
+    {
+        var logDirectory = _fileSystem.Path.Combine(_environment!["XDG_DATA_HOME"], "opencode", "log");
+        var newest = _fileSystem.Directory.Exists(logDirectory)
+            ? _fileSystem.Directory.GetFiles(logDirectory, "*.log").OrderByDescending(_fileSystem.File.GetLastWriteTimeUtc).FirstOrDefault()
+            : null;
+        if (newest is null)
+        {
+            return "No daemon log under " + logDirectory;
+        }
+
+        var lines = (await ReadSharedAsync(newest).ConfigureAwait(false)).Split('\n');
+        return "Daemon log tail (" + newest + "):" + System.Environment.NewLine
+            + string.Join(System.Environment.NewLine, lines.Skip(Math.Max(0, lines.Length - LogTailLines)));
+    }
+
+    private async Task<string> ReadSharedAsync(string path)
+    {
+        using var stream = _fileSystem.FileStream.New(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        return await reader.ReadToEndAsync().ConfigureAwait(false);
     }
 
     private async Task InitializeAsync(CancellationToken cancellationToken)
@@ -135,7 +199,8 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
             _environment["XDG_STATE_HOME"], "opencode", "service-" + Channel + ".json");
         await SeedConfigAsync(cancellationToken).ConfigureAwait(false);
         _shimDirectory = _runRoot.CreateSubdirectory("shim");
-        _shimPath = await OpenCodeCommandShim.WriteAsync(_fileSystem, _shimDirectory, cancellationToken)
+        _contenderPidFile = _fileSystem.Path.Combine(_runRoot.Path, "contenders.pid");
+        _shimPath = await OpenCodeCommandShim.WriteAsync(_fileSystem, _shimDirectory, _contenderPidFile, cancellationToken)
             .ConfigureAwait(false);
     }
 

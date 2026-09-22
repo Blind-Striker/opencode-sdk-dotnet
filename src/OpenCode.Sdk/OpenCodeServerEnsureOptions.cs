@@ -7,6 +7,9 @@ namespace OpenCode.Sdk;
 /// </summary>
 public sealed class OpenCodeServerEnsureOptions
 {
+    /// <summary>Gets the pinned client's default service command (<c>promise/service.ts:48</c>), the one place it is spelled.</summary>
+    internal static IReadOnlyList<string> DefaultCommand { get; } = ["opencode", "serve", "--service"];
+
     /// <summary>
     /// Gets or sets the service channel whose registration to ensure. Null reads the shared release
     /// registration (<c>service.json</c>) that the installed <c>opencode</c> command publishes; a
@@ -34,7 +37,8 @@ public sealed class OpenCodeServerEnsureOptions
     /// <summary>
     /// Gets or sets the exact version a reused or replaced service must report; null accepts any
     /// ready compatible service. <see cref="VersionPolicy"/> decides whether this value is stripped,
-    /// kept in the election loop, or used for the error preamble.
+    /// kept in the election loop, or used for the error preamble; <see cref="OpenCodeServerVersionPolicy.Replace"/>
+    /// and <see cref="OpenCodeServerVersionPolicy.Error"/> refuse a null value.
     /// </summary>
     public string? ExpectedVersion { get; set; }
 
@@ -50,7 +54,7 @@ public sealed class OpenCodeServerEnsureOptions
     /// <see cref="OpenCodeServer.StartAsync"/> resolves it, through the launcher's executable
     /// search, before a contender is spawned.
     /// </summary>
-    public IReadOnlyList<string> Command { get; set; } = ["opencode", "serve", "--service"];
+    public IReadOnlyList<string> Command { get; set; } = [.. DefaultCommand];
 
     /// <summary>
     /// Gets or sets extra environment entries layered onto a spawned contender after the channel's

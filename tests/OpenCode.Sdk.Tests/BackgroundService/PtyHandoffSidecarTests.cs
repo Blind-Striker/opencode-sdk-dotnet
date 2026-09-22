@@ -6,8 +6,8 @@ namespace OpenCode.Sdk.Tests.BackgroundService;
 
 /// <summary>
 /// The strict sidecar boundary over embedded fixtures: the valid shape, the null handoff, the
-/// absent id, unknown members ignored, and every shape failure read as absent rather than thrown.
-/// Round-trip and redaction cover the writer and the secret-bearing ToString.
+/// absent id, unknown members ignored, and every shape failure — invalid UTF-8 included — read as
+/// absent rather than thrown. Round-trip covers the writer.
 /// </summary>
 public sealed class PtyHandoffSidecarTests
 {
@@ -89,7 +89,14 @@ public sealed class PtyHandoffSidecarTests
     public async Task ToUtf8Json_Should_Omit_The_Id_Member_When_The_Source_Has_None()
     {
         var original = Decode("BackgroundService.pty-handoff-null-handoff.json")!;
-        var withoutId = original with { SourceId = null };
+        var withoutId = new PtyHandoffSidecar
+        {
+            SourceId = null,
+            SourcePid = original.SourcePid,
+            SourceUrl = original.SourceUrl,
+            Handoff = original.Handoff,
+            ExpiresAt = original.ExpiresAt,
+        };
 
         var bytes = withoutId.ToUtf8Json();
 
@@ -97,12 +104,14 @@ public sealed class PtyHandoffSidecarTests
     }
 
     [Test]
-    public async Task ToString_Should_Not_Render_The_Handoff_Ticket()
+    public async Task TryRead_Should_Return_Null_For_A_String_That_Is_Not_Valid_Utf8()
     {
-        var text = Decode("BackgroundService.pty-handoff-valid.json")!.ToString();
+        // The reader accepts the token and throws only when the string is decoded: still not this
+        // shape, so absent rather than a failure.
+        var prefix = Encoding.UTF8.GetBytes("{\"source\":{\"pid\":48213,\"url\":\"http://127.0.0.1:49374\",\"id\":\"");
+        var suffix = Encoding.UTF8.GetBytes("\"},\"handoff\":null,\"expiresAt\":1700000060000}");
 
-        await Assert.That(text).DoesNotContain("ticket-abc123");
-        await Assert.That(text).Contains("<redacted>");
+        await Assert.That(DecodeBytes([.. prefix, 0xC3, 0x28, .. suffix])).IsNull();
     }
 
     private static PtyHandoffSidecar? Decode(string fixture) =>

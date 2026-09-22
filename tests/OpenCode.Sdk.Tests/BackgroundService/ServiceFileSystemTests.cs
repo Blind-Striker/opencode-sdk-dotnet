@@ -139,6 +139,21 @@ public sealed class ServiceFileSystemTests
     }
 
     [Test]
+    public async Task Rename_Should_Leave_The_Destination_In_Place_When_The_Source_Is_Missing()
+    {
+        // A replace that fails must not have destroyed what it was replacing: a reader between the
+        // two steps of a delete-then-move would see no sidecar at all.
+        using var directory = new OwnedTemporaryDirectory();
+        var destination = directory.File("sidecar.json");
+        directory.FileSystem.File.WriteAllText(destination, "previous");
+
+        _ = Assert.Throws<FileNotFoundException>(() =>
+            new ServiceFileSystem().Rename(directory.File("absent.json"), destination));
+
+        await Assert.That(directory.FileSystem.File.ReadAllText(destination)).IsEqualTo("previous");
+    }
+
+    [Test]
     public void Rename_Should_Throw_For_A_Missing_Source()
     {
         using var directory = new OwnedTemporaryDirectory();

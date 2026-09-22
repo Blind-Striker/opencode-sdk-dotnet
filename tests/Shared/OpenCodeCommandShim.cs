@@ -21,9 +21,14 @@ internal static class OpenCodeCommandShim
     /// <summary>Writes the shim into <paramref name="directory"/> and returns its full path.</summary>
     /// <param name="fileSystem">The filesystem the pinned command is resolved through.</param>
     /// <param name="directory">The directory the shim is written into.</param>
+    /// <param name="pidFile">
+    /// On Unix, the file every started shim appends its own pid to before it execs, so teardown can
+    /// end the losing contenders Ensure released; null records nothing. A batch shim cannot learn its
+    /// own pid, so Windows records nothing.
+    /// </param>
     /// <param name="cancellationToken">The caller's token.</param>
     /// <returns>The absolute path of the shim file.</returns>
-    public static async Task<string> WriteAsync(IFileSystem fileSystem, string directory, CancellationToken cancellationToken)
+    public static async Task<string> WriteAsync(IFileSystem fileSystem, string directory, string? pidFile, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(fileSystem);
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);
@@ -39,7 +44,7 @@ internal static class OpenCodeCommandShim
 
         var path = fileSystem.Path.Combine(directory, FileName);
         using var stream = fileSystem.FileStream.New(path, FileMode.Create, FileAccess.Write, FileShare.None);
-        var bytes = Encoding.UTF8.GetBytes(Compose(bun, entry, cliDirectory));
+        var bytes = Encoding.UTF8.GetBytes(Compose(bun, entry, cliDirectory, pidFile));
         await stream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
 #if NET
         // A shell script the spawner runs directly must carry the execute bit; a Windows batch
@@ -58,8 +63,14 @@ internal static class OpenCodeCommandShim
     /// (the rationale the pinned server launch's working directory records), and the contender
     /// spawner sets no working directory of its own.
     /// </summary>
-    private static string Compose(string bun, string entry, string cliDirectory) =>
-        OperatingSystem.IsWindows()
-            ? "@echo off\r\ncd /d \"" + cliDirectory + "\"\r\n\"" + bun + "\" \"" + entry + "\" %*\r\n"
-            : "#!/bin/sh\ncd \"" + cliDirectory + "\" || exit 1\nexec \"" + bun + "\" \"" + entry + "\" \"$@\"\n";
+    private static string Compose(string bun, string entry, string cliDirectory, string? pidFile)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return "@echo off\r\ncd /d \"" + cliDirectory + "\"\r\n\"" + bun + "\" \"" + entry + "\" %*\r\n";
+        }
+
+        var record = pidFile is null ? string.Empty : "echo $$ >> \"" + pidFile + "\"\n";
+        return "#!/bin/sh\n" + record + "cd \"" + cliDirectory + "\" || exit 1\nexec \"" + bun + "\" \"" + entry + "\" \"$@\"\n";
+    }
 }

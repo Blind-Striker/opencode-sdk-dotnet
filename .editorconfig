@@ -1056,6 +1056,14 @@ dotnet_diagnostic.MA0045.severity = none
 [src/OpenCode.Sdk/Internal/BackgroundService/ServiceContender.cs]
 dotnet_diagnostic.MA0045.severity = none
 
+# ServiceProcessControl.TrySnapshot reads /proc/<pid>/stat on Linux to tell a zombie from a live
+# process: a few hundred bytes of a kernel pseudo-file, read synchronously because the seam member
+# is synchronous by contract — the stop ladder and the election poll it between timer waits, and a
+# process identity is a value, not an operation. Winner: the synchronous process-identity seam;
+# MA0045 remains enabled for every other file.
+[src/OpenCode.Sdk/Internal/BackgroundService/ServiceProcessControl.cs]
+dotnet_diagnostic.MA0045.severity = none
+
 # ServiceFileSystemTests seeds and reads its owned temporary directory through IFile.WriteAllText,
 # WriteAllBytes, ReadAllText, and ReadAllBytes. The test project also compiles for net472, whose
 # Testably asset is the netstandard2.0 one and carries none of the async overloads the modern asset
