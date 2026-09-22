@@ -58,7 +58,7 @@ public sealed class ServiceContenderSpawnerTests
     [Timeout(120_000)]
     public async Task Spawn_Should_Return_A_Live_Process_Whose_Ready_Line_Names_The_Same_Pid(CancellationToken cancellationToken)
     {
-        using var contender = new ServiceContenderSpawner().Spawn(FixtureProbe("contender-probe", "daemon-sleep"));
+        using var contender = ServiceContenderSpawner.Start(FixtureProbe("contender-probe", "daemon-sleep"));
         try
         {
             await Assert.That(contender.ProcessId).IsGreaterThan(0);
@@ -71,7 +71,6 @@ public sealed class ServiceContenderSpawnerTests
             var readyPid = ReadyPid(stderr);
             await Assert.That(readyPid).IsNotNull();
             await Assert.That(readyPid!.Value).IsEqualTo(contender.ProcessId);
-            await Assert.That(contender.Error).IsNull();
             await Assert.That(contender.TryGetFailure()).IsNull();
 
             // Upstream's release never kills: the contender stays alive for the election it was
@@ -96,7 +95,7 @@ public sealed class ServiceContenderSpawnerTests
         // The action is synchronous on purpose: the failure must throw from Spawn itself, the way
         // the launcher's start does, not surface later on the returned contender.
         var exception = await Assert
-            .That(() => new ServiceContenderSpawner().Spawn(new IServiceContenderSpawner.ContenderStartInfo(
+            .That(() => ServiceContenderSpawner.Start(new IServiceContenderSpawner.ContenderStartInfo(
                 new ResolvedExecutable(missing, missing, IsBatchScript: false),
                 [],
                 new Dictionary<string, string?>(StringComparer.Ordinal))))
@@ -136,7 +135,7 @@ public sealed class ServiceContenderSpawnerTests
             [removedName] = null,
         };
         var command = FixtureCommand();
-        using var contender = new ServiceContenderSpawner().Spawn(new IServiceContenderSpawner.ContenderStartInfo(
+        using var contender = ServiceContenderSpawner.Start(new IServiceContenderSpawner.ContenderStartInfo(
             new ResolvedExecutable("dotnet", command[0], IsBatchScript: false),
             [command[1], "contender-probe", "echo-argv-env", .. probeArguments],
             overlay));
@@ -178,12 +177,12 @@ public sealed class ServiceContenderSpawnerTests
             if (!OperatingSystem.IsWindows())
             {
                 // cmd.exe exists only on Windows: the seam refuses rather than improvises.
-                _ = await Assert.That(() => new ServiceContenderSpawner().Spawn(startInfo)).Throws<OpenCodeServerException>();
+                _ = await Assert.That(() => ServiceContenderSpawner.Start(startInfo)).Throws<OpenCodeServerException>();
                 Console.WriteLine("branch: Unix — the batch shim '" + script + "' is refused before anything spawns");
                 return;
             }
 
-            using var contender = new ServiceContenderSpawner().Spawn(startInfo);
+            using var contender = ServiceContenderSpawner.Start(startInfo);
             try
             {
                 await Assert.That(await WaitForTheProbeAsync(contender, "the batch shim to finish", cancellationToken)).IsTrue()
@@ -212,7 +211,7 @@ public sealed class ServiceContenderSpawnerTests
         // the spawn's own state. macOS ps has no ignored-signal column: that arm reads the mask.
         if (OperatingSystem.IsWindows())
         {
-            using var windows = new ServiceContenderSpawner().Spawn(new IServiceContenderSpawner.ContenderStartInfo(
+            using var windows = ServiceContenderSpawner.Start(new IServiceContenderSpawner.ContenderStartInfo(
                 new ResolvedExecutable("cmd", SystemCommand(), IsBatchScript: false),
                 ["/c", "exit", "0"],
                 new Dictionary<string, string?>(StringComparer.Ordinal)));
@@ -225,7 +224,7 @@ public sealed class ServiceContenderSpawnerTests
         var report = OperatingSystem.IsLinux()
             ? "grep -E '^Sig(Ign|Blk):' /proc/$$/status 1>&2"
             : "ps -o sigmask= -p $$ 1>&2";
-        using var contender = new ServiceContenderSpawner().Spawn(new IServiceContenderSpawner.ContenderStartInfo(
+        using var contender = ServiceContenderSpawner.Start(new IServiceContenderSpawner.ContenderStartInfo(
             new ResolvedExecutable("sh", "/bin/sh", IsBatchScript: false),
             ["-c", report],
             new Dictionary<string, string?>(StringComparer.Ordinal)));
@@ -259,7 +258,7 @@ public sealed class ServiceContenderSpawnerTests
     [Timeout(120_000)]
     public async Task Spawned_Contender_Should_Lead_Its_Own_Session_On_Unix(CancellationToken cancellationToken)
     {
-        using var contender = new ServiceContenderSpawner().Spawn(FixtureProbe("contender-probe", "daemon-sleep"));
+        using var contender = ServiceContenderSpawner.Start(FixtureProbe("contender-probe", "daemon-sleep"));
         try
         {
             if (OperatingSystem.IsWindows())
@@ -287,7 +286,7 @@ public sealed class ServiceContenderSpawnerTests
     [Timeout(120_000)]
     public async Task Spawn_Should_Give_The_Child_Nul_Standard_Streams(CancellationToken cancellationToken)
     {
-        using var contender = new ServiceContenderSpawner().Spawn(FixtureProbe("contender-probe", "echo-argv-env"));
+        using var contender = ServiceContenderSpawner.Start(FixtureProbe("contender-probe", "echo-argv-env"));
         try
         {
             // The probe floods stdout before its report: a child whose stdout is a pipe nobody
@@ -312,7 +311,7 @@ public sealed class ServiceContenderSpawnerTests
     [Timeout(120_000)]
     public async Task Spawn_Should_Keep_Only_The_Final_Eight_Kib_Of_Standard_Error(CancellationToken cancellationToken)
     {
-        using var contender = new ServiceContenderSpawner().Spawn(FixtureProbe("contender-probe", "stderr-fill", DefaultFillBytes.ToString(CultureInfo.InvariantCulture)));
+        using var contender = ServiceContenderSpawner.Start(FixtureProbe("contender-probe", "stderr-fill", DefaultFillBytes.ToString(CultureInfo.InvariantCulture)));
         try
         {
             await Assert.That(await WaitForTheProbeAsync(contender, "the stderr-fill probe to finish", cancellationToken)).IsTrue()
@@ -331,7 +330,7 @@ public sealed class ServiceContenderSpawnerTests
     [Timeout(120_000)]
     public async Task Release_Should_Keep_Draining_Standard_Error_So_The_Contender_Finishes(CancellationToken cancellationToken)
     {
-        using var contender = new ServiceContenderSpawner().Spawn(FixtureProbe("contender-probe", "stderr-fill", DrainFillBytes.ToString(CultureInfo.InvariantCulture)));
+        using var contender = ServiceContenderSpawner.Start(FixtureProbe("contender-probe", "stderr-fill", DrainFillBytes.ToString(CultureInfo.InvariantCulture)));
         try
         {
             _ = await LiveReadiness.WaitAsync(
@@ -344,11 +343,102 @@ public sealed class ServiceContenderSpawnerTests
             await Assert.That(contender.Stderr).IsEqualTo(string.Empty);
 
             // Not killed at release, not dead of a closed pipe: alive across a bound far under
-            // the time the remaining write still needs, then finished when the drain carried it.
-            // The exit wait pumps the contender's poll the way the election loop polls every
-            // round: a single WNOHANG look can land between the pipe EOF and the zombie state.
+            // the time the remaining write still needs, then gone from the process table when the
+            // drain carried it — reaped by the contender itself, with nobody polling it.
             await Assert.That(await ProcessObservation.ObserveExitWithinAsync(contender.ProcessId, SurvivalBound, cancellationToken)).IsFalse();
-            await Assert.That(await ProcessObservation.ObserveExitWithReapAsync(() => contender.IsFinished, contender.ProcessId, DrainBound, cancellationToken)).IsTrue();
+            await Assert.That(await ProcessObservation.ObserveExitWithinAsync(contender.ProcessId, DrainBound, cancellationToken)).IsTrue();
+        }
+        finally
+        {
+            KillIfRunning(contender.ProcessId);
+        }
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task TryGetFailure_Should_Report_A_Nonzero_Exit_With_The_Stderr_Tail(CancellationToken cancellationToken)
+    {
+        // The upstream contenderFailure oracle: a contender that exits nonzero is reported with its
+        // code and its stderr tail, the one diagnostic a caller gets for a failed start. Finished
+        // must mean the exit was observed, the way Node's close event does, or the code is lost.
+        using var contender = ServiceContenderSpawner.Start(FixtureProbe("contender-probe", "no-such-mode"));
+        try
+        {
+            await Assert.That(await WaitForTheProbeAsync(contender, "the usage exit", cancellationToken)).IsTrue();
+
+            var failure = contender.TryGetFailure();
+            await Assert.That(failure).IsNotNull();
+            await Assert.That(failure!.Message).Contains("exited with code 2");
+            await Assert.That(failure.Message).Contains("Usage: contender-probe");
+        }
+        finally
+        {
+            KillIfRunning(contender.ProcessId);
+        }
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task TryGetFailure_Should_Report_A_Signal_Death_On_Unix(CancellationToken cancellationToken)
+    {
+        using var contender = ServiceContenderSpawner.Start(FixtureProbe("contender-probe", "daemon-sleep"));
+        try
+        {
+            _ = await LiveReadiness.WaitAsync(
+                _ => Task.FromResult(contender.Stderr),
+                tail => ReadyPid(tail) == contender.ProcessId,
+                "the daemon-sleep ready line",
+                cancellationToken);
+            var control = new ServiceProcessControl();
+            var identity = control.TrySnapshot(contender.ProcessId);
+            await Assert.That(identity).IsNotNull();
+            await Assert.That(control.TrySignal(identity!.Value, ProcessSignal.Kill)).IsTrue();
+            await Assert.That(await WaitForTheProbeAsync(contender, "the killed contender to finish", cancellationToken)).IsTrue();
+
+            var failure = contender.TryGetFailure();
+            await Assert.That(failure).IsNotNull();
+            if (OperatingSystem.IsWindows())
+            {
+                // TerminateProcess is an exit with the code it names, not a signal.
+                await Assert.That(failure!.Message).Contains("exited with code");
+                Console.WriteLine("branch: Windows — the kill rung reads as a nonzero exit for pid " + contender.ProcessId.ToString(CultureInfo.InvariantCulture));
+            }
+            else
+            {
+                await Assert.That(failure!.Message).Contains("terminated on signal 9");
+                Console.WriteLine("branch: Unix — the kill rung reads as signal 9 for pid " + contender.ProcessId.ToString(CultureInfo.InvariantCulture));
+            }
+        }
+        finally
+        {
+            KillIfRunning(contender.ProcessId);
+        }
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task Released_Contender_Should_Be_Reaped_When_It_Exits_Without_Anyone_Polling(CancellationToken cancellationToken)
+    {
+        // Release is how the election hands the winner back: nothing polls the contender again. The
+        // host that spawned it is the only one that can reap it on Unix, so the contender must do it
+        // itself when its process ends, or the pid lingers as a zombie for the host's lifetime.
+        using var contender = ServiceContenderSpawner.Start(FixtureProbe("contender-probe", "daemon-sleep"));
+        try
+        {
+            _ = await LiveReadiness.WaitAsync(
+                _ => Task.FromResult(contender.Stderr),
+                tail => ReadyPid(tail) == contender.ProcessId,
+                "the daemon-sleep ready line",
+                cancellationToken);
+            contender.Release();
+
+            var control = new ServiceProcessControl();
+            var identity = control.TrySnapshot(contender.ProcessId);
+            await Assert.That(identity).IsNotNull();
+            await Assert.That(control.TrySignal(identity!.Value, ProcessSignal.Terminate)).IsTrue();
+
+            await Assert.That(await ProcessObservation.ObserveExitWithinAsync(contender.ProcessId, ExitBound, cancellationToken)).IsTrue()
+                .Because("a released contender must still be reaped when its process ends");
         }
         finally
         {
@@ -361,7 +451,7 @@ public sealed class ServiceContenderSpawnerTests
     public async Task Spawned_Contender_Should_Survive_Its_Parents_Exit(CancellationToken cancellationToken)
     {
         int? daemonPid = null;
-        using var contender = new ServiceContenderSpawner().Spawn(ShortLivedParent());
+        using var contender = ServiceContenderSpawner.Start(ShortLivedParent());
         try
         {
             // The parent is the shell the spawner detached; the daemon-sleep it launches
@@ -374,10 +464,9 @@ public sealed class ServiceContenderSpawnerTests
             daemonPid = ReadyPid(stderr);
             await Assert.That(daemonPid).IsNotNull();
 
-            // The short-lived parent is gone. The wait pumps the contender's poll the way
-            // the election loop polls every round: the shell exits in milliseconds, but a
-            // single WNOHANG look can land between the pipe EOF and the zombie state and miss.
-            await Assert.That(await ProcessObservation.ObserveExitWithReapAsync(() => contender.IsFinished, contender.ProcessId, ExitBound, cancellationToken)).IsTrue();
+            // The short-lived parent is gone — reaped by the contender's own exit watch although
+            // the daemon it started still holds the stderr pipe, so the pipe never reached its end.
+            await Assert.That(await ProcessObservation.ObserveExitWithinAsync(contender.ProcessId, ExitBound, cancellationToken)).IsTrue();
 
             // ...and the contender it started outlives it: alive now, and still alive a bound
             // later, so a parent-death coupling has a window to fire and be caught.
@@ -463,7 +552,7 @@ public sealed class ServiceContenderSpawnerTests
     /// <summary>Waits for the contender's stderr pipe to reach end-of-stream: the probe finished and nothing holds the write end.</summary>
     private static Task<bool> WaitForTheProbeAsync(ServiceContender contender, string description, CancellationToken cancellationToken) =>
         LiveReadiness.WaitAsync(
-            _ => Task.FromResult(contender.IsFinished),
+            _ => Task.FromResult(contender.Finished),
             static finished => finished,
             description,
             cancellationToken);

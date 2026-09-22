@@ -18,7 +18,7 @@ internal interface IServiceContenderSpawner
     /// <param name="startInfo">What to spawn, with which argv and overlaid environment.</param>
     /// <returns>The contender; its pid names the spawned process, or the cmd.exe host for a batch shim.</returns>
     /// <exception cref="OpenCodeServerException">The platform cannot detach, or the spawn itself failed; the inner exception carries the Win32 or errno failure.</exception>
-    public ServiceContender Spawn(ContenderStartInfo startInfo);
+    public IServiceContender Spawn(ContenderStartInfo startInfo);
 
     /// <summary>
     /// Everything one spawn names: what to run, not how a platform spells it. The spawner renders

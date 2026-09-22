@@ -38,7 +38,7 @@ public sealed class ServiceEnsurerTests
     private readonly IServicePtyHandoff _handoff = Substitute.For<IServicePtyHandoff>();
     private readonly IServiceProcessControl _processControl = Substitute.For<IServiceProcessControl>();
     private readonly IServiceClock _clock = Substitute.For<IServiceClock>();
-    private readonly List<ServiceContender> _spawned = [];
+    private readonly List<IServiceContender> _spawned = [];
     private int _clockReads;
 
     public ServiceEnsurerTests()
@@ -193,7 +193,7 @@ public sealed class ServiceEnsurerTests
         await Assert.That(_spawned.Count).IsGreaterThan(0);
         foreach (var contender in _spawned)
         {
-            await Assert.That(contender.IsReleased).IsTrue();
+            contender.Received(1).Release();
         }
     }
 
@@ -255,9 +255,11 @@ public sealed class ServiceEnsurerTests
         });
     }
 
-    private ServiceContender HoldContender()
+    /// <summary>A contender that stays live: never finished, no failure, no exit.</summary>
+    private IServiceContender HoldContender()
     {
-        var contender = new ServiceContender(9000 + _spawned.Count);
+        var contender = Substitute.For<IServiceContender>();
+        contender.ProcessId.Returns(9000 + _spawned.Count);
         _spawned.Add(contender);
         return contender;
     }

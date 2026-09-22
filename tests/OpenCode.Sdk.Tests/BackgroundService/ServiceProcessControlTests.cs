@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
 using OpenCode.Sdk.Internal.BackgroundService;
 using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
@@ -106,6 +107,64 @@ public sealed class ServiceProcessControlTests
         await Assert.That(await lingering.ObserveExitWithinAsync(ExitBound, cancellationToken)).IsTrue();
         await Assert.That(await WaitForTheTableAsync(control, lingering.ProcessId, cancellationToken)).IsNull();
     }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task TrySnapshot_Should_Read_An_Unreaped_Zombie_As_Gone(CancellationToken cancellationToken)
+    {
+        var control = new ServiceProcessControl();
+        if (OperatingSystem.IsWindows())
+        {
+            // Windows has no zombie state: a process leaves the table once it ends and its last
+            // handle closes, which the fixture's disposal does.
+            await using var lingering = await ServiceFixtureProcess.StartAsync(FileSystem, "idle", cancellationToken);
+            var windowsProcessId = lingering.ProcessId;
+            await lingering.DisposeAsync();
+            await Assert.That(await WaitForTheTableAsync(control, windowsProcessId, cancellationToken)).IsNull();
+            Console.WriteLine("branch: Windows — no zombie state; pid " + windowsProcessId.ToString(CultureInfo.InvariantCulture) + " left the table");
+            return;
+        }
+
+        // A direct child of this host that nothing reaps: .NET waits only for the children it
+        // started through Process, so after the kill this pid stays a zombie until the waitpid
+        // below. A zombie serves nothing, so the stop ladder must read it as gone.
+        var processId = SpawnUnreaped("/bin/sleep", "60");
+        try
+        {
+            var live = control.TrySnapshot(processId);
+            await Assert.That(live).IsNotNull();
+            await Assert.That(control.TrySignal(live!.Value, ProcessSignal.Kill)).IsTrue();
+
+            await Assert.That(await WaitForTheTableAsync(control, processId, cancellationToken)).IsNull();
+            Console.WriteLine("branch: Unix — the unreaped zombie pid " + processId.ToString(CultureInfo.InvariantCulture) + " reads as gone");
+        }
+        finally
+        {
+            _ = WaitPid(processId, out _, 0);
+        }
+    }
+
+    private static int SpawnUnreaped(string file, string argument)
+    {
+        var result = SpawnProcess(out var processId, file, IntPtr.Zero, IntPtr.Zero, [file, argument, null], [null]);
+        return result == 0
+            ? processId
+            : throw new InvalidOperationException("posix_spawnp failed with errno " + result.ToString(CultureInfo.InvariantCulture));
+    }
+
+    [DllImport("libc", EntryPoint = "posix_spawnp", CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+    private static extern int SpawnProcess(
+        out int processId,
+        [MarshalAs(UnmanagedType.LPStr)] string file,
+        IntPtr fileActions,
+        IntPtr attributes,
+        [MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.LPStr)] string?[] argv,
+        [MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.LPStr)] string?[] envp);
+
+    [DllImport("libc", EntryPoint = "waitpid")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+    private static extern int WaitPid(int processId, out int status, int options);
 
     /// <summary>
     /// The exit is reported before the kernel finishes tearing the process down, so the pid can

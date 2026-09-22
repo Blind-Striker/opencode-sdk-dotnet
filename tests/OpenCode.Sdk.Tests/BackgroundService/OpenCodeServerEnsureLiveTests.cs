@@ -157,6 +157,29 @@ public sealed class OpenCodeServerEnsureLiveTests
         }
     }
 
+    [Test]
+    [Timeout(180_000)]
+    public async Task EnsureAsync_Then_StopAsync_In_One_Host_Should_End_The_Daemon_And_Remove_Its_Registration(CancellationToken cancellationToken)
+    {
+        // The Unix shim execs bun, so the registered daemon is this host's own direct child: the
+        // host that started the shared service is the one stopping it, and nothing but this host
+        // can reap it. On Windows the shim's cmd.exe host sits in between; the flow is the same.
+        await using var context = await EnsureServiceContext.CreateAsync(cancellationToken);
+
+        var server = await OpenCodeServer.EnsureAsync(EnsureOptions(context), cancellationToken);
+        var processId = server.ProcessId;
+        context.TrackProcess(processId);
+        await server.DisposeAsync();
+
+        await OpenCodeServer.StopAsync(
+            new OpenCodeServerStopOptions { RegistrationFilePath = context.RegistrationFile },
+            cancellationToken);
+
+        await Assert.That(FileSystem.File.Exists(context.RegistrationFile)).IsFalse();
+        await Assert.That(await ProcessObservation.ObserveExitWithinAsync(processId, ExitBound, cancellationToken)).IsTrue()
+            .Because("the stopped daemon must leave the process table, reaped by the host that spawned it");
+    }
+
     /// <summary>The Ensure options every direct caller uses: the isolated registration file by path
     /// (the test process's own roots are the developer's, never the isolated ones), the forwarding
     /// shim as the explicit command, and the isolated roots as the spawned service's environment.</summary>

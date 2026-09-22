@@ -49,8 +49,12 @@ allowed in the shipped SDK.
   *before* the stop runs is indistinguishable from a wedged daemon by the registration alone — the
   residual upstream carries too, since its `same()` compares registration fields only. Recorded,
   not solved; the registration file's write time could bound it if it ever matters.
-- A zombie reads as running, exactly as `kill(pid, 0)` and .NET's own non-child `HasExited` read
-  it; a process still there after the kill rung fails the stop and leaves the registration in place.
+- A zombie reads as gone: it has exited and serves nothing. Linux keeps its `/proc/<pid>/stat`
+  readable with the start time unchanged, so the identity read also checks the state field for
+  `Z`; macOS refuses a zombie's start time, which already reads as gone. ADR-0027 made this
+  host the parent of the daemon it elects, and its contenders reap their own exits; the check
+  covers a zombie another parent leaks. A process still there after the kill rung fails the stop
+  and leaves the registration in place.
 - The `netstandard2.0` asset's Unix arm compiles the `DllImport` form and runs on no CI leg;
   `docs/ROADMAP.md` records it beside the file-mode gap of the same arm. A musl libc (Alpine) is
   outside the CI matrix as well: the loader falls back to `libc.so` there, unverified here.

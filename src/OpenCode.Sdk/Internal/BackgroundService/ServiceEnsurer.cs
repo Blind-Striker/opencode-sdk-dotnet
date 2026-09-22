@@ -305,7 +305,7 @@ internal sealed class ServiceEnsurer(
         ServicePaths paths,
         string[] command,
         IReadOnlyDictionary<string, string>? callerEnvironment,
-        List<ServiceContender> contenders,
+        List<IServiceContender> contenders,
         CancellationToken cancellationToken)
     {
         try
@@ -381,15 +381,20 @@ internal sealed class ServiceEnsurer(
         onStart?.Invoke(reason, previousVersion);
     }
 
-    private static void Harvest(List<ServiceContender> contenders, IReadOnlyList<int> harvestedIndices)
+    /// <summary>
+    /// Drops the finished contenders and disposes them: the Windows process handle closes, and on
+    /// Unix a finished contender has already been reaped. Survivors are only ever released.
+    /// </summary>
+    private static void Harvest(List<IServiceContender> contenders, IReadOnlyList<int> harvestedIndices)
     {
         for (var index = harvestedIndices.Count - 1; index >= 0; index--)
         {
+            contenders[harvestedIndices[index]].Dispose();
             contenders.RemoveAt(harvestedIndices[index]);
         }
     }
 
-    private static ServiceContenderObservation[] ObserveAll(List<ServiceContender> contenders)
+    private static ServiceContenderObservation[] ObserveAll(List<IServiceContender> contenders)
     {
         if (contenders.Count == 0)
         {
@@ -401,8 +406,8 @@ internal sealed class ServiceEnsurer(
         {
             var contender = contenders[index];
             observations[index] = new ServiceContenderObservation(
-                contender.IsFinished,
-                contender.ExitCode == 0,
+                contender.Finished,
+                contender.ExitedZero,
                 contender.TryGetFailure());
         }
 
@@ -430,7 +435,7 @@ internal sealed class ServiceEnsurer(
 
         public TimeSpan SpawnDelay { get; set; }
 
-        public List<ServiceContender> Contenders { get; } = [];
+        public List<IServiceContender> Contenders { get; } = [];
     }
 
     private static string[] SnapshotCommand(OpenCodeServerEnsureOptions? options)

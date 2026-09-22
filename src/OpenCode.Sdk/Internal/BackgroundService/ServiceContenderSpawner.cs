@@ -76,7 +76,17 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
     /// <summary><c>INVALID_HANDLE_VALUE</c>, what <c>CreateFileW</c> returns on failure.</summary>
     private static readonly IntPtr InvalidHandle = new(-1);
 
-    public ServiceContender Spawn(IServiceContenderSpawner.ContenderStartInfo startInfo)
+    /// <inheritdoc />
+    public IServiceContender Spawn(IServiceContenderSpawner.ContenderStartInfo startInfo) => Start(startInfo);
+
+    /// <summary>
+    /// Starts one detached contender. The spawn needs no instance state, so the seam's member
+    /// forwards here, and the concrete contender — whose retained stderr text the spawner's own
+    /// tests read — stays reachable without a cast.
+    /// </summary>
+    /// <param name="startInfo">What to spawn.</param>
+    /// <returns>The contender.</returns>
+    public static ServiceContender Start(IServiceContenderSpawner.ContenderStartInfo startInfo)
     {
         ArgumentNullException.ThrowIfNull(startInfo);
         if (startInfo.Executable is null || startInfo.Arguments is null || startInfo.Environment is null)

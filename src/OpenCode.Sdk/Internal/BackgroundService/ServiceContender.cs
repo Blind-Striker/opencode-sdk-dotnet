@@ -2,20 +2,24 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
+using OpenCode.Sdk.Internal.BackgroundService.Abstractions;
 
 namespace OpenCode.Sdk.Internal.BackgroundService;
 
 /// <summary>
-/// One detached Ensure contender: the pid the spawn reported, closed/error observation in the
+/// One detached Ensure contender: the pid the spawn reported, finished/failure observation in the
 /// shape of the pinned client's <c>close</c>/<c>error</c> events, and the final 8 KiB of stderr.
-/// Closed means the stderr pipe reached end-of-stream — the process exited and every holder of
-/// the write end went away — so a grandchild holding the pipe delays it exactly as upstream's
-/// <c>close</c> event is delayed; it never means the process was reaped, only that its output is
-/// complete. The contender never kills: <see cref="Release"/> stops retention while the
-/// background drain keeps consuming until the pipe closes, and disposal closes handles without
-/// signalling. Either way a released contender may still win the election it was started for.
+/// Finished means what Node's <c>close</c> means: the stderr pipe reached end-of-stream and the
+/// process exit was observed, so the exit code is known whenever the election reads it. From the
+/// spawn on, the contender watches for its exit on a backoff with no parked thread, beside the
+/// drain rather than after it — the pipe closes a moment before the process becomes reapable, and
+/// a grandchild can hold it open long after — and on Unix it reaps the pid itself, even after
+/// disposal, because the host that spawned it is the only one that can. The contender never
+/// kills: <see cref="Release"/> stops retention while the drain keeps consuming, and disposal
+/// closes handles without signalling. Either way a released contender may still win the election
+/// it was started for.
 /// </summary>
-internal sealed partial class ServiceContender : IDisposable
+internal sealed partial class ServiceContender : IServiceContender
 {
     /// <summary>The pinned client's <c>stderrLimit</c> (<c>service-contender.ts</c>): 8 KiB.</summary>
     private const int StderrLimit = 8 * 1024;
@@ -32,11 +36,16 @@ internal sealed partial class ServiceContender : IDisposable
     /// <summary>The <c>waitpid</c> errno when the pid is not a live child of this process.</summary>
     private const int NoChild = 10;
 
+    /// <summary>The exit watch's first wait; each miss doubles it up to <see cref="ExitWatchCap"/>.</summary>
+    private static readonly TimeSpan ExitWatchStart = TimeSpan.FromMilliseconds(1);
+
+    /// <summary>The exit watch's slowest cadence, the one a long-lived service settles on.</summary>
+    private static readonly TimeSpan ExitWatchCap = TimeSpan.FromSeconds(1);
+
     private readonly Lock _gate = new();
-    private readonly Stream? _stderr;
+    private readonly Stream _stderr;
     private readonly SafeProcessHandle? _process;
     private readonly string? _redact;
-    private readonly Task _drain;
     private readonly LinkedList<byte[]> _tail = new();
 
     private int _buffered;
@@ -47,9 +56,6 @@ internal sealed partial class ServiceContender : IDisposable
     private Exception? _error;
     private int? _exitCode;
     private int? _signal;
-
-    /// <summary>Gets the spawned pid. For a Windows batch shim this is the cmd.exe host, never the server: the election reads the service pid from the registration.</summary>
-    public int ProcessId { get; }
 
     public ServiceContender(int processId, Stream stderr, SafeProcessHandle? process, string? redact)
     {
@@ -62,77 +68,34 @@ internal sealed partial class ServiceContender : IDisposable
 
         // Hot until the first read suspends: the drain owns no caller, only the pipe, and every
         // fault it can see is folded into the error slot — nothing escapes unobserved.
-        _drain = DrainStderrAsync();
+        _ = ObserveAsync();
     }
 
-    /// <summary>
-    /// Initializes a live observation handle with no process. Tests use this so the election loop
-    /// can spawn, retain, and release contenders without a pipe or a pid; production spawn still
-    /// uses the handle constructor.
-    /// </summary>
-    internal ServiceContender(int processId)
-    {
-        ProcessId = processId;
-        _drain = Task.CompletedTask;
-    }
+    /// <summary>Gets the spawned pid. For a Windows batch shim this is the cmd.exe host, never the server: the election reads the service pid from the registration.</summary>
+    public int ProcessId { get; }
 
-    /// <summary>Gets the asynchronous observation failure, when the background drain faulted; a synchronous spawn failure throws from the spawner instead.</summary>
-    public Exception? Error
-    {
-        get
-        {
-            lock (_gate)
-            {
-                return _error;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Gets whether the contender finished the way upstream's <c>contenderFinished</c> means it:
-    /// an observation error, or end-of-stream on stderr. Each look also polls the exit once, so a
-    /// reaped child never lingers as a zombie between election rounds.
-    /// </summary>
-    public bool Closed
+    /// <inheritdoc />
+    public bool Finished
     {
         get
         {
             lock (_gate)
             {
                 PollExitLocked();
-                return _error is not null || _endOfStderr;
+                return _error is not null || (_endOfStderr && ExitObservedLocked());
             }
         }
     }
 
-    /// <summary>Gets whether the contender finished: an error, or a closed stderr pipe.</summary>
-    public bool IsFinished => Error is not null || Closed;
-
-    /// <summary>
-    /// Gets the process exit code once a poll has observed it, or null while the process has not
-    /// been seen to exit. The election doubles the spawn delay only for a finished contender whose
-    /// code is exactly 0, matching upstream's <c>item.child.exitCode === 0</c>.
-    /// </summary>
-    public int? ExitCode
+    /// <inheritdoc />
+    public bool ExitedZero
     {
         get
         {
             lock (_gate)
             {
                 PollExitLocked();
-                return _exitCode;
-            }
-        }
-    }
-
-    /// <summary>Gets a value indicating whether <see cref="Release"/> has given the retention up.</summary>
-    public bool IsReleased
-    {
-        get
-        {
-            lock (_gate)
-            {
-                return _released;
+                return _exitCode == 0;
             }
         }
     }
@@ -156,8 +119,8 @@ internal sealed partial class ServiceContender : IDisposable
     /// <summary>
     /// The pinned client's <c>contenderFailure</c>: the observation error as-is, else a nonzero
     /// exit or a terminating signal wrapped with the retained stderr tail. Null while the
-    /// contender is still running or ended cleanly — including a closed pipe with no exit yet,
-    /// which the election keeps polling.
+    /// contender runs, when it exited 0, and when another reaper took the pid before its status
+    /// could be read — upstream reports no failure when neither a code nor a signal is known.
     /// </summary>
     /// <returns>The failure, or null when there is none to report.</returns>
     public OpenCodeServerException? TryGetFailure()
@@ -208,11 +171,26 @@ internal sealed partial class ServiceContender : IDisposable
         }
     }
 
-    /// <summary>Closes the pipe and process handles without signalling or killing; the drain faults quietly against the closed pipe.</summary>
+    /// <summary>
+    /// Closes the pipe and the process handle without signalling or killing. On Unix the exit
+    /// watch outlives disposal until it reaps the pid; on Windows there is nothing to reap.
+    /// </summary>
     public void Dispose()
     {
-        Dispose(true);
-        GC.SuppressFinalize(this);
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            // Under the gate: the exit poll reads this handle only under the gate, so it never
+            // sees one closing beneath it.
+            _disposed = true;
+            _process?.Dispose();
+        }
+
+        _stderr.Dispose();
     }
 
     /// <summary>
@@ -298,26 +276,25 @@ internal sealed partial class ServiceContender : IDisposable
         }
     }
 
+    /// <summary>Whether a poll has learned how the process ended, or learned that another reaper took it.</summary>
+    private bool ExitObservedLocked() => _exitCode is not null || _signal is not null || _reaped;
+
     /// <summary>
-    /// The one non-blocking exit look both the poll and the failure read share. Windows reads the
-    /// process handle; Unix reaps through <c>waitpid</c> with <c>WNOHANG</c>, which is what keeps a
-    /// finished contender from lingering as a zombie. An <c>ECHILD</c> means someone else already
-    /// reaped the pid, so there is nothing left to poll.
+    /// The one non-blocking exit look every observation shares. Windows reads the process handle
+    /// while it is open; Unix reaps through <c>waitpid</c> with <c>WNOHANG</c>, which needs no handle
+    /// and so keeps working after disposal. An <c>ECHILD</c> means someone else already reaped the
+    /// pid (a host started with SIGCHLD ignored reaps every child), so there is nothing left to poll.
     /// </summary>
     private void PollExitLocked()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
         if (IsWindows)
         {
-            if (_process is { IsInvalid: false, IsClosed: false } handle &&
+            if (_exitCode is null &&
+                _process is { IsInvalid: false, IsClosed: false } handle &&
                 GetExitCodeProcess(handle, out var code) &&
                 code != StillActive)
             {
-                _exitCode ??= (int)code;
+                _exitCode = (int)code;
             }
 
             return;
@@ -351,6 +328,14 @@ internal sealed partial class ServiceContender : IDisposable
         }
     }
 
+    /// <summary>The contender's whole observation: the exit watch and the stderr drain, side by side.</summary>
+    private async Task ObserveAsync()
+    {
+        var watch = WatchExitAsync();
+        await DrainStderrAsync().ConfigureAwait(false);
+        await watch.ConfigureAwait(false);
+    }
+
     private async Task DrainStderrAsync()
     {
         try
@@ -360,14 +345,15 @@ internal sealed partial class ServiceContender : IDisposable
             // pending read occupies a pool thread, as .NET's own redirected streams do. The drain
             // owns the stream from here and closes it at end-of-stream.
 #if NET
-            var stderr = _stderr!;
-            await using (stderr.ConfigureAwait(false))
+            await using (_stderr.ConfigureAwait(false))
             {
-                await DrainPipeAsync(stderr).ConfigureAwait(false);
+                await DrainPipeAsync(_stderr).ConfigureAwait(false);
             }
 #else
-            using var stderr = _stderr!;
-            await DrainPipeAsync(stderr).ConfigureAwait(false);
+            using (_stderr)
+            {
+                await DrainPipeAsync(_stderr).ConfigureAwait(false);
+            }
 #endif
         }
         catch (Exception exception)
@@ -386,7 +372,6 @@ internal sealed partial class ServiceContender : IDisposable
         {
             lock (_gate)
             {
-                CaptureExitLocked();
                 _endOfStderr = true;
             }
         }
@@ -416,33 +401,30 @@ internal sealed partial class ServiceContender : IDisposable
     }
 
     /// <summary>
-    /// The exit is almost always already knowable when the pipe closes — the writer leaves with
-    /// the process — so one poll here reports the code without ever blocking the drain.
+    /// Looks for the exit until it is observed: 1 ms first, doubling to a one-second cadence, on
+    /// timers rather than a parked thread. Node learns the same fact from libuv's SIGCHLD handling,
+    /// whatever the pipe is doing; .NET does not extend its own to children it did not start
+    /// through <c>Process</c>. The election's reads poll too, so a contender it watches is seen at
+    /// the loop's own cadence. Windows stops with disposal, which closes the handle it reads; Unix
+    /// keeps going, since only this host can reap the pid.
     /// </summary>
-    private void CaptureExitLocked() => PollExitLocked();
-
-    private void Dispose(bool disposing)
+    private async Task WatchExitAsync()
     {
-        if (!disposing)
+        var delay = ExitWatchStart;
+        while (true)
         {
-            return;
+            lock (_gate)
+            {
+                PollExitLocked();
+                if (ExitObservedLocked() || (IsWindows && _disposed))
+                {
+                    return;
+                }
+            }
+
+            await Task.Delay(delay).ConfigureAwait(false);
+            delay = delay + delay < ExitWatchCap ? delay + delay : ExitWatchCap;
         }
-
-        lock (_gate)
-        {
-            // One last non-blocking look before the poll shuts: a contender released and
-            // then disposed before its exit would otherwise linger as a zombie on Unix
-            // no one ever reaps.
-            PollExitLocked();
-            _disposed = true;
-        }
-
-        _process?.Dispose();
-        _stderr?.Dispose();
-
-        // The drain's outcome is folded into the observation slots above; this keeps the stored
-        // task itself observed too.
-        _ = _drain;
     }
 
     private static bool IsWindows =>
