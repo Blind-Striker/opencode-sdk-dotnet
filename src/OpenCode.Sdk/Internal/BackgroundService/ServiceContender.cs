@@ -33,7 +33,7 @@ internal sealed partial class ServiceContender : IDisposable
     private const int NoChild = 10;
 
     private readonly Lock _gate = new();
-    private readonly SafeFileHandle? _stderr;
+    private readonly Stream? _stderr;
     private readonly SafeProcessHandle? _process;
     private readonly string? _redact;
     private readonly Task _drain;
@@ -51,7 +51,7 @@ internal sealed partial class ServiceContender : IDisposable
     /// <summary>Gets the spawned pid. For a Windows batch shim this is the cmd.exe host, never the server: the election reads the service pid from the registration.</summary>
     public int ProcessId { get; }
 
-    public ServiceContender(int processId, SafeFileHandle stderr, SafeProcessHandle? process, string? redact)
+    public ServiceContender(int processId, Stream stderr, SafeProcessHandle? process, string? redact)
     {
         ArgumentNullException.ThrowIfNull(stderr);
 
@@ -355,18 +355,18 @@ internal sealed partial class ServiceContender : IDisposable
     {
         try
         {
-            // The pipe comes from CreatePipe, so its handles are synchronous: an async
-            // FileStream over them throws in the constructor ("Handle does not support
-            // asynchronous operations"). A synchronous stream still offers awaitable reads
-            // (threadpool-backed), which is all this background drain needs.
+            // The pipe stream the spawner handed over: on Unix its reads wait on the runtime's
+            // event loop rather than a thread; on Windows the anonymous pipe is synchronous, so a
+            // pending read occupies a pool thread, as .NET's own redirected streams do. The drain
+            // owns the stream from here and closes it at end-of-stream.
 #if NET
-            var stderr = new FileStream(_stderr!, FileAccess.Read, 4096, isAsync: false);
+            var stderr = _stderr!;
             await using (stderr.ConfigureAwait(false))
             {
                 await DrainPipeAsync(stderr).ConfigureAwait(false);
             }
 #else
-            using var stderr = new FileStream(_stderr!, FileAccess.Read, 4096, isAsync: false);
+            using var stderr = _stderr!;
             await DrainPipeAsync(stderr).ConfigureAwait(false);
 #endif
         }
@@ -393,7 +393,7 @@ internal sealed partial class ServiceContender : IDisposable
     }
 
     /// <summary>Consumes the pipe to end-of-stream, retaining the final 8 KiB unless released.</summary>
-    private async Task DrainPipeAsync(FileStream stderr)
+    private async Task DrainPipeAsync(Stream stderr)
     {
         var buffer = new byte[4096];
         while (true)

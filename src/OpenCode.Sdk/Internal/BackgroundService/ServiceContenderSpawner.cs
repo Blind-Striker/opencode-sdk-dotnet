@@ -1,5 +1,6 @@
 using System.Collections;
 using System.ComponentModel;
+using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
@@ -9,9 +10,10 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 
 /// <summary>
 /// The shipped <see cref="IServiceContenderSpawner"/> on the platform's own spawn primitives
-/// (design 6.3). The modern targets take <c>LibraryImport</c>, the compile-time stub .NET
-/// recommends; the <c>netstandard2.0</c> asset, where that generator is unavailable, takes the
-/// equivalent <c>DllImport</c> — the <c>ServiceProcessControl</c> precedent, Mono included.
+/// (ADR-0027), with the stderr pipe taken from the BCL. The modern targets take
+/// <c>LibraryImport</c>, the compile-time stub .NET recommends; the <c>netstandard2.0</c> asset,
+/// where that generator is unavailable, takes the equivalent <c>DllImport</c> — the
+/// <c>ServiceProcessControl</c> precedent, Mono included.
 /// </summary>
 internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
 {
@@ -44,10 +46,14 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
     /// <summary><c>O_WRONLY</c> for the <c>/dev/null</c> stdout redirection.</summary>
     private const int WriteOnly = 1;
 
-    /// <summary><c>F_SETFD</c> / <c>FD_CLOEXEC</c>: the stderr pipe never survives an unrelated exec.</summary>
-    private const int SetCloseOnExecCommand = 2;
+    /// <summary><c>POSIX_SPAWN_SETSIGDEF</c>, the same value on glibc, musl, and Darwin: the default-disposition set applies.</summary>
+    private const short ResetSignalDispositions = 0x04;
 
-    private const int CloseOnExec = 1;
+    /// <summary><c>POSIX_SPAWN_SETSIGMASK</c>, the same value on glibc, musl, and Darwin: the mask set applies.</summary>
+    private const short ResetSignalMask = 0x08;
+
+    /// <summary>The opaque <c>sigset_t</c>: 128 bytes on glibc, 4 on Darwin, so one buffer fits both.</summary>
+    private const int SignalSetCapacity = 128;
 
     /// <summary><c>POSIX_SPAWN_SETSID</c> on Linux; macOS uses a different value, hence the branch.</summary>
     private const short LinuxNewSession = 0x80;
@@ -67,23 +73,21 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
     /// <summary><c>PROC_THREAD_ATTRIBUTE_HANDLE_LIST</c>: only these handles cross into the child.</summary>
     private static readonly IntPtr HandleListAttribute = new(0x20002);
 
+    /// <summary><c>INVALID_HANDLE_VALUE</c>, what <c>CreateFileW</c> returns on failure.</summary>
+    private static readonly IntPtr InvalidHandle = new(-1);
+
     public ServiceContender Spawn(IServiceContenderSpawner.ContenderStartInfo startInfo)
     {
         ArgumentNullException.ThrowIfNull(startInfo);
-        if (startInfo.Executable is null)
+        if (startInfo.Executable is null || startInfo.Arguments is null || startInfo.Environment is null)
         {
             throw new ArgumentNullException(nameof(startInfo));
         }
 
-        if (startInfo.Argv is not { Length: > 0 } || string.IsNullOrWhiteSpace(startInfo.Argv[0]))
+        if (string.IsNullOrWhiteSpace(startInfo.Executable.Path))
         {
             throw new ArgumentException(
-                "ContenderStartInfo.Argv must name the file to spawn at index zero.", nameof(startInfo));
-        }
-
-        if (startInfo.Environment is null)
-        {
-            throw new ArgumentNullException(nameof(startInfo));
+                "ContenderStartInfo.Executable must name the file to spawn.", nameof(startInfo));
         }
 
         if (startInfo.Environment.Keys.Any(string.IsNullOrWhiteSpace))
@@ -97,7 +101,7 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
             throw new ArgumentException("ContenderStartInfo.Environment keys and values cannot contain NUL.", nameof(startInfo));
         }
 
-        if (startInfo.ViaCmdExe && !IsWindows)
+        if (startInfo.Executable.IsBatchScript && !IsWindows)
         {
             throw new OpenCodeServerException(
                 "The background service contender routes through cmd.exe, which exists only on Windows: no contender was started.");
@@ -175,14 +179,12 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
         Dictionary<string, string?> environment,
         string? redaction)
     {
-        // The exact argv through the MSVCRT quoting the downlevel launcher uses, so a path with
-        // spaces survives the command-line round trip the way ArgumentList survives it. The native
-        // call may scribble over its buffer, so the line crosses as pinned UTF-16 rather than a
-        // string the marshaller would have to copy back.
-        var commandLine = Marshal.StringToHGlobalUni(ProcessArgumentComposer.Compose(startInfo.Argv));
+        // The native call may scribble over its buffer, so the line crosses as pinned UTF-16 rather
+        // than a string the marshaller would have to copy back.
+        var commandLine = Marshal.StringToHGlobalUni(WindowsCommandLine(startInfo));
         try
         {
-            return SpawnWindowsChild(startInfo, commandLine, BuildEnvironmentBlock(environment), redaction);
+            return SpawnWindowsChild(startInfo, commandLine, WindowsEnvironmentBlock.Build(environment), redaction);
         }
         finally
         {
@@ -191,9 +193,30 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
     }
 
     /// <summary>
-    /// The Windows spawn keeps every native handle as an <c>IntPtr</c> until ownership moves: the
-    /// attribute list needs raw values, and wrapping earlier would force the handle back out
-    /// through the dangerous door. Anything still raw in the finally below is closed there.
+    /// The launcher's two Windows spellings (<c>OpenCodeServer.ConfigureCommandLine</c>): a batch
+    /// shim runs through the system cmd.exe on the <see cref="BatchCommandLine"/> line, whose
+    /// outer quote pair is what <c>/s</c> strips, and whose metacharacter refusal throws before
+    /// anything spawns; anything else is its argv through the MSVCRT quoting, so a path with
+    /// spaces survives the round trip the way <c>ArgumentList</c> survives it.
+    /// </summary>
+    private static string WindowsCommandLine(IServiceContenderSpawner.ContenderStartInfo startInfo)
+    {
+        var executable = startInfo.Executable;
+        if (executable.IsBatchScript)
+        {
+            return "\"" + BatchCommandLine.InterpreterPath + "\" " +
+                BatchCommandLine.Compose(executable.Path, startInfo.Arguments, launcherArguments: []);
+        }
+
+        return ProcessArgumentComposer.Compose([executable.Path, .. startInfo.Arguments]);
+    }
+
+    /// <summary>
+    /// The Windows spawn. The stderr pipe is the BCL's anonymous pipe, created the way .NET's own
+    /// <c>Process</c> creates its pipes: only the child's write end is inheritable, and it crosses
+    /// alone beside NUL in the explicit handle list, so no later child of this host inherits the
+    /// read end. NUL stays a raw handle until the call returns, because the attribute list needs
+    /// raw values; the finally below closes whatever is still owned here.
     /// </summary>
     private static ServiceContender SpawnWindowsChild(
         IServiceContenderSpawner.ContenderStartInfo startInfo,
@@ -208,26 +231,22 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
             InheritHandle = 1,
         };
 
-        var read = IntPtr.Zero;
-        var write = IntPtr.Zero;
         var nul = IntPtr.Zero;
-        SafeFileHandle? readHandle = null;
+        AnonymousPipeServerStream? pipe = null;
         SafeProcessHandle? process = null;
         try
         {
-            if (!CreatePipe(out read, out write, ref security, 0))
-            {
-                throw SpawnFailure(startInfo, new Win32Exception(Marshal.GetLastWin32Error()));
-            }
-
+            pipe = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
             nul = OpenNullDevice(
                 "NUL", GenericRead | GenericWrite, ShareReadWrite, ref security, OpenExisting, 0, IntPtr.Zero);
-            if (nul == IntPtr.Zero || nul == new IntPtr(-1))
+            if (nul == IntPtr.Zero || nul == InvalidHandle)
             {
-                throw SpawnFailure(startInfo, new Win32Exception(Marshal.GetLastWin32Error()));
+                var error = Marshal.GetLastWin32Error();
+                nul = IntPtr.Zero;
+                throw SpawnFailure(startInfo, new Win32Exception(error));
             }
 
-            var inherited = new[] { nul, write };
+            var inherited = new[] { nul, pipe.ClientSafePipeHandle.DangerousGetHandle() };
             var attributes = CreateHandleAttributeList(startInfo, inherited, out var pin);
             try
             {
@@ -240,10 +259,11 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
                     process = new SafeProcessHandle(info.Process, ownsHandle: true);
                 }
 
-                readHandle = new SafeFileHandle(read, ownsHandle: true);
-                read = IntPtr.Zero;
-                var contender = new ServiceContender((int)info.ProcessId, readHandle, process, redaction);
-                readHandle = null;
+                // The child holds its own copy now; keeping ours would keep EOF away after every
+                // writer is gone.
+                pipe.DisposeLocalCopyOfClientHandle();
+                var contender = new ServiceContender((int)info.ProcessId, pipe, process, redaction);
+                pipe = null;
                 process = null;
                 return contender;
             }
@@ -256,22 +276,12 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
         }
         finally
         {
-            if (read != IntPtr.Zero)
-            {
-                _ = CloseHandle(read);
-            }
-
-            if (write != IntPtr.Zero)
-            {
-                _ = CloseHandle(write);
-            }
-
             if (nul != IntPtr.Zero)
             {
                 _ = CloseHandle(nul);
             }
 
-            readHandle?.Dispose();
+            pipe?.Dispose();
             process?.Dispose();
         }
     }
@@ -375,7 +385,8 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
         Dictionary<string, string?> environment,
         string? redaction)
     {
-        var arguments = new List<string>(startInfo.Argv);
+        var arguments = new List<string>(startInfo.Arguments.Count + 1) { startInfo.Executable.Path };
+        arguments.AddRange(startInfo.Arguments);
         var variables = new List<string>(environment.Count);
         variables.AddRange(environment
             .Where(entry => entry.Value is not null)
@@ -400,20 +411,23 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
         }
     }
 
+    /// <summary>
+    /// The Unix spawn. The stderr pipe is the BCL's anonymous pipe, both ends close-on-exec as the
+    /// runtime creates them, so no other child of this host inherits either end; only the write end
+    /// crosses, as fd 2 through the file action's <c>dup2</c>, which clears close-on-exec on the
+    /// target alone.
+    /// </summary>
     private static ServiceContender SpawnUnixChild(
         IServiceContenderSpawner.ContenderStartInfo startInfo,
         IntPtr argv,
         IntPtr envp,
         string? redaction)
     {
-        AllocatePipe(startInfo, out var readEnd, out var writeEnd);
-        MarkCloseOnExec(startInfo, readEnd, writeEnd);
-
+        AnonymousPipeServerStream? pipe = new(PipeDirection.In, HandleInheritability.None);
         var actions = new byte[FileActionsCapacity];
         var attributes = new byte[SpawnAttributesCapacity];
         var actionsHandle = GCHandle.Alloc(actions, GCHandleType.Pinned);
         var attributesHandle = GCHandle.Alloc(attributes, GCHandleType.Pinned);
-        SafeFileHandle? read = null;
         try
         {
             var actionsPtr = actionsHandle.AddrOfPinnedObject();
@@ -424,29 +438,26 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
                 CheckNativeResult(startInfo, InitAttributes(attributesPtr));
                 try
                 {
-                    CheckNativeResult(startInfo, SetAttributeFlags(attributesPtr, SpawnFlags()));
+                    ConfigureAttributes(startInfo, attributesPtr);
+                    var writeEnd = (int)pipe.ClientSafePipeHandle.DangerousGetHandle();
                     CheckNativeResult(startInfo, AddOpenFileAction(actionsPtr, 0, "/dev/null", ReadOnly, 0));
                     CheckNativeResult(startInfo, AddOpenFileAction(actionsPtr, 1, "/dev/null", WriteOnly, 0));
                     CheckNativeResult(startInfo, AddDuplicateAction(actionsPtr, writeEnd, 2));
-                    CheckNativeResult(startInfo, AddCloseAction(actionsPtr, readEnd));
 
                     // posix_spawn reports the errno as its return value rather than through the
                     // thread's errno, so the value below — not GetLastWin32Error — is the failure.
-                    var spawned = SpawnProcess(out var pid, startInfo.Argv[0], actionsPtr, attributesPtr, argv, envp);
+                    var spawned = SpawnProcess(out var pid, startInfo.Executable.Path, actionsPtr, attributesPtr, argv, envp);
 
                     // The parent never holds the write end: keeping it would keep EOF away after
                     // every writer is gone.
-                    _ = CloseDescriptor(writeEnd);
-                    writeEnd = -1;
+                    pipe.DisposeLocalCopyOfClientHandle();
                     if (spawned != 0)
                     {
                         throw SpawnFailure(startInfo, new Win32Exception(spawned));
                     }
 
-                    read = new SafeFileHandle(new IntPtr(readEnd), ownsHandle: true);
-                    readEnd = -1;
-                    var contender = new ServiceContender(pid, read, null, redaction);
-                    read = null;
+                    var contender = new ServiceContender(pid, pipe, null, redaction);
+                    pipe = null;
                     return contender;
                 }
                 finally
@@ -463,64 +474,45 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
         {
             actionsHandle.Free();
             attributesHandle.Free();
-            if (readEnd >= 0)
-            {
-                _ = CloseDescriptor(readEnd);
-            }
-
-            if (writeEnd >= 0)
-            {
-                _ = CloseDescriptor(writeEnd);
-            }
-
-            read?.Dispose();
+            pipe?.Dispose();
         }
     }
 
     /// <summary>
-    /// The two pipe ends as raw descriptors: the source-generated interop cannot size an array
-    /// argument, so the pair crosses through two descriptors rather than one array.
+    /// The session flag, plus the signal state libuv gives a Node child: every signal back at its
+    /// default disposition and an empty mask. <c>posix_spawn</c> alone resets only handled signals
+    /// and keeps ignored ones (the .NET runtime ignores <c>SIGPIPE</c>) and the calling thread's
+    /// mask. The attribute calls copy the set, so its buffer lives only for these calls; it is
+    /// oversized and zeroed, the discipline the attribute and file-action buffers follow.
     /// </summary>
-    private static void AllocatePipe(IServiceContenderSpawner.ContenderStartInfo startInfo, out int readEnd, out int writeEnd)
+    private static void ConfigureAttributes(IServiceContenderSpawner.ContenderStartInfo startInfo, IntPtr attributes)
     {
-        var descriptors = Marshal.AllocHGlobal(2 * sizeof(int));
+        CheckNativeResult(
+            startInfo,
+            SetAttributeFlags(attributes, (short)(SpawnFlags() | ResetSignalDispositions | ResetSignalMask)));
+        var set = Marshal.AllocHGlobal(SignalSetCapacity);
         try
         {
-            // pipe(2) reports 0 for success, so the declaration stays an int: a BOOL
-            // marshal would read every successful call as a failure.
-            if (Pipe(descriptors) != 0)
-            {
-                throw SpawnFailure(startInfo, new Win32Exception(Marshal.GetLastWin32Error()));
-            }
-
-            readEnd = Marshal.ReadInt32(descriptors, 0);
-            writeEnd = Marshal.ReadInt32(descriptors, sizeof(int));
+            Marshal.Copy(new byte[SignalSetCapacity], 0, set, SignalSetCapacity);
+            CheckSignalSetResult(startInfo, FillSignalSet(set));
+            CheckNativeResult(startInfo, SetDefaultSignals(attributes, set));
+            CheckSignalSetResult(startInfo, EmptySignalSet(set));
+            CheckNativeResult(startInfo, SetSignalMask(attributes, set));
         }
         finally
         {
-            Marshal.FreeHGlobal(descriptors);
+            Marshal.FreeHGlobal(set);
         }
     }
 
-    /// <summary>
-    /// The pipe ends must not survive an unrelated exec racing this spawn: a leaked write end in
-    /// another child would hold EOF away from this contender's drain.
-    /// </summary>
-    private static void MarkCloseOnExec(IServiceContenderSpawner.ContenderStartInfo startInfo, int first, int second)
+    /// <summary>The set functions report through errno, unlike the <c>posix_spawn</c> family, which returns it.</summary>
+    private static void CheckSignalSetResult(IServiceContenderSpawner.ContenderStartInfo startInfo, int result)
     {
-        if (ControlDescriptor(first) && ControlDescriptor(second))
+        if (result != 0)
         {
-            return;
+            throw SpawnFailure(startInfo, new Win32Exception(Marshal.GetLastWin32Error()));
         }
-
-        var error = Marshal.GetLastWin32Error();
-        _ = CloseDescriptor(first);
-        _ = CloseDescriptor(second);
-        throw SpawnFailure(startInfo, new Win32Exception(error));
     }
-
-    private static bool ControlDescriptor(int descriptor) =>
-        SetCloseOnExec(descriptor, SetCloseOnExecCommand, CloseOnExec) == 0;
 
     private static void CheckNativeResult(IServiceContenderSpawner.ContenderStartInfo startInfo, int result)
     {
@@ -559,27 +551,6 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
 #endif
         throw new OpenCodeServerException(
             "The background service contender needs a detached session the platform does not provide: no contender was started.");
-    }
-
-    /// <summary>
-    /// The <c>CreateProcessW</c> Unicode block: NUL-separated <c>key=value</c> pairs with one extra
-    /// NUL ending it. The interop layer copies the managed length plus its terminator, so the
-    /// embedded separators survive exactly as built.
-    /// </summary>
-    private static string BuildEnvironmentBlock(Dictionary<string, string?> environment)
-    {
-        var block = new StringBuilder();
-        foreach (var entry in environment)
-        {
-            if (entry.Value is null)
-            {
-                continue;
-            }
-
-            _ = block.Append(entry.Key).Append('=').Append(entry.Value).Append('\0');
-        }
-
-        return block.Append('\0').ToString();
     }
 
     /// <summary>Marshals one UTF-8 argument vector: a null-terminated array of null-terminated byte strings.</summary>
@@ -713,15 +684,6 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
         ref StartupInfoEx startupInfo,
         out ProcessInformation processInformation);
 
-    [LibraryImport("kernel32", EntryPoint = "CreatePipe", SetLastError = true)]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool CreatePipe(
-        out IntPtr readPipe,
-        out IntPtr writePipe,
-        ref SecurityAttributes attributes,
-        uint size);
-
     [LibraryImport("kernel32", EntryPoint = "CreateFileW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     private static partial IntPtr OpenNullDevice(
@@ -759,17 +721,21 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     private static partial void DeleteAttributeList(IntPtr list);
 
-    [LibraryImport("libc", EntryPoint = "pipe", SetLastError = true)]
+    [LibraryImport("libc", EntryPoint = "sigfillset", SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-    private static partial int Pipe(IntPtr descriptors);
+    private static partial int FillSignalSet(IntPtr set);
 
-    [LibraryImport("libc", EntryPoint = "fcntl", SetLastError = true)]
+    [LibraryImport("libc", EntryPoint = "sigemptyset", SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-    private static partial int SetCloseOnExec(int descriptor, int command, int value);
+    private static partial int EmptySignalSet(IntPtr set);
 
-    [LibraryImport("libc", EntryPoint = "close")]
+    [LibraryImport("libc", EntryPoint = "posix_spawnattr_setsigdefault")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-    private static partial int CloseDescriptor(int descriptor);
+    private static partial int SetDefaultSignals(IntPtr attributes, IntPtr set);
+
+    [LibraryImport("libc", EntryPoint = "posix_spawnattr_setsigmask")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+    private static partial int SetSignalMask(IntPtr attributes, IntPtr set);
 
     [LibraryImport("libc", EntryPoint = "posix_spawnattr_init")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
@@ -794,10 +760,6 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
     [LibraryImport("libc", EntryPoint = "posix_spawn_file_actions_adddup2")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     private static partial int AddDuplicateAction(IntPtr actions, int descriptor, int newDescriptor);
-
-    [LibraryImport("libc", EntryPoint = "posix_spawn_file_actions_addclose")]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-    private static partial int AddCloseAction(IntPtr actions, int descriptor);
 
     [LibraryImport("libc", EntryPoint = "posix_spawn_file_actions_destroy")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
@@ -827,15 +789,6 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
         string? currentDirectory,
         ref StartupInfoEx startupInfo,
         out ProcessInformation processInformation);
-
-    [DllImport("kernel32", EntryPoint = "CreatePipe", SetLastError = true)]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool CreatePipe(
-        out IntPtr readPipe,
-        out IntPtr writePipe,
-        ref SecurityAttributes attributes,
-        uint size);
 
     [DllImport("kernel32", EntryPoint = "CreateFileW", SetLastError = true, CharSet = CharSet.Unicode)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
@@ -874,17 +827,21 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     private static extern void DeleteAttributeList(IntPtr list);
 
-    [DllImport("libc", EntryPoint = "pipe", SetLastError = true)]
+    [DllImport("libc", EntryPoint = "sigfillset", SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-    private static extern int Pipe(IntPtr descriptors);
+    private static extern int FillSignalSet(IntPtr set);
 
-    [DllImport("libc", EntryPoint = "fcntl", SetLastError = true)]
+    [DllImport("libc", EntryPoint = "sigemptyset", SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-    private static extern int SetCloseOnExec(int descriptor, int command, int value);
+    private static extern int EmptySignalSet(IntPtr set);
 
-    [DllImport("libc", EntryPoint = "close")]
+    [DllImport("libc", EntryPoint = "posix_spawnattr_setsigdefault")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-    private static extern int CloseDescriptor(int descriptor);
+    private static extern int SetDefaultSignals(IntPtr attributes, IntPtr set);
+
+    [DllImport("libc", EntryPoint = "posix_spawnattr_setsigmask")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+    private static extern int SetSignalMask(IntPtr attributes, IntPtr set);
 
     [DllImport("libc", EntryPoint = "posix_spawnattr_init")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
@@ -909,10 +866,6 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
     [DllImport("libc", EntryPoint = "posix_spawn_file_actions_adddup2")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     private static extern int AddDuplicateAction(IntPtr actions, int descriptor, int newDescriptor);
-
-    [DllImport("libc", EntryPoint = "posix_spawn_file_actions_addclose")]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-    private static extern int AddCloseAction(IntPtr actions, int descriptor);
 
     [DllImport("libc", EntryPoint = "posix_spawn_file_actions_destroy")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
