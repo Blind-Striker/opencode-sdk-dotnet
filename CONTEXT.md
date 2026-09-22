@@ -203,8 +203,8 @@ Upstream's `Standalone.start` connection mode.
 
 **Background service**:
 Upstream's registered daemon connection mode (`Service.discover/ensure/stop` over a
-registration file); in the SDK, `OpenCodeServer.DiscoverAsync` and `OpenCodeServer.StopAsync`,
-and the Ensure door that follows them.
+registration file); in the SDK, `OpenCodeServer.DiscoverAsync`, `OpenCodeServer.EnsureAsync`,
+and `OpenCodeServer.StopAsync`.
 
 **Registration file**:
 The on-disk record a background service publishes (address, credential, instance identity) so
@@ -219,7 +219,7 @@ process being gone. Distinct from the registration file's identity, which names 
 process.
 
 **Registered server handle**:
-A non-owning `OpenCodeServer` produced by discovery (and later by Ensure): `OwnsProcess` is false
+A non-owning `OpenCodeServer` produced by discovery or Ensure: `OwnsProcess` is false
 and disposal never stops the shared service.
 _Avoid_: guarded server handle, shared handle (draft names for the same thing)
 

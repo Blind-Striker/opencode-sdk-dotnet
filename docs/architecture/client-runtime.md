@@ -510,5 +510,20 @@ is never signalled and reads as the registered process being gone (ADR-0026). A 
 that cannot be removed and a process still running after the kill rung throw
 `OpenCodeServerException`, the registration then left in place; cancellation before a signal
 prevents it and after one ends the wait. Stop targets exactly one pid, never a tree, is never
-implied by disposal or host shutdown, and may end a service other clients share. Ensure is tracked
-in `docs/ROADMAP.md` §4.
+implied by disposal or host shutdown, and may end a service other clients share.
+
+`OpenCodeServer.EnsureAsync` is the CLI's managed-service election (`Service.ensure`). It reuses a
+ready compatible daemon, replaces a version-mismatched one according to
+`OpenCodeServerEnsureOptions.VersionPolicy` (Ignore strips the expected version, Replace keeps it
+in the loop, Error discovers twice and throws on mismatch without entering the loop), and otherwise
+spawns at most two detached contenders (`opencode serve --service` by default) until a service
+registers or the 120-second wall-clock bound expires. `OnStart` fires at most once. The returned
+handle is the same non-owning shape discovery returns. Persistent-terminal sidecar I/O is behind
+`IServicePtyHandoff`: `prepare` calls the generated handoff door under the request bound and
+publishes the ticket beside the registration through an owner-only temporary file and a
+replace-on-success rename, reusing a fresh matching sidecar and, when the daemon answers 404,
+shutting its terminals down best-effort and publishing a null sidecar with a 30-second expiry;
+`environment` adopts an unexpired sidecar whose source still matches the current registration (or
+whose registration is gone) as `OPENCODE_PTY_HANDOFF` and removes the variable otherwise;
+`complete` clears only a sidecar a different source wrote, with no expiry check; and `clear`
+removes it idempotently, the same seam Stop's sidecar clear routes through.

@@ -33,7 +33,7 @@ internal sealed partial class ServiceContender : IDisposable
     private const int NoChild = 10;
 
     private readonly Lock _gate = new();
-    private readonly SafeFileHandle _stderr;
+    private readonly SafeFileHandle? _stderr;
     private readonly SafeProcessHandle? _process;
     private readonly string? _redact;
     private readonly Task _drain;
@@ -63,6 +63,17 @@ internal sealed partial class ServiceContender : IDisposable
         // Hot until the first read suspends: the drain owns no caller, only the pipe, and every
         // fault it can see is folded into the error slot — nothing escapes unobserved.
         _drain = DrainStderrAsync();
+    }
+
+    /// <summary>
+    /// Initializes a live observation handle with no process. Tests use this so the election loop
+    /// can spawn, retain, and release contenders without a pipe or a pid; production spawn still
+    /// uses the handle constructor.
+    /// </summary>
+    internal ServiceContender(int processId)
+    {
+        ProcessId = processId;
+        _drain = Task.CompletedTask;
     }
 
     /// <summary>Gets the asynchronous observation failure, when the background drain faulted; a synchronous spawn failure throws from the spawner instead.</summary>
@@ -96,6 +107,35 @@ internal sealed partial class ServiceContender : IDisposable
 
     /// <summary>Gets whether the contender finished: an error, or a closed stderr pipe.</summary>
     public bool IsFinished => Error is not null || Closed;
+
+    /// <summary>
+    /// Gets the process exit code once a poll has observed it, or null while the process has not
+    /// been seen to exit. The election doubles the spawn delay only for a finished contender whose
+    /// code is exactly 0, matching upstream's <c>item.child.exitCode === 0</c>.
+    /// </summary>
+    public int? ExitCode
+    {
+        get
+        {
+            lock (_gate)
+            {
+                PollExitLocked();
+                return _exitCode;
+            }
+        }
+    }
+
+    /// <summary>Gets a value indicating whether <see cref="Release"/> has given the retention up.</summary>
+    public bool IsReleased
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _released;
+            }
+        }
+    }
 
     /// <summary>
     /// Gets the retained stderr tail as text: the final 8 KiB decoded as UTF-8, trimmed the way
@@ -320,13 +360,13 @@ internal sealed partial class ServiceContender : IDisposable
             // asynchronous operations"). A synchronous stream still offers awaitable reads
             // (threadpool-backed), which is all this background drain needs.
 #if NET
-            var stderr = new FileStream(_stderr, FileAccess.Read, 4096, isAsync: false);
+            var stderr = new FileStream(_stderr!, FileAccess.Read, 4096, isAsync: false);
             await using (stderr.ConfigureAwait(false))
             {
                 await DrainPipeAsync(stderr).ConfigureAwait(false);
             }
 #else
-            using var stderr = new FileStream(_stderr, FileAccess.Read, 4096, isAsync: false);
+            using var stderr = new FileStream(_stderr!, FileAccess.Read, 4096, isAsync: false);
             await DrainPipeAsync(stderr).ConfigureAwait(false);
 #endif
         }
@@ -398,7 +438,7 @@ internal sealed partial class ServiceContender : IDisposable
         }
 
         _process?.Dispose();
-        _stderr.Dispose();
+        _stderr?.Dispose();
 
         // The drain's outcome is folded into the observation slots above; this keeps the stored
         // task itself observed too.

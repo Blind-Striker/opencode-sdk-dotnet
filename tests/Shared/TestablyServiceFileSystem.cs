@@ -42,4 +42,17 @@ internal sealed class TestablyServiceFileSystem(IFileSystem fileSystem) : IServi
         fileSystem.File.Delete(path);
         return true;
     }
+
+    public void Rename(string source, string destination)
+    {
+        // The netstandard2.0 Testably asset has only the two-argument Move, so the adapter uses the
+        // same delete-then-move arm the shipped downlevel implementation does; it makes no
+        // atomicity claim, matching its existing no-file-mode-claim posture.
+        if (fileSystem.File.Exists(destination))
+        {
+            fileSystem.File.Delete(destination);
+        }
+
+        fileSystem.File.Move(source, destination);
+    }
 }

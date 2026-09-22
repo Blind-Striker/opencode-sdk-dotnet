@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 
@@ -12,14 +14,18 @@ namespace OpenCode.Sdk.ServiceFixture;
 /// standard streams nothing to do, so every observation rides stderr.
 /// </summary>
 /// <remarks>
-/// Three probes. <c>echo-argv-env &lt;name&gt;…</c> floods stdout with <see cref="StdoutFloodBytes"/>
-/// bytes, probes whether stdin reads end at once, and then prints one JSON line on stderr carrying
-/// this process's own arguments (everything after the mode name) and the value of each named
-/// environment variable (<c>null</c> for one that is absent), together with what the process can
-/// see of its standard streams; it exits 0. <c>stderr-fill [bytes]</c> writes <c>bytes</c>
-/// (16 KiB by default) of a position-numbered, whitespace-free pattern to stderr in 4 KiB chunks
-/// paced five milliseconds apart, and exits 0. <c>daemon-sleep</c> prints
-/// <c>ready pid=&lt;pid&gt;</c> on stderr and then sleeps until a signal ends it. Nothing here
+/// Three seam probes plus two daemon stand-ins. <c>echo-argv-env &lt;name&gt;…</c> floods stdout
+/// with <see cref="StdoutFloodBytes"/> bytes, probes whether stdin reads end at once, and then
+/// prints one JSON line on stderr carrying this process's own arguments (everything after the mode
+/// name) and the value of each named environment variable (<c>null</c> for one that is absent),
+/// together with what the process can see of its standard streams; it exits 0.
+/// <c>stderr-fill [bytes]</c> writes <c>bytes</c> (16 KiB by default) of a position-numbered,
+/// whitespace-free pattern to stderr in 4 KiB chunks paced five milliseconds apart, and exits 0.
+/// <c>daemon-sleep</c> prints <c>ready pid=&lt;pid&gt;</c> on stderr and then sleeps until a signal
+/// ends it. The daemon stand-ins print <c>ready pid=&lt;pid&gt; port=&lt;port&gt;</c> on stdout, so
+/// a test can seed a registration naming them, and then play a registered service: <c>stall</c>
+/// accepts every connection and never answers one, so the info probe times out, and <c>stale</c>
+/// answers with an identity no registration carries, so the probe reads no service. Nothing here
 /// touches the SDK or the registration file: the mode is the contender the seam starts, never a
 /// seam consumer, so this executable builds without the spawner.
 /// </remarks>
@@ -54,6 +60,8 @@ internal static class ContenderProbe
             "echo-argv-env" => EchoArgumentsAndEnvironmentAsync(arguments),
             "stderr-fill" => FillStandardErrorAsync(arguments),
             "daemon-sleep" => SleepLikeADaemonAsync(),
+            "stall" => StallAsync(),
+            "stale" => StaleAsync(),
             _ => UsageAsync(),
         };
 
@@ -173,8 +181,151 @@ internal static class ContenderProbe
     private static async Task<int> UsageAsync()
     {
         await Console.Error
-            .WriteLineAsync("Usage: contender-probe echo-argv-env [name …] | stderr-fill [bytes] | daemon-sleep")
+            .WriteLineAsync("Usage: contender-probe echo-argv-env [name …] | stderr-fill [bytes] | daemon-sleep | stall | stale")
             .ConfigureAwait(false);
         return 2;
+    }
+
+    /// <summary>
+    /// Prints the ready line naming this process's pid and the loopback port it bound, the two
+    /// facts a test needs to seed a registration for it, then accepts every connection and never
+    /// answers one: the info probe's own request bound expires, which is the consecutive-timeout
+    /// signal the ensure loop's recovery counts.
+    /// </summary>
+    private static async Task<int> StallAsync()
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        await ReportDaemonReadyAsync(((IPEndPoint)listener.LocalEndpoint).Port).ConfigureAwait(false);
+
+        var held = new List<TcpClient>();
+        try
+        {
+            while (true)
+            {
+                TcpClient client;
+                try
+                {
+                    client = await listener.AcceptTcpClientAsync().ConfigureAwait(false);
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+                catch (SocketException)
+                {
+                    break;
+                }
+
+                held.Add(client);
+            }
+        }
+        finally
+        {
+            foreach (var client in held)
+            {
+                client.Dispose();
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// Prints the ready line naming this process's pid and the loopback port it bound, then answers
+    /// every <c>/api/info</c> with this process's own identity at a version no release ever built
+    /// (<c>0.0.0-stale</c>). A registration naming a different pid or version — the superseded
+    /// record a restart leaves behind — reads as no service; a registration naming this identity
+    /// reads as a ready service at the wrong version, which the ensure loop replaces.
+    /// </summary>
+    private static async Task<int> StaleAsync()
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        await ReportDaemonReadyAsync(((IPEndPoint)listener.LocalEndpoint).Port).ConfigureAwait(false);
+
+        await ServeSupersededAsync(listener).ConfigureAwait(false);
+        return 0;
+    }
+
+    /// <summary>Prints the single ready line a daemon stand-in test reads: this process's pid and the bound port.</summary>
+    private static async Task ReportDaemonReadyAsync(int port)
+    {
+        await Console.Out
+            .WriteLineAsync($"ready pid={Environment.ProcessId.ToString(CultureInfo.InvariantCulture)} port={port.ToString(CultureInfo.InvariantCulture)}")
+            .ConfigureAwait(false);
+        await Console.Out.FlushAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>Accepts and answers until a signal ends the process; the token is never cancelled, but the loop's break names that exit so the analyzer sees it.</summary>
+    private static async Task ServeSupersededAsync(TcpListener listener)
+    {
+        using var shutdown = new CancellationTokenSource();
+        while (!shutdown.IsCancellationRequested)
+        {
+            TcpClient client;
+            try
+            {
+                client = await listener.AcceptTcpClientAsync().ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException)
+            {
+                break;
+            }
+            catch (SocketException)
+            {
+                break;
+            }
+
+            await AnswerSupersededAsync(client).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Answers <c>/api/info</c> with this process's pid at the never-built <c>0.0.0-stale</c>
+    /// version and any other route with an empty 404, the way the reference fixture does: the
+    /// replacement's handoff prepare and shutdown read the 404 as "route absent" and proceed to
+    /// terminate.</summary>
+    [SlopwatchSuppress(
+        "SW003",
+        "Connection teardown: the probe aborting mid-exchange is the expected end of a refused handoff prepare, and a fixture stand-in has no handler to add.")]
+    private static async Task AnswerSupersededAsync(TcpClient client)
+    {
+        using (client)
+        using (var stream = client.GetStream())
+        using (var reader = new StreamReader(stream, Encoding.ASCII, detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true))
+        {
+            try
+            {
+                var requestLine = await reader.ReadLineAsync().ConfigureAwait(false);
+                string? header;
+                do
+                {
+                    header = await reader.ReadLineAsync().ConfigureAwait(false);
+                }
+                while (!string.IsNullOrEmpty(header));
+
+                var isInfo = requestLine is not null && IsInfoPath(requestLine);
+                var body = isInfo
+                    ? "{\"pid\":" + Environment.ProcessId.ToString(CultureInfo.InvariantCulture)
+                        + ",\"version\":\"0.0.0-stale\"}"
+                    : string.Empty;
+                var response = "HTTP/1.1 " + (isInfo ? "200 OK" : "404 Not Found")
+                    + "\r\nContent-Type: application/json\r\nContent-Length: "
+                    + body.Length.ToString(CultureInfo.InvariantCulture)
+                    + "\r\nConnection: close\r\n\r\n" + body;
+                await stream.WriteAsync(Encoding.ASCII.GetBytes(response)).ConfigureAwait(false);
+            }
+            catch (IOException)
+            {
+                // The probe aborted mid-exchange: connection teardown, never a fixture failure.
+            }
+        }
+    }
+
+    /// <summary>Whether a request line asks for the info route.</summary>
+    private static bool IsInfoPath(string requestLine)
+    {
+        var parts = requestLine.Split(' ');
+        return parts.Length >= 2 && string.Equals(parts[1], "/api/info", StringComparison.Ordinal);
     }
 }

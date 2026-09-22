@@ -14,6 +14,9 @@ internal static class ServiceFixtureOutput
     public static string FoundLine(int processId, Uri endpoint) =>
         $"found owns=false pid={processId.ToString(CultureInfo.InvariantCulture)} endpoint={endpoint}";
 
+    public static string EnsuredLine(int processId, Uri endpoint) =>
+        $"ensured owns=false pid={processId.ToString(CultureInfo.InvariantCulture)} endpoint={endpoint}";
+
     /// <summary>Reads the <c>discovery took N ms</c> line; null when the executable never reached it.</summary>
     public static int? DiscoveryMilliseconds(string standardError)
     {

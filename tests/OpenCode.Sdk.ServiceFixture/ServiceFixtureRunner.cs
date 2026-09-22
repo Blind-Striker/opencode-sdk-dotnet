@@ -8,12 +8,15 @@ namespace OpenCode.Sdk.ServiceFixture;
 /// </summary>
 /// <remarks>
 /// Modes: <c>discover-default</c> reads the shared release registration through every default;
-/// <c>discover-channel &lt;channel&gt;</c> names a service channel; <c>stop-channel &lt;channel&gt;</c>
-/// stops the channel's registered service; <c>idle</c> prints <c>ready</c> and lingers until it is
-/// ended; <c>ignore-sigterm</c> lingers the same way but ignores <c>SIGTERM</c> where the platform
-/// can deliver one; <c>contender-probe</c> plays the contender the Ensure loop spawns, observed
-/// through the spawner's stderr pipe. The credential is never printed. Exit 0 carries an answer,
-/// 1 a failure, 2 a usage error.
+/// <c>discover-channel &lt;channel&gt;</c> names a service channel; <c>ensure-channel
+/// &lt;channel&gt;</c> ensures the channel's service with the default <c>opencode serve --service</c>
+/// command resolved from this process's PATH; <c>stop-channel &lt;channel&gt;</c> stops the channel's
+/// registered service; <c>idle</c> prints <c>ready</c> and lingers until it is ended;
+/// <c>ignore-sigterm</c> lingers the same way but ignores <c>SIGTERM</c> where the platform can
+/// deliver one; <c>contender-probe</c> plays the contender the Ensure loop spawns, observed through
+/// the spawner's stderr pipe, with <c>stall</c> and <c>stale</c> daemon stand-ins for the live
+/// recovery proofs. The credential is never printed. Exit 0 carries an answer, 1 a failure, 2 a
+/// usage error.
 /// </remarks>
 internal static class ServiceFixtureRunner
 {
@@ -22,6 +25,7 @@ internal static class ServiceFixtureRunner
         {
             ["discover-default"] => DiscoveryMode.RunAsync(options: null),
             ["discover-channel", var channel] => DiscoveryMode.RunAsync(new OpenCodeServerDiscoverOptions { Channel = channel }),
+            ["ensure-channel", var channel] => EnsureMode.RunAsync(channel),
             ["stop-channel", var channel] => StopMode.RunAsync(channel),
             ["idle"] => LingeringProcessMode.RunAsync(ignoreTerminate: false),
             ["ignore-sigterm"] => LingeringProcessMode.RunAsync(ignoreTerminate: true),
@@ -32,7 +36,7 @@ internal static class ServiceFixtureRunner
     private static async Task<int> UsageAsync()
     {
         await Console.Error
-            .WriteLineAsync("Usage: discover-default | discover-channel <channel> | stop-channel <channel> | idle | ignore-sigterm | contender-probe echo-argv-env [name …] | stderr-fill [bytes] | daemon-sleep")
+            .WriteLineAsync("Usage: discover-default | discover-channel <channel> | ensure-channel <channel> | stop-channel <channel> | idle | ignore-sigterm | contender-probe echo-argv-env [name …] | stderr-fill [bytes] | daemon-sleep | stall | stale")
             .ConfigureAwait(false);
         return 2;
     }

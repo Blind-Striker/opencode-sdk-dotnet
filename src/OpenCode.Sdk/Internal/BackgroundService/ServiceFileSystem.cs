@@ -42,6 +42,25 @@ internal sealed class ServiceFileSystem : IServiceFileSystem
         return true;
     }
 
+    public void Rename(string source, string destination)
+    {
+#if NET
+        // The modern targets replace the destination in one native move (rename(2) on Unix,
+        // MoveFileEx with MOVEFILE_REPLACE_EXISTING on Windows), which is the pinned client's
+        // atomic sidecar publication.
+        File.Move(source, destination, overwrite: true);
+#else
+        // net472 and netstandard2.0 have no overwrite overload; deleting the destination first is
+        // the closest arm the pinned client's replace-on-success rename has there.
+        if (File.Exists(destination))
+        {
+            File.Delete(destination);
+        }
+
+        File.Move(source, destination);
+#endif
+    }
+
     /// <summary>
     /// A registration is a few hundred bytes, so the create, the mode, the write, and the close run
     /// synchronously inside one <c>using</c>: nothing interleaves with a half-written file, and the

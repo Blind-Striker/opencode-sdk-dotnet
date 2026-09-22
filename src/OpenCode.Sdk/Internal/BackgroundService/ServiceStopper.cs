@@ -6,21 +6,20 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 /// The pinned CLI's <c>service stop</c> (<c>handlers/service/stop.ts</c> over <c>Service.stop</c>,
 /// <c>effect/service.ts:144-152</c>): resolve the registration the options name and run the
 /// channel's migration, read it once, ask a ready and compatible daemon to shut its persistent
-/// terminals down, clear the handoff sidecar, then hand the registration to the terminator. A
-/// missing or corrupt registration is nothing to stop; a shutdown the daemon refuses is ignored
-/// the way the CLI ignores it; the caller's cancellation is the one thing that is not.
+/// terminals down, clear the handoff sidecar through the shared <see cref="IServicePtyHandoff"/>
+/// seam, then hand the registration to the terminator. A missing or corrupt registration is
+/// nothing to stop; a shutdown the daemon refuses is ignored the way the CLI ignores it; the
+/// caller's cancellation is the one thing that is not.
 /// </summary>
 internal sealed class ServiceStopper(
     IServiceEnvironment environment,
     IServiceFileSystem fileSystem,
     IServiceInfoProbe probe,
     IServicePtyShutdown ptyShutdown,
+    IServicePtyHandoff ptyHandoff,
     IServiceProcessControl processControl,
     ServiceTiming timing)
 {
-    /// <summary>The handoff sidecar the pinned client keeps beside the registration (<c>pty-handoff.ts</c>).</summary>
-    private const string SidecarSuffix = ".pty-handoff";
-
     /// <summary>Stops the registered service a selection points at.</summary>
     /// <param name="options">The caller's options; null means every default.</param>
     /// <param name="cancellationToken">The caller's token.</param>
@@ -43,7 +42,7 @@ internal sealed class ServiceStopper(
             _ = await TryShutdownPersistentTerminalsAsync(registration, cancellationToken).ConfigureAwait(false);
         }
 
-        ClearSidecar(paths.RegistrationFile + SidecarSuffix);
+        await ptyHandoff.ClearAsync(paths.RegistrationFile, cancellationToken).ConfigureAwait(false);
         if (registration is not null)
         {
             await new ServiceTerminator(fileSystem, processControl, timing)
@@ -78,23 +77,4 @@ internal sealed class ServiceStopper(
             return false;
         }
     }
-
-    private void ClearSidecar(string sidecar)
-    {
-        try
-        {
-            _ = fileSystem.TryDelete(sidecar);
-        }
-        catch (IOException exception)
-        {
-            throw SidecarFailure(sidecar, exception);
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            throw SidecarFailure(sidecar, exception);
-        }
-    }
-
-    private static OpenCodeServerException SidecarFailure(string sidecar, Exception cause) =>
-        new($"The persistent-terminal handoff sidecar '{sidecar}' could not be removed, so the registered service was not stopped.", cause);
 }

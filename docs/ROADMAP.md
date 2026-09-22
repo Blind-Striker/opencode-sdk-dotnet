@@ -81,7 +81,11 @@ is revisited at each boundary.
    `SIGTERM`/`SIGKILL` ladder (hard kills on Windows) with the registration re-read before every
    signal and the process identified by pid and start time (ADR-0026), and the registration
    removed once the process is gone — proven against the pin's own daemon and against a process
-   that ignores the first rung. `EnsureAsync` follows as its own slice.
+   that ignores the first rung; and `OpenCodeServer.EnsureAsync`, the CLI's managed-service
+   election — reusing a ready compatible daemon, replacing a version-mismatched one under an
+   `Ignore`/`Replace`/`Error` policy, and otherwise spawning detached contenders until one
+   registers or the 120-second bound expires, with the persistent-terminal handoff sidecar
+   travelling across replacement — proven against the pin's own daemon from source.
    **Two generator slices rode inside M4 and have landed.** Fail-closed operation naming
    ([#86](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/86)): the HTTP method is
    never a name source — the closed grammar names an operation or a reason-bearing
