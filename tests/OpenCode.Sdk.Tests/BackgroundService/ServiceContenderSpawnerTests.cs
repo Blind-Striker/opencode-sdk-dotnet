@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Internal.BackgroundService;
@@ -94,8 +95,7 @@ public sealed class ServiceContenderSpawnerTests
         var exception = await Assert
             .That(() => new ServiceContenderSpawner().Spawn(new IServiceContenderSpawner.ContenderStartInfo(
                 new ResolvedExecutable(missing, missing, IsBatchScript: false),
-                ViaCmdExe: false,
-                [missing],
+                [],
                 new Dictionary<string, string?>(StringComparer.Ordinal))))
             .Throws<OpenCodeServerException>();
 
@@ -135,8 +135,7 @@ public sealed class ServiceContenderSpawnerTests
         var command = FixtureCommand();
         using var contender = new ServiceContenderSpawner().Spawn(new IServiceContenderSpawner.ContenderStartInfo(
             new ResolvedExecutable("dotnet", command[0], IsBatchScript: false),
-            ViaCmdExe: false,
-            [command[0], command[1], "contender-probe", "echo-argv-env", .. probeArguments],
+            [command[1], "contender-probe", "echo-argv-env", .. probeArguments],
             overlay));
         try
         {
@@ -152,6 +151,51 @@ public sealed class ServiceContenderSpawnerTests
         finally
         {
             KillIfRunning(contender.ProcessId);
+        }
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task Spawn_Should_Run_A_Batch_Shim_From_A_Directory_Whose_Name_Has_A_Space(CancellationToken cancellationToken)
+    {
+        // The npm install puts opencode.cmd under the user profile, and profile names carry
+        // spaces: cmd /s strips exactly the first and last quote after /c, so the line has to be
+        // the launcher's BatchCommandLine shape, not the MSVCRT quoting of an argv.
+        var directory = FileSystem.Path.Combine(
+            FileSystem.Path.GetTempPath(), "opencode contender " + Guid.NewGuid().ToString("N"));
+        _ = FileSystem.Directory.CreateDirectory(directory);
+        try
+        {
+            var script = await WriteEchoShimAsync(directory, cancellationToken);
+            var startInfo = new IServiceContenderSpawner.ContenderStartInfo(
+                new ResolvedExecutable("oc", script, IsBatchScript: true),
+                ["serve", "--service", "a b"],
+                new Dictionary<string, string?>(StringComparer.Ordinal));
+
+            if (!OperatingSystem.IsWindows())
+            {
+                // cmd.exe exists only on Windows: the seam refuses rather than improvises.
+                _ = await Assert.That(() => new ServiceContenderSpawner().Spawn(startInfo)).Throws<OpenCodeServerException>();
+                Console.WriteLine("branch: Unix — the batch shim '" + script + "' is refused before anything spawns");
+                return;
+            }
+
+            using var contender = new ServiceContenderSpawner().Spawn(startInfo);
+            try
+            {
+                await Assert.That(await WaitForTheProbeAsync(contender, "the batch shim to finish", cancellationToken)).IsTrue()
+                    .Because(contender.Stderr);
+                await Assert.That(contender.Stderr).Contains("ARGS=[\"serve\" \"--service\" \"a b\"]");
+                Console.WriteLine("branch: Windows — the shim under '" + directory + "' ran with its arguments intact");
+            }
+            finally
+            {
+                KillIfRunning(contender.ProcessId);
+            }
+        }
+        finally
+        {
+            FileSystem.Directory.Delete(directory, recursive: true);
         }
     }
 
@@ -302,14 +346,13 @@ public sealed class ServiceContenderSpawnerTests
         }
     }
 
-    /// <summary>The fixture process behind one probe, as the spawner's complete argv.</summary>
+    /// <summary>The fixture process behind one probe: the host executable, then the fixture and the mode.</summary>
     private static IServiceContenderSpawner.ContenderStartInfo FixtureProbe(params string[] modeAndArguments)
     {
         var command = FixtureCommand();
         return new IServiceContenderSpawner.ContenderStartInfo(
             new ResolvedExecutable("dotnet", command[0], IsBatchScript: false),
-            ViaCmdExe: false,
-            [command[0], command[1], .. modeAndArguments],
+            [command[1], .. modeAndArguments],
             new Dictionary<string, string?>(StringComparer.Ordinal));
     }
 
@@ -326,16 +369,23 @@ public sealed class ServiceContenderSpawnerTests
         {
             return new IServiceContenderSpawner.ContenderStartInfo(
                 new ResolvedExecutable("cmd", SystemCommand(), IsBatchScript: false),
-                ViaCmdExe: false,
-                [SystemCommand(), "/c", "start", "/b", "", command[0], command[1], "contender-probe", "daemon-sleep"],
+                ["/c", "start", "/b", "", command[0], command[1], "contender-probe", "daemon-sleep"],
                 new Dictionary<string, string?>(StringComparer.Ordinal));
         }
 
         return new IServiceContenderSpawner.ContenderStartInfo(
             new ResolvedExecutable("sh", "/bin/sh", IsBatchScript: false),
-            ViaCmdExe: false,
-            ["/bin/sh", "-c", ShQuote(command[0]) + " " + ShQuote(command[1]) + " contender-probe daemon-sleep &"],
+            ["-c", ShQuote(command[0]) + " " + ShQuote(command[1]) + " contender-probe daemon-sleep &"],
             new Dictionary<string, string?>(StringComparer.Ordinal));
+    }
+
+    /// <summary>A batch shim that reports the argument line cmd.exe handed it on stderr, the contender's only open stream.</summary>
+    private static async Task<string> WriteEchoShimAsync(string directory, CancellationToken cancellationToken)
+    {
+        var script = FileSystem.Path.Combine(directory, "oc.cmd");
+        using var stream = FileSystem.FileStream.New(script, FileMode.Create, FileAccess.Write, FileShare.None);
+        await stream.WriteAsync(Encoding.ASCII.GetBytes("@echo off\r\necho ARGS=[%*] 1>&2\r\n"), cancellationToken);
+        return script;
     }
 
     private static string SystemCommand() =>

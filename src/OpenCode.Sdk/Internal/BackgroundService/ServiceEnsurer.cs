@@ -315,9 +315,10 @@ internal sealed class ServiceEnsurer(
             var withHandoff = await handoff
                 .EnvironmentAsync(paths.RegistrationFile, overlay, cancellationToken)
                 .ConfigureAwait(false);
-            var executable = executableResolver.Resolve(command[0]);
-            var arguments = command.Length == 1 ? [] : command.Skip(1).ToArray();
-            var startInfo = ServiceContenderStartComposer.Compose(executable, arguments, withHandoff);
+            var startInfo = new IServiceContenderSpawner.ContenderStartInfo(
+                executableResolver.Resolve(command[0]),
+                [.. command.Skip(1)],
+                withHandoff);
             contenders.Add(spawner.Spawn(startInfo));
         }
         catch (OpenCodeServerException)

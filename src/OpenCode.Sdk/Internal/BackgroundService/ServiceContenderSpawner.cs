@@ -70,20 +70,15 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
     public ServiceContender Spawn(IServiceContenderSpawner.ContenderStartInfo startInfo)
     {
         ArgumentNullException.ThrowIfNull(startInfo);
-        if (startInfo.Executable is null)
+        if (startInfo.Executable is null || startInfo.Arguments is null || startInfo.Environment is null)
         {
             throw new ArgumentNullException(nameof(startInfo));
         }
 
-        if (startInfo.Argv is not { Length: > 0 } || string.IsNullOrWhiteSpace(startInfo.Argv[0]))
+        if (string.IsNullOrWhiteSpace(startInfo.Executable.Path))
         {
             throw new ArgumentException(
-                "ContenderStartInfo.Argv must name the file to spawn at index zero.", nameof(startInfo));
-        }
-
-        if (startInfo.Environment is null)
-        {
-            throw new ArgumentNullException(nameof(startInfo));
+                "ContenderStartInfo.Executable must name the file to spawn.", nameof(startInfo));
         }
 
         if (startInfo.Environment.Keys.Any(string.IsNullOrWhiteSpace))
@@ -97,7 +92,7 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
             throw new ArgumentException("ContenderStartInfo.Environment keys and values cannot contain NUL.", nameof(startInfo));
         }
 
-        if (startInfo.ViaCmdExe && !IsWindows)
+        if (startInfo.Executable.IsBatchScript && !IsWindows)
         {
             throw new OpenCodeServerException(
                 "The background service contender routes through cmd.exe, which exists only on Windows: no contender was started.");
@@ -175,11 +170,9 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
         Dictionary<string, string?> environment,
         string? redaction)
     {
-        // The exact argv through the MSVCRT quoting the downlevel launcher uses, so a path with
-        // spaces survives the command-line round trip the way ArgumentList survives it. The native
-        // call may scribble over its buffer, so the line crosses as pinned UTF-16 rather than a
-        // string the marshaller would have to copy back.
-        var commandLine = Marshal.StringToHGlobalUni(ProcessArgumentComposer.Compose(startInfo.Argv));
+        // The native call may scribble over its buffer, so the line crosses as pinned UTF-16 rather
+        // than a string the marshaller would have to copy back.
+        var commandLine = Marshal.StringToHGlobalUni(WindowsCommandLine(startInfo));
         try
         {
             return SpawnWindowsChild(startInfo, commandLine, BuildEnvironmentBlock(environment), redaction);
@@ -188,6 +181,25 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
         {
             Marshal.FreeHGlobal(commandLine);
         }
+    }
+
+    /// <summary>
+    /// The launcher's two Windows spellings (<c>OpenCodeServer.ConfigureCommandLine</c>): a batch
+    /// shim runs through the system cmd.exe on the <see cref="BatchCommandLine"/> line, whose
+    /// outer quote pair is what <c>/s</c> strips, and whose metacharacter refusal throws before
+    /// anything spawns; anything else is its argv through the MSVCRT quoting, so a path with
+    /// spaces survives the round trip the way <c>ArgumentList</c> survives it.
+    /// </summary>
+    private static string WindowsCommandLine(IServiceContenderSpawner.ContenderStartInfo startInfo)
+    {
+        var executable = startInfo.Executable;
+        if (executable.IsBatchScript)
+        {
+            return "\"" + BatchCommandLine.InterpreterPath + "\" " +
+                BatchCommandLine.Compose(executable.Path, startInfo.Arguments, launcherArguments: []);
+        }
+
+        return ProcessArgumentComposer.Compose([executable.Path, .. startInfo.Arguments]);
     }
 
     /// <summary>
@@ -375,7 +387,8 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
         Dictionary<string, string?> environment,
         string? redaction)
     {
-        var arguments = new List<string>(startInfo.Argv);
+        var arguments = new List<string>(startInfo.Arguments.Count + 1) { startInfo.Executable.Path };
+        arguments.AddRange(startInfo.Arguments);
         var variables = new List<string>(environment.Count);
         variables.AddRange(environment
             .Where(entry => entry.Value is not null)
@@ -432,7 +445,7 @@ internal sealed partial class ServiceContenderSpawner : IServiceContenderSpawner
 
                     // posix_spawn reports the errno as its return value rather than through the
                     // thread's errno, so the value below — not GetLastWin32Error — is the failure.
-                    var spawned = SpawnProcess(out var pid, startInfo.Argv[0], actionsPtr, attributesPtr, argv, envp);
+                    var spawned = SpawnProcess(out var pid, startInfo.Executable.Path, actionsPtr, attributesPtr, argv, envp);
 
                     // The parent never holds the write end: keeping it would keep EOF away after
                     // every writer is gone.
