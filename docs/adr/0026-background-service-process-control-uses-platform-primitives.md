@@ -19,16 +19,16 @@ is what libuv does with a `SIGTERM` there. The wait is the pinned client's own p
 (`stopPollInterval` × `stopPollAttempts`, 50 ms and 100 at the pin), and every look reads the
 process identity, so the process is gone when its identity is; the platform's own exit
 notification is not used, because it reports a `TerminateProcess` before the pid has left the
-process table and would need a platform-specific exception the poll does not. This is the one
-platform interop in the shipped SDK, and ADR-0001's "no process
-library" stands: it binds one function of the C library every process already has loaded. "libc"
+process table and would need a platform-specific exception the poll does not. This is the first
+platform interop in the shipped SDK (ADR-0027's contender spawn is the second), and ADR-0001's "no
+process library" stands: it binds one function of the C library every process already has loaded. "libc"
 is the portable spelling — `libSystem.Native`'s `SystemNative_LoadLibrary` maps that exact name to
 the platform's own library (`LIBC_SO` from `<gnu/lib-names.h>` on glibc, `/usr/lib/libc.dylib` on
 macOS, `libc.so.7` on FreeBSD) instead of probing for a file, and that loader serves CoreCLR's
 managed resolution and native AOT alike, with the same mapping in CoreCLR's own PAL. The
 `LibraryImport` generator needs the SDK project's `AllowUnsafeBlocks`; that is a compiler option
-of this project for the generated stub, reaches no consumer, and is the only unsafe code allowed in
-the shipped SDK.
+of this project for the generated stubs, reaches no consumer, and the stubs are the only unsafe code
+allowed in the shipped SDK.
 
 ## Considered options
 

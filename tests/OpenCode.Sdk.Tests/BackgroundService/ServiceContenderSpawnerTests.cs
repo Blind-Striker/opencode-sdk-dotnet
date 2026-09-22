@@ -43,6 +43,9 @@ public sealed class ServiceContenderSpawnerTests
     /// <summary>The fixture's stdout flood; the seam must give the contender NUL stdout for the flood to complete.</summary>
     private const int StdoutFloodBytes = 80 * 1024;
 
+    /// <summary>Signals 1 through 31 in a <c>/proc</c> mask, where bit n-1 is signal n.</summary>
+    private const ulong StandardSignals = 0x7FFF_FFFF;
+
     private static readonly TimeSpan ExitBound = TimeSpan.FromSeconds(15);
     /// <summary>The release-drain proof's finish bound: the paced writer needs about eight
     /// seconds unloaded, and sixty covers the timer lag the three-vCPU macOS leg adds under
@@ -196,6 +199,59 @@ public sealed class ServiceContenderSpawnerTests
         finally
         {
             FileSystem.Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task Spawn_Should_Start_The_Child_With_Default_Signal_State(CancellationToken cancellationToken)
+    {
+        // libuv starts a Node child with every signal at its default disposition and an empty
+        // mask; posix_spawn alone keeps ignored dispositions (the .NET host ignores SIGPIPE) and
+        // the calling thread's mask. A non-interactive sh keeps what it inherits, so it reports
+        // the spawn's own state. macOS ps has no ignored-signal column: that arm reads the mask.
+        if (OperatingSystem.IsWindows())
+        {
+            using var windows = new ServiceContenderSpawner().Spawn(new IServiceContenderSpawner.ContenderStartInfo(
+                new ResolvedExecutable("cmd", SystemCommand(), IsBatchScript: false),
+                ["/c", "exit", "0"],
+                new Dictionary<string, string?>(StringComparer.Ordinal)));
+            await Assert.That(await WaitForTheProbeAsync(windows, "cmd to exit", cancellationToken)).IsTrue();
+            await Assert.That(windows.TryGetFailure()).IsNull();
+            Console.WriteLine("branch: Windows — no POSIX signal state to reset; contender pid " + windows.ProcessId.ToString(CultureInfo.InvariantCulture) + " ran clean");
+            return;
+        }
+
+        var report = OperatingSystem.IsLinux()
+            ? "grep -E '^Sig(Ign|Blk):' /proc/$$/status 1>&2"
+            : "ps -o sigmask= -p $$ 1>&2";
+        using var contender = new ServiceContenderSpawner().Spawn(new IServiceContenderSpawner.ContenderStartInfo(
+            new ResolvedExecutable("sh", "/bin/sh", IsBatchScript: false),
+            ["-c", report],
+            new Dictionary<string, string?>(StringComparer.Ordinal)));
+        try
+        {
+            await Assert.That(await WaitForTheProbeAsync(contender, "the signal report to finish", cancellationToken)).IsTrue()
+                .Because(contender.Stderr);
+            var state = contender.Stderr;
+            if (OperatingSystem.IsLinux())
+            {
+                // The standard signals, 1 through 31 — the range libuv's reset loop covers. Bits 31
+                // and 32 are glibc's internal SIGCANCEL and SIGSETXID, which sigfillset leaves out
+                // and glibc's own posix_spawn child ignores by design; the C library manages them.
+                await Assert.That(StatusMask(state, "SigIgn:") & StandardSignals).IsEqualTo(0UL).Because(state);
+                await Assert.That(StatusMask(state, "SigBlk:")).IsEqualTo(0UL).Because(state);
+            }
+            else
+            {
+                await Assert.That(state.Trim()).IsEqualTo("0");
+            }
+
+            Console.WriteLine("branch: Unix — the child started with " + state.Replace('\n', ' ').Trim());
+        }
+        finally
+        {
+            KillIfRunning(contender.ProcessId);
         }
     }
 
@@ -377,6 +433,15 @@ public sealed class ServiceContenderSpawnerTests
             new ResolvedExecutable("sh", "/bin/sh", IsBatchScript: false),
             ["-c", ShQuote(command[0]) + " " + ShQuote(command[1]) + " contender-probe daemon-sleep &"],
             new Dictionary<string, string?>(StringComparer.Ordinal));
+    }
+
+    /// <summary>Reads one hexadecimal signal mask line of <c>/proc/&lt;pid&gt;/status</c>.</summary>
+    private static ulong StatusMask(string status, string field)
+    {
+        var line = status
+            .Split('\n')
+            .Single(candidate => candidate.StartsWith(field, StringComparison.Ordinal));
+        return ulong.Parse(line[field.Length..].Trim(), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
     }
 
     /// <summary>A batch shim that reports the argument line cmd.exe handed it on stderr, the contender's only open stream.</summary>

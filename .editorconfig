@@ -1038,6 +1038,24 @@ dotnet_diagnostic.S4790.severity = none
 [src/OpenCode.Sdk/Internal/BackgroundService/ServiceFileSystem.cs]
 dotnet_diagnostic.MA0045.severity = none
 
+# ServiceContenderSpawner hands the BCL anonymous pipe's child end to the native spawn as a raw
+# value: the Windows handle list is an array of raw HANDLEs, and posix_spawn_file_actions_adddup2
+# takes an int descriptor, so no SafeHandle marshalling can carry either (S3869). The pipe object
+# stays alive and undisposed across the call, and the raw value is never stored past it. The spawn
+# is synchronous by contract (a spawn failure throws from Spawn itself, ADR-0027), so the pipe's
+# cleanup on a failed spawn is a synchronous Dispose in a finally (MA0045). Winner: the synchronous
+# native-spawn contract; S3869 and MA0045 remain enabled for every other file.
+[src/OpenCode.Sdk/Internal/BackgroundService/ServiceContenderSpawner.cs]
+dotnet_diagnostic.S3869.severity = none
+dotnet_diagnostic.MA0045.severity = none
+
+# ServiceContender is IDisposable: its disposal closes the stderr pipe stream synchronously beside
+# the process handle, and the election loop and the spawner are synchronous callers. The drain owns
+# the stream on its own async path and closes it there; disposal is the second, idempotent close.
+# Winner: the synchronous disposal contract; MA0045 remains enabled for every other file.
+[src/OpenCode.Sdk/Internal/BackgroundService/ServiceContender.cs]
+dotnet_diagnostic.MA0045.severity = none
+
 # ServiceFileSystemTests seeds and reads its owned temporary directory through IFile.WriteAllText,
 # WriteAllBytes, ReadAllText, and ReadAllBytes. The test project also compiles for net472, whose
 # Testably asset is the netstandard2.0 one and carries none of the async overloads the modern asset

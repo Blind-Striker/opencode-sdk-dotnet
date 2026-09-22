@@ -24,7 +24,7 @@ stderr pipe, and an explicit inherited-handle list; `posix_spawnp` on Unix with
 `POSIX_SPAWN_SETSID`, `/dev/null` on 0 and 1, and a stderr pipe on 2 — `LibraryImport` on the
 modern targets, `DllImport` on the `netstandard2.0` asset where that generator is unavailable.
 The executable is the one the shipped launcher resolution produced, launched through `cmd.exe`
-when it is a batch shim. The seam refuses when the platform cannot provide the session-detach
+on the launcher's own `BatchCommandLine` line when it is a batch shim. The seam refuses when the platform cannot provide the session-detach
 flag; it never falls back to `Process.Start`, a shell, or a managed `fork()`. This is the spawn
 counterpart of ADR-0026's `kill(2)`, the second platform interop in the shipped SDK, and
 ADR-0001's "no process library" stands: it binds functions of the C library and the Windows
@@ -68,3 +68,16 @@ error as the inner exception.
 - A synchronous spawn failure is a public `OpenCodeServerException` with the platform error
   inside; an asynchronous child `error` after a successful create is election-loop business,
   not this seam's.
+- The stderr pipe is the BCL's `AnonymousPipeServerStream`, created by the runtime's own native
+  code: on Unix both ends are close-on-exec and only the write end crosses, as fd 2 through
+  `posix_spawn_file_actions_adddup2`; on Windows only the write end is inheritable and it enters
+  the handle list beside NUL. The parent drops its copy of the write end after the spawn. The C
+  library's `pipe` and `fcntl` are not bound: `fcntl` is variadic, and a fixed-signature
+  P/Invoke reads its third argument from the wrong place on Apple arm64.
+- The Unix child starts with every standard signal at its default disposition and an empty mask
+  (`POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK` over `sigfillset`/`sigemptyset` sets), the
+  state libuv gives a Node child; `posix_spawn` alone keeps ignored dispositions (the .NET host
+  ignores `SIGPIPE`) and the calling thread's mask. glibc's internal `SIGCANCEL`/`SIGSETXID`
+  stay the C library's own.
+- The executable is looked up through the launching process's `PATH`, by the launcher
+  resolution, not through a `PATH` the overlay carries; Node searches `options.env.PATH`.
