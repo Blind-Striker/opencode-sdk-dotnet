@@ -390,14 +390,16 @@ Architecture, decision records, and engineering policy live under [`docs/`](http
   follows as its own slice. Start a private server with `OpenCodeServer.StartAsync()` or run
   `opencode` in the meantime.
 
-- **On `net472` and `netstandard2.0` running on Unix, the legacy-registration copy applies its
-  owner-only mode through a `chmod` child process.** Discovery reproduces the CLI's one-time copy
-  of an older hashed registration filename with mode `0600`. Modern targets set the mode at creation
-  through the runtime; the downlevel targets have no such API and use the Polyfill package's
-  `File.SetUnixFileMode`, which shells out to `chmod` without quoting the path or checking its exit
-  code. The copy is a convenience the daemon's own registration supersedes, and the file is created
-  exclusively either way, so the practical exposure is a legacy copy left at the default mode on an
-  exotic path — on a runtime combination (.NET Framework or Mono on Unix) this SDK does not test.
+- **On `net472` and `netstandard2.0` running on Unix, owner-only files get their mode through a
+  `chmod` child process.** Discovery reproduces the CLI's one-time copy of an older hashed
+  registration filename, and Ensure publishes the persistent-terminal handoff sidecar, both with
+  mode `0600`. Modern targets set the mode at creation through the runtime; the downlevel targets
+  have no such API and use the Polyfill package's `File.SetUnixFileMode`, which shells out to
+  `chmod` without quoting the path or checking its exit code. Both files are created exclusively
+  either way; the registration copy is a convenience the daemon's own registration supersedes and
+  the sidecar's ticket carries its own expiry, so the practical exposure is such a file left at the
+  default mode on an exotic path — on a runtime combination (.NET Framework or Mono on Unix) this SDK
+  does not test.
 
 - **The event bus has no replay contract.** `EventsClient.SubscribeAsync` is a live, volatile
   stream: events published while you are disconnected are gone, and a consumer slower than the

@@ -180,14 +180,16 @@ is revisited at each boundary.
   [parcel-bundler/watcher#262](https://github.com/parcel-bundler/watcher/issues/262), where the
   standalone reproducer from this repository's investigation is on record.
 - **The downlevel Unix arm of the background-service door is compiled, not run.** Discovery's
-  one-time copy of an older hashed registration is created exclusively at mode `0600`: `net8.0`
-  and later set the mode at creation through `FileStreamOptions.UnixCreateMode`, while `net472`
-  and `netstandard2.0` have no such API and apply it through Polyfill's `File.SetUnixFileMode`,
-  which spawns `chmod` with an unquoted path and no exit-code check. The stop door's Unix signal
-  rungs are a `DllImport` of `kill(2)` on that asset, where the `LibraryImport` generator the
-  modern targets use is unavailable (ADR-0026). The copy is a
-  convenience the daemon's own registration supersedes, the population of that arm is Mono on Unix
-  (`net472` is Windows-only), and no CI leg runs the combination, so both are recorded rather than
+  one-time copy of an older hashed registration and Ensure's persistent-terminal handoff sidecar,
+  which carries a terminal-adoption ticket, are created exclusively at mode `0600`: `net8.0` and
+  later set the mode at creation through `FileStreamOptions.UnixCreateMode`, while `net472` and
+  `netstandard2.0` have no such API and apply it through Polyfill's `File.SetUnixFileMode`, which
+  spawns `chmod` with an unquoted path and no exit-code check, so a failed `chmod` leaves the file
+  at the process umask. The stop door's Unix signal rungs and the contender spawn are `DllImport`s
+  on that asset, where the `LibraryImport` generator the modern targets use is unavailable
+  (ADR-0026, ADR-0027). The registration copy is a convenience the daemon's own registration
+  supersedes and the ticket carries its own expiry; the population of that arm is Mono on Unix
+  (`net472` is Windows-only), and no CI leg runs the combination, so it is recorded rather than
   tested; the README's Known Issues carries the consumer-facing sentence. Reopens if a supported
   target ever needs that arm or if Polyfill quotes the path.
 - **A pid reused before `StopAsync` runs is indistinguishable from a wedged daemon.** The

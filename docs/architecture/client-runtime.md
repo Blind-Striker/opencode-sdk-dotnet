@@ -505,8 +505,9 @@ there, the same poll again. On Windows both rungs are a hard kill, which is what
 client's runtime does with a `SIGTERM` there. The registration is re-read and its `id`, `version`,
 `url`, and `pid` compared before every signal and before the removal, so a record another service
 replaced is never acted on; and the process is identified as (pid, start time), compared
-immediately before every send and at every look of the poll, so a pid the operating system reused
-is never signalled and reads as the registered process being gone (ADR-0026). A zombie — exited,
+immediately before every send and at every look of the poll, so a pid the operating system reuses
+during the stop is never signalled and reads as the registered process being gone (ADR-0026); a
+reuse before the stop runs is the Known Gap the roadmap records. A zombie — exited,
 not yet reaped by its parent — reads as gone too. A missing or corrupt registration completes successfully; a sidecar
 that cannot be removed and a process still running after the kill rung throw
 `OpenCodeServerException`, the registration then left in place; cancellation before a signal
@@ -528,10 +529,14 @@ exception. The spawned command registers where its own compiled channel and envi
 `Channel`, `Command`, and `Environment` must agree with the registration the call reads, or the call
 waits out the bound. Contenders are reaped by the SDK as they exit. `OnStart` fires at most once.
 The returned handle is the same non-owning shape discovery returns. Persistent-terminal sidecar I/O is behind
-`IServicePtyHandoff`: `prepare` calls the generated handoff door under the request bound and
-publishes the ticket beside the registration through an owner-only temporary file and a
-replace-on-success rename, reusing a fresh matching sidecar and, when the daemon answers 404,
-shutting its terminals down best-effort and publishing a null sidecar with a 30-second expiry;
+`IServicePtyHandoff`: `prepare` requests the handoff ticket under the request bound through the
+SDK's own request pipeline and keeps it raw, so it reaches the replacement exactly as the route
+answered it — the receiving daemon decodes it with its own schema — and publishes it beside the
+registration through an owner-only temporary file and a replace-on-success rename (`File.Replace`
+on the downlevel targets). It reuses a fresh matching sidecar and, whenever the request fails,
+first re-checks for one a concurrent caller published; when the daemon answers 404 it shuts its
+terminals down — a shutdown failure other than 404 fails the preparation, as upstream's does — and
+publishes a null sidecar with a 30-second expiry. A failure keeps its cause as the inner exception;
 `environment` adopts an unexpired sidecar whose source still matches the current registration (or
 whose registration is gone) as `OPENCODE_PTY_HANDOFF` and removes the variable otherwise;
 `complete` clears only a sidecar a different source wrote, with no expiry check; and `clear`

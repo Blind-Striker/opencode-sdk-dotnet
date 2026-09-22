@@ -50,11 +50,15 @@ internal sealed class ServiceFileSystem : IServiceFileSystem
         // atomic sidecar publication.
         File.Move(source, destination, overwrite: true);
 #else
-        // net472 and netstandard2.0 have no overwrite overload; deleting the destination first is
-        // the closest arm the pinned client's replace-on-success rename has there.
+        // net472 and netstandard2.0 have no overwrite overload. File.Replace swaps an existing
+        // destination in one step (ReplaceFile on Windows, rename(2) under Mono), so no reader ever
+        // sees the destination missing and a failed replace leaves it untouched; a destination that
+        // does not exist yet is a plain move. A destination removed between the two looks fails the
+        // replace, which the publisher reports and the election retries.
         if (File.Exists(destination))
         {
-            File.Delete(destination);
+            File.Replace(source, destination, destinationBackupFileName: null);
+            return;
         }
 
         File.Move(source, destination);

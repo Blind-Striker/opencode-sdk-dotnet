@@ -180,12 +180,13 @@ public class OpenCodeServer : IAsyncDisposable
     {
         var timing = ServiceTiming.Default;
         var fileSystem = new ServiceFileSystem();
+        var ptyShutdown = new ServicePtyShutdown();
         var stopper = new ServiceStopper(
             new ServiceEnvironment(),
             fileSystem,
             new ServiceInfoProbe(timing),
-            new ServicePtyShutdown(),
-            new ServicePtyHandoff(fileSystem, new ServiceClock()),
+            ptyShutdown,
+            new ServicePtyHandoff(fileSystem, new ServiceClock(), ptyShutdown),
             new ServiceProcessControl(),
             timing);
         return stopper.StopAsync(options, cancellationToken);
@@ -234,7 +235,7 @@ public class OpenCodeServer : IAsyncDisposable
             fileSystem,
             new ServiceInfoProbe(timing),
             new ServiceContenderSpawner(),
-            new ServicePtyHandoff(fileSystem, clock),
+            new ServicePtyHandoff(fileSystem, clock, new ServicePtyShutdown()),
             new ServiceProcessControl(),
             clock,
             new ExecutableResolver(ExecutableSearchEnvironment.ForCurrentProcess()),

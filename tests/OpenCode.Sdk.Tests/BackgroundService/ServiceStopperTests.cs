@@ -326,7 +326,7 @@ public sealed class ServiceStopperTests
             fileSystem,
             _probe,
             _ptyShutdown,
-            new ServicePtyHandoff(fileSystem, _clock),
+            new ServicePtyHandoff(fileSystem, _clock, _ptyShutdown),
             _processControl,
             Timing);
 
@@ -336,25 +336,6 @@ public sealed class ServiceStopperTests
 
         await Assert.That(exception!.InnerException).IsTypeOf<UnauthorizedAccessException>();
         _ = _processControl.DidNotReceiveWithAnyArgs().TrySignal(default, default);
-    }
-
-    [Test]
-    public async Task StopAsync_Should_Route_The_Sidecar_Clear_Through_The_Handoff_Seam()
-    {
-        SeedModern();
-        var handoff = Substitute.For<IServicePtyHandoff>();
-        var stopper = new ServiceStopper(
-            _environment,
-            new TestablyServiceFileSystem(_fileSystem),
-            _probe,
-            _ptyShutdown,
-            handoff,
-            _processControl,
-            Timing);
-
-        await stopper.StopAsync(options: null, CancellationToken.None);
-
-        _ = handoff.Received(1).ClearAsync(SharedRegistrationPath(), Arg.Any<CancellationToken>());
     }
 
     [Test]
@@ -461,7 +442,7 @@ public sealed class ServiceStopperTests
             new TestablyServiceFileSystem(_fileSystem),
             _probe,
             _ptyShutdown,
-            new ServicePtyHandoff(new TestablyServiceFileSystem(_fileSystem), _clock),
+            new ServicePtyHandoff(new TestablyServiceFileSystem(_fileSystem), _clock, _ptyShutdown),
             _processControl,
             Timing);
 
