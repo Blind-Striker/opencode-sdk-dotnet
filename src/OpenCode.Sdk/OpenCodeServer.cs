@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Internal.BackgroundService;
+using OpenCode.Sdk.Internal.BackgroundService.Abstractions;
 using OpenCode.Sdk.Internal.BackgroundService.Contender;
 using OpenCode.Sdk.Internal.BackgroundService.Discovery;
 using OpenCode.Sdk.Internal.BackgroundService.Ensure;
@@ -213,24 +214,29 @@ public class OpenCodeServer : IAsyncDisposable
     public static Task<OpenCodeServer> EnsureAsync(
         OpenCodeServerEnsureOptions? options = null,
         CancellationToken cancellationToken = default) =>
-        EnsureWithTimingAsync(options, ServiceTiming.Default, cancellationToken);
+        EnsureWithSeamsAsync(options, ServiceTiming.Default, new ServiceContenderSpawner(), cancellationToken);
 
     /// <summary>
-    /// The timing-injected Ensure the tests use the way upstream's <c>withEnsureTiming</c> keeps test
-    /// timing out of the public option types: an internal seam, never on
-    /// <see cref="OpenCodeServerEnsureOptions"/>, so the shipped surface stays unchanged while a live
-    /// proof accelerates the election loop's spawn delay and probe bound.
+    /// The seam-injected Ensure the tests use, kept out of the public option types the way upstream's
+    /// <c>withEnsureTiming</c> keeps test timing out of its own: an internal seam, never on
+    /// <see cref="OpenCodeServerEnsureOptions"/>, so the shipped surface stays unchanged. A live
+    /// proof accelerates the election loop's spawn delay and probe bound through the timing, and
+    /// wraps the contender spawner to learn every process the election starts — the door releases
+    /// its contenders rather than returning them, the way the pinned loop does, so nothing else can.
     /// </summary>
     /// <param name="options">The ensure options; null uses every default.</param>
     /// <param name="timing">The lifecycle timing; the public door passes <see cref="ServiceTiming.Default"/>.</param>
+    /// <param name="spawner">The contender spawn; the public door passes the platform spawner.</param>
     /// <param name="cancellationToken">The caller's token; its cancellation propagates.</param>
     /// <returns>A non-owning handle over the ready service.</returns>
-    internal static async Task<OpenCodeServer> EnsureWithTimingAsync(
+    internal static async Task<OpenCodeServer> EnsureWithSeamsAsync(
         OpenCodeServerEnsureOptions? options,
         ServiceTiming timing,
+        IServiceContenderSpawner spawner,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(timing);
+        ArgumentNullException.ThrowIfNull(spawner);
 
         var fileSystem = new ServiceFileSystem();
         var clock = new ServiceClock();
@@ -238,7 +244,7 @@ public class OpenCodeServer : IAsyncDisposable
             new ServiceEnvironment(),
             fileSystem,
             new ServiceInfoProbe(timing),
-            new ServiceContenderSpawner(),
+            spawner,
             new ServicePtyHandoff(fileSystem, clock, new ServicePtyShutdown()),
             new ServiceProcessControl(),
             clock,

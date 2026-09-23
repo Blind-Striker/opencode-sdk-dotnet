@@ -170,6 +170,19 @@ true; the fixture hands the boundary to the child process it starts.
   `CreateClient()` therefore defaults to an empty directory of its own; a test passes a
   `LocationSelector` when the location is its subject. An external endpoint gets no default,
   because it may not share this machine's filesystem.
+- **An owned process never outlives its fixture.** Teardown ends every process its test started and
+  waits for each to leave before it removes the run root: a server still running under a removed
+  root recreates it and keeps running unowned. The Ensure door releases the contenders it starts
+  instead of returning them, the way the pinned loop does, so `EnsureServiceContext` runs every
+  election through the internal `OpenCodeServer.EnsureWithSeamsAsync` with a `ContenderLedger`
+  spawner, which records each contender as it is spawned; the isolated fixture process records into
+  the same ledger. A contender is recorded as a `ProcessMark`, its pid with the start the operating
+  system keeps for it — on Linux the tick count in `/proc/<pid>/stat`, because .NET's
+  `Process.StartTime` there rests on a boot time each process derives from the wall clock, so two
+  processes can read one start tens of seconds apart. Teardown keeps the order of the pinned CLI's
+  own election test: the losers leave on their own before the winner is ended, because ending the
+  winner first hands the registration to a loser that is still starting. A registration that still
+  names a live process after everything recorded was ended fails the test.
 - **Fail fast, never skip.** A missing submodule, a missing install, or a contaminated run-root
   chain is an instructive error, not a skipped test.
 

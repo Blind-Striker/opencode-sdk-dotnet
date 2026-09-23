@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using OpenCode.Sdk.Internal.BackgroundService.Ensure;
 using OpenCode.Sdk.Internal.BackgroundService.Registration;
 using OpenCode.Sdk.Tests.Support;
 using Testably.Abstractions;
@@ -12,10 +13,13 @@ namespace OpenCode.Sdk.TestSupport;
 /// empty config seed naming that port, the channel's registration path (<c>local</c> for the
 /// source run, the shared <c>service.json</c> a release build uses otherwise), and the
 /// forwarding <c>opencode</c> shim the Ensure loop's default command resolves. The spawned service
-/// is the launcher's to make ready and to end; this type only owns the boundary. On disposal it
-/// ends every contender the shim started (Unix records each pid), any process a test tracked, and
-/// whatever is registered, waits for each to leave, and removes the run root — or keeps it, with
-/// the daemon log's tail printed, when the test failed.
+/// is the launcher's to make ready and to end; this type only owns the boundary. Every election it
+/// runs records its contenders in the <see cref="ContenderLedger"/>. On disposal it lets the
+/// election settle the way the pinned CLI's own election test does before it ends the winner —
+/// every loser leaves once it finds the elected service — then ends every recorded contender and
+/// whatever is registered, waits for each to leave, refuses a registration a process took over
+/// behind its back, and removes the run root — or keeps it, with the daemon log's tail printed,
+/// when the test failed.
 /// </summary>
 internal sealed class EnsureServiceContext : IAsyncDisposable
 {
@@ -23,14 +27,20 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
     private const int LogTailLines = 40;
     private static readonly TimeSpan ExitBound = TimeSpan.FromSeconds(15);
 
+    /// <summary>
+    /// The bound the pinned CLI's election test gives its losers to leave
+    /// (<c>concurrent service processes elect one server</c> in <c>packages/cli/test/service.test.ts</c>).
+    /// </summary>
+    private static readonly TimeSpan SettleBound = TimeSpan.FromSeconds(60);
+
     private readonly RealFileSystem _fileSystem = new();
-    private readonly List<int> _processes = [];
     private TestRunRoot? _runRoot;
     private Dictionary<string, string>? _environment;
     private string? _registrationFile;
     private string? _shimDirectory;
     private string? _shimPath;
-    private string? _contenderPidFile;
+    private string? _ledgerPath;
+    private ContenderLedger? _ledger;
     private string? _channelFile;
     private int _port;
     private int _disposed;
@@ -74,9 +84,73 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
     /// <summary>Gets the shim's full path, for an explicit <see cref="OpenCodeServerEnsureOptions.Command"/>.</summary>
     public string ShimPath => _shimPath!;
 
-    /// <summary>Records a spawned service pid this context ends on disposal.</summary>
-    /// <param name="processId">The pid the registration published.</param>
-    public void TrackProcess(int processId) => _processes.Add(processId);
+    /// <summary>Gets the ledger every election this context runs records its contenders in; the isolated fixture process records into it too.</summary>
+    public string LedgerPath => _ledgerPath!;
+
+    /// <summary>Runs one Ensure election through the ledger at the pinned timing.</summary>
+    /// <param name="options">The ensure options.</param>
+    /// <param name="cancellationToken">The caller's token.</param>
+    /// <returns>The non-owning handle Ensure returns.</returns>
+    public Task<OpenCodeServer> EnsureAsync(OpenCodeServerEnsureOptions options, CancellationToken cancellationToken) =>
+        EnsureAsync(options, ServiceTiming.Default, cancellationToken);
+
+    /// <summary>Runs one Ensure election through the ledger at an injected timing.</summary>
+    /// <param name="options">The ensure options.</param>
+    /// <param name="timing">The lifecycle timing.</param>
+    /// <param name="cancellationToken">The caller's token.</param>
+    /// <returns>The non-owning handle Ensure returns.</returns>
+    public Task<OpenCodeServer> EnsureAsync(OpenCodeServerEnsureOptions options, ServiceTiming timing, CancellationToken cancellationToken) =>
+        OpenCodeServer.EnsureWithSeamsAsync(options, timing, Ledger, cancellationToken);
+
+    /// <summary>Reads every recorded contender still running, identified by this process.</summary>
+    /// <param name="cancellationToken">The caller's token.</param>
+    /// <returns>The live contenders.</returns>
+    public Task<IReadOnlyList<ProcessMark>> ReadLiveContendersAsync(CancellationToken cancellationToken) =>
+        Ledger.ReadLiveAsync(cancellationToken);
+
+    /// <summary>
+    /// Waits until the elections this context ran have settled: every recorded contender has left
+    /// except, while the registration names a live service, the one contender hosting it — the
+    /// losers find the elected service and exit on their own, which the pinned CLI's election test
+    /// waits for before it ends the winner. On Unix the shim execs the server, so a contender is the
+    /// server itself; on Windows it is the batch shim's cmd.exe host, which lives exactly as long as
+    /// the server it waits on.
+    /// </summary>
+    /// <param name="cancellationToken">The caller's token.</param>
+    /// <returns>True when the elections settled inside the pinned bound.</returns>
+    public async Task<bool> SettleAsync(CancellationToken cancellationToken)
+    {
+        using var bound = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        bound.CancelAfter(SettleBound);
+
+        var contenders = await Ledger.ReadLiveAsync(cancellationToken).ConfigureAwait(false);
+        var hosting = await ReadRegisteredAsync().ConfigureAwait(false) is null ? 0 : 1;
+        var exits = contenders
+            .Select(contender => ProcessObservation.WaitForExitAsync(contender.ProcessId, bound.Token))
+            .ToList();
+        try
+        {
+            while (exits.Count > hosting)
+            {
+                var exited = await Task.WhenAny(exits).ConfigureAwait(false);
+                await exited.ConfigureAwait(false);
+                _ = exits.Remove(exited);
+            }
+
+            return true;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return false;
+        }
+        finally
+        {
+            // The wait on the winner's host is the one still pending; it has nothing left to tell.
+            await bound.CancelAsync().ConfigureAwait(false);
+        }
+    }
+
+    private ContenderLedger Ledger => _ledger ?? throw new InvalidOperationException("The context is initialized before any election runs.");
 
     /// <summary>Keeps the run root, and prints the daemon log's tail, instead of removing it: the evidence a failed test needs.</summary>
     public void KeepForDiagnosis() => _keep = true;
@@ -106,25 +180,58 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
             return;
         }
 
-        // Every contender the shim started (the losers Ensure released included), every tracked
-        // pid, and — for a test that failed before it tracked its winner — whatever is registered.
-        var processIds = new HashSet<int>(_processes);
-        processIds.UnionWith(await ReadContenderPidsAsync().ConfigureAwait(false));
-        if (await ReadRegisteredPidAsync().ConfigureAwait(false) is { } registered)
+        // Ending the winner while a loser is still starting hands the registration to that loser:
+        // it finds nothing registered and elects itself. Past the bound, whatever is left is ended
+        // regardless, and the takeover check below reports a loser that got there first.
+        _ = await SettleAsync(CancellationToken.None).ConfigureAwait(false);
+
+        var targets = new HashSet<ProcessMark>(await Ledger.ReadLiveAsync(CancellationToken.None).ConfigureAwait(false));
+        if (await ReadRegisteredAsync().ConfigureAwait(false) is { } registered)
         {
-            _ = processIds.Add(registered);
+            _ = targets.Add(registered);
         }
 
-        foreach (var processId in processIds)
+        await EndAsync(targets).ConfigureAwait(false);
+
+        // Everything recorded has been ended, so a registration that still names a live process is
+        // a failure of this boundary: end that process too, keep the evidence, and fail the test.
+        if (await ReadRegisteredAsync().ConfigureAwait(false) is { } survivor)
         {
-            ProcessObservation.KillIfRunning(processId);
+            await EndAsync([survivor]).ConfigureAwait(false);
+            _keep = true;
+            var runRoot = RunRoot;
+            await ReleaseRunRootAsync().ConfigureAwait(false);
+            var pid = survivor.ProcessId.ToString(CultureInfo.InvariantCulture);
+            throw new InvalidOperationException(targets.Contains(survivor)
+                ? $"Registered process {pid} did not leave within {ExitBound.TotalSeconds.ToString(CultureInfo.InvariantCulture)} s of being ended; run root kept: {runRoot}"
+                : $"Process {pid} took the registration over after every recorded contender was ended, so no election of this context recorded it; run root kept: {runRoot}");
         }
 
-        // A late contender that booted after its run root was deleted recreates the XDG folders
-        // without home/ and fails its chdir: wait for every one to leave before removing anything.
-        foreach (var processId in processIds)
+        await ReleaseRunRootAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>Ends the tree of each marked process that still runs, then waits for each of those to leave.</summary>
+    private async Task EndAsync(IEnumerable<ProcessMark> targets)
+    {
+        var alive = targets.Where(target => target.IsRunning(_fileSystem)).ToList();
+        foreach (var target in alive)
         {
-            _ = await ProcessObservation.ObserveExitWithinAsync(processId, ExitBound, CancellationToken.None).ConfigureAwait(false);
+            ProcessObservation.KillIfRunning(target.ProcessId);
+        }
+
+        // A run root is removed only once nothing started under it is left to write into it.
+        foreach (var target in alive)
+        {
+            _ = await ProcessObservation.ObserveExitWithinAsync(target.ProcessId, ExitBound, CancellationToken.None).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Removes the run root, or keeps it with the daemon log's tail printed when a failure asked for the evidence.</summary>
+    private async Task ReleaseRunRootAsync()
+    {
+        if (_runRoot is null)
+        {
+            return;
         }
 
         var keep = _keep || string.Equals(
@@ -138,32 +245,17 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
         }
         else
         {
-            _runRoot?.Dispose();
+            _runRoot.Dispose();
         }
 
         _runRoot = null;
     }
 
-    private async Task<IEnumerable<int>> ReadContenderPidsAsync()
-    {
-        if (_contenderPidFile is not { } file || !_fileSystem.File.Exists(file))
-        {
-            return [];
-        }
-
-        var text = await ReadSharedAsync(file).ConfigureAwait(false);
-        return
-        [
-            .. text
-                .Split('\n')
-                .Select(static line => int.TryParse(line.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var pid) ? pid : 0)
-                .Where(static pid => pid > 0),
-        ];
-    }
-
-    private async Task<int?> ReadRegisteredPidAsync() =>
+    /// <summary>The mark of the live process the registration names, or null when none is registered or it is gone.</summary>
+    private async Task<ProcessMark?> ReadRegisteredAsync() =>
         _registrationFile is { } file
-            ? (await ServiceRegistrationReader.TryReadAsync(new TestablyServiceFileSystem(_fileSystem), file, CancellationToken.None).ConfigureAwait(false))?.ProcessId
+        && await ServiceRegistrationReader.TryReadAsync(new TestablyServiceFileSystem(_fileSystem), file, CancellationToken.None).ConfigureAwait(false) is { } registration
+            ? ProcessMark.TryRead(_fileSystem, registration.ProcessId)
             : null;
 
     /// <summary>The newest daemon log's final lines, the evidence a failed election leaves.</summary>
@@ -206,9 +298,9 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
             _environment["XDG_STATE_HOME"], "opencode", _channelFile!);
         await SeedConfigAsync(cancellationToken).ConfigureAwait(false);
         _shimDirectory = _runRoot.CreateSubdirectory("shim");
-        _contenderPidFile = _fileSystem.Path.Combine(_runRoot.Path, "contenders.pid");
-        _shimPath = await OpenCodeCommandShim.WriteAsync(_fileSystem, _shimDirectory, _contenderPidFile, cancellationToken)
-            .ConfigureAwait(false);
+        _ledgerPath = _fileSystem.Path.Combine(_runRoot.Path, "contenders.ledger");
+        _ledger = new ContenderLedger(_fileSystem, _ledgerPath);
+        _shimPath = await OpenCodeCommandShim.WriteAsync(_fileSystem, _shimDirectory, cancellationToken).ConfigureAwait(false);
     }
 
     private static int ReservePort()

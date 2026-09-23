@@ -11,6 +11,13 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/OpenCode.Sdk/OpenCode.Sdk.csproj" />
+    <PackageReference Include="Testably.Abstractions" />
+  </ItemGroup>
+
+  <!-- The Ensure mode records its contenders in the ledger the launching test reads. -->
+  <ItemGroup>
+    <Compile Include="../Shared/ContenderLedger.cs" LinkBase="Shared" />
+    <Compile Include="../Shared/ProcessMark.cs" LinkBase="Shared" />
   </ItemGroup>
 
 </Project>
