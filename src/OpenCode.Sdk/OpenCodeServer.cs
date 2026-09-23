@@ -5,6 +5,13 @@ using System.Security.Cryptography;
 using System.Text;
 using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Internal.BackgroundService;
+using OpenCode.Sdk.Internal.BackgroundService.Contender;
+using OpenCode.Sdk.Internal.BackgroundService.Discovery;
+using OpenCode.Sdk.Internal.BackgroundService.Ensure;
+using OpenCode.Sdk.Internal.BackgroundService.Handoff;
+using OpenCode.Sdk.Internal.BackgroundService.ProcessControl;
+using OpenCode.Sdk.Internal.BackgroundService.Registration;
+using OpenCode.Sdk.Internal.BackgroundService.Stop;
 using OpenCode.Sdk.Internal.Diagnostics;
 
 namespace OpenCode.Sdk;

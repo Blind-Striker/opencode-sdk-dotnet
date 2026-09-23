@@ -1,3 +1,5 @@
+using OpenCode.Sdk.Internal.BackgroundService.Handoff;
+using OpenCode.Sdk.Internal.BackgroundService.Registration;
 namespace OpenCode.Sdk.Internal.BackgroundService.Abstractions;
 
 /// <summary>

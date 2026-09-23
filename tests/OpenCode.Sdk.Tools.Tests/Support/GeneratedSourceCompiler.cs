@@ -46,8 +46,8 @@ internal static class GeneratedSourceCompiler
     /// </summary>
     internal static readonly (string Consumer, string RequiredEmission)[] GeneratedSurfaceConsumers =
     [
-        ("Internal/BackgroundService/ServicePtyHandoff.cs", "PersistentPtys/PersistentPtysRawClient.cs"),
-        ("Internal/BackgroundService/ServicePtyShutdown.cs", "PersistentPtys/PersistentPtysRawClient.cs"),
+        ("Internal/BackgroundService/Handoff/ServicePtyHandoff.cs", "PersistentPtys/PersistentPtysRawClient.cs"),
+        ("Internal/BackgroundService/Stop/ServicePtyShutdown.cs", "PersistentPtys/PersistentPtysRawClient.cs"),
         ("Internal/PersistentPtyFrameDecoder.cs", "Models/PersistentPtyInfo.cs"),
         ("OpenCodeServer.cs", "PersistentPtys/PersistentPtysRawClient.cs"),
         ("PersistentPtys/PersistentPtyAttachedFrame.cs", "Models/PersistentPtyInfo.cs"),

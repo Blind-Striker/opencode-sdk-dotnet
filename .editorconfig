@@ -1025,7 +1025,7 @@ dotnet_diagnostic.CA2000.severity = none
 # service-<sha1(channel)>.json (packages/util/src/hash.ts, createHash("sha1") over the raw channel
 # name): a filename derivation over a public string, not a security primitive. Winner: byte-for-byte
 # parity with the pinned CLI; CA5350 and its Sonar twin S4790 stay enabled for every other file.
-[src/OpenCode.Sdk/Internal/BackgroundService/ServiceLegacyFilename.cs]
+[src/OpenCode.Sdk/Internal/BackgroundService/Registration/ServiceLegacyFilename.cs]
 dotnet_diagnostic.CA5350.severity = none
 dotnet_diagnostic.S4790.severity = none
 
@@ -1045,7 +1045,7 @@ dotnet_diagnostic.MA0045.severity = none
 # is synchronous by contract (a spawn failure throws from Spawn itself, ADR-0027), so the pipe's
 # cleanup on a failed spawn is a synchronous Dispose in a finally (MA0045). Winner: the synchronous
 # native-spawn contract; S3869 and MA0045 remain enabled for every other file.
-[src/OpenCode.Sdk/Internal/BackgroundService/ServiceContenderSpawner.{Windows,Unix}.cs]
+[src/OpenCode.Sdk/Internal/BackgroundService/Contender/ServiceContenderSpawner.{Windows,Unix}.cs]
 dotnet_diagnostic.S3869.severity = none
 dotnet_diagnostic.MA0045.severity = none
 
@@ -1053,7 +1053,7 @@ dotnet_diagnostic.MA0045.severity = none
 # the process handle, and the election loop and the spawner are synchronous callers. The drain owns
 # the stream on its own async path and closes it there; disposal is the second, idempotent close.
 # Winner: the synchronous disposal contract; MA0045 remains enabled for every other file.
-[src/OpenCode.Sdk/Internal/BackgroundService/ServiceContender.cs]
+[src/OpenCode.Sdk/Internal/BackgroundService/Contender/ServiceContender.cs]
 dotnet_diagnostic.MA0045.severity = none
 
 # ServiceProcessControl.TrySnapshot reads /proc/<pid>/stat on Linux to tell a zombie from a live
@@ -1061,7 +1061,7 @@ dotnet_diagnostic.MA0045.severity = none
 # is synchronous by contract — the stop ladder and the election poll it between timer waits, and a
 # process identity is a value, not an operation. Winner: the synchronous process-identity seam;
 # MA0045 remains enabled for every other file.
-[src/OpenCode.Sdk/Internal/BackgroundService/ServiceProcessControl.cs]
+[src/OpenCode.Sdk/Internal/BackgroundService/ProcessControl/ServiceProcessControl.cs]
 dotnet_diagnostic.MA0045.severity = none
 
 # ServiceFileSystemTests seeds and reads its owned temporary directory through IFile.WriteAllText,
@@ -1079,7 +1079,7 @@ dotnet_diagnostic.S6966.severity = none
 # synchronous IFile members, for the same reason: the net472 leg compiles the netstandard2.0 Testably
 # asset, which has no async overloads, and the calls are arrangement over an in-memory fake. Winner:
 # one source for every test leg; CA1849, VSTHRD103, S6966, and MA0045 remain enabled elsewhere.
-[tests/OpenCode.Sdk.Tests/BackgroundService/ServiceMigrationTests.cs]
+[tests/OpenCode.Sdk.Tests/BackgroundService/Registration/ServiceMigrationTests.cs]
 dotnet_diagnostic.CA1849.severity = none
 dotnet_diagnostic.VSTHRD103.severity = none
 dotnet_diagnostic.S6966.severity = none
@@ -1087,26 +1087,26 @@ dotnet_diagnostic.MA0045.severity = none
 
 # ServiceDiscoveryTests seeds registrations on the same double through the same synchronous
 # member, for the same reason. Winner: one source for every test leg; MA0045 remains enabled elsewhere.
-[tests/OpenCode.Sdk.Tests/BackgroundService/ServiceDiscoveryTests.cs]
+[tests/OpenCode.Sdk.Tests/BackgroundService/Discovery/ServiceDiscoveryTests.cs]
 dotnet_diagnostic.MA0045.severity = none
 
 # ServiceStopperTests seeds registrations and sidecars and reads a replaced record back on the same
 # double through the same synchronous members, for the same reason: the net472 leg compiles the
 # netstandard2.0 Testably asset, which has no async overloads. Winner: one source for every test
 # leg; MA0045 remains enabled elsewhere.
-[tests/OpenCode.Sdk.Tests/BackgroundService/ServiceStopperTests.cs]
+[tests/OpenCode.Sdk.Tests/BackgroundService/Stop/ServiceStopperTests.cs]
 dotnet_diagnostic.MA0045.severity = none
 
 # OpenCodeServerDiscoveryIsolatedProcessTests seeds an isolated registration on the real filesystem
 # through the same synchronous member, for the same reason. Winner: one source for every test leg;
 # MA0045 remains enabled elsewhere.
-[tests/OpenCode.Sdk.Tests/BackgroundService/OpenCodeServerDiscoveryIsolatedProcessTests.cs]
+[tests/OpenCode.Sdk.Tests/BackgroundService/Discovery/OpenCodeServerDiscoveryIsolatedProcessTests.cs]
 dotnet_diagnostic.MA0045.severity = none
 
 # OpenCodeServerStopLiveTests and OpenCodeServerStopEscalationTests seed a registration or a handoff
 # sidecar on the real filesystem through the same synchronous member, for the same reason. Winner:
 # one source for every test leg; MA0045 remains enabled elsewhere.
-[tests/OpenCode.Sdk.Tests/BackgroundService/OpenCodeServerStop{Live,Escalation}Tests.cs]
+[tests/OpenCode.Sdk.Tests/BackgroundService/Stop/OpenCodeServerStop{Live,Escalation}Tests.cs]
 dotnet_diagnostic.MA0045.severity = none
 
 # DriveManifestTests targets net472 in this project's Windows leg. The regex source generator's

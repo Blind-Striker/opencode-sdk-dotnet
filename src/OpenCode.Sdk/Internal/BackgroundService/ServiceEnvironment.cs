@@ -1,5 +1,5 @@
 using OpenCode.Sdk.Internal.BackgroundService.Abstractions;
-using static OpenCode.Sdk.Internal.BackgroundService.BackgroundServiceInterop;
+using static OpenCode.Sdk.Internal.BackgroundService.ProcessControl.BackgroundServiceInterop;
 
 namespace OpenCode.Sdk.Internal.BackgroundService;
 

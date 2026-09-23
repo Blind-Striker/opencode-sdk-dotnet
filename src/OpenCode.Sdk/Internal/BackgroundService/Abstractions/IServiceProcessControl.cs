@@ -1,3 +1,4 @@
+using OpenCode.Sdk.Internal.BackgroundService.ProcessControl;
 namespace OpenCode.Sdk.Internal.BackgroundService.Abstractions;
 
 /// <summary>
