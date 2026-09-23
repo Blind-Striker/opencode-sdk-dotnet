@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using OpenCode.Sdk.Internal;
-using OpenCode.Sdk.Internal.BackgroundService;
+using OpenCode.Sdk.Internal.BackgroundService.Registration;
 using OpenCode.Sdk.Tests.Support;
 using Testably.Abstractions;
 using TUnit.Core.Interfaces;
@@ -228,26 +228,9 @@ public sealed class PinnedManagedServiceFixture : IAsyncInitializer, IAsyncDispo
             $"The managed service did not register at '{RegistrationFile}' and answer health within {OwnedServerPolicy.ReadinessTimeout}.{System.Environment.NewLine}{OutputTail()}");
     }
 
-    private async Task<ServiceRegistration?> TryReadRegistrationAsync()
-    {
-        if (!_fileSystem.File.Exists(RegistrationFile))
-        {
-            return null;
-        }
-
-        try
-        {
-            using var stream = _fileSystem.FileStream.New(RegistrationFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            using var buffer = new MemoryStream();
-            await stream.CopyToAsync(buffer).ConfigureAwait(false);
-            return ServiceRegistrationReader.TryRead(buffer.ToArray());
-        }
-        catch (IOException)
-        {
-            // The daemon renames its temp file into place; a torn read simply polls again.
-            return null;
-        }
-    }
+    /// <summary>The SDK's own read: a missing, torn, or undecodable file is no registration yet, and the poll tries again.</summary>
+    private Task<ServiceRegistration?> TryReadRegistrationAsync() =>
+        ServiceRegistrationReader.TryReadAsync(new TestablyServiceFileSystem(_fileSystem), RegistrationFile, CancellationToken.None);
 
     private async Task<bool> AnswersHealthAsync(ServiceRegistration registration)
     {

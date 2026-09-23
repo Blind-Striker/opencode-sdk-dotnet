@@ -49,8 +49,9 @@ public sealed class ExternalServerEndpointTests
     [Test]
     [Arguments("")]
     [Arguments("   ")]
-    public async Task FromEnvironment_Should_Throw_Naming_The_Password_Variable_When_It_Is_Blank(string blankPassword)
+    public async Task FromEnvironment_Should_Carry_A_Blank_Password_As_Written(string blankPassword)
     {
+        // The client sends any non-null password as written, as the pinned client does.
         string? Read(string name) => name switch
         {
             "OPENCODE_SDK_TESTS_ENDPOINT" => Endpoint,
@@ -58,11 +59,10 @@ public sealed class ExternalServerEndpointTests
             _ => null,
         };
 
-        var exception = await Assert
-            .That(() => ExternalServerEndpoint.FromEnvironment(Read))
-            .Throws<InvalidOperationException>();
+        var endpoint = ExternalServerEndpoint.FromEnvironment(Read);
 
-        await Assert.That(exception!.Message).Contains("OPENCODE_SDK_TESTS_PASSWORD");
+        await Assert.That(endpoint).IsNotNull();
+        await Assert.That(endpoint!.Password).IsEqualTo(blankPassword);
     }
 
     [Test]

@@ -11,13 +11,7 @@ public sealed class OpenCodeServerContractTests
 
     private static OpenCodeServer CreateStartedDoor() => new(DoorEndpoint, DoorPassword);
 
-    private static OpenCodeServer CreateDiscoveredDoor() => new(DoorEndpoint, DoorPassword, processId: 48213, ownsProcess: false);
-
-    [Test]
-    public async Task OwnsProcess_Should_Be_False_For_The_Contract_Seam()
-    {
-        await Assert.That(CreateStartedDoor().OwnsProcess).IsFalse();
-    }
+    private static OpenCodeServer CreateDiscoveredDoor() => new(DoorEndpoint, DoorPassword, processId: 48213);
 
     [Test]
     public async Task OwnsProcess_Should_Be_False_For_A_Bare_Mock()

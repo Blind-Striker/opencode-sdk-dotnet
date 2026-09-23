@@ -29,22 +29,21 @@ public sealed class OperationNamePolicyTests
     /// <summary>
     /// The HTTP method is never a name source (ADR-0008): an operation whose closing segment is not
     /// a grammar verb and whose method is not GET has no mechanical name and refuses until an
-    /// operationNames row names it; the refusal names the fallback it would have produced.
+    /// operationNames row names it.
     /// </summary>
     [Test]
-    [Arguments("session.prompt", "post", "prompt", "PostPromptAsync")]
-    [Arguments("session.revert.clear", "delete", "clear", "DeleteRevertClearAsync")]
-    [Arguments("integration.connect.key", "post", "key", "PostConnectKeyAsync")]
-    [Arguments("experimental.session.instructions.entry.put", "put", "put", "PutSessionInstructionsEntryAsync")]
-    public async Task MethodName_Should_Refuse_A_Non_Get_Without_A_Grammar_Verb(string operationId, string method,
-        string closing, string fallback)
+    [Arguments("session.prompt", "post", "prompt")]
+    [Arguments("session.revert.clear", "delete", "clear")]
+    [Arguments("integration.connect.key", "post", "key")]
+    [Arguments("experimental.session.instructions.entry.put", "put", "put")]
+    public async Task MethodName_Should_Refuse_A_Non_Get_Without_A_Grammar_Verb(string operationId, string method, string closing)
     {
         var operation = Operation(operationId, method);
 
         await Assert.That(OperationNamePolicy.MethodName(operation)).IsNull();
         await Assert.That(OperationNamePolicy.RowRequiredProblem(operation)).IsEqualTo(
             $"operation '{operationId}' closes with '{closing}', which is not a naming verb, and no operationNames row names it; "
-            + $"the HTTP method is never a name source (mechanical fallback would have been '{fallback}')");
+            + "the HTTP method is never a name source (ADR-0008)");
     }
 
     [Test]

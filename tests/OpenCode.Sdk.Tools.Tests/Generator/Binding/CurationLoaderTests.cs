@@ -61,7 +61,7 @@ public sealed class CurationLoaderTests
             .That(sections)
             .IsEquivalentTo([
                 "declined", "enumMemberNames", "envelopePayloadNames", "groups", "hoistedMemberNames", "operationIdentities",
-                "operationNames", "schemaAliases", "schemaNames", "transportOwned"
+                "operationNames", "redactedMembers", "schemaAliases", "schemaNames", "secretLookingNames", "transportOwned"
             ]);
     }
 

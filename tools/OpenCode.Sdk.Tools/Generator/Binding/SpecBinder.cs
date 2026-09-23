@@ -82,6 +82,7 @@ internal sealed class SpecBinder(
             .ToArray();
 
         var models = AttachRequestQueryProperties(schemaResult.Models, clients, errors);
+        models = SecretMemberPolicy.Apply(models, curation, errors);
         CheckDtoNameCollisions(schemaResult.Registry, clients, errors);
         errors.ThrowIfAny();
         return new EmitPlan

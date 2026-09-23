@@ -78,11 +78,8 @@ internal static class OperationNamePolicy
             return null;
         }
 
-        var methodVerb = CSharpNamePolicy.ToPascalCase(operation.Method);
-        var fallback = $"{methodVerb}{SubjectOrGroupFallback(operation, methodVerb) ?? CSharpNamePolicy.ToPascalCase(operation.Segments[0])}Async";
         return $"operation '{operation.OperationId}' closes with '{operation.Segments[^1]}', which is not a naming verb, "
-               + "and no operationNames row names it; the HTTP method is never a name source "
-               + $"(mechanical fallback would have been '{fallback}')";
+               + "and no operationNames row names it; the HTTP method is never a name source (ADR-0008)";
     }
 
     /// <summary>Replaces a list operation's verb with the reviewed automatic-traversal verb.</summary>

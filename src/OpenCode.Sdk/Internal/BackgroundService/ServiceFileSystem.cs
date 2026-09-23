@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 #endif
 using OpenCode.Sdk.Internal.BackgroundService.Abstractions;
+using OpenCode.Sdk.Internal.Diagnostics;
 
 namespace OpenCode.Sdk.Internal.BackgroundService;
 
@@ -16,11 +17,41 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 internal sealed class ServiceFileSystem : IServiceFileSystem
 {
     private const UnixFileMode OwnerOnly = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+    private const int CopyBufferSize = 4096;
 
-    public bool FileExists(string path) => File.Exists(path);
+    public async Task<byte[]?> TryReadAllBytesAsync(string path, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var stream = OpenRead(path);
+#if NET
+            await using (stream.ConfigureAwait(false))
+#else
+            using (stream)
+#endif
+            {
+                using var buffer = new MemoryStream();
+                await stream.CopyToAsync(buffer, CopyBufferSize, cancellationToken).ConfigureAwait(false);
+                return buffer.ToArray();
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Missing, under a missing directory, or unreadable: absent state, as the pinned
+            // client's read folds every failure but cancellation.
+            return null;
+        }
+    }
 
-    public Task<byte[]> ReadAllBytesAsync(string path, CancellationToken cancellationToken) =>
-        File.ReadAllBytesAsync(path, cancellationToken);
+    /// <summary>
+    /// Opens a file for reading the way libuv opens every file, sharing read, write, and delete: the
+    /// daemon removes its registration on exit while clients poll it, and on Windows a reader that
+    /// shared less would make the removal fail. Unix never blocks it.
+    /// </summary>
+    /// <param name="path">The absolute path.</param>
+    /// <returns>The open stream.</returns>
+    internal static FileStream OpenRead(string path) =>
+        new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, CopyBufferSize, useAsync: true);
 
     public Task<bool> TryCreateExclusiveAsync(string path, ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken)
     {
@@ -92,7 +123,7 @@ internal sealed class ServiceFileSystem : IServiceFileSystem
         catch when (created)
         {
             // A partial file this call created must not survive as a registration candidate.
-            _ = TryRemovePartialFile(path);
+            RemovePartialFile(path);
             throw;
         }
     }
@@ -128,22 +159,18 @@ internal sealed class ServiceFileSystem : IServiceFileSystem
     }
 #endif
 
-    private static bool TryRemovePartialFile(string path)
+    [SlopwatchSuppress(
+        "SW003",
+        "The cleanup runs inside a failed create whose own exception is rethrown: that failure is the one worth reporting, and a partial file that cannot be removed adds nothing to it.")]
+    private static void RemovePartialFile(string path)
     {
         try
         {
             File.Delete(path);
-            return true;
         }
-        catch (IOException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            // The original failure is the one worth reporting.
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // Same: the create failed for a reason the caller already sees.
-            return false;
+            // The create failed for a reason the caller already sees.
         }
     }
 }

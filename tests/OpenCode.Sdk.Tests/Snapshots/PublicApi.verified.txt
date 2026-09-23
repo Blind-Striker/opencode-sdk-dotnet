@@ -3426,6 +3426,7 @@ namespace OpenCode.Sdk.Models
         public OpenCode.Sdk.Optional<string?> Label { get; init; }
         [System.Text.Json.Serialization.JsonIgnore]
         public OpenCode.Sdk.LocationSelector? Location { get; init; }
+        public override string ToString() { }
     }
     public sealed class IntegrationEnvMethod : OpenCode.Sdk.Models.IIntegrationMethod, System.IEquatable<OpenCode.Sdk.Models.IntegrationEnvMethod>
     {
@@ -3639,6 +3640,7 @@ namespace OpenCode.Sdk.Models
         public OpenCode.Sdk.Models.McpLocalConfigTimeout? Timeout { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
+        public override string ToString() { }
     }
     public sealed class McpLocalConfigTimeout : OpenCode.Sdk.Models.IMcpTimeout, System.IEquatable<OpenCode.Sdk.Models.McpLocalConfigTimeout>
     {
@@ -3674,6 +3676,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("scope")]
         public string? Scope { get; init; }
+        public override string ToString() { }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.McpProtocol>))]
     public enum McpProtocol
@@ -3710,6 +3713,7 @@ namespace OpenCode.Sdk.Models
         public string Type { get; }
         [System.Text.Json.Serialization.JsonPropertyName("url")]
         public required string Url { get; init; }
+        public override string ToString() { }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.McpRemoteConfigOauthJsonConverter))]
     public sealed class McpRemoteConfigOauth : System.IEquatable<OpenCode.Sdk.Models.McpRemoteConfigOauth>
@@ -4004,6 +4008,7 @@ namespace OpenCode.Sdk.Models
         public required OpenCode.Sdk.Models.ModelInfoTime Time { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("variants")]
         public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.ModelVariant> Variants { get; init; }
+        public override string ToString() { }
     }
     public sealed class ModelInfoLimit : System.IEquatable<OpenCode.Sdk.Models.ModelInfoLimit>
     {
@@ -4094,6 +4099,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("settings")]
         public OpenCode.Sdk.Models.ModelSettings? Settings { get; init; }
+        public override string ToString() { }
     }
     public sealed class ModelsDevRefreshed : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.ModelsDevRefreshed>
     {
@@ -4331,6 +4337,7 @@ namespace OpenCode.Sdk.Models
         public OpenCode.Sdk.Models.PersistentPtyCreateInputSize? Size { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("title")]
         public required string Title { get; init; }
+        public override string ToString() { }
     }
     public sealed class PersistentPtyHandoff : System.IEquatable<OpenCode.Sdk.Models.PersistentPtyHandoff>
     {
@@ -4859,6 +4866,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("settings")]
         public OpenCode.Sdk.Models.ProviderSettings? Settings { get; init; }
+        public override string ToString() { }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.ProviderInfoActivation>))]
     public enum ProviderInfoActivation
@@ -4889,6 +4897,7 @@ namespace OpenCode.Sdk.Models
         public required System.Collections.Generic.IReadOnlyDictionary<string, string> Headers { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("settings")]
         public required OpenCode.Sdk.Models.ProviderSettings Settings { get; init; }
+        public override string ToString() { }
     }
     public sealed class ProviderSettings : System.IEquatable<OpenCode.Sdk.Models.ProviderSettings>
     {
@@ -4993,6 +5002,7 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         [System.Text.Json.Serialization.JsonPropertyName("title")]
         public string? Title { get; init; }
+        public override string ToString() { }
     }
     public sealed class PtyCreated : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.PtyCreated>
     {

@@ -11,6 +11,7 @@ register any of them with a container.
 - [🔗 A server you already run](#-a-server-you-already-run)
 - [🛰️ Discovering the background service](#️-discovering-the-background-service)
   - [🛑 Stopping the background service](#-stopping-the-background-service)
+  - [🟢 Ensuring the background service](#-ensuring-the-background-service)
 - [🧩 Registering with dependency injection](#-registering-with-dependency-injection)
 
 ## 🚀 The SDK starts the server
@@ -226,7 +227,8 @@ The answer is the daemon's identity or **null** — never a half-usable handle. 
 ordinary way a service can be absent or unusable: no registration file, one that does not decode,
 one without a password, a daemon that is still starting or has failed, an info probe that did not
 answer within its two-second bound, or a version other than the one you asked for. You decide what
-null means for your application; the SDK does not start a daemon on your behalf.
+null means for your application; discovery does not start a daemon on your behalf —
+[`EnsureAsync`](#-ensuring-the-background-service) does, when you ask it to.
 
 ### What discovery reads
 
@@ -342,8 +344,55 @@ removed, or when the process is still running after the hard kill — the regist
 in place; and `OperationCanceledException` for your own token, where cancelling before a signal
 prevents it and cancelling after one ends the wait without undoing the signal.
 
-Ensuring a daemon exists (starting one when discovery finds nothing) is the CLI's remaining service
-operation; its SDK parity follows as its own slice and is tracked in [the roadmap](../ROADMAP.md).
+### 🟢 Ensuring the background service
+
+`OpenCodeServer.EnsureAsync` is what the CLI does before it connects: reuse the registered service
+when one is ready, and start one when nothing usable is registered. It is the same election every
+opencode client runs, so ten callers starting at once end up sharing one daemon.
+
+```csharp
+await using var server = await OpenCodeServer.EnsureAsync();
+
+using var client = server.CreateClient();
+var info = await client.Server.GetInfoAsync();
+Console.WriteLine($"opencode {info.ServerInfo.Version} (pid {server.ProcessId})");
+// Disposal is a no-op: the service is shared. StopAsync is the one way to end it.
+```
+
+What it does:
+
+1. Reads the registration the options name, the way discovery does, and reuses a ready,
+   compatible daemon.
+2. When nothing usable is registered, spawns a detached `opencode serve --service` and waits for it
+   to register. A contender that exits because another one won is released; at most two are live at
+   a time, and the call gives up after 120 seconds.
+3. When a registered daemon stops answering — three probe timeouts in a row — ends it the way
+   `StopAsync` does and starts a replacement. Like `StopAsync`, this can end a service other
+   clients share.
+4. Hands a replaced daemon's persistent terminals over to its successor through the handoff
+   sidecar, as the CLI does.
+
+`OpenCodeServerEnsureOptions` is optional as a whole:
+
+| Member | Meaning |
+|---|---|
+| `Channel`, `RegistrationFilePath`, `InstalledVersion` | Which registration to read, as for discovery. |
+| `ExpectedVersion` | The version a reused service must report. Null accepts any ready, compatible service. |
+| `VersionPolicy` | What a service at another version gets: `Ignore` (the default) reuses it, `Replace` ends it and starts one at the expected version, `Error` throws without touching it. `Replace` and `Error` need `ExpectedVersion`. |
+| `Command` | The service command, `opencode serve --service` by default. The first entry is resolved the way `StartAsync` resolves it. |
+| `Environment` | Extra variables for a spawned service, over the channel's service-config `env`. |
+| `OnStart` | Called at most once, before a new service process starts, with the reason (`Missing` or `VersionMismatch`) and the previous version. |
+
+The spawned command registers where its own build and environment say. A released `opencode` build
+registers the shared `service.json`; a source run registers the `local` channel. `Channel`,
+`Command`, and `Environment` must describe the same registration, or the call waits out its bound
+for a registration that appears somewhere else.
+
+It throws `ArgumentException` for blank or contradictory options, an empty command, or `Replace`
+and `Error` without `ExpectedVersion`; `OpenCodeServerException` when the roots cannot be located,
+the command cannot be resolved, a contender or the registered service failed to start, `Error` met a service at another
+version, or the 120-second bound expired (with the last failed replacement as the inner exception,
+when there was one); and `OperationCanceledException` for your own token.
 
 ## 🧩 Registering with dependency injection
 

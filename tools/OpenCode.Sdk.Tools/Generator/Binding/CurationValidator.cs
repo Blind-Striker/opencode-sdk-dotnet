@@ -124,10 +124,7 @@ internal sealed class CurationValidator
                     continue;
                 }
 
-                var otherName = curation.EnumMemberNames
-                    .FirstOrDefault(candidate => string.Equals(candidate.Schema, row.Schema, StringComparison.Ordinal)
-                        && string.Equals(candidate.Value, other, StringComparison.Ordinal))?.DotNetName
-                    ?? CSharpNamePolicy.ToPascalCase(other);
+                var otherName = EnumMemberNamePolicy.Name(row.Schema, other, curation.EnumMemberNames);
                 if (string.Equals(otherName, row.DotNetName, StringComparison.Ordinal))
                 {
                     errors.Add(BindingErrorCategory.Naming, subject,

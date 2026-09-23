@@ -31,9 +31,8 @@ internal static class RestWrapperPolicy
 
     /// <summary>
     /// Exactly the rest and nothing else: a typed object with a schema-valued
-    /// <c>additionalProperties</c>, no structural, referencing, applicator, consumed, or
-    /// unrecognized keyword beside it. Title and description are annotations the projection
-    /// ignores everywhere, so they do not disqualify the wrapper.
+    /// <c>additionalProperties</c>, no other structural keyword beside it, and none of the
+    /// keywords no wrapper admits (<see cref="AllOfWrapperKeywords"/>).
     /// </summary>
     private static bool IsRestOnly(OpenApiSchema wrapper) =>
         wrapper is
@@ -45,35 +44,14 @@ internal static class RestWrapperPolicy
             Items: null,
             Enum: null,
             Const: null,
-            Format: null,
-            Not: null,
-            If: null,
-            Then: null,
-            Else: null,
-            Contains: null,
-            PropertyNames: null,
-            Discriminator: null,
-            Xml: null,
-            ExternalDocs: null,
-            Default: null,
-            Example: null,
             ContentEncoding: null,
             ContentMediaType: null,
             ContentSchema: null,
-            Deprecated: false,
-            ReadOnly: false,
-            WriteOnly: false,
         }
         && wrapper.Required is not { Count: > 0 }
         && wrapper.AllOf is not { Count: > 0 }
         && wrapper.AnyOf is not { Count: > 0 }
         && wrapper.OneOf is not { Count: > 0 }
         && wrapper.PatternProperties is not { Count: > 0 }
-        && wrapper.DependentSchemas is not { Count: > 0 }
-        && wrapper.DependentRequired is not { Count: > 0 }
-        && wrapper.Definitions is not { Count: > 0 }
-        && wrapper.Examples is not { Count: > 0 }
-        && wrapper.Vocabulary is not { Count: > 0 }
-        && wrapper.Extensions is not { Count: > 0 }
-        && wrapper.UnrecognizedKeywords is not { Count: > 0 };
+        && AllOfWrapperKeywords.AreAbsent(wrapper);
 }

@@ -18,7 +18,36 @@ Nightly builds of `master` are on
   The persistent-terminal handoff sidecar travels with replacement, and `OnStart` fires at
   most once before a new service process is spawned.
 
+### 🔒 Security
+
+- **Generated models no longer print secrets.** A model's `ToString()` — string interpolation,
+  logging templates, the debugger — printed every member, so logging an `McpOAuthConfig`, or the
+  `McpRemoteConfig` holding it, wrote its `ClientSecret`. Members upstream's own recorder redacts
+  (`client_secret`, `password`, `api_key`, `token`, …) now print `[REDACTED]`, as do
+  `IntegrationConnectKeyRequest.Key` and the user-configured header and environment maps; an
+  absent secret prints empty, and every other member prints as before. Equality and JSON are
+  unchanged.
+
 ### 🐛 Fixes
+
+- **Discovery reaches a background service bound to every interface.** A daemon started with
+  `hostname: 0.0.0.0` (or `::`) registers that address, which .NET refuses as a connect target, so
+  `DiscoverAsync` returned null and `StopAsync` could not ask it to shut its terminals down while
+  the CLI worked. The connect target is now the same family's loopback, as Bun's is; the
+  registered URL still identifies the daemon.
+- **A registration file that is not valid UTF-8 reads as absent.** `DiscoverAsync` and
+  `StopAsync` threw `InvalidOperationException` for a registration holding an invalid UTF-8
+  string, outside their documented failures; such a file is now no registration, like any other
+  undecodable one. A byte-order mark at the start of a registration or service-config file is
+  skipped, as the CLI skips it.
+- **A whitespace password is sent as written.** `OpenCodeClientOptions.Password` refused an empty
+  or whitespace value at client construction, and a background-service registration carrying a
+  whitespace password read as passwordless, so discovery skipped a daemon the CLI reached. The
+  CLI's server runs with any configured password, whitespace included; only a null password now
+  means "no credential", as in the pinned client.
+- **Reading a registration no longer blocks its removal on Windows.** A service that exits removes
+  its registration while clients may be reading it; the SDK now opens the file with delete sharing,
+  as libuv does, so the removal never fails on the SDK's account.
 
 - **`OpenCodeServer.StopAsync` treats a zombie as stopped on Linux.** A service process that had
   exited but was not yet reaped by its parent kept its start time readable, so the stop read it

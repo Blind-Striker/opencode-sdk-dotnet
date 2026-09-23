@@ -52,24 +52,15 @@ internal sealed class Pipeline : IDisposable
             throw new ArgumentException("The username cannot contain a colon.", nameof(options));
         }
 
-        // An explicitly blank password is not a spelling of "no credential": it would send an
-        // empty Basic password, which no server accepts, so it fails loudly. Null is the
-        // no-credential spelling, and only a server running without authentication accepts it
-        // — never an `opencode serve` process, which always runs with a password.
-        var password = options.Password;
-        if (password is not null && string.IsNullOrWhiteSpace(password))
-        {
-            throw new ArgumentException(
-                "An explicit password cannot be empty or whitespace; leave it null only for a server that runs without authentication.",
-                nameof(options));
-        }
-
         _endpointBase = EndpointPolicy.Normalize(endpoint);
         _framer = framer ?? new ServerSentEventFramer();
         _networkTimeout = networkTimeout ?? PipelineMessage.DefaultNetworkTimeout;
 
         // The options are read exactly once, here: the policies hold an immutable snapshot,
-        // so mutating the options object after construction never changes a built client.
+        // so mutating the options object after construction never changes a built client. Only a
+        // null password means no credential, as in the pinned client; any other string is sent
+        // as written, since a server configured with a whitespace password runs with that one.
+        var password = options.Password;
         var authorization = password is null
             ? null
             : new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{password}")));

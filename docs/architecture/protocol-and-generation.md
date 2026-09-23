@@ -43,7 +43,8 @@ evidence and may contain superseded positions.
 - The committed receipt records the exact inputs, hashes, patch preimages, operation-set digest,
   and operation delta of the accepted snapshot; `refresh-spec --verify` is its standing check.
 - The source watch (`spec/source-watch.json`) pins, by path, SHA-256 and one content anchor, the
-  upstream files the hand-written doors read as inputs; it is a refresh-time review trigger only
+  upstream files the hand-written doors read as inputs and the two upstream lists the generator's
+  secret masking follows (ADR-0028); it is a refresh-time review trigger only
   and never reaches ingestion, curation, or emission (ADR-0013).
 
 ## Construction pipeline
@@ -137,7 +138,13 @@ implementation knowledge (ADR-0013).
 - Optional collections remain nullable. Generated collection properties expose shallow
   `IReadOnlyList<T>` or `IReadOnlyDictionary<string, T>` references without defensive copies,
   read-only wrappers, empty normalization, or recursive child validation. Callers retain ownership
-  of supplied collections (ADR-0004, ADR-0014).
+  of supplied collections (ADR-0004, ADR-0014). The open-model `AdditionalProperties` view above is
+  the one exception: it copies on init and answers an empty view for an absent bag.
+- A model with a secret member overrides `ToString()` and prints that member as `[REDACTED]` (empty
+  when absent), every other member in the compiler's own shape. The floor is upstream's HTTP
+  recorder field list with its matching rule; reasoned `redactedMembers` rows add or lift a mask;
+  a member whose wire name carries one of upstream's secret-marker words refuses the bind until a
+  `redactedMembers` or `secretLookingNames` row decides it (ADR-0028).
 - Only literals used to dispatch a union become constants or get-only properties. A prefix-tagged
   arm's discriminator is not a literal: it stays a required string property, proven on read to
   carry the prefix. Other fixed values remain ordinary primitives so a representable server value
@@ -228,8 +235,9 @@ dispatch instead of routing it through ADR-0009's unknown carrier (ADR-0015).
   binding. Same-primitive refinements collapse without emitting dead branch models (ADR-0016).
 - Known objects skip additive unmapped fields, including when the pinned schema is closed. Required
   shape and represented token types remain materializable. Pure dictionaries retain their value
-  schema; a named object combined with schema-valued additional properties fails binding until both
-  sides can be represented without loss (ADR-0012, ADR-0014).
+  schema; a named object combined with a typed additional-properties schema fails binding until both
+  sides can be represented without loss, while an unrestricted one binds as the open model above
+  (ADR-0012, ADR-0014).
 
 ## Operations, streams, and exclusions
 

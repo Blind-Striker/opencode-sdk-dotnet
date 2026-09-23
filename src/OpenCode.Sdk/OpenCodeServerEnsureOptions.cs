@@ -7,7 +7,7 @@ namespace OpenCode.Sdk;
 /// </summary>
 public sealed class OpenCodeServerEnsureOptions
 {
-    /// <summary>Gets the pinned client's default service command (<c>promise/service.ts:48</c>), the one place it is spelled.</summary>
+    /// <summary>Gets the pinned client's default service command (<c>promise/service.ts</c> <c>ensure</c>), the one place it is spelled.</summary>
     internal static IReadOnlyList<string> DefaultCommand { get; } = ["opencode", "serve", "--service"];
 
     /// <summary>

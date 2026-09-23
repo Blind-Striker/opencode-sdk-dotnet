@@ -21,9 +21,10 @@ public sealed class OpenCodeClientOptions : IOpenCodeClientOptions
     /// CLI starts requires one — the value set through <c>OPENCODE_PASSWORD</c>, or the one the
     /// CLI generates and prints as <c>server password &lt;pw&gt;</c> when none is configured — so
     /// <see langword="null"/>, which sends no credential at all, is right only for a host that runs
-    /// without authentication, such as a server embedded through the opencode server library. An
-    /// empty or whitespace value is refused with <see cref="ArgumentException"/> at client
-    /// construction; the SDK never reads credentials from the environment.
+    /// without authentication, such as a server embedded through the opencode server library. Any
+    /// other value is sent exactly as written, as the pinned client sends it: a server configured
+    /// with a whitespace password runs with that password. The SDK never reads credentials from
+    /// the environment.
     /// </summary>
     public string? Password { get; set; }
 

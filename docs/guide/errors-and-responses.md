@@ -246,8 +246,9 @@ must not blow up, catch `OpenCodeTransportException` even when you are using `No
 
 ## 🚀 When a local-server door fails
 
-The local-server doors — `OpenCodeServer.StartAsync`, `OpenCodeServer.DiscoverAsync`, and
-`OpenCodeServer.StopAsync` — share one failure type, `OpenCodeServerException`. Discovery uses it
+The local-server doors — `OpenCodeServer.StartAsync`, `OpenCodeServer.DiscoverAsync`,
+`OpenCodeServer.StopAsync`, and `OpenCodeServer.EnsureAsync` — share one failure type,
+`OpenCodeServerException`. Discovery uses it
 for exactly one cause: an XDG variable was unset and no user home directory resolved either
 (`USERPROFILE` on Windows, `HOME` elsewhere, and the profile folder all empty), so the registration
 roots cannot be located. Every ordinary way a background service can be absent or unusable — no
@@ -257,7 +258,10 @@ answers null, and blank or contradictory options throw `ArgumentException` befor
 Stop shares the roots cause and adds two of its own: the persistent-terminal handoff sidecar beside
 the registration could not be removed, and the registered process is still running after the hard
 kill — the registration is then left in place, and the message names the pid and the file. A stop
-with nothing to stop is not an exception either. The
+with nothing to stop is not an exception either. Ensure shares the roots cause and adds the ways an
+election can end without a service: the command cannot be resolved, a contender or the registered
+service failed to start, `VersionPolicy.Error` met a service at another version, or the 120-second
+bound expired. The
 [connection guide](connection-modes.md#️-discovering-the-background-service) lists the full table.
 
 The launcher has more to say, because a child process ran:

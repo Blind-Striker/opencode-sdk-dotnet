@@ -7,7 +7,7 @@ namespace OpenCode.Sdk.Internal;
 /// a submit is exactly one Enter, so the line the caller hands over carries no break of its own.
 /// Both terminal families submit through this rule, because a consumer without an emulator has no
 /// other way to learn it. Knowledge source: upstream-observed — the TUI forwards the emulator's
-/// raw bytes, so upstream has no submit door to copy the terminator from (research log Q151).
+/// raw bytes, so upstream has no submit door to copy the terminator from.
 /// </summary>
 internal static class TerminalSubmission
 {

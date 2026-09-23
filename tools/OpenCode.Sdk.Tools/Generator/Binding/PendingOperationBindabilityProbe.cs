@@ -17,7 +17,8 @@ namespace OpenCode.Sdk.Tools.Generator.Binding;
 /// operation-name row, which together answer "would this operation bind if it only needed its
 /// curation rows?" without asserting what those rows should actually look like — a name is
 /// curation, never a shape wall, so an operation the naming policy refuses to name mechanically
-/// (ADR-0008) still probes by its shape. Binding collects every wall before throwing (no first-error stop), so a
+/// (ADR-0008) still probes by its shape. The secret-name wall (ADR-0028) is the same kind of
+/// missing row, so a bind it alone refuses probes as bindable. Binding collects every wall before throwing (no first-error stop), so a
 /// refused mark carries every independent <see cref="BindingError.Problem"/> the bind produced,
 /// in binder order and deduplicated by problem text — never only the first. A probe that fails
 /// for any reason other than the deliberate <see cref="BindingException"/> wall still yields a
@@ -60,7 +61,12 @@ internal sealed class PendingOperationBindabilityProbe(ISpecBinder binder)
         }
         catch (BindingException exception)
         {
-            return Refused(operation.OperationId, JoinedProblems(exception));
+            var walls = exception.Errors
+                .Where(static error => !string.Equals(error.Problem, SecretMemberPolicy.UndecidedSecretProblem, StringComparison.Ordinal))
+                .ToArray();
+            return exception.Errors.Count > 0 && walls.Length is 0
+                ? new PendingOperationMark { OperationId = operation.OperationId, IsBindable = true }
+                : Refused(operation.OperationId, JoinedProblems(exception, walls));
         }
         catch (Exception exception)
         {
@@ -80,15 +86,15 @@ internal sealed class PendingOperationBindabilityProbe(ISpecBinder binder)
     /// example an inline nominal schema that was not promoted into the graph — can fire once per
     /// offending subject; the mark states the wall once, not once per subject).
     /// </summary>
-    private static string JoinedProblems(BindingException exception)
+    private static string JoinedProblems(BindingException exception, BindingError[] walls)
     {
-        if (exception.Errors.Count is 0)
+        if (walls.Length is 0)
         {
             return exception.Message;
         }
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        var distinctProblems = exception.Errors
+        var distinctProblems = walls
             .Select(static error => error.Problem)
             .Where(seen.Add);
         return string.Join("; ", distinctProblems);
@@ -121,5 +127,7 @@ internal sealed class PendingOperationBindabilityProbe(ISpecBinder binder)
             Declined = [],
             HoistedMemberNames = [],
             EnumMemberNames = [],
+            RedactedMembers = [],
+            SecretLookingNames = [],
         };
 }

@@ -18,5 +18,7 @@
       "reason": "The WebSocket door is hand-written; the profile never selects this operation."
     }
   ],
+  "redactedMembers": [],
+  "secretLookingNames": [],
   "declined": []
 }

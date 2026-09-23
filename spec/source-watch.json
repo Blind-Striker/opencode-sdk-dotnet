@@ -211,7 +211,7 @@
     {
       "path": "packages/cli/src/server-process.ts",
       "sha256": "53a4296917a39fcfca052b424b43935e5d1e22f5dcc3a1aa839e80c88d399bf5",
-      "behavior": "In stdio mode the serve command prints exactly one JSON line carrying the bound url to stdout after full boot and exits when stdin reaches EOF, which is the readiness line ServerReadyLine parses and the lease OpenCodeServer releases.",
+      "behavior": "In stdio mode the serve command prints exactly one JSON line carrying the bound url to stdout after full boot and exits when stdin reaches EOF, which is the readiness line ServerReadyLine parses and the lease OpenCodeServer releases. In service mode it changes into the user home (which ServerIsolation\u0027s isolated home relies on), returns at once when a compatible incumbent already answers, and exits 0 as the loser when another daemon holds the port and is recognized, which is the exit the Ensure election reads as a lost race and answers by doubling its spawn delay; a loser that exited non-zero would fail every multi-contender Ensure.",
       "anchor": {
         "type": "contains",
         "text": "JSON.stringify({ url })"
@@ -310,7 +310,7 @@
     {
       "path": "packages/client/src/promise/service.ts",
       "sha256": "87c6245b0db1961731cf11fbef19a5a2b44108534b2d9fa82d880ee201fdfea2",
-      "behavior": "The Promise-client ensure implementation, the parity source the SDK\u0027s ServiceEnsurer ports: a wall-clock deadline loop that reuses a ready compatible service, reports a failed one without spawning, replaces a version-mismatched one, and after three consecutive info-probe timeouts on the same registration announces missing, clears the handoff sidecar, terminates the unresponsive daemon, and spawns a replacement while keeping one contender plus one lock probe alive.",
+      "behavior": "The Promise-client ensure loop, the statement-level template ServiceElection follows (ADR-0025; the Effect Service.ensure is the behaviour source and states the same election): a wall-clock deadline loop that reuses a ready compatible service, reports a failed one without spawning, replaces a version-mismatched one, and after three consecutive info-probe timeouts on the same registration announces missing, clears the handoff sidecar, terminates the unresponsive daemon, and spawns a replacement while keeping one contender plus one lock probe alive.",
       "anchor": {
         "type": "contains",
         "text": "export async function ensure(options: EnsureOptions = {})"
@@ -427,7 +427,7 @@
     {
       "path": "packages/client/test/service.test.ts",
       "sha256": "5d7c27716ef4eb67a4d27934fbbd9d79eedd113bed1509bc19fc1a6320e71cc9",
-      "behavior": "Upstream\u0027s own discovery expectations: a compatible registered service is reused, a waiting one is awaited, a failed one is reported without spawning, and a legacy health answer is replaced.",
+      "behavior": "Upstream\u0027s own discovery expectations: a compatible registered service is reused, a waiting one is awaited, a failed one is reported without spawning, and a legacy health answer is replaced; ServiceEnsurerTests, ServiceDiscoveryTests, and the Ensure live tests re-prove them.",
       "anchor": {
         "type": "contains",
         "text": "reuses a compatible registered service"
@@ -436,7 +436,7 @@
     {
       "path": "packages/cli/test/service.test.ts",
       "sha256": "c0e75e0b96e271e6a9c62307cf6ef8812fec83873eff11e4129d2ef724bf1cd6",
-      "behavior": "Upstream\u0027s own filename and channel expectations: the release channels share service.json, custom channels are sanitized, and version-to-channel membership follows the pre-release spelling.",
+      "behavior": "Upstream\u0027s own filename and channel expectations: the release channels share service.json, custom channels are sanitized, and version-to-channel membership follows the pre-release spelling; ServicePathResolverTests and ServiceMigrationTests re-prove them.",
       "anchor": {
         "type": "contains",
         "text": "service filenames share release channels"
@@ -445,7 +445,7 @@
     {
       "path": "packages/cli/test/server-connection.test.ts",
       "sha256": "dac9a74bb273fba1a129910a38fe4b17f5960884359311126f66497021a63262",
-      "behavior": "The version gate is opt-in: service options only require a matching version when the caller asks for the check, which is why ExpectedVersion is null by default.",
+      "behavior": "The version gate is opt-in: service options only require a matching version when the caller asks for the check, which is why ExpectedVersion is null by default; ServiceSelectionTests and ServiceVersionPolicyTests re-prove it.",
       "anchor": {
         "type": "contains",
         "text": "service options only require a matching version when requested"
@@ -454,7 +454,7 @@
     {
       "path": "packages/cli/script/service-smoke.ts",
       "sha256": "b888aadfb8f57bc6234a99ec22623a7c63ad8ac7b921f5a1b0fddb6d93ab58f9",
-      "behavior": "Upstream\u0027s end-to-end service smoke expects the registration to carry the service identity (id, version, pid) and refuses one without it.",
+      "behavior": "Upstream\u0027s end-to-end service smoke asserts that the daemon it built writes a registration carrying the service identity (id, version, pid); it is a check on the daemon\u0027s output, not a client rule, and the SDK\u0027s reader still admits a registration without an id, as the client\u0027s own Info schema does.",
       "anchor": {
         "type": "contains",
         "text": "Registration is missing service identity"
@@ -494,6 +494,51 @@
       "anchor": {
         "type": "contains",
         "text": "detached: true,"
+      }
+    },
+    {
+      "path": "packages/http-recorder/src/redaction/redactor.ts",
+      "sha256": "e621cdbab8e2ab676656a91f6235be3807a447e485cc398e9279b4199388b621",
+      "behavior": "DEFAULT_REDACT_JSON_FIELDS lists the JSON fields upstream\u0027s HTTP recorder masks in every recorded body (access_token, api_key, apikey, client_secret, password, refresh_token, secret, token), matched after normalizeField drops every character outside [a-z0-9] and lower-cases; the list and the rule are the generator\u0027s redaction floor for generated ToString (ADR-0028, SecretMemberPolicy), so a change to either moves the floor.",
+      "anchor": {
+        "type": "contains",
+        "text": "const DEFAULT_REDACT_JSON_FIELDS = ["
+      }
+    },
+    {
+      "path": "packages/http-recorder/src/redaction/secrets.ts",
+      "sha256": "b5e49487e415347ebc5d6e290bc8c2c7a88825b56d549e0b063a94bf3074efef",
+      "behavior": "ENV_SECRET_NAMES is the case-insensitive marker-word pattern upstream reads as a secret in an environment-variable name (API, AUTH, BEARER, CREDENTIAL, KEY, PASSWORD, SECRET, TOKEN, anywhere in the name); the generator\u0027s secret-name wall stops a model member whose wire name matches it until a curation row decides it (ADR-0028, SecretMemberPolicy).",
+      "anchor": {
+        "type": "contains",
+        "text": "const ENV_SECRET_NAMES = /(?:API|AUTH|BEARER|CREDENTIAL|KEY|PASSWORD|SECRET|TOKEN)/i"
+      }
+    },
+    {
+      "path": "packages/cli/src/index.ts",
+      "sha256": "a6744a83f3f0abcc0bdd95b858fe747bd031e39ff80141432d906eb425514e4c",
+      "behavior": "The CLI\u0027s entry runs every command through NodeRuntime.runMain and exits with process.exitCode (0 when unset), which is the exit status a contender\u0027s failure report carries and the exit 0 the Ensure election reads as a loser that stood down.",
+      "anchor": {
+        "type": "contains",
+        "text": "Effect.tap(() =\u003E Effect.sync(() =\u003E process.exit(process.exitCode ?? 0))),"
+      }
+    },
+    {
+      "path": "packages/cli/src/commands/handlers/serve.ts",
+      "sha256": "b136a083952d0b281f068183e2886652e3fe6271473a1b50b0ddf3fdbd86dc55",
+      "behavior": "serve --service runs the server process in service mode, the flag behind Ensure\u0027s default command (opencode serve --service); --service and --stdio cannot be combined.",
+      "anchor": {
+        "type": "contains",
+        "text": "mode: input.service ? \u0022service\u0022 : input.stdio ? \u0022stdio\u0022 : \u0022default\u0022,"
+      }
+    },
+    {
+      "path": "packages/client/test/fixture/service.ts",
+      "sha256": "5e6f7e8b39ec8df2376cef0880da0cc41a2f90c3ffb74eea71c9fff90d4581ad",
+      "behavior": "Upstream\u0027s service fixture modes (failed, delayed, coordinated losers, a stalled or stale registered service) are what the SDK fixture\u0027s contender-probe stand-ins imitate, so the Ensure live tests exercise the same situations the upstream client tests do.",
+      "anchor": {
+        "type": "contains",
+        "text": "const [registration, mode, delay] = process.argv.slice(2)"
       }
     }
   ]

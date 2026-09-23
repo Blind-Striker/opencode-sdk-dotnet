@@ -750,17 +750,14 @@ internal sealed class SchemaPlanBinder(
         return true;
     }
 
-    /// <summary>Each value's member name is its reason-bearing row when one exists, else its mechanical Pascal casing.</summary>
+    /// <summary>Each value's member name comes from <see cref="EnumMemberNamePolicy"/>.</summary>
     private static EnumModelPlan BindEnum(string key, string name, EnumNode node,
         IReadOnlyList<EnumMemberNameCuration> memberNames, BindingErrorCollector errors)
     {
         var values = node
             .Values.Select(value => new EnumValuePlan
             {
-                Name = memberNames
-                           .FirstOrDefault(row => string.Equals(row.Schema, key, StringComparison.Ordinal)
-                               && string.Equals(row.Value, value, StringComparison.Ordinal))?.DotNetName
-                       ?? CSharpNamePolicy.ToPascalCase(value),
+                Name = EnumMemberNamePolicy.Name(key, value, memberNames),
                 WireValue = value,
             })
             .ToArray();

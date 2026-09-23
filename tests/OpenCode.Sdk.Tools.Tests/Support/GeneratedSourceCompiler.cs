@@ -20,8 +20,8 @@ internal static class GeneratedSourceCompiler
     /// <summary>
     /// The built-in Roslyn generators an MSBuild compilation of the SDK gets from the targeting
     /// pack and this hand-rolled compilation must register itself: System.Text.Json's, for the
-    /// generated serializer contexts, and the LibraryImport generator, for the one P/Invoke stub
-    /// the background-service door's process control declares (ADR-0026).
+    /// generated serializer contexts, and the LibraryImport generator, for the P/Invoke stubs the
+    /// background-service door binds in one interop class (ADR-0026, ADR-0027).
     /// </summary>
     private static readonly AnalyzerFileReference[] SourceGenerators = CreateSourceGeneratorReferences();
 
@@ -46,8 +46,8 @@ internal static class GeneratedSourceCompiler
     /// </summary>
     internal static readonly (string Consumer, string RequiredEmission)[] GeneratedSurfaceConsumers =
     [
-        ("Internal/BackgroundService/ServicePtyHandoff.cs", "PersistentPtys/PersistentPtysRawClient.cs"),
-        ("Internal/BackgroundService/ServicePtyShutdown.cs", "PersistentPtys/PersistentPtysRawClient.cs"),
+        ("Internal/BackgroundService/Handoff/ServicePtyHandoff.cs", "PersistentPtys/PersistentPtysRawClient.cs"),
+        ("Internal/BackgroundService/Stop/ServicePtyShutdown.cs", "PersistentPtys/PersistentPtysRawClient.cs"),
         ("Internal/PersistentPtyFrameDecoder.cs", "Models/PersistentPtyInfo.cs"),
         ("OpenCodeServer.cs", "PersistentPtys/PersistentPtysRawClient.cs"),
         ("PersistentPtys/PersistentPtyAttachedFrame.cs", "Models/PersistentPtyInfo.cs"),

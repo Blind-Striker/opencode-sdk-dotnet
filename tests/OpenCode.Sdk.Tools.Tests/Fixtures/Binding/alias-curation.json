@@ -18,5 +18,7 @@
   "enumMemberNames": [],
   "hoistedMemberNames": [],
   "transportOwned": [],
+  "redactedMembers": [],
+  "secretLookingNames": [],
   "declined": []
 }

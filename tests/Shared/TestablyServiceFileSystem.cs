@@ -12,12 +12,23 @@ namespace OpenCode.Sdk.TestSupport;
 /// </summary>
 internal sealed class TestablyServiceFileSystem(IFileSystem fileSystem) : IServiceFileSystem
 {
-    public bool FileExists(string path) => fileSystem.File.Exists(path);
+    private const int CopyBufferSize = 4096;
 
-    public Task<byte[]> ReadAllBytesAsync(string path, CancellationToken cancellationToken)
+    public async Task<byte[]?> TryReadAllBytesAsync(string path, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(fileSystem.File.ReadAllBytes(path));
+        try
+        {
+            using var stream = fileSystem.FileStream.New(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer, CopyBufferSize, cancellationToken).ConfigureAwait(false);
+            return buffer.ToArray();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // The seam's contract: a missing or unreadable file is absent state.
+            return null;
+        }
     }
 
     public async Task<bool> TryCreateExclusiveAsync(string path, ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken)
