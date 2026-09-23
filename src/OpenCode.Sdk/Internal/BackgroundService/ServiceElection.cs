@@ -3,7 +3,7 @@ using OpenCode.Sdk.Internal.BackgroundService.Abstractions;
 namespace OpenCode.Sdk.Internal.BackgroundService;
 
 /// <summary>
-/// One Ensure election, the pinned client's <c>ensure</c> loop (<c>promise/service.ts:57-115</c>)
+/// One Ensure election, the pinned client's <c>ensure</c> loop (<c>promise/service.ts</c>)
 /// read statement for statement: each round reads the registration and probes it, counts
 /// consecutive timeouts on one identity and recovers after the third, reuses a ready compatible
 /// service, fails on a failed one, replaces an incompatible one, and otherwise harvests finished
@@ -76,7 +76,7 @@ internal sealed class ServiceElection(ServiceElectionSeams seams, EnsureRequest 
     }
 
     /// <summary>
-    /// <c>:61-74</c>: consecutive timeouts on one identity; at the third, the daemon is taken as
+    /// The timeout branch: consecutive timeouts on one identity; at the third, the daemon is taken as
     /// unresponsive — its persistent terminals cannot be handed off — and ended, and the spawn
     /// delay is treated as already elapsed.
     /// </summary>
@@ -106,7 +106,7 @@ internal sealed class ServiceElection(ServiceElectionSeams seams, EnsureRequest 
     }
 
     /// <summary>
-    /// <c>:76-94</c>: a registered service resets the spawn delay; ready and compatible wins, failed
+    /// The registered-service branch: a registered service resets the spawn delay; ready and compatible wins, failed
     /// and compatible fails, and an incompatible one is replaced.
     /// </summary>
     /// <returns>True when the service won.</returns>
@@ -165,7 +165,7 @@ internal sealed class ServiceElection(ServiceElectionSeams seams, EnsureRequest 
     }
 
     /// <summary>
-    /// <c>:95-110</c>: no usable service. Finished contenders are dropped (and disposed) after their
+    /// The no-service branch: no usable service. Finished contenders are dropped (and disposed) after their
     /// failures and exit-0s are read; a failure with none left live ends the election; an exit 0
     /// doubles the spawn delay; one more contender starts while fewer than two are live and the
     /// delay has passed.
@@ -206,7 +206,7 @@ internal sealed class ServiceElection(ServiceElectionSeams seams, EnsureRequest 
     }
 
     /// <summary>
-    /// <c>:47-55</c>: the command's executable resolved the launcher's way, the channel's
+    /// <c>spawnContender</c>: the command's executable resolved the launcher's way, the channel's
     /// service-config environment under the caller's, and the handoff ticket over both. Any failure
     /// but the caller's cancellation is "failed to start".
     /// </summary>
@@ -258,7 +258,7 @@ internal sealed class ServiceElection(ServiceElectionSeams seams, EnsureRequest 
         return merged;
     }
 
-    /// <summary><c>:42-46</c>: <c>OnStart</c> fires at most once per call.</summary>
+    /// <summary><c>announce</c>: <c>OnStart</c> fires at most once per call.</summary>
     private void Announce(OpenCodeServerEnsureReason reason, string? previousVersion)
     {
         if (_announced)

@@ -31,7 +31,7 @@ internal interface IServiceFileSystem
     /// <summary>
     /// Moves a file onto another path in the same directory, replacing an existing destination
     /// atomically where the platform can express it. The pinned client's sidecar publication
-    /// (<c>rename</c> in <c>pty-handoff.ts:75</c>) depends on replace-on-success semantics.
+    /// (<c>rename</c> in <c>pty-handoff.ts</c> <c>publish</c>) depends on replace-on-success semantics.
     /// </summary>
     /// <param name="source">The current path.</param>
     /// <param name="destination">The destination path.</param>

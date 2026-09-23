@@ -4,10 +4,10 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 
 /// <summary>
 /// The persistent-terminal handoff sidecar the pinned client keeps at
-/// <c>&lt;registration&gt;.pty-handoff</c> (<c>pty-handoff.ts:7-11</c>): the source identity
+/// <c>&lt;registration&gt;.pty-handoff</c> (<c>Sidecar</c> in <c>pty-handoff.ts</c>): the source identity
 /// (<c>id</c>, <c>pid</c>, <c>url</c>), the handoff ticket exactly as the route answered it (or a
 /// JSON null), and an expiry in epoch milliseconds. The reader follows upstream's strict shape guard
-/// (<c>pty-handoff.ts:99-119</c>): any document that is not this shape reads as absent, never as a
+/// (<c>read</c> in <c>pty-handoff.ts</c>): any document that is not this shape reads as absent, never as a
 /// failure. The ticket stays a <see cref="JsonElement"/>, so members this pin does not model survive
 /// and the value rides <c>OPENCODE_PTY_HANDOFF</c> verbatim. A class rather than a record: the ticket
 /// is secret-bearing, and a record would print it.
@@ -47,7 +47,7 @@ internal sealed class PtyHandoffSidecar
         }
     }
 
-    /// <summary>The pinned client's <c>isHandoff</c> shape guard (<c>pty-handoff.ts:125-139</c>), unknown members ignored.</summary>
+    /// <summary>The pinned client's <c>isHandoff</c> shape guard (<c>pty-handoff.ts</c>), unknown members ignored.</summary>
     /// <param name="element">The candidate ticket.</param>
     /// <returns>True when the four members the pin knows are present and typed.</returns>
     public static bool IsHandoff(JsonElement element) =>

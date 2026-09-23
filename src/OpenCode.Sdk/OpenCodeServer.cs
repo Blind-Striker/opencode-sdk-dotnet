@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Internal.BackgroundService;
+using OpenCode.Sdk.Internal.Diagnostics;
 
 namespace OpenCode.Sdk;
 
@@ -44,7 +45,6 @@ public class OpenCodeServer : IAsyncDisposable
     private readonly TimeSpan _gracefulShutdownTimeout;
     private readonly OpenCodeServerOutput? _output;
     private readonly int? _processId;
-    private readonly bool _ownsProcess;
     private int _disposed;
 
     private OpenCodeServer(
@@ -59,7 +59,6 @@ public class OpenCodeServer : IAsyncDisposable
         _password = password;
         _gracefulShutdownTimeout = gracefulShutdownTimeout;
         _output = output;
-        _ownsProcess = true;
 
         // Captured while the handle is live: the identity stays readable for diagnostics after
         // disposal has released the process handle.
@@ -80,12 +79,11 @@ public class OpenCodeServer : IAsyncDisposable
     /// Initializes a handle over a server another process runs: the identity a registration
     /// published, no child, no ownership. Disposal is a no-op.
     /// </summary>
-    internal OpenCodeServer(Uri endpoint, string password, int processId, bool ownsProcess)
+    internal OpenCodeServer(Uri endpoint, string password, int processId)
     {
         _endpoint = endpoint;
         _password = password;
         _processId = processId;
-        _ownsProcess = ownsProcess;
     }
 
     /// <summary>
@@ -102,7 +100,7 @@ public class OpenCodeServer : IAsyncDisposable
     /// no-op because other clients share it. A bare mock reports false unless it overrides this
     /// member.
     /// </summary>
-    public virtual bool OwnsProcess => _ownsProcess;
+    public virtual bool OwnsProcess => _process is not null;
 
     /// <summary>Gets the endpoint: the port-zero binding of a started server, or the URL a registration published.</summary>
     public virtual Uri Endpoint => _endpoint ?? throw MockSeam.CreateError("OpenCodeServer", "Endpoint");
@@ -155,8 +153,7 @@ public class OpenCodeServer : IAsyncDisposable
             registration.Endpoint,
             registration.Password ?? throw new InvalidOperationException(
                 "A registered service reached the handle without a password; Discover and Ensure never return one."),
-            registration.ProcessId,
-            ownsProcess: false);
+            registration.ProcessId);
 
     /// <summary>
     /// Stops the registered background service the way <c>opencode service stop</c> does: resolves
@@ -424,8 +421,8 @@ public class OpenCodeServer : IAsyncDisposable
         {
             // Continuous drain: the first line is the readiness contract; every later stdout
             // write is read and, unless a collector retains it, dropped so a chatty server can
-            // never fill the pipe and wedge the probe (Q148; the reference keeps draining too,
-            // standalone.ts:42). The collector's append takes only its own bounded-data lock.
+            // never fill the pipe and wedge the probe (the reference keeps draining too, in
+            // standalone.ts). The collector's append takes only its own bounded-data lock.
             if (received.Data is not null)
             {
                 // Retain first, then signal: the readiness continuation can run the moment the
@@ -525,10 +522,10 @@ public class OpenCodeServer : IAsyncDisposable
             return;
         }
 
-        // Stdin EOF ends the scoped server lifetime (server-process.ts:167-171); closing the
+        // Stdin EOF ends the scoped server lifetime (server-process.ts); closing the
         // redirected writer is the lease release. A lease that was already gone means the child
         // is already leaving, so the bounded wait below covers both outcomes.
-        _ = TryReleaseStdinLease(process);
+        ReleaseStdinLease(process);
 
         if (await WaitForExitWithinAsync(process, grace).ConfigureAwait(false))
         {
@@ -543,28 +540,21 @@ public class OpenCodeServer : IAsyncDisposable
     }
 
     /// <summary>
-    /// Releases the ownership lease by closing the redirected stdin writer.
+    /// Releases the ownership lease by closing the redirected stdin writer; a pipe that is already
+    /// gone reports the child leaving rather than a failure to end it.
     /// </summary>
-    /// <returns>
-    /// True when this call closed the writer; false when the pipe was already gone, which reports
-    /// the child leaving rather than a failure to end it.
-    /// </returns>
-    private static bool TryReleaseStdinLease(Process process)
+    [SlopwatchSuppress(
+        "SW003",
+        "Closing the lease is the release itself: a writer that went with the process, or a broken pipe, reports that the child is already leaving, which is what the release asks for.")]
+    private static void ReleaseStdinLease(Process process)
     {
         try
         {
             process.StandardInput.Close();
-            return true;
         }
-        catch (InvalidOperationException)
+        catch (Exception exception) when (exception is InvalidOperationException or IOException)
         {
-            // The redirected writer went with the process; the lease is released either way.
-            return false;
-        }
-        catch (IOException)
-        {
-            // A broken pipe reports the same fact: the child is already leaving.
-            return false;
+            // The lease is released either way: the child is already leaving.
         }
     }
 
@@ -733,8 +723,8 @@ public class OpenCodeServer : IAsyncDisposable
         }
 
         // The explicit entry wins over anything inherited or supplied: the child's lease
-        // credential is always this start's own (upstream standalone.ts:23-26 posture; stdio
-        // mode scrubs it from the env the server hands to tools, server-process.ts:69-71).
+        // credential is always this start's own (upstream standalone.ts command's posture; stdio
+        // mode scrubs it from the env the server hands to tools, server-process.ts).
         startInfo.Environment["OPENCODE_PASSWORD"] = password;
         process.EnableRaisingEvents = true;
         return process;

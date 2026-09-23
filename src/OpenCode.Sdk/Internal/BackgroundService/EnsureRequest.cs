@@ -4,7 +4,7 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 /// One <c>EnsureAsync</c> call's options, validated and copied when the call starts and before any
 /// I/O, so a caller that reuses or changes its options object mid-call changes nothing. The
 /// version policy is resolved here the way the CLI resolves its <c>mismatch</c> flag
-/// (<c>server-connection.ts:74-84</c>): Ignore strips the expected version before the election,
+/// (<c>resolveManaged</c> in <c>server-connection.ts</c>): Ignore strips the expected version before the election,
 /// Replace keeps it, Error keeps it after its two Discover calls.
 /// </summary>
 /// <param name="Selection">The registration the call targets.</param>

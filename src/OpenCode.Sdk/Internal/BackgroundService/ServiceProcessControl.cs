@@ -1,8 +1,12 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
+#if !NET
 using System.Runtime.InteropServices;
+#endif
 using OpenCode.Sdk.Internal.BackgroundService.Abstractions;
+using static OpenCode.Sdk.Internal.BackgroundService.BackgroundServiceInterop;
+using static OpenCode.Sdk.Internal.BackgroundService.BackgroundServiceInterop.Libc;
 
 namespace OpenCode.Sdk.Internal.BackgroundService;
 
@@ -18,7 +22,7 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 /// <see cref="Process.Kill()"/> (<c>TerminateProcess</c>), which is what libuv does with a
 /// <c>SIGTERM</c> there.
 /// </summary>
-internal sealed partial class ServiceProcessControl : IServiceProcessControl
+internal sealed class ServiceProcessControl : IServiceProcessControl
 {
     private const int Sigterm = 15;
     private const int Sigkill = 9;
@@ -122,36 +126,10 @@ internal sealed partial class ServiceProcessControl : IServiceProcessControl
     private static bool TrySendSignal(int processId, ProcessSignal signal) =>
         Kill(processId, signal == ProcessSignal.Terminate ? Sigterm : Sigkill) == 0;
 
-    private static bool IsWindows =>
-#if NET
-        OperatingSystem.IsWindows();
-#else
-        RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-#endif
-
     private static bool IsLinux =>
 #if NET
         OperatingSystem.IsLinux();
 #else
         RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
-#endif
-
-    /// <summary>
-    /// <c>kill(2)</c>: two blittable integers, so there is no marshalling to generate on either
-    /// form. The modern targets take <c>LibraryImport</c>, the compile-time stub .NET recommends
-    /// (its generator is what needs the project's unsafe-code switch); the <c>netstandard2.0</c>
-    /// asset, where that generator is unavailable, takes the equivalent <c>DllImport</c>. "libc" is
-    /// the portable spelling: <c>libSystem.Native</c>'s loader maps it to the platform's own C
-    /// library (<c>libc.so.6</c>, <c>/usr/lib/libc.dylib</c>) instead of probing for a file, under
-    /// CoreCLR and native AOT alike.
-    /// </summary>
-#if NET
-    [LibraryImport("libc", EntryPoint = "kill")]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-    private static partial int Kill(int processId, int signal);
-#else
-    [DllImport("libc", EntryPoint = "kill")]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-    private static extern int Kill(int processId, int signal);
 #endif
 }

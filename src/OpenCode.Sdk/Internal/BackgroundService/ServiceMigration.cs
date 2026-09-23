@@ -1,4 +1,5 @@
 using OpenCode.Sdk.Internal.BackgroundService.Abstractions;
+using OpenCode.Sdk.Internal.Diagnostics;
 
 namespace OpenCode.Sdk.Internal.BackgroundService;
 
@@ -43,7 +44,7 @@ internal sealed class ServiceMigration(IServiceFileSystem fileSystem)
                 continue;
             }
 
-            _ = await TryCopyAsync(paths.RegistrationFile, bytes, cancellationToken).ConfigureAwait(false);
+            await CopyAsync(paths.RegistrationFile, bytes, cancellationToken).ConfigureAwait(false);
         }
 
         if (paths.LegacyConfigFile is { } legacyConfig && paths.ConfigFile is { } configFile)
@@ -52,7 +53,7 @@ internal sealed class ServiceMigration(IServiceFileSystem fileSystem)
             var bytes = await fileSystem.TryReadAllBytesAsync(legacyConfig, cancellationToken).ConfigureAwait(false);
             if (bytes is not null && ServiceConfigReader.TryReadEnvironment(bytes) is not null)
             {
-                _ = await TryCopyAsync(configFile, bytes, cancellationToken).ConfigureAwait(false);
+                await CopyAsync(configFile, bytes, cancellationToken).ConfigureAwait(false);
             }
         }
     }
@@ -119,26 +120,18 @@ internal sealed class ServiceMigration(IServiceFileSystem fileSystem)
         return true;
     }
 
-    private async Task<bool> TryCopyAsync(string target, byte[] bytes, CancellationToken cancellationToken)
+    [SlopwatchSuppress(
+        "SW003",
+        "The pinned CLI's migration copy runs under Effect.ignore (service-config.ts): a missing directory, a locked or read-only target, a full disk, or an arm that cannot create the copy safely never fails a lookup.")]
+    private async Task CopyAsync(string target, byte[] bytes, CancellationToken cancellationToken)
     {
         try
         {
-            return await fileSystem.TryCreateExclusiveAsync(target, bytes, cancellationToken).ConfigureAwait(false);
+            _ = await fileSystem.TryCreateExclusiveAsync(target, bytes, cancellationToken).ConfigureAwait(false);
         }
-        catch (IOException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
         {
-            // Parity with Effect.ignore: a missing directory, a locked target, a full disk.
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // A read-only state or config directory never fails a lookup.
-            return false;
-        }
-        catch (PlatformNotSupportedException)
-        {
-            // The one arm that cannot create the copy safely reports it this way.
-            return false;
+            // Effect.ignore: an existing target is kept either way, and a failed copy is no registration.
         }
     }
 }

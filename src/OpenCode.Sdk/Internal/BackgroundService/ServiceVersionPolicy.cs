@@ -1,7 +1,7 @@
 namespace OpenCode.Sdk.Internal.BackgroundService;
 
 /// <summary>
-/// The pinned client's <c>matchesVersion</c> (<c>service-version.ts:3-8</c>), the one version rule
+/// The pinned client's <c>matchesVersion</c> (<c>service-version.ts</c>), the one version rule
 /// Discover and the Ensure election share. The predicate form upstream's public client also accepts
 /// has no SDK surface: the CLI never passes one, and an exact version is what the options carry.
 /// </summary>

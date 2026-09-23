@@ -1,4 +1,5 @@
 using System.Net.Sockets;
+using OpenCode.Sdk.Internal.Diagnostics;
 
 namespace OpenCode.Sdk.Internal.BackgroundService;
 
@@ -75,7 +76,7 @@ internal static class LoopbackTransport
         Socket? socket = new(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
         try
         {
-            _ = TryDisableSynRetransmission(socket);
+            DisableSynRetransmission(socket);
             await socket.ConnectAsync(context.DnsEndPoint, cancellationToken).ConfigureAwait(false);
             var stream = new NetworkStream(socket, ownsSocket: true);
             socket = null;
@@ -99,7 +100,7 @@ internal static class LoopbackTransport
         ArgumentNullException.ThrowIfNull(endpoint);
 
         using var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
-        _ = TryDisableSynRetransmission(socket);
+        DisableSynRetransmission(socket);
         try
         {
             await socket.ConnectAsync(new System.Net.DnsEndPoint(endpoint.IdnHost, endpoint.Port), cancellationToken).ConfigureAwait(false);
@@ -113,25 +114,27 @@ internal static class LoopbackTransport
 #endif
 
     /// <summary>
-    /// Applies the no-retransmission parameters on Windows; returns false where the transport
-    /// provider refuses them (Windows before 10 1709), leaving the default connect and its delay.
+    /// Applies the no-retransmission parameters on Windows; where the transport provider refuses
+    /// them (Windows before 10 1709) the default connect and its delay remain.
     /// The vendor control code throws on Unix, so the platform check is the guard, not the catch.
     /// </summary>
-    private static bool TryDisableSynRetransmission(Socket socket)
+    [SlopwatchSuppress(
+        "SW003",
+        "The option is best effort wherever it is set (libuv, Go, the pinned client's runtime): a Windows build that refuses it keeps the default retransmissions, and the connect still runs under the probe's bound.")]
+    private static void DisableSynRetransmission(Socket socket)
     {
         if (!OperatingSystem.IsWindows())
         {
-            return false;
+            return;
         }
 
         try
         {
             _ = socket.IOControl(SioTcpInitialRto, NoSynRetransmissions, optionOutValue: null);
-            return true;
         }
         catch (SocketException)
         {
-            return false;
+            // Best effort: the default retransmissions remain, bounded by the probe's timeout.
         }
     }
 }

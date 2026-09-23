@@ -4,7 +4,7 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 
 /// <summary>
 /// The Ensure door behind <c>OpenCodeServer.EnsureAsync</c>, the CLI's managed-service resolution
-/// (<c>server-connection.ts:74-84</c>) over the pinned client's <c>ensure</c>: the options are
+/// (<c>resolveManaged</c> in <c>server-connection.ts</c>) over the pinned client's <c>ensure</c>: the options are
 /// validated and copied before any I/O, the registration is located once, the <c>Error</c> policy
 /// runs its two Discover calls, and a <see cref="ServiceElection"/> does the rest.
 /// </summary>
@@ -41,7 +41,7 @@ internal sealed class ServiceEnsurer(
 
         if (request.Policy == OpenCodeServerVersionPolicy.Error)
         {
-            // server-connection.ts:78-83: a service at the expected version is reused, a service at
+            // resolveManaged: a service at the expected version is reused, a service at
             // any other version is refused, and nothing registered enters the election.
             var discovery = new ServiceDiscovery(environment, fileSystem, probe);
             if (await discovery.DiscoverAtAsync(paths, request.Selection.ExpectedVersion, cancellationToken).ConfigureAwait(false) is { } compatible)

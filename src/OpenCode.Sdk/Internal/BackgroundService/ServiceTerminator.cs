@@ -5,7 +5,7 @@ using OpenCode.Sdk.Internal.Diagnostics;
 namespace OpenCode.Sdk.Internal.BackgroundService;
 
 /// <summary>
-/// The pinned client's <c>terminate</c> (<c>effect/service.ts:287-302</c>): send the terminate
+/// The pinned client's <c>terminate</c> (<c>effect/service.ts</c>): send the terminate
 /// rung, poll for the process to leave, send the kill rung when it is still there, poll again, and
 /// remove the registration once the process is gone — re-reading the registration before every
 /// signal and before the removal, so a record another service replaced is never acted on. The poll
@@ -79,7 +79,7 @@ internal sealed class ServiceTerminator(IServiceFileSystem fileSystem, IServiceP
     }
 
     /// <summary>
-    /// The pinned client's <c>stopped</c> under its poll schedule (<c>effect/service.ts:267-281</c>):
+    /// The pinned client's <c>stopped</c> under its poll schedule (<c>effect/service.ts</c>):
     /// one look, then up to <c>stopPollAttempts</c> more, <c>stopPollInterval</c> apart. Each look
     /// reads the process identity, so the process is gone when its identity is — because it
     /// exited, or because the operating system gave its pid to a newer process. The caller's

@@ -5,7 +5,7 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 /// <summary>
 /// Where a selection's registration lives, the first step Discover, Stop, and Ensure share: resolve
 /// the channel's paths from the environment roots, then run the channel's legacy migration the way
-/// the CLI's <c>ServiceConfig.options()</c> runs it on every connection (<c>service-config.ts:103-105</c>).
+/// the CLI's <c>ServiceConfig.options()</c> runs it on every connection (<c>service-config.ts</c>).
 /// Reading the file stays with <see cref="ServiceRegistrationReader"/>.
 /// </summary>
 internal sealed class ServiceRegistrationLocator(IServiceEnvironment environment, IServiceFileSystem fileSystem)

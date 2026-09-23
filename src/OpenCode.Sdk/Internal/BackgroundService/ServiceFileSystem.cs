@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 #endif
 using OpenCode.Sdk.Internal.BackgroundService.Abstractions;
+using OpenCode.Sdk.Internal.Diagnostics;
 
 namespace OpenCode.Sdk.Internal.BackgroundService;
 
@@ -122,7 +123,7 @@ internal sealed class ServiceFileSystem : IServiceFileSystem
         catch when (created)
         {
             // A partial file this call created must not survive as a registration candidate.
-            _ = TryRemovePartialFile(path);
+            RemovePartialFile(path);
             throw;
         }
     }
@@ -158,22 +159,18 @@ internal sealed class ServiceFileSystem : IServiceFileSystem
     }
 #endif
 
-    private static bool TryRemovePartialFile(string path)
+    [SlopwatchSuppress(
+        "SW003",
+        "The cleanup runs inside a failed create whose own exception is rethrown: that failure is the one worth reporting, and a partial file that cannot be removed adds nothing to it.")]
+    private static void RemovePartialFile(string path)
     {
         try
         {
             File.Delete(path);
-            return true;
         }
-        catch (IOException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            // The original failure is the one worth reporting.
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // Same: the create failed for a reason the caller already sees.
-            return false;
+            // The create failed for a reason the caller already sees.
         }
     }
 }

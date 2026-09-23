@@ -5,7 +5,7 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 /// <summary>
 /// The shipped <see cref="IServicePtyShutdown"/>: a client over the registration's endpoint and
 /// credential, one <c>PersistentPtys.ShutdownAsync</c> call, no request bound of its own — the
-/// pinned CLI's <c>shutdownPersistentPty</c> sets none either (<c>server-connection.ts:65-72</c>).
+/// pinned CLI's <c>shutdownPersistentPty</c> sets none either (<c>server-connection.ts</c>).
 /// </summary>
 internal sealed class ServicePtyShutdown : IServicePtyShutdown
 {

@@ -1,7 +1,5 @@
-#if !NET
-using System.Runtime.InteropServices;
-#endif
 using OpenCode.Sdk.Internal.BackgroundService.Abstractions;
+using static OpenCode.Sdk.Internal.BackgroundService.BackgroundServiceInterop;
 
 namespace OpenCode.Sdk.Internal.BackgroundService;
 
@@ -38,10 +36,4 @@ internal sealed class ServiceEnvironment : IServiceEnvironment
         return string.IsNullOrEmpty(specialFolder) ? null : specialFolder;
     }
 
-    private static bool IsWindows =>
-#if NET
-        OperatingSystem.IsWindows();
-#else
-        RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-#endif
 }

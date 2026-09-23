@@ -327,7 +327,7 @@ internal sealed class OperationPlanBinder
                 OperationId = _context.Operation.OperationId,
                 Group = group,
                 Row = row,
-                IsHandleOperation = parameters.Any(static parameter => parameter.IsHandleParameter),
+                IsHandleOperation = handle,
                 Plan = new OperationPlan
                 {
                     MethodName = methodName,

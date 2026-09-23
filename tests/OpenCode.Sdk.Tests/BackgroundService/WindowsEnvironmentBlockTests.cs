@@ -11,7 +11,7 @@ public sealed class WindowsEnvironmentBlockTests
     [Test]
     public async Task Build_Should_Order_Entries_Case_Insensitively_By_Name()
     {
-        var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
+        var environment = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["windir"] = @"C:\Windows",
             ["Path"] = @"C:\bin",
@@ -27,12 +27,11 @@ public sealed class WindowsEnvironmentBlockTests
     }
 
     [Test]
-    public async Task Build_Should_Skip_Entries_The_Overlay_Removed()
+    public async Task Build_Should_Keep_An_Empty_Value()
     {
-        var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
+        var environment = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["KEEP"] = "1",
-            ["REMOVED"] = null,
             ["EMPTY"] = string.Empty,
         };
 
@@ -46,7 +45,7 @@ public sealed class WindowsEnvironmentBlockTests
     {
         // The interop layer appends the string's own terminator, so the single NUL here becomes
         // the double NUL an empty block needs.
-        var block = WindowsEnvironmentBlock.Build(new Dictionary<string, string?>(StringComparer.Ordinal));
+        var block = WindowsEnvironmentBlock.Build(new Dictionary<string, string>(StringComparer.Ordinal));
 
         await Assert.That(block).IsEqualTo("\0");
     }

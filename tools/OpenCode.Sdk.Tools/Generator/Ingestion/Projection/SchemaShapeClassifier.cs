@@ -97,36 +97,7 @@ internal sealed class SchemaShapeClassifier
             return false;
         }
 
-        if (_constraintRules.Any(rule => rule.IsPopulated(element)))
-        {
-            return false;
-        }
-
-        return element is
-        {
-            Format: null,
-            Not: null,
-            If: null,
-            Then: null,
-            Else: null,
-            Contains: null,
-            PropertyNames: null,
-            Discriminator: null,
-            Xml: null,
-            ExternalDocs: null,
-            Default: null,
-            Example: null,
-            Deprecated: false,
-            ReadOnly: false,
-            WriteOnly: false,
-        }
-               && element.DependentSchemas is not { Count: > 0 }
-               && element.DependentRequired is not { Count: > 0 }
-               && element.Definitions is not { Count: > 0 }
-               && element.Examples is not { Count: > 0 }
-               && element.Vocabulary is not { Count: > 0 }
-               && element.Extensions is not { Count: > 0 }
-               && element.UnrecognizedKeywords is not { Count: > 0 };
+        return !_constraintRules.Any(rule => rule.IsPopulated(element)) && AllOfWrapperKeywords.AreAbsent(element);
     }
 
     private static bool IsObjectShape(Constraint constraints, JsonSchemaType? type)

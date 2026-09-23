@@ -3,6 +3,9 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 using OpenCode.Sdk.Internal.BackgroundService.Abstractions;
+using static OpenCode.Sdk.Internal.BackgroundService.BackgroundServiceInterop;
+using static OpenCode.Sdk.Internal.BackgroundService.BackgroundServiceInterop.Kernel32;
+using static OpenCode.Sdk.Internal.BackgroundService.BackgroundServiceInterop.Libc;
 
 namespace OpenCode.Sdk.Internal.BackgroundService;
 
@@ -19,7 +22,7 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 /// closes handles without signalling. Either way a released contender may still win the election
 /// it was started for.
 /// </summary>
-internal sealed partial class ServiceContender : IServiceContender
+internal sealed class ServiceContender : IServiceContender
 {
     /// <summary>The pinned client's <c>stderrLimit</c> (<c>service-contender.ts</c>): 8 KiB.</summary>
     private const int StderrLimit = 8 * 1024;
@@ -46,9 +49,8 @@ internal sealed partial class ServiceContender : IServiceContender
     private readonly Stream _stderr;
     private readonly SafeProcessHandle? _process;
     private readonly string? _redact;
-    private readonly LinkedList<byte[]> _tail = new();
+    private byte[] _tail = [];
 
-    private int _buffered;
     private bool _released;
     private bool _endOfStderr;
     private bool _disposed;
@@ -166,8 +168,7 @@ internal sealed partial class ServiceContender : IServiceContender
         lock (_gate)
         {
             _released = true;
-            _tail.Clear();
-            _buffered = 0;
+            _tail = [];
         }
     }
 
@@ -200,20 +201,12 @@ internal sealed partial class ServiceContender : IServiceContender
     /// </summary>
     private string RenderStderrLocked()
     {
-        if (_released || _buffered == 0)
+        if (_released || _tail.Length == 0)
         {
             return string.Empty;
         }
 
-        var merged = new byte[_buffered];
-        var offset = 0;
-        foreach (var chunk in _tail)
-        {
-            Buffer.BlockCopy(chunk, 0, merged, offset, chunk.Length);
-            offset += chunk.Length;
-        }
-
-        var text = Encoding.UTF8.GetString(merged, 0, merged.Length);
+        var text = Encoding.UTF8.GetString(_tail);
         if (_redact is { Length: > 0 } ticket)
         {
             text = RedactTicket(text, ticket);
@@ -246,7 +239,11 @@ internal sealed partial class ServiceContender : IServiceContender
         return tail.Length == 0 ? message : message + "\n" + tail;
     }
 
-    /// <summary>Keeps the final 8 KiB of the pipe and discards the rest; a released contender still drains, into nothing.</summary>
+    /// <summary>
+    /// Keeps the final 8 KiB of the pipe the way upstream's <c>onStderr</c> does: the chunk's own
+    /// last 8 KiB, behind as much of the previous tail as still fits. A released contender still
+    /// drains, into nothing.
+    /// </summary>
     private void AppendTailLocked(byte[] buffer, int count)
     {
         if (_released)
@@ -254,26 +251,12 @@ internal sealed partial class ServiceContender : IServiceContender
             return;
         }
 
-        var copy = new byte[count];
-        Buffer.BlockCopy(buffer, 0, copy, 0, count);
-        _tail.AddLast(copy);
-        _buffered += count;
-        while (_buffered > StderrLimit && _tail.First is { } head)
-        {
-            var excess = _buffered - StderrLimit;
-            if (head.Value.Length <= excess)
-            {
-                _tail.RemoveFirst();
-                _buffered -= head.Value.Length;
-            }
-            else
-            {
-                var rest = new byte[head.Value.Length - excess];
-                Buffer.BlockCopy(head.Value, excess, rest, 0, rest.Length);
-                head.Value = rest;
-                _buffered -= excess;
-            }
-        }
+        var kept = Math.Min(count, StderrLimit);
+        var carried = Math.Min(_tail.Length, StderrLimit - kept);
+        var next = new byte[carried + kept];
+        Buffer.BlockCopy(_tail, _tail.Length - carried, next, 0, carried);
+        Buffer.BlockCopy(buffer, count - kept, next, carried, kept);
+        _tail = next;
     }
 
     /// <summary>Whether a poll has learned how the process ended, or learned that another reaper took it.</summary>
@@ -426,31 +409,4 @@ internal sealed partial class ServiceContender : IServiceContender
             delay = delay + delay < ExitWatchCap ? delay + delay : ExitWatchCap;
         }
     }
-
-    private static bool IsWindows =>
-#if NET
-        OperatingSystem.IsWindows();
-#else
-        RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-#endif
-
-#if NET
-    [LibraryImport("kernel32", EntryPoint = "GetExitCodeProcess", SetLastError = true)]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool GetExitCodeProcess(SafeProcessHandle process, out uint exitCode);
-
-    [LibraryImport("libc", EntryPoint = "waitpid", SetLastError = true)]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-    private static partial int WaitPid(int pid, out int status, int options);
-#else
-    [DllImport("kernel32", EntryPoint = "GetExitCodeProcess", SetLastError = true)]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetExitCodeProcess(SafeProcessHandle process, out uint exitCode);
-
-    [DllImport("libc", EntryPoint = "waitpid", SetLastError = true)]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-    private static extern int WaitPid(int pid, out int status, int options);
-#endif
 }

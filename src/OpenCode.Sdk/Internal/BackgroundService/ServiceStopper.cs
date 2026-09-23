@@ -52,7 +52,7 @@ internal sealed class ServiceStopper(
     }
 
     /// <summary>
-    /// <c>ServerConnection.shutdownPersistentPty</c> (<c>server-connection.ts:65-72</c>): when a ready
+    /// <c>ServerConnection.shutdownPersistentPty</c> (<c>server-connection.ts</c>): when a ready
     /// and compatible daemon answers, ask it to shut the terminals down. The caller's cancellation
     /// propagates; every other failure of the exchange is dropped, the CLI's <c>Effect.ignore</c>.
     /// </summary>

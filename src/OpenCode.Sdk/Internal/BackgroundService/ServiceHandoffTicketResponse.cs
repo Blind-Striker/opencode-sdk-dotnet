@@ -6,7 +6,7 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 /// <summary>
 /// The persistent-terminal handoff route's answer with the ticket kept as the route wrote it: the
 /// pinned client parses the body with a plain <c>JSON.parse</c> and publishes <c>body.handoff</c>
-/// whole (<c>pty-handoff.ts:52-61</c>), and the replacement daemon decodes it with its own schema,
+/// whole (<c>prepare</c> in <c>pty-handoff.ts</c>), and the replacement daemon decodes it with its own schema,
 /// so a member this pin does not model must still reach it. The typed door would re-serialize the
 /// ticket through the pinned four-member model and drop such a member.
 /// </summary>

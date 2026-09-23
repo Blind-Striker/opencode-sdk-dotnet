@@ -5,7 +5,7 @@ using OpenCode.Sdk.Internal.Diagnostics;
 namespace OpenCode.Sdk.Internal.BackgroundService;
 
 /// <summary>
-/// The pinned client's persistent-terminal handoff sidecar (<c>pty-handoff.ts:13-97</c>) over the
+/// The pinned client's persistent-terminal handoff sidecar (<c>pty-handoff.ts</c>) over the
 /// background-service filesystem seam. The sidecar sits beside the registration at
 /// <c>&lt;registration&gt;.pty-handoff</c>; publication goes through an exclusive owner-only
 /// temporary file and a replace-on-success rename in the same directory, and a JSON-null handoff
@@ -35,7 +35,7 @@ internal sealed class ServicePtyHandoff(IServiceFileSystem fileSystem, IServiceC
     /// <summary>The environment variable a replacement contender reads its ticket from.</summary>
     private const string HandoffVariable = "OPENCODE_PTY_HANDOFF";
 
-    /// <summary>Upstream's fallback expiry for a sidecar that carries no ticket (<c>pty-handoff.ts:71</c>).</summary>
+    /// <summary>Upstream's fallback expiry for a sidecar that carries no ticket (<c>publish</c> in <c>pty-handoff.ts</c>).</summary>
     private static readonly TimeSpan NullSidecarLifetime = TimeSpan.FromSeconds(30);
 
     /// <inheritdoc />
@@ -186,12 +186,12 @@ internal sealed class ServicePtyHandoff(IServiceFileSystem fileSystem, IServiceC
     }
 
     /// <summary>
-    /// <c>:43-48</c>: shut an older daemon's terminals down under the request bound before it is
+    /// <c>prepare</c>: shut an older daemon's terminals down under the request bound before it is
     /// replaced. A 404 means there is nothing to shut down; any other failure fails the preparation.
     /// </summary>
     [SlopwatchSuppress(
         "SW003",
-        "The pinned client's shutdown .catch returns on a 404 (pty-handoff.ts:44-46): a daemon without the route has no persistent terminals to shut down, which is the outcome this call is after.")]
+        "The pinned client's shutdown .catch returns on a 404 (prepare in pty-handoff.ts): a daemon without the route has no persistent terminals to shut down, which is the outcome this call is after.")]
     private async Task ShutdownAsync(ServiceRegistration registration, TimeSpan timeout, CancellationToken cancellationToken)
     {
         using var bound = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -221,7 +221,7 @@ internal sealed class ServicePtyHandoff(IServiceFileSystem fileSystem, IServiceC
     }
 
     /// <summary>
-    /// <c>:78-88</c>: an unexpired sidecar is adopted when the registration is gone or still names the
+    /// <c>environment</c>: an unexpired sidecar is adopted when the registration is gone or still names the
     /// sidecar's source. The SDK reads an undecodable registration as absent, which adopts, where the
     /// pinned client compares whatever <c>JSON.parse</c> returned; its own discovery reads such a
     /// file as absent too, and the ticket is validated by the daemon that receives it.
@@ -251,7 +251,7 @@ internal sealed class ServicePtyHandoff(IServiceFileSystem fileSystem, IServiceC
             cancellationToken);
 
     /// <summary>
-    /// <c>:64-76</c>: an exclusive owner-only temporary, renamed over the sidecar. A filesystem
+    /// <c>publish</c>: an exclusive owner-only temporary, renamed over the sidecar. A filesystem
     /// failure is a preparation failure, so the replacement's swallow sees it like any other.
     /// </summary>
     private async Task PublishAsync(string sidecarPath, PtyHandoffSidecar sidecar, CancellationToken cancellationToken)
@@ -282,7 +282,7 @@ internal sealed class ServicePtyHandoff(IServiceFileSystem fileSystem, IServiceC
     /// <summary>The pinned client's <c>finally(() =&gt; rm(temporary, { force: true }))</c>.</summary>
     [SlopwatchSuppress(
         "SW003",
-        "The pinned client removes the temporary with rm({ force: true }) in a finally (pty-handoff.ts:75): a stray exists only when the publish already failed, and that failure is the one worth reporting.")]
+        "The pinned client removes the temporary with rm({ force: true }) in publish's finally (pty-handoff.ts): a stray exists only when the publish already failed, and that failure is the one worth reporting.")]
     private void RemoveTemporary(string temporary)
     {
         try
@@ -305,7 +305,7 @@ internal sealed class ServicePtyHandoff(IServiceFileSystem fileSystem, IServiceC
             ExpiresAt = expiresAt,
         };
 
-    /// <summary><c>:121-123</c>: the source identity is id, pid, and url; the version is not part of it.</summary>
+    /// <summary><c>same</c>: the source identity is id, pid, and url; the version is not part of it.</summary>
     private static bool Matches(PtyHandoffSidecar sidecar, ServiceRegistration registration) =>
         string.Equals(sidecar.SourceId, registration.Id, StringComparison.Ordinal) &&
         sidecar.SourcePid == registration.ProcessId &&
