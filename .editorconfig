@@ -1064,6 +1064,14 @@ dotnet_diagnostic.MA0045.severity = none
 [src/OpenCode.Sdk/Internal/BackgroundService/ProcessControl/ServiceProcessControl.cs]
 dotnet_diagnostic.MA0045.severity = none
 
+# ProcessMark.TryRead reads /proc/<pid>/stat on Linux for the start marker and the zombie state: a
+# few hundred bytes of a kernel pseudo-file, read synchronously because a mark is a value the
+# contender ledger takes inside the synchronous IServiceContenderSpawner.Spawn and compares in
+# plain predicates. Winner: the synchronous process-mark read, as ServiceProcessControl's; MA0045
+# remains enabled for every other file.
+[tests/Shared/ProcessMark.cs]
+dotnet_diagnostic.MA0045.severity = none
+
 # ServiceFileSystemTests seeds and reads its owned temporary directory through IFile.WriteAllText,
 # WriteAllBytes, ReadAllText, and ReadAllBytes. The test project also compiles for net472, whose
 # Testably asset is the netstandard2.0 one and carries none of the async overloads the modern asset

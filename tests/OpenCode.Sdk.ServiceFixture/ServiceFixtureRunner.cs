@@ -9,8 +9,9 @@ namespace OpenCode.Sdk.ServiceFixture;
 /// <remarks>
 /// Modes: <c>discover-default</c> reads the shared release registration through every default;
 /// <c>discover-channel &lt;channel&gt;</c> names a service channel; <c>ensure-channel
-/// &lt;channel&gt;</c> ensures the channel's service with the default <c>opencode serve --service</c>
-/// command resolved from this process's PATH; <c>stop-channel &lt;channel&gt;</c> stops the channel's
+/// &lt;channel&gt; &lt;ledger&gt;</c> ensures the channel's service with the default <c>opencode serve
+/// --service</c> command resolved from this process's PATH, recording every contender in the
+/// ledger; <c>stop-channel &lt;channel&gt;</c> stops the channel's
 /// registered service; <c>idle</c> prints <c>ready</c> and lingers until it is ended;
 /// <c>ignore-sigterm</c> lingers the same way but ignores <c>SIGTERM</c> where the platform can
 /// deliver one; <c>contender-probe</c> plays the contender the Ensure loop spawns, observed through
@@ -25,7 +26,7 @@ internal static class ServiceFixtureRunner
         {
             ["discover-default"] => DiscoveryMode.RunAsync(options: null),
             ["discover-channel", var channel] => DiscoveryMode.RunAsync(new OpenCodeServerDiscoverOptions { Channel = channel }),
-            ["ensure-channel", var channel] => EnsureMode.RunAsync(channel),
+            ["ensure-channel", var channel, var ledger] => EnsureMode.RunAsync(channel, ledger),
             ["stop-channel", var channel] => StopMode.RunAsync(channel),
             ["idle"] => LingeringProcessMode.RunAsync(ignoreTerminate: false),
             ["ignore-sigterm"] => LingeringProcessMode.RunAsync(ignoreTerminate: true),
@@ -36,7 +37,7 @@ internal static class ServiceFixtureRunner
     private static async Task<int> UsageAsync()
     {
         await Console.Error
-            .WriteLineAsync("Usage: discover-default | discover-channel <channel> | ensure-channel <channel> | stop-channel <channel> | idle | ignore-sigterm | contender-probe echo-argv-env [name …] | stderr-fill [bytes] | daemon-sleep | stall | stale")
+            .WriteLineAsync("Usage: discover-default | discover-channel <channel> | ensure-channel <channel> <ledger> | stop-channel <channel> | idle | ignore-sigterm | contender-probe echo-argv-env [name …] | stderr-fill [bytes] | daemon-sleep | stall | stale")
             .ConfigureAwait(false);
         return 2;
     }

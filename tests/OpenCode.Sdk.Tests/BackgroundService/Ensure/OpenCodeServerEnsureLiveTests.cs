@@ -107,7 +107,7 @@ public sealed class OpenCodeServerEnsureLiveTests(PinnedManagedServiceFixture se
         }
 
         await using var release = await EnsureServiceContext.CreateForReleaseBuildAsync(cancellationToken);
-        await using var server = await OpenCodeServer.EnsureAsync(
+        await using var server = await release.EnsureAsync(
             new OpenCodeServerEnsureOptions
             {
                 RegistrationFilePath = release.RegistrationFile,
@@ -115,7 +115,6 @@ public sealed class OpenCodeServerEnsureLiveTests(PinnedManagedServiceFixture se
                 Environment = release.Environment,
             },
             cancellationToken);
-        release.TrackProcess(server.ProcessId);
 
         var registration = await ReadRegistrationAsync(release.RegistrationFile);
         using var client = server.CreateClient();
@@ -136,7 +135,7 @@ public sealed class OpenCodeServerEnsureLiveTests(PinnedManagedServiceFixture se
         // The default command resolves through the isolated process's PATH, whose first entry is
         // the forwarding shim: the shipped PATH/PATHEXT resolution, not an explicit path.
         var result = await new ServiceFixtureCommand(FileSystem)
-            .RunAsync(["ensure-channel", "local"], context.IsolatedProcessEnvironment(), cancellationToken);
+            .RunAsync(["ensure-channel", "local", context.LedgerPath], context.IsolatedProcessEnvironment(), cancellationToken);
 
         await Assert.That(result.ExitCode).IsEqualTo(0).Because(result.StandardError);
 
@@ -149,7 +148,9 @@ public sealed class OpenCodeServerEnsureLiveTests(PinnedManagedServiceFixture se
         await Assert.That(registration.Version).IsEqualTo("local");
         await Assert.That(ProcessObservation.IsRunning(registration.ProcessId)).IsTrue();
 
-        context.TrackProcess(registration.ProcessId);
+        // The fixture process recorded the contenders; this process has to recognize the elected
+        // service's host among them to end it — on Linux the two read one start time differently.
+        await Assert.That(await context.ReadLiveContendersAsync(cancellationToken)).IsNotEmpty();
     }
 
     [Test]
@@ -160,7 +161,7 @@ public sealed class OpenCodeServerEnsureLiveTests(PinnedManagedServiceFixture se
 
         var options = EnsureOptions(context);
         var servers = await Task.WhenAll(
-            Enumerable.Range(0, 10).Select(_ => OpenCodeServer.EnsureAsync(options, cancellationToken)));
+            Enumerable.Range(0, 10).Select(_ => context.EnsureAsync(options, cancellationToken)));
 
         try
         {
@@ -174,7 +175,11 @@ public sealed class OpenCodeServerEnsureLiveTests(PinnedManagedServiceFixture se
                 await Assert.That(server.Endpoint).IsEqualTo(elected.Endpoint);
             }
 
-            context.TrackProcess(elected.ProcessId);
+            // Every loser leaves on its own once it finds the elected service, which the pinned
+            // CLI's own election test asserts before it ends the winner.
+            await Assert.That(await context.SettleAsync(cancellationToken)).IsTrue()
+                .Because("every losing contender should exit once one service is elected");
+            await Assert.That(ProcessObservation.IsRunning(elected.ProcessId)).IsTrue();
         }
         finally
         {
@@ -195,15 +200,13 @@ public sealed class OpenCodeServerEnsureLiveTests(PinnedManagedServiceFixture se
         await SeedAsync(context.RegistrationFile, ServiceRegistrationDocument.Compose(
             "stalled", "local", stall.Endpoint, stall.ProcessId, "stall-p455"));
 
-        var server = await OpenCodeServer.EnsureWithTimingAsync(EnsureOptions(context), Accelerated, cancellationToken);
+        var server = await context.EnsureAsync(EnsureOptions(context), Accelerated, cancellationToken);
         try
         {
             await Assert.That(await stall.ObserveExitWithinAsync(ExitBound, cancellationToken)).IsTrue()
                 .Because("the unresponsive daemon should be terminated after three timeouts");
             await Assert.That(server.ProcessId).IsNotEqualTo(stall.ProcessId);
             await Assert.That(ProcessObservation.IsRunning(server.ProcessId)).IsTrue();
-
-            context.TrackProcess(server.ProcessId);
         }
         finally
         {
@@ -227,7 +230,7 @@ public sealed class OpenCodeServerEnsureLiveTests(PinnedManagedServiceFixture se
         options.ExpectedVersion = "local";
         options.VersionPolicy = OpenCodeServerVersionPolicy.Replace;
 
-        var server = await OpenCodeServer.EnsureAsync(options, cancellationToken);
+        var server = await context.EnsureAsync(options, cancellationToken);
         try
         {
             await Assert.That(await stale.ObserveExitWithinAsync(ExitBound, cancellationToken)).IsTrue()
@@ -239,8 +242,6 @@ public sealed class OpenCodeServerEnsureLiveTests(PinnedManagedServiceFixture se
             var registration = await ReadRegistrationAsync(context.RegistrationFile);
             await Assert.That(registration.Version).IsEqualTo("local");
             await Assert.That(registration.ProcessId).IsEqualTo(server.ProcessId);
-
-            context.TrackProcess(server.ProcessId);
         }
         finally
         {
@@ -257,9 +258,8 @@ public sealed class OpenCodeServerEnsureLiveTests(PinnedManagedServiceFixture se
         // can reap it. On Windows the shim's cmd.exe host sits in between; the flow is the same.
         var context = Context;
 
-        var server = await OpenCodeServer.EnsureAsync(EnsureOptions(context), cancellationToken);
+        var server = await context.EnsureAsync(EnsureOptions(context), cancellationToken);
         var processId = server.ProcessId;
-        context.TrackProcess(processId);
         await server.DisposeAsync();
 
         await OpenCodeServer.StopAsync(
