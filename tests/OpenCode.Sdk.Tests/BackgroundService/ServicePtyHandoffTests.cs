@@ -159,9 +159,6 @@ public sealed class ServicePtyHandoffTests
         await Assert.That(exception!.InnerException).IsTypeOf<IOException>();
     }
 
-    [SlopwatchSuppress(
-        "SW004",
-        "Bounded rendezvous wait: the delay is the timeout guard on Task.WhenAny with the server's arrival signal, so a hung daemon double fails the wait instead of hanging the test.")]
     [Test]
     public async Task PrepareAsync_Should_Return_When_A_Concurrent_Caller_Published_A_Fresh_Matching_Sidecar()
     {
@@ -170,8 +167,7 @@ public sealed class ServicePtyHandoffTests
         var registration = Registration(server.Endpoint);
 
         var pending = Handoff().PrepareAsync(RegistrationPath(), registration, RequestTimeout, CancellationToken.None);
-        await Task.WhenAny(arrived.Task, Task.Delay(RequestTimeout));
-        await Assert.That(arrived.Task.IsCompleted).IsTrue();
+        _ = await arrived.Task.WaitAsync(RequestTimeout);
         Seed(SidecarPath(), Sidecar(registration, Ticket, NowMilliseconds + 60_000).ToUtf8Json());
         server.ReleaseResponses();
 
@@ -306,6 +302,46 @@ public sealed class ServicePtyHandoffTests
         _ = await Assert
             .That(async () => await Handoff().PrepareAsync(RegistrationPath(), FixedRegistration(), RequestTimeout, cancelled))
             .Throws<OperationCanceledException>();
+    }
+
+    /// <summary>A cancellation that arrives while the ticket request is in flight is the caller's, never a preparation failure.</summary>
+    [Test]
+    public async Task PrepareAsync_Should_Rethrow_Caller_Cancellation_During_The_Ticket_Request()
+    {
+        var arrived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var server = LoopbackHttpServer.Start(_ => Pending(arrived));
+        using var caller = new CancellationTokenSource();
+
+        var pending = Handoff().PrepareAsync(RegistrationPath(), Registration(server.Endpoint), RequestTimeout, caller.Token);
+        _ = await arrived.Task.WaitAsync(RequestTimeout);
+        await caller.CancelAsync();
+
+        OperationCanceledException? caught = null;
+        try
+        {
+            await pending;
+        }
+        catch (OperationCanceledException exception)
+        {
+            caught = exception;
+        }
+
+        // Cancellation, never the preparation failure a daemon error becomes.
+        await Assert.That(caught).IsNotNull();
+        server.ReleaseResponses();
+    }
+
+    /// <summary>The pinned client's <c>environment</c> reads a JSON-null ticket as no ticket and removes the variable.</summary>
+    [Test]
+    public async Task EnvironmentAsync_Should_Remove_The_Variable_For_A_Fresh_Matching_Sidecar_Without_A_Ticket()
+    {
+        Seed(RegistrationPath(), ServiceRegistrationData.Passwordless);
+        Seed(SidecarPath(), Sidecar(FixedRegistration(), handoff: null, NowMilliseconds + 60_000).ToUtf8Json());
+
+        var overlay = await Handoff().EnvironmentAsync(RegistrationPath(), Caller(), CancellationToken.None);
+
+        await Assert.That(overlay["OPENCODE_PTY_HANDOFF"]).IsNull();
+        await Assert.That(overlay["KEEP"]).IsEqualTo("1");
     }
 
     [Test]

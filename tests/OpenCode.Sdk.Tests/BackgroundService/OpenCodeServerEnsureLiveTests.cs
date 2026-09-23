@@ -11,7 +11,8 @@ namespace OpenCode.Sdk.Tests.BackgroundService;
 /// <c>serve --service</c> daemon, started by Ensure itself under isolated roots — reusing the
 /// default <c>opencode serve --service</c> command resolved through the forwarding shim (test a),
 /// elected by ten concurrent callers (test b), recovered from an unresponsive registered daemon
-/// after three timeouts (test c), and replacing a version-mismatched one (test d). Each test owns
+/// after three timeouts (test c), and replacing a version-mismatched one (test d) — and, on the
+/// distributed-build consumer leg, the published CLI started on its release channel. Each test owns
 /// its own <see cref="EnsureServiceContext"/>; none touches the maintainer's real daemon.
 /// </summary>
 /// <remarks>
@@ -85,6 +86,46 @@ public sealed class OpenCodeServerEnsureLiveTests(PinnedManagedServiceFixture se
         await Assert.That(announced).IsEmpty();
     }
 
+    /// <summary>
+    /// The distributed-build consumer leg (<c>OPENCODE_SDK_TESTS_SERVER_COMMAND</c>) proves Ensure
+    /// against the published CLI, not only the source run: the build registers under the release
+    /// channel's <c>service.json</c>, reports a real release version rather than the source run's
+    /// <c>local</c>, and answers as the process Ensure elected. Without the variable the proof
+    /// belongs to that leg, and this run records the branch it took.
+    /// </summary>
+    [Test]
+    [Timeout(180_000)]
+    public async Task EnsureAsync_Should_Start_The_Distributed_Build_On_Its_Release_Channel(CancellationToken cancellationToken)
+    {
+        if (PinnedServerCommandOverride.FromEnvironment() is not { } distributed)
+        {
+            Console.WriteLine("branch: source run — OPENCODE_SDK_TESTS_SERVER_COMMAND="
+                + (Environment.GetEnvironmentVariable("OPENCODE_SDK_TESTS_SERVER_COMMAND") ?? "(unset)")
+                + "; the consumer leg runs this proof");
+            return;
+        }
+
+        await using var release = await EnsureServiceContext.CreateForReleaseBuildAsync(cancellationToken);
+        await using var server = await OpenCodeServer.EnsureAsync(
+            new OpenCodeServerEnsureOptions
+            {
+                RegistrationFilePath = release.RegistrationFile,
+                Command = [distributed.Command[0], "serve", "--service"],
+                Environment = release.Environment,
+            },
+            cancellationToken);
+        release.TrackProcess(server.ProcessId);
+
+        var registration = await ReadRegistrationAsync(release.RegistrationFile);
+        using var client = server.CreateClient();
+        var info = await client.Server.GetInfoAsync(cancellationToken: cancellationToken);
+
+        await Assert.That(registration.ProcessId).IsEqualTo(server.ProcessId);
+        await Assert.That(registration.Version).IsNotNull().And.IsNotEqualTo("local");
+        await Assert.That(info.ServerInfo.Pid).IsEqualTo(server.ProcessId);
+        await Assert.That(info.ServerInfo.Version).IsEqualTo(registration.Version);
+    }
+
     [Test]
     [Timeout(180_000)]
     public async Task EnsureAsync_Should_Start_The_Source_Run_Daemon_By_Default_Command_And_Channel(CancellationToken cancellationToken)
@@ -148,7 +189,7 @@ public sealed class OpenCodeServerEnsureLiveTests(PinnedManagedServiceFixture se
     public async Task EnsureAsync_Should_Recover_From_An_Unresponsive_Daemon_After_Three_Timeouts(CancellationToken cancellationToken)
     {
         var context = Context;
-        await using var stall = await ServiceDaemonStandIn.StartAsync(FileSystem, "stall", cancellationToken);
+        await using var stall = await ServiceFixtureProcess.StartDaemonStandInAsync(FileSystem, "stall", cancellationToken);
 
         await SeedAsync(context.RegistrationFile, ServiceRegistrationDocument.Compose(
             "stalled", "local", stall.Endpoint, stall.ProcessId, "stall-p455"));
@@ -174,7 +215,7 @@ public sealed class OpenCodeServerEnsureLiveTests(PinnedManagedServiceFixture se
     public async Task EnsureAsync_Should_Replace_A_Version_Mismatched_Service(CancellationToken cancellationToken)
     {
         var context = Context;
-        await using var stale = await ServiceDaemonStandIn.StartAsync(FileSystem, "stale", cancellationToken);
+        await using var stale = await ServiceFixtureProcess.StartDaemonStandInAsync(FileSystem, "stale", cancellationToken);
 
         // A registration naming the stale daemon's own identity: the probe reads it ready at the
         // never-built 0.0.0-stale version, which the Replace policy refuses.
@@ -240,14 +281,9 @@ public sealed class OpenCodeServerEnsureLiveTests(PinnedManagedServiceFixture se
             Environment = context.Environment,
         };
 
-    private static async Task<ServiceRegistration> ReadRegistrationAsync(string path)
-    {
-        using var stream = FileSystem.FileStream.New(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-        using var buffer = new MemoryStream();
-        await stream.CopyToAsync(buffer, CancellationToken.None).ConfigureAwait(false);
-        return ServiceRegistrationReader.TryRead(buffer.ToArray())
-            ?? throw new InvalidOperationException($"No usable registration at '{path}'.");
-    }
+    private static async Task<ServiceRegistration> ReadRegistrationAsync(string path) =>
+        await ServiceRegistrationReader.TryReadAsync(new TestablyServiceFileSystem(FileSystem), path, CancellationToken.None).ConfigureAwait(false)
+        ?? throw new InvalidOperationException($"No usable registration at '{path}'.");
 
     private static async Task SeedAsync(string path, string document)
     {

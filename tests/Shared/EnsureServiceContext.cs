@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text;
-using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Internal.BackgroundService;
 using OpenCode.Sdk.Tests.Support;
 using Testably.Abstractions;
@@ -10,7 +9,8 @@ namespace OpenCode.Sdk.TestSupport;
 /// <summary>
 /// The hermetic arrangement one Ensure live test builds on, per test rather than per session: the
 /// isolated XDG roots, a reserved free loopback port (never the maintainer's real daemon's), an
-/// empty config seed naming that port, the <c>local</c>-channel registration path, and the
+/// empty config seed naming that port, the channel's registration path (<c>local</c> for the
+/// source run, the shared <c>service.json</c> a release build uses otherwise), and the
 /// forwarding <c>opencode</c> shim the Ensure loop's default command resolves. The spawned service
 /// is the launcher's to make ready and to end; this type only owns the boundary. On disposal it
 /// ends every contender the shim started (Unix records each pid), any process a test tracked, and
@@ -19,7 +19,6 @@ namespace OpenCode.Sdk.TestSupport;
 /// </summary>
 internal sealed class EnsureServiceContext : IAsyncDisposable
 {
-    private const string Channel = "local";
     private const int RealDaemonPort = 49374;
     private const int LogTailLines = 40;
     private static readonly TimeSpan ExitBound = TimeSpan.FromSeconds(15);
@@ -32,6 +31,7 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
     private string? _shimDirectory;
     private string? _shimPath;
     private string? _contenderPidFile;
+    private string? _channelFile;
     private int _port;
     private int _disposed;
     private bool _keep;
@@ -40,15 +40,21 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
     {
     }
 
-    /// <summary>Builds and initializes one context.</summary>
+    /// <summary>Builds and initializes one context on the source run's <c>local</c> channel.</summary>
     /// <param name="cancellationToken">The caller's token.</param>
     /// <returns>The initialized context.</returns>
-    public static async Task<EnsureServiceContext> CreateAsync(CancellationToken cancellationToken)
-    {
-        var context = new EnsureServiceContext();
-        await context.InitializeAsync(cancellationToken).ConfigureAwait(false);
-        return context;
-    }
+    public static Task<EnsureServiceContext> CreateAsync(CancellationToken cancellationToken) =>
+        CreateAsync("service-local.json", cancellationToken);
+
+    /// <summary>
+    /// Builds and initializes one context on a release build's channel: <c>latest</c>, <c>beta</c>,
+    /// <c>dev</c>, and <c>next</c> all register and read their config as <c>service.json</c>
+    /// (<c>filename</c> in the CLI's <c>service-config.ts</c>).
+    /// </summary>
+    /// <param name="cancellationToken">The caller's token.</param>
+    /// <returns>The initialized context.</returns>
+    public static Task<EnsureServiceContext> CreateForReleaseBuildAsync(CancellationToken cancellationToken) =>
+        CreateAsync("service.json", cancellationToken);
 
     /// <summary>Gets the per-run root every global directory is redirected into.</summary>
     public string RunRoot => _runRoot!.Path;
@@ -56,7 +62,7 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
     /// <summary>Gets the isolated roots the spawned service and any isolated fixture process read.</summary>
     public IReadOnlyDictionary<string, string> Environment => _environment!;
 
-    /// <summary>Gets the <c>local</c>-channel registration path under the isolated state root.</summary>
+    /// <summary>Gets the channel's registration path under the isolated state root.</summary>
     public string RegistrationFile => _registrationFile!;
 
     /// <summary>Gets the reserved loopback port the spawned service binds.</summary>
@@ -111,7 +117,7 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
 
         foreach (var processId in processIds)
         {
-            KillIfRunning(processId);
+            ProcessObservation.KillIfRunning(processId);
         }
 
         // A late contender that booted after its run root was deleted recreates the XDG folders
@@ -155,16 +161,10 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
         ];
     }
 
-    private async Task<int?> ReadRegisteredPidAsync()
-    {
-        if (_registrationFile is not { } file || !_fileSystem.File.Exists(file))
-        {
-            return null;
-        }
-
-        var bytes = Encoding.UTF8.GetBytes(await ReadSharedAsync(file).ConfigureAwait(false));
-        return ServiceRegistrationReader.TryRead(bytes)?.ProcessId;
-    }
+    private async Task<int?> ReadRegisteredPidAsync() =>
+        _registrationFile is { } file
+            ? (await ServiceRegistrationReader.TryReadAsync(new TestablyServiceFileSystem(_fileSystem), file, CancellationToken.None).ConfigureAwait(false))?.ProcessId
+            : null;
 
     /// <summary>The newest daemon log's final lines, the evidence a failed election leaves.</summary>
     private async Task<string> DaemonLogTailAsync()
@@ -190,13 +190,20 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
         return await reader.ReadToEndAsync().ConfigureAwait(false);
     }
 
+    private static async Task<EnsureServiceContext> CreateAsync(string channelFile, CancellationToken cancellationToken)
+    {
+        var context = new EnsureServiceContext { _channelFile = channelFile };
+        await context.InitializeAsync(cancellationToken).ConfigureAwait(false);
+        return context;
+    }
+
     private async Task InitializeAsync(CancellationToken cancellationToken)
     {
         _runRoot = new TestRunRoot(_fileSystem);
         _environment = ServerIsolation.Environment(_fileSystem, _runRoot.Path);
         _port = ReservePort();
         _registrationFile = _fileSystem.Path.Combine(
-            _environment["XDG_STATE_HOME"], "opencode", "service-" + Channel + ".json");
+            _environment["XDG_STATE_HOME"], "opencode", _channelFile!);
         await SeedConfigAsync(cancellationToken).ConfigureAwait(false);
         _shimDirectory = _runRoot.CreateSubdirectory("shim");
         _contenderPidFile = _fileSystem.Path.Combine(_runRoot.Path, "contenders.pid");
@@ -210,8 +217,8 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
         if (port == RealDaemonPort)
         {
             throw new InvalidOperationException(
-                $"The reserved loopback port is {RealDaemonPort.ToString(CultureInfo.InvariantCulture)}, the local "
-                + "channel's default where the maintainer's real daemon lives; the environment is contaminated. "
+                $"The reserved loopback port is {RealDaemonPort.ToString(CultureInfo.InvariantCulture)}, the release "
+                + "channels' default where the maintainer's real daemon lives; the environment is contaminated. "
                 + "Refusing to run rather than touch it.");
         }
 
@@ -224,25 +231,9 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
         // the daemon reads the port from here, so a spawned contender binds this reserved port.
         var directory = _environment!["OPENCODE_CONFIG_DIR"];
         _ = _fileSystem.Directory.CreateDirectory(directory);
-        var file = _fileSystem.Path.Combine(directory, "service-" + Channel + ".json");
+        var file = _fileSystem.Path.Combine(directory, _channelFile!);
         using var stream = _fileSystem.FileStream.New(file, FileMode.Create, FileAccess.Write, FileShare.None);
         var bytes = new UTF8Encoding(false).GetBytes("{\"port\":" + _port.ToString(CultureInfo.InvariantCulture) + "}\n");
         await stream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
-    }
-
-    [SlopwatchSuppress(
-        "SW003",
-        "Best-effort teardown: the pid being gone is the state the test is after, so a GetProcessById ArgumentException is the success path, not a swallowed failure.")]
-    private static void KillIfRunning(int processId)
-    {
-        try
-        {
-            using var process = System.Diagnostics.Process.GetProcessById(processId);
-            _ = ProcessTreeTerminator.TryKill(process);
-        }
-        catch (ArgumentException)
-        {
-            // The pid being gone is the state teardown is after.
-        }
     }
 }

@@ -106,19 +106,19 @@ internal static class ContenderProbe
     /// The bound turns every block into the <c>blocked</c> report instead of a hang the test
     /// would meet only as a timeout.
     /// </summary>
-    [SlopwatchSuppress(
-        "SW004",
-        "The delay is the probe's bound, not a wait-for-condition: a spawner-left-open stdin blocks forever and an inherited console blocks for input, so the bound turns both into the blocked report instead of a hang the test would meet only as a timeout.")]
     private static async Task<string> ProbeStandardInputAsync()
     {
-        var read = Task.Run(Console.In.Read);
-        var completed = await Task.WhenAny(read, Task.Delay(StandardInputBound)).ConfigureAwait(false);
-        if (completed != read)
+        // The bound turns a spawner-left-open stdin (blocks forever) and an inherited console
+        // (blocks for input) into the blocked report instead of a hang the test would meet only
+        // as its own timeout.
+        try
+        {
+            return await Task.Run(Console.In.Read).WaitAsync(StandardInputBound).ConfigureAwait(false) < 0 ? "eof" : "byte";
+        }
+        catch (TimeoutException)
         {
             return "blocked";
         }
-
-        return await read.ConfigureAwait(false) < 0 ? "eof" : "byte";
     }
 
     [SlopwatchSuppress(

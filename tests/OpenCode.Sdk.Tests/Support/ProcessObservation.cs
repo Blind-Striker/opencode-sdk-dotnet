@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using OpenCode.Sdk.Internal;
+
 namespace OpenCode.Sdk.Tests.Support;
 
 /// <summary>
@@ -11,7 +14,7 @@ internal static class ProcessObservation
     {
         try
         {
-            using var process = System.Diagnostics.Process.GetProcessById(processId);
+            using var process = Process.GetProcessById(processId);
             return !process.HasExited;
         }
         catch (ArgumentException)
@@ -22,10 +25,10 @@ internal static class ProcessObservation
 
     public static async Task WaitForExitAsync(int processId, CancellationToken cancellationToken)
     {
-        System.Diagnostics.Process child;
+        Process child;
         try
         {
-            child = System.Diagnostics.Process.GetProcessById(processId);
+            child = Process.GetProcessById(processId);
         }
         catch (ArgumentException)
         {
@@ -44,14 +47,40 @@ internal static class ProcessObservation
     /// rather than asserted gone at the instant disposal returns.
     /// </summary>
     /// <returns>True when the process exited inside the bound.</returns>
-    public static async Task<bool> ObserveExitWithinAsync(
-        int processId, TimeSpan bound, CancellationToken cancellationToken)
+    public static Task<bool> ObserveExitWithinAsync(
+        int processId, TimeSpan bound, CancellationToken cancellationToken) =>
+        WithinAsync(token => WaitForExitAsync(processId, token), bound, cancellationToken);
+
+    /// <summary>Waits at most <paramref name="bound"/> for an owned process to exit.</summary>
+    /// <returns>True when the process exited inside the bound.</returns>
+    public static Task<bool> ObserveExitWithinAsync(
+        Process process, TimeSpan bound, CancellationToken cancellationToken) =>
+        WithinAsync(process.WaitForExitAsync, bound, cancellationToken);
+
+    /// <summary>Ends a process tree when the pid still names a live process; a pid already gone is left alone.</summary>
+    [SlopwatchSuppress(
+        "SW003",
+        "Best-effort teardown: the pid being gone is the state the test is after, so a GetProcessById ArgumentException is the success path, not a swallowed failure.")]
+    public static void KillIfRunning(int processId)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(processId);
+            _ = ProcessTreeTerminator.TryKill(process);
+        }
+        catch (ArgumentException)
+        {
+            // The pid being gone is the state teardown is after.
+        }
+    }
+
+    private static async Task<bool> WithinAsync(Func<CancellationToken, Task> wait, TimeSpan bound, CancellationToken cancellationToken)
     {
         using var observation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         observation.CancelAfter(bound);
         try
         {
-            await WaitForExitAsync(processId, observation.Token);
+            await wait(observation.Token);
             return true;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)

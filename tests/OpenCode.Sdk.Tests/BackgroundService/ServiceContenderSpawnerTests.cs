@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -82,7 +81,7 @@ public sealed class ServiceContenderSpawnerTests
         }
         finally
         {
-            KillIfRunning(contender.ProcessId);
+            ProcessObservation.KillIfRunning(contender.ProcessId);
         }
     }
 
@@ -118,6 +117,9 @@ public sealed class ServiceContenderSpawnerTests
             "sp ace",
             "tab\there",
             "quo\"te",
+            "a\\\"b",
+            "\"sp ace\\\"",
+            "trailing-backslash\\",
             "back\\slash\\path",
             "αβγδ-日本語",
             "🚀-astral-plane",
@@ -152,7 +154,47 @@ public sealed class ServiceContenderSpawnerTests
         }
         finally
         {
-            KillIfRunning(contender.ProcessId);
+            ProcessObservation.KillIfRunning(contender.ProcessId);
+        }
+    }
+
+    /// <summary>
+    /// Environment names are case-insensitive on Windows and case-sensitive on Unix, as libuv and
+    /// the platforms treat them: an overlay key spelled differently from the host's variable
+    /// replaces it on Windows, where two spellings in one block would leave the child to pick
+    /// either, and stands beside it on Unix.
+    /// </summary>
+    [Test]
+    [Timeout(120_000)]
+    public async Task Spawn_Should_Match_Environment_Names_The_Way_The_Platform_Does(CancellationToken cancellationToken)
+    {
+        const string hostName = "SDK_CONTENDER_CASED";
+        const string overlayName = "sdk_contender_CASED";
+        Environment.SetEnvironmentVariable(hostName, "host");
+        try
+        {
+            var command = FixtureCommand();
+            using var contender = ServiceContenderSpawner.Start(new IServiceContenderSpawner.ContenderStartInfo(
+                new ResolvedExecutable("dotnet", command[0], IsBatchScript: false),
+                [command[1], "contender-probe", "echo-argv-env", hostName, overlayName],
+                new Dictionary<string, string?>(StringComparer.Ordinal) { [overlayName] = "overlay" }));
+            try
+            {
+                await Assert.That(await WaitForTheProbeAsync(contender, "the echo probe to finish", cancellationToken)).IsTrue()
+                    .Because(contender.Stderr);
+                var report = ParseEchoReport(contender.Stderr);
+
+                await Assert.That(report.Environment[hostName]).IsEqualTo(OperatingSystem.IsWindows() ? "overlay" : "host");
+                await Assert.That(report.Environment[overlayName]).IsEqualTo("overlay");
+            }
+            finally
+            {
+                ProcessObservation.KillIfRunning(contender.ProcessId);
+            }
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(hostName, null);
         }
     }
 
@@ -192,7 +234,7 @@ public sealed class ServiceContenderSpawnerTests
             }
             finally
             {
-                KillIfRunning(contender.ProcessId);
+                ProcessObservation.KillIfRunning(contender.ProcessId);
             }
         }
         finally
@@ -250,7 +292,7 @@ public sealed class ServiceContenderSpawnerTests
         }
         finally
         {
-            KillIfRunning(contender.ProcessId);
+            ProcessObservation.KillIfRunning(contender.ProcessId);
         }
     }
 
@@ -278,7 +320,7 @@ public sealed class ServiceContenderSpawnerTests
         }
         finally
         {
-            KillIfRunning(contender.ProcessId);
+            ProcessObservation.KillIfRunning(contender.ProcessId);
         }
     }
 
@@ -303,7 +345,7 @@ public sealed class ServiceContenderSpawnerTests
         }
         finally
         {
-            KillIfRunning(contender.ProcessId);
+            ProcessObservation.KillIfRunning(contender.ProcessId);
         }
     }
 
@@ -322,7 +364,7 @@ public sealed class ServiceContenderSpawnerTests
         }
         finally
         {
-            KillIfRunning(contender.ProcessId);
+            ProcessObservation.KillIfRunning(contender.ProcessId);
         }
     }
 
@@ -350,7 +392,7 @@ public sealed class ServiceContenderSpawnerTests
         }
         finally
         {
-            KillIfRunning(contender.ProcessId);
+            ProcessObservation.KillIfRunning(contender.ProcessId);
         }
     }
 
@@ -373,7 +415,7 @@ public sealed class ServiceContenderSpawnerTests
         }
         finally
         {
-            KillIfRunning(contender.ProcessId);
+            ProcessObservation.KillIfRunning(contender.ProcessId);
         }
     }
 
@@ -411,7 +453,7 @@ public sealed class ServiceContenderSpawnerTests
         }
         finally
         {
-            KillIfRunning(contender.ProcessId);
+            ProcessObservation.KillIfRunning(contender.ProcessId);
         }
     }
 
@@ -442,7 +484,7 @@ public sealed class ServiceContenderSpawnerTests
         }
         finally
         {
-            KillIfRunning(contender.ProcessId);
+            ProcessObservation.KillIfRunning(contender.ProcessId);
         }
     }
 
@@ -483,10 +525,10 @@ public sealed class ServiceContenderSpawnerTests
         }
         finally
         {
-            KillIfRunning(contender.ProcessId);
+            ProcessObservation.KillIfRunning(contender.ProcessId);
             if (daemonPid is { } orphan)
             {
-                KillIfRunning(orphan);
+                ProcessObservation.KillIfRunning(orphan);
             }
         }
     }
@@ -623,25 +665,6 @@ public sealed class ServiceContenderSpawnerTests
     /// <summary>The final 8 KiB of the fixture's default fill: blocks 128 through 255 of 256.</summary>
     private static string ExpectedTail() => string.Concat(
         Enumerable.Range(128, 128).Select(static block => block.ToString("D10", CultureInfo.InvariantCulture) + BlockFiller));
-
-    [SlopwatchSuppress(
-        "SW003",
-        "Best-effort teardown: the pid being gone is the state the test is after, so a GetProcessById ArgumentException is the success path, not a swallowed failure; the kill stays idempotent.")]
-    private static void KillIfRunning(int processId)
-    {
-        try
-        {
-            using var process = Process.GetProcessById(processId);
-            if (!process.HasExited)
-            {
-                process.Kill();
-            }
-        }
-        catch (ArgumentException)
-        {
-            // Already gone: nothing to end, which is the state every test is after.
-        }
-    }
 
     /// <summary><c>getsid(2)</c> through the portable <c>libc</c> spelling the SDK's own interop uses.</summary>
     [DllImport("libc", EntryPoint = "getsid", SetLastError = true)]

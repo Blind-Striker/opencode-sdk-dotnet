@@ -56,6 +56,12 @@ public sealed class PtyHandoffSidecarTests
         await Assert.That(sidecar.Handoff!.Value.GetProperty("ticket").GetString()).IsEqualTo("ticket-abc123");
     }
 
+    /// <summary>
+    /// Every shape the pinned client's <c>read</c> refuses, plus one it admits: a fractional pid.
+    /// Upstream checks only <c>typeof pid === "number"</c>; the SDK requires an integral one, the
+    /// only kind any writer publishes, so a hand-made fractional sidecar reads as absent here where
+    /// upstream would adopt its ticket when no registration exists. A deliberate strictness.
+    /// </summary>
     [Test]
     [Arguments("BackgroundService.pty-handoff-invalid-handoff.json")]
     [Arguments("BackgroundService.pty-handoff-string-pid.json")]
