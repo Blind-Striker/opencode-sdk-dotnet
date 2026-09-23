@@ -12,6 +12,8 @@
   "enumMemberNames": [],
   "hoistedMemberNames": [],
   "transportOwned": [],
+  "redactedMembers": [],
+  "secretLookingNames": [],
   "declined": [
     {
       "operationId": "fs.read",

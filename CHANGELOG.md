@@ -18,6 +18,16 @@ Nightly builds of `master` are on
   The persistent-terminal handoff sidecar travels with replacement, and `OnStart` fires at
   most once before a new service process is spawned.
 
+### 🔒 Security
+
+- **Generated models no longer print secrets.** A model's `ToString()` — string interpolation,
+  logging templates, the debugger — printed every member, so logging an `McpOAuthConfig`, or the
+  `McpRemoteConfig` holding it, wrote its `ClientSecret`. Members upstream's own recorder redacts
+  (`client_secret`, `password`, `api_key`, `token`, …) now print `[REDACTED]`, as do
+  `IntegrationConnectKeyRequest.Key` and the user-configured header and environment maps; an
+  absent secret prints empty, and every other member prints as before. Equality and JSON are
+  unchanged.
+
 ### 🐛 Fixes
 
 - **Discovery reaches a background service bound to every interface.** A daemon started with

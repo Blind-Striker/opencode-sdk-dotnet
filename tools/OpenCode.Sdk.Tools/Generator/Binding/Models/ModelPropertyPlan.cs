@@ -23,6 +23,12 @@ internal sealed record ModelPropertyPlan
     /// </summary>
     public required bool EmitsOptionalWrapper { get; init; }
 
+    /// <summary>
+    /// Gets whether the model's printed form masks this member's value: its wire name is on the
+    /// upstream redaction list or a curation row says so, and no row says otherwise (ADR-0028).
+    /// </summary>
+    public bool IsRedacted { get; init; }
+
     public LiteralKind? LiteralKind { get; init; }
 
     public string? LiteralValue { get; init; }

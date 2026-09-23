@@ -302,6 +302,16 @@
       "path": "packages/client/src/service-contender.ts",
       "sha256": "412b201461bee60ef41ab18570e71f5b31f377d612d0e41ebc69d55a5ef77c4f",
       "anchorMatched": true
+    },
+    {
+      "path": "packages/http-recorder/src/redaction/redactor.ts",
+      "sha256": "e621cdbab8e2ab676656a91f6235be3807a447e485cc398e9279b4199388b621",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/http-recorder/src/redaction/secrets.ts",
+      "sha256": "b5e49487e415347ebc5d6e290bc8c2c7a88825b56d549e0b063a94bf3074efef",
+      "anchorMatched": true
     }
   ]
 }

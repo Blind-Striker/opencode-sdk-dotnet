@@ -36,4 +36,9 @@ public sealed record IntegrationConnectKeyRequest
     /// </summary>
     [JsonIgnore]
     public LocationSelector? Location { get; init; }
+
+    /// <summary>
+    /// Prints the record&apos;s members with its secret members masked.
+    /// </summary>
+    public override string ToString() => RecordPrinter.Format(nameof(IntegrationConnectKeyRequest), ("Key", RecordPrinter.Redact(Key)), ("Answer", Answer), ("Label", Label), ("Location", Location));
 }

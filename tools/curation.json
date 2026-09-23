@@ -586,6 +586,92 @@
       "reason": "The persistent PTY WebSocket session door is hand-written over its own URL/query construction (ADR-0021 pattern, Task 4); the operation is never selected into the generation profile, so this fingerprint is the only generation-time check that a spec refresh reshaping method, path, the six connect queries, the x-websocket marker, or declared responses fails loudly instead of drifting silently under the hand-written door."
     }
   ],
+  "redactedMembers": [
+    {
+      "model": "IntegrationConnectKeyRequest",
+      "property": "key",
+      "redact": true,
+      "reason": "integration.connect.key sends the API key a key authentication method stores as the integration's credential (\"Run a key authentication method and store the resulting credential\"); the secretLookingNames row for 'key' clears every other model's key, so this one is decided here."
+    },
+    {
+      "model": "McpLocalConfig",
+      "property": "environment",
+      "redact": true,
+      "reason": "Upstream's recorder has no field for it, but an environment map carries whatever the user configured, API keys included; a record prints a dictionary's type name today, and the mask keeps the value out of the printed form if that ever changes."
+    },
+    {
+      "model": "McpRemoteConfig",
+      "property": "headers",
+      "redact": true,
+      "reason": "Upstream's recorder has no field for it, but a request-header map carries whatever the user configured, an Authorization or API-key header included; a record prints a dictionary's type name today, and the mask keeps the value out of the printed form if that ever changes."
+    },
+    {
+      "model": "ModelInfo",
+      "property": "headers",
+      "redact": true,
+      "reason": "Upstream's recorder has no field for it, but a request-header map carries whatever the user configured, an Authorization or API-key header included; a record prints a dictionary's type name today, and the mask keeps the value out of the printed form if that ever changes."
+    },
+    {
+      "model": "ModelVariant",
+      "property": "headers",
+      "redact": true,
+      "reason": "Upstream's recorder has no field for it, but a request-header map carries whatever the user configured, an Authorization or API-key header included; a record prints a dictionary's type name today, and the mask keeps the value out of the printed form if that ever changes."
+    },
+    {
+      "model": "PersistentPtyCreateRequest",
+      "property": "env",
+      "redact": true,
+      "reason": "Upstream's recorder has no field for it, but an environment map carries whatever the user configured, API keys included; a record prints a dictionary's type name today, and the mask keeps the value out of the printed form if that ever changes."
+    },
+    {
+      "model": "ProviderInfo",
+      "property": "headers",
+      "redact": true,
+      "reason": "Upstream's recorder has no field for it, but a request-header map carries whatever the user configured, an Authorization or API-key header included; a record prints a dictionary's type name today, and the mask keeps the value out of the printed form if that ever changes."
+    },
+    {
+      "model": "ProviderRequestOptions",
+      "property": "headers",
+      "redact": true,
+      "reason": "Upstream's recorder has no field for it, but a request-header map carries whatever the user configured, an Authorization or API-key header included; a record prints a dictionary's type name today, and the mask keeps the value out of the printed form if that ever changes."
+    },
+    {
+      "model": "PtyCreateRequest",
+      "property": "env",
+      "redact": true,
+      "reason": "Upstream's recorder has no field for it, but an environment map carries whatever the user configured, API keys included; a record prints a dictionary's type name today, and the mask keeps the value out of the printed form if that ever changes."
+    }
+  ],
+  "secretLookingNames": [
+    {
+      "property": "auth_server_metadata_url",
+      "reason": "The OAuth authorization server's metadata URL, a public discovery document address."
+    },
+    {
+      "property": "credentialID",
+      "reason": "The identifier of a stored credential, never the credential itself."
+    },
+    {
+      "property": "key",
+      "reason": "A form field's, form condition's, or instruction entry's identifier; the one key that is a credential (IntegrationConnectKeyRequest) has its own redactedMembers row."
+    },
+    {
+      "property": "maxTokensField",
+      "reason": "The name of the provider request field that carries the output-token limit."
+    },
+    {
+      "property": "oauth",
+      "reason": "The MCP server's OAuth settings union; its McpOAuthConfig arm prints through its own ToString, which masks client_secret."
+    },
+    {
+      "property": "supportsPromptCacheKey",
+      "reason": "Whether the provider accepts a prompt-cache key parameter; a boolean capability flag."
+    },
+    {
+      "property": "tokens",
+      "reason": "Token usage counts reported for a message, step, or session."
+    }
+  ],
   "declined": [
     {
       "operationId": "config.get",

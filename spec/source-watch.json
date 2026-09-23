@@ -495,6 +495,24 @@
         "type": "contains",
         "text": "detached: true,"
       }
+    },
+    {
+      "path": "packages/http-recorder/src/redaction/redactor.ts",
+      "sha256": "e621cdbab8e2ab676656a91f6235be3807a447e485cc398e9279b4199388b621",
+      "behavior": "DEFAULT_REDACT_JSON_FIELDS lists the JSON fields upstream\u0027s HTTP recorder masks in every recorded body (access_token, api_key, apikey, client_secret, password, refresh_token, secret, token), matched after normalizeField drops every character outside [a-z0-9] and lower-cases; the list and the rule are the generator\u0027s redaction floor for generated ToString (ADR-0028, SecretMemberPolicy), so a change to either moves the floor.",
+      "anchor": {
+        "type": "contains",
+        "text": "const DEFAULT_REDACT_JSON_FIELDS = ["
+      }
+    },
+    {
+      "path": "packages/http-recorder/src/redaction/secrets.ts",
+      "sha256": "b5e49487e415347ebc5d6e290bc8c2c7a88825b56d549e0b063a94bf3074efef",
+      "behavior": "ENV_SECRET_NAMES is the case-insensitive marker-word pattern upstream reads as a secret in an environment-variable name (API, AUTH, BEARER, CREDENTIAL, KEY, PASSWORD, SECRET, TOKEN, anywhere in the name); the generator\u0027s secret-name wall stops a model member whose wire name matches it until a curation row decides it (ADR-0028, SecretMemberPolicy).",
+      "anchor": {
+        "type": "contains",
+        "text": "const ENV_SECRET_NAMES = /(?:API|AUTH|BEARER|CREDENTIAL|KEY|PASSWORD|SECRET|TOKEN)/i"
+      }
     }
   ]
 }

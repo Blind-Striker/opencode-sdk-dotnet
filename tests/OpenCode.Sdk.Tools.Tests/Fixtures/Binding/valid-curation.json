@@ -19,5 +19,7 @@
     }
   ],
   "transportOwned": [],
+  "redactedMembers": [],
+  "secretLookingNames": [],
   "declined": []
 }

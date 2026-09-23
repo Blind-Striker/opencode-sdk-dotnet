@@ -19,7 +19,9 @@ internal static class BindingScenarioData
         IReadOnlyList<TransportOwnedCuration>? transportOwned = null,
         IReadOnlyList<DeclinedCuration>? declined = null,
         IReadOnlyList<HoistedMemberNameCuration>? hoistedMemberNames = null,
-        IReadOnlyList<EnumMemberNameCuration>? enumMemberNames = null) =>
+        IReadOnlyList<EnumMemberNameCuration>? enumMemberNames = null,
+        IReadOnlyList<RedactedMemberCuration>? redactedMembers = null,
+        IReadOnlyList<SecretLookingNameCuration>? secretLookingNames = null) =>
         new()
         {
             Groups = groups,
@@ -32,6 +34,8 @@ internal static class BindingScenarioData
             Declined = declined ?? [],
             HoistedMemberNames = hoistedMemberNames ?? [],
             EnumMemberNames = enumMemberNames ?? [],
+            RedactedMembers = redactedMembers ?? [],
+            SecretLookingNames = secretLookingNames ?? [],
         };
 
     public static DeclinedCuration Declined(string operationId,
