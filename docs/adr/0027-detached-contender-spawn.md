@@ -81,3 +81,8 @@ error as the inner exception.
   stay the C library's own.
 - The executable is looked up through the launching process's `PATH`, by the launcher
   resolution, not through a `PATH` the overlay carries; Node searches `options.env.PATH`.
+- The SDK reaps its own contenders: libuv reaps on `SIGCHLD`, which a library cannot install
+  without taking the host's handler, so each contender polls its own exit from the spawn on
+  (`waitpid(WNOHANG)` on Unix, `GetExitCodeProcess` on Windows) on a 1 ms to 1 s backoff with no
+  parked thread, and on Unix keeps polling after disposal until the pid is reaped. A contender is
+  finished, in Node's sense of `close`, once its stderr reached its end and its exit was observed.

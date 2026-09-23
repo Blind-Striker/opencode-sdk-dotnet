@@ -71,8 +71,8 @@ is revisited at each boundary.
    start, explicit endpoint, and the registration-file background service. The standalone door
    (`OpenCodeServer.StartAsync`, ADR-0001) and the explicit-endpoint validation option are landed
    with three-OS acceptance, an exact-pin server fixture, and a deterministic simulated-model
-   session workflow (ADR-0022). **The background-service parity arc is in flight, and its first
-   two slices have landed**: `OpenCodeServer.DiscoverAsync` over the registration file — an
+   session workflow (ADR-0022). **The background-service parity arc has landed** — its three
+   doors: `OpenCodeServer.DiscoverAsync` over the registration file — an
    upstream-observed contract outside the OpenAPI pin, so source-watched (ADR-0024, ADR-0025) —
    with a non-owning handle (`OwnsProcess`), the CLI's channel, migration, and status rules, and
    live proof against the pin's own `serve --service` daemon on every runtime leg; and
@@ -85,7 +85,9 @@ is revisited at each boundary.
    election — reusing a ready compatible daemon, replacing a version-mismatched one under an
    `Ignore`/`Replace`/`Error` policy, and otherwise spawning detached contenders until one
    registers or the 120-second bound expires, with the persistent-terminal handoff sidecar
-   travelling across replacement — proven against the pin's own daemon from source.
+   travelling across replacement — proven against the pin's own daemon from source (the live runs
+   reach the handoff with no persistent terminal open, so the ticket-carrying path is proven by the
+   loopback tests, not live) and, on the weekly consumer leg, against the published CLI.
    **Two generator slices rode inside M4 and have landed.** Fail-closed operation naming
    ([#86](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/86)): the HTTP method is
    never a name source — the closed grammar names an operation or a reason-bearing
@@ -230,7 +232,9 @@ is revisited at each boundary.
   candidate: the first suspect is .NET Framework's synchronous pipe reads holding thread-pool
   threads for every piped child. Measure before changing anything.
 - **Live tests are serialized by one mutex within a host** ([#83](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/83)):
-  every live class carries the `ServerProcess` key, so a host's live tests run one at a time.
+  every live class that shares a server carries the `ServerProcess` key, and the classes whose
+  assertions ride a wall-clock bound run keyless `[NotInParallel]`, so a host's live tests run one
+  at a time.
   Bounded parallelism (`ParallelLimiter`) needs the simulated drive controller demultiplexed by
   session first; until then the remaining gain is about 8% per host and not worth the Windows
   watcher-churn risk. Queued inside M4.

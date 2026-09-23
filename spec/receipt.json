@@ -312,6 +312,21 @@
       "path": "packages/http-recorder/src/redaction/secrets.ts",
       "sha256": "b5e49487e415347ebc5d6e290bc8c2c7a88825b56d549e0b063a94bf3074efef",
       "anchorMatched": true
+    },
+    {
+      "path": "packages/cli/src/index.ts",
+      "sha256": "a6744a83f3f0abcc0bdd95b858fe747bd031e39ff80141432d906eb425514e4c",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/cli/src/commands/handlers/serve.ts",
+      "sha256": "b136a083952d0b281f068183e2886652e3fe6271473a1b50b0ddf3fdbd86dc55",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/client/test/fixture/service.ts",
+      "sha256": "5e6f7e8b39ec8df2376cef0880da0cc41a2f90c3ffb74eea71c9fff90d4581ad",
+      "anchorMatched": true
     }
   ]
 }

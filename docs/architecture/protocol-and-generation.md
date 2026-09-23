@@ -138,7 +138,8 @@ implementation knowledge (ADR-0013).
 - Optional collections remain nullable. Generated collection properties expose shallow
   `IReadOnlyList<T>` or `IReadOnlyDictionary<string, T>` references without defensive copies,
   read-only wrappers, empty normalization, or recursive child validation. Callers retain ownership
-  of supplied collections (ADR-0004, ADR-0014).
+  of supplied collections (ADR-0004, ADR-0014). The open-model `AdditionalProperties` view above is
+  the one exception: it copies on init and answers an empty view for an absent bag.
 - A model with a secret member overrides `ToString()` and prints that member as `[REDACTED]` (empty
   when absent), every other member in the compiler's own shape. The floor is upstream's HTTP
   recorder field list with its matching rule; reasoned `redactedMembers` rows add or lift a mask;
@@ -234,8 +235,9 @@ dispatch instead of routing it through ADR-0009's unknown carrier (ADR-0015).
   binding. Same-primitive refinements collapse without emitting dead branch models (ADR-0016).
 - Known objects skip additive unmapped fields, including when the pinned schema is closed. Required
   shape and represented token types remain materializable. Pure dictionaries retain their value
-  schema; a named object combined with schema-valued additional properties fails binding until both
-  sides can be represented without loss (ADR-0012, ADR-0014).
+  schema; a named object combined with a typed additional-properties schema fails binding until both
+  sides can be represented without loss, while an unrestricted one binds as the open model above
+  (ADR-0012, ADR-0014).
 
 ## Operations, streams, and exclusions
 

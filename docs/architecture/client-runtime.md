@@ -549,3 +549,18 @@ publishes a null sidecar with a 30-second expiry. A failure keeps its cause as t
 whose registration is gone) as `OPENCODE_PTY_HANDOFF` and removes the variable otherwise;
 `complete` clears only a sidecar a different source wrote, with no expiry check; and `clear`
 removes it idempotently, the same seam Stop's sidecar clear routes through.
+
+The daemon side of the lifecycle is the spawned CLI's, not the SDK's: the incumbent check, the
+exit-0 loser on a port another daemon holds, the `chdir` into the user home, and the registration
+write all run inside `opencode serve --service` (`server-process.ts`), and the election reads a
+loser's exit 0 the way upstream's does. The CLI's `reconnect` and `restart` have no door of their
+own; a caller composes them from `StopAsync` and `EnsureAsync`.
+
+Where the SDK deliberately differs from the pinned chain, it differs here: the readers are stricter
+than upstream's `JSON.parse` — the registration and service-config readers refuse a repeated member,
+the registration reader a pid that is not a positive 32-bit integer and a URL that is not absolute
+HTTP or HTTPS, and the sidecar reader a pid that is not integral — and a refused document reads as
+absent; Discover and Ensure never hand out a registration without a password, where upstream
+would connect without credentials; the probe's Basic credential is UTF-8, where upstream's probe
+uses Latin-1 `btoa` and its sidecar writer UTF-8; and the probe never routes a loopback request
+through a proxy. Everything else follows the chain at the pin.

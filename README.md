@@ -19,8 +19,8 @@ call is exactly what the server declares.
 
 **Published and pre-1.0; the protocol surface is complete.** Everything below is landed and
 covered. All three of opencode's connection modes are open: a private server the SDK starts, an
-endpoint you already run, and the background service the CLI registers. What is still outstanding
-on that third mode is ensuring the service, which follows discovery and stop as its own slice.
+endpoint you already run, and the background service the CLI registers — discovered, ensured, or
+stopped the way the CLI does it.
 
 - ✅ **132 of 136 operations** callable — 130 generated, two through hand-written WebSocket
   transports — across 27 client families: sessions, PTYs, persistent PTYs, shells, events, MCP
@@ -40,12 +40,15 @@ on that third mode is ensuring the service, which follows discovery and stop as 
   your code: persistent terminals shut down, the registration re-read before every signal, the
   process identified by pid and start time, `SIGTERM` then `SIGKILL` (hard kills on Windows);
   proven against the pinned service on every target-framework leg
+- ✅ **Background-service ensure** — `OpenCodeServer.EnsureAsync()` reuses the registered daemon or
+  starts one through the CLI's own election: detached contenders, version policy, recovery of an
+  unresponsive daemon, and the persistent-terminal handoff; proven against the pinned service and,
+  on the weekly consumer leg, the published CLI
 - ✅ **Source-generated `System.Text.Json`** with no reflection fallback; both packages declare
   `IsAotCompatible` on `net10.0`
 - 🚧 **Pre-1.0 and iterating** — released as `0.9.0-preview.N`; the public surface is
   locked by a reviewed baseline but may still move before `1.0.0`. See [CHANGELOG.md](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/CHANGELOG.md)
-- 🔜 **Ensuring the background service**, and an **MCP server** over this SDK — planned, not
-  started
+- 🔜 An **MCP server** over this SDK — planned, not started
 
 **Versioning**: the SDK builds against an accepted OpenAPI snapshot taken at an upstream release
 tag, never a live branch. The exact commit and the refresh procedure live in
@@ -383,12 +386,6 @@ Architecture, decision records, and engineering policy live under [`docs/`](http
   follow-up; repeated reads on the same connection do not allocate another receive buffer. The
   receiver also queues undelivered frames, so slow or absent consumers can grow memory; see the
   [terminal lifetime contract](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/architecture/client-runtime.md).
-
-- **Discovery finds the background service; it does not start one.** `DiscoverAsync` answers null
-  when no ready registered daemon exists, `StopAsync` ends the registered one only when you call
-  it, and the CLI's `ensure` (start one when nothing is registered) has no SDK parity yet; it
-  follows as its own slice. Start a private server with `OpenCodeServer.StartAsync()` or run
-  `opencode` in the meantime.
 
 - **On `net472` and `netstandard2.0` running on Unix, owner-only files get their mode through a
   `chmod` child process.** Discovery reproduces the CLI's one-time copy of an older hashed

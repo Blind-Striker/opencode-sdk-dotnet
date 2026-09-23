@@ -6,8 +6,13 @@ The registration file, its channel-dependent path, legacy migration, the info pr
 Ensure/Stop lifecycle are not in the OpenAPI document. The SDK ports the first-party CLI/Effect
 chain at the accepted pin (`ServerConnection.resolve` -> `ServiceConfig.options` -> `Service` ->
 `ServiceRegistration`/`ServerProcess`) and pins every consumed file in `spec/source-watch.json`;
-the public Promise helper and the Desktop integration are comparison evidence only, because the
-Promise module resolves no channel and the CLI is the only writer of the files the SDK reads.
+that chain is the behaviour source. The public Promise helper's path handling and the Desktop
+integration are comparison evidence only, because the Promise module resolves no channel and the
+CLI is the only writer of the files the SDK reads. The Promise helper's `ensure` loop is the one
+part the port follows statement for statement: at the pin it states the same election as the
+Effect `Service.ensure` (spawn, probe, timeout recovery, replacement, contender harvest), and its
+imperative form reads line for line in C#, so it is the template the Ensure port is written
+against while the paths it reads still come from the CLI chain.
 Where the SDK cannot mirror a compile-time fact (channel, installed version, self-spawn command)
 it carries a named projection in the design and never a hidden default.
 
@@ -18,8 +23,9 @@ but incompatible — the pinned client routes such a daemon to replacement — s
 no service for it. The request bound and the owned non-redirecting transport are the SDK's own,
 and the transport keeps the pinned client's classification on every host: a refused loopback
 connect is no service, never a timeout, which on Windows takes the same no-SYN-retransmission
-socket option the pinned client's runtime sets for loopback. The one deliberate divergence is
-that the probe never sends a loopback request through a proxy, where the pinned client would.
+socket option the pinned client's runtime sets for loopback. One deliberate divergence is that the
+probe never sends a loopback request through a proxy, where the pinned client would; the full list
+of the SDK's deliberate divergences from the chain lives in `docs/architecture/client-runtime.md`.
 
 ## Considered options
 
