@@ -86,18 +86,24 @@ public sealed class PipelineTests
         await Assert.That(handler.Requests.Single().RequestUri).IsEqualTo(new Uri("http://localhost:4096/api/info"));
     }
 
+    /// <summary>
+    /// Only null means no credential, as in the pinned client, which sends any password it holds:
+    /// a server configured with a whitespace password runs with exactly that one.
+    /// </summary>
     [Test]
     [Arguments("")]
     [Arguments(" ")]
     [Arguments("\t")]
-    public async Task Pipeline_Should_Refuse_A_Blank_Explicit_Password(string password)
+    public async Task ExecuteAsync_Should_Send_A_Blank_Explicit_Password_As_Written(string password)
     {
         using var handler = new RecordingHttpHandler();
         using var httpClient = new HttpClient(handler);
+        using var pipeline = CreatePipeline(httpClient, password: password);
 
-        var exception = Assert.Throws<ArgumentException>(() => _ = CreatePipeline(httpClient, password: password));
+        _ = await pipeline.ExecuteAsync(HttpMethod.Get, "/api/info", new RecordingResponseAdapter(), options: null, CancellationToken.None);
 
-        await Assert.That(exception.Message).Contains("password");
+        var expected = $"Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes("opencode:" + password))}";
+        await Assert.That(handler.Requests.Single().Authorization).IsEqualTo(expected);
     }
 
     [Test]

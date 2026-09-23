@@ -6,11 +6,19 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 /// <summary>Classifies the info probe using the pinned client's pid/version decoder, independently of the public info model.</summary>
 internal static class ServiceProbeResponseClassifier
 {
-    private static readonly ServiceProbeResult NotThisDaemon = new(State: null, Version: null, TimedOut: false);
+    private static readonly ServiceProbeResult NotThisDaemon = new(State: null, Version: null, TimedOut: false, Compatible: true);
 
     public static ServiceProbeResult Classify(ServiceRegistration registration, HttpStatusCode status, ReadOnlyMemory<byte> body)
     {
         ArgumentNullException.ThrowIfNull(registration);
+
+        if (status == HttpStatusCode.NotFound)
+        {
+            // A daemon that predates the info route (one still serving /api/status) answers an
+            // authenticated 404, which the pinned client takes as the registered service itself,
+            // present and ready but incompatible, without reading a body.
+            return new ServiceProbeResult(ServiceState.Ready, registration.Version, TimedOut: false, Compatible: false);
+        }
 
         if (ReadIdentity(body) is not { } identity || identity.ProcessId != registration.ProcessId)
         {
@@ -28,7 +36,7 @@ internal static class ServiceProbeResponseClassifier
             (int)HttpStatusCode.InternalServerError => ServiceState.Failed,
             _ => ServiceState.Waiting,
         };
-        return new ServiceProbeResult(state, identity.Version, TimedOut: false);
+        return new ServiceProbeResult(state, identity.Version, TimedOut: false, Compatible: true);
     }
 
     /// <summary>Decodes the two identity fields the pinned client requires; anything else is not an identity.</summary>

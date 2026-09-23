@@ -144,8 +144,7 @@ public sealed class ServiceMigrationTests
     {
         var paths = ChannelPaths(Channel);
         var failing = Substitute.For<IServiceFileSystem>();
-        failing.FileExists(Arg.Any<string>()).Returns(true);
-        failing.ReadAllBytesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        failing.TryReadAllBytesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Encoding.UTF8.GetBytes(ServiceRegistrationData.DevPrerelease));
         failing.TryCreateExclusiveAsync(Arg.Any<string>(), Arg.Any<ReadOnlyMemory<byte>>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new UnauthorizedAccessException("read-only state directory"));
@@ -166,7 +165,7 @@ public sealed class ServiceMigrationTests
         await migration.ApplyAsync(Select(null, registrationFilePath: direct), new ServicePaths(direct, null, [], null), CancellationToken.None);
         await migration.ApplyAsync(Select(null), ChannelPaths(null), CancellationToken.None);
 
-        _ = fileSystem.DidNotReceiveWithAnyArgs().FileExists(default!);
+        _ = fileSystem.DidNotReceiveWithAnyArgs().TryReadAllBytesAsync(default!, default);
     }
 
     [Test]

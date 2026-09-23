@@ -10,7 +10,7 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 /// <param name="Spawner">The detached contender spawn.</param>
 /// <param name="Handoff">The persistent-terminal handoff sidecar.</param>
 /// <param name="Terminator">The stop ladder the recovery and the replacement end a daemon with.</param>
-/// <param name="Registrations">The registration (and service-config) file reader.</param>
+/// <param name="FileSystem">The registration and service-config file access.</param>
 /// <param name="Clock">The wall clock the deadline and the spawn delay are measured on.</param>
 /// <param name="Executables">The launcher's executable resolution for the command's first entry.</param>
 /// <param name="Timing">The lifecycle timing.</param>
@@ -19,7 +19,7 @@ internal sealed record ServiceElectionSeams(
     IServiceContenderSpawner Spawner,
     IServicePtyHandoff Handoff,
     ServiceTerminator Terminator,
-    ServiceRegistrationFile Registrations,
+    IServiceFileSystem FileSystem,
     IServiceClock Clock,
     ExecutableResolver Executables,
     ServiceTiming Timing);

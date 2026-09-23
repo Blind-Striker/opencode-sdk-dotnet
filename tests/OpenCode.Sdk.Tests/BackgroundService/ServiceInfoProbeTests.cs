@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text;
 using OpenCode.Sdk.Internal.BackgroundService;
@@ -217,6 +218,63 @@ public sealed class ServiceInfoProbeTests
         await Assert.That(exception!.CancellationToken).IsEqualTo(cancelled);
         await Assert.That(exception.ToString()).DoesNotContain(Password);
         server.ReleaseResponses();
+    }
+
+    /// <summary>
+    /// A daemon bound to every interface registers the unspecified address; Bun connects to it
+    /// (measured on Windows and Linux), .NET refuses it as a target, so the reader's loopback
+    /// connect target is what reaches the daemon.
+    /// </summary>
+    [Test]
+    public async Task ProbeAsync_Should_Reach_A_Daemon_Registered_On_The_Unspecified_Address()
+    {
+        await using var server = LoopbackHttpServer.Start(static _ => Json(HttpStatusCode.OK, ServiceInfoBodyData.Ready));
+        var document = $$"""{"version":"{{ServiceInfoBodyData.Version}}","url":"http://0.0.0.0:{{server.Endpoint.Port.ToString(CultureInfo.InvariantCulture)}}","pid":{{ServiceInfoBodyData.Pid.ToString(CultureInfo.InvariantCulture)}},"password":"{{Password}}"}""";
+        var registration = ServiceRegistrationReader.TryRead(Encoding.UTF8.GetBytes(document));
+
+        var result = await Probe().ProbeAsync(registration!, CancellationToken.None);
+
+        await Assert.That(result.State).IsEqualTo(ServiceState.Ready);
+    }
+
+    /// <summary>
+    /// The pinned client reads any rejected exchange as timed out exactly when its signal aborted
+    /// (<c>timedOut: signal.aborted</c>), whatever the rejection was: .NET Framework's handler can
+    /// surface the bound's abort as an <see cref="HttpRequestException"/>, which must still count.
+    /// </summary>
+    [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task ClassifyFailure_Should_Report_A_Timeout_Exactly_When_The_Bound_Expired(bool boundExpired)
+    {
+        var bound = new CancellationToken(canceled: boundExpired);
+
+        var result = ServiceInfoProbe.ClassifyFailure(CancellationToken.None, bound);
+
+        await Assert.That(result.TimedOut).IsEqualTo(boundExpired);
+        await Assert.That(result.IsService).IsFalse();
+    }
+
+    [Test]
+    public async Task ClassifyFailure_Should_Rethrow_Caller_Cancellation_Whatever_The_Bound()
+    {
+        var cancelled = new CancellationToken(canceled: true);
+
+        var exception = await Assert
+            .That(() => ServiceInfoProbe.ClassifyFailure(cancelled, cancelled))
+            .Throws<OperationCanceledException>();
+
+        await Assert.That(exception!.CancellationToken).IsEqualTo(cancelled);
+    }
+
+    [Test]
+    public async Task IsTransportFailure_Should_Admit_The_Exchange_Failures_And_Nothing_Else()
+    {
+        await Assert.That(ServiceInfoProbe.IsTransportFailure(new HttpRequestException())).IsTrue();
+        await Assert.That(ServiceInfoProbe.IsTransportFailure(new IOException())).IsTrue();
+        await Assert.That(ServiceInfoProbe.IsTransportFailure(new OperationCanceledException())).IsTrue();
+        await Assert.That(ServiceInfoProbe.IsTransportFailure(new ObjectDisposedException("content"))).IsTrue();
+        await Assert.That(ServiceInfoProbe.IsTransportFailure(new InvalidOperationException())).IsFalse();
     }
 
     [Test]

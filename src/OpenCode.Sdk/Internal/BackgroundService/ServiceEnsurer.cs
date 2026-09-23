@@ -60,7 +60,7 @@ internal sealed class ServiceEnsurer(
             spawner,
             handoff,
             new ServiceTerminator(fileSystem, processControl, timing),
-            new ServiceRegistrationFile(fileSystem),
+            fileSystem,
             clock,
             executableResolver,
             timing);

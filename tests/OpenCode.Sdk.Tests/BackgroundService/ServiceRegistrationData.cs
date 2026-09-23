@@ -21,6 +21,8 @@ internal static class ServiceRegistrationData
 
     public const string BlankPassword = "{\"url\":\"http://127.0.0.1:49374\",\"pid\":48213,\"password\":\"  \"}";
 
+    public const string EmptyPassword = "{\"url\":\"http://127.0.0.1:49374\",\"pid\":48213,\"password\":\"\"}";
+
     public const string UnknownMembersSkipped = "{\"url\":\"http://127.0.0.1:49374\",\"pid\":48213,\"future\":{\"nested\":[1,2]},\"flag\":true}";
 
     public const string ArrayRoot = "[{\"url\":\"http://127.0.0.1:49374\",\"pid\":48213}]";

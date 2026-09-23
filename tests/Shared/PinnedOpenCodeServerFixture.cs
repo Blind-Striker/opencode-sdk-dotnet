@@ -404,7 +404,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
         try
         {
             // OpenCodeClient construction lives inside this try, not before it: Pipeline's own
-            // option guards (a blank password, a missing endpoint) throw ArgumentException, and a
+            // option guards (a missing endpoint, a blank username) throw ArgumentException, and a
             // failure there is exactly as much an external-mode attach failure as the probe
             // itself - it must surface through the same fixture InvalidOperationException naming
             // the endpoint, never as a raw ArgumentException naming "options".

@@ -16,144 +16,50 @@ internal static class ServiceConfigReader
     /// <summary>Validates a config document and extracts its environment map.</summary>
     /// <param name="utf8">The file's bytes.</param>
     /// <returns>The environment map (empty when the document declares none), or null for an invalid document.</returns>
-    public static IReadOnlyDictionary<string, string>? TryReadEnvironment(ReadOnlySpan<byte> utf8)
-    {
-        try
-        {
-            return Read(utf8);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
+    public static IReadOnlyDictionary<string, string>? TryReadEnvironment(ReadOnlySpan<byte> utf8) =>
+        StrictJson.TryRead(utf8, Read);
 
-    private static Dictionary<string, string>? Read(ReadOnlySpan<byte> utf8)
+    private static Dictionary<string, string>? Read(JsonElement root)
     {
-        var reader = new Utf8JsonReader(utf8);
-        if (!reader.Read() || reader.TokenType != JsonTokenType.StartObject)
+        // The password is accepted as the shape declares it; never retained, never returned.
+        if (root.ValueKind != JsonValueKind.Object
+            || !StrictJson.TryGetOptionalString(root, "hostname", out _)
+            || !StrictJson.TryGetOptionalString(root, "password", out _)
+            || !IsValidPort(root)
+            || !IsValidCors(root))
         {
             return null;
         }
 
         var environment = new Dictionary<string, string>(StringComparer.Ordinal);
-        var seen = Members.None;
-        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+        if (!root.TryGetProperty("env", out var env))
         {
-            var member = Identify(ref reader);
-            if (member == Members.None)
-            {
-                reader.Skip();
-                continue;
-            }
+            return environment;
+        }
 
-            if ((seen & member) != Members.None || !ReadMember(ref reader, member, environment))
+        if (env.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        foreach (var entry in env.EnumerateObject())
+        {
+            if (entry.Value.ValueKind != JsonValueKind.String)
             {
                 return null;
             }
 
-            seen |= member;
-        }
-
-        if (reader.TokenType != JsonTokenType.EndObject || reader.Read())
-        {
-            return null;
+            environment.Add(entry.Name, entry.Value.GetString()!);
         }
 
         return environment;
     }
 
-    private static Members Identify(ref Utf8JsonReader reader)
-    {
-        if (reader.ValueTextEquals("hostname"u8))
-        {
-            return Members.Hostname;
-        }
+    private static bool IsValidPort(JsonElement root) =>
+        !root.TryGetProperty("port", out var port) ||
+        (port.ValueKind == JsonValueKind.Number && port.TryGetInt32(out var value) && value >= 1 && value <= MaxPort);
 
-        if (reader.ValueTextEquals("port"u8))
-        {
-            return Members.Port;
-        }
-
-        if (reader.ValueTextEquals("password"u8))
-        {
-            return Members.Password;
-        }
-
-        if (reader.ValueTextEquals("cors"u8))
-        {
-            return Members.Cors;
-        }
-
-        return reader.ValueTextEquals("env"u8) ? Members.Env : Members.None;
-    }
-
-    private static bool ReadMember(ref Utf8JsonReader reader, Members member, Dictionary<string, string> environment) =>
-        member switch
-        {
-            // The password is accepted as the shape declares it; never retained, never returned.
-            Members.Hostname or Members.Password => ReadString(ref reader),
-            Members.Port => ReadPort(ref reader),
-            Members.Cors => ReadStringArray(ref reader),
-            Members.Env => ReadStringMap(ref reader, environment),
-            Members.None => false,
-            _ => false,
-        };
-
-    private static bool ReadString(ref Utf8JsonReader reader) =>
-        reader.Read() && reader.TokenType == JsonTokenType.String;
-
-    private static bool ReadPort(ref Utf8JsonReader reader) =>
-        reader.Read() && reader.TokenType == JsonTokenType.Number &&
-        reader.TryGetInt32(out var port) && port >= 1 && port <= MaxPort;
-
-    private static bool ReadStringArray(ref Utf8JsonReader reader)
-    {
-        if (!reader.Read() || reader.TokenType != JsonTokenType.StartArray)
-        {
-            return false;
-        }
-
-        while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
-        {
-            if (reader.TokenType != JsonTokenType.String)
-            {
-                return false;
-            }
-        }
-
-        return reader.TokenType == JsonTokenType.EndArray;
-    }
-
-    private static bool ReadStringMap(ref Utf8JsonReader reader, Dictionary<string, string> target)
-    {
-        if (!reader.Read() || reader.TokenType != JsonTokenType.StartObject)
-        {
-            return false;
-        }
-
-        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
-        {
-            var name = reader.GetString()!;
-            if (!reader.Read() || reader.TokenType != JsonTokenType.String || target.ContainsKey(name))
-            {
-                return false;
-            }
-
-            target.Add(name, reader.GetString()!);
-        }
-
-        return reader.TokenType == JsonTokenType.EndObject;
-    }
-
-    [Flags]
-    private enum Members
-    {
-        None = 0,
-        Hostname = 1,
-        Port = 2,
-        Password = 4,
-        Cors = 8,
-        Env = 16,
-    }
+    private static bool IsValidCors(JsonElement root) =>
+        !root.TryGetProperty("cors", out var cors) ||
+        (cors.ValueKind == JsonValueKind.Array && cors.EnumerateArray().All(static origin => origin.ValueKind == JsonValueKind.String));
 }

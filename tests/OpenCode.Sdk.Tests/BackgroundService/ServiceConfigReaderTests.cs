@@ -62,5 +62,26 @@ public sealed class ServiceConfigReaderTests
         await Assert.That(environment).IsNull();
     }
 
+    /// <summary>A hand-edited config saved by an editor that writes a BOM: the CLI's decoder strips it, so its <c>env</c> applies.</summary>
+    [Test]
+    public async Task TryReadEnvironment_Should_Read_A_Bom_Prefixed_Config()
+    {
+        var environment = ServiceConfigReader.TryReadEnvironment([0xEF, 0xBB, 0xBF, .. Bytes("{\"env\":{\"A\":\"1\"}}")]);
+
+        await Assert.That(environment).IsNotNull();
+        await Assert.That(environment["A"]).IsEqualTo("1");
+    }
+
+    [Test]
+    public async Task TryReadEnvironment_Should_Treat_Invalid_Utf8_In_A_String_As_Absent()
+    {
+        // 0xC3 opens a two-byte sequence that 0x28 ('(') cannot continue.
+        byte[] document = [.. Bytes("{\"env\":{\"A\":\""), 0xC3, 0x28, .. Bytes("\"}}")];
+
+        var environment = ServiceConfigReader.TryReadEnvironment(document);
+
+        await Assert.That(environment).IsNull();
+    }
+
     private static byte[] Bytes(string json) => Encoding.UTF8.GetBytes(json);
 }

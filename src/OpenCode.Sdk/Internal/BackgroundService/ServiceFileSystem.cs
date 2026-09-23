@@ -16,11 +16,41 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 internal sealed class ServiceFileSystem : IServiceFileSystem
 {
     private const UnixFileMode OwnerOnly = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+    private const int CopyBufferSize = 4096;
 
-    public bool FileExists(string path) => File.Exists(path);
+    public async Task<byte[]?> TryReadAllBytesAsync(string path, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var stream = OpenRead(path);
+#if NET
+            await using (stream.ConfigureAwait(false))
+#else
+            using (stream)
+#endif
+            {
+                using var buffer = new MemoryStream();
+                await stream.CopyToAsync(buffer, CopyBufferSize, cancellationToken).ConfigureAwait(false);
+                return buffer.ToArray();
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Missing, under a missing directory, or unreadable: absent state, as the pinned
+            // client's read folds every failure but cancellation.
+            return null;
+        }
+    }
 
-    public Task<byte[]> ReadAllBytesAsync(string path, CancellationToken cancellationToken) =>
-        File.ReadAllBytesAsync(path, cancellationToken);
+    /// <summary>
+    /// Opens a file for reading the way libuv opens every file, sharing read, write, and delete: the
+    /// daemon removes its registration on exit while clients poll it, and on Windows a reader that
+    /// shared less would make the removal fail. Unix never blocks it.
+    /// </summary>
+    /// <param name="path">The absolute path.</param>
+    /// <returns>The open stream.</returns>
+    internal static FileStream OpenRead(string path) =>
+        new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, CopyBufferSize, useAsync: true);
 
     public Task<bool> TryCreateExclusiveAsync(string path, ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken)
     {

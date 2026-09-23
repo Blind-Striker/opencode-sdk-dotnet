@@ -16,8 +16,8 @@ internal sealed class ServiceInfoProbe(ServiceTiming timing) : IServiceInfoProbe
     /// <summary>The pin's info route, resolved against the authority only, as <c>new URL("/api/info", info.url)</c> does.</summary>
     private const string InfoPath = "/api/info";
 
-    private static readonly ServiceProbeResult NoService = new(State: null, Version: null, TimedOut: false);
-    private static readonly ServiceProbeResult Expired = new(State: null, Version: null, TimedOut: true);
+    private static readonly ServiceProbeResult NoService = new(State: null, Version: null, TimedOut: false, Compatible: true);
+    private static readonly ServiceProbeResult Expired = new(State: null, Version: null, TimedOut: true, Compatible: true);
 
     public async Task<ServiceProbeResult> ProbeAsync(ServiceRegistration registration, CancellationToken cancellationToken)
     {
@@ -57,35 +57,38 @@ internal sealed class ServiceInfoProbe(ServiceTiming timing) : IServiceInfoProbe
                 .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, bound.Token)
                 .ConfigureAwait(false);
             status = response.StatusCode;
-            if (status == HttpStatusCode.NotFound)
-            {
-                // A daemon that predates the info route (one still serving /api/status) answers an
-                // authenticated 404, which the pinned client takes as the registered service itself,
-                // present and ready but incompatible, without reading a body (service.ts:228-240 at
-                // the pin).
-                return new ServiceProbeResult(ServiceState.Ready, registration.Version, TimedOut: false) { Compatible = false };
-            }
 
-            body = await response.Content.ReadAsByteArrayAsync(bound.Token).ConfigureAwait(false);
+            // An authenticated 404 is classified without its body, as the pinned client does.
+            body = status == HttpStatusCode.NotFound
+                ? []
+                : await response.Content.ReadAsByteArrayAsync(bound.Token).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (Exception failure) when (IsTransportFailure(failure))
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            throw;
-        }
-        catch (OperationCanceledException)
-        {
-            return Expired;
-        }
-        catch (HttpRequestException)
-        {
-            return NoService;
-        }
-        catch (IOException)
-        {
-            return NoService;
+            return ClassifyFailure(cancellationToken, bound.Token);
         }
 
         return ServiceProbeResponseClassifier.Classify(registration, status, body);
+    }
+
+    /// <summary>The ways an exchange fails rather than answers: the bound's or the caller's cancellation, a refused or dropped connection, a body read cut short.</summary>
+    /// <param name="exception">The failure.</param>
+    /// <returns>True when the exchange itself failed.</returns>
+    internal static bool IsTransportFailure(Exception exception) =>
+        exception is OperationCanceledException or HttpRequestException or IOException or ObjectDisposedException;
+
+    /// <summary>
+    /// The pinned client's <c>probeResult</c> reads every rejected exchange the same way:
+    /// <c>timedOut: signal.aborted</c>. Whether the bound expired decides, never the failure's type:
+    /// .NET Framework's handler can report the bound's abort as an <see cref="HttpRequestException"/>,
+    /// which must still count toward the three-timeout recovery. The caller's cancellation propagates.
+    /// </summary>
+    /// <param name="caller">The caller's token.</param>
+    /// <param name="bound">The probe's internal request bound.</param>
+    /// <returns>A timeout when the bound expired; otherwise no service.</returns>
+    internal static ServiceProbeResult ClassifyFailure(CancellationToken caller, CancellationToken bound)
+    {
+        caller.ThrowIfCancellationRequested();
+        return bound.IsCancellationRequested ? Expired : NoService;
     }
 }

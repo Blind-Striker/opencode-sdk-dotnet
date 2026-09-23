@@ -31,10 +31,10 @@ public sealed class ServiceEnsurerTests
         StopPollInterval: TimeSpan.FromMilliseconds(1),
         StopPollAttempts: 3);
 
-    private static readonly ServiceProbeResult Ready = new(ServiceState.Ready, Version, TimedOut: false);
-    private static readonly ServiceProbeResult Waiting = new(ServiceState.Waiting, Version, TimedOut: false);
-    private static readonly ServiceProbeResult Failed = new(ServiceState.Failed, Version, TimedOut: false);
-    private static readonly ServiceProbeResult TimedOut = new(State: null, Version: null, TimedOut: true);
+    private static readonly ServiceProbeResult Ready = new(ServiceState.Ready, Version, TimedOut: false, Compatible: true);
+    private static readonly ServiceProbeResult Waiting = new(ServiceState.Waiting, Version, TimedOut: false, Compatible: true);
+    private static readonly ServiceProbeResult Failed = new(ServiceState.Failed, Version, TimedOut: false, Compatible: true);
+    private static readonly ServiceProbeResult TimedOut = new(State: null, Version: null, TimedOut: true, Compatible: true);
 
     private readonly MockFileSystem _fileSystem = new();
     private readonly IServiceEnvironment _environment = Substitute.For<IServiceEnvironment>();
@@ -492,7 +492,7 @@ public sealed class ServiceEnsurerTests
     private void ElectOnSpawn(string version)
     {
         _probe.ProbeAsync(WithPid(ElectedPid), Arg.Any<CancellationToken>())
-            .Returns(new ServiceProbeResult(ServiceState.Ready, version, TimedOut: false));
+            .Returns(new ServiceProbeResult(ServiceState.Ready, version, TimedOut: false, Compatible: true));
         _spawner.Spawn(Arg.Any<IServiceContenderSpawner.ContenderStartInfo>()).Returns(call =>
         {
             _starts.Add(call.Arg<IServiceContenderSpawner.ContenderStartInfo>()!);

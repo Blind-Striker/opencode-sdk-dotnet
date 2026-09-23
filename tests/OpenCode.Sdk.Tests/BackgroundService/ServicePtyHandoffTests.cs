@@ -147,7 +147,7 @@ public sealed class ServicePtyHandoffTests
         await using var server = LoopbackHttpServer.Start(static _ =>
             Json(HttpStatusCode.OK, Fixtures.LoadJson("BackgroundService.pty-handoff-response-ticket.json")));
         var fileSystem = Substitute.For<IServiceFileSystem>();
-        fileSystem.FileExists(Arg.Any<string>()).Returns(false);
+        fileSystem.TryReadAllBytesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((byte[]?)null);
         fileSystem.TryCreateExclusiveAsync(Arg.Any<string>(), Arg.Any<ReadOnlyMemory<byte>>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new IOException("The sidecar directory vanished."));
 

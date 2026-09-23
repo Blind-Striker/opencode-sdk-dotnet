@@ -12,8 +12,6 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 /// </summary>
 internal sealed class ServiceMigration(IServiceFileSystem fileSystem)
 {
-    private readonly ServiceRegistrationFile _registrationFile = new(fileSystem);
-
     /// <summary>Applies the registration and config migrations a selection calls for.</summary>
     /// <param name="selection">The validated selection; direct-file mode and the null channel migrate nothing.</param>
     /// <param name="paths">The resolved paths.</param>
@@ -32,7 +30,7 @@ internal sealed class ServiceMigration(IServiceFileSystem fileSystem)
         foreach (var donor in paths.LegacyRegistrationFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var bytes = await _registrationFile.TryReadBytesAsync(donor, cancellationToken).ConfigureAwait(false);
+            var bytes = await fileSystem.TryReadAllBytesAsync(donor, cancellationToken).ConfigureAwait(false);
             if (bytes is null)
             {
                 continue;
@@ -51,7 +49,7 @@ internal sealed class ServiceMigration(IServiceFileSystem fileSystem)
         if (paths.LegacyConfigFile is { } legacyConfig && paths.ConfigFile is { } configFile)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var bytes = await _registrationFile.TryReadBytesAsync(legacyConfig, cancellationToken).ConfigureAwait(false);
+            var bytes = await fileSystem.TryReadAllBytesAsync(legacyConfig, cancellationToken).ConfigureAwait(false);
             if (bytes is not null && ServiceConfigReader.TryReadEnvironment(bytes) is not null)
             {
                 _ = await TryCopyAsync(configFile, bytes, cancellationToken).ConfigureAwait(false);

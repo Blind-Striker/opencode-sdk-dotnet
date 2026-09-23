@@ -21,7 +21,7 @@ public sealed class ServiceStopperTests
     private const string SidecarSuffix = ".pty-handoff";
     private static readonly string SidecarContent = new FixtureLoader().LoadJson("BackgroundService.pty-handoff-valid.json");
     private static readonly ProcessIdentity Live = new(RegisteredPid, new DateTime(2026, 9, 20, 9, 0, 0, DateTimeKind.Utc));
-    private static readonly ServiceProbeResult NoService = new(State: null, Version: null, TimedOut: false);
+    private static readonly ServiceProbeResult NoService = new(State: null, Version: null, TimedOut: false, Compatible: true);
 
     /// <summary>The pin's 50 ms × 100 poll, accelerated: each rung looks four times, 2 ms apart.</summary>
     private static readonly ServiceTiming Timing = new(
@@ -84,7 +84,7 @@ public sealed class ServiceStopperTests
     public async Task StopAsync_Should_Shut_Persistent_Terminals_Down_Before_Signalling_When_The_Daemon_Is_Ready()
     {
         SeedModern();
-        Answer(new ServiceProbeResult(ServiceState.Ready, Version, TimedOut: false));
+        Answer(new ServiceProbeResult(ServiceState.Ready, Version, TimedOut: false, Compatible: true));
 
         await Stopper().StopAsync(options: null, CancellationToken.None);
 
@@ -103,7 +103,7 @@ public sealed class ServiceStopperTests
     public async Task StopAsync_Should_Skip_The_Terminal_Shutdown_When_The_Daemon_Is_Not_Ready(int state)
     {
         SeedModern();
-        Answer(new ServiceProbeResult((ServiceState)state, Version, TimedOut: false));
+        Answer(new ServiceProbeResult((ServiceState)state, Version, TimedOut: false, Compatible: true));
 
         await Stopper().StopAsync(options: null, CancellationToken.None);
 
@@ -115,7 +115,7 @@ public sealed class ServiceStopperTests
     public async Task StopAsync_Should_Skip_The_Terminal_Shutdown_When_The_Daemon_Is_Incompatible()
     {
         SeedModern();
-        Answer(new ServiceProbeResult(ServiceState.Ready, Version, TimedOut: false) { Compatible = false });
+        Answer(new ServiceProbeResult(ServiceState.Ready, Version, TimedOut: false, Compatible: false));
 
         await Stopper().StopAsync(options: null, CancellationToken.None);
 
@@ -127,7 +127,7 @@ public sealed class ServiceStopperTests
     public async Task StopAsync_Should_Skip_The_Terminal_Shutdown_When_The_Probe_Timed_Out()
     {
         SeedModern();
-        Answer(new ServiceProbeResult(State: null, Version: null, TimedOut: true));
+        Answer(new ServiceProbeResult(State: null, Version: null, TimedOut: true, Compatible: true));
 
         await Stopper().StopAsync(options: null, CancellationToken.None);
 
@@ -139,7 +139,7 @@ public sealed class ServiceStopperTests
     public async Task StopAsync_Should_Ignore_A_Refused_Terminal_Shutdown_And_Still_Terminate()
     {
         SeedModern();
-        Answer(new ServiceProbeResult(ServiceState.Ready, Version, TimedOut: false));
+        Answer(new ServiceProbeResult(ServiceState.Ready, Version, TimedOut: false, Compatible: true));
         _ptyShutdown.ShutdownAsync(Arg.Any<ServiceRegistration>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new OpenCodeApiException("The daemon refused the shutdown."));
 
@@ -153,7 +153,7 @@ public sealed class ServiceStopperTests
     public async Task StopAsync_Should_Ignore_An_Unreachable_Terminal_Shutdown_And_Still_Terminate()
     {
         SeedModern();
-        Answer(new ServiceProbeResult(ServiceState.Ready, Version, TimedOut: false));
+        Answer(new ServiceProbeResult(ServiceState.Ready, Version, TimedOut: false, Compatible: true));
         _ptyShutdown.ShutdownAsync(Arg.Any<ServiceRegistration>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new OpenCodeTransportException("The daemon went away."));
 
@@ -168,7 +168,7 @@ public sealed class ServiceStopperTests
     {
         SeedModern();
         Seed(Sidecar(), SidecarContent);
-        Answer(new ServiceProbeResult(ServiceState.Ready, Version, TimedOut: false));
+        Answer(new ServiceProbeResult(ServiceState.Ready, Version, TimedOut: false, Compatible: true));
         using var cancellation = new CancellationTokenSource();
         _ptyShutdown.ShutdownAsync(Arg.Any<ServiceRegistration>(), Arg.Any<CancellationToken>())
             .Returns(async _ =>
@@ -317,8 +317,7 @@ public sealed class ServiceStopperTests
     public async Task StopAsync_Should_Report_A_Sidecar_That_Cannot_Be_Removed_Before_Signalling()
     {
         var fileSystem = Substitute.For<IServiceFileSystem>();
-        fileSystem.FileExists(SharedRegistrationPath()).Returns(true);
-        fileSystem.ReadAllBytesAsync(SharedRegistrationPath(), Arg.Any<CancellationToken>())
+        fileSystem.TryReadAllBytesAsync(SharedRegistrationPath(), Arg.Any<CancellationToken>())
             .Returns(Encoding.UTF8.GetBytes(ServiceRegistrationData.Passwordless));
         fileSystem.TryDelete(Sidecar()).Throws(new UnauthorizedAccessException("The sidecar is locked."));
         var stopper = new ServiceStopper(

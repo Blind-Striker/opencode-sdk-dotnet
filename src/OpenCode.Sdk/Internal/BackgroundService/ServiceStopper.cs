@@ -34,8 +34,8 @@ internal sealed class ServiceStopper(
         var paths = await new ServiceRegistrationLocator(environment, fileSystem)
             .LocateAsync(selection, cancellationToken)
             .ConfigureAwait(false);
-        var registration = await new ServiceRegistrationFile(fileSystem)
-            .TryReadAsync(paths.RegistrationFile, cancellationToken)
+        var registration = await ServiceRegistrationReader
+            .TryReadAsync(fileSystem, paths.RegistrationFile, cancellationToken)
             .ConfigureAwait(false);
         if (registration is not null)
         {
@@ -63,7 +63,7 @@ internal sealed class ServiceStopper(
     {
         var answer = await probe.ProbeAsync(registration, cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
-        if (answer.State != ServiceState.Ready || !answer.Compatible)
+        if (!answer.IsReadyAndCompatible)
         {
             return;
         }

@@ -36,7 +36,6 @@ public sealed class ServiceDiscoveryTests
 
     [Test]
     [Arguments(ServiceRegistrationData.Passwordless)]
-    [Arguments(ServiceRegistrationData.BlankPassword)]
     [Arguments(ServiceRegistrationData.Malformed)]
     public async Task DiscoverAsync_Should_Return_Null_Without_Probing_An_Unusable_Registration(string document)
     {
@@ -54,7 +53,7 @@ public sealed class ServiceDiscoveryTests
     public async Task DiscoverAsync_Should_Return_Null_When_The_Daemon_Is_Not_Ready(int state)
     {
         Seed(SharedRegistrationPath(), new FixtureLoader().LoadJson("BackgroundService.registration-modern.json"));
-        Answer(new ServiceProbeResult((ServiceState)state, Version, TimedOut: false));
+        Answer(new ServiceProbeResult((ServiceState)state, Version, TimedOut: false, Compatible: true));
 
         var registration = await Discovery().DiscoverAsync(options: null, CancellationToken.None);
 
@@ -65,7 +64,7 @@ public sealed class ServiceDiscoveryTests
     public async Task DiscoverAsync_Should_Return_Null_When_The_Service_Is_Incompatible()
     {
         Seed(SharedRegistrationPath(), new FixtureLoader().LoadJson("BackgroundService.registration-modern.json"));
-        Answer(new ServiceProbeResult(ServiceState.Ready, Version, TimedOut: false) { Compatible = false });
+        Answer(new ServiceProbeResult(ServiceState.Ready, Version, TimedOut: false, Compatible: false));
 
         var registration = await Discovery().DiscoverAsync(options: null, CancellationToken.None);
 
@@ -76,7 +75,7 @@ public sealed class ServiceDiscoveryTests
     public async Task DiscoverAsync_Should_Return_Null_When_The_Probe_Timed_Out()
     {
         Seed(SharedRegistrationPath(), new FixtureLoader().LoadJson("BackgroundService.registration-modern.json"));
-        Answer(new ServiceProbeResult(State: null, Version: null, TimedOut: true));
+        Answer(new ServiceProbeResult(State: null, Version: null, TimedOut: true, Compatible: true));
 
         var registration = await Discovery().DiscoverAsync(options: null, CancellationToken.None);
 
@@ -87,7 +86,7 @@ public sealed class ServiceDiscoveryTests
     public async Task DiscoverAsync_Should_Return_Null_When_ExpectedVersion_Differs()
     {
         Seed(SharedRegistrationPath(), new FixtureLoader().LoadJson("BackgroundService.registration-modern.json"));
-        Answer(new ServiceProbeResult(ServiceState.Ready, Version, TimedOut: false));
+        Answer(new ServiceProbeResult(ServiceState.Ready, Version, TimedOut: false, Compatible: true));
 
         var registration = await Discovery().DiscoverAsync(new OpenCodeServerDiscoverOptions { ExpectedVersion = "2.0.2" }, CancellationToken.None);
 
@@ -98,7 +97,7 @@ public sealed class ServiceDiscoveryTests
     public async Task DiscoverAsync_Should_Return_The_Identity_Of_A_Ready_Service()
     {
         Seed(SharedRegistrationPath(), new FixtureLoader().LoadJson("BackgroundService.registration-modern.json"));
-        Answer(new ServiceProbeResult(ServiceState.Ready, Version, TimedOut: false));
+        Answer(new ServiceProbeResult(ServiceState.Ready, Version, TimedOut: false, Compatible: true));
 
         var registration = await Discovery().DiscoverAsync(new OpenCodeServerDiscoverOptions { ExpectedVersion = Version }, CancellationToken.None);
 
@@ -113,7 +112,7 @@ public sealed class ServiceDiscoveryTests
     {
         var direct = Path("elsewhere", "registration.json");
         Seed(direct, new FixtureLoader().LoadJson("BackgroundService.registration-modern.json"));
-        Answer(new ServiceProbeResult(ServiceState.Ready, Version, TimedOut: false));
+        Answer(new ServiceProbeResult(ServiceState.Ready, Version, TimedOut: false, Compatible: true));
 
         var registration = await Discovery().DiscoverAsync(new OpenCodeServerDiscoverOptions { RegistrationFilePath = direct }, CancellationToken.None);
 
@@ -128,7 +127,7 @@ public sealed class ServiceDiscoveryTests
         // the copy the CLI would make is what discovery reads.
         var legacy = _fileSystem.Path.Combine(Root("state"), "opencode", ServiceLegacyFilename.For("dev"));
         Seed(legacy, ServiceRegistrationData.DevPrerelease);
-        Answer(new ServiceProbeResult(ServiceState.Ready, "0.0.0-dev-19646", TimedOut: false));
+        Answer(new ServiceProbeResult(ServiceState.Ready, "0.0.0-dev-19646", TimedOut: false, Compatible: true));
 
         var registration = await Discovery().DiscoverAsync(new OpenCodeServerDiscoverOptions { Channel = "dev" }, CancellationToken.None);
 

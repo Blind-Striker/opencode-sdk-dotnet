@@ -234,13 +234,13 @@ internal sealed class ServicePtyHandoff(IServiceFileSystem fileSystem, IServiceC
             return null;
         }
 
-        var current = await new ServiceRegistrationFile(fileSystem).TryReadAsync(registrationFile, cancellationToken).ConfigureAwait(false);
+        var current = await ServiceRegistrationReader.TryReadAsync(fileSystem, registrationFile, cancellationToken).ConfigureAwait(false);
         return current is null || Matches(sidecar, current) ? sidecar.Handoff?.GetRawText() : null;
     }
 
     private async Task<PtyHandoffSidecar?> ReadSidecarAsync(string sidecarPath, CancellationToken cancellationToken)
     {
-        var bytes = await new ServiceRegistrationFile(fileSystem).TryReadBytesAsync(sidecarPath, cancellationToken).ConfigureAwait(false);
+        var bytes = await fileSystem.TryReadAllBytesAsync(sidecarPath, cancellationToken).ConfigureAwait(false);
         return bytes is null ? null : PtyHandoffSidecar.TryRead(bytes);
     }
 

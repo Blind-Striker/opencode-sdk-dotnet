@@ -54,7 +54,7 @@ using var client = new OpenCodeClient(new OpenCodeClientOptions
 | Member | Type | Meaning |
 |---|---|---|
 | `Endpoint` | `Uri?` | The server's base address. Required. |
-| `Password` | `string?` | The HTTP Basic password. Required for any server the `opencode` CLI started — it always runs with one, generated and printed as `server password <pw>` when you set none. `null` sends no credential at all, which only a server embedded without authentication accepts; an empty or whitespace value is refused at construction. |
+| `Password` | `string?` | The HTTP Basic password. Required for any server the `opencode` CLI started — it always runs with one, generated and printed as `server password <pw>` when you set none. `null` sends no credential at all, which only a server embedded without authentication accepts; any other value is sent exactly as written. |
 | `Username` | `string` | The Basic username. Defaults to `opencode` — the only username the pinned server accepts — so leave it alone unless upstream changes. |
 | `Location` | `LocationSelector?` | The ambient directory header values, overridable per call; only operations that resolve location from those headers use them. |
 
@@ -70,8 +70,8 @@ for ambient and per-call header behavior.
 > CLI's background-service registration through the same four path variables the CLI uses — see
 > [discovering the background service](connection-modes.md#️-discovering-the-background-service).
 
-Options are validated when the client is built: a missing endpoint or a blank password throws
-straight away rather than on the first call.
+Options are validated when the client is built: a missing endpoint or a blank or colon-bearing
+username throws straight away rather than on the first call.
 
 ## ▶️ Your first calls
 

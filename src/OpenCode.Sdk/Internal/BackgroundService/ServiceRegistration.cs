@@ -36,6 +36,6 @@ internal sealed class ServiceRegistration
     /// <summary>Gets the daemon's process id; the info answer must repeat it.</summary>
     public int ProcessId { get; }
 
-    /// <summary>Gets the Basic password, or null when the record carried none or a blank one.</summary>
+    /// <summary>Gets the Basic password exactly as written, or null when the record carried none.</summary>
     public string? Password { get; }
 }

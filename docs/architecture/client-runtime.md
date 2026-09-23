@@ -478,6 +478,12 @@ contract is not in the OpenAPI document; the SDK ports the accepted-pin first-pa
 pins every file it reads in `spec/source-watch.json` (ADR-0025). The null channel reads the shared
 release registration `service.json` with no legacy migration; a named channel follows the CLI's
 filename, sanitization, and legacy-migration rules; a direct registration path bypasses all three.
+The registration and service-config files are read the way libuv opens files, sharing read, write,
+and delete, so a poll never makes the daemon's remove-on-exit fail on Windows, and a UTF-8
+byte-order mark is skipped as the CLI's decoder skips it. A daemon bound to every interface
+registers the unspecified address (`0.0.0.0` or `::`), which Bun connects to as loopback and .NET
+refuses as a target: the connect target becomes the same family's loopback, while the registered
+URL is kept verbatim for identity.
 The info probe is a raw authenticated `GET /api/info` through an owned non-redirecting handler with a
 two-second bound: it rides neither the pipeline's decoration policy nor its progress window, and
 `ServiceInfoProbe` owns its transport and path, while `ServiceProbeResponseClassifier` decodes
@@ -486,8 +492,10 @@ two loopback rules the pipeline's transport does not: a loopback endpoint is nev
 a proxy, so an environment proxy without `NO_PROXY` cannot hide a live daemon, and on Windows a
 loopback connect disables SYN retransmission (`SIO_TCP_INITIAL_RTO`, the option libuv, Go, and the
 pinned client's own runtime set for loopback), so a refused port is reported at once instead of
-after the retransmissions that would outlast the bound. A dead daemon therefore classifies as no
-service, never as a timeout, on every host; on `net472` and `netstandard2.0`, where the platform
+after the retransmissions that would outlast the bound. A failed exchange counts as a timeout
+exactly when the bound expired, whatever the failure's type (the pinned client's
+`timedOut: signal.aborted`). A dead daemon therefore classifies as no service, never as a timeout,
+on every host; on `net472` and `netstandard2.0`, where the platform
 handler has no connect seam, the probe learns the refusal over a raw pre-connect with the same
 option before it sends the request. This private discovery decoder is independent
 of the generated public `ServerInfo` model, whose required `Urls` does not constrain discovery. Discovery returns null for a missing, unusable, or not-ready

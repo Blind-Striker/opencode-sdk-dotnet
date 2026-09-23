@@ -12,7 +12,7 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 /// </summary>
 internal sealed class ServiceElection(ServiceElectionSeams seams, EnsureRequest request, ServicePaths paths)
 {
-    private static readonly ServiceProbeResult NoService = new(State: null, Version: null, TimedOut: false);
+    private static readonly ServiceProbeResult NoService = new(State: null, Version: null, TimedOut: false, Compatible: true);
 
     private readonly List<IServiceContender> _contenders = [];
     private ServiceRegistrationIdentity? _timeoutIdentity;
@@ -41,8 +41,8 @@ internal sealed class ServiceElection(ServiceElectionSeams seams, EnsureRequest 
                         : new OpenCodeServerException(ServiceEnsurer.TimeoutMessage, _lastReplaceFailure);
                 }
 
-                var registration = await seams.Registrations
-                    .TryReadAsync(paths.RegistrationFile, cancellationToken)
+                var registration = await ServiceRegistrationReader
+                    .TryReadAsync(seams.FileSystem, paths.RegistrationFile, cancellationToken)
                     .ConfigureAwait(false);
                 var answer = registration is null
                     ? NoService
@@ -234,7 +234,7 @@ internal sealed class ServiceElection(ServiceElectionSeams seams, EnsureRequest 
     {
         IReadOnlyDictionary<string, string>? configured = null;
         if (paths.ConfigFile is { } configFile &&
-            await seams.Registrations.TryReadBytesAsync(configFile, cancellationToken).ConfigureAwait(false) is { } bytes)
+            await seams.FileSystem.TryReadAllBytesAsync(configFile, cancellationToken).ConfigureAwait(false) is { } bytes)
         {
             configured = ServiceConfigReader.TryReadEnvironment(bytes);
         }

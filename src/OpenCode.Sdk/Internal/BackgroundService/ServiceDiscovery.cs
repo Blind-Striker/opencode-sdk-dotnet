@@ -39,8 +39,8 @@ internal sealed class ServiceDiscovery(
     {
         ArgumentNullException.ThrowIfNull(paths);
 
-        var registration = await new ServiceRegistrationFile(fileSystem)
-            .TryReadAsync(paths.RegistrationFile, cancellationToken)
+        var registration = await ServiceRegistrationReader
+            .TryReadAsync(fileSystem, paths.RegistrationFile, cancellationToken)
             .ConfigureAwait(false);
         if (registration is null || registration.Password is null)
         {
@@ -50,7 +50,7 @@ internal sealed class ServiceDiscovery(
         }
 
         var answer = await probe.ProbeAsync(registration, cancellationToken).ConfigureAwait(false);
-        if (answer.State != ServiceState.Ready || !answer.Compatible)
+        if (!answer.IsReadyAndCompatible)
         {
             return null;
         }

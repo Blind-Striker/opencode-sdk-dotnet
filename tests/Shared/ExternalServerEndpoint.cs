@@ -49,18 +49,6 @@ internal sealed record ExternalServerEndpoint(Uri Endpoint, string Password)
                 "server).");
         }
 
-        // Mirrors Pipeline's own rule (src/OpenCode.Sdk/Internal/Pipeline.cs): a blank password
-        // has no upstream meaning - a server without configured authentication expects no
-        // credentials at all, i.e. the variable left unset - so it fails loudly here rather than
-        // reaching OpenCodeClient's own constructor guard with a message that names "options"
-        // instead of the environment variable an operator can actually act on.
-        if (string.IsNullOrWhiteSpace(password))
-        {
-            throw new InvalidOperationException(
-                "OPENCODE_SDK_TESTS_PASSWORD cannot be empty or whitespace; leave it and " +
-                "OPENCODE_SDK_TESTS_ENDPOINT both unset for a server without authentication.");
-        }
-
         if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var parsed) ||
             (parsed.Scheme != Uri.UriSchemeHttp && parsed.Scheme != Uri.UriSchemeHttps))
         {

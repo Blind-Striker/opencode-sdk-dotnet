@@ -53,28 +53,48 @@ public sealed class ServiceFileSystemTests
     }
 
     [Test]
-    public async Task ReadAllBytesAsync_Should_Read_Exact_Bytes()
+    public async Task TryReadAllBytesAsync_Should_Read_Exact_Bytes()
     {
         using var directory = new OwnedTemporaryDirectory();
         var path = directory.File("read.json");
         directory.FileSystem.File.WriteAllBytes(path, Content);
 
-        var bytes = await new ServiceFileSystem().ReadAllBytesAsync(path, CancellationToken.None);
+        var bytes = await new ServiceFileSystem().TryReadAllBytesAsync(path, CancellationToken.None);
 
         await Assert.That(bytes).IsEquivalentTo(Content);
     }
 
     [Test]
-    public async Task FileExists_Should_Report_Presence()
+    public async Task TryReadAllBytesAsync_Should_Return_Null_For_A_Missing_File_Or_Directory()
     {
         using var directory = new OwnedTemporaryDirectory();
-        var present = directory.File("present.json");
-        directory.FileSystem.File.WriteAllText(present, "x");
-
         var fileSystem = new ServiceFileSystem();
 
-        await Assert.That(fileSystem.FileExists(present)).IsTrue();
-        await Assert.That(fileSystem.FileExists(directory.File("absent.json"))).IsFalse();
+        await Assert.That(await fileSystem.TryReadAllBytesAsync(directory.File("absent.json"), CancellationToken.None)).IsNull();
+        await Assert.That(await fileSystem.TryReadAllBytesAsync(directory.File("missing", "nested.json"), CancellationToken.None)).IsNull();
+    }
+
+    /// <summary>
+    /// The daemon removes its registration on exit while clients poll it every 25 ms. libuv opens
+    /// every file with delete sharing, so on Windows the removal never fails because a reader holds
+    /// the file (measured against Bun: <c>unlink</c> is <c>EBUSY</c> under read-only sharing and
+    /// succeeds under delete sharing). A rename over an open file fails on Windows whatever the
+    /// reader shares, upstream's readers included, so only the removal is asserted. Unix never
+    /// blocks either, so the assertion is Windows' and holds everywhere.
+    /// </summary>
+    [Test]
+    public async Task OpenRead_Should_Not_Block_A_Delete_Of_The_File()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        var path = directory.File("service.json");
+        directory.FileSystem.File.WriteAllBytes(path, Content);
+
+        using (ServiceFileSystem.OpenRead(path))
+        {
+            directory.FileSystem.File.Delete(path);
+        }
+
+        await Assert.That(directory.FileSystem.File.Exists(path)).IsFalse();
     }
 
     [Test]

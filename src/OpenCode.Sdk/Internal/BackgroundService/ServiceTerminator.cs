@@ -17,8 +17,6 @@ namespace OpenCode.Sdk.Internal.BackgroundService;
 /// </summary>
 internal sealed class ServiceTerminator(IServiceFileSystem fileSystem, IServiceProcessControl processControl, ServiceTiming timing)
 {
-    private readonly ServiceRegistrationFile _registrationFile = new(fileSystem);
-
     /// <summary>Ends the registered process and removes its registration.</summary>
     /// <param name="registration">The registration as it was read.</param>
     /// <param name="registrationFile">The file it was read from.</param>
@@ -108,7 +106,7 @@ internal sealed class ServiceTerminator(IServiceFileSystem fileSystem, IServiceP
 
     private async Task<bool> StillRegisteredAsync(string registrationFile, ServiceRegistrationIdentity expected, CancellationToken cancellationToken)
     {
-        var current = await _registrationFile.TryReadAsync(registrationFile, cancellationToken).ConfigureAwait(false);
+        var current = await ServiceRegistrationReader.TryReadAsync(fileSystem, registrationFile, cancellationToken).ConfigureAwait(false);
         return current is not null && ServiceRegistrationIdentity.Of(current) == expected;
     }
 
