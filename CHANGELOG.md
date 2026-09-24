@@ -77,7 +77,6 @@ list.
 - **Reading a registration no longer blocks its removal on Windows.** A service that exits removes
   its registration while clients may be reading it; the SDK now opens the file with delete sharing,
   as libuv does, so the removal never fails on the SDK's account.
-
 - **`OpenCodeServer.StopAsync` treats a zombie as stopped on Linux.** A service process that had
   exited but was not yet reaped by its parent kept its start time readable, so the stop read it
   as still running, sent the kill rung, and failed with "still running after the kill rung",
