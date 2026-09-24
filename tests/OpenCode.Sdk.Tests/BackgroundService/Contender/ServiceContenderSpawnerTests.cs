@@ -250,8 +250,10 @@ public sealed class ServiceContenderSpawnerTests
     {
         // libuv starts a Node child with every signal at its default disposition and an empty
         // mask; posix_spawn alone keeps ignored dispositions (the .NET host ignores SIGPIPE) and
-        // the calling thread's mask. A non-interactive sh keeps what it inherits, so it reports
-        // the spawn's own state. macOS ps has no ignored-signal column: that arm reads the mask.
+        // the calling thread's mask. The shell execs the reporter, which reads its own state: exec
+        // keeps the mask and the ignored dispositions, while a shell that forks the reporter and
+        // waits is no witness, since dash blocks every signal around that wait. macOS ps has no
+        // ignored-signal column: that arm reads the mask.
         if (OperatingSystem.IsWindows())
         {
             using var windows = ServiceContenderSpawner.Start(new IServiceContenderSpawner.ContenderStartInfo(
@@ -265,8 +267,8 @@ public sealed class ServiceContenderSpawnerTests
         }
 
         var report = OperatingSystem.IsLinux()
-            ? "grep -E '^Sig(Ign|Blk):' /proc/$$/status 1>&2"
-            : "ps -o sigmask= -p $$ 1>&2";
+            ? "exec grep -E '^Sig(Ign|Blk):' /proc/self/status 1>&2"
+            : "exec ps -o sigmask= -p $$ 1>&2";
         using var contender = ServiceContenderSpawner.Start(new IServiceContenderSpawner.ContenderStartInfo(
             new ResolvedExecutable("sh", "/bin/sh", IsBatchScript: false),
             ["-c", report],
