@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text;
 using OpenCode.Sdk.Internal.BackgroundService.Ensure;
 using OpenCode.Sdk.Internal.BackgroundService.Registration;
-using OpenCode.Sdk.Tests.Support;
 using Testably.Abstractions;
 
 namespace OpenCode.Sdk.TestSupport;
@@ -125,15 +124,18 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
 
         var contenders = await Ledger.ReadLiveAsync(cancellationToken).ConfigureAwait(false);
         var hosting = await ReadRegisteredAsync().ConfigureAwait(false) is null ? 0 : 1;
-        var exits = contenders
-            .Select(contender => ProcessObservation.WaitForExitAsync(contender.ProcessId, bound.Token))
-            .ToList();
+        var held = HeldProcess.HoldAll(_fileSystem, contenders);
+        var exits = held.Select(process => process.WaitForTerminationAsync(SettleBound, bound.Token)).ToList();
         try
         {
             while (exits.Count > hosting)
             {
                 var exited = await Task.WhenAny(exits).ConfigureAwait(false);
-                await exited.ConfigureAwait(false);
+                if (!await exited.ConfigureAwait(false))
+                {
+                    return false;
+                }
+
                 _ = exits.Remove(exited);
             }
 
@@ -147,6 +149,7 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
         {
             // The wait on the winner's host is the one still pending; it has nothing left to tell.
             await bound.CancelAsync().ConfigureAwait(false);
+            HeldProcess.ReleaseAll(held);
         }
     }
 
@@ -210,21 +213,10 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
         await ReleaseRunRootAsync().ConfigureAwait(false);
     }
 
-    /// <summary>Ends the tree of each marked process that still runs, then waits for each of those to leave.</summary>
-    private async Task EndAsync(IEnumerable<ProcessMark> targets)
-    {
-        var alive = targets.Where(target => target.IsRunning(_fileSystem)).ToList();
-        foreach (var target in alive)
-        {
-            ProcessObservation.KillIfRunning(target.ProcessId);
-        }
-
-        // A run root is removed only once nothing started under it is left to write into it.
-        foreach (var target in alive)
-        {
-            _ = await ProcessObservation.ObserveExitWithinAsync(target.ProcessId, ExitBound, CancellationToken.None).ConfigureAwait(false);
-        }
-    }
+    /// <summary>Ends the tree of each marked process that still runs, then waits for each of those to be finished.</summary>
+    private async Task EndAsync(IEnumerable<ProcessMark> targets) =>
+        // A run root is removed only once nothing started under it still holds a file in it.
+        _ = await HeldProcess.EndAllAsync(_fileSystem, targets, ExitBound).ConfigureAwait(false);
 
     /// <summary>Removes the run root, or keeps it with the daemon log's tail printed when a failure asked for the evidence.</summary>
     private async Task ReleaseRunRootAsync()
