@@ -105,6 +105,11 @@ is revisited at each boundary.
    octet-stream request body, which the binder's JSON-and-event-stream media-type vocabulary
    cannot bind — decided alongside it; and the two transport-owned WebSocket doors counted as
    the covered operations they are — so the surface reads 136 of 136 usable.
+   **What remains of M4, in order:** response envelopes stop printing the server's raw error
+   body in `ToString`
+   ([#100](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/100)), surface
+   completeness (#87), bounded live-test parallelism
+   ([#83](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/83)), then the close.
 5. **M5 — Full surface.** Target admission over the refreshed surface, driven by the `refresh-spec`
    synchronizer (ADR-0020) and the ownership pattern for the terminal families (ADR-0021). Coverage
    has reached its end state; what remains is exclusion fingerprints for the transport-owned
