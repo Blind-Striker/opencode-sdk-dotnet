@@ -1,6 +1,6 @@
 # Client Runtime Architecture
 
-Date: 2026-09-17
+Date: 2026-09-24
 
 Canonical current rules for client construction, transport ownership, API errors, streams, and the
 local server launcher. Protocol and generated-model rules live in
@@ -307,13 +307,15 @@ local server launcher. Protocol and generated-model rules live in
   Persistence is itself a server option that is off unless the process starting the server turned it
   on, and no distributed `opencode` build exposes a way to turn it on: the CLI's serve command
   declares no such flag, bridges no environment variable to it, and reads no configuration key for
-  it. A replay from such a server is therefore contract-valid and empty of history — one
-  `log.synced` marker whose sequence has advanced, with no durable events before it — which is the
+  it. The live part of `follow` reads the same persisted store as the replay, so a replay and a
+  follow from such a server are both contract-valid and empty of history — one `log.synced` marker
+  at the aggregate's current sequence, with no durable events before or after it — which is the
   detection signature a caller can test for. Only a host that embeds the server library with
-  `events.persist` enabled replays history; this repository's own simulation host is that host for
-  the live tests. `tests/OpenCode.Sdk.Tests/Sessions/SessionLogCliProfileLiveTests.cs` is the
-  reversal trigger: when it fails, upstream began persisting by default and this sentence,
-  `docs/guide/streaming.md`, and the README's known issue change together.
+  `events.persist` enabled replays and follows history; this repository's own simulation host is
+  that host for the live tests.
+  `tests/OpenCode.Sdk.Tests/Sessions/SessionLogCliProfileLiveTests.cs` holds the reversal
+  triggers: when one fails, upstream changed what a CLI-started server's log delivers, and this
+  sentence, `docs/guide/streaming.md`, and the README's known issue change together.
 - The SSE event name is a framing signal. An ordinary payload uses the default `message` name;
   the operation's declared failure event materializes its cause through generated metadata and
   throws; any other explicit name is refused. Unknown payload and cause discriminators remain

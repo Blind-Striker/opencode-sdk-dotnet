@@ -1,6 +1,6 @@
 # 🚀 Getting started
 
-Date: 2026-09-17
+Date: 2026-09-24
 
 Install the package, point a client at a server, and make three calls. Ten minutes, and the last
 one talks to a model.
@@ -23,13 +23,29 @@ dotnet add package OpenCodeAI.Sdk.Extensions --prerelease   # dependency injecti
 > the artifact carries a different name than the code inside it.
 
 The packages target `netstandard2.0`, `net472`, `net8.0`, `net9.0`, and `net10.0`, so any project
-on one of those works. Nightly builds of `master` live on a GitHub Packages feed; the source
-command and its `read:packages` token requirement live in one place so they never drift:
+on one of those works — a .NET Framework project after one language setting, below. Nightly builds
+of `master` live on a GitHub Packages feed; the source command and its `read:packages` token
+requirement live in one place so they never drift:
 [**Installation** in the root README](../../README.md#-installation).
 
 You also need an `opencode` server. Either install the CLI and run one yourself, or let the SDK
 start a private one for you — [connection modes](connection-modes.md) covers both, and the
 [prerequisites](../../README.md#prerequisites) section has the CLI install line.
+
+### .NET Framework projects
+
+`dotnet new console` offers no `net472` framework, so create the project with its default framework
+and retarget it. A .NET Framework project also defaults to C# 7.3, which is too old for the SDK:
+its public surface uses async streams and `init` accessors, which need C# 9, and the console
+template's implicit usings need C# 10. Set both properties in the project file:
+
+```xml
+<TargetFramework>net472</TargetFramework>
+<LangVersion>10.0</LangVersion>
+```
+
+Nothing else is needed — no extra package and no polyfill; the packages' `net472` dependencies
+arrive with them. A project without implicit usings can use `9.0`.
 
 ## 🔌 Construct a client
 
@@ -108,6 +124,29 @@ var generated = await session.GenerateTextAsync(new SessionGenerateRequest { Pro
 Console.WriteLine(generated.Generate.Text);
 ```
 
+To keep the conversation and still get the answer in a console app, wait for the session to go
+idle after the prompt, then read its messages:
+
+```csharp
+using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+await client.Experimental.WaitForSessionAsync(created.Session.Id, cancellationToken: deadline.Token);
+
+await foreach (var message in session.EnumerateMessagesAsync(new SessionMessageListRequest { Order = ListOrder.Ascending }, deadline.Token))
+{
+    if (message is SessionMessageAssistant assistant)
+    {
+        foreach (var text in assistant.Content.OfType<SessionMessageAssistantText>())
+        {
+            Console.WriteLine(text.Text);
+        }
+    }
+}
+```
+
+`WaitForSessionAsync` answers once no turn is running for the session, and the route declares no
+timeout, so the deadline is yours to set. Upstream marks the route experimental, which is why it
+lives on `client.Experimental` and may still move.
+
 ### Choosing a model
 
 The calls above let the server pick a model. To pick one yourself, read the current catalog:
@@ -135,6 +174,12 @@ if (model is not null)
   does not make them complete, and the server exposes no activation barrier: when your application
   expects a particular provider or model, wait for that identity under a caller-owned cancellation
   deadline (`CONTEXT.md`, Plugin activation).
+- **The VCS summary settles the same way, per location.** `client.Vcs.GetVcsAsync()` for a
+  directory the server has not served before can answer before that location's git plugin has
+  reported: `Vcs.Provider` is `null` and both branch values are `null`, which means *not known
+  yet*, not "no branch". Wait for a non-null `Provider` under a caller-owned deadline. Once
+  `Provider` is set, a `null` `Branch.Current` means a detached HEAD. Observed on
+  `@opencode/cli@2.0.15`.
 - **Neither create nor prompt validates the ref.** A wrong provider/catalog-id pair surfaces later
   as a failed turn rather than a typed model error at the call.
 

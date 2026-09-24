@@ -54,8 +54,9 @@ Session; others aggregate elsewhere, such as worktree resolution on its Project.
 **Durable Session event stream**:
 One Session Aggregate's durable Event log, read back over SSE. `after` is an exclusive sequence
 taken from a durable envelope or a sync marker, `follow` continues into live Events, and a single
-`log.synced` marker separates replay from live. The sequence is not contiguous, the log has no
-retention policy, and persistence is a server option that is off by default.
+`log.synced` marker separates replay from live. The sequence is not contiguous and the log has no
+retention policy. Replay and follow both read persisted Events, and persistence is a server option
+that is off by default; without it, both deliver the marker alone.
 _Avoid_: session events (ambiguous with the live stream)
 
 **Live event stream**:
@@ -345,10 +346,11 @@ The per-union `Unknown*` variant absorbing discriminators that match neither a l
 union's prefix-tagged arm at runtime (tag string + raw payload).
 
 **Plugin activation**:
-The asynchronous per-Location settling of a server's plugins, during which Providers register and
-the model catalog fills. The 2.0.15 HTTP API has no activation barrier. An info answer proves
-process liveness only; a catalog read can observe an empty or partial registry. Consumers that
-require a particular registration wait for that identity under a bounded cancellation token.
+The asynchronous per-Location settling of a server's plugins, during which Providers register, the
+model catalog fills, and the VCS summary learns its provider. The 2.0.15 HTTP API has no activation
+barrier. An info answer proves process liveness only; a catalog read can observe an empty or
+partial registry, and a VCS summary without a provider has not settled yet. Consumers that require
+a particular registration wait for that identity under a bounded cancellation token.
 _Avoid_: readiness (that is the launcher's stdout contract, a different thing).
 
 **Hoisted member**:

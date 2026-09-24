@@ -26,8 +26,9 @@ stopped the way the CLI does it.
   transports — across 27 client families: sessions, PTYs, persistent PTYs, shells, events, MCP
   servers, integrations, providers, permissions, credentials, config, VCS, worktrees, websearch,
   RPC, and more
-- ✅ **7,154 tests** green on Windows — the fullest leg, the only one that adds the `net472`
-  assemblies. Linux and macOS run the same suite on `net8.0`, `net9.0`, and `net10.0`
+- ✅ **One test suite on three operating systems** — Windows is the fullest leg, the only one that
+  adds the `net472` assemblies; Linux and macOS run the same suite on `net8.0`, `net9.0`, and
+  `net10.0`. The [test badges](#build--test-matrix) carry the current counts
 - ✅ **Server-sent event streams**, global and per-session, over the same transport as one-shot calls
 - ✅ **PTY and persistent-PTY terminal sessions** through hand-written WebSocket doors
 - ✅ **A launcher** — `OpenCodeServer.StartAsync()` starts, monitors, and stops a private
@@ -66,7 +67,10 @@ Both packages target the same set: `netstandard2.0;net472;net8.0;net9.0;net10.0`
 targets are not a compatibility shim — the whole suite runs on `net472` on Windows,
 real-process launcher acceptance included, and on `net8.0`/`net9.0`/`net10.0` on all three OSes.
 `netstandard2.0` is a consumption target rather than a test target: it has no runtime to execute
-on, and the `net472` leg is what exercises its compile surface.
+on, and the `net472` leg is what exercises its compile surface. A .NET Framework project needs a
+newer C# version than its default; the
+[getting-started guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/getting-started.md#net-framework-projects)
+has the two properties to set.
 
 ### Build & Test Matrix
 
@@ -362,7 +366,7 @@ hand-written `PtySession` and `PersistentPtySession` doors described in
 | [Terminals](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/terminals.md) | PTY and persistent-PTY sessions over the WebSocket doors |
 | [Errors and responses](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/errors-and-responses.md) | Throwing versus `NoThrow`, and the typed error model |
 | [Pagination](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/pagination.md) | Cursor-carrying list envelopes, `Enumerate*Async`, and its `Pages` |
-| [Requests](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/requests.md) | Request records, the absent/null/set states of `Optional<T>`, query members, and per-call location |
+| [Requests](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/requests.md) | Request records, the absent/null/set states of `Optional<T>`, query members, per-call location, and the permission, worktree, and shell-timeout members |
 
 Architecture, decision records, and engineering policy live under [`docs/`](https://github.com/Blind-Striker/opencode-sdk-dotnet/tree/master/docs) — start at
 [`AGENTS.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/AGENTS.md) if you want the internals rather than the API.
@@ -401,18 +405,22 @@ Architecture, decision records, and engineering policy live under [`docs/`](http
 - **The event bus has no replay contract.** `EventsClient.SubscribeAsync` is a live, volatile
   stream: events published while you are disconnected are gone, and a consumer slower than the
   producer can overflow and fail the stream. This is the server's contract, not an SDK limitation —
-  if you need durable history for one session, use the per-session log stream instead
+  if you need durable history for one session, use the per-session log stream instead, on a server
+  started with event persistence (next item)
   ([streaming guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/streaming.md)).
 
-- **A replay from a CLI-started server is the marker alone.** Durable session-log replay needs a
-  server started with event persistence, and the distributed `opencode` CLI starts its server
-  without it and exposes no switch to turn it on — no serve flag, no environment variable, no
-  configuration key (confirmed at the pin; observed on `@opencode/cli@2.0.2`). A replay against
-  such a server does not fail: `SessionClient.GetLogAsync` without `Follow` answers with a single
-  `EventLogSynced` marker whose sequence has advanced and no durable events before it. Persisted
-  replay needs a host that embeds the opencode server library with persistence enabled — this
-  repository's own simulation host does that for its tests. Live `Follow = True` delivery is
-  unaffected. See the
+- **A CLI-started server's session log is the marker alone, replayed or followed.** The per-session
+  log reads its events back from the server's event store, both for a replay and for the live part
+  of `Follow = True`, and the distributed `opencode` CLI starts its server without event persistence
+  and exposes no switch to turn it on — no serve flag, no environment variable, no configuration key
+  (confirmed at the pin; observed on `@opencode/cli@2.0.15`). `SessionClient.GetLogAsync` against
+  such a server does not fail: with or without `Follow` it delivers a single `EventLogSynced` marker
+  and no durable events, and a follow then stays silent through every later change. For live
+  session activity, subscribe to the global event bus (`client.Events.SubscribeAsync`) and filter
+  by session id; it has no replay, delivers the instance-wide event union rather than the session's
+  log items, and leaves recovery after a disconnect to you. Persisted replay and follow need a host
+  that embeds the opencode server library with persistence enabled — this repository's own
+  simulation host does that for its tests. See the
   [streaming guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/streaming.md).
 
 - **Running the in-repo sandbox against a different server needs `--no-launch-profile`.** The
