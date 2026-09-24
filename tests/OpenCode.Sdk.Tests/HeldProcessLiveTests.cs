@@ -59,13 +59,17 @@ public sealed class HeldProcessLiveTests
         }
     }
 
-    /// <summary>A bun program that opens the database in WAL mode, writes to it, holds three hundred more files, and waits.</summary>
+    /// <summary>
+    /// A bun program that opens the database in WAL mode, writes to it in one transaction, holds
+    /// three hundred more files, and waits. One transaction is one flush: a commit per row flushed
+    /// the log two thousand times per round, which a hosted runner's disk turned into minutes.
+    /// </summary>
     private static string HoldingScript(string database)
     {
         var path = database.Replace('\\', '/');
         return "const { Database } = require('bun:sqlite');"
             + $"const db = new Database('{path}'); db.exec('PRAGMA journal_mode=WAL'); db.exec('create table t(x)');"
-            + "for (let i = 0; i < 2000; i++) db.exec('insert into t values(' + i + ')');"
+            + "db.exec('BEGIN'); for (let i = 0; i < 2000; i++) db.exec('insert into t values(' + i + ')'); db.exec('COMMIT');"
             + $"const fs = require('fs'); for (let i = 0; i < 300; i++) fs.openSync('{path}.' + i, 'w');"
             + "console.log('ready'); setInterval(() => {}, 1000);";
     }
