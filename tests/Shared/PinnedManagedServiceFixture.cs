@@ -97,7 +97,8 @@ public sealed class PinnedManagedServiceFixture : IAsyncInitializer, IAsyncDispo
         var pinned = new PinnedServerCommand(_fileSystem);
         var command = pinned.Resolve();
         var workingDirectory = _fileSystem.Path.Combine(pinned.RepositoryRoot, "external", "opencode", "packages", "cli");
-        _environment = ServerIsolation.Environment(_fileSystem, _runRoot.Path);
+        var isolation = ServerIsolation.For(_fileSystem, _runRoot.Path);
+        _environment = isolation.Environment;
         _registrationFile = _fileSystem.Path.Combine(_environment["XDG_STATE_HOME"], "opencode", "service-" + Channel + ".json");
         var port = LoopbackPortReservation.Reserve();
         await SeedConfigAsync(port).ConfigureAwait(false);
@@ -125,6 +126,7 @@ public sealed class PinnedManagedServiceFixture : IAsyncInitializer, IAsyncDispo
         try
         {
             await WaitForReadyAsync().ConfigureAwait(false);
+            isolation.ConfirmHonored("The pinned managed service");
         }
         catch (Exception)
         {

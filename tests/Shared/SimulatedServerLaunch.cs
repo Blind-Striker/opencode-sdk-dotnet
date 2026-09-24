@@ -19,6 +19,9 @@ internal sealed record SimulatedServerLaunch
 
     public required DriveManifest Manifest { get; init; }
 
+    /// <summary>Gets the isolation boundary the host is launched inside and must be seen to honour.</summary>
+    public required IsolationBoundary Isolation { get; init; }
+
     /// <summary>
     /// Bounded well above the realistic worst case - every local target-framework leg starting a
     /// simulated server back to back, each within the readiness bound - so a genuinely wedged
@@ -42,6 +45,28 @@ internal sealed record SimulatedServerLaunch
         };
     }
 
+    /// <summary>
+    /// Starts the host and confirms, before anything reaches it, that it opened its state inside
+    /// the isolated run root; a host that did not is ended rather than handed out.
+    /// </summary>
+    /// <param name="output">The collector the host's output is retained in.</param>
+    /// <param name="cancellationToken">The caller's token.</param>
+    /// <returns>The started host.</returns>
+    public async Task<OpenCodeServer> StartAsync(OpenCodeServerOutput output, CancellationToken cancellationToken)
+    {
+        var server = await OpenCodeServer.StartAsync(Options(output), cancellationToken).ConfigureAwait(false);
+        try
+        {
+            Isolation.ConfirmHonored("The simulated server");
+            return server;
+        }
+        catch (InvalidOperationException)
+        {
+            await server.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
+    }
+
     public static SimulatedServerLaunch Prepare(IFileSystem fileSystem, TestRunRoot runRoot)
     {
         ArgumentNullException.ThrowIfNull(fileSystem);
@@ -50,7 +75,8 @@ internal sealed record SimulatedServerLaunch
         var registry = runRoot.CreateSubdirectory("drive");
         var persistentHost = new PersistentSimulationServerCommand(fileSystem);
         var manifest = DriveManifest.Write(fileSystem, registry);
-        var environment = ServerIsolation.Environment(fileSystem, runRoot.Path);
+        var isolation = ServerIsolation.For(fileSystem, runRoot.Path);
+        var environment = isolation.Environment;
         environment["OPENCODE_SIMULATE"] = "1";
         environment["OPENCODE_DRIVE"] = manifest.InstanceName;
         environment["DRIVE_REGISTRY_DIR"] = registry;
@@ -70,6 +96,7 @@ internal sealed record SimulatedServerLaunch
                 persistentHost.RepositoryRoot, "external", "opencode", "packages", "cli"),
             Environment = environment,
             Manifest = manifest,
+            Isolation = isolation,
         };
     }
 }
