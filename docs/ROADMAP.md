@@ -105,20 +105,19 @@ is revisited at each boundary.
    octet-stream request body, which the binder's JSON-and-event-stream media-type vocabulary
    cannot bind — decided alongside it; and the two transport-owned WebSocket doors counted as
    the covered operations they are — so the surface reads 136 of 136 usable.
-   **What remains of M4, in order:** response envelopes stop printing the server's raw error
-   body in `ToString`
-   ([#100](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/100)), surface
-   completeness (#87), bounded live-test parallelism
+   **What remains of M4, in order:** surface completeness (#87), bounded live-test parallelism
    ([#83](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/83)), then the close.
 5. **M5 — Full surface.** Target admission over the refreshed surface, driven by the `refresh-spec`
    synchronizer (ADR-0020) and the ownership pattern for the terminal families (ADR-0021). Coverage
    has reached its end state; what remains is exclusion fingerprints for the transport-owned
-   operations (ADR-0008), the remaining package, API, and TFM assurance, and the operation
-   inventory and assurance ledger — which standardizes pending-operation bindability tracking,
-   subsumes `tools/generation-profile.txt` as the one hand-authored admission list, and makes
-   per-operation assurance mechanically complete: a contract test for every status arm the pinned
-   document declares, verifier-checked, with the arms no deterministic fixture can reach listed by
-   name rather than skipped silently (ADR-0022).
+   operations (ADR-0008), the remaining package, API, and TFM assurance, and the operation inventory
+   and assurance ledger — which standardizes pending-operation bindability tracking, subsumes
+   `tools/generation-profile.txt` as the one hand-authored admission list, and makes per-operation
+   assurance mechanically complete: a contract test for every status arm the pinned document
+   declares, verifier-checked, with the arms no deterministic fixture can reach listed by name
+   rather than skipped silently (ADR-0022). It opens with response envelopes that stop printing the
+   server's raw error body in `ToString`
+   ([#100](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/100)).
 6. **M6 — Operational closure.** Automation for the upstream observation lanes (tip detector,
    candidate refresh), retry/telemetry/hooks with the public network-timeout knob and the
    per-operation event-stream idle bound it gates, a quarantine lane, the nightly source-run
