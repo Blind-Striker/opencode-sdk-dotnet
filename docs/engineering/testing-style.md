@@ -142,12 +142,17 @@ true; the fixture hands the boundary to the child process it starts.
   emptied explicit config file, no model-catalog fetch, and a home that exists inside the fixture's
   own run root and gives an interactive shell nothing to ask (a terminal the server opens runs the
   user's own shell there, and zsh meets a home without startup files with a first-run wizard). A
-  variable that can steer a server at the developer's data belongs there, set.
-  The one thing fixtures share is bun's transpiler cache, kept beside the run roots: it is
-  content-addressed output of the pinned source and carries no state, and leaving it under each
-  isolated cache root made every source-run server start transpile the monorepo from cold.
-  Which server an owned fixture starts (`OPENCODE_SDK_TESTS_SERVER_COMMAND`,
-  `OPENCODE_SDK_TESTS_ENDPOINT`) is a separate choice and not part of the boundary.
+  variable that can steer a server at the developer's data belongs there, set. The one thing
+  fixtures share is bun's transpiler cache, kept beside the run roots: it is content-addressed
+  output of the pinned source and carries no state, and leaving it under each isolated cache root
+  made every source-run server start transpile the monorepo from cold. The map comes as an
+  `IsolationBoundary` (`ServerIsolation.For`), which also carries the check that the server honoured
+  it: every owner of a real server calls `ConfirmHonored` once the server is ready and before any
+  test reaches it, and a server that opened no database under the run root stops the fixture there -
+  it would otherwise be reading and writing the developer's own profile, which a later installed CLI
+  that stopped reading one of the variables would do silently. Which server an owned fixture starts
+  (`OPENCODE_SDK_TESTS_SERVER_COMMAND`, `OPENCODE_SDK_TESTS_ENDPOINT`) is a separate choice and not
+  part of the boundary.
 - **The host's own environment is scrubbed first.** A child inherits whatever the isolation map
   does not set, so `tests/Shared/InheritedEnvironment.cs` runs once per test session, before any
   fixture starts a child: it removes every `OPENCODE_*` variable except the suite's own

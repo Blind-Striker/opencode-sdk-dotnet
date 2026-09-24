@@ -34,7 +34,7 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
 
     private readonly RealFileSystem _fileSystem = new();
     private TestRunRoot? _runRoot;
-    private Dictionary<string, string>? _environment;
+    private IsolationBoundary? _isolation;
     private string? _registrationFile;
     private string? _shimDirectory;
     private string? _shimPath;
@@ -69,7 +69,10 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
     public string RunRoot => _runRoot!.Path;
 
     /// <summary>Gets the isolated roots the spawned service and any isolated fixture process read.</summary>
-    public IReadOnlyDictionary<string, string> Environment => _environment!;
+    public IReadOnlyDictionary<string, string> Environment => Isolation.Environment;
+
+    /// <summary>Gets the isolation boundary every service this context elects must be seen to honour.</summary>
+    public IsolationBoundary Isolation => _isolation ?? throw new InvalidOperationException("The context is initialized before its isolation is read.");
 
     /// <summary>Gets the channel's registration path under the isolated state root.</summary>
     public string RegistrationFile => _registrationFile!;
@@ -98,8 +101,15 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
     /// <param name="timing">The lifecycle timing.</param>
     /// <param name="cancellationToken">The caller's token.</param>
     /// <returns>The non-owning handle Ensure returns.</returns>
-    public Task<OpenCodeServer> EnsureAsync(OpenCodeServerEnsureOptions options, ServiceTiming timing, CancellationToken cancellationToken) =>
-        OpenCodeServer.EnsureWithSeamsAsync(options, timing, Ledger, cancellationToken);
+    public async Task<OpenCodeServer> EnsureAsync(OpenCodeServerEnsureOptions options, ServiceTiming timing, CancellationToken cancellationToken)
+    {
+        var server = await OpenCodeServer.EnsureWithSeamsAsync(options, timing, Ledger, cancellationToken).ConfigureAwait(false);
+
+        // The handle does not own the elected service; a service that fails the check is ended by
+        // this context's teardown like every other one it recorded.
+        Isolation.ConfirmHonored("The service the election chose");
+        return server;
+    }
 
     /// <summary>Reads every recorded contender still running, identified by this process.</summary>
     /// <param name="cancellationToken">The caller's token.</param>
@@ -253,7 +263,7 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
     /// <summary>The newest daemon log's final lines, the evidence a failed election leaves.</summary>
     private async Task<string> DaemonLogTailAsync()
     {
-        var logDirectory = _fileSystem.Path.Combine(_environment!["XDG_DATA_HOME"], "opencode", "log");
+        var logDirectory = _fileSystem.Path.Combine(Environment["XDG_DATA_HOME"], "opencode", "log");
         var newest = _fileSystem.Directory.Exists(logDirectory)
             ? _fileSystem.Directory.GetFiles(logDirectory, "*.log").OrderByDescending(_fileSystem.File.GetLastWriteTimeUtc).FirstOrDefault()
             : null;
@@ -284,10 +294,10 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
     private async Task InitializeAsync(CancellationToken cancellationToken)
     {
         _runRoot = new TestRunRoot(_fileSystem);
-        _environment = ServerIsolation.Environment(_fileSystem, _runRoot.Path);
+        _isolation = ServerIsolation.For(_fileSystem, _runRoot.Path);
         _port = ReservePort();
         _registrationFile = _fileSystem.Path.Combine(
-            _environment["XDG_STATE_HOME"], "opencode", _channelFile!);
+            Environment["XDG_STATE_HOME"], "opencode", _channelFile!);
         await SeedConfigAsync(cancellationToken).ConfigureAwait(false);
         _shimDirectory = _runRoot.CreateSubdirectory("shim");
         _ledgerPath = _fileSystem.Path.Combine(_runRoot.Path, "contenders.ledger");
@@ -313,7 +323,7 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
     {
         // The channel's config file, the way `opencode service set port` would have written it:
         // the daemon reads the port from here, so a spawned contender binds this reserved port.
-        var directory = _environment!["OPENCODE_CONFIG_DIR"];
+        var directory = Environment["OPENCODE_CONFIG_DIR"];
         _ = _fileSystem.Directory.CreateDirectory(directory);
         var file = _fileSystem.Path.Combine(directory, _channelFile!);
         using var stream = _fileSystem.FileStream.New(file, FileMode.Create, FileAccess.Write, FileShare.None);

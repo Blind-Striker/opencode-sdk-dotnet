@@ -149,6 +149,7 @@ public sealed class OpenCodeServerEnsureLiveTests(PinnedManagedServiceFixture se
             .RunAsync(["ensure-channel", "local", context.LedgerPath], context.IsolatedProcessEnvironment(), cancellationToken);
 
         await Assert.That(result.ExitCode).IsEqualTo(0).Because(result.StandardError);
+        context.Isolation.ConfirmHonored("The service the fixture process elected");
 
         var registration = await ReadRegistrationAsync(context.RegistrationFile);
         await Assert.That(result.StandardOutput.Trim())

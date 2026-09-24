@@ -60,7 +60,7 @@ public sealed class PersistentSimulationHostTests
     {
         using var gate = await DrivePortGate.AcquireAsync(FileSystem, SimulatedServerLaunch.GateTimeout);
         var launch = SimulatedServerLaunch.Prepare(FileSystem, runRoot);
-        return await OpenCodeServer.StartAsync(launch.Options(output), cancellationToken);
+        return await launch.StartAsync(output, cancellationToken);
     }
 
     /// <summary>

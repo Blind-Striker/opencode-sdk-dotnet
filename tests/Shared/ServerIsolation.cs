@@ -17,7 +17,11 @@ namespace OpenCode.Sdk.TestSupport;
 /// </summary>
 internal static class ServerIsolation
 {
-    public static Dictionary<string, string> Environment(IFileSystem fileSystem, string runRoot)
+    /// <summary>Builds the isolation boundary for one server over its run root.</summary>
+    /// <param name="fileSystem">The filesystem the run root is prepared and later checked through.</param>
+    /// <param name="runRoot">The per-run root every global directory is redirected into.</param>
+    /// <returns>The environment to launch with and the check the ready server must pass.</returns>
+    public static IsolationBoundary For(IFileSystem fileSystem, string runRoot)
     {
         // The home is the one root the server never creates for itself, and service mode changes
         // into it before it serves (packages/cli/src/server-process.ts:55 at the pin), so it
@@ -77,6 +81,6 @@ internal static class ServerIsolation
             environment["USERPROFILE"] = home;
         }
 
-        return environment;
+        return new IsolationBoundary(fileSystem, environment);
     }
 }

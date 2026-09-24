@@ -48,7 +48,7 @@ internal sealed class PinnedServerLaunch
         {
             Command = command ?? Command,
             WorkingDirectory = WorkingDirectory,
-            Environment = ServerIsolation.Environment(_fileSystem, runRoot.Path),
+            Environment = ServerIsolation.For(_fileSystem, runRoot.Path).Environment,
             ReadinessTimeout = TimeSpan.FromMinutes(3),
         };
     }

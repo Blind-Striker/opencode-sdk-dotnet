@@ -174,10 +174,14 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
 
         IReadOnlyList<string> command;
         string workingDirectory;
+        bool startsOpenCode;
         if (_commandOverride is not null && _workingDirectoryOverride is not null)
         {
+            // The constructor seam the failure tests use: a stand-in command, not an opencode
+            // server, so there is no database whose place could prove the isolation.
             command = _commandOverride;
             workingDirectory = _workingDirectoryOverride;
+            startsOpenCode = false;
         }
         else
         {
@@ -205,15 +209,17 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
             // regardless of this directory.
             workingDirectory = _fileSystem.Path.Combine(
                 pinnedCommand.RepositoryRoot, "external", "opencode", "packages", "cli");
+            startsOpenCode = true;
         }
 
-        await StartOwnedServerAsync(command, workingDirectory).ConfigureAwait(false);
+        await StartOwnedServerAsync(command, workingDirectory, startsOpenCode).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Starts the owned server through the SDK's own launcher and names the build it started.
+    /// Starts the owned server through the SDK's own launcher and names the build it started. An
+    /// opencode server is confirmed to have honoured its isolation before the fixture hands it out.
     /// </summary>
-    private async Task StartOwnedServerAsync(IReadOnlyList<string> command, string workingDirectory)
+    private async Task StartOwnedServerAsync(IReadOnlyList<string> command, string workingDirectory, bool startsOpenCode)
     {
         // An external endpoint may not share this machine's filesystem, so only an owned server
         // gets a default location.
@@ -222,6 +228,7 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
         // The collector exists before the start and stays readable when the start fails, so a
         // startup failure still has stdout/stderr to write out on teardown.
         _output = new OpenCodeServerOutput();
+        var isolation = BuildIsolation(RunRoot.Path);
         try
         {
             _server = await OpenCodeServer.StartAsync(
@@ -229,11 +236,15 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
                 {
                     Command = command,
                     WorkingDirectory = workingDirectory,
-                    Environment = BuildEnvironment(RunRoot.Path),
+                    Environment = isolation.Environment,
                     ReadinessTimeout = OwnedServerPolicy.ReadinessTimeout,
                     GracefulShutdownTimeout = OwnedServerPolicy.GracefulShutdownTimeout,
                     Output = _output,
                 }).ConfigureAwait(false);
+            if (startsOpenCode)
+            {
+                isolation.ConfirmHonored("The pinned fixture's " + _commandSource + " server");
+            }
         }
         catch (Exception exception)
         {
@@ -377,17 +388,17 @@ public sealed class PinnedOpenCodeServerFixture : IAsyncInitializer, IAsyncDispo
     private bool ShouldRetainLogs => _retainLogs || _diagnostics?.RetainLogs is true || string.Equals(
         Environment.GetEnvironmentVariable("OPENCODE_SDK_TESTS_KEEP_LOGS"), "1", StringComparison.Ordinal);
 
-    private Dictionary<string, string> BuildEnvironment(string runRoot)
+    private IsolationBoundary BuildIsolation(string runRoot)
     {
-        var environment = ServerIsolation.Environment(_fileSystem, runRoot);
+        var isolation = ServerIsolation.For(_fileSystem, runRoot);
         if (RpcPlugin is { } plugin)
         {
-            environment["OPENCODE_CONFIG_CONTENT"] = new ServerConfigSeed()
+            isolation.Environment["OPENCODE_CONFIG_CONTENT"] = new ServerConfigSeed()
                 .WithPluginDirectory(plugin.Directory)
                 .Render();
         }
 
-        return environment;
+        return isolation;
     }
 
     /// <summary>

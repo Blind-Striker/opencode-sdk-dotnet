@@ -84,7 +84,7 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
         // The collector exists before the start and stays readable when the start fails, so a
         // startup failure still has stdout/stderr to write out on teardown.
         _output = new OpenCodeServerOutput();
-        _server = await OpenCodeServer.StartAsync(launch.Options(_output));
+        _server = await launch.StartAsync(_output, CancellationToken.None);
         var manifest = launch.Manifest;
 
         // The backend control socket is already listening when the readiness line is printed -
