@@ -43,6 +43,9 @@ public class PtyClient
     /// <returns>The 'PtyResponse' envelope.</returns>
     /// <exception cref="OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref="OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>pty.get</c>: <c>GET /api/pty/{ptyID}</c>.
+    /// </remarks>
     public virtual Task<PtyResponse> GetAsync(PtyRequest? request = null,
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
         Raw.GetAsync(request, requestOptions, cancellationToken);
@@ -56,6 +59,9 @@ public class PtyClient
     /// <returns>The 'PtyUpdateResponse' envelope.</returns>
     /// <exception cref="OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref="OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>pty.update</c>: <c>PUT /api/pty/{ptyID}</c>.
+    /// </remarks>
     public virtual Task<PtyUpdateResponse> UpdateAsync(PtyUpdateRequest? request = null,
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
         Raw.UpdateAsync(request, requestOptions, cancellationToken);
@@ -69,6 +75,9 @@ public class PtyClient
     /// <returns>The 'PtyRemoveResponse' envelope.</returns>
     /// <exception cref="OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref="OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>pty.remove</c>: <c>DELETE /api/pty/{ptyID}</c>.
+    /// </remarks>
     public virtual Task<PtyRemoveResponse> RemoveAsync(PtyRemoveRequest? request = null,
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
         Raw.RemoveAsync(request, requestOptions, cancellationToken);
@@ -85,6 +94,9 @@ public class PtyClient
     /// <returns>The 'PtyConnectTokenResponse' envelope.</returns>
     /// <exception cref="OpenCodeApiException">The API returned an error status (declared: 400, 401, 403, 404) and NoThrow was not selected.</exception>
     /// <exception cref="OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>pty.connect.token</c>: <c>POST /api/pty/{ptyID}/connect-token</c>.
+    /// </remarks>
     public virtual Task<PtyConnectTokenResponse> CreateConnectTokenAsync(PtyConnectTokenRequest? request = null,
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
         Raw.CreateConnectTokenAsync(request, xOpencodeTicket: PtyTicketHeader.Sentinel, requestOptions, cancellationToken);
@@ -107,6 +119,9 @@ public class PtyClient
     /// too, naming the platform as the cause, rather than escaping as a raw
     /// <see cref="PlatformNotSupportedException"/>.
     /// </exception>
+    /// <remarks>
+    /// Operation <c>pty.connect</c>: <c>GET /api/pty/{ptyID}/connect</c>.
+    /// </remarks>
     public virtual async Task<PtySession> ConnectAsync(PtyConnectOptions? options = null,
         CancellationToken cancellationToken = default)
     {

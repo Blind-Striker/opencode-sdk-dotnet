@@ -9,6 +9,13 @@ Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
 `0.9.0-nightly.{yyyyMMdd}.{shortSha}`.
 
+### ✨ Added
+
+- **Operation members name their OpenAPI operation.** Each generated operation method, each
+  `Enumerate*Async` companion, and each hand-written PTY and persistent-PTY door carries an XML
+  `<remarks>` with its operation id, HTTP method, and route, for example
+  `Operation session.permission.create: POST /api/session/{sessionID}/permission`.
+
 ## [0.9.0-preview.3] - 2026-09-24
 
 The launcher is complete: `OpenCodeServer.EnsureAsync` joins discovery and stop, so the three

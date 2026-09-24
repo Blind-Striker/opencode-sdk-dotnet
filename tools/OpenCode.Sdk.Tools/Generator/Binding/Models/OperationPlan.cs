@@ -2,6 +2,12 @@ namespace OpenCode.Sdk.Tools.Generator.Binding.Models;
 
 internal sealed record OperationPlan
 {
+    /// <summary>
+    /// Gets the operation identity the document was ingested under — the intended identity when a
+    /// curation row repairs it. Emission documents it as text and never branches on it (ADR-0008).
+    /// </summary>
+    public required string OperationId { get; init; }
+
     public required string MethodName { get; init; }
 
     /// <summary>Gets the invariant-lowercase HTTP method.</summary>

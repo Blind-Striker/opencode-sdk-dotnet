@@ -37,6 +37,9 @@ public class PluginsClient
     /// <returns>The &apos;PluginCheckResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>plugin.check</c>: <c>POST /api/plugin/check</c>.
+    /// </remarks>
     public virtual Task<PluginCheckResponse> CheckPluginUpdatesAsync(PluginCheckRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Plugins.CheckPluginUpdates(request), request ?? EmptyPluginCheckRequest, OpenCodeJsonContext.Default.PluginCheckRequest, PluginCheckResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -51,6 +54,9 @@ public class PluginsClient
     /// <returns>The &apos;PluginListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>plugin.list</c>: <c>GET /api/plugin</c>.
+    /// </remarks>
     public virtual Task<PluginListResponse> ListPluginsAsync(PluginListRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Plugins.ListPlugins(request), PluginListResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -65,6 +71,9 @@ public class PluginsClient
     /// <returns>The &apos;PluginUpdateResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 503) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>plugin.update</c>: <c>POST /api/plugin/update</c>.
+    /// </remarks>
     public virtual Task<PluginUpdateResponse> UpdatePluginsAsync(PluginUpdateRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);

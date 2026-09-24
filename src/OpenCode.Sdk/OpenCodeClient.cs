@@ -257,6 +257,9 @@ public class OpenCodeClient : IDisposable
     /// <returns>The &apos;LocationResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>location.get</c>: <c>GET /api/location</c>.
+    /// </remarks>
     public virtual Task<LocationResponse> GetLocationAsync(LocationRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Location.Get(request), LocationResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -270,6 +273,9 @@ public class OpenCodeClient : IDisposable
     /// <returns>The &apos;LocationReloadResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 503) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>location.reload</c>: <c>POST /api/location/reload</c>.
+    /// </remarks>
     public virtual Task<LocationReloadResponse> ReloadLocationsAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Location.ReloadLocations, LocationReloadResponseAdapter.Instance, requestOptions, cancellationToken);

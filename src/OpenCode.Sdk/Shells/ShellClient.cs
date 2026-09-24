@@ -43,6 +43,9 @@ public class ShellClient
     /// <returns>The &apos;ShellResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>shell.get</c>: <c>GET /api/shell/{id}</c>.
+    /// </remarks>
     public virtual Task<ShellResponse> GetAsync(ShellRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Shells.Get(Id, request), ShellResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -57,6 +60,9 @@ public class ShellClient
     /// <returns>The &apos;ShellOutputResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>shell.output</c>: <c>GET /api/shell/{id}/output</c>.
+    /// </remarks>
     public virtual Task<ShellOutputResponse> GetOutputAsync(ShellOutputRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Shells.GetOutput(Id, request), ShellOutputResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -71,6 +77,9 @@ public class ShellClient
     /// <returns>The &apos;ShellRemoveResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>shell.remove</c>: <c>DELETE /api/shell/{id}</c>.
+    /// </remarks>
     public virtual Task<ShellRemoveResponse> RemoveAsync(ShellRemoveRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Delete, OpenCodeRoutes.Shells.Remove(Id, request), ShellRemoveResponseAdapter.Instance, requestOptions, cancellationToken);

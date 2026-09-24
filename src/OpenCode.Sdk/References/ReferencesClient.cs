@@ -34,6 +34,9 @@ public class ReferencesClient
     /// <returns>The &apos;ReferenceListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>reference.list</c>: <c>GET /api/reference</c>.
+    /// </remarks>
     public virtual Task<ReferenceListResponse> ListReferencesAsync(ReferenceListRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.References.ListReferences(request), ReferenceListResponseAdapter.Instance, requestOptions, cancellationToken);

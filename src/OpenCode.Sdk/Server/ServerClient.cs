@@ -33,6 +33,9 @@ public class ServerClient
     /// <returns>The &apos;ServerInfoResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>server.info</c>: <c>GET /api/info</c>.
+    /// </remarks>
     public virtual Task<ServerInfoResponse> GetInfoAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Server.GetInfo, ServerInfoResponseAdapter.Instance, requestOptions, cancellationToken);

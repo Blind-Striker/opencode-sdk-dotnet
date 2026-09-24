@@ -35,6 +35,9 @@ public class AgentsClient
     /// <returns>The &apos;AgentResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>agent.get</c>: <c>GET /api/agent/{agentID}</c>.
+    /// </remarks>
     public virtual Task<AgentResponse> GetAgentAsync(string agentId, AgentRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(agentId);
@@ -50,6 +53,9 @@ public class AgentsClient
     /// <returns>The &apos;AgentListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>agent.list</c>: <c>GET /api/agent</c>.
+    /// </remarks>
     public virtual Task<AgentListResponse> ListAgentsAsync(AgentListRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Agents.ListAgents(request), AgentListResponseAdapter.Instance, requestOptions, cancellationToken);

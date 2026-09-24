@@ -36,6 +36,9 @@ public class WorktreesClient
     /// <returns>The &apos;WorktreeCreateResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>worktree.create</c>: <c>POST /api/worktree</c>.
+    /// </remarks>
     public virtual Task<WorktreeCreateResponse> CreateWorktreeAsync(WorktreeCreateRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -51,6 +54,9 @@ public class WorktreesClient
     /// <returns>The &apos;WorktreeListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>worktree.list</c>: <c>GET /api/worktree</c>.
+    /// </remarks>
     public virtual Task<WorktreeListResponse> ListWorktreesAsync(WorktreeListRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -66,6 +72,9 @@ public class WorktreesClient
     /// <returns>The &apos;WorktreeRefreshResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>worktree.refresh</c>: <c>POST /api/worktree/refresh</c>.
+    /// </remarks>
     public virtual Task<WorktreeRefreshResponse> RefreshWorktreesAsync(WorktreeRefreshRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -81,6 +90,9 @@ public class WorktreesClient
     /// <returns>The &apos;WorktreeRemoveResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>worktree.remove</c>: <c>DELETE /api/worktree</c>.
+    /// </remarks>
     public virtual Task<WorktreeRemoveResponse> RemoveWorktreeAsync(WorktreeRemoveRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);

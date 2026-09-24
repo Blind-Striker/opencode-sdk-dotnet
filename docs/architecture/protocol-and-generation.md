@@ -1,6 +1,6 @@
 # Protocol and Generation Architecture
 
-Date: 2026-09-17
+Date: 2026-09-24
 
 Canonical current rules for the protocol surface, generator, generated models, and runtime
 materialization boundary. ADRs record why these decisions were made; dated research records the
@@ -243,6 +243,9 @@ dispatch instead of routing it through ADR-0009's unknown carrier (ADR-0015).
 
 - Every HTTP operation method, including streaming operations, is generated as a short delegation
   into the hand-written behavior core (ADR-0008).
+- Every generated operation member, `Enumerate*Async` companions included, documents its operation
+  identity and its HTTP method and route template in `<remarks>` as text only; no emitter branches
+  on the identity (ADR-0008).
 - An internal-raw family emits its clients sealed and internal — internal operation methods and
   handle factory, no mocking constructor — under raw type names, while the root client keeps the
   public family accessor its hand-written door answers. Only such a family may carry a

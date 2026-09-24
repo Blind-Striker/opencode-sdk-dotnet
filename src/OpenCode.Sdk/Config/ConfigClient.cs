@@ -33,6 +33,9 @@ public class ConfigClient
     /// <returns>The &apos;ConfigShellsResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>config.shells</c>: <c>GET /api/config/shell</c>.
+    /// </remarks>
     public virtual Task<ConfigShellsResponse> GetShellsAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Config.GetShells, ConfigShellsResponseAdapter.Instance, requestOptions, cancellationToken);

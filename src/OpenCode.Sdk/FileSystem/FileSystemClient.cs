@@ -34,6 +34,9 @@ public class FileSystemClient
     /// <returns>The &apos;FsFindResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>fs.find</c>: <c>GET /api/fs/find</c>.
+    /// </remarks>
     public virtual Task<FsFindResponse> FindEntriesAsync(FsFindRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -49,6 +52,9 @@ public class FileSystemClient
     /// <returns>The &apos;FsListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>fs.list</c>: <c>GET /api/fs/list</c>.
+    /// </remarks>
     public virtual Task<FsListResponse> ListEntriesAsync(FsListRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.FileSystem.ListEntries(request), FsListResponseAdapter.Instance, requestOptions, cancellationToken);

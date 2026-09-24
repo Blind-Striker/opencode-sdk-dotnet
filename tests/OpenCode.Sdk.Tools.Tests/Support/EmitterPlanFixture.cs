@@ -187,6 +187,7 @@ internal static class EmitterPlanFixture
     private static OperationPlan CreatePtyConnectTokenOperation() =>
         new()
         {
+            OperationId = "pty.connect.token",
             MethodName = "CreateConnectTokenAsync",
             HttpMethod = "post",
             RouteTemplate = "/api/pty/{ptyID}/connect-token",
@@ -221,6 +222,7 @@ internal static class EmitterPlanFixture
     private static OperationPlan CreatePtyListOperation() =>
         new()
         {
+            OperationId = "pty.list",
             MethodName = "ListPtysAsync",
             HttpMethod = "get",
             RouteTemplate = "/api/pty",
@@ -247,6 +249,7 @@ internal static class EmitterPlanFixture
     private static OperationPlan CreatePingOperation() =>
         new()
         {
+            OperationId = "ping.get",
             MethodName = "GetPingAsync",
             HttpMethod = "get",
             RouteTemplate = "/api/ping",
@@ -287,6 +290,7 @@ internal static class EmitterPlanFixture
     private static OperationPlan CreateOverviewOperation() =>
         new()
         {
+            OperationId = "widget.overview.get",
             MethodName = "GetOverviewAsync",
             HttpMethod = "get",
             RouteTemplate = "/api/widget-overview",
@@ -313,6 +317,7 @@ internal static class EmitterPlanFixture
     private static OperationPlan CreateItemOperation() =>
         new()
         {
+            OperationId = "widget.item.get",
             MethodName = "GetItemAsync",
             HttpMethod = "get",
             RouteTemplate = "/api/widget/{widgetID}/item/{itemID}",
@@ -391,6 +396,7 @@ internal static class EmitterPlanFixture
     private static OperationPlan CreateWidgetListOperation() =>
         new()
         {
+            OperationId = "widget.list",
             MethodName = "ListWidgetsAsync",
             HttpMethod = "get",
             RouteTemplate = "/api/widget",
@@ -462,6 +468,7 @@ internal static class EmitterPlanFixture
     private static OperationPlan CreateItemListOperation() =>
         new()
         {
+            OperationId = "widget.item.list",
             MethodName = "ListItemsAsync",
             HttpMethod = "get",
             RouteTemplate = "/api/widget/{widgetID}/item",
@@ -523,6 +530,7 @@ internal static class EmitterPlanFixture
     private static OperationPlan CreateWidgetCreateOperation() =>
         new()
         {
+            OperationId = "widget.create",
             MethodName = "CreateWidgetAsync",
             HttpMethod = "post",
             RouteTemplate = "/api/widget",
@@ -577,6 +585,7 @@ internal static class EmitterPlanFixture
     private static OperationPlan CreateWidgetRemoveOperation() =>
         new()
         {
+            OperationId = "widget.remove",
             MethodName = "RemoveWidgetAsync",
             HttpMethod = "delete",
             RouteTemplate = "/api/widget/{widgetID}",
@@ -626,6 +635,7 @@ internal static class EmitterPlanFixture
     private static OperationPlan CreateWidgetSpotOperation() =>
         new()
         {
+            OperationId = "widget.spot.get",
             MethodName = "GetWidgetSpotAsync",
             HttpMethod = "get",
             RouteTemplate = "/api/widget-spot",
@@ -654,6 +664,7 @@ internal static class EmitterPlanFixture
     private static OperationPlan CreateWidgetSpotListOperation() =>
         new()
         {
+            OperationId = "widget.spot.list",
             MethodName = "ListWidgetSpotsAsync",
             HttpMethod = "get",
             RouteTemplate = "/api/widget-spot-list",
