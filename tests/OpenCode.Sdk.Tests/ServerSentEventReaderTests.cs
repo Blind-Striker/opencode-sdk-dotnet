@@ -162,7 +162,7 @@ public sealed class ServerSentEventReaderTests
             await foreach (var frame in reader.ReadAsync(stream, cancellation.Token))
             {
                 frames.Add(frame);
-                await cancellation.CancelAsync();
+                await cancellation.CancelOnWorkerAsync();
             }
         }).Throws<OperationCanceledException>();
 
@@ -293,7 +293,7 @@ public sealed class ServerSentEventReaderTests
     {
         using var stream = ChunkedStream.Of("data: first\n\n");
         using var cancellation = new CancellationTokenSource();
-        await cancellation.CancelAsync();
+        await cancellation.CancelOnWorkerAsync();
 
         _ = await Assert
             .That(async () => _ = await ReadAllAsync(stream, cancellationToken: cancellation.Token))
@@ -310,7 +310,7 @@ public sealed class ServerSentEventReaderTests
             .GetAsyncEnumerator(CancellationToken.None);
         _ = await frames.MoveNextAsync();
         var first = frames.Current.Data;
-        await cancellation.CancelAsync();
+        await cancellation.CancelOnWorkerAsync();
 
         _ = await Assert
             .That(async () => _ = await frames.MoveNextAsync())

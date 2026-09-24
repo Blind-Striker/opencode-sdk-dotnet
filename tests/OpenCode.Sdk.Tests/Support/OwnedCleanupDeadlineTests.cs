@@ -1,4 +1,5 @@
 using NSubstitute;
+using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.TestSupport.Ownership;
 
 namespace OpenCode.Sdk.Tests.Support;
@@ -38,7 +39,7 @@ public sealed class OwnedCleanupDeadlineTests
             await deadline.Won;
             if (cancelCaller)
             {
-                await caller.CancelAsync();
+                await caller.CancelOnWorkerAsync();
             }
 
             release.SetResult(true);

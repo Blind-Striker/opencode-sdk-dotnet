@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
 
@@ -88,7 +89,7 @@ public sealed class ResponseBufferingPolicyTests
         var execution = pipeline.ExecuteAsync(
             HttpMethod.Get, "/api/info", new RecordingResponseAdapter(), options: null, callerCancellation.Token);
         await content.ReadStarted.WaitAsync(TimeSpan.FromSeconds(1));
-        await callerCancellation.CancelAsync();
+        await callerCancellation.CancelOnWorkerAsync();
 
         OperationCanceledException? cancellation = null;
         try

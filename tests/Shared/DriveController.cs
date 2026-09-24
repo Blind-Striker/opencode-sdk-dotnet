@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Net.WebSockets;
 using System.Text.Json;
+using OpenCode.Sdk.Internal;
 
 namespace OpenCode.Sdk.TestSupport;
 
@@ -184,7 +185,7 @@ internal sealed class DriveController : IAsyncDisposable
             return;
         }
 
-        await _lifetime.CancelAsync();
+        await _lifetime.CancelOnWorkerAsync();
         _ = await TryCloseOutputAsync(_socket);
 
         // Read into a local before awaiting: awaiting the field expression directly reads to the

@@ -1,3 +1,4 @@
+using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.TestSupport;
 using OpenCode.Sdk.TestSupport.Ownership;
 using Testably.Abstractions;
@@ -21,7 +22,7 @@ public sealed class PtyFailureDiagnosticsTests
         var held = stall ? deadlines.Hold("PTY failure status lookup") : null;
         var diagnostics = new PtyFailureDiagnostics(deadlines.Deadline);
         using var cancelled = new CancellationTokenSource();
-        await cancelled.CancelAsync();
+        await cancelled.CancelOnWorkerAsync();
         var primary = new OperationCanceledException("Original body cancellation.", cancelled.Token);
         var capture = Task.CompletedTask;
         try

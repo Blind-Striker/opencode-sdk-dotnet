@@ -357,7 +357,7 @@ public sealed class ServiceEnsurerTests
         _handoff.EnvironmentAsync(Arg.Any<string>(), Arg.Any<IReadOnlyDictionary<string, string>?>(), Arg.Any<CancellationToken>())
             .Returns<Task<IReadOnlyDictionary<string, string?>>>(async call =>
             {
-                await cancellation.CancelAsync();
+                await cancellation.CancelOnWorkerAsync();
                 call.Arg<CancellationToken>().ThrowIfCancellationRequested();
                 return PassThrough(null);
             });
@@ -379,7 +379,7 @@ public sealed class ServiceEnsurerTests
             {
                 if (++preparations == 2)
                 {
-                    await cancellation.CancelAsync();
+                    await cancellation.CancelOnWorkerAsync();
                     call.Arg<CancellationToken>().ThrowIfCancellationRequested();
                 }
 

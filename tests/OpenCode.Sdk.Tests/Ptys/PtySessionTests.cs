@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using System.Text;
+using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Tests.Support;
 
 namespace OpenCode.Sdk.Tests;
@@ -230,7 +231,7 @@ public sealed class PtySessionTests
         var pending = enumerator.MoveNextAsync();
         await socket.Parked;
 
-        await cancellation.CancelAsync();
+        await cancellation.CancelOnWorkerAsync();
 
         _ = await Assert.That(async () => _ = await pending).Throws<OperationCanceledException>();
     }

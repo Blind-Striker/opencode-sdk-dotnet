@@ -1,3 +1,4 @@
+using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.TestSupport.Ownership;
 namespace OpenCode.Sdk.Tests.Support;
 
@@ -37,7 +38,7 @@ public sealed class OwnedOperationDeadlineTests
     public async Task WaitAsync_Should_Preserve_Caller_Cancellation()
     {
         using var caller = new CancellationTokenSource();
-        await caller.CancelAsync();
+        await caller.CancelOnWorkerAsync();
         var pending = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var deadline = new OwnedOperationDeadline();
         try

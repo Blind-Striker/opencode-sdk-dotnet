@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Models;
 using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
@@ -252,7 +253,7 @@ public sealed class SessionClientContractTests
             .GetAsyncEnumerator();
 
         await Assert.That(await enumerator.MoveNextAsync()).IsTrue();
-        await cancellation.CancelAsync();
+        await cancellation.CancelOnWorkerAsync();
 
         _ = await Assert
             .That(async () => _ = await enumerator.MoveNextAsync())
@@ -281,7 +282,7 @@ public sealed class SessionClientContractTests
             .GetAsyncEnumerator();
 
         await Assert.That(await enumerator.MoveNextAsync()).IsTrue();
-        await cancellation.CancelAsync();
+        await cancellation.CancelOnWorkerAsync();
 
         bool? moved = null;
         OperationCanceledException? cancellationException = null;
