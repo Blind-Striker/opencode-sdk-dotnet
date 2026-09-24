@@ -9,7 +9,27 @@ Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
 `0.9.0-nightly.{yyyyMMdd}.{shortSha}`.
 
+### 💥 Breaking changes
+
+- **The accepted snapshot moved to upstream release tag `v2.0.15`**
+  (`6f3639d82ed0760091792189b78f8eeb44f699b1`), which published as `@opencode/cli@2.0.15`; install
+  it with `npm install -g @opencode/cli@2.0.15`. No operation was added, removed, or moved since
+  `v2.0.11`. The Restore patch for upstream's lost SSE payload schemas
+  ([anomalyco/opencode#44911](https://github.com/anomalyco/opencode/issues/44911)) is still
+  required at this tag and applies unchanged.
+- **`ConnectionCredentialInfo.Method` is required.** A stored connection credential now says how it
+  was obtained, `ConnectionCredentialInfoMethod.Key` or `ConnectionCredentialInfoMethod.Oauth`; a
+  credential from a server that omits it no longer deserializes.
+- **`ProjectTime.Active` is required.** It is the project's most recent activity, in the same unit
+  as `Created` and `Updated`, and upstream now orders the project list by it; a project from a
+  server that omits it no longer deserializes.
+
 ### ✨ Added
+
+- **Session metadata updates.** `SessionUpdateRequest.Metadata` replaces a session's metadata as a
+  whole — keys the update leaves out are removed, not kept — and the server logs the replacement as
+  the durable `SessionMetadataUpdated` event (`session.metadata.updated`), which the event stream
+  and the session log deliver.
 
 - **`OpenCodeServer.EnsureAsync`**, the managed-service election beside discovery and stop.
   It reuses a ready compatible daemon, replaces a version-mismatched one according to

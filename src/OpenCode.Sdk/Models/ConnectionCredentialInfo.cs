@@ -25,4 +25,10 @@ public sealed record ConnectionCredentialInfo : IConnectionInfo
     /// </summary>
     [JsonPropertyName("label")]
     public required string Label { get; init; }
+
+    /// <summary>
+    /// Gets the method value.
+    /// </summary>
+    [JsonPropertyName("method")]
+    public required ConnectionCredentialInfoMethod Method { get; init; }
 }

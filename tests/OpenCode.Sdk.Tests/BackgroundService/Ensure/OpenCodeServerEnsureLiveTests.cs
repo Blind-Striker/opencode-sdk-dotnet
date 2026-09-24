@@ -91,12 +91,13 @@ public sealed class OpenCodeServerEnsureLiveTests(PinnedManagedServiceFixture se
     /// The distributed-build consumer leg (<c>OPENCODE_SDK_TESTS_SERVER_COMMAND</c>) proves Ensure
     /// against the published CLI, not only the source run: the build registers under the release
     /// channel's <c>service.json</c>, reports a real release version rather than the source run's
-    /// <c>local</c>, and answers as the process Ensure elected. Without the variable the proof
-    /// belongs to that leg, and this run records the branch it took.
+    /// <c>local</c>, and answers as the process Ensure elected; Stop then ends that process and
+    /// removes its registration. Without the variable the proof belongs to that leg, and this run
+    /// records the branch it took.
     /// </summary>
     [Test]
     [Timeout(180_000)]
-    public async Task EnsureAsync_Should_Start_The_Distributed_Build_On_Its_Release_Channel(CancellationToken cancellationToken)
+    public async Task EnsureAsync_Then_StopAsync_Should_Start_And_End_The_Distributed_Build_On_Its_Release_Channel(CancellationToken cancellationToken)
     {
         if (PinnedServerCommandOverride.FromEnvironment() is not { } distributed)
         {
@@ -124,6 +125,16 @@ public sealed class OpenCodeServerEnsureLiveTests(PinnedManagedServiceFixture se
         await Assert.That(registration.Version).IsNotNull().And.IsNotEqualTo("local");
         await Assert.That(info.ServerInfo.Pid).IsEqualTo(server.ProcessId);
         await Assert.That(info.ServerInfo.Version).IsEqualTo(registration.Version);
+
+        // The published build is the one that can run from an installed image, which on Windows it
+        // keeps a second hard link to while it serves; Stop ends it by pid and start time all the same.
+        await OpenCodeServer.StopAsync(
+            new OpenCodeServerStopOptions { RegistrationFilePath = release.RegistrationFile },
+            cancellationToken);
+
+        await Assert.That(FileSystem.File.Exists(release.RegistrationFile)).IsFalse();
+        await Assert.That(await ProcessObservation.ObserveExitWithinAsync(server.ProcessId, ExitBound, cancellationToken)).IsTrue()
+            .Because("the published build's daemon should leave once Stop ends it");
     }
 
     [Test]
