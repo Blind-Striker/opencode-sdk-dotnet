@@ -21,6 +21,10 @@
     <PackageProjectUrl>https://github.com/Blind-Striker/opencode-sdk-dotnet</PackageProjectUrl>
     <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- The package id prefix every packable project builds its PackageId from. The published ids
+         are OpenCodeAI.*; the OpenCodeDotNet publish lane packs the same build with its own prefix
+         to hold that one too (docs/architecture/platform-and-packaging.md). -->
+    <PackageIdPrefix Condition="'$(PackageIdPrefix)' == ''">OpenCodeAI</PackageIdPrefix>
     <CheckEolTargetFramework>true</CheckEolTargetFramework>
     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
 

@@ -49,9 +49,12 @@ Two separate API vintages shape the downlevel legs, and conflating them would mi
   core package.
 - The two names above are assembly and namespace names. The published package ids are
   `OpenCodeAI.Sdk` and `OpenCodeAI.Sdk.Extensions`, because nuget.org reserves the `OpenCode.`
-  prefix for an unrelated owner. Each packable project sets its own `PackageId`; the assemblies,
-  the public namespaces, and therefore consumer source are unaffected, and a project reference
-  packs as a dependency on the corresponding package id.
+  prefix for an unrelated owner. The same build is also published as `OpenCodeDotNet.Sdk` and
+  `OpenCodeDotNet.Sdk.Extensions` from its own manual lane (`publish-nuget-opencodedotnet.yml`) to
+  hold that prefix too. Each packable project builds its own `PackageId` from `PackageIdPrefix`
+  (`Directory.Build.props`, `OpenCodeAI` unless a lane passes another); the assemblies, the public
+  namespaces, and therefore consumer source are unaffected, and a project reference packs as a
+  dependency on the corresponding package id under the same prefix.
 - Exact package references and dependency versions are read from project files and
   `Directory.Packages.props`. Documentation records policy, not a second version inventory.
 - A future package is added only for a real distribution boundary; repository layout alone does

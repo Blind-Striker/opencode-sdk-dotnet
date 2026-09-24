@@ -1,0 +1,94 @@
+# Manual, human-triggered lane that publishes the same packages under the OpenCodeDotNet package
+# id prefix, OpenCodeDotNet.Sdk and OpenCodeDotNet.Sdk.Extensions, so that prefix is held beside
+# the published OpenCodeAI ids. It packs the same build as publish-nuget.yml; the one difference is
+# PackageIdPrefix (Directory.Build.props), which every packable project builds its PackageId from,
+# so the Extensions package depends on OpenCodeDotNet.Sdk here and on OpenCodeAI.Sdk there. Assembly
+# and namespace names are OpenCode.Sdk in both.
+#
+# NuGet.org only, through Trusted Publishing: a policy for this workflow file (package owner
+# OpenCode.NET, the repository this file lives in, workflow file publish-nuget-opencodedotnet.yml,
+# no environment) must exist on nuget.org before the first run; the publish-nuget.yml policy does
+# not cover it, because a policy names one workflow file. The owner is read from the same
+# NUGET_TRUSTED_PUBLISHING_USER repository variable.
+#
+# The lane refuses any ref but master, for the reason publish-nuget.yml gives: a version pushed from
+# a feature branch can only be unlisted, never deleted.
+name: "Publish to NuGet (OpenCodeDotNet)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Exact version to stamp on the packages (e.g. 0.9.0-preview.3)"
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_NOLOGO: true
+  PACKAGE_ID_PREFIX: OpenCodeDotNet
+
+jobs:
+  publish:
+    name: "Publish (OpenCodeDotNet)"
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # The same two-layer defense against a partial generated surface as publish-nuget.yml.
+      - name: Verify generated output
+        run: dotnet run --file tools/opencode-tool.cs -- generate --verify
+
+      - name: Pack
+        env:
+          PACKAGE_VERSION: ${{ inputs.version }}
+        run: >
+          dotnet pack --configuration Release
+          -p:Version="$PACKAGE_VERSION"
+          -p:PackageIdPrefix="$PACKAGE_ID_PREFIX"
+          --output packages
+
+      # Nothing under another prefix may leave this lane: the two package ids, and the Extensions
+      # package's dependency on the core package, are read back from the nuspecs before any push.
+      - name: Verify package ids
+        env:
+          PACKAGE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          core="packages/${PACKAGE_ID_PREFIX}.Sdk.${PACKAGE_VERSION}.nupkg"
+          extensions="packages/${PACKAGE_ID_PREFIX}.Sdk.Extensions.${PACKAGE_VERSION}.nupkg"
+          test "$(ls packages/*.nupkg | wc -l)" -eq 2
+          unzip -p "$core" '*.nuspec' | grep -q "<id>${PACKAGE_ID_PREFIX}.Sdk</id>"
+          unzip -p "$extensions" '*.nuspec' | grep -q "<id>${PACKAGE_ID_PREFIX}.Sdk.Extensions</id>"
+          unzip -p "$extensions" '*.nuspec' | grep -q "<dependency id=\"${PACKAGE_ID_PREFIX}.Sdk\" version=\"${PACKAGE_VERSION}\""
+          echo "Packing ${PACKAGE_ID_PREFIX}.Sdk and ${PACKAGE_ID_PREFIX}.Sdk.Extensions ${PACKAGE_VERSION}."
+
+      - name: "NuGet.org login (OIDC)"
+        id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: ${{ vars.NUGET_TRUSTED_PUBLISHING_USER }}
+
+      # No --skip-duplicate, for the reason publish-nuget.yml gives: a refused push fails here with
+      # the gallery's own message instead of passing as "already exists".
+      - name: Push to NuGet.org
+        env:
+          NUGET_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+        run: >
+          dotnet nuget push "packages/*.nupkg"
+          --source https://api.nuget.org/v3/index.json
+          --api-key "$NUGET_KEY"
