@@ -138,7 +138,7 @@
     },
     {
       "path": "packages/cli/package.json",
-      "sha256": "a255187e4bc46ea7f0a55bc1d1a5dd40ec10670b995fcc467b21e225e694ebf4",
+      "sha256": "11a23b40e2f401cad09af54bcd68fec312424726b5bc29946ab33f3f501fb1ea",
       "behavior": "The CLI package bin map names \u0022opencode\u0022 as the installed command and keeps \u0022opencode2\u0022 as a transitional alias of the same launcher, so the shipped launcher default resolves \u0022opencode\u0022 from PATH.",
       "anchor": {
         "type": "contains",
@@ -147,7 +147,7 @@
     },
     {
       "path": "packages/core/package.json",
-      "sha256": "791c322eb8be665d99933ed6f4245c1769d5ed5892c8a8ecc1f122b8f20057d2",
+      "sha256": "1368e0293971cbb81d11a57d95df150e6fe4d314d151021c1f29aa629711092f",
       "behavior": "The opencode-pty daemon dependency is pinned at 0.1.13, which fixes the daemon protocol the persistent-PTY door speaks.",
       "anchor": {
         "type": "contains",
@@ -156,7 +156,7 @@
     },
     {
       "path": "packages/server/src/process.ts",
-      "sha256": "7047134af264cccdde642e038d4c499157af8bed943d39bd340ab26e12c12cb5",
+      "sha256": "4cbd0a730e0c46bc1ebddb5a16c68ea605ce417be231047c2e6005079a6c54ec",
       "behavior": "A ticketed PTY connect is admitted before the server reports ready. Uncredentialed or wrongly credentialed requests above the API layer receive an empty 401 with the Basic challenge. While the server is not ready, GET /api/info is answered by the process layer under Basic auth with the version, pid, urls, and paths.tmp body at 500 when failed or 503 when starting or stopping, the latter two with retry-after: 1; once ready the request reaches the API group\u0027s server.info handler, which answers the same shape at 200.",
       "anchor": {
         "type": "contains",
@@ -174,7 +174,7 @@
     },
     {
       "path": "packages/client/src/solid/pty.ts",
-      "sha256": "0bb18a58a8263126dc4b3755b929b0fab4568ccf039e9c0b319ea98fccc58a7d",
+      "sha256": "45b17253a7faea39455022358ca6286137a65f20a75ed916c0b9de38bdd67714",
       "behavior": "Behavioral oracle: the reference client sends the ticket and cursor query parameters when it opens a PTY socket.",
       "anchor": {
         "type": "contains",
@@ -192,7 +192,7 @@
     },
     {
       "path": "packages/tui/src/component/terminal-pane.tsx",
-      "sha256": "d712ebc9f77e02d8f4350ddf96c62efb702b3813f679b0e3e7af60ec6f1cb6f1",
+      "sha256": "1ab67b8b99c42c4bf470466072a9226047733ee8a752127a6243e56063aa3591",
       "behavior": "Behavioral oracle: the TUI resumes a terminal from the snapshot tail cursor.",
       "anchor": {
         "type": "contains",
@@ -210,8 +210,8 @@
     },
     {
       "path": "packages/cli/src/server-process.ts",
-      "sha256": "53a4296917a39fcfca052b424b43935e5d1e22f5dcc3a1aa839e80c88d399bf5",
-      "behavior": "In stdio mode the serve command prints exactly one JSON line carrying the bound url to stdout after full boot and exits when stdin reaches EOF, which is the readiness line ServerReadyLine parses and the lease OpenCodeServer releases. In service mode it changes into the user home (which ServerIsolation\u0027s isolated home relies on), returns at once when a compatible incumbent already answers, and exits 0 as the loser when another daemon holds the port and is recognized, which is the exit the Ensure election reads as a lost race and answers by doubling its spawn delay; a loser that exited non-zero would fail every multi-contender Ensure.",
+      "sha256": "4d6cfc459c379010eef4e6d01ac819a3db22333f0e13487aabe42fc7d436f017",
+      "behavior": "In stdio mode the serve command prints exactly one JSON line carrying the bound url to stdout after full boot and exits when stdin reaches EOF, which is the readiness line ServerReadyLine parses and the lease OpenCodeServer releases. In service mode it changes into the user home (which ServerIsolation\u0027s isolated home relies on), returns at once when a compatible incumbent already answers, and exits 0 as the loser when another daemon holds the port and is recognized, which is the exit the Ensure election reads as a lost race and answers by doubling its spawn delay; a loser that exited non-zero would fail every multi-contender Ensure. On Windows, a service run from a package-manager or curl install first holds a second hard link to its own image under the cache directory, so an installer can replace the binary while the daemon runs; the pid and start time the stop door identifies it by are unchanged, and a daemon the stop door ends hard leaves that link for the next service start to sweep.",
       "anchor": {
         "type": "contains",
         "text": "JSON.stringify({ url })"
@@ -264,7 +264,7 @@
     },
     {
       "path": "packages/protocol/src/groups/session.ts",
-      "sha256": "9f78f4c34732adcd7fe87c3968ee28de9078b82494114b6a73053bd80c0ab5c1",
+      "sha256": "a6e4e55eaa7583948ac699dce5044c167ab827bfeaa72bcac7eeeef2fbce142b",
       "behavior": "The session list declares limit, order and cursor, where order applies to the first page only and the opaque cursor carries the continuation, which the cursor-list spine and CursorSequence depend on; the file is also the Restore patch preimage for the SSE payloads.",
       "anchor": {
         "type": "contains",
@@ -453,7 +453,7 @@
     },
     {
       "path": "packages/cli/script/service-smoke.ts",
-      "sha256": "b888aadfb8f57bc6234a99ec22623a7c63ad8ac7b921f5a1b0fddb6d93ab58f9",
+      "sha256": "b080509094c61bb435ad67440dcc089b3daa58595a6f84e6775de89a7591a6a3",
       "behavior": "Upstream\u0027s end-to-end service smoke asserts that the daemon it built writes a registration carrying the service identity (id, version, pid); it is a check on the daemon\u0027s output, not a client rule, and the SDK\u0027s reader still admits a registration without an id, as the client\u0027s own Info schema does.",
       "anchor": {
         "type": "contains",
@@ -480,7 +480,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "bc6c4a372af3ca9b4eb47bf41ce7adb6d9c10bcb061faa60fc65c3bf7b083356",
+      "sha256": "c6d4f6277624e44dc1175a4c9e047a36d3642561719bd8810637f05ecd31dfb4",
       "behavior": "The workspace catalog pins the Effect release the protocol document is generated with, whose JSON Schema encoding of StructWithRest (a struct\u0027s properties beside a single-element allOf carrying only the rest\u0027s additionalProperties) the projector admits as an open object; an Effect bump is reviewed against that encoding before the snapshot moves.",
       "anchor": {
         "type": "contains",
@@ -516,8 +516,8 @@
     },
     {
       "path": "packages/cli/src/index.ts",
-      "sha256": "a6744a83f3f0abcc0bdd95b858fe747bd031e39ff80141432d906eb425514e4c",
-      "behavior": "The CLI\u0027s entry runs every command through NodeRuntime.runMain and exits with process.exitCode (0 when unset), which is the exit status a contender\u0027s failure report carries and the exit 0 the Ensure election reads as a loser that stood down.",
+      "sha256": "945f05e141557b7f178dc7e5a0887129201e933bd385e91147adc39267b91964",
+      "behavior": "The CLI\u0027s entry runs every command through NodeRuntime.runMain with its error reporting off, writes a fatal cause to stderr itself, and exits with process.exitCode (0 when unset): the stderr tail and exit status a contender\u0027s failure report carries, and the exit 0 the Ensure election reads as a loser that stood down.",
       "anchor": {
         "type": "contains",
         "text": "Effect.tap(() =\u003E Effect.sync(() =\u003E process.exit(process.exitCode ?? 0))),"

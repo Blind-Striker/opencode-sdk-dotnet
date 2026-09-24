@@ -1113,6 +1113,28 @@ public sealed class SessionClientContractTests
     }
 
     [Test]
+    public async Task UpdateSessionAsync_Should_Send_The_Metadata_On_The_204()
+    {
+        using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);
+        using var document = JsonDocument.Parse("{\"source\":\"patch\",\"attempt\":2}");
+        var metadata = document.RootElement.EnumerateObject()
+            .ToDictionary(static member => member.Name, static member => member.Value.Clone(), StringComparer.Ordinal);
+
+        var response = await scenario.Client.Sessions.GetSessionClient("ses_100").UpdateAsync(
+            new SessionUpdateRequest
+            {
+                Metadata = new Optional<IReadOnlyDictionary<string, JsonElement>?>(metadata),
+            });
+
+        await Assert.That(response.Status).IsEqualTo(204);
+        var request = scenario.Requests.Single();
+        await Assert.That(request.Method.Method).IsEqualTo("PATCH");
+        await Assert.That(request.RequestUri)
+            .IsEqualTo(new Uri("http://localhost:4096/api/session/ses_100"));
+        await Assert.That(request.Body).IsEqualTo("{\"metadata\":{\"source\":\"patch\",\"attempt\":2}}");
+    }
+
+    [Test]
     public async Task UpdateSessionAsync_Should_Send_The_Ruleset_On_The_204()
     {
         using var scenario = ContractScenario.Responding(HttpStatusCode.NoContent, string.Empty);

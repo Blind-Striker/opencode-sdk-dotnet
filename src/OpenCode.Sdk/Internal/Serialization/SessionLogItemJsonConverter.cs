@@ -29,6 +29,7 @@ internal sealed class SessionLogItemJsonConverter : JsonConverter<ISessionLogIte
         ["session.inbox.enqueued"] = typeof(SessionInboxEnqueued),
         ["session.instructions.updated"] = typeof(SessionInstructionsUpdated),
         ["session.message.content.updated"] = typeof(SessionMessageContentUpdated),
+        ["session.metadata.updated"] = typeof(SessionMetadataUpdated),
         ["session.model.selected"] = typeof(SessionModelSelected),
         ["session.moved"] = typeof(SessionMoved),
         ["session.permissions"] = typeof(SessionPermissions),

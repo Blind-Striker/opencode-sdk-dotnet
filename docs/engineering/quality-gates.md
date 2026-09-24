@@ -133,9 +133,9 @@ always the pinned source: the managed service behind the discovery, stop, and En
 tests starts the submodule CLI's `serve --service`, the Ensure live tests' forwarding shim runs the
 submodule CLI, and neither takes the command override, so those proofs hold for the pinned commit
 on this lane. The one exception is deliberate: an Ensure live test reads the override, starts the
-distributed build through `EnsureAsync` on its release channel under isolated roots, and proves the
-election against the published CLI; without the override it records that it belongs to this
-lane.
+distributed build through `EnsureAsync` on its release channel under isolated roots, proves the
+election against the published CLI, and ends it through `StopAsync`; without the override it
+records that it belongs to this lane.
 
 It is `workflow_dispatch` (with an input that overrides the pinned version, for trying a candidate
 build) plus weekly, deliberately not a pull-request gate: it downloads a platform CLI build per run

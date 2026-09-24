@@ -24,7 +24,7 @@ public sealed class ProjectsClientContractTests
     [Test]
     public async Task ListProjectsAsync_Should_Return_The_Typed_Projects()
     {
-        const string body = "[{\"id\":\"prj_1\",\"canonical\":\"/repo\",\"time\":{\"created\":1,\"updated\":2},\"sandboxes\":[]}]";
+        const string body = "[{\"id\":\"prj_1\",\"canonical\":\"/repo\",\"time\":{\"created\":1,\"updated\":2,\"active\":3},\"sandboxes\":[]}]";
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, body);
 
         var response = await scenario.Client.Projects.ListProjectsAsync();
@@ -33,6 +33,7 @@ public sealed class ProjectsClientContractTests
         await Assert.That(project.Id).IsEqualTo("prj_1");
         await Assert.That(project.Canonical).IsEqualTo("/repo");
         await Assert.That(project.Time.Created).IsEqualTo(1);
+        await Assert.That(project.Time.Active).IsEqualTo(3);
         await Assert.That(project.Sandboxes).IsEmpty();
         await Assert.That(scenario.Requests.Single().RequestUri)
             .IsEqualTo(new Uri("http://localhost:4096/api/project"));
@@ -77,7 +78,7 @@ public sealed class ProjectsClientContractTests
     public async Task UpdateProjectAsync_Should_Send_The_Typed_Body_And_Return_The_Updated_Project()
     {
         const string project = "{\"id\":\"prj_1\",\"canonical\":\"/repo\",\"name\":\"renamed\","
-            + "\"time\":{\"created\":1,\"updated\":2},\"sandboxes\":[]}";
+            + "\"time\":{\"created\":1,\"updated\":2,\"active\":3},\"sandboxes\":[]}";
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, project);
 
         var response = await scenario.Client.Projects.UpdateProjectAsync("prj_1", new ProjectUpdateRequest
@@ -96,7 +97,7 @@ public sealed class ProjectsClientContractTests
     [Test]
     public async Task UpdateProjectAsync_Should_Send_An_Empty_Body_When_Omitted()
     {
-        const string project = "{\"id\":\"prj_1\",\"canonical\":\"/repo\",\"time\":{\"created\":1,\"updated\":2},\"sandboxes\":[]}";
+        const string project = "{\"id\":\"prj_1\",\"canonical\":\"/repo\",\"time\":{\"created\":1,\"updated\":2,\"active\":3},\"sandboxes\":[]}";
         using var scenario = ContractScenario.Responding(HttpStatusCode.OK, project);
 
         _ = await scenario.Client.Projects.UpdateProjectAsync("prj_1");

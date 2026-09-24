@@ -19,4 +19,10 @@ public sealed record ProjectTime
     /// </summary>
     [JsonPropertyName("updated")]
     public required long Updated { get; init; }
+
+    /// <summary>
+    /// Gets the active value.
+    /// </summary>
+    [JsonPropertyName("active")]
+    public required long Active { get; init; }
 }
