@@ -71,14 +71,14 @@ public sealed class SimulatedDriveServerFixture : IAsyncInitializer, IAsyncDispo
 
     /// <summary>
     /// Brings up the simulated server and its attached-ready control socket. The whole
-    /// reserve-manifest-through-bound-socket span runs under <see cref="DrivePortGate"/>: the
-    /// manifest must name explicit ports the server binds later (manifest.ts:12-21), so without
-    /// the gate two concurrently starting test hosts can be handed the same loopback port and
-    /// the loser dies before readiness.
+    /// reserve-manifest-through-bound-socket span runs under the
+    /// <see cref="MachineLock.DrivePorts"/> lock: the manifest must name explicit ports the
+    /// server binds later (manifest.ts:12-21), so without the lock two concurrently starting test
+    /// hosts can be handed the same loopback port and the loser dies before readiness.
     /// </summary>
     private async Task<DriveController> StartAsync(TestRunRoot runRoot)
     {
-        using var gate = await DrivePortGate.AcquireAsync(_fileSystem, SimulatedServerLaunch.GateTimeout);
+        using var gate = await MachineLock.AcquireAsync(_fileSystem, MachineLock.DrivePorts, SimulatedServerLaunch.GateTimeout);
         var launch = SimulatedServerLaunch.Prepare(_fileSystem, runRoot);
 
         // The collector exists before the start and stays readable when the start fails, so a

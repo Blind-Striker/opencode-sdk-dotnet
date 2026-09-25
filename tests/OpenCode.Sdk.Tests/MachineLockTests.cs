@@ -4,40 +4,56 @@ using Testably.Abstractions;
 namespace OpenCode.Sdk.Tests;
 
 /// <summary>
-/// The gate is what keeps the day-one blocking simulated-session suite from racing itself across
-/// target-framework legs, so its two load-bearing properties - mutual exclusion, and a bounded
-/// loud failure rather than an unbounded wait - are pinned here. A real file system with a
-/// per-test path is deliberate: the contract is an operating-system file lock, and every
-/// assertion below stays hermetic because no test touches the shared production gate path.
+/// The machine lock is what keeps a resource two test hosts must not use at once — the simulated
+/// server's port window, a background-service election — from racing across target-framework
+/// legs, so its two load-bearing properties - mutual exclusion, and a bounded loud failure rather
+/// than an unbounded wait - are pinned here. A real file system with a per-test path is
+/// deliberate: the contract is an operating-system file lock, and every assertion below stays
+/// hermetic because no test touches a shared production lock path.
 /// </summary>
-public sealed class DrivePortGateTests
+public sealed class MachineLockTests
 {
     private static readonly RealFileSystem FileSystem = new();
 
     private static readonly TimeSpan ShortTimeout = TimeSpan.FromSeconds(1);
 
-    private static string GatePath() =>
-        FileSystem.Path.Combine(FileSystem.Path.GetTempPath(), "opencode-sdk-tests-gate-" + Guid.NewGuid().ToString("N"));
+    /// <summary>A private lock file per test, deleted once its holders released it, so no run leaves one in the temp directory.</summary>
+    private static string LockPath() =>
+        FileSystem.Path.Combine(FileSystem.Path.GetTempPath(), "opencode-sdk-tests-lock-" + Guid.NewGuid().ToString("N"));
 
     [Test]
-    public async Task AcquireAsync_Should_Refuse_A_Second_Holder_Within_Its_Bound()
+    public async Task AcquireAtAsync_Should_Refuse_A_Second_Holder_Within_Its_Bound()
     {
-        var path = GatePath();
-        using var first = await DrivePortGate.AcquireAsync(FileSystem, path, ShortTimeout);
+        var path = LockPath();
+        try
+        {
+            using var first = await MachineLock.AcquireAtAsync(FileSystem, path, ShortTimeout);
 
-        _ = await Assert.That(async () => await DrivePortGate.AcquireAsync(FileSystem, path, ShortTimeout))
-            .Throws<TimeoutException>();
+            _ = await Assert.That(async () => await MachineLock.AcquireAtAsync(FileSystem, path, ShortTimeout))
+                .Throws<TimeoutException>();
+        }
+        finally
+        {
+            FileSystem.File.Delete(path);
+        }
     }
 
     [Test]
-    public async Task AcquireAsync_Should_Hand_The_Gate_On_After_The_Holder_Releases()
+    public async Task AcquireAtAsync_Should_Hand_The_Lock_On_After_The_Holder_Releases()
     {
-        var path = GatePath();
-        var first = await DrivePortGate.AcquireAsync(FileSystem, path, ShortTimeout);
-        first.Dispose();
+        var path = LockPath();
+        try
+        {
+            var first = await MachineLock.AcquireAtAsync(FileSystem, path, ShortTimeout);
+            first.Dispose();
 
-        using var second = await DrivePortGate.AcquireAsync(FileSystem, path, ShortTimeout);
+            using var second = await MachineLock.AcquireAtAsync(FileSystem, path, ShortTimeout);
 
-        await Assert.That(FileSystem.File.Exists(path)).IsTrue();
+            await Assert.That(FileSystem.File.Exists(path)).IsTrue();
+        }
+        finally
+        {
+            FileSystem.File.Delete(path);
+        }
     }
 }

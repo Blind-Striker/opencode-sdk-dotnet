@@ -130,6 +130,11 @@ unsupported OpenAPI constructs and prove the exact required/null-representation 
 - Assertions state intent in the test body — snapshot testing is reserved for its two
   sealed uses (emitter micro-snapshots and the public API surface lock); behavior tests
   never snapshot.
+- Parallel keys and `[NotInParallel]` order tests inside one host only, while the hosts of one
+  run — one per target framework — run at the same time. A resource two hosts must not use at
+  once takes a named `MachineLock` (a file lock the operating system releases with a dead
+  holder); background-service election classes hold a `ServiceElectionTurn`, exclusive across
+  hosts and shared inside one, from their first test to their last.
 
 ## 6. Owned servers are hermetic
 

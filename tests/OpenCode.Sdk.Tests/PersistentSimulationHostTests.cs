@@ -58,7 +58,7 @@ public sealed class PersistentSimulationHostTests
     private static async Task<OpenCodeServer> StartHostAsync(
         TestRunRoot runRoot, OpenCodeServerOutput output, CancellationToken cancellationToken)
     {
-        using var gate = await DrivePortGate.AcquireAsync(FileSystem, SimulatedServerLaunch.GateTimeout);
+        using var gate = await MachineLock.AcquireAsync(FileSystem, MachineLock.DrivePorts, SimulatedServerLaunch.GateTimeout);
         var launch = SimulatedServerLaunch.Prepare(FileSystem, runRoot);
         return await launch.StartAsync(output, cancellationToken);
     }
