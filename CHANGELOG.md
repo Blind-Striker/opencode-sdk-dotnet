@@ -9,6 +9,14 @@ Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
 `0.9.0-nightly.{yyyyMMdd}.{shortSha}`.
 
+### 🐛 Fixes
+
+- **`OpenCodeServer.EnsureAsync` no longer holds a thread-pool thread per contender on Windows.**
+  The contender's standard error was an anonymous pipe, which Windows reads synchronously, so every
+  contender Ensure started kept one pool thread blocked for as long as its standard error stayed
+  open — for the elected service, its whole life — and ten concurrent callers stalled the pool for
+  seconds. The pipe's read end is now overlapped, as in .NET 11's `Process` and libuv.
+
 ## [0.9.0-preview.3] - 2026-09-24
 
 The launcher is complete: `OpenCodeServer.EnsureAsync` joins discovery and stop, so the three
