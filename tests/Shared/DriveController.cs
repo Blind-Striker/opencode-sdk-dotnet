@@ -16,7 +16,12 @@ namespace OpenCode.Sdk.TestSupport;
 /// </summary>
 internal sealed class DriveController : IAsyncDisposable
 {
-    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
+    /// <summary>
+    /// The bound on sending one request and, separately, on its answer. A caller that wraps a round
+    /// trip in its own deadline keeps that deadline above twice this value, so this bound's named
+    /// failure is the one a stuck request reports.
+    /// </summary>
+    internal static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>The bound on the graceful close frame, and on the receive loop's unwind after it.</summary>
     private static readonly TimeSpan TeardownTimeout = TimeSpan.FromSeconds(5);

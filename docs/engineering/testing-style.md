@@ -1,6 +1,6 @@
 # Testing Style — authoring tests
 
-Date: 2026-09-17
+Date: 2026-09-26
 
 Binding authorship style for every test in this repository. `quality-gates.md` owns the
 current assurance posture and completion gates; operational build-out state belongs in
@@ -198,6 +198,12 @@ true; the fixture hands the boundary to the child process it starts.
   their own before the winner is ended, because ending the winner first hands the registration to a
   loser that is still starting. A registration that still names a live process after everything
   recorded was ended fails the test.
+- **A wrapper's deadline stays above the bound it wraps.** When a test helper wraps an operation
+  that has its own named bound, the wrapper's deadline stays above that bound, so the named failure
+  is the one reported. `OwnedCleanup` is the mechanism for cleanup: a step whose inner bound exceeds
+  the shared budget is owned under its own (`Own(name, timeout, operation)`), derived from that
+  bound rather than copied, and every step is timed, so a step that exceeds its budget names the
+  steps before it and how long each took.
 - **Fail fast, never skip.** A missing submodule, a missing install, or a contaminated run-root
   chain is an instructive error, not a skipped test.
 
