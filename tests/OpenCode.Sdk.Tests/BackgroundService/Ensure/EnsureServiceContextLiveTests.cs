@@ -22,8 +22,14 @@ public sealed class EnsureServiceContextLiveTests
 {
     private static readonly RealFileSystem FileSystem = new();
 
-    /// <summary>How long each contender is given to leave after disposal: past a loaded host's contender start.</summary>
-    private static readonly TimeSpan TakeoverWindow = TimeSpan.FromSeconds(20);
+    /// <summary>
+    /// How long each contender still running after disposal is watched. A bound on a hang, not the
+    /// claim: a contender that took the registration over is elected and never leaves on its own,
+    /// so it fails at any bound, while a loaded runner only delays one that is leaving. A 20-second
+    /// window failed four times on the three-vCPU macOS runner while another host elected; this
+    /// bound stays inside the test's own timeout after an election of up to a minute.
+    /// </summary>
+    private static readonly TimeSpan TakeoverWindow = TimeSpan.FromSeconds(90);
 
     /// <summary>
     /// Disposing the context right after a ten-caller election, while the losing contenders are

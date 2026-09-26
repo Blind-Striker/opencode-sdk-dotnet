@@ -4,12 +4,12 @@ namespace OpenCode.Sdk.Tests.Support;
 
 /// <summary>
 /// The isolated discovery executable's output as a test reads it: the one stdout line for a found
-/// service, and the elapsed-time line it prints on stderr.
+/// service, and the probe verdict it prints on stderr.
 /// </summary>
 internal static class ServiceFixtureOutput
 {
-    private const string TookPrefix = "discovery took ";
-    private const string TookSuffix = " ms";
+    private const string ProbeTimedOutLine = "probe timedOut=true";
+    private const string ProbeAnsweredLine = "probe timedOut=false";
 
     public static string FoundLine(int processId, Uri endpoint) =>
         $"found owns=false pid={processId.ToString(CultureInfo.InvariantCulture)} endpoint={endpoint}";
@@ -17,41 +17,20 @@ internal static class ServiceFixtureOutput
     public static string EnsuredLine(int processId, Uri endpoint) =>
         $"ensured owns=false pid={processId.ToString(CultureInfo.InvariantCulture)} endpoint={endpoint}";
 
-    /// <summary>Reads the <c>discovery took N ms</c> line; null when the executable never reached it.</summary>
-    public static int? DiscoveryMilliseconds(string standardError)
+    /// <summary>
+    /// Reads the probe verdict line: true when the probe's request bound expired, false when the
+    /// probe classified an answer or a refusal, null when discovery never probed or the executable
+    /// never reached the line.
+    /// </summary>
+    public static bool? ProbeTimedOut(string standardError)
     {
         ArgumentNullException.ThrowIfNull(standardError);
 
-        var start = standardError.IndexOf(TookPrefix, StringComparison.Ordinal);
-        if (start < 0)
+        if (standardError.Contains(ProbeTimedOutLine, StringComparison.Ordinal))
         {
-            return null;
+            return true;
         }
 
-        start += TookPrefix.Length;
-        var end = standardError.IndexOf(TookSuffix, start, StringComparison.Ordinal);
-        if (end < 0)
-        {
-            return null;
-        }
-
-        if (end == start)
-        {
-            return null;
-        }
-
-        var milliseconds = 0;
-        for (var index = start; index < end; index++)
-        {
-            var digit = standardError[index] - '0';
-            if (digit is < 0 or > 9)
-            {
-                return null;
-            }
-
-            milliseconds = checked((milliseconds * 10) + digit);
-        }
-
-        return milliseconds;
+        return standardError.Contains(ProbeAnsweredLine, StringComparison.Ordinal) ? false : null;
     }
 }
