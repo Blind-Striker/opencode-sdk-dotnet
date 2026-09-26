@@ -31,6 +31,63 @@ env:
   DOTNET_NOLOGO: true
 
 jobs:
+  # The OS-independent gates run once, beside the matrix instead of inside its Linux leg, where
+  # they delayed that leg's tests by about 5 minutes (2026-09-26, run 36231256172). None of them
+  # needs the build, the submodule, or the pinned server: the formatter compiles in memory from
+  # the restored projects, and generation reads only committed inputs.
+  lint:
+    name: "Lint & Generated Output"
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # Reads the Linux leg's cache; that leg restores a superset of these packages and is the
+      # one writer of the key.
+      - name: Restore NuGet packages cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('global.json', 'nuget.config', 'dotnet-tools.json', 'Directory.Packages.props', 'Directory.Build.props', 'Directory.Build.targets', 'src/*/*.csproj', 'tests/Directory.Build.props', 'tests/*/*.csproj', 'tools/*/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore local tools
+        run: dotnet tool restore
+
+      - name: Detect slop
+        run: dotnet tool run slopwatch analyze --exclude ".scratchpad/**,external/**" --fail-on warning
+
+      - name: Restore
+        run: dotnet restore
+
+      # Physical formatting gate (one leg is enough — results are OS-independent). This retains
+      # encoding/EOL/whitespace without rerunning the semantic analyzer set.
+      - name: Verify formatting
+        run: dotnet format whitespace --verify-no-changes --no-restore
+
+      # Build owns compiler/CA/third-party diagnostics. This pass retains all warning-level Roslyn
+      # style rules plus import organization, including rules Roslyn cannot enforce during build.
+      - name: Verify code style
+        run: dotnet format style --verify-no-changes --no-restore --severity warn
+
+      # Smoke-runs the repo tooling entry; exercises the committed executable bit and the
+      # shebang, which only take effect on a Linux checkout.
+      - name: Tooling entry smoke
+        run: ./tools/opencode-tool.cs --help
+
+      # Regenerating the pinned profile must be a byte-identical no-op on a clean checkout.
+      - name: Verify generated output
+        run: dotnet run --file tools/opencode-tool.cs -- generate --verify
+
   build-and-test:
     name: "Build & Test (${{ matrix.name }})"
     runs-on: ${{ matrix.os }}
@@ -83,15 +140,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      - name: Restore local tools
-        if: runner.os == 'Linux'
-        run: dotnet tool restore
-
-      - name: Detect slop
-        if: runner.os == 'Linux'
-        run: dotnet tool run slopwatch analyze --exclude ".scratchpad/**,external/**" --fail-on warning
-
       - name: Build
+        id: build
         run: dotnet build --configuration Release
 
       # The build restored every package the later steps use. Only master runs write the cache;
@@ -102,29 +152,6 @@ jobs:
         with:
           path: ~/.nuget/packages
           key: ${{ steps.nuget-cache.outputs.cache-primary-key }}
-
-      # Physical formatting gate (one leg is enough — results are OS-independent). This retains
-      # encoding/EOL/whitespace without rerunning the semantic analyzer set.
-      - name: Verify formatting
-        if: runner.os == 'Linux'
-        run: dotnet format whitespace --verify-no-changes --no-restore
-
-      # Build owns compiler/CA/third-party diagnostics. This pass retains all warning-level Roslyn
-      # style rules plus import organization, including rules Roslyn cannot enforce during build.
-      - name: Verify code style
-        if: runner.os == 'Linux'
-        run: dotnet format style --verify-no-changes --no-restore --severity warn
-
-      # Smoke-runs the repo tooling entry; exercises the committed executable bit and the
-      # shebang, which only take effect on a Linux checkout.
-      - name: Tooling entry smoke
-        if: runner.os == 'Linux'
-        run: ./tools/opencode-tool.cs --help
-
-      # Regenerating the pinned profile must be a byte-identical no-op on a clean checkout.
-      - name: Verify generated output
-        if: runner.os == 'Linux'
-        run: dotnet run --file tools/opencode-tool.cs -- generate --verify
 
       # TUnit's always-on HTML report self-uploads as a workflow artifact, but only if these
       # runtime vars (normally JS/Docker-action-only) are re-exported to run steps.
@@ -140,10 +167,26 @@ jobs:
       # host ran ~2.3x slower than alone, which is where the two-second discovery probe and the
       # .NET Framework thread pool started missing their bounds (2026-09-20 measurement: two at a
       # time keeps the wall time and returns each host to within a third of its solo speed).
+      #
+      # The background-service elections run in a pass of their own after every other test. A
+      # ten-caller election starts some twenty to thirty-four source-run servers, and a timed test
+      # in another host that ran in those seconds missed its bound on Windows and macOS alike;
+      # TUnit's keys order tests inside one host only (tests/Shared/TestCategories.cs). The
+      # election pass runs its hosts one at a time for the same reason. It runs after a failed first
+      # pass (not after a failed build), so the report sees both passes, and it leaves the HTML
+      # report upload to the first pass, whose artifact names (assembly, OS, framework) it would
+      # repeat.
       - name: Test
-        run: dotnet test --configuration Release --no-build --max-parallel-test-modules 2 -- --report-trx --results-directory "${{ github.workspace }}/test-results"
+        run: dotnet test --configuration Release --no-build --max-parallel-test-modules 2 -- --report-trx --results-directory "${{ github.workspace }}/test-results/main" --treenode-filter "/*/*/*/*[Category!=ServiceElection]" --minimum-expected-tests 1
         env:
           TUNIT_ARTIFACT_RETENTION_DAYS: 7
+
+      - name: Test (service elections)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: dotnet test tests/OpenCode.Sdk.Tests --configuration Release --no-build --max-parallel-test-modules 1 -- --report-trx --results-directory "${{ github.workspace }}/test-results/service-elections" --treenode-filter "/*/*/*/*[Category=ServiceElection]" --minimum-expected-tests 1
+        env:
+          TUNIT_ARTIFACT_RETENTION_DAYS: 7
+          TUNIT_DISABLE_ARTIFACT_UPLOAD: true
 
       - name: Publish test results
         id: test-results
@@ -209,13 +252,13 @@ jobs:
           path: test-results/**
           retention-days: 7
 
-  # Runs once green (needs the matrixed build-and-test job, which GitHub Actions only satisfies
-  # once every OS leg completes) and only on a real push to master, never on a PR. Publishes a
-  # -nightly package to GitHub Packages so the exact code at HEAD is always installable; the
-  # stable, human-triggered lane lives in publish-nuget.yml.
+  # Runs once green (needs the lint job and the matrixed build-and-test job, which GitHub Actions
+  # only satisfies once every OS leg completes) and only on a real push to master, never on a PR.
+  # Publishes a -nightly package to GitHub Packages so the exact code at HEAD is always
+  # installable; the stable, human-triggered lane lives in publish-nuget.yml.
   publish-nightly:
     name: "Publish nightly (GitHub Packages)"
-    needs: [build-and-test]
+    needs: [lint, build-and-test]
     if: github.ref == 'refs/heads/master' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:

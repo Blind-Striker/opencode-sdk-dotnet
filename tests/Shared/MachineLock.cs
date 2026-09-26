@@ -26,15 +26,6 @@ internal sealed class MachineLock : IDisposable
     /// </summary>
     public const string DrivePorts = "drive-ports";
 
-    /// <summary>
-    /// A background-service election: every Ensure caller keeps a contender and a lock probe
-    /// alive until one service registers, so ten callers run some twenty source-run servers at
-    /// once. Two hosts electing at the same moment doubled that on the three-vCPU macOS runner,
-    /// and the winner's database bootstrap started 35 seconds after its CLI did, past the
-    /// election's bounds (PR #108's run 36033490997). <see cref="ServiceElectionTurn"/> holds it.
-    /// </summary>
-    public const string ServiceElection = "service-election";
-
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(250);
 
     private readonly FileSystemStream _handle;

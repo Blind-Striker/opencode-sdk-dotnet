@@ -5,11 +5,11 @@ namespace OpenCode.Sdk.Tests;
 
 /// <summary>
 /// The machine lock is what keeps a resource two test hosts must not use at once — the simulated
-/// server's port window, a background-service election — from racing across target-framework
-/// legs, so its two load-bearing properties - mutual exclusion, and a bounded loud failure rather
-/// than an unbounded wait - are pinned here. A real file system with a per-test path is
-/// deliberate: the contract is an operating-system file lock, and every assertion below stays
-/// hermetic because no test touches a shared production lock path.
+/// server's port window — from racing across target-framework legs, so its two load-bearing
+/// properties - mutual exclusion, and a bounded loud failure rather than an unbounded wait - are
+/// pinned here. A real file system with a per-test path is deliberate: the contract is an
+/// operating-system file lock, and every assertion below stays hermetic because no test touches a
+/// shared production lock path.
 /// </summary>
 public sealed class MachineLockTests
 {

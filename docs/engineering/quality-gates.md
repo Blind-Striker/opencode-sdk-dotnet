@@ -68,7 +68,8 @@ dotnet tool run slopwatch analyze --exclude ".scratchpad/**,external/**" --fail-
 dotnet build --configuration Release
 dotnet format whitespace --verify-no-changes --no-restore
 dotnet format style --verify-no-changes --no-restore --severity warn
-dotnet test --configuration Release --no-build
+dotnet test --configuration Release --no-build -- --treenode-filter "/*/*/*/*[Category!=ServiceElection]"
+dotnet test tests/OpenCode.Sdk.Tests --configuration Release --no-build --max-parallel-test-modules 1 -- --treenode-filter "/*/*/*/*[Category=ServiceElection]"
 ```
 
 Changes to the protocol, generator, curation, or generated output also run:
@@ -104,6 +105,16 @@ missed under load; two modules at a time keeps the wall time and returns each ho
 third of its solo speed (measured 2026-09-20). The local gate on a workstation needs no cap, and a
 live test whose proof rides a wall-clock bound the host can miss carries the keyless
 `[NotInParallel]` (`tests/Shared/ParallelConstraintKeys.cs`).
+
+The suite runs in two passes, locally and in CI. The background-service election classes carry the
+`ServiceElection` category (`tests/Shared/TestCategories.cs`) and run in the second pass, one host at
+a time, after every other test. A ten-caller election starts some twenty to thirty-four source-run
+servers, and a timed test in another host that ran in those seconds missed its bound: on Windows and
+macOS every such failure lined up with an election in another host, and no run without that overlap
+failed. TUnit's parallel keys order tests inside one host only, so no key can keep another host's
+election away; a pass of its own can. CI's second pass always runs, so the test report and the badge
+count both passes, and it leaves TUnit's HTML report upload to the first pass, whose artifact names
+it would repeat.
 
 ## Distributed-build consumer leg
 

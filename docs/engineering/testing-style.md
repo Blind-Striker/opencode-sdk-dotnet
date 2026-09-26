@@ -133,8 +133,9 @@ unsupported OpenAPI constructs and prove the exact required/null-representation 
 - Parallel keys and `[NotInParallel]` order tests inside one host only, while the hosts of one
   run — one per target framework — run at the same time. A resource two hosts must not use at
   once takes a named `MachineLock` (a file lock the operating system releases with a dead
-  holder); background-service election classes hold a `ServiceElectionTurn`, exclusive across
-  hosts and shared inside one, from their first test to their last.
+  holder). A test whose load a runner cannot carry beside another host's timed tests carries a
+  `TestCategories` category the documented gate runs in a pass of its own
+  (`quality-gates.md`); background-service elections are the one such category.
 
 ## 6. Owned servers are hermetic
 
