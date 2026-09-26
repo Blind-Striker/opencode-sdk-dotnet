@@ -6,6 +6,12 @@
 # wrong pick would otherwise ship a feature or review branch as an exact stable version that
 # NuGet.org can only unlist, never delete.
 #
+# The lane packs the commit that the commit input names, not the master tip at dispatch time.
+# publish-nuget-opencodedotnet.yml packs the same release under a second id prefix, and master can
+# move between the two dispatches: 0.9.0-preview.3 shipped OpenCodeAI.* from f66246e and
+# OpenCodeDotNet.* from caaa124. Give both lanes the same full SHA. The lane refuses a commit that
+# master does not contain, and it reads the commit back from every package before any push.
+#
 # target: github pushes to GitHub Packages with GITHUB_TOKEN and works today.
 #
 # target: nuget publishes to NuGet.org via Trusted Publishing (OIDC through NuGet/login@v1, no
@@ -25,6 +31,9 @@ on:
     inputs:
       version:
         description: "Exact version to stamp on the packages (e.g. 0.8.0-preview.1 or 0.8.0)"
+        required: true
+      commit:
+        description: "Full 40-character master commit SHA to pack (give both publish lanes the same SHA)"
         required: true
       target:
         type: choice
@@ -63,8 +72,31 @@ jobs:
       # GenerationRequest.cs) points generate --verify at spec/openapi.json, tools/curation.json,
       # and tools/generation-profile.txt — all committed. Packing builds only src/OpenCode.Sdk and
       # src/OpenCode.Sdk.Extensions, which never reference external/opencode.
+      # Full history, because the next step proves that master contains the commit.
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.commit }}
+          fetch-depth: 0
+
+      # HEAD equals the input only when the input is a full commit SHA: a branch name, a tag, or a
+      # short SHA resolves to a commit whose SHA differs from the input text, and the lane stops.
+      - name: Verify commit
+        env:
+          COMMIT: ${{ inputs.commit }}
+        run: |
+          set -euo pipefail
+          head="$(git rev-parse HEAD)"
+          if [ "$head" != "$COMMIT" ]; then
+            echo "::error::The commit input must be a full commit SHA. The checkout resolved it to $head."
+            exit 1
+          fi
+          git fetch --no-tags origin +refs/heads/master:refs/remotes/origin/master
+          if ! git merge-base --is-ancestor "$COMMIT" origin/master; then
+            echo "::error::master does not contain $COMMIT."
+            exit 1
+          fi
+          echo "Packing commit \`$COMMIT\`." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v6
@@ -84,6 +116,21 @@ jobs:
         env:
           PACKAGE_VERSION: ${{ inputs.version }}
         run: dotnet pack --configuration Release -p:Version="$PACKAGE_VERSION" --output packages
+
+      # Source Link stamps the built commit into each nuspec's repository element.
+      - name: Verify packed commit
+        env:
+          COMMIT: ${{ inputs.commit }}
+        run: |
+          set -euo pipefail
+          test "$(ls packages/*.nupkg | wc -l)" -eq 2
+          for package in packages/*.nupkg; do
+            nuspec="$(unzip -p "$package" '*.nuspec')"
+            if ! grep -q "commit=\"${COMMIT}\"" <<< "$nuspec"; then
+              echo "::error::$package does not carry commit $COMMIT."
+              exit 1
+            fi
+          done
 
       # Trusted Publishing exchanges a GitHub OIDC token for a short-lived nuget.org API key, so
       # there is no long-lived NUGET_API_KEY secret to rotate or leak. The login step sits

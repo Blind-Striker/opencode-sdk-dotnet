@@ -54,7 +54,9 @@ Two separate API vintages shape the downlevel legs, and conflating them would mi
   `OpenCodeAI.Sdk` and `OpenCodeAI.Sdk.Extensions`, because nuget.org reserves the `OpenCode.`
   prefix for an unrelated owner. The same build is also published as `OpenCodeDotNet.Sdk` and
   `OpenCodeDotNet.Sdk.Extensions` from its own manual lane (`publish-nuget-opencodedotnet.yml`) to
-  hold that prefix too. Each packable project builds its own `PackageId` from `PackageIdPrefix`
+  hold that prefix too. Both manual lanes take the commit to pack as a required input and refuse a
+  commit that `master` does not contain, so one version is one commit under both prefixes. Each
+  packable project builds its own `PackageId` from `PackageIdPrefix`
   (`Directory.Build.props`, `OpenCodeAI` unless a lane passes another); the assemblies, the public
   namespaces, and therefore consumer source are unaffected, and a project reference packs as a
   dependency on the corresponding package id under the same prefix.
