@@ -1,6 +1,6 @@
 # 📡 Streaming
 
-Date: 2026-09-06
+Date: 2026-09-24
 
 Two server-sent event streams, both surfaced as `IAsyncEnumerable<T>` and both riding the same
 transport as ordinary calls: the **global event bus** for everything happening in the server
@@ -50,9 +50,9 @@ cursor, no replay, and no resume channel:
   gap you need to know about. After a failure, refresh whatever state you care about with ordinary
   calls, then subscribe again.
 
-If the server was started with event persistence, the per-session log is the stream that can replay
-it — and the CLI you install does not start one that way; the note on guarantees below has the
-whole story.
+The per-session log below is the stream with a cursor, but it delivers events only from a server
+started with event persistence — and the CLI you install does not start one that way; the note on
+guarantees below has the whole story.
 
 ## 📜 A single session's log
 
@@ -119,22 +119,30 @@ last one you did read.
 With `Follow = False`, a server that persists the requested history replays the available durable
 events and ends with one `EventLogSynced`. The marker reports the captured aggregate watermark.
 With `Follow = True`, read through any replayed events until that marker arrives; the same stream
-then delivers live events committed after the attachment boundary. The marker is a transition
-boundary, not a durable event to save as the next `After` value.
+then delivers live events committed after the attachment boundary, from a server that persists
+them. The marker is a transition boundary, not a durable event to save as the next `After` value.
 
-> **📎 A note on guarantees**: replay depends on how the server was started. Persistence is a server
-> option that is off unless the process starting the server turned it on, so a server without it
-> answers a replay with the marker alone.
+> **📎 A note on guarantees**: what the log delivers depends on how the server was started.
+> Persistence is a server option that is off unless the process starting the server turned it on,
+> and the log reads its events back from that persisted store — the live part of `Follow = True`
+> included. A server without persistence answers a replay and a follow alike with the marker alone.
 >
 > **The distributed `opencode` CLI starts its server without event persistence and exposes no
 > switch for it** — no serve flag, no environment variable, no configuration key. Observed on
-> `@opencode/cli@2.0.2`. So a replay (`GetLogAsync` with
-> `Follow` unset or `False`) against a CLI-started server is not an error and not empty: it is one
-> `EventLogSynced` whose `Seq` has advanced, with nothing replayed before it. That is the signature
-> to look for — a marker that moved, and no durable events ahead of it. Persisted replay needs a
-> host that embeds the opencode server library with persistence enabled; this repository's own
-> simulation host does exactly that for its tests. Live delivery under `Follow = True` is
-> unaffected either way.
+> `@opencode/cli@2.0.15`. So `GetLogAsync` against a CLI-started server is not an error and not
+> empty: with `Follow` unset or `False` it is one `EventLogSynced` and the end of the stream, and
+> with `Follow = True` it is the same single marker and then nothing, however many durable changes
+> the session goes through while you listen. The marker's `Seq` is the session's current aggregate
+> sequence, which moves with every durable change although nothing is stored. That is the signature
+> to look for — a marker, and no durable events ahead of it or after it. Persisted replay and
+> follow need a host that embeds the opencode server library with persistence enabled; this
+> repository's own simulation host does exactly that for its tests.
+>
+> For live session activity from a CLI-started server, subscribe to the
+> [global event bus](#-the-global-event-bus) and filter by session id —
+> `SessionRenamed.Data.SessionId`, for example. It is a different stream: the instance-wide
+> `IEvent` union rather than one session's `ISessionLogItem`s, with no replay, no cursor, and no
+> sync marker, and recovery after a disconnect is yours.
 >
 > When persistence *is* on, nothing expires or prunes the log and entries live until their session
 > is deleted. Sequences are not contiguous, so treat a gap as ordinary rather than as loss. Carry a

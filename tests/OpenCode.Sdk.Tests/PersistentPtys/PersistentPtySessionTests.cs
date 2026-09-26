@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using System.Text.Json;
+using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Tests.Support;
 
 namespace OpenCode.Sdk.Tests;
@@ -22,7 +23,7 @@ public sealed class PersistentPtySessionTests
         }
         finally
         {
-            await cancellation.CancelAsync();
+            await cancellation.CancelOnWorkerAsync();
             try
             {
                 var unexpected = await pending;
@@ -45,7 +46,7 @@ public sealed class PersistentPtySessionTests
             .Pausing().Binary(PersistentPtyFrameData.Output("after attach")).Closing(WebSocketCloseStatus.NormalClosure);
         using var cancellation = new CancellationTokenSource();
         await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, cancellation.Token);
-        await cancellation.CancelAsync();
+        await cancellation.CancelOnWorkerAsync();
         await session.WriteAsync(PersistentPtyFrameData.Output("input"));
         socket.ReleaseReceives();
 
@@ -675,7 +676,7 @@ public sealed class PersistentPtySessionTests
         var socket = new ScriptedTerminalWebSocket().Text(PersistentPtyFrameData.AttachedJson);
         await using var session = await PersistentPtySession.AttachAsync(socket, PtyId, CancellationToken.None);
         using var cancellation = new CancellationTokenSource();
-        await cancellation.CancelAsync();
+        await cancellation.CancelOnWorkerAsync();
 
         _ = await Assert.That(async () => await session.ResizeAsync(100, 30, cancellation.Token))
             .Throws<OperationCanceledException>();

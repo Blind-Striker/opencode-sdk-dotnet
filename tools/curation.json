@@ -129,7 +129,7 @@
     "worktree": {
       "placement": "client",
       "clientName": "Worktrees",
-      "reason": "The family's full pinned surface (list, create, remove, refresh) resolves the project through an optional location query and carries no required path id, so ADR-0019 yields a flat client. The whole surface is selected and retains the upstream worktree terminology."
+      "reason": "The family's full pinned surface (list, create, remove, refresh) names its project through a required projectID and carries no required path id, so ADR-0019 yields a flat client. The whole surface is selected and retains the upstream worktree terminology."
     },
     "form": {
       "placement": "client",

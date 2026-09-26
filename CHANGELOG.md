@@ -16,6 +16,45 @@ Nightly builds of `master` are on
   `<remarks>` with its operation id, HTTP method, and route, for example
   `Operation session.permission.create: POST /api/session/{sessionID}/permission`.
 
+### 🐛 Fixes
+
+- **`OpenCodeServer.EnsureAsync` no longer holds a thread-pool thread per contender on Windows.**
+  The contender's standard error was an anonymous pipe, which Windows reads synchronously, so every
+  contender Ensure started kept one pool thread blocked for as long as its standard error stayed
+  open — for the elected service, its whole life — and ten concurrent callers stalled the pool for
+  seconds. The pipe's read end is now overlapped, as in .NET 11's `Process` and libuv.
+
+### 📚 Documentation
+
+- **A CLI-started server's session log is the marker alone, followed as well as replayed.** The
+  streaming guide and the README's known issues said live `Follow = True` delivery was unaffected
+  by persistence; it is not. The server's live tail re-reads the same persisted store as a replay,
+  so against a server the distributed `opencode` CLI started, `GetLogAsync` delivers one
+  `EventLogSynced` and no durable event either way. Both now say so and point live session activity
+  to `client.Events.SubscribeAsync`, filtered by session id. Observed on `@opencode/cli@2.0.15`.
+- **A refused worktree removal can be partial.** The errors guide said a 400 `WorktreeError` removed
+  nothing. With `ForceRequired` false, git can already have deleted the worktree's files and its
+  git metadata while the directory and the inventory row remain, and a retry then answers
+  `Worktree directory unavailable` with `ForceRequired` null. The guide names the cause observed on
+  Windows at the pin — the server keeps the worktree's location alive, and that location's local MCP
+  servers run inside the worktree — and shows how to prevent it (`Debug.EvictLocationAsync` before
+  the removal) and how to recover (evict, delete the directory, `RefreshWorktreesAsync`).
+- **An empty VCS summary is explained.** Getting started says that `Vcs.GetVcsAsync` for a
+  directory the server has not served before can answer with a `null` `Provider` and `null` branch
+  values until that location's plugins settle, that the caller waits for a non-null `Provider`,
+  and that a `null` `Branch.Current` with a provider set is a detached HEAD.
+- **Getting started shows a prompt answered in a console app**: `PromptAsync`, then
+  `Experimental.WaitForSessionAsync` under a caller-owned deadline, then `EnumerateMessagesAsync`.
+- **Getting started has a .NET Framework section.** A `net472` project needs
+  `<LangVersion>10.0</LangVersion>` — the SDK's public surface needs C# 9 and the console template's
+  implicit usings C# 10 — and no extra package.
+- **The requests guide explains the members the schema does not**: session permission rules
+  (an update replaces the whole ruleset; create, list, and reply; how upstream evaluates), a
+  worktree's `Directory` as the parent and `Name` as the child, and a shell `Timeout` in
+  milliseconds with `0` or unset meaning none.
+- **The README no longer states a test count by hand**; the test badges carry it. A tools test now
+  fails when the README's guide table and the pages under `docs/guide` differ.
+
 ## [0.9.0-preview.3] - 2026-09-24
 
 The launcher is complete: `OpenCodeServer.EnsureAsync` joins discovery and stop, so the three

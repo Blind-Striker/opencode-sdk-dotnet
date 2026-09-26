@@ -68,12 +68,20 @@ error as the inner exception.
 - A synchronous spawn failure is a public `OpenCodeServerException` with the platform error
   inside; an asynchronous child `error` after a successful create is election-loop business,
   not this seam's.
-- The stderr pipe is the BCL's `AnonymousPipeServerStream`, created by the runtime's own native
-  code: on Unix both ends are close-on-exec and only the write end crosses, as fd 2 through
-  `posix_spawn_file_actions_adddup2`; on Windows only the write end is inheritable and it enters
-  the handle list beside NUL. The parent drops its copy of the write end after the spawn. The C
+- On Unix the stderr pipe is the BCL's `AnonymousPipeServerStream`, created by the runtime's own
+  native code: both ends are close-on-exec and only the write end crosses, as fd 2 through
+  `posix_spawn_file_actions_adddup2`, and its reads wait on the runtime's event loop. The C
   library's `pipe` and `fcntl` are not bound: `fcntl` is variadic, and a fixed-signature
   P/Invoke reads its third argument from the wrong place on Apple arm64.
+- On Windows the stderr pipe is a local named pipe made the way .NET 11's `Process` makes its
+  output pipes (dotnet/runtime#125643) and libuv its child stdio: a fresh
+  `\\.\pipe\LOCAL\` name, a single instance that refuses a pre-existing name and remote clients,
+  an overlapped read end, and a synchronous inheritable write end that enters the handle list
+  beside NUL. An anonymous pipe is synchronous on Windows, so each pending read would hold a
+  pool thread for as long as the contender keeps stderr open — for the elected service, its
+  whole life — and ten concurrent Ensure callers were measured to stall the host's pool for
+  about 13 seconds. The overlapped read waits on the completion port. On both platforms the
+  parent drops its copy of the write end after the spawn.
 - The Unix child starts with every standard signal at its default disposition and an empty mask
   (`POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK` over `sigfillset`/`sigemptyset` sets), the
   state libuv gives a Node child; `posix_spawn` alone keeps ignored dispositions (the .NET host

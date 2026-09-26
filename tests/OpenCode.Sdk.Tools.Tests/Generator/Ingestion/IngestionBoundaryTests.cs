@@ -1,5 +1,6 @@
 using System.Reflection;
 using OpenCode.Sdk.Tools.Generator.Ingestion;
+using OpenCode.Sdk.Tools.Tests.Support;
 using Testably.Abstractions;
 
 namespace OpenCode.Sdk.Tools.Tests.Generator.Ingestion;
@@ -60,21 +61,8 @@ public sealed class IngestionBoundaryTests
         return normalized.Contains("/Generator/Ingestion/", StringComparison.Ordinal);
     }
 
-    private static string FindToolsSourceRoot(RealFileSystem fileSystem)
-    {
-        var current = fileSystem.DirectoryInfo.New(AppContext.BaseDirectory);
-        while (current is not null)
-        {
-            if (fileSystem.File.Exists(fileSystem.Path.Combine(current.FullName, "OpenCode.slnx")))
-            {
-                return fileSystem.Path.Combine(current.FullName, "tools", "OpenCode.Sdk.Tools");
-            }
-
-            current = current.Parent;
-        }
-
-        throw new InvalidOperationException("The repository root (OpenCode.slnx) was not found above the test output directory.");
-    }
+    private static string FindToolsSourceRoot(RealFileSystem fileSystem) =>
+        fileSystem.Path.Combine(new RepositoryRoot(fileSystem).Locate(), "tools", "OpenCode.Sdk.Tools");
 
     private static IEnumerable<Type> ReferencedTypes(Type type)
     {

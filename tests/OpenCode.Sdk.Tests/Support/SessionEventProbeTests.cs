@@ -1,4 +1,5 @@
 using System.Text.Json;
+using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk.Tests.Support;
@@ -56,7 +57,7 @@ public sealed class SessionEventProbeTests
             await scenario.Stalled.Task;
 
             using var barrier = new CancellationTokenSource();
-            await barrier.CancelAsync();
+            await barrier.CancelOnWorkerAsync();
             var thrown = await Assert.That(async () =>
             {
                 _ = await probe.WaitForAsync<SessionMoved>(

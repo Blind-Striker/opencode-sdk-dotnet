@@ -1,6 +1,6 @@
 # 🧱 Errors and responses
 
-Date: 2026-09-17
+Date: 2026-09-24
 
 Every one-shot call answers with a **response envelope** that carries the same four members no
 matter which operation produced it, and every failure is either a typed API error you can branch on
@@ -181,25 +181,64 @@ you built without a password is the same signal. Observed on `@opencode/cli@2.0.
 
 ### When a worktree remove is refused
 
-`WorktreesClient.RemoveWorktreeAsync` answering 400 `WorktreeError` means **nothing was removed**.
-A refusal is not partial cleanup: the directory is still on disk and the worktree is still in the
-inventory, so re-list before treating a removal as done.
-
-`Data.ForceRequired` says which kind of refusal it was:
+`WorktreesClient.RemoveWorktreeAsync` answering 400 `WorktreeError` did not finish the removal:
+the worktree is still in the inventory, so re-list before treating a removal as done. A refusal can
+still have removed part of the worktree. `Data.ForceRequired` says which kind of refusal it was:
 
 | `ForceRequired` | What it means | What helps |
 |---|---|---|
-| `true` | The worktree carries changes git will not discard | Retry with `Force = true` |
-| `false` | The server ran git and git failed for a reason `Force` cannot fix | Read `Data.Message`; it is git's own stderr |
-| `null` | The refusal never reached git | Fix the request — the removal was never attempted |
+| `true` | The worktree carries changes git will not discard, and git refused before it deleted anything | Retry with `Force = true` |
+| `false` | The server ran `git worktree remove` and git failed part way. Git does not roll back, so the worktree's files and its git metadata can already be gone while the directory and the inventory row remain | Read `Data.Message` — it is git's own stderr — and see below |
+| `null` | The server refused before it ran git — or, after a partial removal, found no git worktree left at the directory (`Worktree directory unavailable`) | Fix the request; after a partial removal, recover as below |
 
-The `false` arm is the surprising one. Observed on Windows against the then-pinned
-`@opencode/cli@0.0.0-beta-19242`: `Data.Message` was git's own
-`error: failed to delete '<dir>': Permission denied`, because another process still held a handle
-inside the directory while `git worktree remove` tried to unlink it. `Force` unlinks the same file,
-so it cannot help. Retry once the holding process has exited — disposing the `OpenCodeServer` you
-started is the usual one — or work in a directory your own application owns and remove it yourself.
-That is one build's observed behaviour, not a contract: the declared answers stay 204 / 400 / 401.
+The `false` arm is the surprising one. Observed on Windows at the pin (`@opencode/cli@2.0.15`):
+`Data.Message` is git's `error: failed to delete '<dir>': Permission denied`, and the directory is
+left empty. The process that holds it is the server's own. The server keeps a location alive for
+every directory it has served — one request addressed to the worktree, for example through a
+client whose `Location` names it, is enough — and when the opencode configuration enables a local
+(stdio) MCP server, that location runs it with the worktree as its working directory. Removing the
+worktree does not release its location, and on Windows a process's working directory cannot be
+deleted. `Force` deletes the same directory, so it cannot help, and a retry answers
+`Worktree directory unavailable` with `ForceRequired` `null`, because no git worktree is left
+there.
+
+To prevent it, evict the worktree's location before you remove the worktree. Eviction is
+upstream's debug route (`DELETE /api/debug/location`); it shuts the location down, its MCP servers
+included:
+
+```csharp
+await client.Debug.EvictLocationAsync(new DebugLocationEvictRequest
+{
+    Location = new LocationSelector { Directory = worktree },
+});
+
+await client.Worktrees.RemoveWorktreeAsync(new WorktreeRemoveRequest
+{
+    ProjectId = projectId,
+    Directory = worktree,
+    Force = false,
+});
+```
+
+Two other ways avoid the holder: give each local MCP server an absolute `cwd` in the opencode
+configuration, so none runs inside a worktree, or stop the server — disposing the `OpenCodeServer`
+you started ends every location it holds.
+
+To recover a partial removal, evict the location, delete the leftover directory yourself, then
+refresh the inventory, which drops a row whose directory is gone:
+
+```csharp
+await client.Debug.EvictLocationAsync(new DebugLocationEvictRequest
+{
+    Location = new LocationSelector { Directory = worktree },
+});
+Directory.Delete(worktree, recursive: true);
+await client.Worktrees.RefreshWorktreesAsync(new WorktreeRefreshRequest { ProjectId = projectId });
+```
+
+All of this is one build's observed behaviour, not a contract: the declared answers stay 204 / 400
+/ 401. Linux and macOS let a process's working directory be deleted, so this refusal is not
+expected there.
 
 ## 🔍 Guarded payload accessors
 

@@ -1,6 +1,6 @@
 # 📝 Requests
 
-Date: 2026-09-17
+Date: 2026-09-24
 
 Every operation that sends anything takes one request record. They are plain immutable records you
 fill with an object initializer — with one twist worth knowing before you write your first `PATCH`:
@@ -11,6 +11,7 @@ some members can say *"leave this alone"* and *"clear this"* as two different th
 - [🔎 Reading a member back](#-reading-a-member-back)
 - [🔗 Query members](#-query-members)
 - [📍 Per-call location](#-per-call-location)
+- [🧾 Members the schema does not explain](#-members-the-schema-does-not-explain)
 
 ## 🧱 The request record
 
@@ -148,6 +149,105 @@ var plugins = await client.Plugins.ListPluginsAsync(new PluginListRequest
 
 The options object also carries [`NoThrow`](errors-and-responses.md#-ask-for-the-failure-as-data-instead),
 so one per-call argument selects both it and the header override.
+
+## 🧾 Members the schema does not explain
+
+Most generated members say no more than "Gets the action value", because the pinned API document
+describes no more. Three families need more than their types to use correctly. Where a rule below
+comes from upstream's implementation at the pin (`v2.0.15`) rather than from the pinned contract,
+it says so.
+
+### Session permissions
+
+A session's permission rules travel in `Permissions` on `SessionCreateRequest` and
+`SessionUpdateRequest`. An update **replaces the whole ruleset**, so send every rule the session
+should keep:
+
+```csharp
+var session = client.Sessions.GetSessionClient("ses_1");
+await session.UpdateAsync(new SessionUpdateRequest
+{
+    Permissions = new List<PermissionRule>
+    {
+        new() { Action = "deploy", Resource = "*", Effect = PermissionEffect.Ask },
+        new() { Action = "deploy", Resource = "staging/*", Effect = PermissionEffect.Allow },
+    },
+});
+```
+
+`CreatePermissionAsync` asks the server to evaluate an action against those rules. It answers at
+once with the resulting `Effect`; `Ask` means the server recorded a pending request, which
+`ListRequestsAsync` lists and `ReplyToPermissionAsync` answers with a `Decision` of `Once`,
+`Always`, or `Reject`:
+
+```csharp
+var asked = await session.CreatePermissionAsync(new SessionPermissionCreateRequest
+{
+    Action = "deploy",
+    Resources = ["prod/api"],
+});
+
+if (asked.Permission.Effect == PermissionEffect.Ask)
+{
+    await session.ReplyToPermissionAsync(asked.Permission.Id, new SessionPermissionReplyRequest
+    {
+        Decision = PermissionReply.Once,
+    });
+}
+```
+
+How the server evaluates, as upstream implements it at the pin:
+
+- `Action` and `Resource` are wildcard patterns — `*` matches any run of characters, `?` one
+  character — and the **last** matching rule wins. When no rule matches, the effect is `Ask`.
+- The session's rules come after its agent's rules, so a session rule overrides an agent rule for
+  the same match. A `Deny` from those rules wins over any saved grant.
+- Replying `Always` to a request created with `Save` stores a standing grant for the `Save`
+  resources in the session's project. Replying `Reject` also rejects every other pending request
+  of the same session.
+
+### Worktree paths
+
+`WorktreeCreateRequest.Directory` is the **parent** directory and `Name` the child: the worktree is
+created at their join, and the response's `Worktree.Directory` reports the path. `ProjectId` comes
+from resolving a location:
+
+```csharp
+var location = await client.GetLocationAsync(new LocationRequest
+{
+    Location = new LocationSelector { Directory = "/repo" },
+});
+
+var created = await client.Worktrees.CreateWorktreeAsync(new WorktreeCreateRequest
+{
+    ProjectId = location.ResolvedLocation.Project.Id,
+    Directory = "/work/trees", // the parent
+    Name = "feature-x",        // the child
+});
+
+Console.WriteLine(created.Worktree.Directory); // /work/trees/feature-x
+```
+
+Upstream fills the gaps itself at the pin: an unset `Directory` uses the project's configured
+worktree directory, or else a folder under the server's data directory; an unset `Name` gets a
+generated name; and when the path already exists, the server tries the name with `-2` through
+`-10` appended before it refuses with 400 "Worktree destination already exists". Removing a
+worktree has its own pitfalls — see
+[when a worktree remove is refused](errors-and-responses.md#when-a-worktree-remove-is-refused).
+
+### Shell timeout
+
+`ShellCreateRequest.Timeout` is in **milliseconds**. Leave it unset, or send `0`, for no timeout;
+when it runs out, the server stops the command. That is upstream's implementation at the pin —
+the pinned schema declares only a non-negative integer:
+
+```csharp
+var shell = await client.Shells.CreateShellAsync(new ShellCreateRequest
+{
+    Command = "dotnet test",
+    Timeout = 600_000, // ten minutes, in milliseconds
+});
+```
 
 ---
 

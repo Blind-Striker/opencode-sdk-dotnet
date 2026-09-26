@@ -1,4 +1,5 @@
 using System.Globalization;
+using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Models;
 using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
@@ -278,7 +279,7 @@ public sealed class PtySessionLiveTests(PinnedOpenCodeServerFixture server)
 
                 // Drain any trailing terminal output first. Cancellation is exercised only
                 // after a move actually suspends, never on an already-selected frame.
-                await stopReading.CancelAsync();
+                await stopReading.CancelOnWorkerAsync();
                 try
                 {
                     await Assert.That(await pending).IsTrue();

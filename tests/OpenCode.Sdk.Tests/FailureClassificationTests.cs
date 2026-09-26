@@ -185,7 +185,7 @@ public sealed class FailureClassificationTests
     public async Task Map_Should_Read_A_Send_Fault_As_Cancellation_When_The_Caller_Canceled(Exception fault)
     {
         using var cancellation = new CancellationTokenSource();
-        await cancellation.CancelAsync();
+        await cancellation.CancelOnWorkerAsync();
 
         var mapped = FailureClassification.Map(fault, FailurePhase.Send, cancellation.Token);
 
@@ -201,7 +201,7 @@ public sealed class FailureClassificationTests
     public async Task Map_Should_Read_A_Response_Body_Fault_As_Cancellation_When_The_Caller_Canceled(Exception fault)
     {
         using var cancellation = new CancellationTokenSource();
-        await cancellation.CancelAsync();
+        await cancellation.CancelOnWorkerAsync();
 
         var mapped = FailureClassification.Map(fault, FailurePhase.ResponseBodyRead, cancellation.Token);
 
@@ -217,7 +217,7 @@ public sealed class FailureClassificationTests
     public async Task Map_Should_Read_An_Event_Stream_Fault_As_Cancellation_When_The_Caller_Canceled(Exception fault)
     {
         using var cancellation = new CancellationTokenSource();
-        await cancellation.CancelAsync();
+        await cancellation.CancelOnWorkerAsync();
 
         var mapped = FailureClassification.Map(fault, FailurePhase.EventStreamRead, cancellation.Token);
 
@@ -254,7 +254,7 @@ public sealed class FailureClassificationTests
     public async Task Map_Should_Read_A_Pty_WebSocket_Fault_As_Cancellation_When_The_Caller_Canceled(Exception fault)
     {
         using var cancellation = new CancellationTokenSource();
-        await cancellation.CancelAsync();
+        await cancellation.CancelOnWorkerAsync();
 
         var mapped = FailureClassification.Map(fault, FailurePhase.PtyWebSocketRead, cancellation.Token);
 
@@ -268,7 +268,7 @@ public sealed class FailureClassificationTests
     public async Task Map_Should_Pass_A_Caller_Cancellation_Through_In_Every_Phase()
     {
         using var cancellation = new CancellationTokenSource();
-        await cancellation.CancelAsync();
+        await cancellation.CancelOnWorkerAsync();
         FailurePhase[] phases =
         [
             FailurePhase.Send,
