@@ -71,11 +71,15 @@ jobs:
       - name: Setup pinned server runtime
         uses: ./.github/actions/setup-pinned-server
 
-      - name: Cache NuGet packages
-        uses: actions/cache@v6
+      # The key hashes only the repository's own restore inputs. A '**' pattern also walked
+      # external/opencode/node_modules, which the step above installs, once to restore and again
+      # to save: about a minute per Windows and macOS job.
+      - name: Restore NuGet packages cache
+        id: nuget-cache
+        uses: actions/cache/restore@v6
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj', '**/dotnet-tools.json') }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('global.json', 'nuget.config', 'dotnet-tools.json', 'Directory.Packages.props', 'Directory.Build.props', 'Directory.Build.targets', 'src/*/*.csproj', 'tests/Directory.Build.props', 'tests/*/*.csproj', 'tools/*/*.csproj') }}
           restore-keys: |
             ${{ runner.os }}-nuget-
 
@@ -89,6 +93,15 @@ jobs:
 
       - name: Build
         run: dotnet build --configuration Release
+
+      # The build restored every package the later steps use. Only master runs write the cache;
+      # the setup-pinned-server action explains why.
+      - name: Save NuGet packages cache
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push' && steps.nuget-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.nuget/packages
+          key: ${{ steps.nuget-cache.outputs.cache-primary-key }}
 
       # Physical formatting gate (one leg is enough — results are OS-independent). This retains
       # encoding/EOL/whitespace without rerunning the semantic analyzer set.
