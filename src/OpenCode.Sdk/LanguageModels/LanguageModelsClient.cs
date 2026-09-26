@@ -34,6 +34,9 @@ public class LanguageModelsClient
     /// <returns>The &apos;ModelDefaultResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 503) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>model.default</c>: <c>GET /api/model/default</c>.
+    /// </remarks>
     public virtual Task<ModelDefaultResponse> GetDefaultAsync(ModelDefaultRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.LanguageModels.GetDefault(request), ModelDefaultResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -48,6 +51,9 @@ public class LanguageModelsClient
     /// <returns>The &apos;ModelListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 503) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>model.list</c>: <c>GET /api/model</c>.
+    /// </remarks>
     public virtual Task<ModelListResponse> ListModelsAsync(ModelListRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.LanguageModels.ListModels(request), ModelListResponseAdapter.Instance, requestOptions, cancellationToken);

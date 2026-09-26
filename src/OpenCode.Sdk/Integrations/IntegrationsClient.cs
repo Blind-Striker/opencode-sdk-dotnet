@@ -50,6 +50,9 @@ public class IntegrationsClient
     /// <returns>The &apos;IntegrationListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>integration.list</c>: <c>GET /api/integration</c>.
+    /// </remarks>
     public virtual Task<IntegrationListResponse> ListIntegrationsAsync(IntegrationListRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Integrations.ListIntegrations(request), IntegrationListResponseAdapter.Instance, requestOptions, cancellationToken);

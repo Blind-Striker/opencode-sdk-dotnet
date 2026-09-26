@@ -46,6 +46,9 @@ public class IntegrationClient
     /// <returns>The &apos;IntegrationCommandConnectResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>integration.command.connect</c>: <c>POST /api/integration/{integrationID}/connect/command</c>.
+    /// </remarks>
     public virtual Task<IntegrationCommandConnectResponse> BeginCommandConnectionAsync(IntegrationCommandConnectRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -61,6 +64,9 @@ public class IntegrationClient
     /// <returns>The &apos;IntegrationOauthConnectResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>integration.oauth.connect</c>: <c>POST /api/integration/{integrationID}/connect/oauth</c>.
+    /// </remarks>
     public virtual Task<IntegrationOauthConnectResponse> BeginOauthConnectionAsync(IntegrationOauthConnectRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -77,6 +83,9 @@ public class IntegrationClient
     /// <returns>The &apos;IntegrationCommandCancelResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>integration.command.cancel</c>: <c>DELETE /api/integration/{integrationID}/connect/command/{attemptID}</c>.
+    /// </remarks>
     public virtual Task<IntegrationCommandCancelResponse> CancelCommandConnectionAsync(string attemptId, IntegrationCommandCancelRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(attemptId);
@@ -93,6 +102,9 @@ public class IntegrationClient
     /// <returns>The &apos;IntegrationOauthCancelResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>integration.oauth.cancel</c>: <c>DELETE /api/integration/{integrationID}/connect/oauth/{attemptID}</c>.
+    /// </remarks>
     public virtual Task<IntegrationOauthCancelResponse> CancelOauthConnectionAsync(string attemptId, IntegrationOauthCancelRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(attemptId);
@@ -109,6 +121,9 @@ public class IntegrationClient
     /// <returns>The &apos;IntegrationOauthCompleteResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>integration.oauth.complete</c>: <c>POST /api/integration/{integrationID}/connect/oauth/{attemptID}/complete</c>.
+    /// </remarks>
     public virtual Task<IntegrationOauthCompleteResponse> CompleteOauthConnectionAsync(string attemptId, IntegrationOauthCompleteRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(attemptId);
@@ -124,6 +139,9 @@ public class IntegrationClient
     /// <returns>The &apos;IntegrationConnectKeyResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>integration.connect.key</c>: <c>POST /api/integration/{integrationID}/connect/key</c>.
+    /// </remarks>
     public virtual Task<IntegrationConnectKeyResponse> ConnectWithKeyAsync(IntegrationConnectKeyRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -139,6 +157,9 @@ public class IntegrationClient
     /// <returns>The &apos;IntegrationResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>integration.get</c>: <c>GET /api/integration/{integrationID}</c>.
+    /// </remarks>
     public virtual Task<IntegrationResponse> GetAsync(IntegrationRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Integrations.Get(IntegrationId, request), IntegrationResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -154,6 +175,9 @@ public class IntegrationClient
     /// <returns>The &apos;IntegrationCommandStatusResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>integration.command.status</c>: <c>GET /api/integration/{integrationID}/connect/command/{attemptID}</c>.
+    /// </remarks>
     public virtual Task<IntegrationCommandStatusResponse> GetCommandStatusAsync(string attemptId, IntegrationCommandStatusRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(attemptId);
@@ -170,6 +194,9 @@ public class IntegrationClient
     /// <returns>The &apos;IntegrationOauthStatusResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>integration.oauth.status</c>: <c>GET /api/integration/{integrationID}/connect/oauth/{attemptID}</c>.
+    /// </remarks>
     public virtual Task<IntegrationOauthStatusResponse> GetOauthStatusAsync(string attemptId, IntegrationOauthStatusRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(attemptId);

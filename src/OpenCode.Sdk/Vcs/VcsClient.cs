@@ -34,6 +34,9 @@ public class VcsClient
     /// <returns>The &apos;VcsBaseResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 503) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>vcs.base</c>: <c>GET /api/vcs/base</c>.
+    /// </remarks>
     public virtual Task<VcsBaseResponse> GetBaseAsync(VcsBaseRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Vcs.GetBase(request), VcsBaseResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -48,6 +51,9 @@ public class VcsClient
     /// <returns>The &apos;VcsDiffResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 503) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>vcs.diff</c>: <c>GET /api/vcs/diff</c>.
+    /// </remarks>
     public virtual Task<VcsDiffResponse> GetDiffAsync(VcsDiffRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -63,6 +69,9 @@ public class VcsClient
     /// <returns>The &apos;VcsStatusResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>vcs.status</c>: <c>GET /api/vcs/status</c>.
+    /// </remarks>
     public virtual Task<VcsStatusResponse> GetStatusAsync(VcsStatusRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Vcs.GetStatus(request), VcsStatusResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -77,6 +86,9 @@ public class VcsClient
     /// <returns>The &apos;VcsResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>vcs.get</c>: <c>GET /api/vcs</c>.
+    /// </remarks>
     public virtual Task<VcsResponse> GetVcsAsync(VcsRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Vcs.GetVcs(request), VcsResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -91,6 +103,9 @@ public class VcsClient
     /// <returns>The &apos;VcsBranchListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>vcs.branch.list</c>: <c>GET /api/vcs/branch</c>.
+    /// </remarks>
     public virtual Task<VcsBranchListResponse> ListBranchesAsync(VcsBranchListRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Vcs.ListBranches(request), VcsBranchListResponseAdapter.Instance, requestOptions, cancellationToken);

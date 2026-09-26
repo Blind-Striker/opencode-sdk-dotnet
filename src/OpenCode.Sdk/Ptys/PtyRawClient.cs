@@ -40,6 +40,9 @@ internal sealed class PtyRawClient
     /// <returns>The &apos;PtyConnectTokenResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 403, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>pty.connect.token</c>: <c>POST /api/pty/{ptyID}/connect-token</c>.
+    /// </remarks>
     internal Task<PtyConnectTokenResponse> CreateConnectTokenAsync(PtyConnectTokenRequest? request = null, string? xOpencodeTicket = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         var declaredHeaders = new List<DeclaredHeader>(1);
@@ -60,6 +63,9 @@ internal sealed class PtyRawClient
     /// <returns>The &apos;PtyResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>pty.get</c>: <c>GET /api/pty/{ptyID}</c>.
+    /// </remarks>
     internal Task<PtyResponse> GetAsync(PtyRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Ptys.Get(PtyId, request), PtyResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -74,6 +80,9 @@ internal sealed class PtyRawClient
     /// <returns>The &apos;PtyRemoveResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>pty.remove</c>: <c>DELETE /api/pty/{ptyID}</c>.
+    /// </remarks>
     internal Task<PtyRemoveResponse> RemoveAsync(PtyRemoveRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Delete, OpenCodeRoutes.Ptys.Remove(PtyId, request), PtyRemoveResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -88,6 +97,9 @@ internal sealed class PtyRawClient
     /// <returns>The &apos;PtyUpdateResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>pty.update</c>: <c>PUT /api/pty/{ptyID}</c>.
+    /// </remarks>
     internal Task<PtyUpdateResponse> UpdateAsync(PtyUpdateRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Put, OpenCodeRoutes.Ptys.Update(PtyId, request), request ?? EmptyPtyUpdateRequest, OpenCodeJsonContext.Default.PtyUpdateRequest, PtyUpdateResponseAdapter.Instance, requestOptions, cancellationToken);

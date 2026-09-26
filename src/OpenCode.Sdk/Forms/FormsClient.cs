@@ -34,6 +34,9 @@ public class FormsClient
     /// <returns>The &apos;FormListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>form.list</c>: <c>GET /api/form</c>.
+    /// </remarks>
     public virtual Task<FormListResponse> ListFormsAsync(FormListRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Forms.ListForms(request), FormListResponseAdapter.Instance, requestOptions, cancellationToken);

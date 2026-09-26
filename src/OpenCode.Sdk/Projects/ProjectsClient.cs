@@ -36,6 +36,9 @@ public class ProjectsClient
     /// <returns>The &apos;ProjectListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>project.list</c>: <c>GET /api/project</c>.
+    /// </remarks>
     public virtual Task<ProjectListResponse> ListProjectsAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Projects.ListProjects, ProjectListResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -51,6 +54,9 @@ public class ProjectsClient
     /// <returns>The &apos;ProjectUpdateResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>project.update</c>: <c>PATCH /api/project/{projectID}</c>.
+    /// </remarks>
     public virtual Task<ProjectUpdateResponse> UpdateProjectAsync(string projectId, ProjectUpdateRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(projectId);

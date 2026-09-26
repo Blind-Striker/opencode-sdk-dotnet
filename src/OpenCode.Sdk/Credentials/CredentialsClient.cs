@@ -36,6 +36,9 @@ public class CredentialsClient
     /// <returns>The &apos;CredentialActivateResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>credential.activate</c>: <c>POST /api/credential/{credentialID}/activate</c>.
+    /// </remarks>
     public virtual Task<CredentialActivateResponse> ActivateCredentialAsync(string credentialId, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(credentialId);
@@ -51,6 +54,9 @@ public class CredentialsClient
     /// <returns>The &apos;CredentialRemoveResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>credential.remove</c>: <c>DELETE /api/credential/{credentialID}</c>.
+    /// </remarks>
     public virtual Task<CredentialRemoveResponse> RemoveCredentialAsync(string credentialId, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(credentialId);
@@ -67,6 +73,9 @@ public class CredentialsClient
     /// <returns>The &apos;CredentialUpdateResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>credential.update</c>: <c>PATCH /api/credential/{credentialID}</c>.
+    /// </remarks>
     public virtual Task<CredentialUpdateResponse> UpdateCredentialAsync(string credentialId, CredentialUpdateRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(credentialId);

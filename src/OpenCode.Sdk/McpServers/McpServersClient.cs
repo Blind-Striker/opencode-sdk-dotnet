@@ -34,6 +34,9 @@ public class McpServersClient
     /// <returns>The &apos;McpResourceCatalogResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>mcp.resource.catalog</c>: <c>GET /api/mcp/resource</c>.
+    /// </remarks>
     public virtual Task<McpResourceCatalogResponse> GetResourceCatalogAsync(McpResourceCatalogRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.McpServers.GetResourceCatalog(request), McpResourceCatalogResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -48,6 +51,9 @@ public class McpServersClient
     /// <returns>The &apos;McpListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>mcp.list</c>: <c>GET /api/mcp</c>.
+    /// </remarks>
     public virtual Task<McpListResponse> ListMcpServersAsync(McpListRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.McpServers.ListMcpServers(request), McpListResponseAdapter.Instance, requestOptions, cancellationToken);

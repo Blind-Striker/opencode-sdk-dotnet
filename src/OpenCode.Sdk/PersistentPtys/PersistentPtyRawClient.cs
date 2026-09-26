@@ -38,6 +38,9 @@ internal sealed class PersistentPtyRawClient
     /// <returns>The &apos;PersistentPtyConnectTokenResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 403, 404, 503) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>persistentPty.connectToken</c>: <c>POST /api/experimental/persistent-pty/{ptyID}/connect-token</c>.
+    /// </remarks>
     internal Task<PersistentPtyConnectTokenResponse> CreateConnectTokenAsync(string? xOpencodeTicket = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         var declaredHeaders = new List<DeclaredHeader>(1);
@@ -57,6 +60,9 @@ internal sealed class PersistentPtyRawClient
     /// <returns>The &apos;PersistentPtyResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 503) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>persistentPty.get</c>: <c>GET /api/experimental/persistent-pty/{ptyID}</c>.
+    /// </remarks>
     internal Task<PersistentPtyResponse> GetAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.PersistentPtys.Get(PtyId), PersistentPtyResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -70,6 +76,9 @@ internal sealed class PersistentPtyRawClient
     /// <returns>The &apos;PersistentPtySnapshotResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 503) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>persistentPty.snapshot</c>: <c>GET /api/experimental/persistent-pty/{ptyID}/snapshot</c>.
+    /// </remarks>
     internal Task<PersistentPtySnapshotResponse> GetSnapshotAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.PersistentPtys.GetSnapshot(PtyId), PersistentPtySnapshotResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -83,6 +92,9 @@ internal sealed class PersistentPtyRawClient
     /// <returns>The &apos;PersistentPtyRemoveResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 503) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>persistentPty.remove</c>: <c>DELETE /api/experimental/persistent-pty/{ptyID}</c>.
+    /// </remarks>
     internal Task<PersistentPtyRemoveResponse> RemoveAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Delete, OpenCodeRoutes.PersistentPtys.Remove(PtyId), PersistentPtyRemoveResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -97,6 +109,9 @@ internal sealed class PersistentPtyRawClient
     /// <returns>The &apos;PersistentPtyUpdateResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 503) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>persistentPty.update</c>: <c>PUT /api/experimental/persistent-pty/{ptyID}</c>.
+    /// </remarks>
     internal Task<PersistentPtyUpdateResponse> UpdateAsync(PersistentPtyUpdateRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);

@@ -35,6 +35,9 @@ public class ProvidersClient
     /// <returns>The &apos;ProviderResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 503) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>provider.get</c>: <c>GET /api/provider/{providerID}</c>.
+    /// </remarks>
     public virtual Task<ProviderResponse> GetProviderAsync(string providerId, ProviderRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(providerId);
@@ -50,6 +53,9 @@ public class ProvidersClient
     /// <returns>The &apos;ProviderListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 503) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>provider.list</c>: <c>GET /api/provider</c>.
+    /// </remarks>
     public virtual Task<ProviderListResponse> ListProvidersAsync(ProviderListRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Providers.ListProviders(request), ProviderListResponseAdapter.Instance, requestOptions, cancellationToken);

@@ -34,6 +34,9 @@ public class PermissionsClient
     /// <returns>The &apos;PermissionRequestListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>permission.request.list</c>: <c>GET /api/permission/request</c>.
+    /// </remarks>
     public virtual Task<PermissionRequestListResponse> ListRequestsAsync(PermissionRequestListRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Permissions.ListRequests(request), PermissionRequestListResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -48,6 +51,9 @@ public class PermissionsClient
     /// <returns>The &apos;PermissionSavedListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>permission.saved.list</c>: <c>GET /api/permission/saved</c>.
+    /// </remarks>
     public virtual Task<PermissionSavedListResponse> ListSavedAsync(PermissionSavedListRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Permissions.ListSaved(request), PermissionSavedListResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -62,6 +68,9 @@ public class PermissionsClient
     /// <returns>The &apos;PermissionSavedRemoveResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>permission.saved.remove</c>: <c>DELETE /api/permission/saved/{id}</c>.
+    /// </remarks>
     public virtual Task<PermissionSavedRemoveResponse> RemoveSavedAsync(string id, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(id);

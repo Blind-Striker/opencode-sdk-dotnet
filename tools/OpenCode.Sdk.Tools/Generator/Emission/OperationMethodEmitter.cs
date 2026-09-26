@@ -311,7 +311,8 @@ internal static class OperationMethodEmitter
             operation.Stream is { } streamed
                 ? $"The '{streamed.PayloadTypeName}' stream."
                 : $"The '{operation.Envelope!.ResponseTypeName}' envelope.",
-            exceptions);
+            exceptions,
+            OperationRemarks.Of(operation));
     }
 
     private static string DocumentationSummary(OperationPlan operation)

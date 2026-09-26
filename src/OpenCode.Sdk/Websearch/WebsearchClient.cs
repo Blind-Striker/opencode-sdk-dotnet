@@ -36,6 +36,9 @@ public class WebsearchClient
     /// <returns>The &apos;WebsearchProvidersResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 503) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>websearch.providers</c>: <c>GET /api/websearch/provider</c>.
+    /// </remarks>
     public virtual Task<WebsearchProvidersResponse> GetProvidersAsync(WebsearchProvidersRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Websearch.GetProviders(request), WebsearchProvidersResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -50,6 +53,9 @@ public class WebsearchClient
     /// <returns>The &apos;WebsearchQueryResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 503) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>websearch.query</c>: <c>POST /api/websearch</c>.
+    /// </remarks>
     public virtual Task<WebsearchQueryResponse> QueryAsync(WebsearchQueryRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);

@@ -74,6 +74,7 @@ internal static class PaginationMethodEmitter
                 new DocumentedParameter(ReservedNamePolicy.CancellationTokenParameter, "The cancellation token."),
             ],
             $"The '{pagination.ItemTypeName}' sequence, whose Pages expose each '{pagination.PageTypeName}'.",
-            exceptions);
+            exceptions,
+            OperationRemarks.Of(operation));
     }
 }
