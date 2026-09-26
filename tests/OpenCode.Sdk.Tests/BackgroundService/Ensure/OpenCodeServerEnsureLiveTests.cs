@@ -21,27 +21,17 @@ namespace OpenCode.Sdk.Tests.BackgroundService.Ensure;
 /// sets for a test whose assertion depends on a wall-clock bound the host can miss under load: the
 /// three-timeout recovery and the replace proof both ride the pinned probe bound and a process exit
 /// the host can delay, the same profile the stop liveness proof records (Q172). Running alone after
-/// every other test keeps the host quiet while those bounds hold. The class holds a
-/// <see cref="ServiceElectionTurn"/> from its first test to its last: the other hosts of the run
-/// reach their own election tails at the same moment, and two elections at once doubled the
-/// servers a small runner starts past the election's bounds.
+/// every other test keeps the host quiet while those bounds hold. The class is a
+/// <see cref="TestCategories.ServiceElection"/> test: its elections start more servers than a
+/// runner can host beside another host's timed tests, so the gate runs it in a pass of its own.
 /// </remarks>
 [NotInParallel]
+[Category(TestCategories.ServiceElection)]
 [ClassDataSource<PinnedManagedServiceFixture>(Shared = SharedType.PerTestSession)]
 public sealed class OpenCodeServerEnsureLiveTests(PinnedManagedServiceFixture service)
 {
     private static readonly RealFileSystem FileSystem = new();
     private static readonly TimeSpan ExitBound = TimeSpan.FromSeconds(30);
-
-    /// <summary>Takes this host's turn at elections, so another host's election tail waits (<see cref="ServiceElectionTurn"/>).</summary>
-    [Before(Class)]
-    [Timeout(ServiceElectionTurn.HookTimeoutMilliseconds)]
-    public static Task TakeElectionTurnAsync(CancellationToken cancellationToken) =>
-        ServiceElectionTurn.EnterAsync(FileSystem, cancellationToken);
-
-    /// <summary>Hands the election turn on once this class's last test has ended.</summary>
-    [After(Class)]
-    public static Task EndElectionTurnAsync() => ServiceElectionTurn.LeaveAsync();
 
     /// <summary>
     /// The election timing test (c) injects: a fast poll, the pinned request bound kept — it applies

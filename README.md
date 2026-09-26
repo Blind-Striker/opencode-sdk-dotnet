@@ -467,10 +467,13 @@ dotnet run --project tests/OpenCode.Sdk.Sandbox -- --standalone
 ### Running Tests
 
 ```bash
-dotnet test --configuration Release --no-build
+dotnet test --configuration Release --no-build -- --treenode-filter "/*/*/*/*[Category!=ServiceElection]"
+dotnet test tests/OpenCode.Sdk.Tests --configuration Release --no-build --max-parallel-test-modules 1 -- --treenode-filter "/*/*/*/*[Category=ServiceElection]"
 ```
 
-The full completion gate — analyzers, formatting, and the suite — is
+The background-service election tests run in their own pass, one test host at a time, because
+their elections load the machine past the time limits of tests in other hosts. The full completion
+gate — analyzers, formatting, and the suite — is
 [`docs/engineering/quality-gates.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/engineering/quality-gates.md).
 
 ## Community

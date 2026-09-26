@@ -88,6 +88,7 @@ jobs:
         run: dotnet tool run slopwatch analyze --exclude ".scratchpad/**,external/**" --fail-on warning
 
       - name: Build
+        id: build
         run: dotnet build --configuration Release
 
       # Physical formatting gate (one leg is enough — results are OS-independent). This retains
@@ -127,10 +128,26 @@ jobs:
       # host ran ~2.3x slower than alone, which is where the two-second discovery probe and the
       # .NET Framework thread pool started missing their bounds (2026-09-20 measurement: two at a
       # time keeps the wall time and returns each host to within a third of its solo speed).
+      #
+      # The background-service elections run in a pass of their own after every other test. A
+      # ten-caller election starts some twenty to thirty-four source-run servers, and a timed test
+      # in another host that ran in those seconds missed its bound on Windows and macOS alike;
+      # TUnit's keys order tests inside one host only (tests/Shared/TestCategories.cs). The
+      # election pass runs its hosts one at a time for the same reason. It runs after a failed first
+      # pass (not after a failed build), so the report sees both passes, and it leaves the HTML
+      # report upload to the first pass, whose artifact names (assembly, OS, framework) it would
+      # repeat.
       - name: Test
-        run: dotnet test --configuration Release --no-build --max-parallel-test-modules 2 -- --report-trx --results-directory "${{ github.workspace }}/test-results"
+        run: dotnet test --configuration Release --no-build --max-parallel-test-modules 2 -- --report-trx --results-directory "${{ github.workspace }}/test-results/main" --treenode-filter "/*/*/*/*[Category!=ServiceElection]" --minimum-expected-tests 1
         env:
           TUNIT_ARTIFACT_RETENTION_DAYS: 7
+
+      - name: Test (service elections)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: dotnet test tests/OpenCode.Sdk.Tests --configuration Release --no-build --max-parallel-test-modules 1 -- --report-trx --results-directory "${{ github.workspace }}/test-results/service-elections" --treenode-filter "/*/*/*/*[Category=ServiceElection]" --minimum-expected-tests 1
+        env:
+          TUNIT_ARTIFACT_RETENTION_DAYS: 7
+          TUNIT_DISABLE_ARTIFACT_UPLOAD: true
 
       - name: Publish test results
         id: test-results
