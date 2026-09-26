@@ -222,7 +222,7 @@ public sealed class OwnedTransportTests
         {
             await Assert.That(await enumerator.MoveNextAsync()).IsTrue();
             pendingRead = enumerator.MoveNextAsync().AsTask();
-            await cancellation.CancelAsync();
+            await cancellation.CancelOnWorkerAsync();
             Task[] pendingReads = [pendingRead];
 
             _ = await Assert

@@ -733,7 +733,7 @@ public sealed class PipelineTests
     public async Task ExecuteAsync_Should_Pass_Cancellation_Through()
     {
         using var cancellation = new CancellationTokenSource();
-        await cancellation.CancelAsync();
+        await cancellation.CancelOnWorkerAsync();
         using var handler = new RecordingHttpHandler(_ => throw new OperationCanceledException(cancellation.Token));
         using var httpClient = new HttpClient(handler);
         using var pipeline = CreatePipeline(httpClient);
@@ -883,7 +883,7 @@ public sealed class PipelineTests
             options: null,
             callerCancellation.Token);
         await content.ReadStarted.WaitAsync(TimeSpan.FromSeconds(5));
-        await callerCancellation.CancelAsync();
+        await callerCancellation.CancelOnWorkerAsync();
 
         OperationCanceledException? cancellation = null;
         try
@@ -920,7 +920,7 @@ public sealed class PipelineTests
             options: null,
             callerCancellation.Token);
         await content.ReadStarted.WaitAsync(TimeSpan.FromSeconds(5));
-        await callerCancellation.CancelAsync();
+        await callerCancellation.CancelOnWorkerAsync();
 
         OperationCanceledException? cancellation = null;
         try

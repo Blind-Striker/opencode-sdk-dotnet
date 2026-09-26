@@ -33,6 +33,24 @@ internal sealed partial class ServiceContenderSpawner
     /// <summary><c>PROC_THREAD_ATTRIBUTE_HANDLE_LIST</c>: only these handles cross into the child.</summary>
     private static readonly IntPtr HandleListAttribute = new(0x20002);
 
+    /// <summary><c>PIPE_ACCESS_INBOUND</c>: the parent end only reads.</summary>
+    private const uint PipeAccessInbound = 0x00000001;
+
+    /// <summary><c>FILE_FLAG_FIRST_PIPE_INSTANCE</c>: creation fails if the name already exists, so no other process can have staged it.</summary>
+    private const uint FirstPipeInstance = 0x00080000;
+
+    /// <summary><c>FILE_FLAG_OVERLAPPED</c>: reads on the parent end complete on the I/O completion port.</summary>
+    private const uint OverlappedIo = 0x40000000;
+
+    /// <summary><c>PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS</c>.</summary>
+    private const uint LocalBytePipe = 0x00000008;
+
+    /// <summary>The buffer an anonymous pipe gets by default, kept for the stderr pipe.</summary>
+    private const uint PipeBufferSize = 4096;
+
+    /// <summary>The default wait <c>CreatePipe</c> gives its own named pipe.</summary>
+    private const uint PipeDefaultTimeoutMilliseconds = 120_000;
+
     /// <summary><c>INVALID_HANDLE_VALUE</c>, what <c>CreateFileW</c> returns on failure.</summary>
     private static readonly IntPtr InvalidHandle = new(-1);
 
@@ -74,11 +92,11 @@ internal sealed partial class ServiceContenderSpawner
     }
 
     /// <summary>
-    /// The Windows spawn. The stderr pipe is the BCL's anonymous pipe, created the way .NET's own
-    /// <c>Process</c> creates its pipes: only the child's write end is inheritable, and it crosses
-    /// alone beside NUL in the explicit handle list, so no later child of this host inherits the
-    /// read end. NUL stays a raw handle until the call returns, because the attribute list needs
-    /// raw values; the finally below closes whatever is still owned here.
+    /// The Windows spawn. Only the stderr pipe's write end is inheritable, and it crosses alone
+    /// beside NUL in the explicit handle list, so no later child of this host inherits the read
+    /// end (<see cref="CreateStderrPipe"/>). NUL and the write end stay raw handles until the call
+    /// returns, because the attribute list needs raw values; the finally below closes whatever is
+    /// still owned here.
     /// </summary>
     private static ServiceContender SpawnWindowsChild(
         IServiceContenderSpawner.ContenderStartInfo startInfo,
@@ -94,12 +112,21 @@ internal sealed partial class ServiceContenderSpawner
         };
 
         var nul = IntPtr.Zero;
-        AnonymousPipeServerStream? pipe = null;
+        var stderrWriteEnd = IntPtr.Zero;
+        NamedPipeServerStream? pipe = null;
         SafeProcessHandle? process = null;
         try
         {
-            pipe = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
-            nul = OpenNullDevice(
+            try
+            {
+                pipe = CreateStderrPipe(ref security, out stderrWriteEnd);
+            }
+            catch (Win32Exception failure)
+            {
+                throw SpawnFailure(startInfo, failure);
+            }
+
+            nul = CreateFile(
                 "NUL", GenericRead | GenericWrite, ShareReadWrite, ref security, OpenExisting, 0, IntPtr.Zero);
             if (nul == IntPtr.Zero || nul == InvalidHandle)
             {
@@ -108,7 +135,7 @@ internal sealed partial class ServiceContenderSpawner
                 throw SpawnFailure(startInfo, new Win32Exception(error));
             }
 
-            var inherited = new[] { nul, pipe.ClientSafePipeHandle.DangerousGetHandle() };
+            var inherited = new[] { nul, stderrWriteEnd };
             var attributes = CreateHandleAttributeList(startInfo, inherited, out var pin);
             try
             {
@@ -123,7 +150,8 @@ internal sealed partial class ServiceContenderSpawner
 
                 // The child holds its own copy now; keeping ours would keep EOF away after every
                 // writer is gone.
-                pipe.DisposeLocalCopyOfClientHandle();
+                _ = CloseHandle(stderrWriteEnd);
+                stderrWriteEnd = IntPtr.Zero;
                 var contender = new ServiceContender((int)info.ProcessId, pipe, process, redaction);
                 pipe = null;
                 process = null;
@@ -143,8 +171,70 @@ internal sealed partial class ServiceContenderSpawner
                 _ = CloseHandle(nul);
             }
 
+            if (stderrWriteEnd != IntPtr.Zero)
+            {
+                _ = CloseHandle(stderrWriteEnd);
+            }
+
             pipe?.Dispose();
             process?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// The stderr pipe, made the way .NET 11's <c>Process</c> makes its output pipes
+    /// (dotnet/runtime#125643) and libuv its child stdio: a local named pipe whose read end is
+    /// overlapped and whose write end is synchronous and inheritable. An anonymous pipe is always
+    /// synchronous on Windows, so each pending read would hold a pool thread for as long as the
+    /// contender keeps stderr open — for the elected service, its whole life. The overlapped read
+    /// waits on the completion port instead. The name is fresh and the flags refuse a second
+    /// instance and remote clients, so only the write end opened here can connect.
+    /// </summary>
+    /// <exception cref="Win32Exception">The pipe or its write end could not be created.</exception>
+    internal static NamedPipeServerStream CreateStderrPipe(ref SecurityAttributes inheritable, out IntPtr writeEnd)
+    {
+        var name = @"\\.\pipe\LOCAL\opencode-sdk-contender-" + Guid.NewGuid().ToString("N");
+        writeEnd = IntPtr.Zero;
+        SafePipeHandle? readEnd = null;
+        var ownedWriteEnd = IntPtr.Zero;
+        try
+        {
+            readEnd = CreateNamedPipe(
+                name,
+                PipeAccessInbound | FirstPipeInstance | OverlappedIo,
+                LocalBytePipe,
+                maxInstances: 1,
+                PipeBufferSize,
+                PipeBufferSize,
+                PipeDefaultTimeoutMilliseconds,
+                securityAttributes: IntPtr.Zero);
+            if (readEnd.IsInvalid)
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+
+            ownedWriteEnd = CreateFile(name, GenericWrite, 0, ref inheritable, OpenExisting, 0, IntPtr.Zero);
+            if (ownedWriteEnd == IntPtr.Zero || ownedWriteEnd == InvalidHandle)
+            {
+                var error = Marshal.GetLastWin32Error();
+                ownedWriteEnd = IntPtr.Zero;
+                throw new Win32Exception(error);
+            }
+
+            var stream = new NamedPipeServerStream(PipeDirection.In, isAsync: true, isConnected: true, readEnd);
+            readEnd = null;
+            writeEnd = ownedWriteEnd;
+            ownedWriteEnd = IntPtr.Zero;
+            return stream;
+        }
+        finally
+        {
+            if (ownedWriteEnd != IntPtr.Zero)
+            {
+                _ = CloseHandle(ownedWriteEnd);
+            }
+
+            readEnd?.Dispose();
         }
     }
 

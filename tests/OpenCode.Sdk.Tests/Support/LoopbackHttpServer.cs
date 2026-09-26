@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using OpenCode.Sdk.Internal;
 
 namespace OpenCode.Sdk.Tests.Support;
 
@@ -47,7 +48,7 @@ internal sealed class LoopbackHttpServer : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        await _shutdown.CancelAsync();
+        await _shutdown.CancelOnWorkerAsync();
         _listener.Stop();
         Task[] acceptTasks = [_acceptLoop];
         await Task.WhenAll(acceptTasks);

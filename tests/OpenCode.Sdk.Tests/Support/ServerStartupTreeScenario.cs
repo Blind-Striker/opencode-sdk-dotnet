@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.ExceptionServices;
+using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.TestSupport;
 using Testably.Abstractions;
 
@@ -142,7 +143,7 @@ internal sealed class ServerStartupTreeScenario : IAsyncDisposable
             CaptureFailure(_handshake.ReleaseRoot);
             if (_startupCancellation is { } startupCancellation)
             {
-                await CaptureFailureAsync(startupCancellation.CancelAsync);
+                await CaptureFailureAsync(startupCancellation.CancelOnWorkerAsync);
             }
 
             CaptureFailure(_handshake.Stop);

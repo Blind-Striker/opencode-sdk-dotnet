@@ -19,7 +19,10 @@ compatibility bridge and has no runtime of its own; net472 legs proxy its downle
 
 Modern C# on downlevel targets is deliberate and supported inside this repository by the private,
 source-only Polyfill package. Exact package versions belong to `Directory.Packages.props`, not this
-document.
+document. A polyfilled member whose downlevel behaviour is a hazard is banned in
+`BannedSymbols.txt`, which names its replacement. `CancellationTokenSource.CancelAsync` is one: below
+.NET 8 it spins the calling worker until a queued `Cancel` starts, and concurrent callers stall the
+thread pool, so product and test code cancel through the internal `CancelOnWorkerAsync`.
 
 ### WebSocket support
 

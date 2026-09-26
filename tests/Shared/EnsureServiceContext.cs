@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Internal.BackgroundService.Ensure;
 using OpenCode.Sdk.Internal.BackgroundService.Registration;
 using Testably.Abstractions;
@@ -158,7 +159,7 @@ internal sealed class EnsureServiceContext : IAsyncDisposable
         finally
         {
             // The wait on the winner's host is the one still pending; it has nothing left to tell.
-            await bound.CancelAsync().ConfigureAwait(false);
+            await bound.CancelOnWorkerAsync().ConfigureAwait(false);
             HeldProcess.ReleaseAll(held);
         }
     }

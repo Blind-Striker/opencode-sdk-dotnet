@@ -90,7 +90,7 @@ internal static partial class BackgroundServiceInterop
 
         [LibraryImport("kernel32", EntryPoint = "CreateFileW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static partial IntPtr OpenNullDevice(
+        internal static partial IntPtr CreateFile(
             string fileName,
             uint desiredAccess,
             uint shareMode,
@@ -98,6 +98,18 @@ internal static partial class BackgroundServiceInterop
             uint creationDisposition,
             uint flagsAndAttributes,
             IntPtr templateFile);
+
+        [LibraryImport("kernel32", EntryPoint = "CreateNamedPipeW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        internal static partial SafePipeHandle CreateNamedPipe(
+            string name,
+            uint openMode,
+            uint pipeMode,
+            uint maxInstances,
+            uint outBufferSize,
+            uint inBufferSize,
+            uint defaultTimeout,
+            IntPtr securityAttributes);
 
         [LibraryImport("kernel32", EntryPoint = "CloseHandle", SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
@@ -147,7 +159,7 @@ internal static partial class BackgroundServiceInterop
 
         [DllImport("kernel32", EntryPoint = "CreateFileW", SetLastError = true, CharSet = CharSet.Unicode)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern IntPtr OpenNullDevice(
+        internal static extern IntPtr CreateFile(
             string fileName,
             uint desiredAccess,
             uint shareMode,
@@ -155,6 +167,18 @@ internal static partial class BackgroundServiceInterop
             uint creationDisposition,
             uint flagsAndAttributes,
             IntPtr templateFile);
+
+        [DllImport("kernel32", EntryPoint = "CreateNamedPipeW", SetLastError = true, CharSet = CharSet.Unicode)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        internal static extern SafePipeHandle CreateNamedPipe(
+            string name,
+            uint openMode,
+            uint pipeMode,
+            uint maxInstances,
+            uint outBufferSize,
+            uint inBufferSize,
+            uint defaultTimeout,
+            IntPtr securityAttributes);
 
         [DllImport("kernel32", EntryPoint = "CloseHandle", SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]

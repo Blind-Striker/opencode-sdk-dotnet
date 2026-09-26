@@ -1,3 +1,4 @@
+using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
 using Testably.Abstractions;
@@ -387,7 +388,7 @@ public sealed class OpenCodeServerLifecycleTests
             TimeSpan.FromMinutes(2));
         await scenario.StartAndObserveAsync(cancellation.Token);
 
-        await cancellation.CancelAsync();
+        await cancellation.CancelOnWorkerAsync();
 
         _ = await Assert.That(
             async () => _ = await scenario.WaitForStartupAsync(cancellationToken)).Throws<OperationCanceledException>();
