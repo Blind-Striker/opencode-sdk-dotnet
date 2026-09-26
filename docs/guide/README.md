@@ -1,6 +1,6 @@
 # 📚 The opencode SDK guide
 
-Date: 2026-09-17
+Date: 2026-09-24
 
 Seven pages for people **calling** the SDK. Read them in order the first time: install the package
 and make a call, decide how you reach a server, then how you shape what you send, then the three
@@ -15,7 +15,7 @@ member exists.
 |---|---|
 | [Getting started](getting-started.md) | Installing the package, constructing a client, your first status check, session, and prompt |
 | [Connection modes](connection-modes.md) | The standalone launcher, a server you already run, and registering the client with dependency injection |
-| [Requests](requests.md) | Request records and object initializers, the absent/null/set members, query members, and per-call location |
+| [Requests](requests.md) | Request records and object initializers, the absent/null/set members, query members, per-call location, and the permission, worktree, and shell-timeout members the schema does not explain |
 | [Streaming](streaming.md) | The global event bus, per-session log streams, cancellation, and what a stream does when it fails |
 | [Terminals](terminals.md) | PTY and persistent-PTY sessions over the WebSocket doors, frames, input, resize, and the Windows platform note |
 | [Errors and responses](errors-and-responses.md) | The response spine, throwing versus `NoThrow`, the typed error family, and transport failures |
