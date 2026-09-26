@@ -26,6 +26,23 @@ public class ConfigClient
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("ConfigClient", "Pipeline");
 
     /// <summary>
+    /// Get configuration. Return configuration documents and discovery sources for the requested location, from lowest to highest priority.
+    /// </summary>
+    /// <param name = "request">The request shaping the query.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ConfigResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>config.get</c>: <c>GET /api/config</c>.
+    /// </remarks>
+    public virtual Task<ConfigResponse> GetConfigAsync(ConfigRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Config.GetConfig(request), ConfigResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
     /// List available shells. Return shells available to terminal and agent execution.
     /// </summary>
     /// <param name = "requestOptions">The per-call options.</param>

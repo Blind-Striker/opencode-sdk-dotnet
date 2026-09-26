@@ -481,7 +481,7 @@
     {
       "path": "package.json",
       "sha256": "c6d4f6277624e44dc1175a4c9e047a36d3642561719bd8810637f05ecd31dfb4",
-      "behavior": "The workspace catalog pins the Effect release the protocol document is generated with, whose JSON Schema encoding of StructWithRest (a struct\u0027s properties beside a single-element allOf carrying only the rest\u0027s additionalProperties) the projector admits as an open object; an Effect bump is reviewed against that encoding before the snapshot moves.",
+      "behavior": "The workspace catalog pins the Effect release the protocol document is generated with, whose JSON Schema encoding of StructWithRest (a struct\u0027s properties beside a single-element allOf carrying only the rest\u0027s additionalProperties) the projector admits as an open object, and whose union decode (SchemaAST Union.getParser: literal sentinels, then the first member in declaration order that decodes) the structural union first-match arm mirrors, as tools/oracles/first-match-union.ts proves; an Effect bump is reviewed against both, and the oracle re-run, before the snapshot moves.",
       "anchor": {
         "type": "contains",
         "text": "\u0022effect\u0022: \u00224.0.0-rc.112\u0022"

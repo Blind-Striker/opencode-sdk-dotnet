@@ -15,7 +15,7 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
 - **Protocol pin** — generation reads an accepted snapshot of upstream's OpenAPI document taken at
   a release tag, never a live branch, and refreshes are receipt-governed (ADR-0020).
   `../spec/SNAPSHOT.md` owns the exact commit and the refresh procedure.
-- **Coverage** — **130 of 136 operations selected** across 27 client families, with 4 declined by
+- **Coverage** — **132 of 136 operations selected** across 27 client families, with 2 declined by
   decision and 2 transport-owned (Known Gaps below); `src/OpenCode.Sdk/.generation-incomplete` is
   the committed marker and names every one. One-shot calls, server-sent event streams (the global
   bus and the per-session log), PTY and persistent-PTY WebSocket sessions, cursor pagination, typed
@@ -161,21 +161,15 @@ is revisited at each boundary.
 
 ## Known Gaps
 
-- **Four operations stay declined by decision, not by omission.** The generation marker carries
-  each reason. `config.get` and `experimental.migration.v1.status` meet the ADR-0016
-  structural-union wall: same-token-kind unions need a union mechanism, not a curation row.
-  `fs.read` is declared on a framework wildcard rather than an OpenAPI path template, so the file
-  path the call must carry is invisible to any generated client; admitting it would mean inventing a
-  path parameter the document does not declare (ADR-0013), and the upstream report is drafted.
-  `experimental.fs.write` takes its file as an `application/octet-stream` request body, a media
-  type the binder does not bind (its vocabulary is JSON and `text/event-stream`), so it is the
-  same hand-written-door question as `fs.read`. The current marker also records config naming and
-  inline-model walls. All four have a sketched admission path (Milestones, M4: surface
-  completeness), so these are scheduled decisions to revisit, not standing ones.
-- **There is no configuration read at the 2.0.15 pin.** Upstream removed `/api/config/preferences`
-  and folded reading into `config.get`, which stays declined above, so the SDK writes configuration
-  through `Experimental.UpdateConfigAsync` and cannot read it back. Admitting `config.get` is what
-  restores the read; it raises that decision's cost without changing its mechanism.
+- **Two operations stay declined by decision, not by omission.** The generation marker carries
+  each reason. `fs.read` is declared on a framework wildcard rather than an OpenAPI path template,
+  so the file path the call must carry is invisible to any generated client; admitting it would
+  mean inventing a path parameter the document does not declare (ADR-0013), and the upstream report
+  is drafted. `experimental.fs.write` takes its file as an `application/octet-stream` request body,
+  a media type the binder does not bind (its vocabulary is JSON and `text/event-stream`), so it is
+  the same hand-written-door question as `fs.read`. Both have a sketched admission path
+  (Milestones, M4: surface completeness), so these are scheduled decisions to revisit, not
+  standing ones.
 - **An opencode server on Windows can die inside its native file watcher.** `@parcel/watcher` 2.5.1
   crashes the server process when a directory it watches natively is written to while
   subscriptions to it are being released and re-created, which the server does per location for

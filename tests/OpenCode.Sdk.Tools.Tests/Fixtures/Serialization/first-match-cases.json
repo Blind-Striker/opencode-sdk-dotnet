@@ -1,0 +1,18 @@
+[
+  { "union": "SourceEntry", "value": "https://example.test/repo.git", "kind": "Text", "roundTrip": true },
+  { "union": "SourceEntry", "value": { "repository": "r" }, "kind": "GitSource", "roundTrip": true },
+  { "union": "SourceEntry", "value": { "path": "p" }, "kind": "LocalSource", "roundTrip": true },
+  { "union": "SourceEntry", "value": { "repository": "r", "path": "p" }, "kind": "GitSource", "roundTrip": false },
+  { "union": "SourceEntry", "value": { "hidden": true }, "kind": "Unknown", "roundTrip": true },
+  { "union": "ToolEntry", "value": { "disabled": true }, "kind": "ToolOff", "roundTrip": true },
+  { "union": "ToolEntry", "value": { "disabled": false, "command": ["x"] }, "kind": "ToolServer", "roundTrip": true },
+  { "union": "ToolEntry", "value": { "disabled": true, "command": ["x"] }, "kind": "ToolOff", "roundTrip": false },
+  { "union": "ToolEntry", "value": { "command": ["x"] }, "kind": "ToolServer", "roundTrip": true },
+  { "union": "ToolEntry", "value": { "disabled": false }, "kind": "Unknown", "roundTrip": true },
+  { "union": "JobStatus", "value": { "status": "required" }, "kind": "JobSettled", "roundTrip": true },
+  { "union": "JobStatus", "value": { "status": "completed" }, "kind": "JobSettled", "roundTrip": true },
+  { "union": "JobStatus", "value": { "status": "running", "progress": "half" }, "kind": "JobRunning", "roundTrip": true },
+  { "union": "JobStatus", "value": { "status": "error", "error": "boom" }, "kind": "JobFailed", "roundTrip": true },
+  { "union": "JobStatus", "value": { "status": "running" }, "kind": "Unknown", "roundTrip": true },
+  { "union": "JobStatus", "value": { "status": "other" }, "kind": "Unknown", "roundTrip": true }
+]

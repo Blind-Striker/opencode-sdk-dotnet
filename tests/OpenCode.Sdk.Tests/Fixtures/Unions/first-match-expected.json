@@ -1,0 +1,191 @@
+[
+  {
+    "union": "reference",
+    "value": "https://github.com/anomalyco/opencode",
+    "member": 0
+  },
+  {
+    "union": "reference",
+    "value": {
+      "repository": "https://github.com/anomalyco/opencode",
+      "branch": "v2"
+    },
+    "member": 1
+  },
+  {
+    "union": "reference",
+    "value": {
+      "repository": "https://github.com/anomalyco/opencode",
+      "description": "upstream",
+      "hidden": true
+    },
+    "member": 1
+  },
+  {
+    "union": "reference",
+    "value": {
+      "path": "../sibling"
+    },
+    "member": 2
+  },
+  {
+    "union": "reference",
+    "value": {
+      "path": "../sibling",
+      "hidden": false
+    },
+    "member": 2
+  },
+  {
+    "union": "reference",
+    "value": {
+      "repository": "https://github.com/anomalyco/opencode",
+      "path": "../sibling"
+    },
+    "member": 1
+  },
+  {
+    "union": "reference",
+    "value": {
+      "description": "neither key"
+    },
+    "member": null
+  },
+  {
+    "union": "reference",
+    "value": {},
+    "member": null
+  },
+  {
+    "union": "lsp",
+    "value": {
+      "disabled": true
+    },
+    "member": 0
+  },
+  {
+    "union": "lsp",
+    "value": {
+      "command": [
+        "typescript-language-server",
+        "--stdio"
+      ]
+    },
+    "member": 1
+  },
+  {
+    "union": "lsp",
+    "value": {
+      "command": [
+        "gopls"
+      ],
+      "extensions": [
+        ".go"
+      ],
+      "disabled": false
+    },
+    "member": 1
+  },
+  {
+    "union": "lsp",
+    "value": {
+      "command": [
+        "gopls"
+      ],
+      "disabled": true
+    },
+    "member": 0
+  },
+  {
+    "union": "lsp",
+    "value": {
+      "disabled": false
+    },
+    "member": null
+  },
+  {
+    "union": "lsp",
+    "value": {},
+    "member": null
+  },
+  {
+    "union": "migration",
+    "value": {
+      "status": "required"
+    },
+    "member": 0
+  },
+  {
+    "union": "migration",
+    "value": {
+      "status": "completed"
+    },
+    "member": 0
+  },
+  {
+    "union": "migration",
+    "value": {
+      "status": "completed",
+      "progress": {
+        "label": "sessions"
+      }
+    },
+    "member": 0
+  },
+  {
+    "union": "migration",
+    "value": {
+      "status": "running",
+      "progress": {
+        "label": "sessions",
+        "numerator": 3,
+        "denominator": 10
+      }
+    },
+    "member": 1
+  },
+  {
+    "union": "migration",
+    "value": {
+      "status": "running",
+      "progress": {
+        "label": "sessions"
+      }
+    },
+    "member": 1
+  },
+  {
+    "union": "migration",
+    "value": {
+      "status": "running"
+    },
+    "member": null
+  },
+  {
+    "union": "migration",
+    "value": {
+      "status": "error",
+      "error": "the V1 database is locked"
+    },
+    "member": 2
+  },
+  {
+    "union": "migration",
+    "value": {
+      "status": "error"
+    },
+    "member": null
+  },
+  {
+    "union": "migration",
+    "value": {
+      "status": "paused"
+    },
+    "member": null
+  },
+  {
+    "union": "migration",
+    "value": {},
+    "member": null
+  }
+]

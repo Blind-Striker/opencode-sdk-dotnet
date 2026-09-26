@@ -100,6 +100,28 @@ public static class OpenCodeRoutes
     public static class Config
     {
         /// <summary>
+        /// The &apos;GET /api/config&apos; route template.
+        /// </summary>
+        public const string GetConfigTemplate = "/api/config";
+        /// <summary>
+        /// Builds the &apos;/api/config&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string GetConfig(ConfigRequest? request = null)
+        {
+            var path = "/api/config";
+            if (request is null)
+            {
+                return path;
+            }
+
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
+
+        /// <summary>
         /// The &apos;GET /api/config/shell&apos; route.
         /// </summary>
         public const string GetShells = "/api/config/shell";
@@ -353,6 +375,10 @@ public static class OpenCodeRoutes
         /// The &apos;POST /api/experimental/generate&apos; route.
         /// </summary>
         public const string GenerateText = "/api/experimental/generate";
+        /// <summary>
+        /// The &apos;GET /api/experimental/migration/v1&apos; route.
+        /// </summary>
+        public const string GetMigrationV1Status = "/api/experimental/migration/v1";
         /// <summary>
         /// The &apos;GET /api/experimental/session/{sessionID}/export&apos; route template.
         /// </summary>

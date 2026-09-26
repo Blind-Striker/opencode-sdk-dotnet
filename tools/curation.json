@@ -513,6 +513,51 @@
   ],
   "schemaNames": [
     {
+      "schema": "Config.ModelEncoded#/properties/cost",
+      "dotnetName": "ConfigModelPricing",
+      "reason": "A configured model's cost is one Config.Model.Cost or a list of context-size tiers of it; the mechanical Config.Model + cost name is taken by the Cost schema itself."
+    },
+    {
+      "schema": "Config.AgentEncoded#/properties/model",
+      "dotnetName": "ConfigModelSelection",
+      "reason": "Upstream's Config.ModelSelection (ConfigModel.Selection): a short provider/model#variant string or the explicit object; agents, commands and the root configuration share it through schemaAliases."
+    },
+    {
+      "schema": "Config.AgentEncoded#/properties/model/anyOf/1",
+      "dotnetName": "ConfigModelSelectionExplicit",
+      "reason": "Upstream's Explicit member of Config.ModelSelection; the anyOf ordinal is a schema pointer detail."
+    },
+    {
+      "schema": "Config.InfoEncoded#/properties/lsp/anyOf/1/additionalProperties",
+      "dotnetName": "ConfigLspEntry",
+      "reason": "Upstream's ConfigLSP.Entry, one language server's configuration; the mechanical name falls back to the bare word Config."
+    },
+    {
+      "schema": "Config.InfoEncoded#/properties/lsp/anyOf/1/additionalProperties/anyOf/disabled=true",
+      "dotnetName": "ConfigLspDisabled",
+      "reason": "Upstream's ConfigLSP.Disabled member, the entry that turns a language server off; the mechanical name spells the anyOf ordinal and the literal."
+    },
+    {
+      "schema": "Config.InfoEncoded#/properties/references/additionalProperties",
+      "dotnetName": "ConfigReferenceEntry",
+      "reason": "Upstream's ConfigReference.Entry, one reference: a location string, a Git reference or a local one; the mechanical name is the plural map property's."
+    },
+    {
+      "schema": "op:experimental.migration.v1.status#/responses/200/content/application~1json/schema",
+      "dotnetName": "ExperimentalMigrationV1Status",
+      "reason": "Upstream's V1MigrationStatus, the migration status union the operation answers with."
+    },
+    {
+      "schema": "op:experimental.migration.v1.status#/responses/200/content/application~1json/schema/anyOf/0",
+      "dotnetName": "ExperimentalMigrationV1StatusIdle",
+      "reason": "Upstream leaves this member anonymous: its status is required or completed, the two states in which no migration runs or has failed, beside the Running and Error members."
+    },
+    {
+      "schema": "op:experimental.migration.v1.status#/responses/200/content/application~1json/schema/anyOf/0/properties/status",
+      "dotnetName": "ExperimentalMigrationV1StatusIdleStatus",
+      "reason": "The two statuses of the idle member; the mechanical name spells the anyOf ordinal."
+    },
+    {
       "schema": "Session.Message.LocationSwitched#/properties/previous/anyOf/0",
       "dotnetName": "SessionMessageLocationSwitchedPrevious",
       "reason": "Name the previous-location object by its domain role; the nullable anyOf branch ordinal is a schema pointer detail."
@@ -664,14 +709,6 @@
   ],
   "declined": [
     {
-      "operationId": "config.get",
-      "reason": "Config.InfoEncoded carries same-token-kind structural unions the ADR-0016 union mechanism cannot distinguish, so the operation does not bind; moving it needs a union mechanism, not a curation row, and the maintainer stood the wall on 2026-08-30."
-    },
-    {
-      "operationId": "experimental.migration.v1.status",
-      "reason": "The status response is the same class of same-token-kind structural union wall as config.get and does not bind; the maintainer stood the wall on 2026-08-28 and has not reopened it."
-    },
-    {
       "operationId": "fs.read",
       "reason": "Upstream declares the route as the framework wildcard '/api/fs/read/*' rather than an OpenAPI path template, so the document gives the generator no path parameter to bind and inventing one is forbidden (ADR-0013); the upstream report is drafted and parked, maintainer 2026-08-30."
     },
@@ -704,6 +741,21 @@
       "schema": "op:event.subscribe#/responses/200/content/text~1event-stream/x-effect-stream/causeSchema/items",
       "aliasOf": "op:session.log#/responses/200/content/text~1event-stream/x-effect-stream/causeSchema/items",
       "reason": "The pinned stream declarations promote structurally identical inline Effect cause unions under operation-scoped graph keys."
+    },
+    {
+      "schema": "Config.InfoEncoded#/properties/mcp/properties/servers/additionalProperties",
+      "aliasOf": "op:experimental.mcp.add#/requestBody/content/application~1json/schema/properties/config",
+      "reason": "Both are upstream's Mcp.ServerConfig local-or-remote union, which the document inlines twice: once for the configured servers and once for the add request."
+    },
+    {
+      "schema": "Config.CommandEncoded#/properties/model",
+      "aliasOf": "Config.AgentEncoded#/properties/model",
+      "reason": "Both are upstream's Config.ModelSelection, which the document inlines on every configuration that selects a model."
+    },
+    {
+      "schema": "Config.InfoEncoded#/properties/model",
+      "aliasOf": "Config.AgentEncoded#/properties/model",
+      "reason": "Both are upstream's Config.ModelSelection, which the document inlines on every configuration that selects a model."
     }
   ]
 }

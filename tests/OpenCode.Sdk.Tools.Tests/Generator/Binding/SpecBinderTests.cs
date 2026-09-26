@@ -89,7 +89,7 @@ public sealed class SpecBinderTests
         // decision, so the pinned plan carries no pending operations at all.
         await Assert.That(plan.PendingOperations).IsEmpty();
         await Assert.That(plan.Models.Any(static model => model.Name == "PromptFileSourceUri")).IsTrue();
-        await Assert.That(plan.Models.Any(static model => model.Name == "ConfigInfo")).IsFalse();
+        await Assert.That(plan.Models.Any(static model => model.Name == "ConfigInfo")).IsTrue();
 
         var promptFile = plan.Models.OfType<ObjectModelPlan>().Single(static model => model.Name == "PromptFileSourceUri");
         var promptUri = promptFile.Properties.Single(static property => property.WireName == "uri").Type;
@@ -1111,7 +1111,63 @@ public sealed class SpecBinderTests
     }
 
     [Test]
-    public async Task Bind_Should_Refuse_Ambiguous_Structural_Union_Tokens()
+    public async Task Bind_Should_Give_Object_Arms_Sharing_A_Token_A_First_Match_Claim()
+    {
+        var document = await IngestAsync(new FirstMatchUnionScenario());
+
+        var plan = new BindingTestHost().Bind(
+            document,
+            Selection(FirstMatchUnionScenario.OperationId),
+            Curation(Groups(FirstMatchUnionScenario.GroupName, RootGroup())));
+
+        var unions = plan.Models.OfType<StructuralUnionModelPlan>().ToDictionary(static union => union.Name, StringComparer.Ordinal);
+        await Assert.That(Describe(unions["SourceEntry"])).IsEqualTo("Text[String] | GitSource[StartObject]{repository} | LocalSource[StartObject]{path}");
+        await Assert.That(Describe(unions["ToolEntry"])).IsEqualTo("ToolOff[StartObject]{disabled; disabled=true} | ToolServer[StartObject]{command}");
+        await Assert
+            .That(Describe(unions["JobStatus"]))
+            .IsEqualTo("JobSettled[StartObject]{status; status=required|completed} | JobRunning[StartObject]{status, progress; status=running} | JobFailed[StartObject]{status, error; status=error}");
+        return;
+
+        static string Describe(StructuralUnionModelPlan union) => string.Join(" | ", union.Arms.Select(static arm =>
+        {
+            var tokens = string.Join(", ", arm.Tokens);
+            if (arm.Claim is not { } claim)
+            {
+                return $"{arm.Name}[{tokens}]";
+            }
+
+            var sentinels = claim.Sentinels.Select(static sentinel => $"{sentinel.Property}={string.Join('|', sentinel.Values)}").ToArray();
+            var keys = string.Join(", ", claim.RequiredKeys);
+            return sentinels.Length is 0
+                ? $"{arm.Name}[{tokens}]{{{keys}}}"
+                : $"{arm.Name}[{tokens}]{{{keys}; {string.Join("; ", sentinels)}}}";
+        }));
+    }
+
+    [Test]
+    public async Task Bind_Should_Leave_A_Lone_Object_Arm_Without_A_Claim()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("Settings", schema => schema
+                .Type("object")
+                .Property("name", property => property.Type("string"), required: true))
+            .WithSchema("Choice", schema => schema.AnyOf(
+                branch => branch.Type("boolean"),
+                branch => branch.Ref("Settings")))
+            .WithSchema("Container", schema => schema
+                .Type("object")
+                .Property("choice", property => property.Ref("Choice"), required: true))
+            .WithOperation("choice.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("Container")))));
+
+        var plan = new BindingTestHost().Bind(document, Selection("choice.get"), Curation(Groups("choice", RootGroup())));
+
+        var union = plan.Models.OfType<StructuralUnionModelPlan>().Single();
+        await Assert.That(union.Arms.All(static arm => arm.Claim is null)).IsTrue();
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_A_First_Match_Object_Arm_An_Earlier_Arm_Always_Claims()
     {
         var document = await IngestAsync(SpecScenario.Define(spec => spec
             .WithSchema("First", schema => schema
@@ -1119,10 +1175,36 @@ public sealed class SpecBinderTests
                 .Property("first", property => property.Type("string"), required: true))
             .WithSchema("Second", schema => schema
                 .Type("object")
+                .Property("first", property => property.Type("string"), required: true)
                 .Property("second", property => property.Type("string"), required: true))
             .WithSchema("Choice", schema => schema.AnyOf(
                 branch => branch.Ref("First"),
                 branch => branch.Ref("Second")))
+            .WithSchema("Container", schema => schema
+                .Type("object")
+                .Property("choice", property => property.Ref("Choice"), required: true))
+            .WithOperation("choice.get", configure: operation => operation
+                .Response(200, "application/json", schema => schema.Ref("Container")))));
+
+        var exception = Assert.Throws<BindingException>(() => _ = new BindingTestHost().Bind(
+            document,
+            Selection("choice.get"),
+            Curation(Groups("choice", RootGroup()))));
+
+        var problems = string.Join(Environment.NewLine, exception.Errors.Select(static error => $"{error.Subject}: {error.Problem}"));
+        await Assert.That(problems).Contains("Choice: structural union branch 1 is unreachable: branch 0 claims every object it claims");
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_An_Object_Arm_Beside_An_Open_Object()
+    {
+        var document = await IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("First", schema => schema
+                .Type("object")
+                .Property("first", property => property.Type("string"), required: true))
+            .WithSchema("Choice", schema => schema.AnyOf(
+                branch => branch.Ref("First"),
+                branch => branch.Type("object").AdditionalProperties(value => value.Type("string"))))
             .WithSchema("Container", schema => schema
                 .Type("object")
                 .Property("choice", property => property.Ref("Choice"), required: true))

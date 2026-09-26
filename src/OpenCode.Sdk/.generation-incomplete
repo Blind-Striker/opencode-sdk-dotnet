@@ -1,12 +1,13 @@
 Generation is complete at the declared coverage; packages may be published.
-Selected operations: 130
+Selected operations: 132
 Pending operations: 0
-Declined operations: 4
+Declined operations: 2
 Transport-owned operations: 2
 Selected:
 - agent.get
 - agent.list
 - command.list
+- config.get
 - config.shells
 - credential.activate
 - credential.remove
@@ -21,6 +22,7 @@ Selected:
 - experimental.mcp.connect
 - experimental.mcp.disconnect
 - experimental.mcp.remove
+- experimental.migration.v1.status
 - experimental.session.export
 - experimental.session.import
 - experimental.session.instructions.entry.list
@@ -136,9 +138,7 @@ Selected:
 - worktree.remove
 Pending:
 Declined:
-- config.get [declined: Config.InfoEncoded carries same-token-kind structural unions the ADR-0016 union mechanism cannot distinguish, so the operation does not bind; moving it needs a union mechanism, not a curation row, and the maintainer stood the wall on 2026-08-30.] [refused: C# type name 'ConfigModelCost' collides with schema 'Config.Model.CostEncoded'; structural union branch 1 overlaps earlier branch token kind(s): StartObject; structural union must retain at least two inhabitable, distinguishable branches; structural union branch 2 overlaps earlier branch token kind(s): StartObject; inline nominal schema was not promoted into the graph]
 - experimental.fs.write [declined: The request body is application/octet-stream and the binder's media-type vocabulary is application/json and text/event-stream only (SpecMediaType), so the operation does not bind; admitting it is the same hand-written-door question as fs.read (ADR-0013, ADR-0021) and is queued in M4 surface completeness, maintainer 2026-09-18.] [refused: the request body must carry a JSON schema]
-- experimental.migration.v1.status [declined: The status response is the same class of same-token-kind structural union wall as config.get and does not bind; the maintainer stood the wall on 2026-08-28 and has not reopened it.] [refused: structural union branch 1 overlaps earlier branch token kind(s): StartObject; structural union branch 2 overlaps earlier branch token kind(s): StartObject; structural union must retain at least two inhabitable, distinguishable branches]
 - fs.read [declined: Upstream declares the route as the framework wildcard '/api/fs/read/*' rather than an OpenAPI path template, so the document gives the generator no path parameter to bind and inventing one is forbidden (ADR-0013); the upstream report is drafted and parked, maintainer 2026-08-30.] [refused: wildcard paths are not supported in M1]
 Transport-owned:
 - persistentPty.connect [fingerprint-pinned]

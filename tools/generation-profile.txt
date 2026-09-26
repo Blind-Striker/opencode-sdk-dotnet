@@ -1,6 +1,7 @@
 agent.get
 agent.list
 command.list
+config.get
 config.shells
 credential.activate
 credential.remove
@@ -15,6 +16,7 @@ experimental.mcp.add
 experimental.mcp.connect
 experimental.mcp.disconnect
 experimental.mcp.remove
+experimental.migration.v1.status
 experimental.session.export
 experimental.session.import
 experimental.session.instructions.entry.list

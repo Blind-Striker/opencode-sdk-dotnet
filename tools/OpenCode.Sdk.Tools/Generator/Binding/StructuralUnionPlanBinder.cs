@@ -18,8 +18,10 @@ internal sealed class StructuralUnionPlanBinder
         ArgumentNullException.ThrowIfNull(typeBinder);
         ArgumentNullException.ThrowIfNull(errors);
 
+        var scope = new ArmScope(key, typeBinder, errors);
         var arms = new List<StructuralUnionArmPlan>(union.Branches.Count);
         var claimedTokens = new HashSet<JsonTokenType>();
+        var objectArms = new List<ObjectArm>();
         var inhabitableBranchCount = 0;
         foreach (var (branch, index) in union.Branches.Select(static (branch, index) => (branch, index)))
         {
@@ -30,51 +32,19 @@ internal sealed class StructuralUnionPlanBinder
             }
 
             inhabitableBranchCount++;
-
-            if (!TryGetTokens(resolved, out var tokens))
-            {
-                errors.Add(BindingErrorCategory.Schema, key,
-                    $"structural union branch {index.ToString(System.Globalization.CultureInfo.InvariantCulture)} has no deterministic JSON-token dispatch");
-                continue;
-            }
-
-            var effective = ResolveEffectiveBranch(branch, resolved, tokens, claimedTokens, key, index, errors);
-            if (effective is null)
+            var arm = BindArm(scope, branch, resolved, index, arms, claimedTokens, sharesObjectToken: objectArms.Count > 0);
+            if (arm is null)
             {
                 continue;
             }
 
-            var effectiveTokens = tokens.Where(token => !claimedTokens.Contains(token)).ToArray();
-            if (!ValidateSpecialNumberArm(resolved, effectiveTokens, key, errors))
+            if (resolved is ObjectNode objectNode && arm.Tokens.Contains(JsonTokenType.StartObject))
             {
-                continue;
+                objectArms.Add(new ObjectArm(arms.Count, index, objectNode));
             }
 
-            var armNameSubject = index.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            var type = typeBinder.BindStructuralArm(key, armNameSubject, effective);
-            if (type is null)
-            {
-                continue;
-            }
-
-            if (!ValidateNotBinaryArm(type, armNameSubject, key, errors))
-            {
-                continue;
-            }
-
-            var armName = ArmName(type);
-            if (!ValidateArmName(armName, arms, key, errors))
-            {
-                continue;
-            }
-
-            arms.Add(new StructuralUnionArmPlan
-            {
-                Name = armName,
-                Type = type,
-                Tokens = effectiveTokens,
-            });
-            claimedTokens.UnionWith(effectiveTokens);
+            arms.Add(arm);
+            claimedTokens.UnionWith(arm.Tokens);
         }
 
         if (arms.Count < 2 || arms.Count != inhabitableBranchCount)
@@ -88,8 +58,165 @@ internal sealed class StructuralUnionPlanBinder
             return null;
         }
 
+        if (objectArms.Count > 1 && !TryClaimObjectArms(arms, objectArms, graph, key, errors))
+        {
+            return null;
+        }
+
         return CreatePlan(name, union, arms);
     }
+
+    /// <summary>
+    /// Binds one inhabitable branch to its arm, or reports why it cannot be one. An object may
+    /// share the object token with the named objects before it (<paramref name="sharesObjectToken"/>):
+    /// the first one whose claim holds takes the value. Anything else that starts with an object -
+    /// a dictionary, a free-form object, a marked union - takes every object, so a neighbour
+    /// there is ambiguous and stays refused.
+    /// </summary>
+    private StructuralUnionArmPlan? BindArm(ArmScope scope, SchemaNode branch, SchemaNode resolved, int index,
+        IReadOnlyList<StructuralUnionArmPlan> arms, HashSet<JsonTokenType> claimedTokens, bool sharesObjectToken)
+    {
+        var armNameSubject = index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (!TryGetTokens(resolved, out var tokens))
+        {
+            scope.Errors.Add(BindingErrorCategory.Schema, scope.Key,
+                $"structural union branch {armNameSubject} has no deterministic JSON-token dispatch");
+            return null;
+        }
+
+        var firstMatch = resolved is ObjectNode && sharesObjectToken;
+        var effective = firstMatch
+            ? branch
+            : ResolveEffectiveBranch(branch, resolved, tokens, claimedTokens, scope.Key, index, scope.Errors);
+        if (effective is null)
+        {
+            return null;
+        }
+
+        JsonTokenType[] effectiveTokens = firstMatch ? [.. tokens] : [.. tokens.Where(token => !claimedTokens.Contains(token))];
+        if (!ValidateSpecialNumberArm(resolved, effectiveTokens, scope.Key, scope.Errors))
+        {
+            return null;
+        }
+
+        var type = scope.TypeBinder.BindStructuralArm(scope.Key, armNameSubject, effective);
+        if (type is null || !ValidateNotBinaryArm(type, armNameSubject, scope.Key, scope.Errors))
+        {
+            return null;
+        }
+
+        var armName = ArmName(type);
+        return ValidateArmName(armName, arms, scope.Key, scope.Errors)
+            ? new StructuralUnionArmPlan { Name = armName, Type = type, Tokens = effectiveTokens }
+            : null;
+    }
+
+    /// <summary>
+    /// Gives every object arm that shares the object token its first-match claim, and refuses an
+    /// arm an earlier arm always claims first: Effect would never reach it either, so the carrier
+    /// would carry a member no value can select.
+    /// </summary>
+    private static bool TryClaimObjectArms(List<StructuralUnionArmPlan> arms, IReadOnlyList<ObjectArm> objectArms,
+        IReadOnlyDictionary<string, SchemaNode> graph, string key, BindingErrorCollector errors)
+    {
+        var claims = new List<StructuralObjectClaimPlan>(objectArms.Count);
+        var valid = true;
+        foreach (var objectArm in objectArms)
+        {
+            var claim = CreateClaim(objectArm, graph, key, errors);
+            if (claim is null)
+            {
+                valid = false;
+                continue;
+            }
+
+            claims.Add(claim);
+        }
+
+        if (!valid)
+        {
+            return false;
+        }
+
+        for (var later = 1; later < claims.Count; later++)
+        {
+            for (var earlier = 0; earlier < later; earlier++)
+            {
+                if (!Subsumes(claims[earlier], claims[later]))
+                {
+                    continue;
+                }
+
+                errors.Add(BindingErrorCategory.Schema, key, string.Create(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    $"structural union branch {objectArms[later].BranchIndex} is unreachable: branch {objectArms[earlier].BranchIndex} claims every object it claims"));
+                valid = false;
+                break;
+            }
+        }
+
+        if (!valid)
+        {
+            return false;
+        }
+
+        for (var position = 0; position < objectArms.Count; position++)
+        {
+            var armIndex = objectArms[position].ArmIndex;
+            arms[armIndex] = arms[armIndex] with { Claim = claims[position] };
+        }
+
+        return true;
+    }
+
+    private static StructuralObjectClaimPlan? CreateClaim(ObjectArm objectArm, IReadOnlyDictionary<string, SchemaNode> graph,
+        string key, BindingErrorCollector errors)
+    {
+        var sentinels = new List<StructuralSentinelPlan>();
+        var valid = true;
+        foreach (var property in objectArm.Node.Properties)
+        {
+            switch (Resolve(property.Schema, graph, []))
+            {
+                case LiteralNode { Kind: LiteralKind.Number }:
+                    errors.Add(BindingErrorCategory.Schema, key, string.Create(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        $"structural union branch {objectArm.BranchIndex} constrains '{property.Name}' to a number literal; first-match sentinels are string or boolean"));
+                    valid = false;
+                    break;
+                case LiteralNode literal:
+                    sentinels.Add(new StructuralSentinelPlan { Property = property.Name, Kind = literal.Kind, Values = [literal.Value] });
+                    break;
+                case EnumNode enumeration:
+                    sentinels.Add(new StructuralSentinelPlan { Property = property.Name, Kind = LiteralKind.String, Values = enumeration.Values });
+                    break;
+            }
+        }
+
+        return valid
+            ? new StructuralObjectClaimPlan
+            {
+                RequiredKeys = [.. objectArm.Node.Properties.Where(static property => property.IsRequired).Select(static property => property.Name)],
+                Sentinels = sentinels,
+            }
+            : null;
+    }
+
+    /// <summary>
+    /// Whether every object <paramref name="later"/> claims is claimed by <paramref name="earlier"/>
+    /// too: each key the earlier arm requires is required by the later one, and each property the
+    /// earlier arm constrains the later one constrains to a subset of the same values.
+    /// </summary>
+    private static bool Subsumes(StructuralObjectClaimPlan earlier, StructuralObjectClaimPlan later) =>
+        earlier.RequiredKeys.All(requiredKey => later.RequiredKeys.Contains(requiredKey, StringComparer.Ordinal))
+        && earlier.Sentinels.All(sentinel => later.Sentinels.Any(candidate =>
+            StringComparer.Ordinal.Equals(candidate.Property, sentinel.Property)
+            && candidate.Kind == sentinel.Kind
+            && candidate.Values.All(value => sentinel.Values.Contains(value, StringComparer.Ordinal))));
+
+    private sealed record ObjectArm(int ArmIndex, int BranchIndex, ObjectNode Node);
+
+    private sealed record ArmScope(string Key, TypePlanBinder TypeBinder, BindingErrorCollector Errors);
 
     private static StructuralUnionModelPlan CreatePlan(string name, UnionNode union,
         IReadOnlyList<StructuralUnionArmPlan> arms) =>
