@@ -152,4 +152,48 @@ public sealed class OwnedCleanupTests
             }
         }
     }
+
+    [Test]
+    public async Task CompleteAsync_Should_Name_A_Steps_Own_Budget_And_The_Steps_That_Ran_Before_It()
+    {
+        var pending = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var scenario = new OperationDeadlineScenario();
+        var deadline = scenario.Hold("budgeted step");
+        var cleanup = new OwnedCleanup(TimeSpan.FromSeconds(15), scenario.Deadline);
+        cleanup.Own("first step", _ => Task.CompletedTask);
+        cleanup.Own("second step", _ => Task.CompletedTask);
+        cleanup.Own("budgeted step", TimeSpan.FromSeconds(65), async token => _ = await pending.Task.WaitAsync(token));
+        cleanup.Own("later step", _ => Task.CompletedTask);
+        var completing = cleanup.CompleteAsync(null);
+        try
+        {
+            await deadline.Entered;
+            deadline.Expire();
+            deadline.Deliver();
+            var thrown = await Assert.That(() => completing).Throws<TimeoutException>();
+
+            await Assert.That(thrown).IsNotNull();
+            await Assert.That(thrown.Message).Contains("'budgeted step' exceeded its cleanup deadline of 00:01:05.");
+            await Assert.That(thrown.Message).Contains("Steps before it: 'first step' ");
+            await Assert.That(thrown.Message).Contains(", 'second step' ");
+            await Assert.That(thrown.InnerException).IsSameReferenceAs(deadline.Failure);
+            var timeline = thrown.Data[OwnedCleanup.StepTimingsKey] as string ?? string.Empty;
+            var first = timeline.IndexOf("'first step' ", StringComparison.Ordinal);
+            var budgeted = timeline.IndexOf("'budgeted step' ", StringComparison.Ordinal);
+            var later = timeline.IndexOf("'later step' ", StringComparison.Ordinal);
+            await Assert.That(first).IsGreaterThanOrEqualTo(0);
+            await Assert.That(budgeted).IsGreaterThan(first);
+            await Assert.That(later).IsGreaterThan(budgeted);
+            await Assert.That(timeline).Contains("'budgeted step' exceeded 00:01:05");
+        }
+        finally
+        {
+            _ = pending.TrySetResult(true);
+            await scenario.DrainAsync(completing);
+            if (cleanup.LateFailures is { } report)
+            {
+                await report.WaitForAllAsync(CancellationToken.None);
+            }
+        }
+    }
 }

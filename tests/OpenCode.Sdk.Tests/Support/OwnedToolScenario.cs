@@ -42,6 +42,18 @@ internal sealed class OwnedToolScenario
     /// </summary>
     private static readonly TimeSpan CleanupCancellationWait = TimeSpan.FromSeconds(10);
 
+    /// <summary>
+    /// The registration reset's own budget. The reset is one controller round trip whose send and
+    /// answer are each bounded by <see cref="DriveController.RequestTimeout"/>, and the backend
+    /// answers only once every location that loaded the tool plugin has acknowledged the new
+    /// generation, so under load it can legitimately outlast <see cref="CleanupTimeout"/>. The
+    /// budget stays above both controller bounds, so a stuck reset reports the controller's own
+    /// failure — which names <c>tool.attach</c> and the receive loop's state — rather than a generic
+    /// cleanup deadline; the margin covers the send gate, which the finished body no longer holds.
+    /// </summary>
+    private static readonly TimeSpan ResetTimeout =
+        TimeSpan.FromTicks(DriveController.RequestTimeout.Ticks * 2) + TimeSpan.FromSeconds(5);
+
     private readonly SimulatedDriveServerFixture _server;
     private readonly TestWorkspace _workspace;
     private readonly OpenCodeClient _client;
@@ -62,7 +74,7 @@ internal sealed class OwnedToolScenario
         _cleanup.Own("owned session interrupt", InterruptIfUnfinishedAsync);
         _cleanup.Own("owned tool cancellation", ObservePendingToolCancellationAsync);
         _cleanup.Own("owned session wait", WaitIdleAsync);
-        _cleanup.Own("owned tool registration reset", ResetRegistrationAsync);
+        _cleanup.Own("owned tool registration reset", ResetTimeout, ResetRegistrationAsync);
         _cleanup.Own("owned session removal", RemoveAsync);
         _cleanup.Own("event reader", _ => _reader.CompleteAsync(null));
         _cleanup.Own("owned client", _ =>
