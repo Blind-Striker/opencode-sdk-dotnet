@@ -31,6 +31,8 @@ public sealed class OpenCodeServerDiscoveryLiveTests(PinnedManagedServiceFixture
 {
     private static readonly RealFileSystem FileSystem = new();
 
+    private static readonly ServiceTiming PatientTiming = ServiceTiming.Default with { RequestTimeout = TimeSpan.FromSeconds(30) };
+
     [Test]
     [Timeout(120_000)]
     public async Task DiscoverAsync_Should_Find_The_Accepted_Pin_Managed_Service_By_Channel(CancellationToken cancellationToken)
@@ -99,7 +101,8 @@ public sealed class OpenCodeServerDiscoveryLiveTests(PinnedManagedServiceFixture
     /// Discovery answers null alike for a version mismatch and for a probe whose bound expired, so
     /// the mismatch runs through the internal seam over the platform probe and is proved by the
     /// probe's own verdict: the daemon answered ready, in time, with a version other than the one
-    /// expected. A loaded host can make the probe time out, which fails here instead of passing.
+    /// expected. The claim is the version gate, not the two-second bound, so the probe gets a
+    /// patient bound a loaded host does not reach; the matching call stays on the public door.
     /// </summary>
     [Test]
     [Timeout(120_000)]
@@ -109,7 +112,7 @@ public sealed class OpenCodeServerDiscoveryLiveTests(PinnedManagedServiceFixture
             new OpenCodeServerDiscoverOptions { RegistrationFilePath = service.RegistrationFile, ExpectedVersion = service.Version },
             cancellationToken);
         await using var _ = matching;
-        var probe = new RecordingProbe(new ServiceInfoProbe(ServiceTiming.Default));
+        var probe = new RecordingProbe(new ServiceInfoProbe(PatientTiming));
         var mismatching = await OpenCodeServer.DiscoverWithSeamsAsync(
             new OpenCodeServerDiscoverOptions { RegistrationFilePath = service.RegistrationFile, ExpectedVersion = "0.0.0-never-1" },
             probe,
