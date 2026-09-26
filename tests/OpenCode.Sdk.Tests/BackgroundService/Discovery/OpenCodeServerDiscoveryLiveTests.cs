@@ -1,3 +1,7 @@
+using OpenCode.Sdk.Internal.BackgroundService.Abstractions;
+using OpenCode.Sdk.Internal.BackgroundService.Discovery;
+using OpenCode.Sdk.Internal.BackgroundService.Ensure;
+using OpenCode.Sdk.Internal.BackgroundService.Registration;
 using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
 using Testably.Abstractions;
@@ -26,6 +30,8 @@ namespace OpenCode.Sdk.Tests.BackgroundService.Discovery;
 public sealed class OpenCodeServerDiscoveryLiveTests(PinnedManagedServiceFixture service)
 {
     private static readonly RealFileSystem FileSystem = new();
+
+    private static readonly ServiceTiming PatientTiming = ServiceTiming.Default with { RequestTimeout = TimeSpan.FromSeconds(30) };
 
     [Test]
     [Timeout(120_000)]
@@ -91,6 +97,13 @@ public sealed class OpenCodeServerDiscoveryLiveTests(PinnedManagedServiceFixture
         await Assert.That(health.ServerInfo.Pid).IsEqualTo(service.ProcessId);
     }
 
+    /// <summary>
+    /// Discovery answers null alike for a version mismatch and for a probe whose bound expired, so
+    /// the mismatch runs through the internal seam over the platform probe and is proved by the
+    /// probe's own verdict: the daemon answered ready, in time, with a version other than the one
+    /// expected. The claim is the version gate, not the two-second bound, so the probe gets a
+    /// patient bound a loaded host does not reach; the matching call stays on the public door.
+    /// </summary>
     [Test]
     [Timeout(120_000)]
     public async Task DiscoverAsync_Should_Apply_ExpectedVersion_Against_The_Accepted_Server(CancellationToken cancellationToken)
@@ -99,12 +112,19 @@ public sealed class OpenCodeServerDiscoveryLiveTests(PinnedManagedServiceFixture
             new OpenCodeServerDiscoverOptions { RegistrationFilePath = service.RegistrationFile, ExpectedVersion = service.Version },
             cancellationToken);
         await using var _ = matching;
-        var mismatching = await OpenCodeServer.DiscoverAsync(
+        var probe = new RecordingProbe(new ServiceInfoProbe(PatientTiming));
+        var mismatching = await OpenCodeServer.DiscoverWithSeamsAsync(
             new OpenCodeServerDiscoverOptions { RegistrationFilePath = service.RegistrationFile, ExpectedVersion = "0.0.0-never-1" },
+            probe,
             cancellationToken);
 
         await Assert.That(matching).IsNotNull();
         await Assert.That(mismatching).IsNull();
+        var verdict = probe.Last;
+        await Assert.That(verdict).IsNotNull();
+        await Assert.That(verdict!.TimedOut).IsFalse();
+        await Assert.That(verdict.IsReadyAndCompatible).IsTrue();
+        await Assert.That(verdict.Version).IsEqualTo(service.Version);
     }
 
     private async Task<OpenCodeServer> DiscoverByFileAsync(CancellationToken cancellationToken)
@@ -122,5 +142,17 @@ public sealed class OpenCodeServerDiscoveryLiveTests(PinnedManagedServiceFixture
         var evidence = await service.DescribeHealthAsync(cancellationToken);
         throw new InvalidOperationException(
             $"The managed service registered at '{service.RegistrationFile}' was not discovered although the fixture reported it ready. {evidence}");
+    }
+
+    /// <summary>The platform probe, remembering the last verdict it gave discovery.</summary>
+    private sealed class RecordingProbe(IServiceInfoProbe inner) : IServiceInfoProbe
+    {
+        public ServiceProbeResult? Last { get; private set; }
+
+        public async Task<ServiceProbeResult> ProbeAsync(ServiceRegistration registration, CancellationToken cancellationToken)
+        {
+            Last = await inner.ProbeAsync(registration, cancellationToken).ConfigureAwait(false);
+            return Last;
+        }
     }
 }

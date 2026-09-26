@@ -18,13 +18,24 @@ namespace OpenCode.Sdk.Tests;
 [NotInParallel(ParallelConstraintKeys.ServerProcess)]
 public sealed class PersistentSimulationHostTests
 {
+    /// <summary>
+    /// The test's deadline stays above everything it wraps, so a wedged gate holder or a host
+    /// that never reports readiness fails with the gate's or the launcher's own named error, not a
+    /// bare timeout: the port gate (15 min), the readiness bound (3 min) and the shutdown grace
+    /// (10 s), plus a margin. The test checks the ordering against the live values first.
+    /// </summary>
+    private const int TimeoutMilliseconds = 20 * 60 * 1000;
+
     private static readonly RealFileSystem FileSystem = new();
 
     [Test]
-    [Timeout(240_000)]
+    [Timeout(TimeoutMilliseconds)]
     public async Task Host_Should_Route_Diagnostics_To_Stderr_Around_Readiness_And_Stdin_Eof(
         CancellationToken cancellationToken)
     {
+        await Assert.That(TimeSpan.FromMilliseconds(TimeoutMilliseconds)).IsGreaterThan(
+            SimulatedServerLaunch.GateTimeout + OwnedServerPolicy.ReadinessTimeout + OwnedServerPolicy.GracefulShutdownTimeout);
+
         using var runRoot = new TestRunRoot(FileSystem);
         var output = new OpenCodeServerOutput();
         await using (var server = await StartHostAsync(runRoot, output, cancellationToken))
