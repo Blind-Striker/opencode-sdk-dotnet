@@ -1,21 +1,32 @@
+using System.Globalization;
 using System.IO.Abstractions;
+using System.Text;
 using CliWrap;
+using OpenCode.Sdk.Tools.Generator.Refresh.Abstractions;
 using OpenCode.Sdk.Tools.Output.Abstractions;
 
 namespace OpenCode.Sdk.Tools.Output;
 
-internal sealed class CliWrapProjectFormatter(IFileSystem fileSystem) : IProjectFormatter
+/// <summary>
+/// Formats the generated tree in one <c>dotnet-format</c> run. One run costs about a minute
+/// whatever it covers, so the file list travels in a response file instead of on the command
+/// line, where Windows caps a child process at 32,767 UTF-16 characters (<c>CreateProcessW</c>).
+/// </summary>
+/// <remarks>
+/// <c>dotnet format</c> cannot carry that response file: the SDK CLI expands it and then starts
+/// <c>dotnet-format.dll</c> as a new process with the expanded list ("the filename or extension
+/// is too long"). The formatter therefore starts the SDK's own <c>dotnet-format.dll</c> the way
+/// the SDK's <c>FormatForwardingApp</c> does, and <c>dotnet-format</c> expands the file
+/// in-process.
+/// </remarks>
+internal sealed class CliWrapProjectFormatter(IFileSystem fileSystem, IProcessRunner processRunner) : IProjectFormatter
 {
-    /// <summary>
-    /// Windows caps a child process's command line at 32,767 UTF-16 characters
-    /// (<c>CreateProcessW</c>); the generated tree's file list alone crosses that once the
-    /// profile grows large enough ("the filename or extension is too long" is
-    /// <c>CreateProcessW</c>'s exact failure text). Staying well under the smallest platform's
-    /// limit keeps every batch safe regardless of tree size.
-    /// </summary>
-    private const int MaxBatchCommandLineLength = 8_000;
+    private const string AssemblyFileName = "dotnet-format.dll";
+    private const string DepsFileName = "dotnet-format.deps.json";
+    private const string RuntimeConfigFileName = "dotnet-format.runtimeconfig.json";
 
     private readonly IFileSystem _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
+    private readonly IProcessRunner _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
 
     public async Task FormatAsync(
         string projectPath,
@@ -38,50 +49,122 @@ internal sealed class CliWrapProjectFormatter(IFileSystem fileSystem) : IProject
         var projectDirectory = _fileSystem.Path.GetDirectoryName(fullProjectPath)
                                ?? throw new InvalidOperationException($"Project path '{projectPath}' has no parent directory.");
         var projectFileName = _fileSystem.Path.GetFileName(fullProjectPath);
+        var formatterDirectory = await ResolveFormatterDirectoryAsync(projectDirectory, cancellationToken).ConfigureAwait(false);
 
-        foreach (var batch in Batch(sourcePaths, MaxBatchCommandLineLength))
+        var responseFilePath = _fileSystem.Path.Combine(
+            _fileSystem.Path.GetTempPath(),
+            $"opencode-format-{Guid.NewGuid():N}.rsp");
+        await _fileSystem.File.WriteAllTextAsync(responseFilePath, ResponseFileContent(sourcePaths), cancellationToken)
+            .ConfigureAwait(false);
+        try
         {
             _ = await Cli.Wrap("dotnet")
                 .WithArguments(arguments => arguments
-                    .Add("format")
+                    .Add("exec")
+                    .Add("--depsfile")
+                    .Add(FormatterFile(formatterDirectory, DepsFileName))
+                    .Add("--runtimeconfig")
+                    .Add(FormatterFile(formatterDirectory, RuntimeConfigFileName))
+                    .Add(FormatterFile(formatterDirectory, AssemblyFileName))
                     .Add(projectFileName)
                     .Add("--no-restore")
-                    .Add("--include")
-                    .Add(batch))
+                    .Add($"@{responseFilePath}"))
                 .WithWorkingDirectory(projectDirectory)
                 .WithEnvironmentVariables(environment => environment.Set("TargetFramework", "net10.0"))
                 .WithValidation(CommandResultValidation.ZeroExitCode)
                 .ExecuteAsync(cancellationToken)
                 .ConfigureAwait(false);
         }
+        finally
+        {
+            _fileSystem.File.Delete(responseFilePath);
+        }
     }
 
     /// <summary>
-    /// Splits <paramref name="sourcePaths"/> into ordered groups whose paths, joined by single
-    /// spaces, stay at or under <paramref name="maxLength"/> — one full path always ships even
-    /// when it alone exceeds the budget, so no path is ever dropped.
+    /// The response file <c>dotnet-format</c> reads: the <c>--include</c> option, then one
+    /// double-quoted path per line, so a path with spaces stays one token.
     /// </summary>
-    internal static IEnumerable<IReadOnlyList<string>> Batch(IReadOnlyList<string> sourcePaths, int maxLength)
+    internal static string ResponseFileContent(IReadOnlyList<string> sourcePaths)
     {
-        var batch = new List<string>();
-        var length = 0;
+        var content = new StringBuilder("--include").Append('\n');
         foreach (var sourcePath in sourcePaths)
         {
-            var addedLength = sourcePath.Length + 1;
-            if (batch.Count > 0 && length + addedLength > maxLength)
+            if (sourcePath.Contains('"', StringComparison.Ordinal))
             {
-                yield return batch;
-                batch = [];
-                length = 0;
+                throw new ArgumentException(
+                    $"Source path '{sourcePath}' contains a double quote, which a response-file token cannot carry.",
+                    nameof(sourcePaths));
             }
 
-            batch.Add(sourcePath);
-            length += addedLength;
+            _ = content.Append('"').Append(sourcePath).Append('"').Append('\n');
         }
 
-        if (batch.Count > 0)
+        return content.ToString();
+    }
+
+    /// <summary>
+    /// Finds the <c>dotnet-format</c> directory inside the SDK that <c>global.json</c> selects for
+    /// <paramref name="projectDirectory"/>: the SDK version from <c>dotnet --version</c>, its
+    /// install root from <c>dotnet --list-sdks</c>, and the <c>DotnetTools</c> layout the SDK's
+    /// own forwarder uses. The assembly, deps file, and runtime config are the three files that
+    /// forwarder passes to <c>dotnet exec</c>; a missing one stops generation rather than falling
+    /// back.
+    /// </summary>
+    private async Task<string> ResolveFormatterDirectoryAsync(string projectDirectory, CancellationToken cancellationToken)
+    {
+        var version = (await RunDotnetAsync(["--version"], projectDirectory, cancellationToken).ConfigureAwait(false)).Trim();
+        var sdkListing = await RunDotnetAsync(["--list-sdks"], projectDirectory, cancellationToken).ConfigureAwait(false);
+        var formatterDirectory = _fileSystem.Path.Combine(SdkRoot(sdkListing, version), version, "DotnetTools", "dotnet-format");
+        foreach (var fileName in (string[])[AssemblyFileName, DepsFileName, RuntimeConfigFileName])
         {
-            yield return batch;
+            var path = FormatterFile(formatterDirectory, fileName);
+            if (!_fileSystem.File.Exists(path))
+            {
+                throw new InvalidOperationException(
+                    $"SDK {version} has no '{path}'; the generator formats through the SDK's bundled dotnet-format.");
+            }
         }
+
+        return formatterDirectory;
+    }
+
+    private string FormatterFile(string formatterDirectory, string fileName) =>
+        _fileSystem.Path.Combine(formatterDirectory, fileName);
+
+    /// <summary>
+    /// Reads the install root of <paramref name="version"/> from <c>dotnet --list-sdks</c>
+    /// output, whose lines read <c>10.0.303 [C:\Program Files\dotnet\sdk]</c>.
+    /// </summary>
+    internal static string SdkRoot(string sdkListing, string version)
+    {
+        ArgumentNullException.ThrowIfNull(sdkListing);
+        ArgumentException.ThrowIfNullOrWhiteSpace(version);
+
+        var prefix = $"{version} [";
+        foreach (var line in sdkListing.Split('\n'))
+        {
+            var entry = line.Trim();
+            if (entry.StartsWith(prefix, StringComparison.Ordinal) && entry[^1] is ']')
+            {
+                return entry[prefix.Length..^1];
+            }
+        }
+
+        throw new InvalidOperationException($"'dotnet --list-sdks' does not list the selected SDK {version}.");
+    }
+
+    private async Task<string> RunDotnetAsync(
+        IReadOnlyList<string> arguments,
+        string workingDirectory,
+        CancellationToken cancellationToken)
+    {
+        var result = await _processRunner.RunAsync("dotnet", arguments, workingDirectory, cancellationToken).ConfigureAwait(false);
+        return result.ExitCode is 0
+            ? Encoding.UTF8.GetString(result.StandardOutput)
+            : throw new InvalidOperationException(
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"'dotnet {string.Join(' ', arguments)}' exited with code {result.ExitCode}: {result.StandardError}"));
     }
 }
