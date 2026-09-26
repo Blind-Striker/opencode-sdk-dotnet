@@ -94,8 +94,10 @@ public sealed class OwnedTransportTests
 
         // The client's own timeout never guards a post-headers read; the progress window is
         // the only timer over a real stalled socket, interrupting through the read token on
-        // modern targets and through content disposal on net472.
-        _ = await Assert
+        // modern targets and through content disposal on net472. The message names the phase:
+        // a window that fired before the headers would fail the send instead and still throw
+        // the same exception type.
+        var exception = await Assert
             .That(async () => _ = await pipeline.ExecuteAsync(
                 HttpMethod.Get,
                 "/api/info",
@@ -103,6 +105,8 @@ public sealed class OwnedTransportTests
                 options: null,
                 CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5)))
             .Throws<OpenCodeTransportException>();
+
+        await Assert.That(exception!.Message).IsEqualTo("The opencode response body could not be read.");
 #if NET472
         Task[] disconnectTasks = [server.ClientDisconnected];
         await Task.WhenAll(disconnectTasks).WaitAsync(TimeSpan.FromSeconds(1));
