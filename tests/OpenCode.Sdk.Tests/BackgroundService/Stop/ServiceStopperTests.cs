@@ -1,6 +1,7 @@
 using System.Text;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
+using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Internal.BackgroundService.Abstractions;
 using OpenCode.Sdk.Internal.BackgroundService.Discovery;
 using OpenCode.Sdk.Internal.BackgroundService.Ensure;
@@ -179,7 +180,7 @@ public sealed class ServiceStopperTests
         _ptyShutdown.ShutdownAsync(Arg.Any<ServiceRegistration>(), Arg.Any<CancellationToken>())
             .Returns(async _ =>
             {
-                await cancellation.CancelAsync();
+                await cancellation.CancelOnWorkerAsync();
                 throw new OperationCanceledException(cancellation.Token);
             });
 
@@ -351,7 +352,7 @@ public sealed class ServiceStopperTests
         _probe.ProbeAsync(Arg.Any<ServiceRegistration>(), Arg.Any<CancellationToken>())
             .Returns(async _ =>
             {
-                await cancellation.CancelAsync();
+                await cancellation.CancelOnWorkerAsync();
                 return NoService;
             });
 

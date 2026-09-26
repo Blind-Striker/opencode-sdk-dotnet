@@ -235,7 +235,7 @@ public sealed class PipelineStreamTests
         using var httpClient = new HttpClient(handler);
         using var pipeline = PipelineFactory.Create(httpClient);
         using var cancellation = new CancellationTokenSource();
-        await cancellation.CancelAsync();
+        await cancellation.CancelOnWorkerAsync();
 
         _ = await Assert
             .That(async () => _ = await CollectAsync(pipeline, cancellationToken: cancellation.Token))

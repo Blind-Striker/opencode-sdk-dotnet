@@ -1,3 +1,4 @@
+using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Models;
 
 namespace OpenCode.Sdk.Tests;
@@ -104,7 +105,7 @@ public sealed class SessionClientPaginationTests
             .GetAsyncEnumerator();
 
         await Assert.That(await enumerator.MoveNextAsync()).IsTrue();
-        await cancellation.CancelAsync();
+        await cancellation.CancelOnWorkerAsync();
 
         await Assert.That(client.Tokens[0].IsCancellationRequested).IsTrue();
         _ = await Assert.That(async () => _ = await enumerator.MoveNextAsync()).Throws<OperationCanceledException>();
@@ -120,7 +121,7 @@ public sealed class SessionClientPaginationTests
             .GetAsyncEnumerator(cancellation.Token);
 
         await Assert.That(await enumerator.MoveNextAsync()).IsTrue();
-        await cancellation.CancelAsync();
+        await cancellation.CancelOnWorkerAsync();
 
         await Assert.That(client.Tokens[0].IsCancellationRequested).IsTrue();
         _ = await Assert.That(async () => _ = await enumerator.MoveNextAsync()).Throws<OperationCanceledException>();

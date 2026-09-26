@@ -6,8 +6,8 @@ namespace OpenCode.Sdk.TestSupport;
 /// The launch recipe of the persistent simulation host: its command, the CLI-package working
 /// directory bun needs to resolve the monorepo workspace, the isolated environment with the
 /// simulation switches and the per-run drive manifest, and that manifest. The caller holds
-/// <see cref="DrivePortGate"/> from <see cref="Prepare"/> until the server is ready, because the
-/// manifest names the ports the host binds later.
+/// the <see cref="MachineLock.DrivePorts"/> lock from <see cref="Prepare"/> until the server is
+/// ready, because the manifest names the ports the host binds later.
 /// </summary>
 internal sealed record SimulatedServerLaunch
 {

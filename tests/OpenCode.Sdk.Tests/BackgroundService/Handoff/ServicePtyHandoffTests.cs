@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
+using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.Internal.BackgroundService.Abstractions;
 using OpenCode.Sdk.Internal.BackgroundService.Handoff;
 using OpenCode.Sdk.Internal.BackgroundService.Registration;
@@ -317,7 +318,7 @@ public sealed class ServicePtyHandoffTests
 
         var pending = Handoff().PrepareAsync(RegistrationPath(), Registration(server.Endpoint), RequestTimeout, caller.Token);
         _ = await arrived.Task.WaitAsync(RequestTimeout);
-        await caller.CancelAsync();
+        await caller.CancelOnWorkerAsync();
 
         OperationCanceledException? caught = null;
         try

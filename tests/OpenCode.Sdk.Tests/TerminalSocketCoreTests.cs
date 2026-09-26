@@ -61,7 +61,7 @@ public sealed class TerminalSocketCoreTests
         socket.ReleaseReceives();
         await using var reader = core.ReadAsync(CancellationToken.None).GetAsyncEnumerator();
         var firstFailure = await Assert.That(async () => _ = await reader.MoveNextAsync()).Throws<OpenCodeTransportException>();
-        await cancellation.CancelAsync();
+        await cancellation.CancelOnWorkerAsync();
         OperationCanceledException? canceled = null;
         try
         {
@@ -87,7 +87,7 @@ public sealed class TerminalSocketCoreTests
         using var cancellation = new CancellationTokenSource();
         var pending = core.SendAsync(new ArraySegment<byte>([0x61]), WebSocketMessageType.Text, cancellation.Token);
         await socket.SendEntered;
-        await cancellation.CancelAsync();
+        await cancellation.CancelOnWorkerAsync();
         OperationCanceledException? failure = null;
         try
         {
@@ -117,7 +117,7 @@ public sealed class TerminalSocketCoreTests
         {
             var pending = reader.MoveNextAsync();
             await socket.Paused;
-            await cancellation.CancelAsync();
+            await cancellation.CancelOnWorkerAsync();
             _ = await Assert.That(async () => _ = await pending).Throws<OperationCanceledException>();
         }
 
@@ -136,7 +136,7 @@ public sealed class TerminalSocketCoreTests
         await using var core = new TerminalSocketCore<PtyFrame>(
             socket, PtyFrameDecoder.Instance, PtyClosePolicy.Instance, typeof(PtySession));
         using var cancellation = new CancellationTokenSource();
-        await cancellation.CancelAsync();
+        await cancellation.CancelOnWorkerAsync();
         await using (var reader = core.ReadAsync(cancellation.Token).GetAsyncEnumerator())
         {
             _ = await Assert.That(async () => _ = await reader.MoveNextAsync()).Throws<OperationCanceledException>();
@@ -240,7 +240,7 @@ public sealed class TerminalSocketCoreTests
         var first = core.SendAsync(new ArraySegment<byte>([0x61]), WebSocketMessageType.Text, CancellationToken.None);
         await socket.SendEntered;
         var queued = core.SendAsync(new ArraySegment<byte>([0x62]), WebSocketMessageType.Text, CancellationToken.None);
-        await queuedDeadline.CancelAsync();
+        await queuedDeadline.CancelOnWorkerAsync();
         socket.ReleaseSends();
         await first;
 
@@ -276,7 +276,7 @@ public sealed class TerminalSocketCoreTests
         };
         var send = core.SendAsync(new ArraySegment<byte>([0x61]), WebSocketMessageType.Text, CancellationToken.None);
         await socket.SendEntered;
-        await deadline.CancelAsync();
+        await deadline.CancelOnWorkerAsync();
         socket.ReleaseSends();
 
         OpenCodeTransportException? failure = null;

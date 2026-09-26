@@ -1,3 +1,4 @@
+using OpenCode.Sdk.Internal;
 using OpenCode.Sdk.TestSupport.Ownership;
 namespace OpenCode.Sdk.Tests.Support;
 
@@ -138,7 +139,7 @@ public sealed class OwnedEventReaderTests
     {
         using var caller = new CancellationTokenSource();
         var owner = new OwnedEventReader(Timeout.InfiniteTimeSpan, TimeSpan.FromSeconds(1), caller.Token, new OperationDeadlineScenario().Deadline);
-        await caller.CancelAsync();
+        await caller.CancelOnWorkerAsync();
         var primary = new OperationCanceledException(caller.Token);
         owner.Own(Task.FromException(primary));
 

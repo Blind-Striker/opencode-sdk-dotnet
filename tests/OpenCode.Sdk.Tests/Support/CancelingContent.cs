@@ -1,4 +1,5 @@
 using System.Net;
+using OpenCode.Sdk.Internal;
 
 namespace OpenCode.Sdk.Tests.Support;
 
@@ -17,7 +18,7 @@ internal sealed class CancelingContent : HttpContent
 
     protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context)
     {
-        await _cancellation.CancelAsync();
+        await _cancellation.CancelOnWorkerAsync();
         throw new OperationCanceledException(_cancellation.Token);
     }
 

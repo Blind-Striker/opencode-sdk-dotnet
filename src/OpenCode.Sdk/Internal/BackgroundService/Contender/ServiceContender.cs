@@ -324,9 +324,9 @@ internal sealed class ServiceContender : IServiceContender
         try
         {
             // The pipe stream the spawner handed over: on Unix its reads wait on the runtime's
-            // event loop rather than a thread; on Windows the anonymous pipe is synchronous, so a
-            // pending read occupies a pool thread, as .NET's own redirected streams do. The drain
-            // owns the stream from here and closes it at end-of-stream.
+            // event loop, on Windows on the completion port of the overlapped read end, so a
+            // pending read holds no thread on either. The drain owns the stream from here and
+            // closes it at end-of-stream.
 #if NET
             await using (_stderr.ConfigureAwait(false))
             {
