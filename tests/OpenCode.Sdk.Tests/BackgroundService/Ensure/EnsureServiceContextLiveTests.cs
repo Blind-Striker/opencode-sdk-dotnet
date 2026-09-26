@@ -12,24 +12,15 @@ namespace OpenCode.Sdk.Tests.BackgroundService.Ensure;
 /// </summary>
 /// <remarks>
 /// Keyless <c>[NotInParallel]</c>, like the Ensure live tests: the race only shows while the host
-/// runs nothing else, and a loaded host would stretch the window this test watches. The class
-/// holds a <see cref="ServiceElectionTurn"/> for the same reason the Ensure live tests do: no other
-/// host of the run elects while it does.
+/// runs nothing else, and a loaded host would stretch the window this test watches. It is a
+/// <see cref="TestCategories.ServiceElection"/> test for the same reason the Ensure live tests are:
+/// the gate runs it in a pass of its own.
 /// </remarks>
 [NotInParallel]
+[Category(TestCategories.ServiceElection)]
 public sealed class EnsureServiceContextLiveTests
 {
     private static readonly RealFileSystem FileSystem = new();
-
-    /// <summary>Takes this host's turn at elections, so another host's election tail waits (<see cref="ServiceElectionTurn"/>).</summary>
-    [Before(Class)]
-    [Timeout(ServiceElectionTurn.HookTimeoutMilliseconds)]
-    public static Task TakeElectionTurnAsync(CancellationToken cancellationToken) =>
-        ServiceElectionTurn.EnterAsync(FileSystem, cancellationToken);
-
-    /// <summary>Hands the election turn on once this class's last test has ended.</summary>
-    [After(Class)]
-    public static Task EndElectionTurnAsync() => ServiceElectionTurn.LeaveAsync();
 
     /// <summary>How long each contender is given to leave after disposal: past a loaded host's contender start.</summary>
     private static readonly TimeSpan TakeoverWindow = TimeSpan.FromSeconds(20);
