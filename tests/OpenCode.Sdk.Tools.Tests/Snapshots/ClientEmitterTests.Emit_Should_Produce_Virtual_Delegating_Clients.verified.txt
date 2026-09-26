@@ -81,6 +81,9 @@ public class OpenCodeClient : IDisposable
     /// <returns>The &apos;PingResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>ping.get</c>: <c>GET /api/ping</c>.
+    /// </remarks>
     public virtual Task<PingResponse> GetPingAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Ping.Get, PingResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -141,6 +144,9 @@ public class WidgetClient
     /// <returns>The &apos;WidgetItemResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>widget.item.get</c>: <c>GET /api/widget/{widgetID}/item/{itemID}</c>.
+    /// </remarks>
     public virtual Task<WidgetItemResponse> GetItemAsync(string itemId, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(itemId);
@@ -156,6 +162,9 @@ public class WidgetClient
     /// <returns>The &apos;WidgetItemListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>widget.item.list</c>: <c>GET /api/widget/{widgetID}/item</c>.
+    /// </remarks>
     public virtual Task<WidgetItemListResponse> ListItemsAsync(ItemListRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Widgets.ListItems(WidgetId, request), WidgetItemListResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -169,6 +178,9 @@ public class WidgetClient
     /// <returns>The &apos;ExampleItem&apos; sequence, whose Pages expose each &apos;WidgetItemListResponse&apos;.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned a declared error status (declared: 404); pagination API errors always throw.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>widget.item.list</c>: <c>GET /api/widget/{widgetID}/item</c>.
+    /// </remarks>
     public virtual CursorSequence<WidgetItemListResponse, ExampleItem> EnumerateItemsAsync(ItemListRequest? request = null, CancellationToken cancellationToken = default)
     {
         return CursorPaginator.EnumerateAsync(ListItemsAsync, request, WidgetItemListResponseAdapter.Instance, cancellationToken);
@@ -234,6 +246,9 @@ public class WidgetsClient
     /// <returns>The &apos;WidgetOverviewResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>widget.overview.get</c>: <c>GET /api/widget-overview</c>.
+    /// </remarks>
     public virtual Task<WidgetOverviewResponse> GetOverviewAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Widgets.GetOverview, WidgetOverviewResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -248,6 +263,9 @@ public class WidgetsClient
     /// <returns>The &apos;WidgetListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 500) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>widget.list</c>: <c>GET /api/widget</c>.
+    /// </remarks>
     public virtual Task<WidgetListResponse> ListWidgetsAsync(WidgetListRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -263,6 +281,9 @@ public class WidgetsClient
     /// <returns>The &apos;WidgetCreateResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>widget.create</c>: <c>POST /api/widget</c>.
+    /// </remarks>
     public virtual Task<WidgetCreateResponse> CreateWidgetAsync(WidgetCreateRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Widgets.CreateWidget(request), request ?? EmptyWidgetCreateRequest, OpenCodeJsonContext.Default.WidgetCreateRequest, WidgetCreateResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -277,6 +298,9 @@ public class WidgetsClient
     /// <returns>The &apos;WidgetRemoveResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>widget.remove</c>: <c>DELETE /api/widget/{widgetID}</c>.
+    /// </remarks>
     public virtual Task<WidgetRemoveResponse> RemoveWidgetAsync(string widgetId, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(widgetId);
@@ -291,6 +315,9 @@ public class WidgetsClient
     /// <returns>The &apos;WidgetSpotResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>widget.spot.get</c>: <c>GET /api/widget-spot</c>.
+    /// </remarks>
     public virtual Task<WidgetSpotResponse> GetWidgetSpotAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Widgets.GetWidgetSpot, WidgetSpotResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -304,6 +331,9 @@ public class WidgetsClient
     /// <returns>The &apos;WidgetSpotListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>widget.spot.list</c>: <c>GET /api/widget-spot-list</c>.
+    /// </remarks>
     public virtual Task<WidgetSpotListResponse> ListWidgetSpotsAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Widgets.ListWidgetSpots, WidgetSpotListResponseAdapter.Instance, requestOptions, cancellationToken);

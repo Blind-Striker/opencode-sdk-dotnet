@@ -75,7 +75,8 @@ internal static class EmissionSyntax
     }
 
     public static SyntaxTriviaList MemberDocumentation(string summary, IReadOnlyList<DocumentedParameter> parameters,
-        string? returns = null, IReadOnlyList<DocumentedException>? exceptions = null)
+        string? returns = null, IReadOnlyList<DocumentedException>? exceptions = null,
+        IReadOnlyList<DocumentationRun>? remarks = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(summary);
         ArgumentNullException.ThrowIfNull(parameters);
@@ -97,6 +98,19 @@ internal static class EmissionSyntax
         {
             _ = text.Append("/// <exception cref=\"").Append(exception.TypeName).Append("\">")
                 .Append(EscapeXml(NormalizeDocumentation(exception.Text))).Append("</exception>\n");
+        }
+
+        if (remarks is { Count: > 0 })
+        {
+            _ = text.Append("/// <remarks>\n/// ");
+            foreach (var run in remarks)
+            {
+                _ = run.IsCode
+                    ? text.Append("<c>").Append(EscapeXml(run.Text)).Append("</c>")
+                    : text.Append(EscapeXml(run.Text));
+            }
+
+            _ = text.Append("\n/// </remarks>\n");
         }
 
         return SyntaxFactory.ParseLeadingTrivia(text.ToString());

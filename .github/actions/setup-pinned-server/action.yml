@@ -74,10 +74,20 @@ runs:
         Split-Path -Parent $executable | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
         & $executable --version
 
-    - name: Cache bun install
-      uses: actions/cache@v6
+    # The install cache lives on the workspace's volume. On Windows runners the home directory
+    # is on C: and the workspace on D:, so a home-directory cache cannot be hardlinked into
+    # node_modules: Bun copies every file, and restoring the archive to C: alone took about three
+    # minutes (2026-09-24, run 36013113686).
+    - name: Place bun install cache beside the workspace
+      shell: pwsh
+      run: |
+        "BUN_INSTALL_CACHE_DIR=$(Join-Path $env:RUNNER_TEMP 'bun-install-cache')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+    - name: Restore bun install cache
+      id: bun-cache
+      uses: actions/cache/restore@v6
       with:
-        path: ~/.bun/install/cache
+        path: ${{ runner.temp }}/bun-install-cache
         key: ${{ runner.os }}-bun-${{ hashFiles('external/opencode/bun.lock') }}
 
     # --ignore-scripts skips the root postinstall, which repairs the separate Node PTY
@@ -86,3 +96,13 @@ runs:
       shell: pwsh
       working-directory: external/opencode
       run: bun install --frozen-lockfile --ignore-scripts
+
+    # Only master runs write the cache. A pull request's entry is readable by that pull request
+    # alone, and those duplicates pushed the repository past its 10 GB cache quota, evicting the
+    # entries every run reads.
+    - name: Save bun install cache
+      if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request' && steps.bun-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ runner.temp }}/bun-install-cache
+        key: ${{ steps.bun-cache.outputs.cache-primary-key }}

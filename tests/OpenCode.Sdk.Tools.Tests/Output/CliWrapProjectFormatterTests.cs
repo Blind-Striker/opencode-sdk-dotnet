@@ -1,72 +1,64 @@
-using System.Globalization;
 using OpenCode.Sdk.Tools.Output;
 
 namespace OpenCode.Sdk.Tools.Tests.Output;
 
 /// <summary>
-/// <see cref="CliWrapProjectFormatter.Batch"/> is the pure splitting logic behind the
-/// formatter's per-invocation command line; the real process launch is exercised by running
-/// <c>generate</c> itself, never faked here.
+/// <see cref="CliWrapProjectFormatter.ResponseFileContent"/> and
+/// <see cref="CliWrapProjectFormatter.SdkRoot"/> are the pure parts behind the formatter's one
+/// <c>dotnet-format</c> run; the real process launch is exercised by running <c>generate</c>
+/// itself, never faked here.
 /// </summary>
 public sealed class CliWrapProjectFormatterTests
 {
     [Test]
-    public async Task Batch_Should_Return_Nothing_For_An_Empty_Input()
+    public async Task ResponseFileContent_Should_Open_With_The_Include_Option()
     {
-        var batches = CliWrapProjectFormatter.Batch([], 100).ToArray();
+        var content = CliWrapProjectFormatter.ResponseFileContent(["Models/A.cs"]);
 
-        await Assert.That(batches.Length).IsEqualTo(0);
+        await Assert.That(content).StartsWith("--include\n");
     }
 
     [Test]
-    public async Task Batch_Should_Keep_Paths_Together_When_They_Fit_One_Budget()
+    public async Task ResponseFileContent_Should_Quote_Each_Path_On_Its_Own_Line_In_Input_Order()
     {
-        string[] paths = ["Models/A.cs", "Models/B.cs", "Models/C.cs"];
+        string[] paths = ["Models/B.cs", "Models/A.cs", "Sessions/Session Client.cs"];
 
-        var batches = CliWrapProjectFormatter.Batch(paths, 100).ToArray();
+        var content = CliWrapProjectFormatter.ResponseFileContent(paths);
 
-        await Assert.That(batches.Length).IsEqualTo(1);
-        await Assert.That(batches[0]).IsEquivalentTo(paths);
+        await Assert.That(content).IsEqualTo("--include\n\"Models/B.cs\"\n\"Models/A.cs\"\n\"Sessions/Session Client.cs\"\n");
     }
 
     [Test]
-    public async Task Batch_Should_Split_Once_The_Running_Length_Would_Exceed_The_Budget()
+    public async Task ResponseFileContent_Should_Refuse_A_Path_With_A_Double_Quote()
     {
-        // Each path is 10 characters ("0123456789" + one joining space = 11); a budget of 25
-        // fits two paths (22) but refuses a third (33), so the third opens a new batch.
-        string[] paths = ["0123456789", "abcdefghij", "ABCDEFGHIJ", "klmnopqrst"];
-
-        var batches = CliWrapProjectFormatter.Batch(paths, 25).ToArray();
-
-        await Assert.That(batches.Length).IsEqualTo(2);
-        await Assert.That(batches[0]).IsEquivalentTo(["0123456789", "abcdefghij"]);
-        await Assert.That(batches[1]).IsEquivalentTo(["ABCDEFGHIJ", "klmnopqrst"]);
+        await Assert.That(() => CliWrapProjectFormatter.ResponseFileContent(["Models/\"A\".cs"]))
+            .Throws<ArgumentException>();
     }
 
     [Test]
-    public async Task Batch_Should_Ship_One_Oversized_Path_Alone_Rather_Than_Drop_It()
+    public async Task SdkRoot_Should_Return_The_Install_Root_Of_The_Selected_Version()
     {
-        var oversized = new string('x', 500);
-        string[] paths = ["Models/A.cs", oversized, "Models/B.cs"];
+        const string listing = "9.0.318 [C:\\Program Files\\dotnet\\sdk]\r\n10.0.303 [C:\\Program Files\\dotnet\\sdk]\r\n";
 
-        var batches = CliWrapProjectFormatter.Batch(paths, 25).ToArray();
+        var root = CliWrapProjectFormatter.SdkRoot(listing, "10.0.303");
 
-        await Assert.That(batches.Length).IsEqualTo(3);
-        await Assert.That(batches[0]).IsEquivalentTo(["Models/A.cs"]);
-        await Assert.That(batches[1]).IsEquivalentTo([oversized]);
-        await Assert.That(batches[2]).IsEquivalentTo(["Models/B.cs"]);
+        await Assert.That(root).IsEqualTo("C:\\Program Files\\dotnet\\sdk");
     }
 
     [Test]
-    public async Task Batch_Should_Preserve_Input_Order_Across_Every_Batch()
+    public async Task SdkRoot_Should_Not_Match_A_Version_That_Only_Shares_A_Prefix()
     {
-        var paths = Enumerable.Range(0, 50)
-            .Select(static index => $"Models/Type{index.ToString(CultureInfo.InvariantCulture)}.cs")
-            .ToArray();
+        const string listing = "10.0.3030 [/opt/other/sdk]\n10.0.303 [/usr/share/dotnet/sdk]\n";
 
-        var batches = CliWrapProjectFormatter.Batch(paths, 60).ToArray();
-        var flattened = batches.SelectMany(static batch => batch).ToArray();
+        var root = CliWrapProjectFormatter.SdkRoot(listing, "10.0.303");
 
-        await Assert.That(flattened).IsEquivalentTo(paths);
+        await Assert.That(root).IsEqualTo("/usr/share/dotnet/sdk");
+    }
+
+    [Test]
+    public async Task SdkRoot_Should_Refuse_A_Listing_Without_The_Selected_Version()
+    {
+        await Assert.That(() => CliWrapProjectFormatter.SdkRoot("9.0.318 [/usr/share/dotnet/sdk]\n", "10.0.303"))
+            .Throws<InvalidOperationException>();
     }
 }

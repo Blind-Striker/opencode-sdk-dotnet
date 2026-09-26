@@ -57,6 +57,9 @@ public class PtysClient
     /// <returns>The 'PtyCreateResponse' envelope.</returns>
     /// <exception cref="OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref="OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>pty.create</c>: <c>POST /api/pty</c>.
+    /// </remarks>
     public virtual Task<PtyCreateResponse> CreatePtyAsync(PtyCreateRequest? request = null,
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
         Raw.CreatePtyAsync(request, requestOptions, cancellationToken);
@@ -70,6 +73,9 @@ public class PtysClient
     /// <returns>The 'PtyListResponse' envelope.</returns>
     /// <exception cref="OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref="OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>pty.list</c>: <c>GET /api/pty</c>.
+    /// </remarks>
     public virtual Task<PtyListResponse> ListPtysAsync(PtyListRequest? request = null,
         OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default) =>
         Raw.ListPtysAsync(request, requestOptions, cancellationToken);

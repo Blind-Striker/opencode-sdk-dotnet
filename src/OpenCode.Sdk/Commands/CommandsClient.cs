@@ -34,6 +34,9 @@ public class CommandsClient
     /// <returns>The &apos;CommandListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>command.list</c>: <c>GET /api/command</c>.
+    /// </remarks>
     public virtual Task<CommandListResponse> ListCommandsAsync(CommandListRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Commands.ListCommands(request), CommandListResponseAdapter.Instance, requestOptions, cancellationToken);

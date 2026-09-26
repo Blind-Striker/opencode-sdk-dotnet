@@ -136,6 +136,7 @@ public sealed class OperationPlanBinderTests
 
         var health = plan.Clients.Single(static client => client.Name == "ServerClient")
             .Operations.Single(static operation => operation.MethodName == "GetInfoAsync");
+        await Assert.That(health.OperationId).IsEqualTo("server.info");
         await Assert.That(health.MethodName).IsEqualTo("GetInfoAsync");
         await Assert.That(health.HttpMethod).IsEqualTo("get");
         await Assert.That(health.RouteTemplate).IsEqualTo("/api/info");
@@ -206,6 +207,21 @@ public sealed class OperationPlanBinderTests
                 .SequenceEqual([400, 401, 503]))
             .IsTrue();
         await Assert.That(reload.ErrorMap.Statuses[2].Tags.Single().Tag).IsEqualTo("ServiceUnavailableError");
+    }
+
+    /// <summary>
+    /// A plan carries the operation identity the document was ingested under, so a repaired
+    /// identity reaches the plan in its intended form rather than the leaked group-qualified one.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Carry_The_Repaired_Operation_Identity_Onto_The_Plan()
+    {
+        var plan = await new BindingTestHost().BindPinnedAsync();
+
+        var create = plan.Clients.Single(static client => client.Name == "PersistentPtysRawClient")
+            .Operations.Single(static operation => operation.MethodName == "CreatePersistentPtyAsync");
+        await Assert.That(create.OperationId).IsEqualTo("persistentPty.create");
+        await Assert.That(create.RouteTemplate).IsEqualTo("/api/experimental/session/{sessionID}/terminal");
     }
 
     /// <summary>

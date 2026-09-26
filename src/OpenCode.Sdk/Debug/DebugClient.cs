@@ -34,6 +34,9 @@ public class DebugClient
     /// <returns>The &apos;DebugLocationEvictResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>debug.location.evict</c>: <c>DELETE /api/debug/location</c>.
+    /// </remarks>
     public virtual Task<DebugLocationEvictResponse> EvictLocationAsync(DebugLocationEvictRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Delete, OpenCodeRoutes.Debug.EvictLocation(request), DebugLocationEvictResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -47,6 +50,9 @@ public class DebugClient
     /// <returns>The &apos;DebugLocationListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>debug.location.list</c>: <c>GET /api/debug/location</c>.
+    /// </remarks>
     public virtual Task<DebugLocationListResponse> ListLocationsAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Debug.ListLocations, DebugLocationListResponseAdapter.Instance, requestOptions, cancellationToken);

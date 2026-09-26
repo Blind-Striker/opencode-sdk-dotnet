@@ -330,6 +330,7 @@ internal sealed class OperationPlanBinder
                 IsHandleOperation = handle,
                 Plan = new OperationPlan
                 {
+                    OperationId = _context.Operation.OperationId,
                     MethodName = methodName,
                     HttpMethod = _context.Operation.Method,
                     RouteTemplate = _context.Operation.Path,

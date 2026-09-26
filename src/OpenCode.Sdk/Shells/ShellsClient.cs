@@ -52,6 +52,9 @@ public class ShellsClient
     /// <returns>The &apos;ShellCreateResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>shell.create</c>: <c>POST /api/shell</c>.
+    /// </remarks>
     public virtual Task<ShellCreateResponse> CreateShellAsync(ShellCreateRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -67,6 +70,9 @@ public class ShellsClient
     /// <returns>The &apos;ShellListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>shell.list</c>: <c>GET /api/shell</c>.
+    /// </remarks>
     public virtual Task<ShellListResponse> ListShellsAsync(ShellListRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Shells.ListShells(request), ShellListResponseAdapter.Instance, requestOptions, cancellationToken);

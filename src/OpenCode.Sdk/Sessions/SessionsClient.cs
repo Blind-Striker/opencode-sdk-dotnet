@@ -54,6 +54,9 @@ public class SessionsClient
     /// <returns>The &apos;SessionCreateResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>session.create</c>: <c>POST /api/session</c>.
+    /// </remarks>
     public virtual Task<SessionCreateResponse> CreateSessionAsync(SessionCreateRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Sessions.CreateSession, request ?? EmptySessionCreateRequest, OpenCodeJsonContext.Default.SessionCreateRequest, SessionCreateResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -67,6 +70,9 @@ public class SessionsClient
     /// <returns>The &apos;SessionActiveResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>session.active</c>: <c>GET /api/session/active</c>.
+    /// </remarks>
     public virtual Task<SessionActiveResponse> GetActiveAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Sessions.GetActive, SessionActiveResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -81,6 +87,9 @@ public class SessionsClient
     /// <returns>The &apos;SessionListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>session.list</c>: <c>GET /api/session</c>.
+    /// </remarks>
     public virtual Task<SessionListResponse> ListSessionsAsync(SessionListRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Sessions.ListSessions(request), SessionListResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -94,6 +103,9 @@ public class SessionsClient
     /// <returns>The &apos;SessionInfo&apos; sequence, whose Pages expose each &apos;SessionListResponse&apos;.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned a declared error status (declared: 400, 401); pagination API errors always throw.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>session.list</c>: <c>GET /api/session</c>.
+    /// </remarks>
     public virtual CursorSequence<SessionListResponse, SessionInfo> EnumerateSessionsAsync(SessionListRequest? request = null, CancellationToken cancellationToken = default)
     {
         return CursorPaginator.EnumerateAsync(ListSessionsAsync, request, SessionListResponseAdapter.Instance, cancellationToken);

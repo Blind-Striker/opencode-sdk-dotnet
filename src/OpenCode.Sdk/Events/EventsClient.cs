@@ -34,6 +34,9 @@ public class EventsClient
     /// <exception cref = "OpenCodeApiException">The API returned a declared error status (declared: 400, 401); streaming API errors always throw.</exception>
     /// <exception cref = "OpenCodeStreamFailureException">The opened stream reported a schema-valid failure with a typed cause.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached, the stream could not be read, or a frame or failure cause was malformed.</exception>
+    /// <remarks>
+    /// Operation <c>event.subscribe</c>: <c>GET /api/event</c>.
+    /// </remarks>
     public virtual IAsyncEnumerable<IEvent> SubscribeAsync(CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteStreamAsync(HttpMethod.Get, OpenCodeRoutes.Events.Subscribe, EventSubscribeResponseStreamAdapter.Instance, cancellationToken);

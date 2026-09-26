@@ -37,6 +37,9 @@ public class ExperimentalClient
     /// <returns>The &apos;ExperimentalSessionSkillResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>experimental.session.skill</c>: <c>POST /api/experimental/session/{sessionID}/skill</c>.
+    /// </remarks>
     public virtual Task<ExperimentalSessionSkillResponse> ActivateSessionSkillAsync(string sessionId, ExperimentalSessionSkillRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(sessionId);
@@ -53,6 +56,9 @@ public class ExperimentalClient
     /// <returns>The &apos;ExperimentalIntegrationWellknownAddResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>experimental.integration.wellknown.add</c>: <c>POST /api/experimental/integration/wellknown</c>.
+    /// </remarks>
     public virtual Task<ExperimentalIntegrationWellknownAddResponse> AddIntegrationWellknownAsync(ExperimentalIntegrationWellknownAddRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -69,6 +75,9 @@ public class ExperimentalClient
     /// <returns>The &apos;ExperimentalMcpAddResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>experimental.mcp.add</c>: <c>PUT /api/experimental/mcp/{server}</c>.
+    /// </remarks>
     public virtual Task<ExperimentalMcpAddResponse> AddMcpServerAsync(string server, ExperimentalMcpAddRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(server);
@@ -86,6 +95,9 @@ public class ExperimentalClient
     /// <returns>The &apos;ExperimentalMcpConnectResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>experimental.mcp.connect</c>: <c>POST /api/experimental/mcp/{server}/connect</c>.
+    /// </remarks>
     public virtual Task<ExperimentalMcpConnectResponse> ConnectMcpServerAsync(string server, ExperimentalMcpConnectRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(server);
@@ -102,6 +114,9 @@ public class ExperimentalClient
     /// <returns>The &apos;ExperimentalMcpDisconnectResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>experimental.mcp.disconnect</c>: <c>POST /api/experimental/mcp/{server}/disconnect</c>.
+    /// </remarks>
     public virtual Task<ExperimentalMcpDisconnectResponse> DisconnectMcpServerAsync(string server, ExperimentalMcpDisconnectRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(server);
@@ -117,6 +132,9 @@ public class ExperimentalClient
     /// <returns>The &apos;ExperimentalGenerateTextResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 503) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>experimental.generate.text</c>: <c>POST /api/experimental/generate</c>.
+    /// </remarks>
     public virtual Task<ExperimentalGenerateTextResponse> GenerateTextAsync(ExperimentalGenerateTextRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -133,6 +151,9 @@ public class ExperimentalClient
     /// <returns>The &apos;ExperimentalSessionExportResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 500) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>experimental.session.export</c>: <c>GET /api/experimental/session/{sessionID}/export</c>.
+    /// </remarks>
     public virtual Task<ExperimentalSessionExportResponse> GetSessionExportAsync(string sessionId, ExperimentalSessionExportRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(sessionId);
@@ -148,6 +169,9 @@ public class ExperimentalClient
     /// <returns>The &apos;ExperimentalSessionStatsResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>experimental.session.stats</c>: <c>GET /api/experimental/session/stats</c>.
+    /// </remarks>
     public virtual Task<ExperimentalSessionStatsResponse> GetSessionStatsAsync(ExperimentalSessionStatsRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Experimental.GetSessionStats(request), ExperimentalSessionStatsResponseAdapter.Instance, requestOptions, cancellationToken);
@@ -162,6 +186,9 @@ public class ExperimentalClient
     /// <returns>The &apos;ExperimentalSessionImportResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 409) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>experimental.session.import</c>: <c>POST /api/experimental/session/import</c>.
+    /// </remarks>
     public virtual Task<ExperimentalSessionImportResponse> ImportSessionAsync(ExperimentalSessionImportRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -177,6 +204,9 @@ public class ExperimentalClient
     /// <returns>The &apos;ExperimentalSessionInstructionsEntryListResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>experimental.session.instructions.entry.list</c>: <c>GET /api/experimental/session/{sessionID}/instructions/entries</c>.
+    /// </remarks>
     public virtual Task<ExperimentalSessionInstructionsEntryListResponse> ListSessionInstructionsEntryAsync(string sessionId, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(sessionId);
@@ -193,6 +223,9 @@ public class ExperimentalClient
     /// <returns>The &apos;ExperimentalMcpRemoveResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>experimental.mcp.remove</c>: <c>DELETE /api/experimental/mcp/{server}</c>.
+    /// </remarks>
     public virtual Task<ExperimentalMcpRemoveResponse> RemoveMcpServerAsync(string server, ExperimentalMcpRemoveRequest? request = null, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(server);
@@ -209,6 +242,9 @@ public class ExperimentalClient
     /// <returns>The &apos;ExperimentalSessionInstructionsEntryRemoveResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>experimental.session.instructions.entry.remove</c>: <c>DELETE /api/experimental/session/{sessionID}/instructions/entries/{key}</c>.
+    /// </remarks>
     public virtual Task<ExperimentalSessionInstructionsEntryRemoveResponse> RemoveSessionInstructionsEntryAsync(string sessionId, string key, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(sessionId);
@@ -227,6 +263,9 @@ public class ExperimentalClient
     /// <returns>The &apos;ExperimentalSessionInstructionsEntryResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 413) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>experimental.session.instructions.entry.put</c>: <c>PUT /api/experimental/session/{sessionID}/instructions/entries/{key}</c>.
+    /// </remarks>
     public virtual Task<ExperimentalSessionInstructionsEntryResponse> SetSessionInstructionsEntryAsync(string sessionId, string key, ExperimentalSessionInstructionsEntryRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(sessionId);
@@ -244,6 +283,9 @@ public class ExperimentalClient
     /// <returns>The &apos;ExperimentalConfigUpdateResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>experimental.config.update</c>: <c>PATCH /api/experimental/config</c>.
+    /// </remarks>
     public virtual Task<ExperimentalConfigUpdateResponse> UpdateConfigAsync(ExperimentalConfigUpdateRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -259,6 +301,9 @@ public class ExperimentalClient
     /// <returns>The &apos;ExperimentalSessionWaitResponse&apos; envelope.</returns>
     /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404, 503) and NoThrow was not selected.</exception>
     /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>experimental.session.wait</c>: <c>POST /api/experimental/session/{sessionID}/wait</c>.
+    /// </remarks>
     public virtual Task<ExperimentalSessionWaitResponse> WaitForSessionAsync(string sessionId, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(sessionId);
