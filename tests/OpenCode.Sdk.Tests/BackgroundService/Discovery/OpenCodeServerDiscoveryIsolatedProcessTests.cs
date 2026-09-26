@@ -82,10 +82,12 @@ public sealed class OpenCodeServerDiscoveryIsolatedProcessTests
     }
 
     /// <summary>
-    /// A registration whose daemon is gone (the port is closed) answers "missing" at once, not at
-    /// the two-second bound: a refused loopback connect must classify as no service on every
-    /// host, including Windows, where the default connect retransmits the SYN for about two
-    /// seconds. The child is the real SDK, so this proves the probe's transport end to end.
+    /// A registration whose daemon is gone (the port is closed) answers "missing" because the probe
+    /// classified the refusal, not because its two-second bound expired: a refused loopback connect
+    /// must classify as no service on every host, including Windows, where the default connect
+    /// retransmits the SYN for about two seconds. The witness is the probe's own verdict, which the
+    /// child prints, not the elapsed time: a loaded runner stretches the time, never the verdict.
+    /// The child is the real SDK, so this proves the probe's transport end to end.
     /// </summary>
     [Test]
     [Timeout(120_000)]
@@ -111,9 +113,8 @@ public sealed class OpenCodeServerDiscoveryIsolatedProcessTests
 
         await Assert.That(result.ExitCode).IsEqualTo(0).Because(result.StandardError);
         await Assert.That(result.StandardOutput.Trim()).IsEqualTo("missing").Because(result.StandardError);
-        var elapsed = ServiceFixtureOutput.DiscoveryMilliseconds(result.StandardError);
-        await Assert.That(elapsed).IsNotNull().Because(result.StandardError);
-        await Assert.That(elapsed!.Value).IsLessThan(1_000).Because(result.StandardError);
+        await Assert.That(ServiceFixtureOutput.ProbeTimedOut(result.StandardError)).IsFalse()
+            .Because(result.StandardError);
     }
 
     private static LoopbackHttpResponse ReadyHealth() =>

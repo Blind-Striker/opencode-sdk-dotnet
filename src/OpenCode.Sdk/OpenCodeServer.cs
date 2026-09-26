@@ -143,11 +143,28 @@ public class OpenCodeServer : IAsyncDisposable
     /// <returns>A non-owning handle over the ready service, or null when there is no usable one.</returns>
     /// <exception cref="ArgumentException">An option is blank, the registration path is relative, or the options contradict one another.</exception>
     /// <exception cref="OpenCodeServerException">No user home directory resolves for an XDG fallback.</exception>
-    public static async Task<OpenCodeServer?> DiscoverAsync(
+    public static Task<OpenCodeServer?> DiscoverAsync(
         OpenCodeServerDiscoverOptions? options = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        DiscoverWithSeamsAsync(options, new ServiceInfoProbe(ServiceTiming.Default), cancellationToken);
+
+    /// <summary>
+    /// <see cref="DiscoverAsync"/> over an injected probe, the seam the isolated test executable uses
+    /// to report the probe's own verdict: discovery answers null alike for no service and for a
+    /// probe that timed out, and only the verdict tells the two apart.
+    /// </summary>
+    /// <param name="options">The discovery options; null reads the shared release registration.</param>
+    /// <param name="probe">The info probe; the public door passes the platform probe at the pinned timing.</param>
+    /// <param name="cancellationToken">The caller's token; its cancellation propagates.</param>
+    /// <returns>A non-owning handle over the ready service, or null when there is no usable one.</returns>
+    internal static async Task<OpenCodeServer?> DiscoverWithSeamsAsync(
+        OpenCodeServerDiscoverOptions? options,
+        IServiceInfoProbe probe,
+        CancellationToken cancellationToken)
     {
-        var discovery = new ServiceDiscovery(new ServiceEnvironment(), new ServiceFileSystem(), new ServiceInfoProbe(ServiceTiming.Default));
+        ArgumentNullException.ThrowIfNull(probe);
+
+        var discovery = new ServiceDiscovery(new ServiceEnvironment(), new ServiceFileSystem(), probe);
         var registration = await discovery.DiscoverAsync(options, cancellationToken).ConfigureAwait(false);
         return registration is null ? null : SharedService(registration);
     }
