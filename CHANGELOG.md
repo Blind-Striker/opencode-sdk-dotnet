@@ -20,6 +20,11 @@ Nightly builds of `master` are on
 - **`client.Experimental.GetMigrationV1StatusAsync()`** (`experimental.migration.v1.status`)
   returns the V1 session-history migration status: `ExperimentalMigrationV1StatusIdle`
   (`Required` or `Completed`), `…Running` with its progress, or `…Error`.
+- **Files can be written.** `client.Experimental.WriteFileAsync(new ExperimentalFsWriteRequest { Path = … }, stream)`
+  (`experimental.fs.write`) sends the stream as the raw body and returns the resolved absolute path
+  as `File.Path`. The SDK reads the stream once from its current position to its end and never
+  disposes or rewinds it; a slow upload stays alive while it keeps moving. Upstream does not confine
+  the target to the location, so a relative `Path` resolves against it and an absolute one does not.
 - **Files can be read.** `client.FileSystem.ReadFileAsync(new FsReadRequest { Path = … })`
   (`fs.read`) returns the file's bytes as `Content` (`ReadOnlyMemory<byte>`) and the MIME type the
   server declared as `ContentType`. `Path` is relative to the location and may be nested; the SDK

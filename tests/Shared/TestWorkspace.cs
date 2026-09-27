@@ -33,6 +33,26 @@ public sealed class TestWorkspace : IDisposable
     }
 
     /// <summary>Checks an independently seeded marker through a server-reported directory.</summary>
+    /// <summary>Checks that a file below the workspace holds exactly <paramref name="expected"/>.</summary>
+    public bool HasBytes(string relativePath, IReadOnlyList<byte> expected)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
+        ArgumentNullException.ThrowIfNull(expected);
+
+        try
+        {
+            return _fileSystem.File.ReadAllBytes(ResolvePathBelow(Path, relativePath)).SequenceEqual(expected);
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return false;
+        }
+    }
+
     public bool HasTextFile(string directory, string relativePath, string expectedContent)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);

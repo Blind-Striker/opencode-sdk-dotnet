@@ -1,7 +1,7 @@
 Generation is complete at the declared coverage; packages may be published.
-Selected operations: 133
+Selected operations: 134
 Pending operations: 0
-Declined operations: 1
+Declined operations: 0
 Transport-owned operations: 2
 Selected:
 - agent.get
@@ -16,6 +16,7 @@ Selected:
 - debug.location.list
 - event.subscribe
 - experimental.config.update
+- experimental.fs.write
 - experimental.generate.text
 - experimental.integration.wellknown.add
 - experimental.mcp.add
@@ -139,7 +140,6 @@ Selected:
 - worktree.remove
 Pending:
 Declined:
-- experimental.fs.write [declined: The request body is application/octet-stream and the binder's media-type vocabulary is application/json and text/event-stream only (SpecMediaType), so the operation does not bind; admitting it is the same hand-written-door question as fs.read (ADR-0013, ADR-0021) and is queued in M4 surface completeness, maintainer 2026-09-18.] [refused: the request body must carry a JSON schema]
 Transport-owned:
 - persistentPty.connect [fingerprint-pinned]
 - pty.connect [fingerprint-pinned]

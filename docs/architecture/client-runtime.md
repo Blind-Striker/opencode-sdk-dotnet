@@ -269,7 +269,11 @@ local server launcher. Protocol and generated-model rules live in
   per-call request-options parameter. Their failures always throw (ADR-0007).
 - Network progress is bounded by an internal per-read window (100 s today): the send and every
   buffered body read must progress inside it, and each read that progresses re-arms it, so a
-  slow-but-flowing body survives while a stalled one fails. The pipeline owns this timer — the
+  slow-but-flowing body survives while a stalled one fails. A raw-byte request body is the caller's
+  `Stream`: it is read once from its current position to its end, never disposed, rewound, or
+  buffered whole, declares a `Content-Length` only when the stream can seek, refuses a second
+  send, and restarts the window with each chunk written, so the upload is bounded by progress as
+  well. The pipeline owns this timer — the
   owned transport's `HttpClient.Timeout` is infinite so two mechanisms cannot race, and a
   caller-supplied client's own timeout bounds only its send. A stalled read no token can reach is
   interrupted by disposing the content. An error body returned while opening a stream buffers

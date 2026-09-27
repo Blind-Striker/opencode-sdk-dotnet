@@ -813,6 +813,13 @@ dotnet_diagnostic.CA5399.severity = none
 [src/OpenCode.Sdk/Internal/TerminalSocketCore.cs]
 dotnet_diagnostic.CA2213.severity = none
 
+# CallerStreamContent holds two disposables it does not own: the caller's request-body stream,
+# which the SDK promises never to dispose or rewind, and the pipeline message whose progress
+# window it restarts, which the pipeline disposes after the exchange. Disposing either would break
+# that ownership. Winner: the ownership contract; CA2213 remains enabled for every other file.
+[src/OpenCode.Sdk/Internal/CallerStreamContent.cs]
+dotnet_diagnostic.CA2213.severity = none
+
 # DriveController deliberately never disposes its send-gate and invocation-signal semaphores.
 # The BCL only requires SemaphoreSlim disposal once AvailableWaitHandle has been read, which
 # this class never does, and disposing them would break disposal itself: a WaitForRequestAsync

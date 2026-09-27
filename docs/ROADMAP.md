@@ -15,8 +15,8 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
 - **Protocol pin** — generation reads an accepted snapshot of upstream's OpenAPI document taken at
   a release tag, never a live branch, and refreshes are receipt-governed (ADR-0020).
   `../spec/SNAPSHOT.md` owns the exact commit and the refresh procedure.
-- **Coverage** — **133 of 136 operations selected** across 27 client families, with 1 declined by
-  decision and 2 transport-owned (Known Gaps below); `src/OpenCode.Sdk/.generation-incomplete` is
+- **Coverage** — **134 of 136 operations selected** across 27 client families, none declined, and
+  2 transport-owned that hand-written WebSocket doors cover, so all 136 are usable; `src/OpenCode.Sdk/.generation-incomplete` is
   the committed marker and names every one. One-shot calls, server-sent event streams (the global
   bus and the per-session log), PTY and persistent-PTY WebSocket sessions, cursor pagination, typed
   errors with `NoThrow`, and the standalone launcher (`OpenCodeServer.StartAsync`) are landed.
@@ -104,7 +104,7 @@ is revisited at each boundary.
    (ADR-0029); `experimental.fs.write` — the same family's octet-stream request body — as a
    caller `Stream` beside its query record; and the two transport-owned WebSocket doors counted
    as the covered operations they are — so the surface reads 136 of 136 usable.
-   **What remains of M4, in order:** surface completeness (#87); response envelopes that stop
+   **What remains of M4, in order:** response envelopes that stop
    printing the server's raw error body in `ToString`
    ([#100](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/100)); the refresh to the
    newest upstream release tag; then the close.
@@ -160,11 +160,6 @@ is revisited at each boundary.
 
 ## Known Gaps
 
-- **One operation stays declined by decision, not by omission.** The generation marker carries its
-  reason. `experimental.fs.write` takes its file as an `application/octet-stream` request body,
-  which the binder admits only on the response side today; the request side (a caller `Stream`
-  body beside its query record) is the next slice of surface completeness (Milestones, M4), so this
-  is a scheduled decision, not a standing one.
 - **An opencode server on Windows can die inside its native file watcher.** `@parcel/watcher` 2.5.1
   crashes the server process when a directory it watches natively is written to while
   subscriptions to it are being released and re-created, which the server does per location for

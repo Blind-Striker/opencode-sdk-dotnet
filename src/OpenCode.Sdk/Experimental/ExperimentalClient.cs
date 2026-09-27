@@ -325,4 +325,24 @@ public class ExperimentalClient
         ArgumentException.ThrowIfNullOrEmpty(sessionId);
         return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Experimental.WaitForSession(sessionId), ExperimentalSessionWaitResponseAdapter.Instance, requestOptions, cancellationToken);
     }
+
+    /// <summary>
+    /// Write file. Write the raw request body to an absolute path or a path relative to the requested location, creating parent directories, and return the resolved absolute path. Unlike read, the target is not confined to the location. Experimental: may change without compatibility guarantees.
+    /// </summary>
+    /// <param name = "request">The request shaping the query; its required members have no server default.</param>
+    /// <param name = "content">The bytes to send, read from the stream&apos;s current position to its end; the stream is neither disposed nor rewound.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ExperimentalFsWriteResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>experimental.fs.write</c>: <c>POST /api/experimental/fs/write</c>.
+    /// </remarks>
+    public virtual Task<ExperimentalFsWriteResponse> WriteFileAsync(ExperimentalFsWriteRequest request, Stream content, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(content);
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Experimental.WriteFile(request), content, ExperimentalFsWriteResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
 }

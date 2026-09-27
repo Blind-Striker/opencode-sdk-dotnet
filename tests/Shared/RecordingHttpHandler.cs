@@ -33,6 +33,11 @@ internal sealed class RecordingHttpHandler : HttpMessageHandler
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         _cancellationTokens.Add(cancellationToken);
+
+        // The declared length is read before the body is buffered: once buffered, the content
+        // reports the buffer's length instead of what it declared on its own.
+        var contentLength = request.Content?.Headers.ContentLength;
+        var bodyBytes = request.Content is null ? null : await request.Content.ReadAsByteArrayAsync(cancellationToken);
         _requests.Add(new RecordedRequest
         {
             RequestUri = request.RequestUri,
@@ -45,6 +50,8 @@ internal sealed class RecordingHttpHandler : HttpMessageHandler
             UserAgent = request.Headers.UserAgent.Count is 0 ? null : request.Headers.UserAgent.ToString(),
             ContentType = request.Content?.Headers.ContentType?.ToString(),
             Body = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken),
+            BodyBytes = bodyBytes,
+            ContentLength = contentLength,
         });
         return _responder(request);
     }

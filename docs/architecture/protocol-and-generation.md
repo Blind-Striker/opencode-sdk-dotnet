@@ -294,7 +294,9 @@ dispatch instead of routing it through ADR-0009's unknown carrier (ADR-0015).
   fail-closed content-type-to-payload mapping recorded by ADR-0008. An `application/octet-stream`
   success whose schema is `string` with `format: binary` binds a binary envelope: the buffered
   bytes as `Content` (`ReadOnlyMemory<byte>`) and the server's `Content-Type` as `ContentType`,
-  materialized without a charset decode; its error statuses keep their JSON bodies (ADR-0029).
+  materialized without a charset decode; its error statuses keep their JSON bodies (ADR-0029). A
+  required `application/octet-stream` request body with the same schema binds as the caller's
+  `Stream`, the last wire parameter after a standalone query record, which it never absorbs.
 
 ## Serialization and Native AOT
 

@@ -24,7 +24,7 @@ internal static class OperationMethodEmitter
             statements.AddRange(EmissionSyntax.ArgumentNullOrEmptyGuard(parameter.Name));
         }
 
-        if (operation.RequestBody is { IsOptional: false } requiredBody)
+        if (operation.RequestBody is { IsOptional: false, IsBinary: false } requiredBody)
         {
             statements.AddRange(EmissionSyntax.ArgumentNullGuard(requiredBody.ParameterName));
         }
@@ -34,6 +34,12 @@ internal static class OperationMethodEmitter
         if (operation.QueryRequest is { RidesRequestBody: false, HasRequiredMember: true })
         {
             statements.AddRange(EmissionSyntax.ArgumentNullGuard(ReservedNamePolicy.RequestParameter));
+        }
+
+        // A raw-byte body is the last wire parameter, so it guards last.
+        if (operation.RequestBody is { IsBinary: true } binaryBody)
+        {
+            statements.AddRange(EmissionSyntax.ArgumentNullGuard(binaryBody.ParameterName));
         }
 
         statements.AddRange(EmitDeclaredHeaderCollection(operation));
@@ -103,7 +109,7 @@ internal static class OperationMethodEmitter
                 .WithType(TypeSyntaxEmitter.EmitNamed(parameter.TypeName));
         }
 
-        if (operation.RequestBody is not null)
+        if (operation.RequestBody is { IsBinary: false })
         {
             var body = SyntaxFactory.Parameter(SyntaxFactory.Identifier(operation.RequestBody.ParameterName));
             yield return operation.RequestBody.IsOptional
@@ -122,6 +128,15 @@ internal static class OperationMethodEmitter
                 : request
                     .WithType(SyntaxFactory.NullableType(TypeSyntaxEmitter.EmitNamed(queryRequest.TypeName)))
                     .WithDefault(SyntaxFactory.EqualsValueClause(SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)));
+        }
+
+        // A raw-byte body follows the request record it travels with: the record addresses the
+        // file, the stream fills it.
+        if (operation.RequestBody is { IsBinary: true } binaryBody)
+        {
+            yield return SyntaxFactory
+                .Parameter(SyntaxFactory.Identifier(binaryBody.ParameterName))
+                .WithType(TypeSyntaxEmitter.EmitNamed(binaryBody.TypeName));
         }
 
         // Declared headers close the wire inputs, ahead of the SDK's own per-call knobs.
@@ -163,9 +178,12 @@ internal static class OperationMethodEmitter
         if (operation.RequestBody is not null)
         {
             arguments.Add(SyntaxFactory.Argument(EmitBodyArgument(operation.RequestBody)));
-            arguments.Add(SyntaxFactory.Argument(EmissionSyntax.MemberAccess(
-                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("OpenCodeJsonContext"), "Default"),
-                operation.RequestBody.TypeName)));
+            if (!operation.RequestBody.IsBinary)
+            {
+                arguments.Add(SyntaxFactory.Argument(EmissionSyntax.MemberAccess(
+                    EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("OpenCodeJsonContext"), "Default"),
+                    operation.RequestBody.TypeName)));
+            }
         }
 
         // A stream yields its payloads directly, so it carries no per-call options (ADR-0007).
@@ -244,7 +262,7 @@ internal static class OperationMethodEmitter
         var parameters = new List<DocumentedParameter>();
         parameters.AddRange(methodParameters.Select(static parameter =>
             new DocumentedParameter(parameter.Name, $"The '{parameter.WireName}' route value.")));
-        if (operation.RequestBody is not null)
+        if (operation.RequestBody is { IsBinary: false })
         {
             parameters.Add(new DocumentedParameter(
                 operation.RequestBody.ParameterName,
@@ -260,6 +278,13 @@ internal static class OperationMethodEmitter
                 documentedQuery.HasRequiredMember
                     ? "The request shaping the query; its required members have no server default."
                     : "The request shaping the query."));
+        }
+
+        if (operation.RequestBody is { IsBinary: true } binaryBody)
+        {
+            parameters.Add(new DocumentedParameter(
+                binaryBody.ParameterName,
+                "The bytes to send, read from the stream's current position to its end; the stream is neither disposed nor rewound."));
         }
 
         parameters.AddRange(operation.DeclaredHeaders.Select(static header =>

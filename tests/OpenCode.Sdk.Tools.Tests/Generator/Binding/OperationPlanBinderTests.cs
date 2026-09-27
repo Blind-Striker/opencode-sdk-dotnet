@@ -242,25 +242,62 @@ public sealed class OperationPlanBinderTests
     }
 
     /// <summary>
-    /// The committed curation's declined row against the pinned spec: the operation a
-    /// standing wall refuses and the maintainer decided to leave out of the released surface. With
-    /// it out of the pending set the pinned profile reaches pending = 0, which is what opens the
-    /// packing wall — so a row added, dropped, or reordered must fail here rather than drift.
+    /// The committed curation against the pinned spec: every operation outside the transport-owned
+    /// pair binds, so nothing is declined and nothing is pending, which is what opens the packing
+    /// wall — a declined row added back must fail here rather than drift.
     /// </summary>
     [Test]
-    public async Task Bind_Should_Report_The_Walled_Operations_As_Declined()
+    public async Task Bind_Should_Decline_Nothing_At_The_Pin()
     {
         var plan = await new BindingTestHost().BindPinnedAsync();
 
-        await Assert
-            .That(plan
-                .DeclinedOperations.Select(static operation => operation.OperationId)
-                .SequenceEqual(
-                    ["experimental.fs.write"],
-                    StringComparer.Ordinal))
-            .IsTrue();
-        await Assert.That(plan.DeclinedOperations.All(static operation => operation.Reason.Length > 0)).IsTrue();
+        await Assert.That(plan.DeclinedOperations).IsEmpty();
         await Assert.That(plan.PendingOperations).IsEmpty();
+    }
+
+    /// <summary>
+    /// A raw-byte body is the caller's stream: it binds beside a standalone query record, whatever
+    /// the query carries, because the query cannot ride a body that is not a model.
+    /// </summary>
+    [Test]
+    public async Task Bind_Should_Bind_An_Octet_Stream_Body_As_A_Caller_Stream_Beside_Its_Query_Record()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("BlobWritten", schema => schema
+                .Type("object")
+                .Property("path", property => property.Type("string"), required: true))
+            .WithOperation("blob.create", method: "post", path: "/api/blob", configure: operation => operation
+                .Parameter("location", "query", QueryScenarioData.NullableLocationSelector, deepObject: true)
+                .Parameter("path", "query", schema => schema.Type("string"), required: true)
+                .RequestBody("application/octet-stream", schema => schema.Type("string").Format("binary"), required: true)
+                .Response(200, "application/json", schema => schema.Ref("BlobWritten")))));
+
+        var operation = new BindingTestHost()
+            .Bind(document, Selection("blob.create"), Curation(Groups("blob", RootGroup())))
+            .Clients.SelectMany(static client => client.Operations)
+            .Single();
+
+        await Assert.That(operation.RequestBody!.IsBinary).IsTrue();
+        await Assert.That(operation.RequestBody.TypeName).IsEqualTo("Stream");
+        await Assert.That(operation.RequestBody.ParameterName).IsEqualTo("content");
+        await Assert.That(operation.QueryRequest!.RidesRequestBody).IsFalse();
+        await Assert
+            .That(operation.QueryRequest.Properties.Select(static property => $"{property.PropertyName}:{property.Kind}:{property.IsRequired}"))
+            .IsEquivalentTo(["Location:Location:False", "Path:Text:True"]);
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_An_Optional_Octet_Stream_Body()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithSchema("BlobWritten", schema => schema
+                .Type("object")
+                .Property("path", property => property.Type("string"), required: true))
+            .WithOperation("health.write", method: "post", path: "/api/health/write", configure: operation => operation
+                .RequestBody("application/octet-stream", schema => schema.Type("string").Format("binary"))
+                .Response(200, "application/json", schema => schema.Ref("BlobWritten")))));
+
+        await AssertOperationRefusalAsync(document, "health.write", "the request body must be declared required");
     }
 
     [Test]

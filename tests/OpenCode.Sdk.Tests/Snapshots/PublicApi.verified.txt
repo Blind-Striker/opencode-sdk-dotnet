@@ -145,10 +145,24 @@ namespace OpenCode.Sdk
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ExperimentalSessionInstructionsEntryResponse> SetSessionInstructionsEntryAsync(string sessionId, string key, OpenCode.Sdk.Models.ExperimentalSessionInstructionsEntryRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ExperimentalConfigUpdateResponse> UpdateConfigAsync(OpenCode.Sdk.Models.ExperimentalConfigUpdateRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ExperimentalSessionWaitResponse> WaitForSessionAsync(string sessionId, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ExperimentalFsWriteResponse> WriteFileAsync(OpenCode.Sdk.ExperimentalFsWriteRequest request, System.IO.Stream content, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class ExperimentalConfigUpdateResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ExperimentalConfigUpdateResponse>
     {
         public ExperimentalConfigUpdateResponse() { }
+    }
+    public sealed class ExperimentalFsWriteRequest : System.IEquatable<OpenCode.Sdk.ExperimentalFsWriteRequest>
+    {
+        public ExperimentalFsWriteRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+        public required string Path { get; init; }
+    }
+    public sealed class ExperimentalFsWriteResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ExperimentalFsWriteResponse>
+    {
+        public ExperimentalFsWriteResponse() { }
+        public required OpenCode.Sdk.Models.FileSystemWrite File { get; init; }
+        public required OpenCode.Sdk.Models.LocationPublicRef Location { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class ExperimentalGenerateTextResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ExperimentalGenerateTextResponse>
     {
@@ -662,6 +676,7 @@ namespace OpenCode.Sdk
             public const string SetSessionInstructionsEntryTemplate = "/api/experimental/session/{sessionID}/instructions/entries/{key}";
             public const string UpdateConfig = "/api/experimental/config";
             public const string WaitForSessionTemplate = "/api/experimental/session/{sessionID}/wait";
+            public const string WriteFileTemplate = "/api/experimental/fs/write";
             public static string ActivateSessionSkill(string sessionId) { }
             public static string AddIntegrationWellknown(OpenCode.Sdk.Models.ExperimentalIntegrationWellknownAddRequest? request = null) { }
             public static string AddMcpServer(string server, OpenCode.Sdk.Models.ExperimentalMcpAddRequest? request = null) { }
@@ -674,6 +689,7 @@ namespace OpenCode.Sdk
             public static string RemoveSessionInstructionsEntry(string sessionId, string key) { }
             public static string SetSessionInstructionsEntry(string sessionId, string key) { }
             public static string WaitForSession(string sessionId) { }
+            public static string WriteFile(OpenCode.Sdk.ExperimentalFsWriteRequest request) { }
         }
         public static class FileSystem
         {
@@ -3241,6 +3257,12 @@ namespace OpenCode.Sdk.Models
         File = 0,
         [System.Text.Json.Serialization.JsonStringEnumMemberName("directory")]
         Directory = 1,
+    }
+    public sealed class FileSystemWrite : System.IEquatable<OpenCode.Sdk.Models.FileSystemWrite>
+    {
+        public FileSystemWrite() { }
+        [System.Text.Json.Serialization.JsonPropertyName("path")]
+        public required string Path { get; init; }
     }
     public sealed class FilesystemChanged : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.FilesystemChanged>
     {

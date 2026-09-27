@@ -564,6 +564,25 @@ public static class OpenCodeRoutes
 
             return "/api/experimental/session/" + RouteValuePolicy.Escape(sessionId, nameof(sessionId)) + "/wait";
         }
+
+        /// <summary>
+        /// The &apos;POST /api/experimental/fs/write&apos; route template.
+        /// </summary>
+        public const string WriteFileTemplate = "/api/experimental/fs/write";
+        /// <summary>
+        /// Builds the &apos;/api/experimental/fs/write&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string WriteFile(ExperimentalFsWriteRequest request)
+        {
+            ArgumentNullException.ThrowIfNull(request);
+            var path = "/api/experimental/fs/write";
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            query.AddText("path", request.Path);
+            return path + query.Value;
+        }
     }
 
     /// <summary>

@@ -36,7 +36,19 @@ internal sealed class ResponseBufferingPolicy : PipelinePolicy
         using var progress = CancellationTokenSource.CreateLinkedTokenSource(message.CancellationToken);
         message.NetworkToken = progress.Token;
         progress.CancelAfter(message.NetworkTimeout);
-        await ProcessNextAsync(message, remaining).ConfigureAwait(false);
+
+        // A streamed request body restarts the window as each chunk goes out, so the send is
+        // bounded by progress exactly like the read.
+        message.ProgressWindow = progress;
+        try
+        {
+            await ProcessNextAsync(message, remaining).ConfigureAwait(false);
+        }
+        finally
+        {
+            message.ProgressWindow = null;
+        }
+
         Debug.Assert(message.Response is not null, "The transport writes the response before this policy resumes.");
         if (ShouldBuffer(message))
         {
