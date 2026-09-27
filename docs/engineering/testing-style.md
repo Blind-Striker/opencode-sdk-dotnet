@@ -136,6 +136,11 @@ unsupported OpenAPI constructs and prove the exact required/null-representation 
   holder). A test whose load a runner cannot carry beside another host's timed tests carries a
   `TestCategories` category the documented gate runs in a pass of its own
   (`quality-gates.md`); background-service elections are the one such category.
+- A test that compiles the whole SDK through `GeneratedSourceCompiler` carries
+  `[ParallelLimiter<RoslynCompilationSlots>]`, so at most two such compilations run in a host at
+  once. One compilation already uses every core; more at once only starve the hosts beside it.
+  The compiler compiles each distinct set of emitted sources once per process, so tests that emit
+  the same plan share one compilation.
 
 ## 6. Owned servers are hermetic
 

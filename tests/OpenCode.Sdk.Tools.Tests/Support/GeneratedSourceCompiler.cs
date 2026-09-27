@@ -1,5 +1,7 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Runtime.Loader;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.CodeAnalysis;
@@ -62,8 +64,23 @@ internal static class GeneratedSourceCompiler
     ];
 
     /// <summary>
+    /// One compilation per distinct set of emitted sources for the life of the test process:
+    /// every compilation carries the whole SDK, so tests that emit the same plan share one
+    /// compilation and one loaded assembly instead of repeating the same work. The tests only
+    /// read the loaded assembly's static state, so sharing it changes nothing they observe.
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, Lazy<CompiledProbe>> Probes = new(StringComparer.Ordinal);
+
+    /// <summary>Serializes the one-time read of the hand-written SDK sources.</summary>
+    private static readonly SemaphoreSlim CoreTreesLoad = new(1, 1);
+
+    /// <summary>The hand-written SDK sources, read and parsed once; each compilation filters them.</summary>
+    private static List<CoreTree>? coreTrees;
+
+    /// <summary>
     /// Compiles the generated sources together with the hand-written SDK sources so generated
     /// clients resolve the behavior core; an emitted path shadows its committed twin.
+    /// A test that compiles carries <c>[ParallelLimiter&lt;RoslynCompilationSlots&gt;]</c>.
     /// </summary>
     /// <param name="sources">The freshly emitted sources.</param>
     /// <returns>Warning-or-worse diagnostics.</returns>
@@ -71,33 +88,102 @@ internal static class GeneratedSourceCompiler
     {
         ArgumentNullException.ThrowIfNull(sources);
 
-        return Compile(sources, await LoadSdkCoreTreesAsync(sources)).Diagnostics;
+        return (await ProbeAsync(sources)).Diagnostics;
     }
 
+    /// <summary>
+    /// Compiles as <see cref="CompileWithSdkCoreAsync"/> does, refuses any warning-or-worse
+    /// diagnostic, and returns the loaded assembly.
+    /// </summary>
+    /// <param name="sources">The freshly emitted sources.</param>
+    /// <returns>The compiled assembly, loaded into the default context.</returns>
     public static async Task<Assembly> CompileAndLoadWithSdkCoreAsync(IReadOnlyList<GeneratedSource> sources)
     {
         ArgumentNullException.ThrowIfNull(sources);
 
-        var result = Compile(sources, await LoadSdkCoreTreesAsync(sources));
-        if (result.Diagnostics.Length > 0)
+        var probe = await ProbeAsync(sources);
+        if (probe.Diagnostics.Length > 0)
         {
             throw new InvalidOperationException(string.Join(Environment.NewLine,
-                result.Diagnostics.Select(static diagnostic => diagnostic.ToString())));
+                probe.Diagnostics.Select(static diagnostic => diagnostic.ToString())));
         }
 
-        using var stream = new MemoryStream();
-        var emitted = result.Compilation.Emit(stream);
-        if (!emitted.Success)
-        {
-            throw new InvalidOperationException(string.Join(Environment.NewLine,
-                emitted.Diagnostics.Select(static diagnostic => diagnostic.ToString())));
-        }
-
-        stream.Position = 0;
-        return AssemblyLoadContext.Default.LoadFromStream(stream);
+        return probe.Assembly;
     }
 
-    private static async Task<List<SyntaxTree>> LoadSdkCoreTreesAsync(IReadOnlyList<GeneratedSource> sources)
+    private static async Task<CompiledProbe> ProbeAsync(IReadOnlyList<GeneratedSource> sources)
+    {
+        var core = await CoreTreesAsync();
+        return Probes.GetOrAdd(
+            ContentKey(sources),
+            static (_, input) => new Lazy<CompiledProbe>(() => CompileProbe(input.Sources, input.Core)),
+            (Sources: sources, Core: core)).Value;
+    }
+
+    /// <summary>The SHA-256 of every emitted path and its bytes, in emission order.</summary>
+    private static string ContentKey(IReadOnlyList<GeneratedSource> sources)
+    {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (var source in sources)
+        {
+            hash.AppendData(Encoding.UTF8.GetBytes(source.RelativePath));
+            hash.AppendData([0]);
+            hash.AppendData(source.Utf8Source.Span);
+            hash.AppendData([0]);
+        }
+
+        return Convert.ToHexString(hash.GetHashAndReset());
+    }
+
+    private static CompiledProbe CompileProbe(IReadOnlyList<GeneratedSource> sources, List<CoreTree> core)
+    {
+        var emitted = sources.Select(static source => source.RelativePath).ToHashSet(StringComparer.Ordinal);
+        var skipped = GeneratedSurfaceConsumers
+            .Where(consumer => !emitted.Contains(consumer.RequiredEmission))
+            .Select(static consumer => consumer.Consumer)
+            .ToHashSet(StringComparer.Ordinal);
+        var trees = core
+            .Where(tree => !skipped.Contains(tree.Relative))
+            .Select(static tree => tree.Tree)
+            .ToList();
+
+        var result = Compile(sources, trees);
+        if (result.Diagnostics.Length > 0)
+        {
+            return new CompiledProbe(result.Diagnostics, image: null);
+        }
+
+        // The image is emitted now so the probe holds bytes rather than the whole compilation.
+        using var stream = new MemoryStream();
+        var emittedImage = result.Compilation.Emit(stream);
+        if (!emittedImage.Success)
+        {
+            throw new InvalidOperationException(string.Join(Environment.NewLine,
+                emittedImage.Diagnostics.Select(static diagnostic => diagnostic.ToString())));
+        }
+
+        return new CompiledProbe(result.Diagnostics, stream.ToArray());
+    }
+
+    private static async Task<List<CoreTree>> CoreTreesAsync()
+    {
+        if (Volatile.Read(ref coreTrees) is { } loaded)
+        {
+            return loaded;
+        }
+
+        await CoreTreesLoad.WaitAsync();
+        try
+        {
+            return coreTrees ??= await LoadSdkCoreTreesAsync();
+        }
+        finally
+        {
+            _ = CoreTreesLoad.Release();
+        }
+    }
+
+    private static async Task<List<CoreTree>> LoadSdkCoreTreesAsync()
     {
         // The SDK project compiles with implicit usings; the probe replays the same set.
         const string implicitUsings = """
@@ -111,14 +197,9 @@ internal static class GeneratedSourceCompiler
                                       """;
         var fileSystem = new RealFileSystem();
         var root = fileSystem.Path.Combine(AppContext.BaseDirectory, "Fixtures", "SdkSource");
-        var emitted = sources.Select(static source => source.RelativePath).ToHashSet(StringComparer.Ordinal);
-        var skipped = GeneratedSurfaceConsumers
-            .Where(consumer => !emitted.Contains(consumer.RequiredEmission))
-            .Select(static consumer => consumer.Consumer)
-            .ToHashSet(StringComparer.Ordinal);
-        var coreTrees = new List<SyntaxTree>
+        var trees = new List<CoreTree>
         {
-            CSharpSyntaxTree.ParseText(implicitUsings, ParseOptions, "sdk:ImplicitUsings.cs", Encoding.UTF8),
+            new("ImplicitUsings.cs", CSharpSyntaxTree.ParseText(implicitUsings, ParseOptions, "sdk:ImplicitUsings.cs", Encoding.UTF8)),
         };
         foreach (var entry in fileSystem
                      .Directory
@@ -126,19 +207,16 @@ internal static class GeneratedSourceCompiler
                      .Select(path => (Path: path, Relative: fileSystem.Path.GetRelativePath(root, path).Replace('\\', '/')))
                      .OrderBy(static entry => entry.Relative, StringComparer.Ordinal))
         {
-            if (skipped.Contains(entry.Relative))
-            {
-                continue;
-            }
-
             var text = await fileSystem.File.ReadAllTextAsync(entry.Path, CancellationToken.None);
             if (!text.StartsWith("// Generated by OpenCode.Sdk.Tools", StringComparison.Ordinal))
             {
-                coreTrees.Add(CSharpSyntaxTree.ParseText(text, ParseOptions, $"sdk:{entry.Relative}", Encoding.UTF8));
+                trees.Add(new CoreTree(
+                    entry.Relative,
+                    CSharpSyntaxTree.ParseText(text, ParseOptions, $"sdk:{entry.Relative}", Encoding.UTF8)));
             }
         }
 
-        return coreTrees;
+        return trees;
     }
 
     private static CompilationResult Compile(IReadOnlyList<GeneratedSource> sources, IReadOnlyList<SyntaxTree> extraTrees)
@@ -225,4 +303,25 @@ internal static class GeneratedSourceCompiler
     }
 
     private sealed record CompilationResult(Compilation Compilation, Diagnostic[] Diagnostics);
+
+    private sealed record CoreTree(string Relative, SyntaxTree Tree);
+
+    /// <summary>A compilation's outcome: its diagnostics and, when it has none, the image, loaded once on first use.</summary>
+    private sealed class CompiledProbe
+    {
+        private readonly Lazy<Assembly>? _assembly;
+
+        public CompiledProbe(Diagnostic[] diagnostics, byte[]? image)
+        {
+            Diagnostics = diagnostics;
+            _assembly = image is null
+                ? null
+                : new Lazy<Assembly>(() => AssemblyLoadContext.Default.LoadFromStream(new MemoryStream(image, writable: false)));
+        }
+
+        public Diagnostic[] Diagnostics { get; }
+
+        public Assembly Assembly => _assembly?.Value
+                                    ?? throw new InvalidOperationException("A compilation with diagnostics has no image to load.");
+    }
 }

@@ -97,6 +97,7 @@ public sealed class ModelMaterializationMatrixTests
     }
 
     [Test]
+    [ParallelLimiter<RoslynCompilationSlots>]
     public async Task Emit_Should_Compile_Source_Generate_And_Materialize_The_Nullability_Matrix()
     {
         var plan = await CreatePlanAsync();
@@ -495,6 +496,7 @@ public sealed class ModelMaterializationMatrixTests
     /// serialize back, so nothing the server sent is lost.
     /// </summary>
     [Test]
+    [ParallelLimiter<RoslynCompilationSlots>]
     public async Task Bind_Should_Compile_And_Roundtrip_An_Open_Models_Extension_Data()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
@@ -555,6 +557,7 @@ public sealed class ModelMaterializationMatrixTests
     /// assert their DTO wall still refuses a missing 'data'.
     /// </summary>
     [Test]
+    [ParallelLimiter<RoslynCompilationSlots>]
     public async Task Bind_Should_Compile_And_Roundtrip_Container_Envelope_Payloads()
     {
         var (plan, operations) = await CreateContainerEnvelopePlanAsync();
@@ -577,6 +580,7 @@ public sealed class ModelMaterializationMatrixTests
     /// itself rather than the value it wraps.
     /// </summary>
     [Test]
+    [ParallelLimiter<RoslynCompilationSlots>]
     public async Task Bind_Should_Compile_And_Roundtrip_Promoted_Inline_Envelope_Payloads()
     {
         var (plan, stats, handoff) = await CreatePromotedInlinePlanAsync();
@@ -602,6 +606,7 @@ public sealed class ModelMaterializationMatrixTests
     /// represented-nullable arm still materializes as CLR null on a success.
     /// </summary>
     [Test]
+    [ParallelLimiter<RoslynCompilationSlots>]
     public async Task Bind_Should_Materialize_A_Single_Key_Envelope_Under_Its_Own_Wire_Key()
     {
         var (plan, operation) = await CreateSingleKeyEnvelopePlanAsync();
@@ -626,6 +631,7 @@ public sealed class ModelMaterializationMatrixTests
     /// distinct from the field-null coalesce the non-nullable shape keeps using.
     /// </summary>
     [Test]
+    [ParallelLimiter<RoslynCompilationSlots>]
     public async Task Bind_Should_Materialize_A_Nullable_Data_Envelope_Payload_By_Response_State()
     {
         var (plan, operation) = await CreateNullableDataEnvelopePlanAsync();
@@ -667,6 +673,7 @@ public sealed class ModelMaterializationMatrixTests
     /// fails materialization behind <c>RespectNullableAnnotations</c>, exactly as before.
     /// </summary>
     [Test]
+    [ParallelLimiter<RoslynCompilationSlots>]
     public async Task Bind_Should_Still_Fail_To_Materialize_A_Wire_Null_For_A_Non_Nullable_Data_Envelope_Payload()
     {
         var (plan, operations) = await CreateContainerEnvelopePlanAsync();
@@ -739,6 +746,7 @@ public sealed class ModelMaterializationMatrixTests
     /// promotes its item under the operation-scoped name and round-trips both siblings.
     /// </summary>
     [Test]
+    [ParallelLimiter<RoslynCompilationSlots>]
     public async Task Bind_Should_Compile_And_Roundtrip_A_Promoted_Data_Location_List_Item()
     {
         var (plan, operation) = await CreatePromotedDataLocationListPlanAsync();
@@ -799,6 +807,7 @@ public sealed class ModelMaterializationMatrixTests
     /// carries the payload, so no bare-container registry entry is needed.
     /// </summary>
     [Test]
+    [ParallelLimiter<RoslynCompilationSlots>]
     public async Task Bind_Should_Compile_And_Roundtrip_A_Data_Location_List_Ref_To_A_Named_Array_Component()
     {
         var (plan, operation) = await CreateRefToNamedArrayDataLocationListPlanAsync();

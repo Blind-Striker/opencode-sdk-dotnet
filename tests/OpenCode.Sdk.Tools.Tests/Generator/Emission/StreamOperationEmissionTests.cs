@@ -6,6 +6,7 @@ namespace OpenCode.Sdk.Tools.Tests.Generator.Emission;
 public sealed class StreamOperationEmissionTests
 {
     [Test]
+    [ParallelLimiter<RoslynCompilationSlots>]
     public async Task Emit_Should_Bind_Source_Generate_And_Compile_A_Stream_Operation()
     {
         var plan = await EmitterPlanFixture.CreateStreamPlanAsync();
